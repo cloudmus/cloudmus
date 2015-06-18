@@ -4,12 +4,10 @@
   plugin.url = "https://music.yandex.ru/";
 
   plugin.actions = {
-    hello: function(){console/log("hello!");},
-    
-	  play: function(){},
-	  stop: function(){},
-	  next: function(){},
-	  clearPage: function(){},
-  };
-
+    hello: function(arg1){console.log("Hello man!", arg1);},
+    play: function(){},
+    stop: function(){},
+    next: function(){},
+    clearPage: function(){},
+  }
 }(WebMusicPlugin));

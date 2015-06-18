@@ -4,13 +4,16 @@
 #
 #-------------------------------------------------
 
-QT       += core gui webkit script
+QT += core gui webkit script
+
+QMAKE_CXXFLAGS += -std=c++11
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets webkitwidgets
+greaterThan(QT_MAJOR_VERSION, 4): CONFIG += c++11
+
 
 TARGET = webmusic
 TEMPLATE = app
-
 
 SOURCES += \
   main.cpp\
@@ -18,9 +21,9 @@ SOURCES += \
   plugin.cpp\
 
 
-HEADERS  += \
+HEADERS += \
   mainwindow.h\
   plugin.h\
 
 
-FORMS    += mainwindow.ui
+FORMS += mainwindow.ui

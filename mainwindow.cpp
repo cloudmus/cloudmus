@@ -1,24 +1,26 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-#include <QFile>
 
-#include <QWebView>
+#include <QFile>
+#include <QMenu>
+#include <QSignalMapper>
 #include <QWebFrame>
-#include <QWebSettings>
 #include <QWebInspector>
+#include <QWebSettings>
+#include <QWebView>
 
 #include <QDebug>
 
-#include <plugin.h>
 
-Plugin* p;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    ui_(new Ui::MainWindow),
+    tray_(this)
 {
-    ui->setupUi(this);
+    ui_->setupUi(this);
+    
     QWebSettings::globalSettings()->setAttribute(QWebSettings::PluginsEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::JavascriptEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::LocalStorageEnabled, true);
@@ -32,31 +34,39 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     QWebView* webEngine = new QWebView(centralWidget());
-    p = new Plugin("yandex.js", webEngine);
+    
+    p_.reset(new Plugin("yandex.js", webEngine));
 
     centralWidget()->layout()->addWidget(webEngine);
-    webEngine->setUrl(QUrl(p->url()));
-    connect(webEngine, SIGNAL(urlChanged(QUrl)), this, SLOT(loadFinished()));
+    webEngine->load(QUrl(p_->url()));
+    connect(webEngine, SIGNAL(loadFinished(bool)), this, SLOT(loadFinished()));
+    
+    tray_.setIcon(QIcon::fromTheme("edit-undo"));
+    tray_.setVisible(true);
+    tray_.setContextMenu(new QMenu());
+    
+    createActions();
 }
 
 MainWindow::~MainWindow()
+{}
+
+void MainWindow::createActions()
 {
-    delete ui;
+    QMenu* menu = tray_.contextMenu();
+    
+    QSignalMapper* mapper = new QSignalMapper(p_.get());
+    
+    QAction* a = menu->addAction(QIcon::fromTheme("edit-undo"), "hello");
+    connect(a, SIGNAL(triggered()), mapper, SLOT(map()));
+    mapper->setMapping(a, "hello");
+    
+    connect(mapper, SIGNAL(mapped(const QString &)), p_.get(), SLOT(call(QString)));
 }
+
 
 void MainWindow::loadFinished()
 {
     QWebView* webEngine = qobject_cast<QWebView*>(sender());
-    webEngine->page()->mainFrame()->evaluateJavaScript("console.log('loadFinished1');");
-    // webEngine->page()->currentFrame()->addToJavaScriptWindowObject ("WebMusicPlugin", p);
-    webEngine->page()->mainFrame()->evaluateJavaScript("console.log('loadFinished2');");
-
-    // p->hello(webEngine->page()->currentFrame());
-
-    // QFile file("yandex.js");
-    // file.open(QFile::ReadOnly);
-
-    // webEngine->page()->currentFrame()->evaluateJavaScript(file.readAll());
-    // webEngine->page()->currentFrame()->evaluateJavaScript("console.log(window.WebMusicPlugin);");
-
+    p_->initialize(webEngine->page()->mainFrame());
 }

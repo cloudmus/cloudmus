@@ -12,15 +12,17 @@ Plugin::Plugin(const QString& filename, QObject *parent)
 
     QFile file(filename);
     file.open(QFile::ReadOnly);
+    plugin_ = file.readAll();
 
     QScriptValue self = engine.newQObject(this);
     engine.globalObject().setProperty("WebMusicPlugin", self);
-    engine.evaluate(file.readAll());
-}
+    engine.evaluate(plugin_);
+    actions_ = QVariant();
+};
 
 Plugin::~Plugin() {
 
-}
+};
 
 QString Plugin::name() const {
     return name_;
@@ -38,12 +40,29 @@ void Plugin::setUrl(QString url) {
     url_ = url;
 };
 
-void Plugin::hello(QWebFrame* frame) {
-  qDebug() << "hello";
-    QVariant v0 = frame->evaluateJavaScript("console.log(111);");
-    QVariant v1 = frame->evaluateJavaScript("console.log(WebMusicPlugin.actions);");
-    QVariant v2 = frame->evaluateJavaScript("console.log(222);");
-  qDebug() << v0;
-    QVariant v = frame->evaluateJavaScript ("WebMusicPlugin.actions.hello()i;");
-    qDebug() << v;
-};
+QByteArray Plugin::plugin() const
+{
+    return plugin_;
+}
+
+void Plugin::initialize(QWebFrame* frame) {
+    frame->evaluateJavaScript("WebMusicPlugin = {};");
+    frame->evaluateJavaScript(plugin_);
+    
+    frame->addToJavaScriptWindowObject("QWebMusicPlugin", this);
+    frame->evaluateJavaScript("WebMusicPlugin.QObject = QWebMusicPlugin; delete window.QWebMusicPlugin;");
+     
+    frame->evaluateJavaScript("\
+    (function(){\
+        var callFunctionFromQt = function(name, arg1, arg2, arg3) {WebMusicPlugin.actions[name](arg1, arg2, arg3);};\
+        WebMusicPlugin.QObject.call_js.connect(callFunctionFromQt);\
+    }());\
+    ");
+}
+
+
+void Plugin::call(QString function, QVariant arg1, QVariant arg2, QVariant arg3)
+{
+    Q_EMIT call_js(function, arg1, arg2, arg3);
+}
+
