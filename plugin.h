@@ -46,8 +46,8 @@ Q_SIGNALS:
 public Q_SLOTS:
     void initialize(QWebFrame* frame);
     
-    void addAction(QString text, QString icon, QString callback) {
-        Q_EMIT addActionSignal(text, icon, callback);        
+    void addAction(QString text, QString icon, QString action) {
+        Q_EMIT addActionSignal(text, icon, action);        
     }
     
     void call(QString function, QVariant arg1 = QVariant(), QVariant arg2 = QVariant(), QVariant arg3 = QVariant()) {

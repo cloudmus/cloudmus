@@ -12,7 +12,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets webkitwidgets
 greaterThan(QT_MAJOR_VERSION, 4): CONFIG += c++11
 
 
-TARGET = webmusic
+TARGET = cloudmus
 TEMPLATE = app
 
 SOURCES += \
@@ -24,6 +24,9 @@ SOURCES += \
 HEADERS += \
   mainwindow.h\
   plugin.h\
+ 
+RESOURCES += \
+  images.qrc
 
 
 FORMS += mainwindow.ui

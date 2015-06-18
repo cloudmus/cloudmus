@@ -37,7 +37,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QWebView* webEngine = new QWebView(centralWidget());
     centralWidget()->layout()->addWidget(webEngine);
     
-    tray_.setIcon(QIcon::fromTheme("edit-undo"));
+    tray_.setIcon(QIcon("icons:cloudmus.png"));
     tray_.setVisible(true);
     tray_.setContextMenu(new QMenu());
     
@@ -49,13 +49,28 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {}
 
-void MainWindow::addAction(QString text, QString icon, QString callback)
+QString fallbackIcon(QString icon) {
+    const static std::map<QString, QString> fallbackIcons = {
+        {"play",  "media-playback-start"},
+        {"stop",  "media-playback-stop"},
+        {"pause", "media-playback-pause"},
+        {"next",  "media-skip-forward"},
+    };
+
+    const auto it = fallbackIcons.find(icon);
+    return (it == fallbackIcons.end()) ? icon : it->second;
+}
+
+void MainWindow::addAction(QString text, QString icon, QString action)
 {
+
+    
+    
     QMenu* menu = tray_.contextMenu();
     QSignalMapper* mapper = new QSignalMapper(p_.get());
-    QAction* a = menu->addAction(QIcon::fromTheme(icon), text);
+    QAction* a = menu->addAction(QIcon::fromTheme(icon, QIcon::fromTheme(fallbackIcon(action))), text);
     Q_VERIFY(connect(a, SIGNAL(triggered()), mapper, SLOT(map())));
-    mapper->setMapping(a, callback);
+    mapper->setMapping(a, action);
     Q_VERIFY(connect(mapper, SIGNAL(mapped(const QString &)), p_.get(), SLOT(call(QString))));
 }
 

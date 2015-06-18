@@ -21,7 +21,7 @@ public:
     ~MainWindow();
 
 public Q_SLOTS:
-    void addAction(QString text, QString icon, QString callback);
+    void addAction(QString text, QString icon, QString action);
     
 private:
 
