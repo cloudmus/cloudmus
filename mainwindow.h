@@ -15,6 +15,9 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+public Q_SLOTS:
+  void loadFinished();
+
 private:
     Ui::MainWindow *ui;
 };

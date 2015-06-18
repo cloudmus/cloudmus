@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui webkit
+QT       += core gui webkit script
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets webkitwidgets
 
@@ -12,9 +12,15 @@ TARGET = webmusic
 TEMPLATE = app
 
 
-SOURCES += main.cpp\
-        mainwindow.cpp
+SOURCES += \
+  main.cpp\
+  mainwindow.cpp\
+  plugin.cpp\
 
-HEADERS  += mainwindow.h
+
+HEADERS  += \
+  mainwindow.h\
+  plugin.h\
+
 
 FORMS    += mainwindow.ui
