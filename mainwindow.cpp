@@ -1,7 +1,5 @@
-#include "mainwindow.h"
-#include "ui_mainwindow.h"
 
-
+#include <QDebug>
 #include <QFile>
 #include <QMenu>
 #include <QSignalMapper>
@@ -10,7 +8,10 @@
 #include <QWebSettings>
 #include <QWebView>
 
-#include <QDebug>
+#include "tools.h"
+
+#include "ui_mainwindow.h"
+#include "mainwindow.h"
 
 
 
@@ -34,39 +35,27 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     QWebView* webEngine = new QWebView(centralWidget());
-    
-    p_.reset(new Plugin("yandex.js", webEngine));
-
     centralWidget()->layout()->addWidget(webEngine);
-    webEngine->load(QUrl(p_->url()));
-    connect(webEngine, SIGNAL(loadFinished(bool)), this, SLOT(loadFinished()));
     
     tray_.setIcon(QIcon::fromTheme("edit-undo"));
     tray_.setVisible(true);
     tray_.setContextMenu(new QMenu());
     
-    createActions();
+    p_.reset(new Plugin("yandex.js", webEngine));
+    Q_VERIFY(connect(p_.get(), SIGNAL(addActionSignal(QString, QString, QString)), this, SLOT(addAction(QString, QString, QString))));
+    p_->initialize(webEngine->page()->mainFrame());
 }
 
 MainWindow::~MainWindow()
 {}
 
-void MainWindow::createActions()
+void MainWindow::addAction(QString text, QString icon, QString callback)
 {
     QMenu* menu = tray_.contextMenu();
-    
     QSignalMapper* mapper = new QSignalMapper(p_.get());
-    
-    QAction* a = menu->addAction(QIcon::fromTheme("edit-undo"), "hello");
-    connect(a, SIGNAL(triggered()), mapper, SLOT(map()));
-    mapper->setMapping(a, "hello");
-    
-    connect(mapper, SIGNAL(mapped(const QString &)), p_.get(), SLOT(call(QString)));
+    QAction* a = menu->addAction(QIcon::fromTheme(icon), text);
+    Q_VERIFY(connect(a, SIGNAL(triggered()), mapper, SLOT(map())));
+    mapper->setMapping(a, callback);
+    Q_VERIFY(connect(mapper, SIGNAL(mapped(const QString &)), p_.get(), SLOT(call(QString))));
 }
 
-
-void MainWindow::loadFinished()
-{
-    QWebView* webEngine = qobject_cast<QWebView*>(sender());
-    p_->initialize(webEngine->page()->mainFrame());
-}

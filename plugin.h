@@ -5,35 +5,62 @@
 #include <QVariant>
 #include <QWebFrame>
 
+#define ADD_PARAM(name, type, def) \
+    type name() const {\
+        return name##_;\
+    }\
+    void set_##name(const type& value) {\
+        name##_ = value;\
+        Q_EMIT name##_changed(value);\
+    }\
+    void reset_##name() {\
+        set_##name(default_##name());\
+    } \
+    type default_##name() const {\
+        return def;\
+    }
+
+    
+// //
 class Plugin : public QObject
 {
     Q_OBJECT 
-    Q_PROPERTY(QString name READ name WRITE setName)
-    Q_PROPERTY(QString url READ url WRITE setUrl)
-    Q_PROPERTY(QVariant actions READ actions WRITE setActions)
+    Q_PROPERTY(QString name READ name WRITE set_name)
+    Q_PROPERTY(QString url  READ url  WRITE set_url)
+    Q_PROPERTY(QVariant actions READ actions WRITE set_actions)
 
 public:
 
     explicit Plugin(const QString& filename, QObject *parent = 0);
     ~Plugin();
 
-    Q_SCRIPTABLE QString name() const;
-    Q_SCRIPTABLE void setName(QString name);
-
-    Q_SCRIPTABLE QString url() const;
-    Q_SCRIPTABLE void setUrl(QString url);
-
-    Q_SCRIPTABLE QVariant actions() const {return actions_;};
-    Q_SCRIPTABLE void setActions(QVariant actions) {actions_ = actions;};
-
-    QByteArray plugin() const;
-
+    ADD_PARAM(name, QString, QString());
+    ADD_PARAM(url,  QString, QString());
+    ADD_PARAM(actions, QVariant, QVariant());
+    
+Q_SIGNALS:
+    void name_changed(QString);
+    void url_changed(QString);
+    void actions_changed(QVariant);
+    
 public Q_SLOTS:
     void initialize(QWebFrame* frame);
-    void call(QString function, QVariant arg1 = QVariant(), QVariant arg2 = QVariant(), QVariant arg3 = QVariant());
+    
+    void addAction(QString text, QString icon, QString callback) {
+        Q_EMIT addActionSignal(text, icon, callback);        
+    }
+    
+    void call(QString function, QVariant arg1 = QVariant(), QVariant arg2 = QVariant(), QVariant arg3 = QVariant()) {
+         Q_EMIT callSignal(function, arg1, arg2, arg3);
+    }
 
+private Q_SLOTS:
+    void loadFinished(bool ok);
+    
+  
 Q_SIGNALS:
-    void call_js(QString function, QVariant arg1, QVariant arg2, QVariant arg3);
+    void callSignal(QString function, QVariant arg1, QVariant arg2, QVariant arg3);
+    void addActionSignal(QString text, QString icon, QString callback);
     
 private:
     QByteArray plugin_;

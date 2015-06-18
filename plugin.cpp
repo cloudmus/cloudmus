@@ -2,7 +2,7 @@
 #include <QDebug>
 #include <QtScript/QScriptEngine>
 
-
+#include "tools.h"
 #include "plugin.h"
 
 Plugin::Plugin(const QString& filename, QObject *parent)
@@ -24,45 +24,31 @@ Plugin::~Plugin() {
 
 };
 
-QString Plugin::name() const {
-    return name_;
-};
-
-void Plugin::setName(QString name) {
-    name_ = name;
-};
-
-QString Plugin::url() const {
-    return url_;
-};
-
-void Plugin::setUrl(QString url) {
-    url_ = url;
-};
-
-QByteArray Plugin::plugin() const
-{
-    return plugin_;
+void Plugin::initialize(QWebFrame* frame) {
+    
+    disconnect(frame, SIGNAL(loadFinished(bool)), this, SLOT(loadFinished(bool)));
+    Q_VERIFY(connect(frame, SIGNAL(loadFinished(bool)), this, SLOT(loadFinished(bool))));
+    frame->load(QUrl(url()));
 }
 
-void Plugin::initialize(QWebFrame* frame) {
-    frame->evaluateJavaScript("WebMusicPlugin = {};");
+
+
+void Plugin::loadFinished(bool ok)
+{
+    QWebFrame* frame = qobject_cast<QWebFrame*>(sender());
+
+    frame->addToJavaScriptWindowObject("QWebMusicPlugin", this);    
+    frame->evaluateJavaScript("WebMusicPlugin = {QObject: QWebMusicPlugin}; delete window.QWebMusicPlugin;");
     frame->evaluateJavaScript(plugin_);
-    
-    frame->addToJavaScriptWindowObject("QWebMusicPlugin", this);
-    frame->evaluateJavaScript("WebMusicPlugin.QObject = QWebMusicPlugin; delete window.QWebMusicPlugin;");
-     
+
     frame->evaluateJavaScript("\
     (function(){\
         var callFunctionFromQt = function(name, arg1, arg2, arg3) {WebMusicPlugin.actions[name](arg1, arg2, arg3);};\
-        WebMusicPlugin.QObject.call_js.connect(callFunctionFromQt);\
+        WebMusicPlugin.QObject.callSignal.connect(callFunctionFromQt);\
     }());\
     ");
 }
 
 
-void Plugin::call(QString function, QVariant arg1, QVariant arg2, QVariant arg3)
-{
-    Q_EMIT call_js(function, arg1, arg2, arg3);
-}
+
 

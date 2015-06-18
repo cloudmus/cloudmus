@@ -21,10 +21,10 @@ public:
     ~MainWindow();
 
 public Q_SLOTS:
-  void loadFinished();
-
+    void addAction(QString text, QString icon, QString callback);
+    
 private:
-    void createActions();
+
   
 private:
     std::unique_ptr<Ui::MainWindow> ui_;
