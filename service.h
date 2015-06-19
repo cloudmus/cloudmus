@@ -32,10 +32,10 @@ class Service : public QObject
 
 public:
 
-    explicit Service(const QString& filename, const ServiceDescriptor& descriptor);
+    explicit Service(const QString& filename, ServiceDescriptor& descriptor);
     ~Service();
 
-    const ServiceDescriptor& descriptor() const {return descriptor_;};
+    ServiceDescriptor& descriptor() {return descriptor_;};
     
 
 public Q_SLOTS:
@@ -58,7 +58,7 @@ Q_SIGNALS:
     void addActionSignal(QString text, QString icon, QString callback);
     
 private:
-    const ServiceDescriptor& descriptor_;
+    ServiceDescriptor& descriptor_;
     QByteArray service_;
 };
 

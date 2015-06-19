@@ -8,10 +8,9 @@
 
 #include "service.h"
 
-class ServiceDescriptor : QObject
+class ServiceDescriptor : public QObject
 {
     Q_OBJECT 
-    
 public:
 
     explicit ServiceDescriptor(const QString& filename);

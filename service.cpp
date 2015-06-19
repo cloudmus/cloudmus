@@ -5,7 +5,7 @@
 #include "service_descriptor.h"
 #include "service.h"
 
-Service::Service(const QString& filename, const ServiceDescriptor& descriptor)
+Service::Service(const QString& filename, ServiceDescriptor& descriptor)
     : descriptor_(descriptor)
 {
     QScriptEngine engine;
@@ -32,8 +32,9 @@ void Service::loadFinished(bool ok)
 {
     QWebFrame* frame = qobject_cast<QWebFrame*>(sender());
 
-    frame->addToJavaScriptWindowObject("QWebMusicService", this);    
-    frame->evaluateJavaScript("WebMusicService = {QObject: QWebMusicService}; delete window.QWebMusicService;");
+    frame->addToJavaScriptWindowObject("QWebMusicDescriptor", &descriptor_);
+    frame->addToJavaScriptWindowObject("QWebMusicService", this);
+    frame->evaluateJavaScript("WebMusicService = {QObject: QWebMusicService, descriptor: QWebMusicDescriptor}; delete window.QWebMusicService; delete window.QWebMusicDescriptor");
     frame->evaluateJavaScript(service_);
 
     frame->evaluateJavaScript("\
