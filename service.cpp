@@ -8,13 +8,11 @@
 Service::Service(const QString& filename, ServiceDescriptor& descriptor)
     : descriptor_(descriptor)
 {
-    QScriptEngine engine;
-
     QFile file(filename);
     if (!file.open(QFile::ReadOnly)) {
         throw std::runtime_error("can;t read script");
     }
-    service_ = file.readAll();
+    service_ = file.readAll(); 
 };
 
 Service::~Service()

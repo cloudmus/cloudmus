@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QDebug>
 #include <QDesktopServices>
+#include <QStandardPaths>
 #include <QDir>
 #include <QTextCodec>
 
@@ -38,9 +39,13 @@ int main(int argc, char *argv[])
     app.setOrganizationName("gkb");
     app.setApplicationName("cloudmus");
 
-    
+#ifdef HAVE_QT5
+#else
     QTextCodec::setCodecForTr(QTextCodec::codecForName("utf8"));
+#endif
 
+    
+    
     QDir::addSearchPath("icons", QString(":icons/images/"));
     QDir::addSearchPath("images", QString(":icons/images/"));
     

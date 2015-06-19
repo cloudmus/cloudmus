@@ -4,12 +4,13 @@
 #
 #-------------------------------------------------
 
-QT += core gui webkit script
+QT += core gui webkit
 
 QMAKE_CXXFLAGS += -std=c++11
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets webkitwidgets
 greaterThan(QT_MAJOR_VERSION, 4): CONFIG += c++11
+greaterThan(QT_MAJOR_VERSION, 4): DEFINES += HAVE_QT5
 
 
 TARGET = cloudmus
