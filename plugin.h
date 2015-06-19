@@ -1,6 +1,8 @@
 #ifndef WEBMUSIC_PLUGIN_H
 #define WEBMUSIC_PLUGIN_H
 
+#include <memory>
+
 #include <QObject>
 #include <QVariant>
 #include <QWebFrame>
@@ -68,5 +70,7 @@ private:
     QString url_;
     QVariant actions_;
 };
+
+typedef std::shared_ptr<Plugin> Plugin_p;
 
 #endif // WEBMUSIC_PLUGIN_H

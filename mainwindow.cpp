@@ -8,6 +8,7 @@
 #include <QWebSettings>
 #include <QWebView>
 
+#include "plugin_manager.h"
 #include "tools.h"
 
 #include "ui_mainwindow.h"
@@ -16,7 +17,7 @@
 
 
 MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
+    QMainWindow(parent), 
     ui_(new Ui::MainWindow),
     tray_(this)
 {
@@ -24,10 +25,12 @@ MainWindow::MainWindow(QWidget *parent) :
     
     QWebSettings::globalSettings()->setAttribute(QWebSettings::PluginsEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::JavascriptEnabled, true);
+    QWebSettings::globalSettings()->setAttribute(QWebSettings::QWebSettings::JavaEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::LocalStorageEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::OfflineStorageDatabaseEnabled,true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::OfflineWebApplicationCacheEnabled,true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);
+    QWebSettings::globalSettings()->setAttribute(QWebSettings::XSSAuditingEnabled, true);
     QWebSettings::enablePersistentStorage("/tmp");
 
     QWebSettings::globalSettings()->setOfflineStorageDefaultQuota(5*1024*1024);
@@ -41,7 +44,9 @@ MainWindow::MainWindow(QWidget *parent) :
     tray_.setVisible(true);
     tray_.setContextMenu(new QMenu());
     
-    p_.reset(new Plugin("yandex.js", webEngine));
+    PluginManager manager;
+    p_ = manager.list().front();
+    
     Q_VERIFY(connect(p_.get(), SIGNAL(addActionSignal(QString, QString, QString)), this, SLOT(addAction(QString, QString, QString))));
     p_->initialize(webEngine->page()->mainFrame());
 }

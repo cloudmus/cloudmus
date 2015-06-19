@@ -19,11 +19,13 @@ SOURCES += \
   main.cpp\
   mainwindow.cpp\
   plugin.cpp\
+  plugin_manager.cpp\
 
 
 HEADERS += \
   mainwindow.h\
   plugin.h\
+  plugin_manager.h\
  
 RESOURCES += \
   images.qrc

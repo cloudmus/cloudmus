@@ -29,7 +29,7 @@ private:
 private:
     std::unique_ptr<Ui::MainWindow> ui_;
     QSystemTrayIcon tray_;
-    std::unique_ptr<Plugin> p_;
+    std::shared_ptr<Plugin> p_;
 };
 
 #endif // MAINWINDOW_H
