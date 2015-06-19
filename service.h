@@ -39,14 +39,24 @@ public:
     
 
 public Q_SLOTS:
+    
+    void play(){Q_EMIT playSignal();};    
+    void pause(){Q_EMIT pauseSignal();};
+    void stop(){Q_EMIT stopSignal();};
+    void next(){Q_EMIT nextSignal();};
+    
     void initialize(QWebFrame* frame);
     
-    void addAction(QString text, QString icon, QString action) {
-        Q_EMIT addActionSignal(text, icon, action);        
+    void addCustomAction(QString action, QString text, QString icon) {
+        Q_EMIT addActionSignal(action, text, icon);        
     }
     
-    void call(QString function, QVariant arg1 = QVariant(), QVariant arg2 = QVariant(), QVariant arg3 = QVariant()) {
-         Q_EMIT callSignal(function, arg1, arg2, arg3);
+    void removeAction(QString action) {
+        Q_EMIT removeActionSignal(action);        
+    }
+    
+    void callJS(QString function, QVariant arg1 = QVariant(), QVariant arg2 = QVariant(), QVariant arg3 = QVariant()) {
+         Q_EMIT callJSAction(function, arg1, arg2, arg3);
     }
 
 private Q_SLOTS:
@@ -54,8 +64,15 @@ private Q_SLOTS:
     
   
 Q_SIGNALS:
-    void callSignal(QString function, QVariant arg1, QVariant arg2, QVariant arg3);
-    void addActionSignal(QString text, QString icon, QString callback);
+    void addActionSignal(QString action, QString text, QString icon);
+    void removeActionSignal(QString action);
+    
+    void callJSAction(QString action, QVariant arg1, QVariant arg2, QVariant arg3);
+    
+    void playSignal();
+    void pauseSignal();
+    void stopSignal();
+    void nextSignal();
     
 private:
     ServiceDescriptor& descriptor_;

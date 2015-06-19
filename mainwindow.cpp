@@ -90,6 +90,7 @@ void MainWindow::activateService(ServiceDescriptor_p service)
     title_action_->setText("");
     title_action_->setVisible(false);
     if (current_) {
+        actions_.clear();
         current_->destroy();
         current_.reset();
     }
@@ -102,18 +103,67 @@ void MainWindow::activateService(ServiceDescriptor_p service)
         title_action_->setVisible(true);
         
         Q_VERIFY(connect(current_->service(), SIGNAL(addActionSignal(QString, QString, QString)), this, SLOT(addAction(QString, QString, QString))));
+        Q_VERIFY(connect(current_->service(), SIGNAL(removeActionSignal(QString)), this, SLOT(removeAction(QString))));
         current_->service()->initialize(webEngine->page()->mainFrame());
+        
+        QMenu* menu = tray_.contextMenu();
+
+        QAction* play = menu->addAction(QIcon::fromTheme("media-playback-start"), "play", current_->service(), SLOT(play()));
+        play->setParent(current_->service());
+        actions_["play"] = play;
+        QAction* pause = menu->addAction(QIcon::fromTheme("media-playback-pause"), "pause", current_->service(), SLOT(pause()));
+        pause->setParent(current_->service());
+        actions_["pause"] = pause;
+        QAction* stop = menu->addAction(QIcon::fromTheme("media-playback-stop"), "stop", current_->service(), SLOT(stop()));
+        stop->setParent(current_->service());
+        actions_["stop"] = stop;
+        QAction* next = menu->addAction(QIcon::fromTheme("media-skip-forward"), "next", current_->service(), SLOT(next()));
+        next->setParent(current_->service());
+        actions_["next"] = next;
+
+        pause->setVisible(false);
+        stop->setVisible(false);
+        
+        Q_VERIFY(::connect(play, SIGNAL(triggered(bool)), [pause, play, stop](){
+            pause->setVisible(true && !pause->property("blocked").toBool());
+            stop->setVisible(true && !stop->property("blocked").toBool());
+            play->setVisible(false);
+        }));
+        
+        Q_VERIFY(::connect(pause, SIGNAL(triggered(bool)), [pause, play, stop](){
+            pause->setVisible(false);
+            stop->setVisible(true && !stop->property("blocked").toBool());
+            play->setVisible(true && !play->property("blocked").toBool());
+        }));
+        
+        Q_VERIFY(::connect(stop, SIGNAL(triggered(bool)), [pause, play, stop](){
+            pause->setVisible(false);
+            stop->setVisible(true && !stop->property("blocked").toBool());
+            play->setVisible(true && !play->property("blocked").toBool());
+        }));
     }
 }
 
-void MainWindow::addAction(QString text, QString icon, QString action)
+void MainWindow::addAction(QString action, QString text, QString icon)
 {
     QMenu* menu = tray_.contextMenu();
     QSignalMapper* mapper = new QSignalMapper(current_->service());
     QAction* a = menu->addAction(QIcon::fromTheme(icon, QIcon::fromTheme(fallbackIcon(action))), text);
     a->setParent(current_->service());
+    actions_[action] = a;
     Q_VERIFY(connect(a, SIGNAL(triggered()), mapper, SLOT(map())));
     mapper->setMapping(a, action);
-    Q_VERIFY(connect(mapper, SIGNAL(mapped(const QString &)), current_->service(), SLOT(call(QString))));
+    Q_VERIFY(connect(mapper, SIGNAL(mapped(const QString &)), current_->service(), SLOT(callJS(QString))));
 }
+
+void MainWindow::removeAction(QString action)
+{
+    QPointer<QAction> a = actions_[action];
+    qDebug() << a->text();
+    if (a) {
+        a->setVisible(false);
+        a->setProperty("blocked", true);
+    }
+}
+
 

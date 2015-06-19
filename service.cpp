@@ -38,7 +38,7 @@ void Service::loadFinished(bool ok)
     frame->evaluateJavaScript("\
     (function(){\
         var callFunctionFromQt = function(name, arg1, arg2, arg3) {WebMusicService.actions[name](arg1, arg2, arg3);};\
-        WebMusicService.QObject.callSignal.connect(callFunctionFromQt);\
+        WebMusicService.QObject.callJSAction.connect(callFunctionFromQt);\
         WebMusicService.actions.clearPage();\
     }());\
     ");

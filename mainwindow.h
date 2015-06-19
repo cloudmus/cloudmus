@@ -24,7 +24,8 @@ public:
 public Q_SLOTS:
     void addService(ServiceDescriptor_p service);
     void activateService(ServiceDescriptor_p service);
-    void addAction(QString text, QString icon, QString action);
+    void addAction(QString action, QString text, QString icon);
+    void removeAction(QString action);
     
 private:
 
@@ -38,6 +39,8 @@ private:
     
     ServiceDescriptor_p current_;
     QAction* title_action_;
+    
+    QMap<QString, QPointer<QAction>> actions_;
 
 };
 
