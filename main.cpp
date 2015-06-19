@@ -43,9 +43,11 @@ int main(int argc, char *argv[])
 
     QDir::addSearchPath("icons", QString(":icons/images/"));
     QDir::addSearchPath("images", QString(":icons/images/"));
-
+    
     MainWindow w;
     w.show();
+    
+    w.resize(1000,700);
 
     return app.exec();
 }

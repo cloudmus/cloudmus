@@ -1,5 +1,5 @@
-#ifndef WEBMUSIC_PLUGIN_H
-#define WEBMUSIC_PLUGIN_H
+#ifndef WEBMUSIC_SERVICE_H
+#define WEBMUSIC_SERVICE_H
 
 #include <memory>
 
@@ -24,29 +24,27 @@
 
     
 // //
-class Plugin : public QObject
+class Service : public QObject
 {
     Q_OBJECT 
     Q_PROPERTY(QString name READ name WRITE set_name)
     Q_PROPERTY(QString url  READ url  WRITE set_url)
-    Q_PROPERTY(QVariant actions READ actions WRITE set_actions)
 
 public:
 
-    explicit Plugin(const QString& filename, QObject *parent = 0);
-    ~Plugin();
+    explicit Service(const QString& filename, QObject *parent = 0);
+    ~Service();
 
     ADD_PARAM(name, QString, QString());
     ADD_PARAM(url,  QString, QString());
-    ADD_PARAM(actions, QVariant, QVariant());
     
 Q_SIGNALS:
     void name_changed(QString);
     void url_changed(QString);
-    void actions_changed(QVariant);
     
 public Q_SLOTS:
     void initialize(QWebFrame* frame);
+    void finalize(QWebFrame* frame);
     
     void addAction(QString text, QString icon, QString action) {
         Q_EMIT addActionSignal(text, icon, action);        
@@ -65,12 +63,11 @@ Q_SIGNALS:
     void addActionSignal(QString text, QString icon, QString callback);
     
 private:
-    QByteArray plugin_;
+    QByteArray service_;
     QString name_;
     QString url_;
-    QVariant actions_;
 };
 
-typedef std::shared_ptr<Plugin> Plugin_p;
+typedef std::shared_ptr<Service> Service_p;
 
-#endif // WEBMUSIC_PLUGIN_H
+#endif // WEBMUSIC_SERVICE_H

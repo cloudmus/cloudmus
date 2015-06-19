@@ -18,14 +18,15 @@ TEMPLATE = app
 SOURCES += \
   main.cpp\
   mainwindow.cpp\
-  plugin.cpp\
-  plugin_manager.cpp\
+  service.cpp\
+  service_manager.cpp\
 
 
 HEADERS += \
   mainwindow.h\
-  plugin.h\
-  plugin_manager.h\
+  service.h\
+  service_manager.h\
+  tools.h\
  
 RESOURCES += \
   images.qrc

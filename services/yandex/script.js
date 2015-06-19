@@ -17,4 +17,4 @@
   plugin.QObject.addAction("next",  "media-skip-forward",   "next");
   
   
-}(WebMusicPlugin));
+}(WebMusicService));
