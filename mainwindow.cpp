@@ -46,6 +46,11 @@ MainWindow::MainWindow(QWidget *parent) :
     title_action_ = tray_.contextMenu()->addAction("");
     title_action_->setEnabled(false);
     title_action_->setVisible(false);
+    QFont f = title_action_->font();
+    f.setBold(true);
+    f.setPointSize(f.pointSize() + 2);
+    title_action_->setFont(f);
+
     services_menu_ = tray_.contextMenu()->addMenu("services");
     
     ServiceManager manager;
@@ -74,15 +79,9 @@ QString fallbackIcon(QString icon) {
 
 void MainWindow::addService(ServiceDescriptor_p service)
 {
-    QAction* a = services_menu_->addAction(QIcon::fromTheme("123", QIcon::fromTheme(fallbackIcon("preferences-plugin"))), service->name());
-    a->setCheckable(true);
+    QAction* a = services_menu_->addAction(service->icon(fallbackIcon("preferences-plugin")), service->name());
     Q_VERIFY(::connect(a, SIGNAL(triggered(bool)), [this, service, a](){
-        if (a->isChecked()) {
-            activateService(service);
-        }
-        else {
-            activateService(ServiceDescriptor_p());
-        }
+        activateService(service);
     }));
 }
 
@@ -101,9 +100,6 @@ void MainWindow::activateService(ServiceDescriptor_p service)
         
         title_action_->setText(current_->name());
         title_action_->setVisible(true);
-        QFont f = title_action_->font();
-        f.setBold(true);
-        title_action_->setFont(f);
         
         Q_VERIFY(connect(current_->service(), SIGNAL(addActionSignal(QString, QString, QString)), this, SLOT(addAction(QString, QString, QString))));
         current_->service()->initialize(webEngine->page()->mainFrame());
