@@ -23,28 +23,23 @@
     }
 
     
+class ServiceDescriptor;
+    
 // //
 class Service : public QObject
 {
     Q_OBJECT 
-    Q_PROPERTY(QString name READ name WRITE set_name)
-    Q_PROPERTY(QString url  READ url  WRITE set_url)
 
 public:
 
-    explicit Service(const QString& filename, QObject *parent = 0);
+    explicit Service(const QString& filename, const ServiceDescriptor& descriptor);
     ~Service();
 
-    ADD_PARAM(name, QString, QString());
-    ADD_PARAM(url,  QString, QString());
+    const ServiceDescriptor& descriptor() const {return descriptor_;};
     
-Q_SIGNALS:
-    void name_changed(QString);
-    void url_changed(QString);
-    
+
 public Q_SLOTS:
     void initialize(QWebFrame* frame);
-    void finalize(QWebFrame* frame);
     
     void addAction(QString text, QString icon, QString action) {
         Q_EMIT addActionSignal(text, icon, action);        
@@ -63,9 +58,8 @@ Q_SIGNALS:
     void addActionSignal(QString text, QString icon, QString callback);
     
 private:
+    const ServiceDescriptor& descriptor_;
     QByteArray service_;
-    QString name_;
-    QString url_;
 };
 
 typedef std::shared_ptr<Service> Service_p;

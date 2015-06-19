@@ -1,22 +1,20 @@
 #include <QFile>
 #include <QDebug>
-#include <QtScript/QScriptEngine>
 
 #include "tools.h"
+#include "service_descriptor.h"
 #include "service.h"
 
-Service::Service(const QString& filename, QObject *parent)
-    : QObject(parent)
+Service::Service(const QString& filename, const ServiceDescriptor& descriptor)
+    : descriptor_(descriptor)
 {
     QScriptEngine engine;
 
     QFile file(filename);
-    file.open(QFile::ReadOnly);
+    if (!file.open(QFile::ReadOnly)) {
+        throw std::runtime_error("can;t read script");
+    }
     service_ = file.readAll();
-
-    QScriptValue self = engine.newQObject(this);
-    engine.globalObject().setProperty("WebMusicService", self);
-    engine.evaluate(service_);
 };
 
 Service::~Service()
@@ -27,13 +25,7 @@ void Service::initialize(QWebFrame* frame)
 {
     disconnect(frame, SIGNAL(loadFinished(bool)), this, SLOT(loadFinished(bool)));
     Q_VERIFY(connect(frame, SIGNAL(loadFinished(bool)), this, SLOT(loadFinished(bool))));
-    frame->load(QUrl(url()));
-}
-
-void Service::finalize(QWebFrame* frame)
-{
-    disconnect(frame, SIGNAL(loadFinished(bool)), this, SLOT(loadFinished(bool)));
-    disconnect(this);
+    frame->load(QUrl(descriptor_.url()));
 }
 
 void Service::loadFinished(bool ok)

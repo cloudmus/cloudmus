@@ -72,7 +72,7 @@ QString fallbackIcon(QString icon) {
     return (it == fallbackIcons.end()) ? icon : it->second;
 }
 
-void MainWindow::addService(Service_p service)
+void MainWindow::addService(ServiceDescriptor_p service)
 {
     QAction* a = services_menu_->addAction(QIcon::fromTheme("123", QIcon::fromTheme(fallbackIcon("preferences-plugin"))), service->name());
     a->setCheckable(true);
@@ -81,43 +81,43 @@ void MainWindow::addService(Service_p service)
             activateService(service);
         }
         else {
-            activateService(Service_p());
+            activateService(ServiceDescriptor_p());
         }
     }));
 }
 
-void MainWindow::activateService(Service_p service)
+void MainWindow::activateService(ServiceDescriptor_p service)
 {
     title_action_->setText("");
     title_action_->setVisible(false);
-    if (s_.get()) {
-        s_->finalize(webEngine->page()->mainFrame());
-        disconnect(s_.get(), SIGNAL(addActionSignal(QString, QString, QString)), this, SLOT(addAction(QString, QString, QString)));
-        Q_EMIT finalized(service);
+    if (current_) {
+        current_->destroy();
+        current_.reset();
     }
     
-    s_ = service;
-    
-    if (s_.get()) {
-        title_action_->setText(s_->name());
+    if (service.get()) {
+        current_ = service;
+        current_->create();
+        
+        title_action_->setText(current_->name());
         title_action_->setVisible(true);
         QFont f = title_action_->font();
         f.setBold(true);
         title_action_->setFont(f);
         
-        Q_VERIFY(connect(s_.get(), SIGNAL(addActionSignal(QString, QString, QString)), this, SLOT(addAction(QString, QString, QString))));
-        s_->initialize(webEngine->page()->mainFrame());
+        Q_VERIFY(connect(current_->service(), SIGNAL(addActionSignal(QString, QString, QString)), this, SLOT(addAction(QString, QString, QString))));
+        current_->service()->initialize(webEngine->page()->mainFrame());
     }
 }
 
 void MainWindow::addAction(QString text, QString icon, QString action)
 {
     QMenu* menu = tray_.contextMenu();
-    QSignalMapper* mapper = new QSignalMapper(s_.get());
+    QSignalMapper* mapper = new QSignalMapper(current_->service());
     QAction* a = menu->addAction(QIcon::fromTheme(icon, QIcon::fromTheme(fallbackIcon(action))), text);
+    a->setParent(current_->service());
     Q_VERIFY(connect(a, SIGNAL(triggered()), mapper, SLOT(map())));
     mapper->setMapping(a, action);
-    Q_VERIFY(connect(mapper, SIGNAL(mapped(const QString &)), s_.get(), SLOT(call(QString))));
-    Q_VERIFY(connect(this, SIGNAL(finalized(Service_p)), a, SLOT(deleteLater())));
+    Q_VERIFY(connect(mapper, SIGNAL(mapped(const QString &)), current_->service(), SLOT(call(QString))));
 }
 

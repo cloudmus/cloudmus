@@ -4,9 +4,10 @@
 #include <memory>
 
 #include <QMainWindow>
+#include <QPointer>
 #include <QSystemTrayIcon>
 
-#include "service.h"
+#include "service_descriptor.h"
 
 namespace Ui {
     class MainWindow;
@@ -21,13 +22,9 @@ public:
     ~MainWindow();
 
 public Q_SLOTS:
-    void addService(Service_p service);
-    void activateService(Service_p service);
+    void addService(ServiceDescriptor_p service);
+    void activateService(ServiceDescriptor_p service);
     void addAction(QString text, QString icon, QString action);
-    
-Q_SIGNALS:
-    void finalized(Service_p plugin);
-    
     
 private:
 
@@ -36,10 +33,10 @@ private:
     std::unique_ptr<Ui::MainWindow> ui_;
     QSystemTrayIcon tray_;
     
-    QList<Service_p> services_;
+    QList<ServiceDescriptor_p> services_;
     QMenu* services_menu_;
     
-    Service_p s_;
+    ServiceDescriptor_p current_;
     QAction* title_action_;
 
 };

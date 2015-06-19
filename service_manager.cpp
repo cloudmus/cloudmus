@@ -19,7 +19,7 @@ ServiceManager::~ServiceManager()
 
 }
 
-QList<Service_p> ServiceManager::list()
+QList<ServiceDescriptor_p> ServiceManager::list()
 {
     static const QStringList paths = {
         QString("/usr/share/%1/%2/services").arg(qApp->organizationName()).arg(qApp->applicationName()),
@@ -27,13 +27,12 @@ QList<Service_p> ServiceManager::list()
         QDir::currentPath() + QDir::separator() + QString("services"),
     };
 
-    QList<Service_p> result;
+    QList<ServiceDescriptor_p> result;
     
     for (auto path : paths) {
         QDir dir(path);
         for (auto info : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-            qDebug() << info.absoluteFilePath();
-            result << Service_p(new Service(info.absoluteFilePath() + "/script.js"));
+            result << ServiceDescriptor_p(new ServiceDescriptor(info.absoluteFilePath() + QDir::separator() + "/description.ini"));
         }
     }
 

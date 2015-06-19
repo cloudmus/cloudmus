@@ -4,6 +4,7 @@
 #include <QObject>
 
 #include "service.h"
+#include "service_descriptor.h"
 
     
 // //
@@ -16,7 +17,7 @@ public:
     explicit ServiceManager(QObject *parent = 0);
     ~ServiceManager();
 
-    QList<Service_p> list();
+    QList<ServiceDescriptor_p> list();
     
 
 public Q_SLOTS:

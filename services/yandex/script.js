@@ -1,8 +1,5 @@
 
 (function(plugin){
-  plugin.name = "Yandex Music";
-  plugin.url = "https://music.yandex.ru/";
-
   plugin.actions = {
     play:  function(){alert("play music!");},
     stop:  function(){alert("stop music!")},

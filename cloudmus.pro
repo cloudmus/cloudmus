@@ -18,14 +18,16 @@ TEMPLATE = app
 SOURCES += \
   main.cpp\
   mainwindow.cpp\
-  service.cpp\
   service_manager.cpp\
-
+  service_descriptor.cpp\
+  service.cpp\
+  
 
 HEADERS += \
   mainwindow.h\
-  service.h\
   service_manager.h\
+  service_descriptor.h\
+  service.h\
   tools.h\
  
 RESOURCES += \
