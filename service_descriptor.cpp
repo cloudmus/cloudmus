@@ -34,16 +34,20 @@ QString ServiceDescriptor::pluginPath() const
     return QFileInfo(description_.fileName()).absolutePath() + QDir::separator();
 }
 
-QString ServiceDescriptor::resource(QString file) const
+QString ServiceDescriptor::resource(QString key) const
 {
-    return pluginPath() + value(file).toString();
+    return pluginPath() + value(key).toString();
 }
 
+QString ServiceDescriptor::file(QString file) const
+{
+    return pluginPath() + file;
+}
 
 QIcon ServiceDescriptor::icon(QString def) const
 {
    QIcon icon(resource("icon"));
-   return icon.isNull() ? QIcon::fromTheme(value("icon").toString(), QIcon::fromTheme(def)) : icon;
+   return !icon.availableSizes().size() ? QIcon::fromTheme(value("icon").toString(), QIcon::fromTheme(def)) : icon;
 }
 
 

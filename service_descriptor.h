@@ -33,10 +33,13 @@ public:
     T value(QString field, const T& def = T()) const {
         return description_.value(field, def).value<T>();
     }
+    
+    QString resource(QString file) const;
+    QString file(QString file) const;
   
 private:
     QString pluginPath() const;
-    QString resource(QString file) const;
+    
   
 private:
     QSettings description_;
