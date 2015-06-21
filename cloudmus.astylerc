@@ -1,0 +1,17 @@
+--style=kr
+-s4
+--indent-switches
+--indent-preproc-define
+--indent-col1-comments
+--pad-oper
+--align-pointer=type
+--align-reference=type
+--keep-one-line-blocks
+--max-code-length=120
+--lineend=linux
+--remove-brackets
+--close-templates
+--pad-header
+--unpad-paren
+#--break-blocks
+#--delete-empty-lines
