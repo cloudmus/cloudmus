@@ -15,13 +15,15 @@
 #endif
 
 
-namespace detail {
+namespace detail
+{
 
-class connect_simple_helper : public QObject {
+class connect_simple_helper : public QObject
+{
     Q_OBJECT
 public:
-    connect_simple_helper(QObject *parent, const std::function<void()> &f)
-    : QObject(parent), f_(f), del_(false) {}
+    connect_simple_helper(QObject* parent, const std::function<void()>& f)
+        : QObject(parent), f_(f), del_(false) {}
 
 public Q_SLOTS:
     void signaled() { f_(); if (del_) deleteLater(); }
@@ -35,7 +37,8 @@ public:
 }
 
 template <class T>
-bool connect(QObject *sender, const char *signal, const T &reciever, Qt::ConnectionType type = Qt::AutoConnection) {
+bool connect(QObject* sender, const char* signal, const T& reciever, Qt::ConnectionType type = Qt::AutoConnection)
+{
     return QObject::connect(sender, signal, new detail::connect_simple_helper(sender, reciever), SLOT(signaled()), type);
 }
 

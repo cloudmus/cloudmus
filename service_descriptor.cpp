@@ -15,7 +15,8 @@ ServiceDescriptor::~ServiceDescriptor()
 
 Service* ServiceDescriptor::create()
 {
-    service_.reset(new Service(QFileInfo(description_.fileName()).absolutePath() + QDir::separator() + value<QString>("script"), *this));
+    service_.reset(new Service(QFileInfo(description_.fileName()).absolutePath() + QDir::separator() +
+                               value<QString>("script"), *this));
     return service_.get();
 }
 
@@ -46,8 +47,8 @@ QString ServiceDescriptor::file(QString file) const
 
 QIcon ServiceDescriptor::icon(QString def) const
 {
-   QIcon icon(resource("icon"));
-   return !icon.availableSizes().size() ? QIcon::fromTheme(value("icon").toString(), QIcon::fromTheme(def)) : icon;
+    QIcon icon(resource("icon"));
+    return !icon.availableSizes().size() ? QIcon::fromTheme(value("icon").toString(), QIcon::fromTheme(def)) : icon;
 }
 
 

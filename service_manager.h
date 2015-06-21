@@ -6,22 +6,22 @@
 #include "service.h"
 #include "service_descriptor.h"
 
-    
+
 // //
 class ServiceManager : public QObject
 {
-    Q_OBJECT 
+    Q_OBJECT
 
 public:
 
-    explicit ServiceManager(QObject *parent = 0);
+    explicit ServiceManager(QObject* parent = 0);
     ~ServiceManager();
 
     QList<ServiceDescriptor_p> list();
-    
+
 
 public Q_SLOTS:
-    
+
 private:
 
 };

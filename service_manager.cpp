@@ -3,9 +3,9 @@
 #include <QDebug>
 
 #ifdef HAVE_QT5
-    #include <QStandardPaths>
+#include <QStandardPaths>
 #else
-    #include <QDesktopServices>
+#include <QDesktopServices>
 #endif
 
 #include <QDir>
@@ -15,16 +15,16 @@
 ServiceManager::ServiceManager(QObject* parent)
     : QObject(parent)
 {
-       
+
 #ifdef HAVE_QT5
     QString local = QStandardPaths::writableLocation(QStandardPaths::DataLocation);
 #else
     QString local = QDesktopServices::storageLocation(QDesktopServices::DataLocation);
 #endif
 
-    QDir dir;    
+    QDir dir;
     dir.mkpath(local + QDir::separator() + QString("services"));
-    
+
 }
 
 
@@ -48,16 +48,15 @@ QList<ServiceDescriptor_p> ServiceManager::list()
         QDir::currentPath(),
     };
 #endif
- 
+
     QList<ServiceDescriptor_p> result;
-    
+
     qDebug() << paths;
-    
+
     for (auto path : paths) {
         QDir dir(path + QDir::separator() + QString("services"));
-        for (auto info : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        for (auto info : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
             result << ServiceDescriptor_p(new ServiceDescriptor(info.absoluteFilePath() + QDir::separator() + "/description.ini"));
-        }
     }
 
     return result;

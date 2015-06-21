@@ -9,11 +9,11 @@
 #include <QWebFrame>
 
 class ServiceDescriptor;
-    
+
 // //
 class Service : public QObject
 {
-    Q_OBJECT 
+    Q_OBJECT
 
 public:
 
@@ -23,21 +23,21 @@ public:
     ServiceDescriptor& descriptor() {return descriptor_;};
 
 public Q_SLOTS:
-    
+
     void initialize(QWebFrame* frame);
-    
+
     void addCustomAction(QString action, QString text, QString icon);
-    
+
 private Q_SLOTS:
     void loadFinished(bool ok);
-  
+
 Q_SIGNALS:
     void addAction(QAction* action);
-    
+
 private:
     void init_actions();
     void install_action(QAction* a, QString action, bool custom = false);
-    
+
 private:
     ServiceDescriptor& descriptor_;
     QByteArray service_;

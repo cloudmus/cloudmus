@@ -16,30 +16,30 @@
 
 QWebView* webEngine;
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent), 
+MainWindow::MainWindow(QWidget* parent) :
+    QMainWindow(parent),
     ui_(new Ui::MainWindow),
     tray_(this)
 {
     ui_->setupUi(this);
-    
+
     QWebSettings::globalSettings()->setAttribute(QWebSettings::PluginsEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::JavascriptEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::JavaEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::LocalStorageEnabled, true);
-    QWebSettings::globalSettings()->setAttribute(QWebSettings::OfflineStorageDatabaseEnabled,true);
-    QWebSettings::globalSettings()->setAttribute(QWebSettings::OfflineWebApplicationCacheEnabled,true);
+    QWebSettings::globalSettings()->setAttribute(QWebSettings::OfflineStorageDatabaseEnabled, true);
+    QWebSettings::globalSettings()->setAttribute(QWebSettings::OfflineWebApplicationCacheEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::XSSAuditingEnabled, true);
     QWebSettings::enablePersistentStorage("/tmp");
 
-    QWebSettings::globalSettings()->setOfflineStorageDefaultQuota(5*1024*1024);
-    QWebSettings::globalSettings()->setOfflineWebApplicationCacheQuota(5*1024*1024);
+    QWebSettings::globalSettings()->setOfflineStorageDefaultQuota(5 * 1024 * 1024);
+    QWebSettings::globalSettings()->setOfflineWebApplicationCacheQuota(5 * 1024 * 1024);
 
 
     webEngine = new QWebView(centralWidget());
     centralWidget()->layout()->addWidget(webEngine);
-    
+
     tray_.setIcon(QIcon("icons:cloudmus.png"));
     tray_.setVisible(true);
     tray_.setContextMenu(new QMenu());
@@ -52,20 +52,20 @@ MainWindow::MainWindow(QWidget *parent) :
     title_action_->setFont(f);
 
     services_menu_ = tray_.contextMenu()->addMenu("services");
-    
+
     ServiceManager manager;
     services_ = manager.list();
-    
-    for (auto p : services_) {
+
+    for (auto p : services_)
         addService(p);
-    }
-    
+
 }
 
 MainWindow::~MainWindow()
 {}
 
-QString fallbackIcon(QString icon) {
+QString fallbackIcon(QString icon)
+{
     const static std::map<QString, QString> fallbackIcons = {
         {"play",  "media-playback-start"},
         {"stop",  "media-playback-stop"},
@@ -80,7 +80,7 @@ QString fallbackIcon(QString icon) {
 void MainWindow::addService(ServiceDescriptor_p service)
 {
     QAction* a = services_menu_->addAction(service->icon("preferences-plugin"), service->name());
-    Q_VERIFY(::connect(a, SIGNAL(triggered(bool)), [this, service, a](){
+    Q_VERIFY(::connect(a, SIGNAL(triggered(bool)), [this, service, a]() {
         activateService(service);
     }));
 }
@@ -94,14 +94,14 @@ void MainWindow::activateService(ServiceDescriptor_p service)
         current_->destroy();
         current_.reset();
     }
-    
+
     if (service.get()) {
         current_ = service;
         current_->create();
-        
+
         title_action_->setText(current_->name());
         title_action_->setVisible(true);
-        
+
         Q_VERIFY(connect(current_->service(), SIGNAL(addAction(QAction*)), this, SLOT(addAction(QAction*))));
         current_->service()->initialize(webEngine->page()->mainFrame());
     }
