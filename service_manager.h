@@ -1,5 +1,4 @@
-#ifndef WEBMUSIC_SERVICE_MANAGER_H
-#define WEBMUSIC_SERVICE_MANAGER_H
+#pragma once
 
 #include <QObject>
 
@@ -17,7 +16,7 @@ public:
     explicit ServiceManager(QObject* parent = 0);
     ~ServiceManager();
 
-    QList<ServiceDescriptor_p> list();
+    QList<ServiceDescriptorPtr> list();
 
 
 public Q_SLOTS:
@@ -25,5 +24,3 @@ public Q_SLOTS:
 private:
 
 };
-
-#endif // WEBMUSIC_PLUGIN_MANAGER_H

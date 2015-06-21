@@ -12,7 +12,7 @@ Service::Service(const QString& filename, ServiceDescriptor& descriptor)
 {
     QFile file(filename);
     if (!file.open(QFile::ReadOnly))
-        throw std::runtime_error("can;t read script");
+        throw std::runtime_error("Can't read script");
     service_ = file.readAll();
 };
 

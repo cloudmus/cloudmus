@@ -36,22 +36,24 @@ MainWindow::MainWindow(QWidget* parent) :
     QWebSettings::globalSettings()->setOfflineStorageDefaultQuota(5 * 1024 * 1024);
     QWebSettings::globalSettings()->setOfflineWebApplicationCacheQuota(5 * 1024 * 1024);
 
-
     webEngine = new QWebView(centralWidget());
     centralWidget()->layout()->addWidget(webEngine);
 
     tray_.setIcon(QIcon("icons:cloudmus.png"));
     tray_.setVisible(true);
-    tray_.setContextMenu(new QMenu());
-    title_action_ = tray_.contextMenu()->addAction("");
-    title_action_->setEnabled(false);
-    title_action_->setVisible(false);
-    QFont f = title_action_->font();
+    tray_.setContextMenu(new QMenu(this));
+    titleAction_ = tray_.contextMenu()->addAction("");
+    titleAction_->setEnabled(false);
+    titleAction_->setVisible(false);
+    QFont f = titleAction_->font();
     f.setBold(true);
     f.setPointSize(f.pointSize() + 2);
-    title_action_->setFont(f);
+    titleAction_->setFont(f);
 
-    services_menu_ = tray_.contextMenu()->addMenu("services");
+    servicesMenu_ = tray_.contextMenu()->addMenu("services");
+
+//    ui_->menuServices
+//    menuBar()->addMenu(servicesMenu_);
 
     ServiceManager manager;
     services_ = manager.list();
@@ -77,18 +79,18 @@ QString fallbackIcon(QString icon)
     return (it == fallbackIcons.end()) ? icon : it->second;
 }
 
-void MainWindow::addService(ServiceDescriptor_p service)
+void MainWindow::addService(ServiceDescriptorPtr service)
 {
-    QAction* a = services_menu_->addAction(service->icon("preferences-plugin"), service->name());
-    Q_VERIFY(::connect(a, SIGNAL(triggered(bool)), [this, service, a]() {
+    QAction* a = servicesMenu_->addAction(service->icon("preferences-plugin"), service->name());
+    ::connect(a, SIGNAL(triggered(bool)), [this, service, a]() {
         activateService(service);
-    }));
+    });
 }
 
-void MainWindow::activateService(ServiceDescriptor_p service)
+void MainWindow::activateService(ServiceDescriptorPtr service)
 {
-    title_action_->setText("");
-    title_action_->setVisible(false);
+    titleAction_->setText("");
+    titleAction_->setVisible(false);
     if (current_) {
         actions_.clear();
         current_->destroy();
@@ -99,8 +101,8 @@ void MainWindow::activateService(ServiceDescriptor_p service)
         current_ = service;
         current_->create();
 
-        title_action_->setText(current_->name());
-        title_action_->setVisible(true);
+        titleAction_->setText(current_->name());
+        titleAction_->setVisible(true);
 
         Q_VERIFY(connect(current_->service(), SIGNAL(addAction(QAction*)), this, SLOT(addAction(QAction*))));
         current_->service()->initialize(webEngine->page()->mainFrame());

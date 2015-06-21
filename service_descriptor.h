@@ -1,5 +1,4 @@
-#ifndef WEBMUSIC_SERVICE_DESCRIPTOR_H
-#define WEBMUSIC_SERVICE_DESCRIPTOR_H
+#pragma once
 
 #include <memory>
 
@@ -48,7 +47,4 @@ private:
     std::unique_ptr<Service> service_;
 };
 
-typedef std::shared_ptr<ServiceDescriptor> ServiceDescriptor_p;
-
-
-#endif // WEBMUSIC_SERVICE_DESCRIPTOR_H
+typedef std::shared_ptr<ServiceDescriptor> ServiceDescriptorPtr;

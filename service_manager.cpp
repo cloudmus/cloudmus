@@ -33,7 +33,7 @@ ServiceManager::~ServiceManager()
 
 }
 
-QList<ServiceDescriptor_p> ServiceManager::list()
+QList<ServiceDescriptorPtr> ServiceManager::list()
 {
 #ifdef HAVE_QT5
     QStringList paths = {
@@ -49,14 +49,14 @@ QList<ServiceDescriptor_p> ServiceManager::list()
     };
 #endif
 
-    QList<ServiceDescriptor_p> result;
+    QList<ServiceDescriptorPtr> result;
 
     qDebug() << paths;
 
     for (auto path : paths) {
         QDir dir(path + QDir::separator() + QString("services"));
         for (auto info : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
-            result << ServiceDescriptor_p(new ServiceDescriptor(info.absoluteFilePath() + QDir::separator() + "/description.ini"));
+            result << ServiceDescriptorPtr(new ServiceDescriptor(info.absoluteFilePath() + QDir::separator() + "/description.ini"));
     }
 
     return result;

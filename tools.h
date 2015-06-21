@@ -1,5 +1,4 @@
-#ifndef WEBMUSIC_TOOLS_H
-#define WEBMUSIC_TOOLS_H
+#pragma once
 
 #include <functional>
 
@@ -41,10 +40,3 @@ bool connect(QObject* sender, const char* signal, const T& reciever, Qt::Connect
 {
     return QObject::connect(sender, signal, new detail::connect_simple_helper(sender, reciever), SLOT(signaled()), type);
 }
-
-
-
-
-#endif
-
-

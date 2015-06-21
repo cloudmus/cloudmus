@@ -1,5 +1,4 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#pragma once
 
 #include <memory>
 
@@ -23,25 +22,19 @@ public:
     ~MainWindow();
 
 public Q_SLOTS:
-    void addService(ServiceDescriptor_p service);
-    void activateService(ServiceDescriptor_p service);
+    void addService(ServiceDescriptorPtr service);
+    void activateService(ServiceDescriptorPtr service);
     void addAction(QAction* action);
-
-private:
-
 
 private:
     std::unique_ptr<Ui::MainWindow> ui_;
     QSystemTrayIcon tray_;
 
-    QList<ServiceDescriptor_p> services_;
-    QMenu* services_menu_;
+    QList<ServiceDescriptorPtr> services_;
+    QMenu* servicesMenu_;
 
-    ServiceDescriptor_p current_;
-    QAction* title_action_;
+    ServiceDescriptorPtr current_;
+    QAction* titleAction_;
 
     QMap<QString, QPointer<QAction>> actions_;
-
 };
-
-#endif // MAINWINDOW_H
