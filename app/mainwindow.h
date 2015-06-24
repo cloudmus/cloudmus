@@ -8,6 +8,8 @@
 
 #include "service_descriptor.h"
 
+class QWebView;
+
 namespace Ui
 {
 class MainWindow;
@@ -27,7 +29,7 @@ public Q_SLOTS:
     void addAction(QAction* action);
 
 private:
-    std::unique_ptr<Ui::MainWindow> ui_;
+    Ui::MainWindow* ui_;
     QSystemTrayIcon tray_;
 
     QList<ServiceDescriptorPtr> services_;
@@ -37,4 +39,5 @@ private:
     QAction* titleAction_;
 
     QMap<QString, QPointer<QAction>> actions_;
+    QWebView* webEngine_;
 };

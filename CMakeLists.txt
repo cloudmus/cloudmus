@@ -1,5 +1,9 @@
 project(cloudmus)
 
+cmake_minimum_required(VERSION 2.8)
+
+option(CLOUDMUS_BUILD_WITH_QT5 "Build with Qt5 instead of Qt4" TRUE)
+
 macro(pre_build TARGET_NAME)
     add_custom_target( ${TARGET_NAME}_PRE_BUILD ALL )
 
@@ -15,50 +19,17 @@ macro(pre_build TARGET_NAME)
     add_dependencies(${TARGET_NAME} ${TARGET_NAME}_PRE_BUILD)
 endmacro()
 
-set(SOURCES
-    cloudmus.astylerc
-    main.cpp
-    mainwindow.h
-    mainwindow.cpp
-    service_manager.h
-    service_manager.cpp
-    service_descriptor.h
-    service_descriptor.cpp
-    service.h
-    service.cpp
-    tools.h
-)
-
-set(UI
-    mainwindow.ui
-)
-
-set(RESOURCES
-    images.qrc
-)
-
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt5Widgets)
-find_package(Qt5WebKitWidgets)
-
 add_definitions(-std=c++11)
-add_definitions(-DHAVE_QT5)
 
-qt5_wrap_ui(SOURCES ${UI})
-qt5_add_resources(SOURCES ${RESOURCES})
+if(CLOUDMUS_BUILD_WITH_QT5)
+    add_definitions(-DHAVE_QT5)
+endif()
 
-add_executable(${PROJECT_NAME} WIN32 ${SOURCES})
+add_subdirectory(app)
 
-target_link_libraries(
-    ${PROJECT_NAME}
-    Qt5::Widgets
-    Qt5::WebKitWidgets
+add_custom_target(root_files SOURCES
+    cloudmus.astylerc
 )
-
-pre_build(${PROJECT_NAME}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/services
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/services ${CMAKE_CURRENT_BINARY_DIR}/services
-)
-

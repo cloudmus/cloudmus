@@ -3,17 +3,15 @@
 
 #include <QApplication>
 #include <QDebug>
-#include <QDesktopServices>
-#include <QStandardPaths>
 #include <QDir>
 #include <QTextCodec>
 
 #include "mainwindow.h"
 
-
-struct application: public QApplication {
-
-    application(int& argc, char** argv)
+class Application: public QApplication
+{
+public:
+    Application(int& argc, char** argv)
         : QApplication(argc, argv)
     {}
 
@@ -30,11 +28,9 @@ struct application: public QApplication {
     }
 };
 
-
-
 int main(int argc, char* argv[])
 {
-    application app(argc, argv);
+    Application app(argc, argv);
     app.setOrganizationName("gkb");
     app.setApplicationName("cloudmus");
 
@@ -42,8 +38,6 @@ int main(int argc, char* argv[])
 #else
     QTextCodec::setCodecForTr(QTextCodec::codecForName("utf8"));
 #endif
-
-
 
     QDir::addSearchPath("icons", QString(":icons/images/"));
     QDir::addSearchPath("images", QString(":icons/images/"));

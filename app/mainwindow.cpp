@@ -14,8 +14,6 @@
 #include "ui_mainwindow.h"
 #include "mainwindow.h"
 
-QWebView* webEngine;
-
 MainWindow::MainWindow(QWidget* parent) :
     QMainWindow(parent),
     ui_(new Ui::MainWindow),
@@ -31,13 +29,14 @@ MainWindow::MainWindow(QWidget* parent) :
     QWebSettings::globalSettings()->setAttribute(QWebSettings::OfflineWebApplicationCacheEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::DeveloperExtrasEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::XSSAuditingEnabled, true);
+    QWebSettings::globalSettings()->setThirdPartyCookiePolicy(QWebSettings::AlwaysAllowThirdPartyCookies);
     QWebSettings::enablePersistentStorage("/tmp");
 
     QWebSettings::globalSettings()->setOfflineStorageDefaultQuota(5 * 1024 * 1024);
     QWebSettings::globalSettings()->setOfflineWebApplicationCacheQuota(5 * 1024 * 1024);
 
-    webEngine = new QWebView(centralWidget());
-    centralWidget()->layout()->addWidget(webEngine);
+    webEngine_ = new QWebView(centralWidget());
+    centralWidget()->layout()->addWidget(webEngine_);
 
     tray_.setIcon(QIcon("icons:cloudmus.png"));
     tray_.setVisible(true);
@@ -50,10 +49,8 @@ MainWindow::MainWindow(QWidget* parent) :
     f.setPointSize(f.pointSize() + 2);
     titleAction_->setFont(f);
 
-    servicesMenu_ = tray_.contextMenu()->addMenu("services");
-
-//    ui_->menuServices
-//    menuBar()->addMenu(servicesMenu_);
+    servicesMenu_ = ui_->menuServices;
+    tray_.contextMenu()->addMenu(servicesMenu_);
 
     ServiceManager manager;
     services_ = manager.list();
@@ -64,7 +61,9 @@ MainWindow::MainWindow(QWidget* parent) :
 }
 
 MainWindow::~MainWindow()
-{}
+{
+    delete ui_;
+}
 
 QString fallbackIcon(QString icon)
 {
@@ -105,7 +104,7 @@ void MainWindow::activateService(ServiceDescriptorPtr service)
         titleAction_->setVisible(true);
 
         Q_VERIFY(connect(current_->service(), SIGNAL(addAction(QAction*)), this, SLOT(addAction(QAction*))));
-        current_->service()->initialize(webEngine->page()->mainFrame());
+        current_->service()->initialize(webEngine_->page()->mainFrame());
     }
 }
 
