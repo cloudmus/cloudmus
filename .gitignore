@@ -2,3 +2,4 @@ build
 *.pro.user
 /debug/
 *.txt.user
+/release/

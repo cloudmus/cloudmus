@@ -1,5 +1,7 @@
 set(TARGET cloudmus)
 
+cmake_policy(SET CMP0020 NEW)
+
 set(SOURCES
     main.cpp
     mainwindow.h
@@ -11,6 +13,10 @@ set(SOURCES
     service.h
     service.cpp
     tools.h
+    autosaver.h
+    autosaver.cpp
+    cookiejar.h
+    cookiejar.cpp
 )
 
 set(UI
@@ -20,6 +26,8 @@ set(UI
 set(RESOURCES
     images.qrc
 )
+
+add_subdirectory(3rdparty)
 
 if(CLOUDMUS_BUILD_WITH_QT5)
     find_package(Qt5Widgets)
