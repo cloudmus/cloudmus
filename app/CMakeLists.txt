@@ -35,7 +35,7 @@ if(CLOUDMUS_BUILD_WITH_QT5)
     qt5_wrap_ui(SOURCES ${UI})
     qt5_add_resources(SOURCES ${RESOURCES})
 else()
-    find_package(Qt4 REQUIRED QtCore QtGui QtWebkit)
+    find_package(Qt4 REQUIRED QtCore QtGui QtWebkit QtNetwork)
     include(${QT_USE_FILE})
     qt4_wrap_ui(SOURCES ${UI})
     qt4_add_resources(SOURCES ${RESOURCES})
@@ -52,6 +52,10 @@ if(CLOUDMUS_BUILD_WITH_QT5)
 else()
     target_link_libraries(${TARGET} ${QT_LIBRARIES})
 endif()
+
+target_link_libraries(${TARGET}
+    qtsingleapplication
+)
 
 pre_build(${PROJECT_NAME}
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/services

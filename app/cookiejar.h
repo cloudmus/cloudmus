@@ -34,13 +34,13 @@
 #ifndef COOKIEJAR_H
 #define COOKIEJAR_H
 
-#include <QtNetwork/QNetworkCookieJar>
+#include <QNetworkCookieJar>
 
-#include <QtCore/QAbstractItemModel>
-#include <QtCore/QStringList>
+#include <QAbstractItemModel>
+#include <QStringList>
 
-#include <QtWidgets/QDialog>
-#include <QtWidgets/QTableView>
+#include <QDialog>
+#include <QTableView>
 
 QT_BEGIN_NAMESPACE
 class QSortFilterProxyModel;

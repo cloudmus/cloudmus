@@ -16,7 +16,7 @@ if(UNIX)
 set(SOURCES ${SOURCES}
     qtlockedfile_unix.cpp
 )
-elif(WIN32)
+elseif(WIN32)
 set(SOURCES ${SOURCES}
     qtlockedfile_win.cpp
 )
@@ -28,11 +28,11 @@ if(CLOUDMUS_BUILD_WITH_QT5)
     find_package(Qt5Widgets)
     find_package(Qt5Network)
 else()
-    find_package(Qt4 REQUIRED QtCore)
+    find_package(Qt4 REQUIRED QtCore QtGui)
     include(${QT_USE_FILE})
 endif()
 
-add_executable(${TARGET} WIN32 ${SOURCES})
+add_library(${TARGET} ${SOURCES})
 
 if(CLOUDMUS_BUILD_WITH_QT5)
     target_link_libraries(
