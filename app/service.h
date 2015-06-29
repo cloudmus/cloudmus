@@ -1,12 +1,16 @@
-#ifndef WEBMUSIC_SERVICE_H
-#define WEBMUSIC_SERVICE_H
+#pragma once
 
 #include <memory>
 
 #include <QObject>
 #include <QAction>
 #include <QVariant>
+
+#ifdef CLOUDMUS_USE_WEBENGINE
+#include <QWebEnginePage>
+#else
 #include <QWebFrame>
+#endif
 
 class ServiceDescriptor;
 
@@ -20,7 +24,7 @@ public:
     explicit Service(const QString& filename, ServiceDescriptor& descriptor);
     ~Service();
 
-    ServiceDescriptor& descriptor() {return descriptor_;};
+    ServiceDescriptor& descriptor() {return descriptor_;}
 
 public Q_SLOTS:
 
@@ -45,6 +49,4 @@ private:
     QList<QAction*> actions_;
 };
 
-typedef std::shared_ptr<Service> Service_p;
-
-#endif // WEBMUSIC_SERVICE_H
+typedef std::shared_ptr<Service> ServicePtr;

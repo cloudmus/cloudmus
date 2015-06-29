@@ -13,6 +13,8 @@
 
 #include "ui_mainwindow.h"
 #include "mainwindow.h"
+#include "aboutdialog.h"
+#include "optionsdialog.h"
 
 MainWindow::MainWindow(QWidget* parent) :
     QMainWindow(parent),
@@ -113,5 +115,14 @@ void MainWindow::addAction(QAction* action)
     tray_.contextMenu()->addAction(action);
 }
 
+void MainWindow::on_actionABout_triggered()
+{
+    AboutDialog dlg;
+    dlg.exec();
+}
 
-
+void MainWindow::on_actionSettings_triggered()
+{
+    OptionsDialog dlg;
+    dlg.exec();
+}

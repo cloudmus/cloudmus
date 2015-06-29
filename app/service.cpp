@@ -14,11 +14,11 @@ Service::Service(const QString& filename, ServiceDescriptor& descriptor)
     if (!file.open(QFile::ReadOnly))
         throw std::runtime_error("Can't read script");
     service_ = file.readAll();
-};
+}
 
 Service::~Service()
 {
-};
+}
 
 void Service::initialize(QWebFrame* frame)
 {

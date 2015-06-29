@@ -4,6 +4,8 @@ cmake_policy(SET CMP0020 NEW)
 
 set(SOURCES
     main.cpp
+    application.h
+    application.cpp
     mainwindow.h
     mainwindow.cpp
     service_manager.h
@@ -17,10 +19,16 @@ set(SOURCES
     autosaver.cpp
     cookiejar.h
     cookiejar.cpp
+    optionsdialog.h
+    optionsdialog.cpp
+    aboutdialog.h
+    aboutdialog.cpp
 )
 
 set(UI
     mainwindow.ui
+    optionsdialog.ui
+    aboutdialog.ui
 )
 
 set(RESOURCES
@@ -31,7 +39,11 @@ add_subdirectory(3rdparty)
 
 if(CLOUDMUS_BUILD_WITH_QT5)
     find_package(Qt5Widgets)
+if(CLOUDMUS_USE_WEBENGINE)
+    find_package(Qt5WebEngineWidgets)
+else()
     find_package(Qt5WebKitWidgets)
+endif()
     qt5_wrap_ui(SOURCES ${UI})
     qt5_add_resources(SOURCES ${RESOURCES})
 else()
@@ -47,8 +59,14 @@ if(CLOUDMUS_BUILD_WITH_QT5)
     target_link_libraries(
         ${TARGET}
         Qt5::Widgets
-        Qt5::WebKitWidgets
     )
+
+if(CLOUDMUS_USE_WEBENGINE)
+    target_link_libraries(${TARGET} Qt5::WebEngineWidgets)
+else()
+    target_link_libraries(${TARGET} Qt5::WebKitWidgets)
+endif()
+
 else()
     target_link_libraries(${TARGET} ${QT_LIBRARIES})
 endif()

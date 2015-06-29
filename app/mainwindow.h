@@ -28,6 +28,11 @@ public Q_SLOTS:
     void activateService(ServiceDescriptorPtr service);
     void addAction(QAction* action);
 
+private slots:
+    void on_actionABout_triggered();
+
+    void on_actionSettings_triggered();
+
 private:
     Ui::MainWindow* ui_;
     QSystemTrayIcon tray_;
