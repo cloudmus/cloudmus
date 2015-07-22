@@ -1,7 +1,6 @@
 <RCC>
-  <qresource prefix="/icons">
-	<file>images/cloudmus.png</file>
-  </qresource>
-  <qresource prefix="/images">
-  </qresource>
+    <qresource prefix="/">
+        <file>images/logo.png</file>
+        <file>images/small_logo.png</file>
+    </qresource>
 </RCC>

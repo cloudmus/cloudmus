@@ -3,6 +3,7 @@ set(TARGET cloudmus)
 cmake_policy(SET CMP0020 NEW)
 
 set(SOURCES
+    pointers.h
     main.cpp
     application.h
     application.cpp
@@ -23,6 +24,10 @@ set(SOURCES
     optionsdialog.cpp
     aboutdialog.h
     aboutdialog.cpp
+    optionspage.h
+    optionspage.cpp
+    options.h
+    options.cpp
 )
 
 set(UI

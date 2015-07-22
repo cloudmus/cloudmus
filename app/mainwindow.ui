@@ -15,7 +15,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="images.qrc">
-    <normaloff>:/icons/images/cloudmus.png</normaloff>:/icons/images/cloudmus.png</iconset>
+    <normaloff>:/images/small_logo.png</normaloff>:/images/small_logo.png</iconset>
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -42,44 +42,51 @@
      <x>0</x>
      <y>0</y>
      <width>400</width>
-     <height>25</height>
+     <height>30</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuServices">
     <property name="title">
-     <string>Services</string>
+     <string>Ser&amp;vices</string>
     </property>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
-     <string>Help</string>
+     <string>He&amp;lp</string>
     </property>
-    <addaction name="actionABout"/>
+    <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menuControls">
     <property name="title">
-     <string>Controls</string>
+     <string>&amp;Controls</string>
     </property>
    </widget>
-   <widget class="QMenu" name="menuOptions">
+   <widget class="QMenu" name="menuApp">
     <property name="title">
-     <string>Options</string>
+     <string>App</string>
     </property>
     <addaction name="actionSettings"/>
+    <addaction name="separator"/>
+    <addaction name="actionExit"/>
    </widget>
+   <addaction name="menuApp"/>
    <addaction name="menuServices"/>
    <addaction name="menuControls"/>
-   <addaction name="menuOptions"/>
    <addaction name="menuHelp"/>
   </widget>
-  <action name="actionABout">
+  <action name="actionAbout">
    <property name="text">
-    <string>About</string>
+    <string>&amp;About</string>
    </property>
   </action>
   <action name="actionSettings">
    <property name="text">
-    <string>Settings</string>
+    <string>&amp;Settings</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>&amp;Exit</string>
    </property>
   </action>
  </widget>

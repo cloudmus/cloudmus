@@ -29,9 +29,10 @@ public Q_SLOTS:
     void addAction(QAction* action);
 
 private slots:
-    void on_actionABout_triggered();
-
+    void on_actionAbout_triggered();
     void on_actionSettings_triggered();
+    void on_actionExit_triggered();
+    void trayActivated(QSystemTrayIcon::ActivationReason reason);
 
 private:
     Ui::MainWindow* ui_;

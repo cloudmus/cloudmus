@@ -2,6 +2,8 @@
 
 #include <QDebug>
 
+#include "options.h"
+
 Application::Application(int& argc, char** argv)
     : QtSingleApplication("cloudmus", argc, argv)
 {
@@ -11,6 +13,8 @@ Application::Application(int& argc, char** argv)
     setApplicationDisplayName(tr("Cloudmus"));
 #endif
     setApplicationVersion(tr("0.1.0"));
+
+    options_ = new Options(this);
 }
 
 bool Application::notify(QObject* obj, QEvent* event)

@@ -15,6 +15,7 @@
 #include "mainwindow.h"
 #include "aboutdialog.h"
 #include "optionsdialog.h"
+#include "options.h"
 
 MainWindow::MainWindow(QWidget* parent) :
     QMainWindow(parent),
@@ -22,6 +23,9 @@ MainWindow::MainWindow(QWidget* parent) :
     tray_(this)
 {
     ui_->setupUi(this);
+
+    connect(&tray_, SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
+            SLOT(trayActivated(QSystemTrayIcon::ActivationReason)));
 
     QWebSettings::globalSettings()->setAttribute(QWebSettings::PluginsEnabled, true);
     QWebSettings::globalSettings()->setAttribute(QWebSettings::JavascriptEnabled, true);
@@ -40,7 +44,7 @@ MainWindow::MainWindow(QWidget* parent) :
     webEngine_ = new QWebView(centralWidget());
     centralWidget()->layout()->addWidget(webEngine_);
 
-    tray_.setIcon(QIcon("icons:cloudmus.png"));
+    tray_.setIcon(QIcon("://images/small_logo.png"));
     tray_.setVisible(true);
     tray_.setContextMenu(new QMenu(this));
     titleAction_ = tray_.contextMenu()->addAction("");
@@ -60,6 +64,8 @@ MainWindow::MainWindow(QWidget* parent) :
     for (auto p : services_)
         addService(p);
 
+    if (Options::value<Options::StartHiddenOption>())
+        hide();
 }
 
 MainWindow::~MainWindow()
@@ -115,7 +121,7 @@ void MainWindow::addAction(QAction* action)
     tray_.contextMenu()->addAction(action);
 }
 
-void MainWindow::on_actionABout_triggered()
+void MainWindow::on_actionAbout_triggered()
 {
     AboutDialog dlg;
     dlg.exec();
@@ -125,4 +131,24 @@ void MainWindow::on_actionSettings_triggered()
 {
     OptionsDialog dlg;
     dlg.exec();
+}
+
+void MainWindow::on_actionExit_triggered()
+{
+    qApp->quit();
+}
+
+void MainWindow::trayActivated(QSystemTrayIcon::ActivationReason reason)
+{
+    if (reason == QSystemTrayIcon::Trigger)
+    {
+        if (isVisible())
+            hide();
+        else
+        {
+            show();
+            activateWindow();
+        }
+    }
+
 }
