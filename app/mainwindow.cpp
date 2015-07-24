@@ -63,9 +63,6 @@ MainWindow::MainWindow(QWidget* parent) :
 
     for (auto p : services_)
         addService(p);
-
-    if (Options::value<Options::StartHiddenOption>())
-        hide();
 }
 
 MainWindow::~MainWindow()

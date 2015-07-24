@@ -4,6 +4,7 @@ cmake_policy(SET CMP0020 NEW)
 
 set(SOURCES
     pointers.h
+    scopedtools.h
     main.cpp
     application.h
     application.cpp
@@ -28,12 +29,18 @@ set(SOURCES
     optionspage.cpp
     options.h
     options.cpp
+    applicationoptionspage.h
+    applicationoptionspage.cpp
+    shortcutsoptionspage.h
+    shortcutsoptionspage.cpp
 )
 
 set(UI
     mainwindow.ui
     optionsdialog.ui
     aboutdialog.ui
+    applicationoptionspage.ui
+    shortcutsoptionspage.ui
 )
 
 set(RESOURCES

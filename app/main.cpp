@@ -4,6 +4,7 @@
 
 #include "mainwindow.h"
 #include "application.h"
+#include "options.h"
 
 int main(int argc, char* argv[])
 {
@@ -24,8 +25,10 @@ int main(int argc, char* argv[])
 
     MainWindow w;
     app.setActivationWindow(&w);
-    w.show();
     w.resize(1000, 700);
+
+    if (!Options::value<Options::StartHiddenOption>())
+        w.show();
 
     return app.exec();
 }

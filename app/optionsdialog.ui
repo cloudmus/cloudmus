@@ -131,24 +131,6 @@
      <property name="frameShape">
       <enum>QFrame::NoFrame</enum>
      </property>
-     <item>
-      <property name="text">
-       <string>Services</string>
-      </property>
-      <property name="icon">
-       <iconset resource="images.qrc">
-        <normaloff>:/icons/images/cloudmus.png</normaloff>:/icons/images/cloudmus.png</iconset>
-      </property>
-     </item>
-     <item>
-      <property name="text">
-       <string>Shortcuts</string>
-      </property>
-      <property name="icon">
-       <iconset resource="images.qrc">
-        <normaloff>:/icons/images/cloudmus.png</normaloff>:/icons/images/cloudmus.png</iconset>
-      </property>
-     </item>
     </widget>
    </item>
    <item>
@@ -185,9 +167,7 @@
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="images.qrc"/>
- </resources>
+ <resources/>
  <connections>
   <connection>
    <sender>buttonBox</sender>

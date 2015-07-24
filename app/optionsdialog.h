@@ -1,11 +1,12 @@
-#ifndef OPTIONSDIALOG_H
-#define OPTIONSDIALOG_H
+#pragma once
 
 #include <QDialog>
 
 namespace Ui {
 class OptionsDialog;
 }
+
+class OptionsPage;
 
 class OptionsDialog : public QDialog
 {
@@ -15,8 +16,11 @@ public:
     explicit OptionsDialog(QWidget *parent = 0);
     ~OptionsDialog();
 
+private slots:
+    void updateCurrentPage();
+
 private:
+    void addPage(OptionsPage* page);
+
     Ui::OptionsDialog *ui;
 };
-
-#endif // OPTIONSDIALOG_H
