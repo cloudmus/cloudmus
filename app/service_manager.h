@@ -18,7 +18,6 @@ public:
 
     QList<ServiceDescriptorPtr> list();
 
-
 public Q_SLOTS:
 
 private:

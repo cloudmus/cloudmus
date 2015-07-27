@@ -7,6 +7,17 @@
 
 #include "service.h"
 
+#include "pointers.h"
+
+class ActionDescriptor
+{
+public:
+    QString id;
+    QString title;
+    QString icon;
+    QString shortcut;
+};
+
 class ServiceDescriptor : public QObject
 {
     Q_OBJECT
@@ -19,10 +30,12 @@ public:
     Service* service() const;
     void destroy();
 
-    Q_SCRIPTABLE QString name() const {return value("name").toString();}
-    Q_SCRIPTABLE QString url() const {return value("url").toString();}
-    Q_SCRIPTABLE QString description() const {return value("description").toString();}
+    Q_SCRIPTABLE QString name() const { return value("name").toString(); }
+    Q_SCRIPTABLE QString url() const { return value("url").toString(); }
+    Q_SCRIPTABLE QString description() const { return value("description").toString(); }
     Q_SCRIPTABLE QIcon icon(QString def = QString()) const;
+
+    QList<ActionDescriptorPtr> actionDescriptors() const { return actionDescriptors_; }
 
     Q_SCRIPTABLE QVariant value(QString field, QVariant def = QVariant()) const
     {
@@ -41,10 +54,10 @@ public:
 private:
     QString pluginPath() const;
 
-
 private:
+    void loadActions();
+
     QSettings description_;
     std::unique_ptr<Service> service_;
+    QList<ActionDescriptorPtr> actionDescriptors_;
 };
-
-typedef std::shared_ptr<ServiceDescriptor> ServiceDescriptorPtr;

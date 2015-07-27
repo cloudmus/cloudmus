@@ -56,7 +56,7 @@ QList<ServiceDescriptorPtr> ServiceManager::list()
     for (auto path : paths) {
         QDir dir(path + QDir::separator() + QString("services"));
         for (auto info : dir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
-            result << ServiceDescriptorPtr(new ServiceDescriptor(info.absoluteFilePath() + QDir::separator() + "/description.ini"));
+            result << std::make_shared<ServiceDescriptor>(info.absoluteFilePath() + QDir::separator() + "/description.ini");
     }
 
     return result;

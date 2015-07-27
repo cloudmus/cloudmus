@@ -4,6 +4,8 @@ cmake_policy(SET CMP0020 NEW)
 
 set(SOURCES
     pointers.h
+    finalizator.h
+    finalizator.cpp
     scopedtools.h
     main.cpp
     application.h
