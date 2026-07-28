@@ -56,8 +56,12 @@ def download_tracks(tracks: list[Track], dest_dir: Path, on_progress: Progress =
 
 
 def playlist_tracks(playlist: Playlist) -> list[Track]:
+    # users_playlists_list() returns lightweight Playlist objects with an
+    # empty `tracks` field — the actual track list has to be fetched
+    # separately (a second request per playlist, via users_playlists()).
+    shorts = playlist.tracks or playlist.fetch_tracks()
     tracks = []
-    for short in playlist.tracks or []:
+    for short in shorts or []:
         track = short.track or short.fetch_track()
         if track is not None:
             tracks.append(track)

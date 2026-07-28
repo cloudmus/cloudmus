@@ -69,7 +69,7 @@ def wave():
             click.echo("Queue finished")
             return
         artists = ", ".join(track.artists_name()) if track.artists_name() else "?"
-        click.echo(f"▶ {artists} — {track.title}  [{track.track_id}]")
+        click.echo(f"▶ {artists} — {track.title}  (ID: {track.track_id})")
 
     def on_error(message: str):
         click.secho(f"[error] {message}", fg="red", err=True)
@@ -79,7 +79,7 @@ def wave():
     click.echo("Starting the wave...")
     player.start_wave(WAVE_STATION)
 
-    click.echo("Commands: n=next, p=prev, Enter=pause/resume, q=quit (or Ctrl+C)")
+    click.echo("Commands: n=next, p=prev, s=save track, Enter=pause/resume, q=quit (or Ctrl+C)")
     try:
         while True:
             cmd = input().strip().lower()
@@ -87,6 +87,15 @@ def wave():
                 player.next()
             elif cmd == "p":
                 player.prev()
+            elif cmd == "s":
+                track = player.current()
+                if track is None:
+                    click.echo("Nothing is playing")
+                    continue
+                try:
+                    downloader.download_track(track, Path("./downloads"), on_progress=click.echo)
+                except Exception as e:
+                    click.secho(f"[error] Failed to save the track: {e}", fg="red", err=True)
             elif cmd == "q":
                 break
             else:

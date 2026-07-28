@@ -16,7 +16,7 @@ from .player import Player, WAVE_STATION
 
 def _track_label(track: Track) -> str:
     artists = ", ".join(track.artists_name()) if track.artists_name() else "?"
-    return f"{artists} — {track.title}"
+    return f"{artists} — {track.title}  (ID: {track.track_id})"
 
 
 class SourceItem(ListItem):
@@ -80,7 +80,10 @@ class PlayerApp(App):
         except Exception as e:
             self.call_later(lambda: self.notify(f"Failed to load playlists: {e}", severity="error"))
             playlists = []
-        return [SourceItem(pl.title or "(untitled)", "playlist", pl) for pl in playlists]
+        return [
+            SourceItem(f"{pl.title or '(untitled)'}  (ID: {pl.playlist_id})", "playlist", pl)
+            for pl in playlists
+        ]
 
     def on_mount(self) -> None:
         self.set_interval(1.0, self._refresh_now_playing)

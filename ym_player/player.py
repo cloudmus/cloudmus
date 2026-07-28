@@ -1,3 +1,7 @@
+import ctypes.util
+import glob
+import os
+import sys
 import threading
 from typing import Callable, Optional
 
@@ -5,6 +9,32 @@ from yandex_music import Client, Track
 
 WAVE_STATION = "user:onyourwave"
 MAX_CONSECUTIVE_FAILURES = 5
+
+
+def _patch_find_library_for_bundled_mpv() -> None:
+    """В PyInstaller-сборке libmpv лежит внутри распакованного бандла
+    (sys._MEIPASS), но ctypes.util.find_library на Linux смотрит только в
+    системный ldconfig-кэш и эту директорию не видит. На машине без
+    системного mpv/libmpv python-mpv из-за этого не находит библиотеку,
+    хотя она реально лежит рядом — поэтому подсовываем ей путь напрямую.
+    """
+    meipass = getattr(sys, "_MEIPASS", None)
+    if not meipass:
+        return
+
+    candidates = sorted(glob.glob(os.path.join(meipass, "libmpv.so*")))
+    if not candidates:
+        return
+    bundled_path = candidates[0]
+
+    original_find_library = ctypes.util.find_library
+
+    def patched_find_library(name):
+        if name == "mpv":
+            return bundled_path
+        return original_find_library(name)
+
+    ctypes.util.find_library = patched_find_library
 
 
 def best_download_info(track: Track):
@@ -34,13 +64,19 @@ class Player:
         on_track_change: Optional[Callable[[Optional[Track]], None]] = None,
         on_error: Optional[Callable[[str], None]] = None,
     ):
+        _patch_find_library_for_bundled_mpv()
         import mpv as mpv_mod  # импорт отложен: требует установленной libmpv
 
         self.client = client
         self.on_track_change = on_track_change
         self.on_error = on_error
 
-        self.mpv = mpv_mod.MPV()
+        # Родной AO PipeWire в libmpv ненадёжен при таком варианте
+        # пакетирования (расхождение версий клиент/сервер ломает locking
+        # внутри pw_stream_*), поэтому явно идём через pulse/alsa — на
+        # PipeWire-десктопах (KDE и т.п.) это попадёт в pipewire-pulse,
+        # минуя нативный клиент PipeWire целиком.
+        self.mpv = mpv_mod.MPV(ao="pulse,alsa")
         self.mpv.volume = 100
 
         self.queue: list[Track] = []
