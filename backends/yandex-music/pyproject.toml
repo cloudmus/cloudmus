@@ -1,0 +1,20 @@
+[project]
+name = "cloudmus-backend-yandex-music"
+version = "0.1.0"
+description = "cloudmus backend: Yandex Music adapter"
+requires-python = ">=3.11"
+dependencies = [
+    "cloudmus-rpc-common",
+    "yandex-music>=3.0.0",
+    "mutagen>=1.47",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["cloudmus_backend_yandex*"]

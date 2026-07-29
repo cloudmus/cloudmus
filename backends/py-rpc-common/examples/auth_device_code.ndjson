@@ -1,0 +1,8 @@
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1.0","front":{"name":"cloudmus-tui","version":"0.1.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"1.0","source":{"id":"yandex-music","name":"Yandex Music","version":"0.1.0"},"capabilities":{"playback":{"providesStream":true,"selfPlayback":false,"controls":{"pause":false,"seek":false,"volume":false}},"browse":{"playlists":true,"likedTracks":true,"radio":true,"search":false},"feedback":{"like":true,"dislike":true,"skip":true},"download":true,"auth":{"required":true,"flow":"deviceCode"}}}}
+{"jsonrpc":"2.0","id":2,"method":"auth.getStatus","params":{}}
+{"jsonrpc":"2.0","id":2,"result":{"status":"unauthenticated"}}
+{"jsonrpc":"2.0","id":3,"method":"auth.start","params":{}}
+{"jsonrpc":"2.0","id":3,"result":{}}
+{"jsonrpc":"2.0","method":"auth/prompt","params":{"flow":"deviceCode","url":"https://oauth.yandex.ru/device","code":"WXYZ-9876","expiresInSec":600}}
+{"jsonrpc":"2.0","method":"auth/statusChanged","params":{"status":"authenticated"}}

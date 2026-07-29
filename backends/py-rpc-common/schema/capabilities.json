@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "capabilities.json",
+  "title": "Capabilities",
+  "type": "object",
+  "required": ["playback", "browse", "feedback", "download", "auth"],
+  "properties": {
+    "playback": {
+      "type": "object",
+      "required": ["providesStream", "selfPlayback", "controls"],
+      "properties": {
+        "providesStream": {"type": "boolean"},
+        "selfPlayback": {"type": "boolean"},
+        "controls": {
+          "type": "object",
+          "required": ["pause", "seek", "volume"],
+          "properties": {
+            "pause": {"type": "boolean"},
+            "seek": {"type": "boolean"},
+            "volume": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "browse": {
+      "type": "object",
+      "required": ["playlists", "likedTracks", "radio", "search"],
+      "properties": {
+        "playlists": {"type": "boolean"},
+        "likedTracks": {"type": "boolean"},
+        "radio": {"type": "boolean"},
+        "search": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "feedback": {
+      "type": "object",
+      "required": ["like", "dislike", "skip"],
+      "properties": {
+        "like": {"type": "boolean"},
+        "dislike": {"type": "boolean"},
+        "skip": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "download": {"type": "boolean"},
+    "auth": {
+      "type": "object",
+      "required": ["required", "flow"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "flow": {
+          "type": "string",
+          "enum": ["none", "deviceCode", "usernamePassword", "oauthRedirect"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

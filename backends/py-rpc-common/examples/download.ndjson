@@ -1,0 +1,2 @@
+{"jsonrpc":"2.0","id":7,"method":"catalog.downloadTrack","params":{"trackId":"51672522","destDir":"/home/vlad/Music"}}
+{"jsonrpc":"2.0","id":7,"result":{"path":"/home/vlad/Music/Aurolab - Victory.mp3"}}

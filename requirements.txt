@@ -1,5 +1,0 @@
-yandex-music>=3.0.0
-click>=8.1
-textual>=8.0
-mutagen>=1.47
-python-mpv>=1.0.6
