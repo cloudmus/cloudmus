@@ -5,11 +5,19 @@ import click
 from . import auth as auth_module
 from . import downloader, resolver
 from .client import get_client
+from .log import LOG_FILE, debug_requested, setup_debug_logging
 
 
 @click.group()
-def cli():
+@click.option(
+    "--debug", is_flag=True,
+    help=f"Write debug logs to {LOG_FILE} (also enabled via YM_PLAYER_DEBUG=1).",
+)
+def cli(debug: bool):
     """ym-player — a console client for Yandex Music (personal use)."""
+    if debug or debug_requested():
+        setup_debug_logging()
+        click.echo(f"Debug logging enabled, writing to {LOG_FILE.resolve()}", err=True)
 
 
 @cli.command()

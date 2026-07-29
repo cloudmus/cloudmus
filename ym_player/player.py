@@ -1,5 +1,6 @@
 import ctypes.util
 import glob
+import logging
 import os
 import sys
 import threading
@@ -7,8 +8,24 @@ from typing import Callable, Optional
 
 from yandex_music import Client, Track
 
+logger = logging.getLogger(__name__)
+
 WAVE_STATION = "user:onyourwave"
-MAX_CONSECUTIVE_FAILURES = 5
+RETRY_INITIAL_DELAY = 1.0
+RETRY_MAX_DELAY = 5.0
+MAX_ATTEMPTS_PER_TRACK = 5
+MAX_CONSECUTIVE_TRACK_FAILURES = 5
+
+
+class _Abandoned(Exception):
+    """Signals that the in-progress track transition was superseded by a
+    newer one (user pressed next/prev, or the player is shutting down)."""
+
+
+class _GiveUp(Exception):
+    """Signals that a track failed MAX_ATTEMPTS_PER_TRACK times in a row —
+    likely permanently unavailable (licensing/region), not a transient
+    network blip — so it should be skipped instead of retried forever."""
 
 
 def _patch_find_library_for_bundled_mpv() -> None:
@@ -85,11 +102,14 @@ class Player:
         self.station = WAVE_STATION
         self._batch_id: Optional[str] = None
         self._loaded = False
-        self._consecutive_failures = 0
+        self._consecutive_track_failures = 0
 
         self._lock = threading.RLock()
         self._manual_transition = threading.Event()
         self._watcher_stop = threading.Event()
+        # Свежий Event на каждый переход (см. _advance): позволяет отменить
+        # ретрай-цикл именно предыдущего трека, не трогая общее состояние.
+        self._cancel_event = threading.Event()
         self._watcher = threading.Thread(target=self._watch_eof, daemon=True)
         self._watcher.start()
 
@@ -115,8 +135,7 @@ class Player:
             self.wave = False
             self.queue = tracks
             self.index = start_index - 1
-            self._consecutive_failures = 0
-            self.next()
+        self.next()
 
     def start_wave(self, station: str = WAVE_STATION) -> None:
         with self._lock:
@@ -124,17 +143,16 @@ class Player:
             self.station = station
             self.queue = []
             self.index = -1
-            self._consecutive_failures = 0
-            try:
-                self.client.rotor_station_feedback_radio_started(station, from_="ym-player")
-            except Exception:
-                pass  # это просто телеметрия для рекомендаций, не критично для воспроизведения
-            try:
-                self._fetch_wave_batch()
-            except Exception as e:
-                self._report_error(f"Failed to fetch wave tracks: {e}")
-                return
-            self.next()
+        try:
+            self.client.rotor_station_feedback_radio_started(station, from_="ym-player")
+        except Exception:
+            pass  # это просто телеметрия для рекомендаций, не критично для воспроизведения
+        try:
+            self._fetch_wave_batch()
+        except Exception as e:
+            self._report_error(f"Failed to fetch wave tracks: {e}")
+            return
+        self.next()
 
     def _fetch_wave_batch(self) -> None:
         result = self.client.rotor_station_tracks(self.station)
@@ -146,14 +164,12 @@ class Player:
     # --- управление ---
 
     def next(self) -> None:
-        with self._lock:
-            self._advance(direction=1, auto=False)
+        self._advance(direction=1, auto=False)
 
     def prev(self) -> None:
         if self.wave:
             return
-        with self._lock:
-            self._advance(direction=-1, auto=False)
+        self._advance(direction=-1, auto=False)
 
     def toggle_pause(self) -> None:
         self.mpv.pause = not self.mpv.pause
@@ -169,6 +185,7 @@ class Player:
 
     def stop(self) -> None:
         self._watcher_stop.set()
+        self._cancel_event.set()
         try:
             self.mpv.stop()
         except Exception:
@@ -188,96 +205,189 @@ class Player:
             self.on_error(message)
 
     def _advance(self, direction: int, auto: bool) -> None:
-        prev_track = self.current()
-        if prev_track is not None and self.wave:
-            played, _ = self.position()
-            try:
-                if auto:
-                    self.client.rotor_station_feedback_track_finished(
-                        self.station, prev_track.track_id, played, batch_id=self._batch_id
-                    )
-                else:
-                    self.client.rotor_station_feedback_skip(
-                        self.station, prev_track.track_id, played, batch_id=self._batch_id
-                    )
-            except Exception:
-                pass
+        logger.debug(
+            "_advance start direction=%s auto=%s index=%s queue_len=%s wave=%s",
+            direction, auto, self.index, len(self.queue), self.wave,
+        )
+        with self._lock:
+            # Начинается новый переход — отменяем ретрай-цикл предыдущего
+            # трека (если он ещё крутится) и заводим для нового отдельный
+            # cancel_event, чтобы отмена не зависела от общего состояния.
+            self._cancel_event.set()
 
-        self.index += direction
-        if self.index < 0:
-            self.index = 0
-            return
+            prev_track = self.current()
+            if prev_track is not None and self.wave:
+                played, dur = self.position()
+                logger.debug(
+                    "wave feedback track_id=%s played=%.1f/%.1f auto=%s",
+                    prev_track.track_id, played, dur, auto,
+                )
+                try:
+                    if auto:
+                        self.client.rotor_station_feedback_track_finished(
+                            self.station, prev_track.track_id, played, batch_id=self._batch_id
+                        )
+                    else:
+                        self.client.rotor_station_feedback_skip(
+                            self.station, prev_track.track_id, played, batch_id=self._batch_id
+                        )
+                except Exception as e:
+                    logger.debug("wave feedback failed: %s", e)
 
-        if self.wave and self.index >= len(self.queue) - 2:
+            self.index += direction
+            if self.index < 0:
+                self.index = 0
+                logger.debug("_advance: hit start of queue, index reset to 0")
+                return
+
+            if self.wave and self.index >= len(self.queue) - 2:
+                try:
+                    self._fetch_wave_batch()
+                    logger.debug(
+                        "wave batch fetched, queue_len now=%s batch_id=%s",
+                        len(self.queue), self._batch_id,
+                    )
+                except Exception as e:
+                    logger.debug("wave batch fetch failed: %s", e)
+                    self._report_error(f"Failed to continue the wave: {e}")
+
+            if self.index >= len(self.queue):
+                self.index = len(self.queue)
+                logger.debug(
+                    "_advance: queue exhausted (index=%s queue_len=%s), stopping",
+                    self.index, len(self.queue),
+                )
+                self.on_track_change and self.on_track_change(None)
+                return
+
+            track = self.current()
+            cancel_event = threading.Event()
+            self._cancel_event = cancel_event
+            logger.debug(
+                "_advance: moving to index=%s track=%r cancel_event=%s",
+                self.index, track.title, id(cancel_event),
+            )
+
+        # Играем уже вне self._lock, чтобы next()/prev()/stop() могли
+        # прервать ретрай-цикл, а не ждать его на входе в лок.
+        self._play_current(track, cancel_event, auto=auto)
+
+    def _retry_until_success(self, cancel_event: threading.Event, description: str, fn):
+        """Повторяет fn() с растущей паузой между попытками, пока не
+        получится, пока не наберётся MAX_ATTEMPTS_PER_TRACK неудач подряд
+        (тогда трек считается сломанным — см. _GiveUp), пока не отменят
+        (новый переход/next/prev/stop) или пока плеер не остановлен целиком.
+        Пауза растёт от RETRY_INITIAL_DELAY до RETRY_MAX_DELAY (не больше)."""
+        delay = RETRY_INITIAL_DELAY
+        attempt = 0
+        while not (cancel_event.is_set() or self._watcher_stop.is_set()):
+            attempt += 1
             try:
-                self._fetch_wave_batch()
+                result = fn()
+                logger.debug("%s: succeeded on attempt %s", description, attempt)
+                return result
             except Exception as e:
-                self._report_error(f"Failed to continue the wave: {e}")
+                logger.debug("%s: attempt %s failed: %s", description, attempt, e)
+                if attempt >= MAX_ATTEMPTS_PER_TRACK:
+                    logger.debug("%s: giving up after %s attempt(s)", description, attempt)
+                    raise _GiveUp(str(e)) from e
+                self._report_error(f"{description}: {e}. Retrying in {delay:.0f}s...")
+                if cancel_event.wait(timeout=delay):
+                    logger.debug("%s: cancelled during backoff wait (attempt %s)", description, attempt)
+                    break
+                delay = min(delay * 2, RETRY_MAX_DELAY)
+        logger.debug("%s: abandoned after %s attempt(s)", description, attempt)
+        raise _Abandoned
 
-        if self.index >= len(self.queue):
-            self.index = len(self.queue)
-            self.on_track_change and self.on_track_change(None)
-            return
-
-        self._play_current()
-
-    def _play_current(self) -> None:
-        track = self.current()
-        if track is None:
-            return
-
+    def _play_current(self, track: Track, cancel_event: threading.Event, auto: bool) -> None:
+        logger.debug("_play_current: track=%r auto=%s cancel_event=%s", track.title, auto, id(cancel_event))
         try:
-            info = best_download_info(track)
-        except Exception as e:
-            self._skip_broken_track(track, e)
+            info = self._retry_until_success(
+                cancel_event, f"Failed to get a link for “{track.title}”",
+                lambda: best_download_info(track),
+            )
+
+            def _start() -> None:
+                # Флаг нужен только когда mpv.play() реально прерывает ещё
+                # играющий трек (ручной next/prev) — тогда это порождает
+                # лишний end_file, который должен проигнорировать watcher.
+                # При авто-переходе (natural EOF) предыдущий end_file уже
+                # обработан и mpv простаивает, так что взводить флаг не
+                # нужно — иначе он зависнет и watcher примет за «ручной»
+                # уже собственный end_file нового трека, и авто-переход
+                # после него больше никогда не сработает.
+                if self._loaded and not auto:
+                    logger.debug("_play_current: arming manual_transition before mpv.play()")
+                    self._manual_transition.set()
+                self.mpv.play(info.direct_link)
+                self.mpv.pause = False
+
+            self._retry_until_success(
+                cancel_event, f"Failed to start playback of “{track.title}”", _start,
+            )
+        except _Abandoned:
+            logger.debug("_play_current: transition for %r abandoned (superseded or shutting down)", track.title)
+            return
+        except _GiveUp as e:
+            self._consecutive_track_failures += 1
+            logger.debug(
+                "_play_current: giving up on %r (%s), consecutive_track_failures=%s",
+                track.title, e, self._consecutive_track_failures,
+            )
+            self._report_error(f"Skipping “{track.title}”: {e}")
+            if self._consecutive_track_failures >= MAX_CONSECUTIVE_TRACK_FAILURES:
+                logger.debug("_play_current: too many broken tracks in a row, stopping")
+                self._report_error("Too many consecutive errors, stopping.")
+                self._consecutive_track_failures = 0
+                return
+            # auto прокидывается как есть, а не хардкодится в True: если это
+            # был ручной next/prev и старый трек ещё реально играет в mpv,
+            # следующая попытка тоже должна прервать его как «ручную», иначе
+            # watcher примет лишний end_file от mpv.play() за настоящий конец
+            # трека и сделает случайный двойной автопереход.
+            self._advance(direction=1, auto=auto)
             return
 
-        if self._loaded:
-            self._manual_transition.set()
-
-        try:
-            self.mpv.play(info.direct_link)
-            self.mpv.pause = False
-        except Exception as e:
-            self._skip_broken_track(track, e)
-            return
-
+        self._consecutive_track_failures = 0
         self._loaded = True
-        self._consecutive_failures = 0
+        logger.debug("_play_current: mpv.play() issued for %r, waiting on eof watcher now", track.title)
 
         if self.wave:
             try:
                 self.client.rotor_station_feedback_track_started(
                     self.station, track.track_id, batch_id=self._batch_id
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("wave feedback (track_started) failed: %s", e)
 
         if self.on_track_change:
             self.on_track_change(track)
 
-    def _skip_broken_track(self, track: Track, error: Exception) -> None:
-        self._consecutive_failures += 1
-        self._report_error(f"Skipping “{track.title}”: {error}")
-        if self._consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-            self._report_error("Too many consecutive errors, stopping.")
-            self._consecutive_failures = 0
-            return
-        self._advance(direction=1, auto=True)
-
     def _watch_eof(self) -> None:
+        logger.debug("_watch_eof: watcher thread started")
         while not self._watcher_stop.is_set():
             try:
                 self.mpv.wait_for_playback()
-            except Exception:
+            except Exception as e:
+                logger.debug(
+                    "_watch_eof: wait_for_playback() raised %r, watcher thread is exiting "
+                    "and no further auto-advance will happen",
+                    e, exc_info=True,
+                )
+                self._report_error(f"Playback watcher died: {e}")
                 return
+            logger.debug(
+                "_watch_eof: wait_for_playback() returned (end_file), manual_transition=%s stop=%s",
+                self._manual_transition.is_set(), self._watcher_stop.is_set(),
+            )
             if self._watcher_stop.is_set():
                 return
             if self._manual_transition.is_set():
                 self._manual_transition.clear()
+                logger.debug("_watch_eof: consumed manual_transition flag, skipping auto-advance")
                 continue
             try:
-                with self._lock:
-                    self._advance(direction=1, auto=True)
+                self._advance(direction=1, auto=True)
             except Exception as e:
+                logger.debug("_watch_eof: auto-advance raised %r", e, exc_info=True)
                 self._report_error(f"Auto-advance error: {e}")
