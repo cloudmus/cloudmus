@@ -15,9 +15,9 @@
 #pragma once
 
 #include <optional>
-#include <vector>
 
 #include <QJsonObject>
+#include <QMetaType>
 #include <QString>
 
 #include "JsonValidation.h"
@@ -46,4 +46,15 @@ struct {{ s.name }} {
     }
 };
 
+{% endfor %}
+// Metatype registrations, one per struct above — needed wherever a struct is
+// used as a Qt signal/slot parameter or stored in a QVariant (e.g.
+// PlaybackController::trackChanged(const Track&, ...) in Ui/MainWindow.cpp).
+// Declared here, right next to each struct, rather than in whichever
+// hand-written file happens to use it first: Q_DECLARE_METATYPE must be
+// visible in a translation unit *before* the compiler implicitly
+// instantiates the primary QMetaTypeId<T> template for that type, and
+// there's no way to guarantee include order from a downstream header.
+{% for s in structs %}
+Q_DECLARE_METATYPE({{ s.name }})
 {% endfor %}

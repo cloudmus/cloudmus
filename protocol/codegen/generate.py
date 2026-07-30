@@ -73,10 +73,12 @@ def generate_cpp(ir: schema_ir.ProtocolIR) -> None:
     CPP_OUT.mkdir(parents=True, exist_ok=True)
     models_h = CPP_OUT / "Models.h"
     rpc_methods_h = CPP_OUT / "RpcMethods.h"
+    rpc_methods_cpp = CPP_OUT / "RpcMethods.cpp"
     models_h.write_text(env.get_template("Models.h.jinja").render(ctx))
     rpc_methods_h.write_text(env.get_template("RpcMethods.h.jinja").render(ctx))
-    _clang_format_inplace([models_h, rpc_methods_h])
-    print(f"wrote {CPP_OUT}/{{Models,RpcMethods}}.h")
+    rpc_methods_cpp.write_text(env.get_template("RpcMethods.cpp.jinja").render(ctx))
+    _clang_format_inplace([models_h, rpc_methods_h, rpc_methods_cpp])
+    print(f"wrote {CPP_OUT}/{{Models,RpcMethods}}.h, {CPP_OUT}/RpcMethods.cpp")
 
 
 def main() -> None:

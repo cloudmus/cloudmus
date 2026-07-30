@@ -16,6 +16,8 @@ from pathlib import Path
 from mutagen import File as MutagenFile
 from rpc_common.generated.models import Album, Artist, Track
 
+from . import cover_art
+
 AUDIO_EXTENSIONS = {".mp3", ".flac", ".ogg", ".m4a", ".wav", ".opus", ".wma", ".aac"}
 
 ROOT_PLAYLIST_ID = "__root__"
@@ -79,8 +81,9 @@ def read_track(path: Path, root: Path) -> Track:
 
     album = Album(id=album_name, title=album_name) if album_name else None
     artists = [Artist(id=name, name=name) for name in artist_names]
+    cover_url = cover_art.extract_cover_uri(path)
 
-    return Track(id=track_id, title=title, artists=artists, durationMs=duration_ms, album=album)
+    return Track(id=track_id, title=title, artists=artists, durationMs=duration_ms, album=album, coverUrl=cover_url)
 
 
 def resolve_track_path(root: Path, track_id: str) -> Path | None:

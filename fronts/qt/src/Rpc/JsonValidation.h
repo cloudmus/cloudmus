@@ -3,12 +3,12 @@
 #include <initializer_list>
 #include <optional>
 #include <string>
-#include <vector>
 
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QLatin1String>
+#include <QList>
 #include <QMap>
 #include <QString>
 
@@ -140,7 +140,7 @@ inline std::optional<QString> optionalEnumField(const QJsonObject& obj, const ch
 }
 
 template <typename T>
-std::vector<T> requiredArray(const QJsonObject& obj, const char* className, const char* fieldName)
+QList<T> requiredArray(const QJsonObject& obj, const char* className, const char* fieldName)
 {
     if (!obj.contains(fieldName)) {
         throw ProtocolParseError(Detail::fieldPath(className, fieldName) + " is required");
@@ -150,8 +150,8 @@ std::vector<T> requiredArray(const QJsonObject& obj, const char* className, cons
         throw ProtocolParseError(Detail::fieldPath(className, fieldName) + ": expected array");
     }
     QJsonArray arr = v.toArray();
-    std::vector<T> out;
-    out.reserve(static_cast<size_t>(arr.size()));
+    QList<T> out;
+    out.reserve(arr.size());
     for (const QJsonValue& item : arr) {
         if (!JsonField<T>::check(item)) {
             throw ProtocolParseError(Detail::fieldPath(className, fieldName) + "[]: expected "
@@ -202,7 +202,7 @@ QJsonValue toJsonValue(const T& v)
 }
 
 template <typename T>
-QJsonArray toJsonArray(const std::vector<T>& values)
+QJsonArray toJsonArray(const QList<T>& values)
 {
     QJsonArray arr;
     for (const auto& v : values) {
