@@ -30,6 +30,14 @@ Decisions already made with the user (do not re-litigate):
   `protocol/` or `libs/` folder — protocol prose lives in `docs/protocol.md`;
   the shared JSON-RPC/NDJSON transport library (`py-rpc-common`) nests inside
   `backends/`, since backends are what actually run a server loop with it.
+  **Superseded (protocol 1.1):** a top-level `protocol/` directory now exists
+  after all — the protocol became schema-first (`protocol/schema/*.yaml` +
+  `protocol/methods.yaml`, with per-language stubs generated via
+  `protocol/codegen/`), consumed by Python backends, the C++ Qt front, and
+  (later) a Go backend rewrite. That's genuinely language-agnostic content
+  with no natural home under `backends/` anymore, unlike `py-rpc-common`
+  (still backend-Python-specific, still nests inside `backends/` as before).
+  See `protocol/README.md` and `docs/protocol-changelog.md`'s `1.1` entry.
 - **Two backends for v1**: `backends/yandex-music` (real, migrated from
   today's code) and `backends/local-folder` (new: plays a local music
   directory tree — each subfolder becomes a playlist, or the whole root is one
@@ -175,7 +183,9 @@ the front never sees credentials, keeping it fully source-agnostic.
 Namespaces: `catalog.*`, `playback.*`, `feedback.*`, `auth.*`, lifecycle
 `initialize` / `shutdown`.
 
-**Shared shapes** (defined once in `backends/py-rpc-common/schema/`, referenced everywhere):
+**Shared shapes** (defined once — now in `protocol/schema/*.yaml`, see the
+protocol 1.1 note above; this section otherwise still describes the original
+per-field design accurately):
 ```
 Track:  {id, title, artists:[{id,name}], album:{id,title,coverUrl?}, durationMs,
          coverUrl?, liked?, explicit?}

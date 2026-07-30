@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rpc_common.models import Playlist
+from rpc_common.generated.models import Playlist
 
 from . import scanner
 

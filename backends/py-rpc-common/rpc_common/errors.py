@@ -35,3 +35,10 @@ def app_error_data(retryable: bool, detail: str | None = None) -> dict[str, Any]
 
 def in_range(code: int, low: int, high: int) -> bool:
     return low <= code <= high
+
+
+class ProtocolValidationError(ValueError):
+    """Raised by generated rpc_common.generated.models.*.from_dict() when a
+    message doesn't match protocol/schema/*.yaml — a required field is
+    missing, or a field's runtime type/enum value doesn't match. Carries a
+    field path (e.g. "Track.durationMs") and the mismatch in its message."""

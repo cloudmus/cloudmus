@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mutagen import File as MutagenFile
-from rpc_common.models import Album, Artist, Track
+from rpc_common.generated.models import Album, Artist, Track
 
 AUDIO_EXTENSIONS = {".mp3", ".flac", ".ogg", ".m4a", ".wav", ".opus", ".wma", ".aac"}
 

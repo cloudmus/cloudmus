@@ -1,0 +1,12 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: playback_state.yaml
+title: PlaybackState
+type: object
+required: [state]
+properties:
+  state: {type: string, enum: [idle, playing, paused, buffering, stopped]}
+  trackId: {type: string}           # optional, absent when state is "idle"
+  positionMs: {type: integer}       # optional
+  durationMs: {type: integer}       # optional
+  liked: {type: boolean}            # optional
+additionalProperties: false

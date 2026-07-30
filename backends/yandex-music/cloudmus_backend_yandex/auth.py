@@ -13,6 +13,17 @@ from typing import Any, Awaitable, Callable
 
 from yandex_music import Client
 
+from rpc_common.generated.methods import emit_auth_status_changed
+from rpc_common.generated.models import StatusChangedParams
+
+# Note: auth/prompt is deliberately NOT sent via the generated emit_auth_prompt
+# helper here — protocol/methods.yaml models auth/prompt's params loosely
+# ({flow} only, no oneOf over the three concrete flow shapes, see the comment
+# there), since its actual payload varies per auth.flow (deviceCode carries
+# url/code/expiresInSec; usernamePassword carries fields; oauthRedirect
+# carries url). Routing this deviceCode-specific notification through the
+# generated PromptParams type would silently drop everything but `flow`.
+
 from . import client as client_module
 from . import config
 
@@ -77,7 +88,7 @@ class DeviceAuthSession:
             logger.debug("device auth failed: %s", e)
             self.status = "error"
             self.error_message = str(e)
-            await notify("auth/statusChanged", {"status": "error", "message": str(e)})
+            await emit_auth_status_changed(notify, StatusChangedParams(status="error", message=str(e)))
             return
 
         if self._cancel_event.is_set():
@@ -87,7 +98,7 @@ class DeviceAuthSession:
         config.set_token(access_token)
         client_module.reset_client()
         self.status = "authenticated"
-        await notify("auth/statusChanged", {"status": "authenticated"})
+        await emit_auth_status_changed(notify, StatusChangedParams(status="authenticated"))
 
     def logout(self) -> None:
         config.clear_token()

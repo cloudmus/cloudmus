@@ -17,6 +17,9 @@ from typing import Any, Awaitable, Callable
 
 from yandex_music import Client
 
+from rpc_common.generated.methods import emit_radio_tracks_added
+from rpc_common.generated.models import TracksAddedParams
+
 from . import catalog
 
 logger = logging.getLogger(__name__)
@@ -62,12 +65,9 @@ class RadioSession:
         self.batch_id = result.batch_id
         tracks = [seq.track for seq in result.sequence if seq.track]
         if tracks:
-            await self._notify(
-                "radio/tracksAdded",
-                {
-                    "stationId": self.station,
-                    "tracks": [catalog.to_track(t).to_dict() for t in tracks],
-                },
+            await emit_radio_tracks_added(
+                self._notify,
+                TracksAddedParams(stationId=self.station, tracks=[catalog.to_track(t) for t in tracks]),
             )
 
     async def track_started(self, track_id: str) -> None:

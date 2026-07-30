@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 
 from rpc_common import errors
+from rpc_common.generated.methods import emit_track_stream_ready
+from rpc_common.generated.models import StreamReadyParams
 from rpc_common.server import BackendError, BackendServer
 
 from . import catalog, config, playback
@@ -54,9 +56,9 @@ def build_server() -> BackendServer:
                 errors.app_error_data(retryable=False, detail=f"trackId={track_id}"),
             )
         asyncio.create_task(
-            server.notify(
-                "track/streamReady",
-                {"requestId": request_id, "trackId": track_id, "stream": stream.to_dict()},
+            emit_track_stream_ready(
+                server.notify,
+                StreamReadyParams(requestId=request_id, trackId=track_id, stream=stream),
             )
         )
         return {"accepted": True}

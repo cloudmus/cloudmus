@@ -59,7 +59,7 @@ class BackendServer:
 
     def _handle_initialize(self, params: dict[str, Any], request_id: int) -> dict[str, Any]:
         return {
-            "protocolVersion": "1.0",
+            "protocolVersion": "1.1",
             "source": {
                 "id": self.source_id,
                 "name": self.source_name,

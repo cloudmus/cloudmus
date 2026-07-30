@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from rpc_common.models import StreamDescriptor
+from rpc_common.generated.models import StreamDescriptor
 
 from . import scanner
 

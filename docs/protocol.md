@@ -1,6 +1,6 @@
 # cloudmus Source/Front RPC Protocol
 
-**Version:** `1.0` (see §12 for versioning rules)
+**Version:** `1.1` (see §12 for versioning rules)
 
 ## 1. Overview
 
@@ -116,7 +116,7 @@ exists — see §10).
 **Params:**
 ```json
 {
-  "protocolVersion": "1.0",
+  "protocolVersion": "1.1",
   "front": {"name": "cloudmus-tui", "version": "0.1.0"}
 }
 ```
@@ -124,7 +124,7 @@ exists — see §10).
 **Result:**
 ```json
 {
-  "protocolVersion": "1.0",
+  "protocolVersion": "1.1",
   "source": {"id": "yandex-music", "name": "Yandex Music", "version": "0.1.0"},
   "capabilities": { /* §5 */ }
 }
@@ -134,7 +134,7 @@ If the front's `protocolVersion` major component doesn't match what the
 source supports, the source returns an error (code `1000`-range is for auth;
 use a dedicated value `1` in the standard JSON-RPC "Invalid params" style, or
 more precisely: reply with a normal error object, code `-32602` "Invalid
-params", `data: {"reason": "protocolVersion mismatch", "supported": "1.0"}`).
+params", `data: {"reason": "protocolVersion mismatch", "supported": "1.1"}`).
 The front then refuses to use that source at all — **v1 does no subset
 negotiation.**
 
@@ -207,7 +207,11 @@ expected to always emit the full shape above.
   "durationMs": 391200,
   "coverUrl": "https://...",     // optional, falls back to album cover if absent
   "liked": false,                 // optional, omitted if the source doesn't track like-state
-  "explicit": false                // optional
+  "explicit": false,               // optional
+  "webUrl": "https://music.yandex.ru/album/7224367/track/51672522"  // optional, added in 1.1 (§12);
+                                    // a browsable page for this track. Absent when the source has no
+                                    // such page (e.g. local-folder tracks). No matching capability flag —
+                                    // same precedent as coverUrl/liked/explicit: front just checks presence.
 }
 ```
 
@@ -522,8 +526,8 @@ something bumps MAJOR. Changes are tracked in `docs/protocol-changelog.md`.
 ## Appendix: full example session (NDJSON)
 
 ```ndjson
-{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1.0","front":{"name":"cloudmus-tui","version":"0.1.0"}}}
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"1.0","source":{"id":"yandex-music","name":"Yandex Music","version":"0.1.0"},"capabilities":{"playback":{"providesStream":true,"selfPlayback":false,"controls":{"pause":false,"seek":false,"volume":false}},"browse":{"playlists":true,"likedTracks":true,"radio":true,"search":false},"feedback":{"like":true,"dislike":true,"skip":true},"download":true,"auth":{"required":true,"flow":"deviceCode"}}}}
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1.1","front":{"name":"cloudmus-tui","version":"0.1.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"1.1","source":{"id":"yandex-music","name":"Yandex Music","version":"0.1.0"},"capabilities":{"playback":{"providesStream":true,"selfPlayback":false,"controls":{"pause":false,"seek":false,"volume":false}},"browse":{"playlists":true,"likedTracks":true,"radio":true,"search":false},"feedback":{"like":true,"dislike":true,"skip":true},"download":true,"auth":{"required":true,"flow":"deviceCode"}}}}
 {"jsonrpc":"2.0","id":2,"method":"auth.getStatus","params":{}}
 {"jsonrpc":"2.0","id":2,"result":{"status":"unauthenticated"}}
 {"jsonrpc":"2.0","id":3,"method":"auth.start","params":{}}

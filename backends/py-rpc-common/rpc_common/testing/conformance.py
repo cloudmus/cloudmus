@@ -7,22 +7,27 @@ cloudmus_backend_local`).
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 from typing import Any
 
 import jsonschema
+import yaml
 
 from .. import jsonrpc, transport
 
-SCHEMA_DIR = Path(__file__).resolve().parent.parent.parent / "schema"
+# Schema now lives in the top-level protocol/ directory (not nested under any
+# one backend's package) since it's consumed by Python backends, this suite,
+# and (via protocol/codegen) non-Python fronts. Repo root is 5 parents up from
+# this file: rpc_common/testing/conformance.py -> rpc_common -> py-rpc-common
+# -> backends -> <repo root>.
+SCHEMA_DIR = Path(__file__).resolve().parents[4] / "protocol" / "schema"
 
 
 def _load_schema_store() -> dict[str, Any]:
     store: dict[str, Any] = {}
-    for path in SCHEMA_DIR.glob("*.json"):
-        schema = json.loads(path.read_text())
+    for path in SCHEMA_DIR.glob("*.yaml"):
+        schema = yaml.safe_load(path.read_text())
         store[schema["$id"]] = schema
     return store
 
@@ -61,14 +66,14 @@ async def run_conformance(argv: list[str]) -> list[str]:
             jsonrpc.make_request(
                 init_id,
                 "initialize",
-                {"protocolVersion": "1.0", "front": {"name": "conformance-suite", "version": "0.0.0"}},
+                {"protocolVersion": "1.1", "front": {"name": "conformance-suite", "version": "0.0.0"}},
             )
         )
         response = await reader.__anext__()
         if response.get("id") != init_id or "result" not in response:
             raise ConformanceFailure(f"initialize did not return a matching result: {response!r}")
         result = response["result"]
-        _validate("initialize_result.json", result)
+        _validate("initialize_result.yaml", result)
         passed.append("initialize result matches schema")
 
         caps = result["capabilities"]
@@ -96,7 +101,7 @@ async def run_conformance(argv: list[str]) -> list[str]:
             if response.get("id") != list_id or "result" not in response:
                 raise ConformanceFailure(f"catalog.listPlaylists failed: {response!r}")
             for playlist in response["result"]["playlists"]:
-                _validate("playlist.json", playlist)
+                _validate("playlist.yaml", playlist)
             passed.append("catalog.listPlaylists results match schema")
         elif caps["browse"]["playlists"]:
             passed.append("catalog.listPlaylists skipped (backend requires auth, not authenticated)")

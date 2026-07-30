@@ -13,7 +13,7 @@ import asyncio
 
 from yandex_music import Client
 
-from rpc_common.models import StreamDescriptor
+from rpc_common.generated.models import StreamDescriptor
 
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 5.0

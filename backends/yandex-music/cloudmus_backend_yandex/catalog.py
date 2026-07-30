@@ -7,7 +7,7 @@ import asyncio
 
 from yandex_music import Client, Playlist as YPlaylist, Track as YTrack
 
-from rpc_common.models import Album, Artist, Playlist, Track
+from rpc_common.generated.models import Album, Artist, Playlist, Track
 
 COVER_SIZE = "400x400"
 
@@ -16,6 +16,18 @@ def _cover_url(cover_uri: str | None) -> str | None:
     if not cover_uri:
         return None
     return f"https://{cover_uri.replace('%%', COVER_SIZE)}"
+
+
+def _web_url(t: YTrack) -> str | None:
+    # Yandex only has a browsable track page in the context of an album.
+    # t.track_id is "trackNum:albumNum" when an album is present (or just
+    # the bare track number otherwise) — split it rather than relying on a
+    # separate t.id attribute, since track_id is what's already guaranteed
+    # to carry the numeric track id in both shapes.
+    if not t.albums:
+        return None
+    track_num = t.track_id.split(":", 1)[0]
+    return f"https://music.yandex.ru/album/{t.albums[0].id}/track/{track_num}"
 
 
 def to_track(t: YTrack) -> Track:
@@ -32,6 +44,7 @@ def to_track(t: YTrack) -> Track:
         album=album,
         coverUrl=_cover_url(t.cover_uri),
         explicit=t.explicit,
+        webUrl=_web_url(t),
     )
 
 

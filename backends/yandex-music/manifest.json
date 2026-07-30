@@ -2,5 +2,5 @@
   "id": "yandex-music",
   "name": "Yandex Music",
   "argv": ["python", "-m", "cloudmus_backend_yandex"],
-  "protocolVersion": "1.0"
+  "protocolVersion": "1.1"
 }
