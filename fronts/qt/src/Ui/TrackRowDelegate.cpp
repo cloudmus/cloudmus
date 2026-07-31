@@ -1,5 +1,7 @@
 #include "TrackRowDelegate.h"
 
+#include <QIcon>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -24,6 +26,12 @@ TrackRowDelegate::TrackRowDelegate(CoverArtCache* coverCache, QObject* parent)
 {
 }
 
+QRect TrackRowDelegate::thumbRect(const QRect& rowRect) const
+{
+    const int margin = (rowRect.height() - kThumbSize) / 2;
+    return QRect(rowRect.left() + margin, rowRect.top() + margin, kThumbSize, kThumbSize);
+}
+
 void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
     const Track track = index.data(TrackListModel::TrackRole).value<Track>();
@@ -37,17 +45,37 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
     const QRect rect = option.rect;
     const int margin = (rect.height() - kThumbSize) / 2;
-    const QRect thumbRect(rect.left() + margin, rect.top() + margin, kThumbSize, kThumbSize);
+    const QRect thumb = thumbRect(rect);
 
-    QPixmap thumb = track.coverUrl ? coverCache_->pixmap(*track.coverUrl, QSize(kThumbSize, kThumbSize)) : QPixmap();
-    if (!thumb.isNull()) {
+    QPixmap thumbPixmap
+        = track.coverUrl ? coverCache_->pixmap(*track.coverUrl, QSize(kThumbSize, kThumbSize)) : QPixmap();
+    if (!thumbPixmap.isNull()) {
         QPainterPath clip;
-        clip.addRoundedRect(thumbRect, 4, 4);
+        clip.addRoundedRect(thumb, 4, 4);
         painter->setClipPath(clip);
-        painter->drawPixmap(thumbRect, thumb);
+        painter->drawPixmap(thumb, thumbPixmap);
         painter->setClipping(false);
     } else {
-        painter->fillRect(thumbRect, option.palette.alternateBase());
+        painter->fillRect(thumb, option.palette.alternateBase());
+    }
+
+    // Hover-only play button, drawn over the cover thumbnail (the
+    // Spotify/YouTube Music convention) rather than as a separate widget —
+    // requires the view to have mouse tracking on for State_MouseOver to be
+    // set at all (see MainWindow.cpp). editorEvent() below hit-tests clicks
+    // against the same thumbRect().
+    if (option.state & QStyle::State_MouseOver) {
+        QPainterPath clip;
+        clip.addRoundedRect(thumb, 4, 4);
+        painter->setClipPath(clip);
+        painter->fillRect(thumb, QColor(0, 0, 0, 140));
+        painter->setClipping(false);
+
+        const QIcon playIcon = QIcon::fromTheme(QStringLiteral("media-playback-start"));
+        const QSize iconSize(18, 18);
+        const QRect iconRect(thumb.center().x() - iconSize.width() / 2, thumb.center().y() - iconSize.height() / 2,
+                             iconSize.width(), iconSize.height());
+        playIcon.paint(painter, iconRect, Qt::AlignCenter, QIcon::Normal, QIcon::On);
     }
 
     const QColor textColor = option.state & QStyle::State_Selected ? option.palette.color(QPalette::HighlightedText)
@@ -59,7 +87,7 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     const QFontMetrics metrics(option.font);
     const int durationWidth = metrics.horizontalAdvance(durationText);
 
-    const int textLeft = thumbRect.right() + margin;
+    const int textLeft = thumb.right() + margin;
     const int textRight = rect.right() - margin - durationWidth - margin;
     const QRect titleRect(textLeft, rect.top() + margin - 2, textRight - textLeft, metrics.height());
     QRect artistRect(textLeft, titleRect.bottom(), textRight - textLeft, metrics.height());
@@ -86,5 +114,18 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 }
 
 QSize TrackRowDelegate::sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const { return QSize(0, kRowHeight); }
+
+bool TrackRowDelegate::editorEvent(QEvent* event, QAbstractItemModel* model, const QStyleOptionViewItem& option,
+                                   const QModelIndex& index)
+{
+    if (event->type() == QEvent::MouseButtonRelease) {
+        auto* mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton && thumbRect(option.rect).contains(mouseEvent->pos())) {
+            emit playRequested(index);
+            return true;
+        }
+    }
+    return QStyledItemDelegate::editorEvent(event, model, option, index);
+}
 
 } // namespace Ui

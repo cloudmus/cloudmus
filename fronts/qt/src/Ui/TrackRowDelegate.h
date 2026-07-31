@@ -18,8 +18,20 @@ public:
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+    bool editorEvent(QEvent* event, QAbstractItemModel* model, const QStyleOptionViewItem& option,
+                     const QModelIndex& index) override;
+
+signals:
+    // The cover thumbnail's hover-only play overlay (see paint()) was
+    // clicked. MainWindow wires this to the same handler as a row
+    // double-click — both mean "play this one track".
+    void playRequested(const QModelIndex& index);
 
 private:
+    // Shared between paint() (drawing the hover overlay) and editorEvent()
+    // (hit-testing a click against it) so they can never disagree.
+    QRect thumbRect(const QRect& rowRect) const;
+
     CoverArtCache* coverCache_;
     static constexpr int kRowHeight = 48;
     static constexpr int kThumbSize = 36;

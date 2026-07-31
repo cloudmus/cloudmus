@@ -113,7 +113,11 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListView_ = new QListView(this);
     trackListView_->setModel(trackListModel_);
     trackListView_->setItemDelegate(trackRowDelegate_);
+    // Needed for State_MouseOver to be set at all — see the delegate's
+    // hover-only play button drawn over the cover thumbnail.
+    trackListView_->setMouseTracking(true);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
+    connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
 
     auto* trackListContainer = new QWidget(this);
     auto* trackListLayout = new QVBoxLayout(trackListContainer);
