@@ -34,7 +34,7 @@ public:
     bool canRaise() const { return true; }
     bool canSetFullscreen() const { return false; }
     bool hasTrackList() const { return false; }
-    QString identity() const { return QStringLiteral("cloudmus"); }
+    QString identity() const { return QStringLiteral("CloudMus"); }
     QStringList supportedUriSchemes() const { return { }; }
     QStringList supportedMimeTypes() const { return { }; }
 

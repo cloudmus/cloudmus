@@ -41,7 +41,7 @@ class TrackItem(ListItem):
 
 
 class PlayerApp(App):
-    TITLE = "cloudmus"
+    TITLE = "CloudMus"
 
     CSS = """
     #sidebar { width: 38%; border-right: solid $accent; }

@@ -44,7 +44,7 @@ void NotificationToast::showTrackChange(const QString& title, const QString& art
         hints.insert(QStringLiteral("image-data"), QVariant::fromValue(arg));
     }
 
-    QDBusReply<uint> reply = iface.call(QStringLiteral("Notify"), QStringLiteral("cloudmus"), lastNotificationId_,
+    QDBusReply<uint> reply = iface.call(QStringLiteral("Notify"), QStringLiteral("CloudMus"), lastNotificationId_,
                                         QString(), title, artist, QStringList(), hints, 5000);
     if (reply.isValid()) {
         lastNotificationId_ = reply.value();

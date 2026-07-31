@@ -14,7 +14,7 @@ TrayIcon::TrayIcon(QWidget* mainWindow, QObject* parent)
     , mainWindow_(mainWindow)
 {
     trayIcon_ = new QSystemTrayIcon(QIcon(QStringLiteral(":/icons/icons/small_logo.svg")), this);
-    trayIcon_->setToolTip(QStringLiteral("cloudmus"));
+    trayIcon_->setToolTip(QStringLiteral("CloudMus"));
 
     auto* menu = new QMenu();
     auto* previousAction = menu->addAction(QIcon::fromTheme(QStringLiteral("media-skip-backward")), tr("Previous"));
