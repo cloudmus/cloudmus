@@ -120,6 +120,7 @@ void NdjsonTransport::onReadyReadStderr()
         while (stderrTail_.size() > kStderrTailLines) {
             stderrTail_.removeFirst();
         }
+        emit stderrLine(QString::fromUtf8(line));
     }
 }
 

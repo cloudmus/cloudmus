@@ -38,6 +38,10 @@ signals:
     void framingError(QString rawLine);
     void finished(int exitCode, QProcess::ExitStatus status);
     void errorOccurred(QProcess::ProcessError error);
+    // Fired for every stderr line as it arrives (not just the tail kept for
+    // stderrTail()) so a listener can mirror the backend's own logging live
+    // — see RpcClient's connection to this, gated behind --debug.
+    void stderrLine(QString line);
 
 private slots:
     void onReadyReadStdout();

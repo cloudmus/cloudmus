@@ -83,6 +83,15 @@ RpcClient::RpcClient(BackendManifest manifest, QObject* parent)
     connect(&transport_, &NdjsonTransport::framingError, this, [this](const QString& rawLine) {
         qCWarning(lcRpcClient) << manifest_.id << "sent a non-JSON-RPC line on stdout (protocol violation):" << rawLine;
     });
+    // Mirrors the backend's own stderr logging (e.g. yandex_music/requests
+    // internals) live into the front's log, instead of it only surfacing
+    // via stderrTail() when the process has already died — see Logging.h's
+    // --debug/CLOUDMUS_QT_DEBUG gate, which is what actually silences this
+    // by default. .noquote() because this is a preformatted line, not a
+    // value QDebug should wrap in quotes.
+    connect(&transport_, &NdjsonTransport::stderrLine, this, [this](const QString& line) {
+        qCDebug(lcRpcClient).noquote() << QStringLiteral("[%1] %2").arg(manifest_.id, line);
+    });
 }
 
 Task<void> RpcClient::start()
