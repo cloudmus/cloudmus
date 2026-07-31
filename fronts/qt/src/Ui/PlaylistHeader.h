@@ -28,6 +28,10 @@ public:
 
     void setPlaylist(const Playlist& playlist);
     void setPlayBusy(bool busy);
+    // Hidden for History (see MainWindow::showHistory()): there's no single
+    // sourceId to hand PlaybackController::loadQueue for a list that spans
+    // backends, so "play the whole thing" doesn't apply there.
+    void setPlayButtonVisible(bool visible);
 
 signals:
     void playClicked();

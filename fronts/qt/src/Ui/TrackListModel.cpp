@@ -12,6 +12,24 @@ void TrackListModel::setTracks(const QString& sourceId, const QList<Track>& trac
     beginResetModel();
     sourceId_ = sourceId;
     tracks_ = QVector<Track>(tracks.begin(), tracks.end());
+    mixedSourceIds_.clear();
+    mixedSource_ = false;
+    endResetModel();
+}
+
+void TrackListModel::setMixedSourceTracks(const QList<QPair<QString, Track>>& sourceIdAndTrack)
+{
+    beginResetModel();
+    sourceId_.clear();
+    tracks_.clear();
+    mixedSourceIds_.clear();
+    tracks_.reserve(sourceIdAndTrack.size());
+    mixedSourceIds_.reserve(sourceIdAndTrack.size());
+    for (const auto& [sourceId, track] : sourceIdAndTrack) {
+        tracks_.append(track);
+        mixedSourceIds_.append(sourceId);
+    }
+    mixedSource_ = true;
     endResetModel();
 }
 
@@ -31,8 +49,12 @@ void TrackListModel::clear()
     beginResetModel();
     sourceId_.clear();
     tracks_.clear();
+    mixedSourceIds_.clear();
+    mixedSource_ = false;
     endResetModel();
 }
+
+QString TrackListModel::sourceIdAt(int row) const { return mixedSource_ ? mixedSourceIds_[row] : sourceId_; }
 
 int TrackListModel::rowCount(const QModelIndex& parent) const
 {
@@ -50,7 +72,7 @@ QVariant TrackListModel::data(const QModelIndex& index, int role) const
         case TrackRole:
             return QVariant::fromValue(t);
         case SourceIdRole:
-            return sourceId_;
+            return sourceIdAt(index.row());
         case Qt::DisplayRole:
             return t.title;
         default:

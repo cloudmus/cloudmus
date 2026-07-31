@@ -13,6 +13,10 @@ class QModelIndex;
 class QProgressBar;
 class QCloseEvent;
 
+namespace History {
+class PlaybackHistory;
+}
+
 namespace Ui {
 
 class SidebarModel;
@@ -50,6 +54,9 @@ private:
     void onSidebarActivated(const QModelIndex& index);
     void onTrackDoubleClicked(const QModelIndex& index);
     void showAboutDialog();
+    // Synchronous, unlike showPlaylistAsync() — History is local state, no
+    // RPC round-trip needed. See History::PlaybackHistory.
+    void showHistory();
 
     Rpc::Task<void> loadPlaylistsAsync(Rpc::RpcClient* client);
     // By value, not const&: these coroutines resume asynchronously (after an
@@ -85,12 +92,18 @@ private:
     NowPlayingBar* nowPlayingBar_ = nullptr;
     AuthBanner* authBanner_ = nullptr;
     ToastNotifier* toastNotifier_ = nullptr;
+    History::PlaybackHistory* playbackHistory_ = nullptr;
 
     // Stashed so PlaylistHeader's Play button (clicked well after
     // showPlaylistAsync returns) knows what to start — see its handler in
     // the .cpp.
     QString currentPlaylistSourceId_;
     Playlist currentPlaylist_;
+    // True while the sidebar's History entry is the active selection, so a
+    // live PlaybackHistory::changed() (a track just started playing) knows
+    // to refresh the view instead of touching it while some other playlist
+    // is showing.
+    bool showingHistory_ = false;
 
     bool reallyQuitting_ = false;
 };

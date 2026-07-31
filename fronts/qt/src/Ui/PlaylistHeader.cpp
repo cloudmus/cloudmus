@@ -102,6 +102,8 @@ void PlaylistHeader::setPlaylist(const Playlist& playlist)
     show();
 }
 
+void PlaylistHeader::setPlayButtonVisible(bool visible) { playButton_->setVisible(visible); }
+
 void PlaylistHeader::setPlayBusy(bool busy)
 {
     playButton_->setEnabled(!busy);

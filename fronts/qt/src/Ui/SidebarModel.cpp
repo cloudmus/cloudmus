@@ -66,6 +66,17 @@ void SidebarModel::setSource(const QString& sourceId, const QString& sourceName,
     }
 }
 
+void SidebarModel::ensureHistoryItem()
+{
+    for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
+        if (static_cast<Kind>(invisibleRootItem()->child(row)->data(KindRole).toInt()) == Kind::History)
+            return;
+    }
+    auto* item = new QStandardItem(tr("History"));
+    item->setData(static_cast<int>(Kind::History), KindRole);
+    invisibleRootItem()->insertRow(0, item);
+}
+
 void SidebarModel::removeSource(const QString& sourceId)
 {
     for (int row = invisibleRootItem()->rowCount() - 1; row >= 0; --row) {

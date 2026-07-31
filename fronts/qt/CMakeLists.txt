@@ -59,6 +59,8 @@ add_executable(cloudmus-qt
 
     src/Config/Settings.cpp
 
+    src/History/PlaybackHistory.cpp
+
     src/Ui/MainWindow.cpp
     src/Ui/ClickableArea.h  # header-only Q_OBJECT class, no matching .cpp — must be listed explicitly for AUTOMOC
     src/Ui/SidebarModel.cpp
@@ -93,6 +95,7 @@ target_include_directories(cloudmus-qt PRIVATE
     src/Ui
     src/Integration
     src/Config
+    src/History
 )
 
 target_link_libraries(cloudmus-qt PRIVATE

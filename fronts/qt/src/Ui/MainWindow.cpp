@@ -16,6 +16,7 @@
 #include "AuthBanner.h"
 #include "CoverArtCache.h"
 #include "NowPlayingBar.h"
+#include "PlaybackHistory.h"
 #include "PlaylistHeader.h"
 #include "RpcMethods.h"
 #include "SettingsDialog.h"
@@ -33,11 +34,12 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     , playback_(playback)
     , settings_(settings)
 {
-    setWindowTitle(QStringLiteral("cloudmus"));
+    setWindowTitle(QStringLiteral("CloudMus"));
     resize(960, 640);
     restoreGeometry(settings_.windowGeometry());
 
     coverArtCache_ = new CoverArtCache(this);
+    playbackHistory_ = new History::PlaybackHistory(this);
 
     // --- now-playing controls, merged into the top toolbar alongside the
     // hamburger menu (see AGENTS.md/the plan: standard system frame, so
@@ -57,6 +59,12 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
 
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
             [this](const Track& track, const QString&) { nowPlayingBar_->setTrack(track); });
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
+            [this](const Track& track, const QString& sourceId) { playbackHistory_->record(sourceId, track); });
+    connect(playbackHistory_, &History::PlaybackHistory::changed, this, [this]() {
+        if (showingHistory_)
+            showHistory(); // refresh in place — a track just started playing
+    });
     connect(&playback_, &Playback::PlaybackController::playingChanged, nowPlayingBar_, &NowPlayingBar::setPlaying);
     connect(&playback_, &Playback::PlaybackController::loadingChanged, nowPlayingBar_, &NowPlayingBar::setLoading);
     connect(&playback_, &Playback::PlaybackController::positionChanged, nowPlayingBar_, &NowPlayingBar::setPosition);
@@ -73,7 +81,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         SettingsDialog dialog(settings_, this);
         dialog.exec();
     });
-    menu->addAction(tr("About cloudmus"), this, &MainWindow::showAboutDialog);
+    menu->addAction(tr("About CloudMus"), this, &MainWindow::showAboutDialog);
     menu->addSeparator();
     menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
     menuButton->setMenu(menu);
@@ -82,6 +90,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
 
     // --- sidebar + track list ---
     sidebarModel_ = new SidebarModel(this);
+    sidebarModel_->ensureHistoryItem();
     sidebarView_ = new QTreeView(this);
     sidebarView_->setModel(sidebarModel_);
     sidebarView_->setHeaderHidden(true);
@@ -210,6 +219,10 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
 void MainWindow::onSidebarActivated(const QModelIndex& index)
 {
     const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
+    if (kind == SidebarModel::Kind::History) {
+        showHistory();
+        return;
+    }
     if (kind != SidebarModel::Kind::Wave && kind != SidebarModel::Kind::Liked && kind != SidebarModel::Kind::Playlist)
         return;
     const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
@@ -217,8 +230,30 @@ void MainWindow::onSidebarActivated(const QModelIndex& index)
     showPlaylistAsync(sourceId, playlist).detach();
 }
 
+void MainWindow::showHistory()
+{
+    showingHistory_ = true;
+    currentPlaylistSourceId_.clear(); // no single source — the header's Play-all button is hidden below anyway
+    currentPlaylist_ = Playlist { QStringLiteral("history"), tr("History"), std::nullopt, std::nullopt,
+                                  static_cast<int>(playbackHistory_->entries().size()), QStringLiteral("playlist") };
+    playlistHeader_->setPlaylist(currentPlaylist_);
+    playlistHeader_->setPlayButtonVisible(false);
+
+    QList<QPair<QString, Track>> entries;
+    entries.reserve(playbackHistory_->entries().size());
+    for (const History::HistoryEntry& e : playbackHistory_->entries())
+        entries.append({ e.sourceId, e.track });
+    trackListModel_->setMixedSourceTracks(entries);
+
+    trackListView_->show();
+    repositionTrackListBusyIndicator();
+    trackListBusyIndicator_->hide();
+}
+
 Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlist)
 {
+    showingHistory_ = false;
+    playlistHeader_->setPlayButtonVisible(true);
     currentPlaylistSourceId_ = sourceId;
     currentPlaylist_ = playlist;
     playlistHeader_->setPlaylist(playlist);
@@ -276,6 +311,14 @@ void MainWindow::onTrackDoubleClicked(const QModelIndex& index)
 {
     if (!index.isValid())
         return;
+    if (trackListModel_->isMixedSource()) {
+        // History rows can come from different backends, and
+        // PlaybackController::loadQueue takes one sourceId for the whole
+        // queue — so replay just the clicked track instead of queuing the
+        // rest of the list.
+        playback_.loadQueue(trackListModel_->sourceIdAt(index.row()), { trackListModel_->trackAt(index.row()) }, 0);
+        return;
+    }
     playback_.loadQueue(trackListModel_->sourceId(), trackListModel_->allTracks(), index.row());
 }
 
@@ -299,8 +342,8 @@ Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields
 
 void MainWindow::showAboutDialog()
 {
-    QMessageBox::about(this, tr("About cloudmus"),
-                       tr("cloudmus — a lightweight Qt frontend for cloudmus music sources."));
+    QMessageBox::about(this, tr("About CloudMus"),
+                       tr("CloudMus — a lightweight Qt frontend for cloudmus music sources."));
 }
 
 void MainWindow::quitForReal()

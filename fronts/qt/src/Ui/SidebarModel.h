@@ -27,6 +27,10 @@ public:
         Liked,
         PlaylistsHeader,
         Playlist,
+        // Unlike everything else here, not tied to any one source's
+        // SourceIdRole — playback history spans all of them. See
+        // ensureHistoryItem() and MainWindow::showHistory().
+        History,
     };
     enum Role {
         KindRole = Qt::UserRole + 1,
@@ -46,6 +50,10 @@ public:
     // capability flags. See docs/protocol.md §7.1.
     void setSource(const QString& sourceId, const QString& sourceName, const QList<Playlist>& playlists);
     void removeSource(const QString& sourceId);
+
+    // Inserts the top-level "History" row once, ahead of every source root
+    // (idempotent — a no-op if already present).
+    void ensureHistoryItem();
 
 private:
     QStandardItem* findOrCreateSourceRoot(const QString& sourceId, const QString& sourceName);
