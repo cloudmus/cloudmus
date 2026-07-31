@@ -226,6 +226,15 @@ expected to always emit the full shape above.
   "kind": "playlist"               // one of "playlist" | "liked" | "radioStation"
 }
 ```
+`kind: "radioStation"` playlists (e.g. My Wave) have no fixed track
+list — `catalog.listTracks` is not valid for them, `trackCount` is `0`
+("not applicable"), and a front only offers play/skip-forward/
+skip-back/stop for them (via `catalog.startRadio`, passing the playlist's
+`id` as `seed`), never a browsable list. `kind: "liked"` playlists are
+fetched via `catalog.listLiked`, not `catalog.listTracks` — their `id` is
+not a valid `playlistId`. Any `kind` may carry `description`/`coverUrl`;
+a front is expected to show them uniformly (e.g. a cover/description
+banner) regardless of kind.
 
 ### PlaybackState
 ```jsonc
@@ -262,10 +271,19 @@ value in v1.
 
 | Method | Params | Result | Requires capability |
 |---|---|---|---|
-| `catalog.listPlaylists` | `{}` | `{"playlists": [Playlist, ...]}` | `browse.playlists` |
+| `catalog.listPlaylists` | `{}` | `{"playlists": [Playlist, ...]}` | `browse.playlists \|\| browse.likedTracks \|\| browse.radio` |
 | `catalog.listTracks` | `{"playlistId": string, "cursor"?: string}` | `{"tracks": [Track, ...], "nextCursor"?: string}` | `browse.playlists` |
 | `catalog.listLiked` | `{"cursor"?: string}` | `{"tracks": [Track, ...], "nextCursor"?: string}` | `browse.likedTracks` |
 | `catalog.startRadio` | `{"seed"?: string}` | `{"stationId": string, "initialTracks": [Track, ...]}` | `browse.radio` |
+
+`catalog.listPlaylists` is the single source of truth for everything a
+front shows as a "playlist" under a source, including the source's built-in
+special playlists: a source advertising `browse.radio` includes one
+`kind: "radioStation"` entry (e.g. Yandex Music's My Wave), and a source
+advertising `browse.likedTracks` includes one `kind: "liked"` entry, both
+alongside any real `kind: "playlist"` entries. A front therefore calls
+`catalog.listPlaylists` whenever any of the three `browse.*` capabilities
+above is true, not only `browse.playlists`.
 
 `cursor` is an **opaque string** — the front only ever passes back exactly
 what it last received in `nextCursor`; it has no structure a front is

@@ -19,6 +19,18 @@ meaning.
   page), when the source has one. Absent when a source has no such page
   (e.g. `local-folder`). No new capability flag, same precedent as
   `coverUrl`/`liked`/`explicit`: a front just checks presence.
+- **Clarification, no version bump**: `Playlist.kind`'s `liked` and
+  `radioStation` values (and the optional `description`/`coverUrl` fields)
+  were part of the schema from the start but never actually produced or
+  consumed — a front had to synthesize "My Wave"/"Liked Tracks" sidebar
+  entries itself from capability flags instead of reading them from
+  `catalog.listPlaylists`. §7.1 now documents that a source **must**
+  include a `kind: radioStation`/`liked` entry in `catalog.listPlaylists`
+  when it advertises the corresponding `browse.*` capability, and that a
+  front should call `catalog.listPlaylists` based on any of
+  `browse.playlists`/`browse.likedTracks`/`browse.radio`, not
+  `browse.playlists` alone. No wire-format change — every field involved
+  was already valid per the 1.0 schema, so this doesn't bump the version.
 
 ## 1.0 — initial version
 

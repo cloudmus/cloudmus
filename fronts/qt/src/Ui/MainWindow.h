@@ -22,6 +22,7 @@ class NowPlayingBar;
 class AuthBanner;
 class ToastNotifier;
 class CoverArtCache;
+class PlaylistHeader;
 
 // Sidebar + track list + persistent now-playing bar + auth banner +
 // hamburger menu (Settings/About/Quit) — see the plan's UI/UX design.
@@ -52,22 +53,30 @@ private:
 
     Rpc::Task<void> loadPlaylistsAsync(Rpc::RpcClient* client);
     // By value, not const&: these coroutines resume asynchronously (after an
-    // RPC round-trip) and use sourceId/playlistId again after that resume —
-    // a reference to a caller's temporary/local (as with detach()ed calls
+    // RPC round-trip) and use their params again after that resume — a
+    // reference to a caller's temporary/local (as with detach()ed calls
     // from onSidebarActivated) would dangle by the time execution gets back
     // there. See the equivalent comment on RpcClient::call() for the full
     // explanation of this coroutine-lifetime pitfall.
-    Rpc::Task<void> loadTracksAsync(QString sourceId, QString playlistId);
-    Rpc::Task<void> loadLikedAsync(QString sourceId);
-    Rpc::Task<void> startRadioAsync(QString sourceId);
+    //
+    // Selecting a sidebar item only shows its PlaylistHeader (cover/title/
+    // description) and, for a browsable kind, its track list — it never
+    // starts playback by itself (see docs/protocol.md's Playlist.kind note
+    // and the plan for why My Wave must not auto-play on click). Playback
+    // only starts from PlaylistHeader's Play button or a track double-click.
+    Rpc::Task<void> showPlaylistAsync(QString sourceId, Playlist playlist);
+    Rpc::Task<void> startRadioAsync(QString sourceId, QString seed);
     Rpc::Task<void> submitAuthAsync(QString sourceId, QJsonObject fields);
 
     Rpc::SourceManager& sourceManager_;
     Playback::PlaybackController& playback_;
     Config::Settings& settings_;
 
+    void repositionTrackListBusyIndicator();
+
     SidebarModel* sidebarModel_ = nullptr;
     QTreeView* sidebarView_ = nullptr;
+    PlaylistHeader* playlistHeader_ = nullptr;
     TrackListModel* trackListModel_ = nullptr;
     QListView* trackListView_ = nullptr;
     QProgressBar* trackListBusyIndicator_ = nullptr;
@@ -76,6 +85,12 @@ private:
     NowPlayingBar* nowPlayingBar_ = nullptr;
     AuthBanner* authBanner_ = nullptr;
     ToastNotifier* toastNotifier_ = nullptr;
+
+    // Stashed so PlaylistHeader's Play button (clicked well after
+    // showPlaylistAsync returns) knows what to start — see its handler in
+    // the .cpp.
+    QString currentPlaylistSourceId_;
+    Playlist currentPlaylist_;
 
     bool reallyQuitting_ = false;
 };

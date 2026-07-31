@@ -16,6 +16,7 @@
 #include "AuthBanner.h"
 #include "CoverArtCache.h"
 #include "NowPlayingBar.h"
+#include "PlaylistHeader.h"
 #include "RpcMethods.h"
 #include "SettingsDialog.h"
 #include "SidebarModel.h"
@@ -69,6 +70,17 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     sidebarView_->setHeaderHidden(true);
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
 
+    playlistHeader_ = new PlaylistHeader(coverArtCache_, this);
+    connect(playlistHeader_, &PlaylistHeader::playClicked, this, [this]() {
+        if (currentPlaylistSourceId_.isEmpty())
+            return;
+        if (currentPlaylist_.kind == QStringLiteral("radioStation")) {
+            startRadioAsync(currentPlaylistSourceId_, currentPlaylist_.id).detach();
+        } else if (!trackListModel_->allTracks().isEmpty()) {
+            playback_.loadQueue(currentPlaylistSourceId_, trackListModel_->allTracks(), 0);
+        }
+    });
+
     trackListModel_ = new TrackListModel(this);
     trackRowDelegate_ = new TrackRowDelegate(coverArtCache_, this);
     connect(coverArtCache_, &CoverArtCache::pixmapReady, this, [this]() { trackListView_->viewport()->update(); });
@@ -80,18 +92,21 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     auto* trackListContainer = new QWidget(this);
     auto* trackListLayout = new QVBoxLayout(trackListContainer);
     trackListLayout->setContentsMargins(0, 0, 0, 0);
+    trackListLayout->setSpacing(0);
+    trackListLayout->addWidget(playlistHeader_);
     trackListLayout->addWidget(trackListView_);
 
     // Not part of trackListLayout: a layout-managed progress bar would
     // shrink the list by its own height whenever it's shown/hidden,
     // shoving the whole view down. It's a free-floating child positioned
-    // absolutely over the top edge instead — see the eventFilter() override
-    // that keeps it pinned to trackListContainer's width on resize.
+    // absolutely over trackListView_'s top edge instead (not the
+    // container's — playlistHeader_ above it can be shown/hidden too,
+    // which shifts where the list itself actually starts) — see
+    // eventFilter()/repositionTrackListBusyIndicator().
     trackListBusyIndicator_ = new QProgressBar(trackListContainer);
     trackListBusyIndicator_->setRange(0, 0);
     trackListBusyIndicator_->setMaximumHeight(4);
     trackListBusyIndicator_->setTextVisible(false);
-    trackListBusyIndicator_->setGeometry(0, 0, trackListContainer->width(), 4);
     trackListBusyIndicator_->hide();
     trackListContainer->installEventFilter(this);
 
@@ -178,8 +193,10 @@ void MainWindow::onSourceUnavailable(const QString& manifestId, const QString& n
 Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
 {
     const QJsonObject browse = client->capabilities().value(QStringLiteral("browse")).toObject();
+    const bool shouldFetch = browse.value(QStringLiteral("playlists")).toBool()
+        || browse.value(QStringLiteral("likedTracks")).toBool() || browse.value(QStringLiteral("radio")).toBool();
     QList<Playlist> playlists;
-    if (browse.value(QStringLiteral("playlists")).toBool()) {
+    if (shouldFetch) {
         try {
             ListPlaylistsResult result = co_await Rpc::catalogListPlaylists(*client);
             playlists = result.playlists;
@@ -189,73 +206,72 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
             // (e.g. after auth completes, see wireSource's onAuthStatusChanged).
         }
     }
-    sidebarModel_->setSource(client->sourceId(), client->sourceName(), client->capabilities(), playlists);
+    sidebarModel_->setSource(client->sourceId(), client->sourceName(), playlists);
 }
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)
 {
     const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
+    if (kind != SidebarModel::Kind::Wave && kind != SidebarModel::Kind::Liked && kind != SidebarModel::Kind::Playlist)
+        return;
     const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
-    if (kind == SidebarModel::Kind::Wave) {
-        startRadioAsync(sourceId).detach();
-    } else if (kind == SidebarModel::Kind::Liked) {
-        loadLikedAsync(sourceId).detach();
-    } else if (kind == SidebarModel::Kind::Playlist) {
-        loadTracksAsync(sourceId, index.data(SidebarModel::PlaylistIdRole).toString()).detach();
-    }
+    const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
+    showPlaylistAsync(sourceId, playlist).detach();
 }
 
-Rpc::Task<void> MainWindow::loadTracksAsync(QString sourceId, QString playlistId)
+Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlist)
 {
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr)
-        co_return;
-    trackListBusyIndicator_->show();
-    try {
-        ListTracksParams params { playlistId, std::nullopt };
-        ListTracksResult result = co_await Rpc::catalogListTracks(*client, params);
-        trackListModel_->setTracks(sourceId, result.tracks);
-    } catch (const Rpc::RpcCallException& e) {
-        toastNotifier_->showError(e.error().message);
-    }
-    trackListBusyIndicator_->hide();
-}
+    currentPlaylistSourceId_ = sourceId;
+    currentPlaylist_ = playlist;
+    playlistHeader_->setPlaylist(playlist);
 
-Rpc::Task<void> MainWindow::loadLikedAsync(QString sourceId)
-{
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr)
-        co_return;
-    trackListBusyIndicator_->show();
-    try {
-        ListLikedParams params { std::nullopt };
-        ListLikedResult result = co_await Rpc::catalogListLiked(*client, params);
-        trackListModel_->setTracks(sourceId, result.tracks);
-    } catch (const Rpc::RpcCallException& e) {
-        toastNotifier_->showError(e.error().message);
-    }
-    trackListBusyIndicator_->hide();
-}
-
-Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId)
-{
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr)
-        co_return;
-    trackListBusyIndicator_->show();
-    try {
-        StartRadioParams params { std::nullopt };
-        StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
-        // My Wave is a continuous single-track stream (skip forward/back,
-        // never a browsable list) — result.initialTracks/radio/tracksAdded
-        // only feed PlaybackController's internal queue, they never
-        // populate the track list view like a playlist would.
+    if (playlist.kind == QStringLiteral("radioStation")) {
+        // Continuous, not a fixed list — see docs/protocol.md's
+        // Playlist.kind note. Only the header + Play button show; no RPC
+        // call here, that's what makes this not auto-play (the Play button
+        // handler wired in the constructor calls startRadioAsync()).
+        trackListView_->hide();
         trackListModel_->clear();
+        co_return;
+    }
+
+    trackListView_->show();
+    repositionTrackListBusyIndicator();
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return;
+
+    trackListBusyIndicator_->show();
+    try {
+        if (playlist.kind == QStringLiteral("liked")) {
+            ListLikedParams params { std::nullopt };
+            ListLikedResult result = co_await Rpc::catalogListLiked(*client, params);
+            trackListModel_->setTracks(sourceId, result.tracks);
+        } else {
+            ListTracksParams params { playlist.id, std::nullopt };
+            ListTracksResult result = co_await Rpc::catalogListTracks(*client, params);
+            trackListModel_->setTracks(sourceId, result.tracks);
+        }
+    } catch (const Rpc::RpcCallException& e) {
+        toastNotifier_->showError(e.error().message);
+    }
+    trackListBusyIndicator_->hide();
+}
+
+Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return;
+    playlistHeader_->setPlayBusy(true);
+    try {
+        StartRadioParams params { seed };
+        StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
         playback_.startRadio(sourceId, result.stationId, result.initialTracks);
     } catch (const Rpc::RpcCallException& e) {
         toastNotifier_->showError(e.error().message);
     }
-    trackListBusyIndicator_->hide();
+    playlistHeader_->setPlayBusy(false);
 }
 
 void MainWindow::onTrackDoubleClicked(const QModelIndex& index)
@@ -309,9 +325,14 @@ void MainWindow::closeEvent(QCloseEvent* event)
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
     if (event->type() == QEvent::Resize) {
-        trackListBusyIndicator_->setGeometry(0, 0, static_cast<QWidget*>(watched)->width(), 4);
+        repositionTrackListBusyIndicator();
     }
     return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::repositionTrackListBusyIndicator()
+{
+    trackListBusyIndicator_->setGeometry(trackListView_->x(), trackListView_->y(), trackListView_->width(), 4);
 }
 
 } // namespace Ui

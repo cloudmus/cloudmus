@@ -4,12 +4,32 @@ ym_player/downloader.py's playlist_tracks()."""
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
 from yandex_music import Client, Playlist as YPlaylist, Track as YTrack
 
 from rpc_common.generated.models import Album, Artist, Playlist, Track
 
 COVER_SIZE = "400x400"
+
+# The station id yandex_music's rotor API uses for the personal "wave"
+# station (see radio.py, which imports this rather than keeping its own
+# copy). Also doubles as this synthesized playlist's id (§ list_playlists).
+WAVE_STATION_ID = "user:onyourwave"
+
+# yandex_music's rotor_stations_list() enumerates genre/mood stations but
+# never includes the personal wave station, so there is no per-account
+# icon/description available for it via the API — use a static description
+# and a bundled placeholder cover instead (see _wave_cover_uri()).
+WAVE_DESCRIPTION = "Персональная станция на основе ваших вкусов и истории прослушиваний"
+LIKED_PLAYLIST_ID = "__liked__"
+
+
+def _wave_cover_uri() -> str:
+    # Same file:// pattern cover_art.py uses for local-folder covers, so the
+    # front's CoverArtCache (QNetworkAccessManager-based) fetches this
+    # exactly like any other coverUrl — no "no real cover" special case.
+    return (Path(__file__).parent / "assets" / "wave_cover.png").resolve().as_uri()
 
 
 def _cover_url(cover_uri: str | None) -> str | None:
@@ -52,6 +72,23 @@ def to_playlist(p: YPlaylist) -> Playlist:
     return Playlist(id=p.playlist_id, title=p.title or "(untitled)", trackCount=p.track_count or 0, kind="playlist")
 
 
+def _wave_playlist() -> Playlist:
+    return Playlist(
+        id=WAVE_STATION_ID,
+        title="Моя волна",
+        description=WAVE_DESCRIPTION,
+        coverUrl=_wave_cover_uri(),
+        # Continuous, not a fixed-length list — see docs/protocol.md's
+        # kind: radioStation note; 0 signals "not applicable" here.
+        trackCount=0,
+        kind="radioStation",
+    )
+
+
+def _liked_playlist(track_count: int) -> Playlist:
+    return Playlist(id=LIKED_PLAYLIST_ID, title="Мне нравится", trackCount=track_count, kind="liked")
+
+
 def playlist_tracks(playlist: YPlaylist) -> list[YTrack]:
     shorts = playlist.tracks or playlist.fetch_tracks() or []
     tracks = []
@@ -70,8 +107,21 @@ def _find_playlist(client: Client, playlist_id: str) -> YPlaylist | None:
 
 
 async def list_playlists(client: Client) -> dict:
-    playlists = await asyncio.to_thread(client.users_playlists_list) or []
-    return {"playlists": [to_playlist(p).to_dict() for p in playlists]}
+    # My Wave and Liked Tracks are surfaced here as regular Playlist entries
+    # (kind: radioStation / liked) rather than the front synthesizing them
+    # from capability flags — see docs/protocol.md's Playlist.kind note.
+    # This backend's capabilities always have browse.radio/likedTracks true,
+    # so both are unconditional.
+    def fetch() -> tuple[list[YPlaylist], int]:
+        real_playlists = client.users_playlists_list() or []
+        liked = client.users_likes_tracks()
+        liked_count = len(liked.tracks_ids) if liked else 0
+        return real_playlists, liked_count
+
+    real_playlists, liked_count = await asyncio.to_thread(fetch)
+    playlists = [_wave_playlist(), _liked_playlist(liked_count)]
+    playlists += [to_playlist(p) for p in real_playlists]
+    return {"playlists": [p.to_dict() for p in playlists]}
 
 
 async def list_tracks(client: Client, playlist_id: str) -> dict:

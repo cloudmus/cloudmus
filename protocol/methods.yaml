@@ -19,7 +19,12 @@ protocolVersion: "1.1"
 methods:
   # --- 7.1 Catalog / browse ---
   catalog.listPlaylists:
-    requiresCapability: browse.playlists
+    # Purely documentation (see rpc_common/server.py — never enforced at
+    # the transport level): call this whenever ANY of browse.playlists /
+    # browse.likedTracks / browse.radio is true, not just browse.playlists
+    # — the result includes kind: liked/radioStation entries for those
+    # capabilities too. See docs/protocol.md §7.1.
+    requiresCapability: browse.playlists || browse.likedTracks || browse.radio
     params: {type: object, properties: {}, required: []}
     result:
       type: object

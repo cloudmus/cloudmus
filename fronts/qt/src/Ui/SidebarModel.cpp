@@ -1,6 +1,7 @@
 #include "SidebarModel.h"
 
 #include <QFont>
+#include <QVariant>
 
 namespace Ui {
 
@@ -27,39 +28,41 @@ QStandardItem* SidebarModel::findOrCreateSourceRoot(const QString& sourceId, con
     return item;
 }
 
-void SidebarModel::setSource(const QString& sourceId, const QString& sourceName, const QJsonObject& capabilities,
-                             const QList<Playlist>& playlists)
+void SidebarModel::setSource(const QString& sourceId, const QString& sourceName, const QList<Playlist>& playlists)
 {
     removeSource(sourceId);
     QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
 
-    const QJsonObject browse = capabilities.value(QStringLiteral("browse")).toObject();
+    // kind: radioStation/liked entries sit directly under the source root
+    // (matching where the old hardcoded "My Wave"/"Liked Tracks" items
+    // used to go); kind: playlist entries are grouped under a lazily
+    // created "Playlists" sub-header, same as before.
+    QStandardItem* playlistsHeader = nullptr;
+    for (const Playlist& p : playlists) {
+        Kind kind = Kind::Playlist;
+        if (p.kind == QStringLiteral("radioStation"))
+            kind = Kind::Wave;
+        else if (p.kind == QStringLiteral("liked"))
+            kind = Kind::Liked;
 
-    if (browse.value(QStringLiteral("radio")).toBool()) {
-        auto* item = new QStandardItem(tr("My Wave"));
-        item->setData(static_cast<int>(Kind::Wave), KindRole);
-        item->setData(sourceId, SourceIdRole);
-        root->appendRow(item);
-    }
-    if (browse.value(QStringLiteral("likedTracks")).toBool()) {
-        auto* item = new QStandardItem(tr("Liked Tracks"));
-        item->setData(static_cast<int>(Kind::Liked), KindRole);
-        item->setData(sourceId, SourceIdRole);
-        root->appendRow(item);
-    }
-    if (browse.value(QStringLiteral("playlists")).toBool() && !playlists.isEmpty()) {
-        auto* header = new QStandardItem(tr("Playlists"));
-        header->setData(static_cast<int>(Kind::PlaylistsHeader), KindRole);
-        header->setData(sourceId, SourceIdRole);
-        header->setSelectable(false);
-        root->appendRow(header);
-        for (const Playlist& p : playlists) {
-            auto* item = new QStandardItem(p.title);
-            item->setData(static_cast<int>(Kind::Playlist), KindRole);
-            item->setData(sourceId, SourceIdRole);
-            item->setData(p.id, PlaylistIdRole);
-            header->appendRow(item);
+        QStandardItem* parent = root;
+        if (kind == Kind::Playlist) {
+            if (playlistsHeader == nullptr) {
+                playlistsHeader = new QStandardItem(tr("Playlists"));
+                playlistsHeader->setData(static_cast<int>(Kind::PlaylistsHeader), KindRole);
+                playlistsHeader->setData(sourceId, SourceIdRole);
+                playlistsHeader->setSelectable(false);
+                root->appendRow(playlistsHeader);
+            }
+            parent = playlistsHeader;
         }
+
+        auto* item = new QStandardItem(p.title);
+        item->setData(static_cast<int>(kind), KindRole);
+        item->setData(sourceId, SourceIdRole);
+        item->setData(p.id, PlaylistIdRole);
+        item->setData(QVariant::fromValue(p), PlaylistDataRole);
+        parent->appendRow(item);
     }
 }
 

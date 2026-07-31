@@ -24,8 +24,6 @@ from . import catalog
 
 logger = logging.getLogger(__name__)
 
-WAVE_STATION = "user:onyourwave"
-
 NotifyFn = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 
@@ -33,11 +31,11 @@ class RadioSession:
     def __init__(self, client: Client, notify: NotifyFn):
         self.client = client
         self._notify = notify
-        self.station = WAVE_STATION
+        self.station = catalog.WAVE_STATION_ID
         self.batch_id: str | None = None
 
     async def start(self, seed: str | None) -> dict:
-        self.station = seed or WAVE_STATION
+        self.station = seed or catalog.WAVE_STATION_ID
 
         def start_feedback() -> None:
             try:
