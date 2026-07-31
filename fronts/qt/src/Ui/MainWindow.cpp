@@ -39,15 +39,32 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
 
     coverArtCache_ = new CoverArtCache(this);
 
-    // --- hamburger menu, top-right, inside the client area (see AGENTS.md/
-    // the plan: standard system frame, so this sits below the OS titlebar,
-    // not literally overlapping its buttons) ---
+    // --- now-playing controls, merged into the top toolbar alongside the
+    // hamburger menu (see AGENTS.md/the plan: standard system frame, so
+    // this sits below the OS titlebar, not literally overlapping its
+    // buttons) ---
+    nowPlayingBar_ = new NowPlayingBar(coverArtCache_, this);
+    nowPlayingBar_->setVolume(settings_.volume());
+    connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, &playback_, &Playback::PlaybackController::togglePause);
+    connect(nowPlayingBar_, &NowPlayingBar::nextClicked, &playback_, &Playback::PlaybackController::next);
+    connect(nowPlayingBar_, &NowPlayingBar::previousClicked, &playback_, &Playback::PlaybackController::previous);
+    connect(nowPlayingBar_, &NowPlayingBar::stopClicked, &playback_, &Playback::PlaybackController::stop);
+    connect(nowPlayingBar_, &NowPlayingBar::seekRequested, &playback_, &Playback::PlaybackController::seek);
+    connect(nowPlayingBar_, &NowPlayingBar::volumeChanged, this, [this](int v) {
+        playback_.setVolume(v);
+        settings_.setVolume(v);
+    });
+
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
+            [this](const Track& track, const QString&) { nowPlayingBar_->setTrack(track); });
+    connect(&playback_, &Playback::PlaybackController::playingChanged, nowPlayingBar_, &NowPlayingBar::setPlaying);
+    connect(&playback_, &Playback::PlaybackController::loadingChanged, nowPlayingBar_, &NowPlayingBar::setLoading);
+    connect(&playback_, &Playback::PlaybackController::positionChanged, nowPlayingBar_, &NowPlayingBar::setPosition);
+
     auto* toolbar = new QToolBar(this);
     toolbar->setMovable(false);
     toolbar->setFloatable(false);
-    auto* spacer = new QWidget(toolbar);
-    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    toolbar->addWidget(spacer);
+    toolbar->addWidget(nowPlayingBar_);
     auto* menuButton = new QToolButton(toolbar);
     menuButton->setIcon(QIcon::fromTheme(QStringLiteral("application-menu")));
     menuButton->setPopupMode(QToolButton::InstantPopup);
@@ -121,24 +138,6 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(authBanner_, &AuthBanner::submitRequested, this,
             [this](const QString& sourceId, const QJsonObject& fields) { submitAuthAsync(sourceId, fields).detach(); });
 
-    nowPlayingBar_ = new NowPlayingBar(coverArtCache_, this);
-    nowPlayingBar_->setVolume(settings_.volume());
-    connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, &playback_, &Playback::PlaybackController::togglePause);
-    connect(nowPlayingBar_, &NowPlayingBar::nextClicked, &playback_, &Playback::PlaybackController::next);
-    connect(nowPlayingBar_, &NowPlayingBar::previousClicked, &playback_, &Playback::PlaybackController::previous);
-    connect(nowPlayingBar_, &NowPlayingBar::stopClicked, &playback_, &Playback::PlaybackController::stop);
-    connect(nowPlayingBar_, &NowPlayingBar::seekRequested, &playback_, &Playback::PlaybackController::seek);
-    connect(nowPlayingBar_, &NowPlayingBar::volumeChanged, this, [this](int v) {
-        playback_.setVolume(v);
-        settings_.setVolume(v);
-    });
-
-    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
-            [this](const Track& track, const QString&) { nowPlayingBar_->setTrack(track); });
-    connect(&playback_, &Playback::PlaybackController::playingChanged, nowPlayingBar_, &NowPlayingBar::setPlaying);
-    connect(&playback_, &Playback::PlaybackController::loadingChanged, nowPlayingBar_, &NowPlayingBar::setLoading);
-    connect(&playback_, &Playback::PlaybackController::positionChanged, nowPlayingBar_, &NowPlayingBar::setPosition);
-
     toastNotifier_ = new ToastNotifier(this);
     connect(&playback_, &Playback::PlaybackController::errorOccurred, this,
             [this](const QString& message) { toastNotifier_->showError(message); });
@@ -149,7 +148,6 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     centralLayout->setSpacing(0);
     centralLayout->addWidget(authBanner_);
     centralLayout->addWidget(splitter, 1);
-    centralLayout->addWidget(nowPlayingBar_);
     setCentralWidget(central);
 
     connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, &MainWindow::wireSource);

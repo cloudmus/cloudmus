@@ -13,10 +13,10 @@ namespace Ui {
 class CoverArtCache;
 class ClickableArea;
 
-// Bottom, persistent, ~72px: cover + title/artist (clickable -> opens
-// Track.webUrl when present, see the plan's UI/UX design), transport
-// buttons, seek bar, volume. Icons come from the system theme
-// (QIcon::fromTheme), not bundled art.
+// Lives in the top toolbar, merged with the hamburger menu button: cover +
+// title/artist (clickable -> opens Track.webUrl when present, see the
+// plan's UI/UX design), transport buttons, seek bar, volume. Icons come
+// from the system theme (QIcon::fromTheme), not bundled art.
 class NowPlayingBar : public QWidget {
     Q_OBJECT
 

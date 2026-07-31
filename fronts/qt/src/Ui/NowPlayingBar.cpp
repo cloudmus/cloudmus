@@ -27,6 +27,7 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
     , coverCache_(coverCache)
 {
     setFixedHeight(72);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     coverLabel_ = new QLabel(this);
     coverLabel_->setFixedSize(56, 56);
