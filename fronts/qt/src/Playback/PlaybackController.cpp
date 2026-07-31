@@ -91,7 +91,18 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
         co_return;
     }
 
-    const QueueEntry& entry = queue_[index];
+    // By value, not const&: queue_ is a QVector, and handleTracksAdded()
+    // (driven by a radio/tracksAdded notification that can arrive at any
+    // time — including while this coroutine is suspended at the co_await
+    // below) appends to it, which can reallocate the backing storage and
+    // dangle a reference into it. That's exactly the failure this used to
+    // have: playback.play still succeeds (it only needs entry.track.id,
+    // read before the suspension) and the actual audio plays fine (that
+    // comes from a separate track/streamReady notification, not from
+    // `entry`), but trackChanged(entry.track, ...) below — which drives the
+    // now-playing bar's title/cover — could fire with a dangling QueueEntry,
+    // showing garbage or blank metadata for a track that's audibly playing.
+    const QueueEntry entry = queue_[index];
     const int id = client->allocateRequestId();
     latestRequestId_ = id;
     latestRequestSourceId_ = entry.sourceId;
