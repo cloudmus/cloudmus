@@ -13,7 +13,7 @@ TrayIcon::TrayIcon(QWidget* mainWindow, QObject* parent)
     : QObject(parent)
     , mainWindow_(mainWindow)
 {
-    trayIcon_ = new QSystemTrayIcon(QIcon::fromTheme(QStringLiteral("cloudmus"), qApp->windowIcon()), this);
+    trayIcon_ = new QSystemTrayIcon(QIcon(QStringLiteral(":/icons/icons/small_logo.svg")), this);
     trayIcon_->setToolTip(QStringLiteral("cloudmus"));
 
     auto* menu = new QMenu();

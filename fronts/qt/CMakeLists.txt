@@ -4,10 +4,11 @@ project(cloudmus-qt CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network DBus Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network DBus Multimedia Svg)
 
 # --- protocol/codegen: regenerate fronts/qt/generated/ whenever the schema
 # or methods change, before anything tries to #include it. Requires Python +
@@ -76,6 +77,8 @@ add_executable(cloudmus-qt
     src/Integration/GlobalShortcuts.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
+
+    resources/icons.qrc
 )
 add_dependencies(cloudmus-qt protocol_codegen_cpp)
 
@@ -98,4 +101,5 @@ target_link_libraries(cloudmus-qt PRIVATE
     Qt6::Network
     Qt6::DBus
     Qt6::Multimedia
+    Qt6::Svg
 )

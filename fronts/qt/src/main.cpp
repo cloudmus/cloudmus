@@ -40,8 +40,7 @@ int main(int argc, char** argv)
     QApplication::setOrganizationName(QStringLiteral("cloudmus"));
     QApplication::setApplicationName(QStringLiteral("cloudmus-qt"));
     installLogging(); // reads --debug / CLOUDMUS_QT_DEBUG — see Logging.h
-    QApplication::setWindowIcon(
-        QIcon::fromTheme(QStringLiteral("cloudmus"), QIcon::fromTheme(QStringLiteral("multimedia-player"))));
+    QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/icons/logo.svg")));
     QApplication::setQuitOnLastWindowClosed(false); // closing to tray must not exit the app
 
     Config::Settings settings;
