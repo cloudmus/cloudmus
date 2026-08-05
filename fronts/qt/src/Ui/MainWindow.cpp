@@ -278,6 +278,8 @@ void MainWindow::showHistory()
     currentPlaylistSourceId_.clear(); // no single source — the header's Play-all button is hidden below anyway
     currentPlaylist_ = Playlist { QStringLiteral("history"), tr("History"), std::nullopt, std::nullopt,
                                   static_cast<int>(playbackHistory_->entries().size()), QStringLiteral("playlist") };
+    // Before setPlaylist(), not after — see setTrackListVisible()'s comment.
+    setTrackListVisible(true);
     playlistHeader_->setPlaylist(currentPlaylist_);
     playlistHeader_->setPlayButtonVisible(false);
 
@@ -287,7 +289,6 @@ void MainWindow::showHistory()
         entries.append({ e.sourceId, e.track, e.playedAt });
     trackListModel_->setMixedSourceTracks(entries);
 
-    setTrackListVisible(true);
     repositionTrackListBusyIndicator();
     trackListBusyIndicator_->hide();
 }
@@ -298,19 +299,24 @@ Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlis
     playlistHeader_->setPlayButtonVisible(true);
     currentPlaylistSourceId_ = sourceId;
     currentPlaylist_ = playlist;
+
+    // Before setPlaylist(), not after — see setTrackListVisible()'s comment:
+    // it decides how large a generated cover to render from
+    // playlistHeader_'s *current* size(), which needs to already reflect
+    // this stretch change.
+    const bool isRadioStation = playlist.kind == QStringLiteral("radioStation");
+    setTrackListVisible(!isRadioStation);
     playlistHeader_->setPlaylist(playlist);
 
-    if (playlist.kind == QStringLiteral("radioStation")) {
+    if (isRadioStation) {
         // Continuous, not a fixed list — see docs/protocol.md's
         // Playlist.kind note. Only the header + Play button show; no RPC
         // call here, that's what makes this not auto-play (the Play button
         // handler wired in the constructor calls startRadioAsync()).
-        setTrackListVisible(false);
         trackListModel_->clear();
         co_return;
     }
 
-    setTrackListVisible(true);
     repositionTrackListBusyIndicator();
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
@@ -428,6 +434,15 @@ void MainWindow::setTrackListVisible(bool visible)
 {
     trackListView_->setVisible(visible);
     trackListLayout_->setStretchFactor(playlistHeader_, visible ? 0 : 1);
+    // Force the new geometry through synchronously instead of leaving it
+    // for the next event-loop pass: every caller calls this before
+    // PlaylistHeader::setPlaylist(), which reads playlistHeader_->size() to
+    // decide how large a generated cover to render (see
+    // GeneratedCoverArt.h) — without this, that size() call still sees
+    // whatever this widget's size was under its *previous* stretch factor,
+    // and setScaledContents then stretches the resulting cover up to the
+    // real (larger) banner, visibly blurry/banded.
+    trackListLayout_->activate();
 }
 
 } // namespace Ui

@@ -8,6 +8,8 @@
 class QLabel;
 class QPushButton;
 class QVBoxLayout;
+class QResizeEvent;
+class QTimer;
 
 namespace Ui {
 
@@ -45,8 +47,22 @@ public:
 signals:
     void playClicked();
 
+protected:
+    // Only matters for a generated cover (currentCoverUrl_ empty) — it was
+    // rendered for whatever size() was at setPlaylist() time, and
+    // setScaledContents just stretches that pixmap for any size after, which
+    // looks fine for a couple pixels of drift but visibly blurry/banded
+    // after a real resize (e.g. the window growing/shrinking, or
+    // MainWindow::setTrackListVisible() handing this widget a lot more
+    // height). Debounced (coverRegenerateTimer_) rather than regenerating on
+    // every single resizeEvent — a live window/splitter drag fires a lot of
+    // these in a row, and each regenerate does real work (blur, per-pixel
+    // noise).
+    void resizeEvent(QResizeEvent* event) override;
+
 private:
     void applyCover(const QPixmap& pixmap);
+    void regenerateCover();
 
     CoverArtCache* coverCache_;
     QLabel* coverLabel_ = nullptr;
@@ -55,8 +71,13 @@ private:
     QLabel* titleLabel_ = nullptr;
     QLabel* descriptionLabel_ = nullptr;
     QPushButton* playButton_ = nullptr;
+    QTimer* coverRegenerateTimer_ = nullptr;
 
     QString currentCoverUrl_;
+    // Only needed for regenerateCover() — titleLabel_->text() would work
+    // too, but this keeps that a display concern instead of overloading it
+    // as generation input as well.
+    QString currentTitle_;
 };
 
 } // namespace Ui

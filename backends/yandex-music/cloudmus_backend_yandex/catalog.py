@@ -4,7 +4,6 @@ ym_player/downloader.py's playlist_tracks()."""
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 
 from yandex_music import Client, Playlist as YPlaylist, Track as YTrack
 
@@ -20,16 +19,10 @@ WAVE_STATION_ID = "user:onyourwave"
 # yandex_music's rotor_stations_list() enumerates genre/mood stations but
 # never includes the personal wave station, so there is no per-account
 # icon/description available for it via the API — use a static description
-# and a bundled placeholder cover instead (see _wave_cover_uri()).
+# and leave coverUrl unset, so the front generates its own cover from the
+# title instead (see fronts/qt/src/Ui/GeneratedCoverArt.h).
 WAVE_DESCRIPTION = "Персональная станция на основе ваших вкусов и истории прослушиваний"
 LIKED_PLAYLIST_ID = "__liked__"
-
-
-def _wave_cover_uri() -> str:
-    # Same file:// pattern cover_art.py uses for local-folder covers, so the
-    # front's CoverArtCache (QNetworkAccessManager-based) fetches this
-    # exactly like any other coverUrl — no "no real cover" special case.
-    return (Path(__file__).parent / "assets" / "wave_cover.png").resolve().as_uri()
 
 
 def _cover_url(cover_uri: str | None) -> str | None:
@@ -77,7 +70,6 @@ def _wave_playlist() -> Playlist:
         id=WAVE_STATION_ID,
         title="Моя волна",
         description=WAVE_DESCRIPTION,
-        coverUrl=_wave_cover_uri(),
         # Continuous, not a fixed-length list — see docs/protocol.md's
         # kind: radioStation note; 0 signals "not applicable" here.
         trackCount=0,

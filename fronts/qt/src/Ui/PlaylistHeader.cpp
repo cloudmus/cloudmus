@@ -4,10 +4,13 @@
 #include <QIcon>
 #include <QLabel>
 #include <QPushButton>
+#include <QResizeEvent>
 #include <QStackedLayout>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include "CoverArtCache.h"
+#include "GeneratedCoverArt.h"
 
 namespace Ui {
 
@@ -16,9 +19,19 @@ namespace {
 // system palette here (unlike the rest of the UI) — a fixed dark gradient
 // + forced white text over the image is the deliberate exception, applied
 // only while a cover is actually showing (see setPlaylist()).
+// Qt style sheet gradients only support linear interpolation *between*
+// stops, no easing curve — two stops alone had a visible hard edge where the
+// fade kicks in, since the eye reads a linear alpha ramp as harsher than it
+// measures. These extra stops are a smoothstep curve (3t²-2t³, the standard
+// cheap cubic ease-in-out) sampled at t = 0/0.2/0.4/0.6/0.8/1 across the
+// fade's 0.25-1.0 span (starts a quarter of the way down, not just the
+// bottom sliver) and scaled to a 95 peak alpha (half of a fully opaque-ish
+// 190) — approximating a true cubic fade with piecewise-linear segments
+// short enough not to read as separate steps.
 const QString kGradientStyle = QStringLiteral(
-    "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 transparent, stop:0.55 transparent, "
-    "stop:1 rgba(0,0,0,190));");
+    "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 transparent, stop:0.25 transparent, "
+    "stop:0.4 rgba(0,0,0,10), stop:0.55 rgba(0,0,0,33), stop:0.7 rgba(0,0,0,62), "
+    "stop:0.85 rgba(0,0,0,85), stop:1 rgba(0,0,0,95));");
 const QString kWhiteTextStyle = QStringLiteral("color: white; background: transparent;");
 const QString kWhiteDescStyle = QStringLiteral("color: rgba(255,255,255,220); background: transparent;");
 } // namespace
@@ -115,11 +128,25 @@ PlaylistHeader::PlaylistHeader(CoverArtCache* coverCache, QWidget* parent)
         applyCover(coverCache_->pixmap(url, size()));
     });
 
+    // See resizeEvent()/regenerateCover().
+    coverRegenerateTimer_ = new QTimer(this);
+    coverRegenerateTimer_->setSingleShot(true);
+    coverRegenerateTimer_->setInterval(200);
+    connect(coverRegenerateTimer_, &QTimer::timeout, this, &PlaylistHeader::regenerateCover);
+
     hide();
 }
 
 void PlaylistHeader::setPlaylist(const Playlist& playlist)
 {
+    // Cancel a debounced regenerateCover() left over from resizing the
+    // *previous* playlist's banner — it would otherwise still fire (using
+    // currentTitle_/currentCoverUrl_, both already updated below) shortly
+    // after this synchronous, already-correctly-sized generate/fetch,
+    // redoing the same work for nothing.
+    coverRegenerateTimer_->stop();
+    currentTitle_ = playlist.title;
+
     titleLabel_->setText(playlist.title);
     const QString description = playlist.description.value_or(QString());
     descriptionLabel_->setText(description);
@@ -139,21 +166,19 @@ void PlaylistHeader::setPlaylist(const Playlist& playlist)
     textLayout_->setStretch(0, hasTrackList ? 0 : 1);
     textLayout_->setStretch(textLayout_->count() - 1, hasTrackList ? 0 : 1);
 
+    // Always some cover now — a source without real cover art gets a
+    // deterministic generated one (see GeneratedCoverArt.h) instead of a
+    // blank banner, so the white-on-scrim text styling below applies
+    // unconditionally rather than only when currentCoverUrl_ is set.
     currentCoverUrl_ = playlist.coverUrl.value_or(QString());
+    coverLabel_->show();
+    textPanel_->setStyleSheet(kGradientStyle);
+    titleLabel_->setStyleSheet(kWhiteTextStyle);
+    descriptionLabel_->setStyleSheet(kWhiteDescStyle);
     if (!currentCoverUrl_.isEmpty()) {
-        coverLabel_->show();
-        textPanel_->setStyleSheet(kGradientStyle);
-        titleLabel_->setStyleSheet(kWhiteTextStyle);
-        descriptionLabel_->setStyleSheet(kWhiteDescStyle);
         applyCover(coverCache_->pixmap(currentCoverUrl_, size()));
     } else {
-        coverLabel_->hide();
-        coverLabel_->clear();
-        // No cover: fall back to plain palette-based styling instead of
-        // forcing white-on-transparent text over nothing.
-        textPanel_->setStyleSheet(QString());
-        titleLabel_->setStyleSheet(QString());
-        descriptionLabel_->setStyleSheet(QString());
+        applyCover(generateMeshAuraGradientCover(playlist.title, size()));
     }
 
     show();
@@ -201,5 +226,19 @@ void PlaylistHeader::applyCover(const QPixmap& pixmap)
     else
         coverLabel_->clear(); // fetch in flight — pixmapReady above repaints once it lands
 }
+
+void PlaylistHeader::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    // Real cover art (currentCoverUrl_ set) isn't re-fetched here — that'd
+    // hit the network on every resize-settle instead of just doing local
+    // CPU work, a different enough cost that it's out of scope for this.
+    // currentTitle_ empty means no playlist has been set yet (hide()d,
+    // nothing to regenerate for).
+    if (currentCoverUrl_.isEmpty() && !currentTitle_.isEmpty())
+        coverRegenerateTimer_->start(); // restarts the countdown if already running — see the header's comment
+}
+
+void PlaylistHeader::regenerateCover() { applyCover(generateMeshAuraGradientCover(currentTitle_, size())); }
 
 } // namespace Ui

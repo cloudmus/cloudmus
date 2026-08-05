@@ -18,6 +18,3 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["cloudmus_backend_yandex*"]
-
-[tool.setuptools.package-data]
-cloudmus_backend_yandex = ["assets/*.png"]

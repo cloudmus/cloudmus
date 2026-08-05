@@ -71,6 +71,7 @@ add_executable(cloudmus-qt
     src/Ui/TrackRowDelegate.cpp
     src/Ui/NowPlayingBar.cpp
     src/Ui/PlaylistHeader.cpp
+    src/Ui/GeneratedCoverArt.cpp
     src/Ui/AuthBanner.cpp
     src/Ui/ToastNotifier.cpp
     src/Ui/SettingsDialog.cpp
