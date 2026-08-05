@@ -45,6 +45,15 @@ PlaylistHeader::PlaylistHeader(CoverArtCache* coverCache, QWidget* parent)
     // either, without needing Fixed at all.
     coverLabel_ = new QLabel(this);
     coverLabel_->setScaledContents(true);
+    // QLabel::minimumSizeHint() for a pixmap-holding label reports the
+    // pixmap's own (unscaled) size regardless of setScaledContents — cover
+    // art can be a few hundred px on a side, and that was propagating up
+    // through the QStackedLayout below as this whole widget's minimum size,
+    // refusing to let the window shrink narrower/shorter than the cover
+    // itself. A plain setMinimumSize(0, 0) does NOT override this (Qt
+    // treats an all-zero minimumSize as "unset", falling back to
+    // minimumSizeHint() again) — it has to be a genuinely non-zero size.
+    coverLabel_->setMinimumSize(1, 1);
 
     titleLabel_ = new QLabel(this);
     QFont titleFont = titleLabel_->font();
@@ -58,15 +67,35 @@ PlaylistHeader::PlaylistHeader(CoverArtCache* coverCache, QWidget* parent)
     playButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-start")), tr("Play"), this);
     connect(playButton_, &QPushButton::clicked, this, &PlaylistHeader::playClicked);
 
-    // No leading stretch: height now tracks this content exactly (see
-    // sizeHint()/heightForWidth() below) instead of a fixed banner size, so
-    // there's no leftover space for a stretch to push the text down into.
+    // Two layouts sharing one set of widgets, toggled per setPlaylist() call
+    // (see there) rather than rebuilt: a browsable playlist/liked banner is
+    // packed to the top-left (indices 0/4 below at stretch 0, so the block
+    // doesn't get pushed anywhere), a radioStation (My Wave) one — which has
+    // no track list underneath eating the rest of the window — is centered,
+    // both by widening this widget itself (MainWindow.cpp gives
+    // playlistHeader_ the layout stretch trackListView_ would otherwise
+    // claim, whenever trackListView_ is hidden) and by the stretch on both
+    // sides here centering the group within that extra height.
+    //
+    // titleLabel_/descriptionLabel_ stay stretched to the full width in
+    // both modes (their own setAlignment(), toggled in setPlaylist(),
+    // handles left-vs-centered *text*) — word-wrapped descriptionLabel_
+    // specifically must not get an alignment flag here instead: an
+    // unstretched item is sized to sizeHint(), and a word-wrapped label's
+    // sizeHint() width comes from an arbitrary internal Qt heuristic
+    // (~256px in testing), which would lock its wrap width to that instead
+    // of the banner's actual width. playButton_ does need its alignment
+    // flag toggled (Left/HCenter) — unlike the labels it isn't
+    // transparent-background, so left as stretched it would visually become
+    // a full-width button in both modes.
     textPanel_ = new QWidget(this);
-    auto* textLayout = new QVBoxLayout(textPanel_);
-    textLayout->setContentsMargins(12, 12, 12, 12);
-    textLayout->addWidget(titleLabel_);
-    textLayout->addWidget(descriptionLabel_);
-    textLayout->addWidget(playButton_, 0, Qt::AlignLeft);
+    textLayout_ = new QVBoxLayout(textPanel_);
+    textLayout_->setContentsMargins(12, 12, 12, 12);
+    textLayout_->addStretch(0);
+    textLayout_->addWidget(titleLabel_);
+    textLayout_->addWidget(descriptionLabel_);
+    textLayout_->addWidget(playButton_, 0, Qt::AlignLeft);
+    textLayout_->addStretch(0);
 
     // StackAll: both coverLabel_ and textPanel_ occupy the full banner
     // rect; setCurrentWidget raises textPanel_ above the cover so its
@@ -95,6 +124,20 @@ void PlaylistHeader::setPlaylist(const Playlist& playlist)
     const QString description = playlist.description.value_or(QString());
     descriptionLabel_->setText(description);
     descriptionLabel_->setVisible(!description.isEmpty());
+
+    // radioStation (My Wave) has no track list below this banner (see
+    // showPlaylistAsync()) — MainWindow.cpp hands its layout stretch to
+    // playlistHeader_ in that case, so top/bottom stretch here actually has
+    // room to center the group in; a browsable kind packs to the top-left
+    // instead, staying out of the track list's way. See the constructor's
+    // comment on this same layout for the full picture.
+    const bool hasTrackList = playlist.kind != QStringLiteral("radioStation");
+    const Qt::Alignment textAlign = hasTrackList ? Qt::AlignLeft : Qt::AlignHCenter;
+    titleLabel_->setAlignment(textAlign);
+    descriptionLabel_->setAlignment(textAlign);
+    textLayout_->setAlignment(playButton_, textAlign);
+    textLayout_->setStretch(0, hasTrackList ? 0 : 1);
+    textLayout_->setStretch(textLayout_->count() - 1, hasTrackList ? 0 : 1);
 
     currentCoverUrl_ = playlist.coverUrl.value_or(QString());
     if (!currentCoverUrl_.isEmpty()) {

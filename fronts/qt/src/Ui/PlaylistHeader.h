@@ -7,6 +7,7 @@
 
 class QLabel;
 class QPushButton;
+class QVBoxLayout;
 
 namespace Ui {
 
@@ -50,6 +51,7 @@ private:
     CoverArtCache* coverCache_;
     QLabel* coverLabel_ = nullptr;
     QWidget* textPanel_ = nullptr;
+    QVBoxLayout* textLayout_ = nullptr;
     QLabel* titleLabel_ = nullptr;
     QLabel* descriptionLabel_ = nullptr;
     QPushButton* playButton_ = nullptr;

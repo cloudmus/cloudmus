@@ -123,11 +123,10 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
 
     auto* trackListContainer = new QWidget(this);
-    auto* trackListLayout = new QVBoxLayout(trackListContainer);
-    trackListLayout->setContentsMargins(0, 0, 0, 0);
-    trackListLayout->setSpacing(0);
-    trackListLayout->addWidget(playlistHeader_);
-    // Stretch 1: without it, QVBoxLayout has no explicit weighting between
+    trackListLayout_ = new QVBoxLayout(trackListContainer);
+    trackListLayout_->setContentsMargins(0, 0, 0, 0);
+    trackListLayout_->setSpacing(0);
+    // Stretch 0/1: without it, QVBoxLayout has no explicit weighting between
     // the two items in this direction, so it falls back to growing every
     // item proportionally to fill the container — stretching
     // playlistHeader_ with the window instead of leaving it at its
@@ -135,8 +134,11 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     // playlistHeader_ none) is also why PlaylistHeader deliberately isn't
     // QSizePolicy::Fixed itself — see that class's constructor for why that
     // specific combination (Fixed + a width-dependent heightForWidth)
-    // fights window resizing instead.
-    trackListLayout->addWidget(trackListView_, 1);
+    // fights window resizing instead. setTrackListVisible() swaps which of
+    // the two gets the stretch when trackListView_ is hidden entirely
+    // (radioStation/My Wave) — see its own comment in the header.
+    trackListLayout_->addWidget(playlistHeader_);
+    trackListLayout_->addWidget(trackListView_, 1);
 
     // Not part of trackListLayout: a layout-managed progress bar would
     // shrink the list by its own height whenever it's shown/hidden,
@@ -285,7 +287,7 @@ void MainWindow::showHistory()
         entries.append({ e.sourceId, e.track, e.playedAt });
     trackListModel_->setMixedSourceTracks(entries);
 
-    trackListView_->show();
+    setTrackListVisible(true);
     repositionTrackListBusyIndicator();
     trackListBusyIndicator_->hide();
 }
@@ -303,12 +305,12 @@ Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlis
         // Playlist.kind note. Only the header + Play button show; no RPC
         // call here, that's what makes this not auto-play (the Play button
         // handler wired in the constructor calls startRadioAsync()).
-        trackListView_->hide();
+        setTrackListVisible(false);
         trackListModel_->clear();
         co_return;
     }
 
-    trackListView_->show();
+    setTrackListVisible(true);
     repositionTrackListBusyIndicator();
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
@@ -420,6 +422,12 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 void MainWindow::repositionTrackListBusyIndicator()
 {
     trackListBusyIndicator_->setGeometry(trackListView_->x(), trackListView_->y(), trackListView_->width(), 4);
+}
+
+void MainWindow::setTrackListVisible(bool visible)
+{
+    trackListView_->setVisible(visible);
+    trackListLayout_->setStretchFactor(playlistHeader_, visible ? 0 : 1);
 }
 
 } // namespace Ui

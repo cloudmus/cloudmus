@@ -12,6 +12,7 @@ class QListView;
 class QModelIndex;
 class QProgressBar;
 class QCloseEvent;
+class QVBoxLayout;
 
 namespace History {
 class PlaybackHistory;
@@ -92,12 +93,20 @@ private:
     Config::Settings& settings_;
 
     void repositionTrackListBusyIndicator();
+    // Shows/hides trackListView_ and, together with it, hands playlistHeader_
+    // the layout stretch trackListView_ would otherwise claim — a
+    // radioStation (My Wave) selection hides the list entirely, and without
+    // this playlistHeader_ would just stay pinned at its own small content
+    // height instead of using the freed-up space (see
+    // PlaylistHeader::setPlaylist()'s comment for the other half of this).
+    void setTrackListVisible(bool visible);
 
     SidebarModel* sidebarModel_ = nullptr;
     QTreeView* sidebarView_ = nullptr;
     PlaylistHeader* playlistHeader_ = nullptr;
     TrackListModel* trackListModel_ = nullptr;
     QListView* trackListView_ = nullptr;
+    QVBoxLayout* trackListLayout_ = nullptr;
     QProgressBar* trackListBusyIndicator_ = nullptr;
     CoverArtCache* coverArtCache_ = nullptr;
     TrackRowDelegate* trackRowDelegate_ = nullptr;
