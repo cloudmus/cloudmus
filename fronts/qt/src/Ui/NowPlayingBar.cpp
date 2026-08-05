@@ -105,8 +105,12 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
     slidersRow->addWidget(seekSlider_, 1);
     slidersRow->addWidget(durationLabel_);
     slidersRow->addSpacing(12);
-    slidersRow->addWidget(
-        new QLabel(QString::fromUtf8("\xF0\x9F\x94\x8A"), this)); // 🔊, harmless if the font lacks it
+    auto* volumeIconLabel = new QLabel(this);
+    // Matches the transport buttons (also QIcon::fromTheme) instead of an
+    // emoji glyph, which looked out of place next to them and depended on
+    // the font actually having a color-emoji glyph for it.
+    volumeIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("audio-volume-high")).pixmap(16, 16));
+    slidersRow->addWidget(volumeIconLabel);
     slidersRow->addWidget(volumeSlider_);
 
     // Buttons above the sliders instead of everything crammed into one row
