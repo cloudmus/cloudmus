@@ -127,7 +127,16 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListLayout->setContentsMargins(0, 0, 0, 0);
     trackListLayout->setSpacing(0);
     trackListLayout->addWidget(playlistHeader_);
-    trackListLayout->addWidget(trackListView_);
+    // Stretch 1: without it, QVBoxLayout has no explicit weighting between
+    // the two items in this direction, so it falls back to growing every
+    // item proportionally to fill the container — stretching
+    // playlistHeader_ with the window instead of leaving it at its
+    // content-driven height. Giving trackListView_ all the stretch (and
+    // playlistHeader_ none) is also why PlaylistHeader deliberately isn't
+    // QSizePolicy::Fixed itself — see that class's constructor for why that
+    // specific combination (Fixed + a width-dependent heightForWidth)
+    // fights window resizing instead.
+    trackListLayout->addWidget(trackListView_, 1);
 
     // Not part of trackListLayout: a layout-managed progress bar would
     // shrink the list by its own height whenever it's shown/hidden,
@@ -270,10 +279,10 @@ void MainWindow::showHistory()
     playlistHeader_->setPlaylist(currentPlaylist_);
     playlistHeader_->setPlayButtonVisible(false);
 
-    QList<QPair<QString, Track>> entries;
+    QList<TrackListModel::MixedSourceEntry> entries;
     entries.reserve(playbackHistory_->entries().size());
     for (const History::HistoryEntry& e : playbackHistory_->entries())
-        entries.append({ e.sourceId, e.track });
+        entries.append({ e.sourceId, e.track, e.playedAt });
     trackListModel_->setMixedSourceTracks(entries);
 
     trackListView_->show();

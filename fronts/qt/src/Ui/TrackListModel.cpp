@@ -13,21 +13,25 @@ void TrackListModel::setTracks(const QString& sourceId, const QList<Track>& trac
     sourceId_ = sourceId;
     tracks_ = QVector<Track>(tracks.begin(), tracks.end());
     mixedSourceIds_.clear();
+    playedAt_.clear();
     mixedSource_ = false;
     endResetModel();
 }
 
-void TrackListModel::setMixedSourceTracks(const QList<QPair<QString, Track>>& sourceIdAndTrack)
+void TrackListModel::setMixedSourceTracks(const QList<MixedSourceEntry>& entries)
 {
     beginResetModel();
     sourceId_.clear();
     tracks_.clear();
     mixedSourceIds_.clear();
-    tracks_.reserve(sourceIdAndTrack.size());
-    mixedSourceIds_.reserve(sourceIdAndTrack.size());
-    for (const auto& [sourceId, track] : sourceIdAndTrack) {
-        tracks_.append(track);
-        mixedSourceIds_.append(sourceId);
+    playedAt_.clear();
+    tracks_.reserve(entries.size());
+    mixedSourceIds_.reserve(entries.size());
+    playedAt_.reserve(entries.size());
+    for (const MixedSourceEntry& entry : entries) {
+        tracks_.append(entry.track);
+        mixedSourceIds_.append(entry.sourceId);
+        playedAt_.append(entry.playedAt);
     }
     mixedSource_ = true;
     endResetModel();
@@ -50,6 +54,7 @@ void TrackListModel::clear()
     sourceId_.clear();
     tracks_.clear();
     mixedSourceIds_.clear();
+    playedAt_.clear();
     mixedSource_ = false;
     endResetModel();
 }
@@ -73,6 +78,8 @@ QVariant TrackListModel::data(const QModelIndex& index, int role) const
             return QVariant::fromValue(t);
         case SourceIdRole:
             return sourceIdAt(index.row());
+        case PlayedAtRole:
+            return mixedSource_ ? QVariant::fromValue(playedAt_[index.row()]) : QVariant();
         case Qt::DisplayRole:
             return t.title;
         default:

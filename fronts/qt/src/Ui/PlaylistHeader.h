@@ -33,6 +33,14 @@ public:
     // backends, so "play the whole thing" doesn't apply there.
     void setPlayButtonVisible(bool visible);
 
+    // Height tracks content (title + optional description + Play button)
+    // instead of a fixed banner size — see the .cpp for why QStackedLayout
+    // (used to overlay text on the cover) needs these three overridden by
+    // hand rather than just working via the ordinary layout machinery.
+    QSize sizeHint() const override;
+    bool hasHeightForWidth() const override;
+    int heightForWidth(int w) const override;
+
 signals:
     void playClicked();
 

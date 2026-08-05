@@ -32,6 +32,21 @@ QRect TrackRowDelegate::thumbRect(const QRect& rowRect) const
     return QRect(rowRect.left() + margin, rowRect.top() + margin, kThumbSize, kThumbSize);
 }
 
+QString TrackRowDelegate::formatPlayedAt(const QDateTime& utcWhen) const
+{
+    const QDateTime local = utcWhen.toLocalTime();
+    const QDate today = QDate::currentDate();
+    const QDate date = local.date();
+    QString datePart;
+    if (date == today)
+        datePart = tr("Today");
+    else if (date == today.addDays(-1))
+        datePart = tr("Yesterday");
+    else
+        datePart = local.date().toString(QStringLiteral("dd.MM.yyyy"));
+    return QStringLiteral("%1, %2").arg(datePart, local.time().toString(QStringLiteral("HH:mm")));
+}
+
 void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
     const Track track = index.data(TrackListModel::TrackRole).value<Track>();
@@ -87,8 +102,17 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     const QFontMetrics metrics(option.font);
     const int durationWidth = metrics.horizontalAdvance(durationText);
 
+    // History rows (see TrackListModel::PlayedAtRole) get a second stacked
+    // label here, mirroring the title/artist stack on the left — mixing in
+    // an invalid QDateTime for a non-history row is exactly what leaves
+    // playedAtText empty and this whole block a no-op.
+    const QDateTime playedAt = index.data(TrackListModel::PlayedAtRole).toDateTime();
+    const QString playedAtText = playedAt.isValid() ? formatPlayedAt(playedAt) : QString();
+    const int playedAtWidth = playedAtText.isEmpty() ? 0 : metrics.horizontalAdvance(playedAtText);
+    const int rightColumnWidth = qMax(durationWidth, playedAtWidth);
+
     const int textLeft = thumb.right() + margin;
-    const int textRight = rect.right() - margin - durationWidth - margin;
+    const int textRight = rect.right() - margin - rightColumnWidth - margin;
     const QRect titleRect(textLeft, rect.top() + margin - 2, textRight - textLeft, metrics.height());
     QRect artistRect(textLeft, titleRect.bottom(), textRight - textLeft, metrics.height());
 
@@ -106,9 +130,18 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     painter->drawText(artistRect, Qt::AlignVCenter | Qt::AlignLeft,
                       metrics.elidedText(artistNames, Qt::ElideRight, artistRect.width()));
 
-    const QRect durationRect(rect.right() - margin - durationWidth, rect.top(), durationWidth, rect.height());
     painter->setPen(secondaryColor);
-    painter->drawText(durationRect, Qt::AlignVCenter | Qt::AlignRight, durationText);
+    if (!playedAtText.isEmpty()) {
+        const QRect playedAtRect(rect.right() - margin - rightColumnWidth, rect.top() + margin - 2, rightColumnWidth,
+                                 metrics.height());
+        QRect durationRect2(rect.right() - margin - rightColumnWidth, playedAtRect.bottom(), rightColumnWidth,
+                            metrics.height());
+        painter->drawText(playedAtRect, Qt::AlignVCenter | Qt::AlignRight, playedAtText);
+        painter->drawText(durationRect2, Qt::AlignVCenter | Qt::AlignRight, durationText);
+    } else {
+        const QRect durationRect(rect.right() - margin - durationWidth, rect.top(), durationWidth, rect.height());
+        painter->drawText(durationRect, Qt::AlignVCenter | Qt::AlignRight, durationText);
+    }
 
     painter->restore();
 }

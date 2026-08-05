@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDateTime>
 #include <QStyledItemDelegate>
 
 namespace Ui {
@@ -31,6 +32,11 @@ private:
     // Shared between paint() (drawing the hover overlay) and editorEvent()
     // (hit-testing a click against it) so they can never disagree.
     QRect thumbRect(const QRect& rowRect) const;
+    // "Today, 16:34" / "Yesterday, 16:34" / "31.07.2026, 16:34" in the
+    // viewer's local time zone (History::PlaybackHistory persists UTC —
+    // see its record()). A member, not a free function, so it can use
+    // tr() for "Today"/"Yesterday".
+    QString formatPlayedAt(const QDateTime& utcWhen) const;
 
     CoverArtCache* coverCache_;
     static constexpr int kRowHeight = 48;

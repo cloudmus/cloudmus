@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QDateTime>
 #include <QString>
 #include <QVector>
 
@@ -17,6 +18,22 @@ public:
     enum Role {
         TrackRole = Qt::UserRole + 1,
         SourceIdRole,
+        // Invalid QDateTime (the default) unless set via
+        // setMixedSourceTracks() with a valid MixedSourceEntry::playedAt —
+        // currently only History populates this. TrackRowDelegate checks
+        // QDateTime::isValid() to decide whether to draw it at all.
+        PlayedAtRole,
+    };
+
+    // One row for setMixedSourceTracks() — see that method's doc comment
+    // for why a mixed-source list needs a per-row sourceId. playedAt is
+    // separate from Track itself (a protocol type, not a
+    // when-the-user-played-it fact) so History::PlaybackHistory stays the
+    // one place that knows about play history at all.
+    struct MixedSourceEntry {
+        QString sourceId;
+        Track track;
+        QDateTime playedAt;
     };
 
     explicit TrackListModel(QObject* parent = nullptr);
@@ -27,7 +44,7 @@ public:
     // one sourceId for the whole queue, so double-clicking a row here plays
     // just that track instead of queuing the rest of the list (see
     // MainWindow::onTrackDoubleClicked / isMixedSource()).
-    void setMixedSourceTracks(const QList<QPair<QString, Track>>& sourceIdAndTrack);
+    void setMixedSourceTracks(const QList<MixedSourceEntry>& entries);
     void appendTracks(const QList<Track>& tracks);
     void clear();
 
@@ -44,6 +61,7 @@ private:
     QString sourceId_;
     QVector<Track> tracks_;
     QVector<QString> mixedSourceIds_; // parallel to tracks_, only populated when mixedSource_
+    QVector<QDateTime> playedAt_; // parallel to tracks_, only populated when mixedSource_
     bool mixedSource_ = false;
 };
 
