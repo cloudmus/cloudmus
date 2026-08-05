@@ -12,3 +12,6 @@ dist/
 # see protocol/README.md
 backends/py-rpc-common/rpc_common/generated/
 fronts/qt/generated/
+
+# Qt Creator's local project state (build kit, paths — machine-specific)
+fronts/qt/.qtcreator/
