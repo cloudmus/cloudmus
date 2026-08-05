@@ -52,7 +52,12 @@ private:
     void wireSource(Rpc::RpcClient* client);
     void onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail);
     void onSidebarActivated(const QModelIndex& index);
+    void onSidebarDoubleClicked(const QModelIndex& index);
     void onTrackDoubleClicked(const QModelIndex& index);
+    // Shared by the header's Play button and onSidebarDoubleClicked() — both
+    // just need "start playing whatever's currently shown" once it's
+    // loaded (currentPlaylistSourceId_/currentPlaylist_/trackListModel_).
+    void playCurrentPlaylist();
     void showAboutDialog();
     // Synchronous, unlike showPlaylistAsync() — History is local state, no
     // RPC round-trip needed. See History::PlaybackHistory.
@@ -66,12 +71,19 @@ private:
     // there. See the equivalent comment on RpcClient::call() for the full
     // explanation of this coroutine-lifetime pitfall.
     //
-    // Selecting a sidebar item only shows its PlaylistHeader (cover/title/
-    // description) and, for a browsable kind, its track list — it never
-    // starts playback by itself (see docs/protocol.md's Playlist.kind note
-    // and the plan for why My Wave must not auto-play on click). Playback
-    // only starts from PlaylistHeader's Play button or a track double-click.
+    // A single click on a sidebar item only shows its PlaylistHeader
+    // (cover/title/description) and, for a browsable kind, its track list —
+    // it never starts playback by itself (see docs/protocol.md's
+    // Playlist.kind note and the plan for why My Wave must not auto-play on
+    // select). Playback starts from PlaylistHeader's Play button, a track
+    // double-click, or double-clicking the sidebar item itself
+    // (onSidebarDoubleClicked, which awaits this and then calls
+    // playCurrentPlaylist()).
     Rpc::Task<void> showPlaylistAsync(QString sourceId, Playlist playlist);
+    // onSidebarDoubleClicked()'s handler: awaits showPlaylistAsync() (so the
+    // double-clicked item is loaded regardless of what was shown before),
+    // then plays it via playCurrentPlaylist().
+    Rpc::Task<void> openAndPlayPlaylistAsync(QString sourceId, Playlist playlist);
     Rpc::Task<void> startRadioAsync(QString sourceId, QString seed);
     Rpc::Task<void> submitAuthAsync(QString sourceId, QJsonObject fields);
 

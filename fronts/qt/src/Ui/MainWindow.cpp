@@ -94,18 +94,21 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     sidebarView_ = new QTreeView(this);
     sidebarView_->setModel(sidebarModel_);
     sidebarView_->setHeaderHidden(true);
+    // Items are QStandardItems, editable by default — without this, the
+    // double-click wired below to start playback also opens a rename
+    // editor on the row.
+    sidebarView_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    // Left at the style's native branch rendering (arrows + connector
+    // lines) — tried stripping just the lines while keeping arrows via a
+    // QSS ::branch override, but the style draws them as one primitive per
+    // state, so trimming one always distorted or dropped the other.
+    sidebarView_->setIndentation(12);
+    connect(sidebarModel_, &QStandardItemModel::rowsInserted, sidebarView_, &QTreeView::expandAll);
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
+    connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
 
     playlistHeader_ = new PlaylistHeader(coverArtCache_, this);
-    connect(playlistHeader_, &PlaylistHeader::playClicked, this, [this]() {
-        if (currentPlaylistSourceId_.isEmpty())
-            return;
-        if (currentPlaylist_.kind == QStringLiteral("radioStation")) {
-            startRadioAsync(currentPlaylistSourceId_, currentPlaylist_.id).detach();
-        } else if (!trackListModel_->allTracks().isEmpty()) {
-            playback_.loadQueue(currentPlaylistSourceId_, trackListModel_->allTracks(), 0);
-        }
-    });
+    connect(playlistHeader_, &PlaylistHeader::playClicked, this, &MainWindow::playCurrentPlaylist);
 
     trackListModel_ = new TrackListModel(this);
     trackRowDelegate_ = new TrackRowDelegate(coverArtCache_, this);
@@ -234,6 +237,30 @@ void MainWindow::onSidebarActivated(const QModelIndex& index)
     showPlaylistAsync(sourceId, playlist).detach();
 }
 
+void MainWindow::onSidebarDoubleClicked(const QModelIndex& index)
+{
+    const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
+    // History has no single queue to play as a whole (mixed sourceIds — see
+    // TrackListModel::isMixedSource()); double-clicking it just opens it,
+    // same as a single click, same as onSidebarActivated above.
+    if (kind != SidebarModel::Kind::Wave && kind != SidebarModel::Kind::Liked && kind != SidebarModel::Kind::Playlist)
+        return;
+    const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
+    const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
+    openAndPlayPlaylistAsync(sourceId, playlist).detach();
+}
+
+void MainWindow::playCurrentPlaylist()
+{
+    if (currentPlaylistSourceId_.isEmpty())
+        return;
+    if (currentPlaylist_.kind == QStringLiteral("radioStation")) {
+        startRadioAsync(currentPlaylistSourceId_, currentPlaylist_.id).detach();
+    } else if (!trackListModel_->allTracks().isEmpty()) {
+        playback_.loadQueue(currentPlaylistSourceId_, trackListModel_->allTracks(), 0);
+    }
+}
+
 void MainWindow::showHistory()
 {
     showingHistory_ = true;
@@ -293,6 +320,12 @@ Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlis
         toastNotifier_->showError(e.error().message);
     }
     trackListBusyIndicator_->hide();
+}
+
+Rpc::Task<void> MainWindow::openAndPlayPlaylistAsync(QString sourceId, Playlist playlist)
+{
+    co_await showPlaylistAsync(sourceId, playlist);
+    playCurrentPlaylist();
 }
 
 Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed)
