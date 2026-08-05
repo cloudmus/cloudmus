@@ -4,6 +4,7 @@
 
 #include "Models.h"
 
+class QHBoxLayout;
 class QLabel;
 class QPushButton;
 class QSlider;
@@ -29,6 +30,15 @@ public:
     void setPosition(qint64 positionMs, qint64 durationMs);
     void setVolume(int volume0To100);
 
+    // Appended to the right end of the transport-button row (top row — see
+    // the .cpp), after a stretch that keeps it pinned there. MainWindow
+    // hands its hamburger-menu QToolButton in here rather than this class
+    // building the menu itself: the menu's actions (Settings/About/Quit)
+    // need to reach back into MainWindow anyway (SettingsDialog(settings_,
+    // this), quitForReal, ...), so constructing it here wouldn't actually
+    // decouple anything, just relocate the coupling.
+    void setTrailingWidget(QWidget* widget);
+
 signals:
     void playPauseClicked();
     void nextClicked();
@@ -53,6 +63,9 @@ private:
     QLabel* elapsedLabel_ = nullptr;
     QLabel* durationLabel_ = nullptr;
     QSlider* volumeSlider_ = nullptr;
+    // Transport buttons' row — setTrailingWidget() appends into this, after
+    // the stretch already placed there in the constructor.
+    QHBoxLayout* buttonsRow_ = nullptr;
 
     QString currentWebUrl_;
     QString currentCoverUrl_;

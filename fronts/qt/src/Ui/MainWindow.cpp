@@ -73,7 +73,10 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     toolbar->setMovable(false);
     toolbar->setFloatable(false);
     toolbar->addWidget(nowPlayingBar_);
-    auto* menuButton = new QToolButton(toolbar);
+    // Into NowPlayingBar's own transport-button row (top row, right end),
+    // not a separate toolbar item — see setTrailingWidget()'s comment for
+    // why the menu itself is still built here rather than in that class.
+    auto* menuButton = new QToolButton(nowPlayingBar_);
     menuButton->setIcon(QIcon::fromTheme(QStringLiteral("application-menu")));
     menuButton->setPopupMode(QToolButton::InstantPopup);
     auto* menu = new QMenu(menuButton);
@@ -85,7 +88,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     menu->addSeparator();
     menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
     menuButton->setMenu(menu);
-    toolbar->addWidget(menuButton);
+    nowPlayingBar_->setTrailingWidget(menuButton);
     addToolBar(toolbar);
 
     // --- sidebar + track list ---

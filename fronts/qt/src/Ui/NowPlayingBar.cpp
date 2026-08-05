@@ -26,7 +26,11 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
     , coverCache_(coverCache)
 {
-    setFixedHeight(72);
+    // No setFixedHeight(): the controls column below is two rows now
+    // (buttons, then sliders) instead of one, so its natural height varies
+    // with the current widget style/font rather than being a number worth
+    // hardcoding — Fixed vertical policy alone already means "use
+    // sizeHint()'s height as both min and max".
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     coverLabel_ = new QLabel(this);
@@ -68,11 +72,15 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
     connect(nextButton_, &QPushButton::clicked, this, &NowPlayingBar::nextClicked);
     connect(stopButton_, &QPushButton::clicked, this, &NowPlayingBar::stopClicked);
-    auto* transportLayout = new QHBoxLayout;
-    transportLayout->addWidget(previousButton_);
-    transportLayout->addWidget(playPauseButton_);
-    transportLayout->addWidget(nextButton_);
-    transportLayout->addWidget(stopButton_);
+    // Top row of the controls column below — transport buttons, then
+    // whatever setTrailingWidget() appends (MainWindow's hamburger menu
+    // button) pinned to the right by the stretch.
+    buttonsRow_ = new QHBoxLayout;
+    buttonsRow_->addWidget(previousButton_);
+    buttonsRow_->addWidget(playPauseButton_);
+    buttonsRow_->addWidget(nextButton_);
+    buttonsRow_->addWidget(stopButton_);
+    buttonsRow_->addStretch(1);
 
     elapsedLabel_ = new QLabel(QStringLiteral("0:00"), this);
     durationLabel_ = new QLabel(QStringLiteral("0:00"), this);
@@ -83,26 +91,36 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
         userIsDraggingSeek_ = false;
         emit seekRequested(seekSlider_->value());
     });
-    auto* seekLayout = new QHBoxLayout;
-    seekLayout->addWidget(elapsedLabel_);
-    seekLayout->addWidget(seekSlider_);
-    seekLayout->addWidget(durationLabel_);
-
     volumeSlider_ = new QSlider(Qt::Horizontal, this);
     volumeSlider_->setRange(0, 100);
     volumeSlider_->setFixedWidth(100);
     connect(volumeSlider_, &QSlider::valueChanged, this, &NowPlayingBar::volumeChanged);
-    auto* volumeLayout = new QHBoxLayout;
-    volumeLayout->addWidget(
+
+    // Bottom row of the controls column: seek slider (with elapsed/duration
+    // labels) gets the stretch, volume trails after it — was its own
+    // separate top-level row before, now shares this one instead of sitting
+    // beside the transport buttons.
+    auto* slidersRow = new QHBoxLayout;
+    slidersRow->addWidget(elapsedLabel_);
+    slidersRow->addWidget(seekSlider_, 1);
+    slidersRow->addWidget(durationLabel_);
+    slidersRow->addSpacing(12);
+    slidersRow->addWidget(
         new QLabel(QString::fromUtf8("\xF0\x9F\x94\x8A"), this)); // 🔊, harmless if the font lacks it
-    volumeLayout->addWidget(volumeSlider_);
+    slidersRow->addWidget(volumeSlider_);
+
+    // Buttons above the sliders instead of everything crammed into one row
+    // — that one row left this widget's fixed 72px height mostly empty
+    // padding above/below it, since none of these controls are anywhere
+    // near that tall on their own.
+    auto* controlsColumn = new QVBoxLayout;
+    controlsColumn->addLayout(buttonsRow_);
+    controlsColumn->addLayout(slidersRow);
 
     auto* rootLayout = new QHBoxLayout(this);
     rootLayout->setContentsMargins(0, 0, 8, 0);
     rootLayout->addWidget(coverAndTitle_);
-    rootLayout->addLayout(transportLayout);
-    rootLayout->addLayout(seekLayout, 1);
-    rootLayout->addLayout(volumeLayout);
+    rootLayout->addLayout(controlsColumn, 1);
 }
 
 void NowPlayingBar::setTrack(const Track& track)
@@ -168,5 +186,7 @@ void NowPlayingBar::setVolume(int volume0To100)
     QSignalBlocker blocker(volumeSlider_);
     volumeSlider_->setValue(volume0To100);
 }
+
+void NowPlayingBar::setTrailingWidget(QWidget* widget) { buttonsRow_->addWidget(widget); }
 
 } // namespace Ui
