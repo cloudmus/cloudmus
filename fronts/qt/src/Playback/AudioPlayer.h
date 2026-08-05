@@ -1,34 +1,30 @@
 #pragma once
 
-#include <QNetworkAccessManager>
 #include <QObject>
 #include <QString>
 
-class QMediaPlayer;
-class QAudioOutput;
-class QNetworkReply;
-class QBuffer;
+struct mpv_handle;
+struct mpv_event;
 
 namespace Playback {
 
-// Thin wrapper around Qt Multimedia's QMediaPlayer + QAudioOutput — pure Qt,
-// no third-party library (see fronts/qt/AGENTS.md), and simpler than a
-// hand-rolled libmpv binding would be: no manual C API, no dedicated event
-// thread — QMediaPlayer already delivers everything via ordinary Qt signals
-// on the GUI thread.
-//
-// Remote (http/https) URLs are downloaded in full via QNetworkAccessManager
-// before playback starts, instead of being handed to QMediaPlayer as a raw
-// source URL — see the comment on play() for why. This makes starting
-// playback asynchronous, hence started()/failed() instead of play() being
-// fire-and-forget.
+// Thin wrapper around libmpv — see docs/adr or the AudioPlayer.cpp comment
+// for why this replaced Qt Multimedia's QMediaPlayer: on hybrid Intel/AMD +
+// NVIDIA laptops, QMediaPlayer's FFmpeg backend woke the discrete GPU and
+// held it awake for the whole session even for plain audio (see git log).
+// mpv is configured with vid=no (audio only, no video output/GPU context)
+// and fed stream URLs directly, same as fronts/tui's playback_engine.py —
+// no local buffering workaround needed here; the TLS-reset issue that
+// forced that workaround for QMediaPlayer was specific to Qt's own FFmpeg
+// HTTP client, not observed with mpv against the same CDN.
 class AudioPlayer : public QObject {
     Q_OBJECT
 
 public:
     explicit AudioPlayer(QObject* parent = nullptr);
+    ~AudioPlayer() override;
 
-    void play(const QString& url);
+    void play(const QString& url, const QString& title);
     void pause();
     void resume();
     void stop();
@@ -36,23 +32,27 @@ public:
     void setVolume(int volume0To100);
 
 signals:
-    // Playback has actually begun (download, if any, finished and the
-    // player started producing audio).
+    // Playback has actually begun producing audio (mirrors
+    // MPV_EVENT_PLAYBACK_RESTART).
     void started();
-    // Download or playback failed; no started()/endOfFile() will follow.
+    // Playback failed; no started()/endOfFile() will follow for this file.
     void failed(QString message);
     // Natural end of the current track (not a manual stop/track change).
     void endOfFile();
     void positionChanged(qint64 positionMs, qint64 durationMs);
 
 private:
-    void cancelDownload();
+    // Drains libmpv's event queue on the GUI thread. Invoked (via
+    // Qt::QueuedConnection) from mpvWakeup(), which libmpv calls from one of
+    // its own internal threads — never touch mpv_ directly from there.
+    Q_INVOKABLE void processMpvEvents();
+    void handleEvent(const mpv_event& event);
 
-    QMediaPlayer* player_ = nullptr;
-    QAudioOutput* audioOutput_ = nullptr;
-    QNetworkAccessManager network_;
-    QNetworkReply* reply_ = nullptr;
-    QBuffer* sourceBuffer_ = nullptr;
+    static void mpvWakeup(void* ctx);
+
+    mpv_handle* mpv_ = nullptr;
+    qint64 lastPositionMs_ = 0;
+    qint64 lastDurationMs_ = 0;
 };
 
 } // namespace Playback

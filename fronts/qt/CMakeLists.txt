@@ -8,7 +8,10 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network DBus Multimedia Svg)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network DBus Svg)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
 
 # --- protocol/codegen: regenerate fronts/qt/generated/ whenever the schema
 # or methods change, before anything tries to #include it. Requires Python +
@@ -103,6 +106,6 @@ target_link_libraries(cloudmus-qt PRIVATE
     Qt6::Widgets
     Qt6::Network
     Qt6::DBus
-    Qt6::Multimedia
     Qt6::Svg
+    PkgConfig::MPV
 )

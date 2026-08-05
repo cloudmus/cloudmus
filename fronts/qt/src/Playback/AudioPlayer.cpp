@@ -1,12 +1,13 @@
 #include "AudioPlayer.h"
 
-#include <QAudioOutput>
-#include <QBuffer>
+#include <clocale>
+#include <cstring>
+
+#include <QByteArray>
 #include <QLoggingCategory>
-#include <QMediaPlayer>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#include <QUrl>
+#include <QMetaObject>
+
+#include <mpv/client.h>
 
 namespace Playback {
 
@@ -17,102 +18,150 @@ Q_LOGGING_CATEGORY(lcAudioPlayer, "cloudmus.playback.audio")
 AudioPlayer::AudioPlayer(QObject* parent)
     : QObject(parent)
 {
-    player_ = new QMediaPlayer(this);
-    audioOutput_ = new QAudioOutput(this);
-    player_->setAudioOutput(audioOutput_);
+    // libmpv requires LC_NUMERIC == "C" before mpv_create() — it parses/
+    // formats numeric option values with the C locale's decimal point, and
+    // silently misbehaves (crashes, in practice) if Qt or the environment
+    // has switched it to something else (a comma-decimal locale here).
+    std::setlocale(LC_NUMERIC, "C");
 
-    connect(player_, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) {
-        if (status == QMediaPlayer::EndOfMedia) {
+    mpv_ = mpv_create();
+
+    // Audio only: no video output means no GPU context ever gets created
+    // for it (see git log for why that matters on hybrid Intel+NVIDIA
+    // laptops). ao=pulse,alsa mirrors fronts/tui/playback_engine.py — mpv's
+    // native PipeWire output was unreliable there; route through
+    // pulse/pipewire-pulse or alsa instead.
+    mpv_set_option_string(mpv_, "vid", "no");
+    mpv_set_option_string(mpv_, "ao", "pulse,alsa");
+
+    // Without these, mpv reports itself to PipeWire/Pulse (and thus to the
+    // desktop's per-stream volume widget) as "mpv" playing a title derived
+    // from the raw stream URL, with mpv's default "${media-title} - mpv"
+    // title template tacking " - mpv" onto the end.
+    mpv_set_option_string(mpv_, "audio-client-name", "CloudMus");
+    mpv_set_option_string(mpv_, "title", "${media-title}");
+
+    if (mpv_initialize(mpv_) < 0) {
+        qCWarning(lcAudioPlayer) << "mpv_initialize failed";
+    }
+
+    mpv_observe_property(mpv_, 0, "time-pos", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(mpv_, 0, "duration", MPV_FORMAT_DOUBLE);
+    mpv_set_wakeup_callback(mpv_, &AudioPlayer::mpvWakeup, this);
+}
+
+AudioPlayer::~AudioPlayer()
+{
+    mpv_set_wakeup_callback(mpv_, nullptr, nullptr);
+    mpv_terminate_destroy(mpv_);
+}
+
+void AudioPlayer::mpvWakeup(void* ctx)
+{
+    // Called from one of libmpv's internal threads — never touch mpv_ here,
+    // just hop to the GUI thread where processMpvEvents() actually drains
+    // the queue.
+    QMetaObject::invokeMethod(static_cast<AudioPlayer*>(ctx), "processMpvEvents", Qt::QueuedConnection);
+}
+
+void AudioPlayer::processMpvEvents()
+{
+    for (;;) {
+        mpv_event* event = mpv_wait_event(mpv_, 0);
+        if (event->event_id == MPV_EVENT_NONE)
+            break;
+        handleEvent(*event);
+    }
+}
+
+void AudioPlayer::handleEvent(const mpv_event& event)
+{
+    switch (event.event_id) {
+    case MPV_EVENT_PLAYBACK_RESTART:
+        emit started();
+        break;
+
+    case MPV_EVENT_END_FILE: {
+        const auto* data = static_cast<mpv_event_end_file*>(event.data);
+        if (data->reason == MPV_END_FILE_REASON_EOF) {
             emit endOfFile();
+        } else if (data->reason == MPV_END_FILE_REASON_ERROR) {
+            const QString message = QString::fromUtf8(mpv_error_string(data->error));
+            qCWarning(lcAudioPlayer) << "playback failed:" << message;
+            emit failed(message);
         }
-    });
-    connect(player_, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState state) {
-        if (state == QMediaPlayer::PlayingState)
-            emit started();
-    });
-    connect(player_, &QMediaPlayer::positionChanged, this,
-            [this](qint64 posMs) { emit positionChanged(posMs, player_->duration()); });
-    connect(player_, &QMediaPlayer::durationChanged, this,
-            [this](qint64 durMs) { emit positionChanged(player_->position(), durMs); });
-    connect(player_, &QMediaPlayer::errorOccurred, this,
-            [this](QMediaPlayer::Error error, const QString& errorString) {
-                qCWarning(lcAudioPlayer) << "QMediaPlayer error:" << error << errorString;
-                emit failed(errorString);
-            });
-}
-
-void AudioPlayer::play(const QString& url)
-{
-    cancelDownload();
-
-    const QUrl parsed(url);
-    if (parsed.isLocalFile()) {
-        // Local files: read straight off disk via QMediaPlayer's normal
-        // source-URL path. None of the remote-URL trouble below applies —
-        // no network involved — so there's no reason to buffer them into
-        // memory first.
-        delete sourceBuffer_;
-        sourceBuffer_ = nullptr;
-        player_->setSource(parsed);
-        player_->play();
-        return;
+        // STOP/QUIT/REDIRECT are our own doing (stop()/next loadfile) — no
+        // signal, same as the old QMediaPlayer wrapper's stop() not firing
+        // endOfFile().
+        break;
     }
 
-    // Remote URL: download the whole file via Qt's own network stack
-    // first, instead of handing QMediaPlayer the raw URL to stream itself.
-    // Observed in practice: FFmpeg's built-in HTTP/TLS client (used when
-    // QMediaPlayer is given a URL directly) has its connection reset by
-    // the CDN partway through a track ("[tls] ... Обрыв канала" / "Demuxing
-    // failed -5", no automatic reconnect), which freezes playback in place
-    // until a manual seek forces a fresh connection. QNetworkAccessManager
-    // doesn't have that problem, and buffering the full track (a few MB for
-    // a music file) up front also keeps seeking fully working — a live,
-    // in-flight QNetworkReply wouldn't be seekable.
-    QNetworkRequest request { parsed };
-    reply_ = network_.get(request);
-    connect(reply_, &QNetworkReply::finished, this, [this]() {
-        QNetworkReply* reply = reply_;
-        reply_ = nullptr;
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            qCWarning(lcAudioPlayer) << "stream download failed:" << reply->errorString();
-            emit failed(reply->errorString());
-            return;
-        }
-        const QByteArray data = reply->readAll();
-        qCDebug(lcAudioPlayer) << "downloaded" << data.size() << "bytes, starting playback";
+    case MPV_EVENT_PROPERTY_CHANGE: {
+        const auto* prop = static_cast<mpv_event_property*>(event.data);
+        if (prop->format != MPV_FORMAT_DOUBLE)
+            break;
+        const qint64 ms = static_cast<qint64>(*static_cast<double*>(prop->data) * 1000.0);
+        if (std::strcmp(prop->name, "time-pos") == 0)
+            lastPositionMs_ = ms;
+        else if (std::strcmp(prop->name, "duration") == 0)
+            lastDurationMs_ = ms;
+        else
+            break;
+        emit positionChanged(lastPositionMs_, lastDurationMs_);
+        break;
+    }
 
-        delete sourceBuffer_;
-        sourceBuffer_ = new QBuffer(this);
-        sourceBuffer_->setData(data);
-        sourceBuffer_->open(QIODevice::ReadOnly);
-        player_->setSourceDevice(sourceBuffer_);
-        player_->play();
-    });
-}
-
-void AudioPlayer::cancelDownload()
-{
-    if (reply_ != nullptr) {
-        reply_->disconnect(this);
-        reply_->abort();
-        reply_->deleteLater();
-        reply_ = nullptr;
+    default:
+        break;
     }
 }
 
-void AudioPlayer::pause() { player_->pause(); }
+void AudioPlayer::play(const QString& url, const QString& title)
+{
+    // Set before loadfile, not after, so the incoming file picks it up
+    // immediately instead of racing mpv's own URL-derived fallback title.
+    const QByteArray titleUtf8 = title.toUtf8();
+    mpv_set_property_string(mpv_, "force-media-title", titleUtf8.constData());
 
-void AudioPlayer::resume() { player_->play(); }
+    // Fed straight to mpv, no local download-and-buffer step — unlike the
+    // old QMediaPlayer wrapper, whose FFmpeg-based HTTP client had its
+    // connection reset mid-track by the CDN. fronts/tui's playback_engine.py
+    // hands mpv the raw stream URL directly against the same CDN without
+    // that problem, so this follows suit.
+    const QByteArray urlUtf8 = url.toUtf8();
+    const char* args[] = { "loadfile", urlUtf8.constData(), "replace", nullptr };
+    mpv_command_async(mpv_, 0, args);
+}
+
+void AudioPlayer::pause()
+{
+    int flag = 1;
+    mpv_set_property(mpv_, "pause", MPV_FORMAT_FLAG, &flag);
+}
+
+void AudioPlayer::resume()
+{
+    int flag = 0;
+    mpv_set_property(mpv_, "pause", MPV_FORMAT_FLAG, &flag);
+}
 
 void AudioPlayer::stop()
 {
-    cancelDownload();
-    player_->stop();
+    const char* args[] = { "stop", nullptr };
+    mpv_command_async(mpv_, 0, args);
 }
 
-void AudioPlayer::seek(qint64 positionMs) { player_->setPosition(positionMs); }
+void AudioPlayer::seek(qint64 positionMs)
+{
+    const QByteArray posSeconds = QByteArray::number(positionMs / 1000.0, 'f', 3);
+    const char* args[] = { "seek", posSeconds.constData(), "absolute", nullptr };
+    mpv_command_async(mpv_, 0, args);
+}
 
-void AudioPlayer::setVolume(int volume0To100) { audioOutput_->setVolume(static_cast<float>(volume0To100) / 100.0f); }
+void AudioPlayer::setVolume(int volume0To100)
+{
+    int64_t vol = volume0To100;
+    mpv_set_property(mpv_, "volume", MPV_FORMAT_INT64, &vol);
+}
 
 } // namespace Playback

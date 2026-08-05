@@ -134,10 +134,26 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
     if (params.requestId != latestRequestId_ || sourceId != latestRequestSourceId_) {
         return; // superseded by a later playback.play — discard, see docs/protocol.md §11.1
     }
+    // Displayed by AudioPlayer as the track identity in the OS's per-stream
+    // audio widget (mpv would otherwise report itself as "mpv" playing a
+    // title derived from the raw stream URL) — same "%1 — %2" convention as
+    // TrayIcon::setNowPlayingTooltip.
+    const Track& track = currentTrack();
+    QString title = track.title;
+    if (!track.artists.isEmpty()) {
+        QString artists;
+        for (int i = 0; i < track.artists.size(); ++i) {
+            if (i > 0)
+                artists += QStringLiteral(", ");
+            artists += track.artists[i].name;
+        }
+        title = QStringLiteral("%1 — %2").arg(track.title, artists);
+    }
+
     // Loading indicator / playTimeoutTimer_ stay active until
     // AudioPlayer::started() or failed() — play() is asynchronous now (see
     // AudioPlayer.h), it may still be downloading the stream.
-    audioPlayer_->play(params.stream.url);
+    audioPlayer_->play(params.stream.url, title);
 }
 
 void PlaybackController::advance(int delta, bool wasSkip)
