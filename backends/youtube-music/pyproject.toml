@@ -1,0 +1,20 @@
+[project]
+name = "cloudmus-backend-youtube-music"
+version = "0.1.0"
+description = "cloudmus backend: YouTube Music adapter"
+requires-python = ">=3.11"
+dependencies = [
+    "cloudmus-rpc-common",
+    "ytmusicapi>=1.8,<2",
+    "yt-dlp>=2024.1",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["cloudmus_backend_ytmusic*"]

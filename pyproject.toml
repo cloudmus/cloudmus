@@ -1,0 +1,6 @@
+[tool.pytest.ini_options]
+# Needed so `pytest backends/` from the repo root doesn't collide when two
+# backends' tests/ directories both have same-named files (e.g. test_catalog.py)
+# with no __init__.py — the default rootless import mode imports both as a
+# single top-level `test_catalog` module and errors on the second one found.
+addopts = "--import-mode=importlib"
