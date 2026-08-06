@@ -29,6 +29,7 @@ def build_server() -> BackendServer:
         source_id="yandex-music",
         source_name="Yandex Music",
         source_version="0.1.0",
+        source_description="Yandex Music streaming service",
         capabilities=CAPABILITIES,
     )
 

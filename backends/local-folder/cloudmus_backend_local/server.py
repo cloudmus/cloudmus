@@ -27,6 +27,7 @@ def build_server() -> BackendServer:
         source_id="local-folder",
         source_name="Local Folder",
         source_version="0.1.0",
+        source_description="Music files from a folder on this computer",
         capabilities=CAPABILITIES,
     )
 

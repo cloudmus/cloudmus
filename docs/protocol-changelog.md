@@ -5,6 +5,14 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.2 — `source.description`
+
+- **Additive, backward-compatible**: `initialize`'s result gains an optional
+  `source.description` field — a short human-readable description of the
+  service/source (e.g. "Yandex Music streaming service"), for a front to
+  display alongside the source's name. Absent when a source doesn't supply
+  one. Same precedent as `Track.webUrl` below: a front just checks presence.
+
 ## 1.1 — schema-first protocol + `Track.webUrl`
 
 - The protocol's data shapes and RPC surface are now schema-first: hand

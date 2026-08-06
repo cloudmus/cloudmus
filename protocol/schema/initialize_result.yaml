@@ -12,6 +12,7 @@ properties:
       id: {type: string}
       name: {type: string}
       version: {type: string}
+      description: {type: string}
     additionalProperties: false
   capabilities: {$ref: "capabilities.yaml"}
 additionalProperties: false

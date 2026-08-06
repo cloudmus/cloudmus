@@ -52,11 +52,13 @@ class BackendServer:
         source_id: str,
         source_name: str,
         source_version: str,
+        source_description: str,
         capabilities: dict[str, Any],
     ):
         self.source_id = source_id
         self.source_name = source_name
         self.source_version = source_version
+        self.source_description = source_description
         self.capabilities = capabilities
         self._handlers: dict[str, RequestHandler] = {}
         self._writer: transport.NdjsonWriter | None = None
@@ -79,11 +81,12 @@ class BackendServer:
 
     def _handle_initialize(self, params: dict[str, Any], request_id: int) -> dict[str, Any]:
         return {
-            "protocolVersion": "1.1",
+            "protocolVersion": "1.2",
             "source": {
                 "id": self.source_id,
                 "name": self.source_name,
                 "version": self.source_version,
+                "description": self.source_description,
             },
             "capabilities": self.capabilities,
         }

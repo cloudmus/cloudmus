@@ -124,17 +124,27 @@ exists — see §10).
 **Result:**
 ```json
 {
-  "protocolVersion": "1.1",
-  "source": {"id": "yandex-music", "name": "Yandex Music", "version": "0.1.0"},
+  "protocolVersion": "1.2",
+  "source": {
+    "id": "yandex-music",
+    "name": "Yandex Music",
+    "version": "0.1.0",
+    "description": "Yandex Music streaming service"
+  },
   "capabilities": { /* §5 */ }
 }
 ```
+
+`source.description` is optional — a short human-readable description of
+the service, for a front to display alongside the name (e.g. in a
+per-source info panel). Absent when a source doesn't supply one; a front
+should just check for its presence rather than assume it's always there.
 
 If the front's `protocolVersion` major component doesn't match what the
 source supports, the source returns an error (code `1000`-range is for auth;
 use a dedicated value `1` in the standard JSON-RPC "Invalid params" style, or
 more precisely: reply with a normal error object, code `-32602` "Invalid
-params", `data: {"reason": "protocolVersion mismatch", "supported": "1.1"}`).
+params", `data: {"reason": "protocolVersion mismatch", "supported": "1.2"}`).
 The front then refuses to use that source at all — **v1 does no subset
 negotiation.**
 
@@ -452,6 +462,16 @@ waits for `auth/prompt` / `auth/statusChanged` notifications.
 <-- {} (ack)
 <-- auth/statusChanged {"status":"authenticated"}         // or {"status":"error","message":"..."}
 ```
+
+A field descriptor may also carry an optional `"multiline": true` (default
+`false`) alongside `name`/`secret`, hinting that its value is expected to be
+long pasted text (e.g. a browser's raw request headers) rather than a short
+single-line value — a front should render such a field as a multi-line text
+box instead of a single-line input. Same "generic form, no source-specific
+UI" principle applies: a front that ignores this hint still works correctly
+(a single-line input round-trips the value fine, just awkward to read/edit),
+it's a rendering hint only. `cloudmus_backend_ytmusic`'s browser-header
+paste (see that backend's `auth.py`) is the first real user of this.
 
 ### 10.3 `oauthRedirect` flow
 ```
