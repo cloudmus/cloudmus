@@ -72,7 +72,7 @@ add_executable(cloudmus-qt
     src/Ui/NowPlayingBar.cpp
     src/Ui/PlaylistHeader.cpp
     src/Ui/GeneratedCoverArt.cpp
-    src/Ui/AuthBanner.cpp
+    src/Ui/SourcePanel.cpp
     src/Ui/ToastNotifier.cpp
     src/Ui/SettingsDialog.cpp
     src/Ui/CoverArtCache.cpp

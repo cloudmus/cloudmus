@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QHash>
+#include <QJsonObject>
 #include <QMainWindow>
 
 #include "Coro.h"
@@ -24,13 +26,13 @@ class SidebarModel;
 class TrackListModel;
 class TrackRowDelegate;
 class NowPlayingBar;
-class AuthBanner;
+class SourcePanel;
 class ToastNotifier;
 class CoverArtCache;
 class PlaylistHeader;
 
-// Sidebar + track list + persistent now-playing bar + auth banner +
-// hamburger menu (Settings/About/Quit) — see the plan's UI/UX design.
+// Sidebar + track list + persistent now-playing bar + per-source auth status
+// panel + hamburger menu (Settings/About/Quit) — see the plan's UI/UX design.
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -64,6 +66,13 @@ private:
     // RPC round-trip needed. See History::PlaybackHistory.
     void showHistory();
 
+    // Mirrors the TUI's on_mount auth check (fronts/tui/cloudmus_tui/app.py):
+    // ask auth.getStatus, and if the backend isn't already authenticated,
+    // call auth.start so it begins its flow and starts pushing auth/prompt /
+    // auth/statusChanged notifications. Without this, a never-authenticated
+    // backend just sits idle — SourcePanel has full rendering support for
+    // all three flows but nothing ever asks the backend to start one.
+    Rpc::Task<void> ensureAuthenticatedAsync(Rpc::RpcClient* client);
     Rpc::Task<void> loadPlaylistsAsync(Rpc::RpcClient* client);
     // By value, not const&: these coroutines resume asynchronously (after an
     // RPC round-trip) and use their params again after that resume — a
@@ -87,6 +96,44 @@ private:
     Rpc::Task<void> openAndPlayPlaylistAsync(QString sourceId, Playlist playlist);
     Rpc::Task<void> startRadioAsync(QString sourceId, QString seed);
     Rpc::Task<void> submitAuthAsync(QString sourceId, QJsonObject fields);
+    // The Retry button's handler: wraps ensureAuthenticatedAsync with
+    // sourcePanel_'s busy state (disables Retry/Submit + shows a spinner
+    // for the duration) so a click can't be repeated mid-flight and the
+    // user sees something actually happened.
+    Rpc::Task<void> retryAuthAsync(QString sourceId);
+
+    // Per-source auth status, cached here since nothing on RpcClient itself
+    // persists it (onAuthPromptRaw/notifications.onAuthStatusChanged are
+    // fire-and-forget pushes — see wireSource()). Feeds both the sidebar's
+    // warning icon (SidebarModel::setSourceAuthProblem, always applied,
+    // regardless of whether the panel is currently open for that source)
+    // and sourcePanel_'s auth section (only when it's the currently-selected
+    // source).
+    struct SourceAuthState {
+        bool hasProblem = false; // capabilities.auth.required && not authenticated
+        QJsonObject prompt; // last auth/prompt payload; empty if none yet
+        QString errorMessage; // last auth/statusChanged error message; empty if none
+    };
+    QHash<QString, SourceAuthState> sourceAuthStates_;
+    // sourceId sourcePanel_ is currently showing, or empty if it's hidden /
+    // a normal playlist is showing instead.
+    QString currentStatusPanelSourceId_;
+
+    // Updates the sidebar icon for sourceId from sourceAuthStates_, and — if
+    // sourcePanel_ is currently showing exactly this source — its auth
+    // section too, so a prompt/status update arriving while the panel is
+    // already open refreshes it live instead of needing a re-click.
+    void updateSourceAuthIndicator(const QString& sourceId);
+    // Entry point from onSidebarActivated: swaps the content area over to
+    // sourcePanel_ for this source (every source gets this, not just ones
+    // with an auth problem — see SourcePanel's class doc).
+    void showSourceStatusPanel(const QString& sourceId);
+    // Shared by showSourceStatusPanel() and updateSourceAuthIndicator()'s
+    // live-refresh path: paints just sourcePanel_'s auth section (prompt /
+    // error+Retry / hidden) from the given state — never touches the
+    // hero/capabilities, which setSource() already established once and
+    // don't change afterward.
+    void refreshAuthSection(const QString& sourceId, const SourceAuthState& state);
 
     Rpc::SourceManager& sourceManager_;
     Playback::PlaybackController& playback_;
@@ -111,7 +158,7 @@ private:
     CoverArtCache* coverArtCache_ = nullptr;
     TrackRowDelegate* trackRowDelegate_ = nullptr;
     NowPlayingBar* nowPlayingBar_ = nullptr;
-    AuthBanner* authBanner_ = nullptr;
+    SourcePanel* sourcePanel_ = nullptr;
     ToastNotifier* toastNotifier_ = nullptr;
     History::PlaybackHistory* playbackHistory_ = nullptr;
 

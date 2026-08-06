@@ -72,12 +72,31 @@ RpcClient::RpcClient(BackendManifest manifest, QObject* parent)
     };
     connect(&transport_, &NdjsonTransport::finished, this,
             [this, onTransportDown](int exitCode, QProcess::ExitStatus status) {
-                qCWarning(lcRpcClient) << manifest_.id << "process finished, exitCode=" << exitCode
-                                       << "status=" << status;
+                // available_ is set false by shutdown() *before* it sends
+                // SIGTERM (see NdjsonTransport::terminateThenKill) — so by
+                // the time this fires for a shutdown we asked for, it's
+                // already false, and QProcess reports that expected,
+                // self-inflicted SIGTERM exit as CrashExit/exitCode=15
+                // indistinguishably from a real crash. Log level is the
+                // only difference: an actual unexpected exit (available_
+                // still true here) stays a warning; an expected one from
+                // our own shutdown() drops to debug so a normal app quit
+                // doesn't print alarming "Crashed" lines for every backend.
+                if (available_) {
+                    qCWarning(lcRpcClient) << manifest_.id << "process finished, exitCode=" << exitCode
+                                           << "status=" << status;
+                } else {
+                    qCDebug(lcRpcClient) << manifest_.id << "process finished (expected, from shutdown()), exitCode="
+                                        << exitCode << "status=" << status;
+                }
                 onTransportDown();
             });
     connect(&transport_, &NdjsonTransport::errorOccurred, this, [this, onTransportDown](QProcess::ProcessError error) {
-        qCWarning(lcRpcClient) << manifest_.id << "process error:" << error;
+        if (available_) {
+            qCWarning(lcRpcClient) << manifest_.id << "process error:" << error;
+        } else {
+            qCDebug(lcRpcClient) << manifest_.id << "process error (expected, from shutdown()):" << error;
+        }
         onTransportDown();
     });
     connect(&transport_, &NdjsonTransport::framingError, this, [this](const QString& rawLine) {
@@ -109,6 +128,7 @@ Task<void> RpcClient::start()
     const QJsonObject source = result.value(QStringLiteral("source")).toObject();
     sourceId_ = source.value(QStringLiteral("id")).toString();
     sourceName_ = source.value(QStringLiteral("name")).toString();
+    sourceDescription_ = source.value(QStringLiteral("description")).toString();
     capabilities_ = result.value(QStringLiteral("capabilities")).toObject();
     available_ = true;
 }

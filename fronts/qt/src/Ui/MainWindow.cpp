@@ -4,6 +4,7 @@
 #include <QCloseEvent>
 #include <QEvent>
 #include <QListView>
+#include <QLoggingCategory>
 #include <QMenu>
 #include <QMessageBox>
 #include <QProgressBar>
@@ -13,7 +14,6 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
-#include "AuthBanner.h"
 #include "CoverArtCache.h"
 #include "NowPlayingBar.h"
 #include "PlaybackHistory.h"
@@ -21,11 +21,21 @@
 #include "RpcMethods.h"
 #include "SettingsDialog.h"
 #include "SidebarModel.h"
+#include "SourcePanel.h"
 #include "ToastNotifier.h"
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
 
 namespace Ui {
+
+namespace {
+// Warning-level, so it always shows regardless of --debug/CLOUDMUS_QT_DEBUG
+// (see Logging.cpp's messageHandler) — every RPC/async failure this window
+// surfaces to the user via a toast also gets logged here, so a report like
+// "I clicked X and nothing happened" has something to look at in the
+// console even if the toast was missed.
+Q_LOGGING_CATEGORY(lcMainWindow, "cloudmus.ui.mainwindow")
+} // namespace
 
 MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackController& playback,
                        Config::Settings& settings, QWidget* parent)
@@ -143,6 +153,13 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListLayout_->addWidget(playlistHeader_);
     trackListLayout_->addWidget(trackListView_, 1);
 
+    sourcePanel_ = new SourcePanel(coverArtCache_, trackListContainer);
+    connect(sourcePanel_, &SourcePanel::submitRequested, this,
+            [this](const QString& sourceId, const QJsonObject& fields) { submitAuthAsync(sourceId, fields).detach(); });
+    connect(sourcePanel_, &SourcePanel::retryRequested, this,
+            [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
+    trackListLayout_->addWidget(sourcePanel_, 1);
+
     // Not part of trackListLayout: a layout-managed progress bar would
     // shrink the list by its own height whenever it's shown/hidden,
     // shoving the whole view down. It's a free-floating child positioned
@@ -164,10 +181,6 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(splitter, &QSplitter::splitterMoved, this,
             [this, splitter]() { settings_.setSidebarWidth(splitter->sizes().first()); });
 
-    authBanner_ = new AuthBanner(this);
-    connect(authBanner_, &AuthBanner::submitRequested, this,
-            [this](const QString& sourceId, const QJsonObject& fields) { submitAuthAsync(sourceId, fields).detach(); });
-
     toastNotifier_ = new ToastNotifier(this);
     connect(&playback_, &Playback::PlaybackController::errorOccurred, this,
             [this](const QString& message) { toastNotifier_->showError(message); });
@@ -176,7 +189,6 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     auto* centralLayout = new QVBoxLayout(central);
     centralLayout->setContentsMargins(0, 0, 0, 0);
     centralLayout->setSpacing(0);
-    centralLayout->addWidget(authBanner_);
     centralLayout->addWidget(splitter, 1);
     setCentralWidget(central);
 
@@ -193,22 +205,122 @@ void MainWindow::wireSource(Rpc::RpcClient* client)
     client->notifications.onRadioTracksAdded
         = [this, client](const TracksAddedParams& p) { playback_.handleTracksAdded(client->sourceId(), p); };
     client->notifications.onError = [this](const ErrorParams& e) { toastNotifier_->showError(e.message); };
-    client->onAuthPromptRaw
-        = [this, client](const QJsonObject& params) { authBanner_->showPrompt(client->sourceId(), params); };
+    client->onAuthPromptRaw = [this, client](const QJsonObject& params) {
+        SourceAuthState& state = sourceAuthStates_[client->sourceId()];
+        state.hasProblem = true;
+        state.prompt = params;
+        state.errorMessage.clear();
+        updateSourceAuthIndicator(client->sourceId());
+    };
     client->notifications.onAuthStatusChanged = [this, client](const StatusChangedParams& status) {
+        SourceAuthState& state = sourceAuthStates_[client->sourceId()];
         if (status.status == QStringLiteral("authenticated")) {
-            authBanner_->showAuthenticated(client->sourceId());
+            state.hasProblem = false;
+            state.prompt = QJsonObject();
+            state.errorMessage.clear();
+            updateSourceAuthIndicator(client->sourceId());
             loadPlaylistsAsync(client).detach();
         } else {
-            authBanner_->showError(client->sourceId(), status.message.value_or(QString()));
+            state.hasProblem = true;
+            state.prompt = QJsonObject(); // an error supersedes any earlier prompt
+            state.errorMessage = status.message.value_or(QString());
+            qCWarning(lcMainWindow) << "auth error for" << client->sourceId() << ":" << state.errorMessage;
+            toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), state.errorMessage));
+            updateSourceAuthIndicator(client->sourceId());
         }
     };
 
     const QJsonObject auth = client->capabilities().value(QStringLiteral("auth")).toObject();
     if (auth.value(QStringLiteral("required")).toBool()) {
-        Rpc::authGetStatus(*client).detach(); // fire-and-forget: auth/statusChanged or a prior session drives the UI
+        ensureAuthenticatedAsync(client).detach();
     }
     loadPlaylistsAsync(client).detach();
+}
+
+Rpc::Task<void> MainWindow::ensureAuthenticatedAsync(Rpc::RpcClient* client)
+{
+    try {
+        GetStatusResult status = co_await Rpc::authGetStatus(*client);
+        if (status.status != QStringLiteral("authenticated")) {
+            // auth.start is idempotent on the backend side (a session
+            // already in flight just no-ops) — safe to call unconditionally
+            // for unauthenticated/pending/error status alike, same as the
+            // TUI's `if status["status"] != "authenticated": auth.start`.
+            co_await Rpc::authStart(*client);
+        }
+    } catch (const std::exception& e) {
+        // std::exception, not Rpc::RpcCallException: also catches
+        // Rpc::ProtocolParseError (a well-formed JSON-RPC response whose
+        // *content* doesn't match the protocol schema — e.g. a field typed
+        // wrong) — same std::runtime_error base, e.what() carries the same
+        // message either way (RpcCallException's constructor sets it from
+        // error.message directly). A failure here is auth.getStatus/
+        // auth.start itself erroring, distinct from the backend's own auth
+        // flow later failing asynchronously via auth/statusChanged (handled
+        // in wireSource's onAuthStatusChanged). Both must be visible: this
+        // used to only catch RpcCallException and silently swallow anything
+        // else, which is exactly how a Retry click could look like it did
+        // nothing.
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcMainWindow) << "auth.getStatus/auth.start failed for" << client->sourceId() << ":" << message;
+        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+    }
+}
+
+Rpc::Task<void> MainWindow::retryAuthAsync(QString sourceId)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return;
+    sourcePanel_->setAuthActionBusy(true);
+    co_await ensureAuthenticatedAsync(client);
+    // Guard: the user may have switched to a different source's panel (or
+    // closed this one) while the round-trip was in flight — don't touch a
+    // busy indicator that isn't even showing for sourceId anymore.
+    if (currentStatusPanelSourceId_ == sourceId)
+        sourcePanel_->setAuthActionBusy(false);
+}
+
+void MainWindow::updateSourceAuthIndicator(const QString& sourceId)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
+    const SourceAuthState state = sourceAuthStates_.value(sourceId);
+    sidebarModel_->setSourceAuthProblem(sourceId, sourceName, state.hasProblem);
+
+    if (currentStatusPanelSourceId_ == sourceId)
+        refreshAuthSection(sourceId, state);
+}
+
+void MainWindow::showSourceStatusPanel(const QString& sourceId)
+{
+    showingHistory_ = false;
+    currentPlaylistSourceId_.clear();
+    playlistHeader_->hide();
+    trackListView_->hide();
+    trackListBusyIndicator_->hide();
+    currentStatusPanelSourceId_ = sourceId;
+
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
+    const QString description = client != nullptr ? client->sourceDescription() : QString();
+    const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
+    sourcePanel_->setSource(sourceId, sourceName, description, capabilities);
+
+    refreshAuthSection(sourceId, sourceAuthStates_.value(sourceId));
+}
+
+void MainWindow::refreshAuthSection(const QString& sourceId, const SourceAuthState& state)
+{
+    Q_UNUSED(sourceId);
+    if (!state.prompt.isEmpty()) {
+        sourcePanel_->showPrompt(state.prompt);
+    } else if (!state.errorMessage.isEmpty()) {
+        sourcePanel_->showError(state.errorMessage);
+    } else {
+        // Authenticated, or auth not required at all — nothing to act on.
+        sourcePanel_->clearAuthSection();
+    }
 }
 
 void MainWindow::onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail)
@@ -228,13 +340,42 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
         try {
             ListPlaylistsResult result = co_await Rpc::catalogListPlaylists(*client);
             playlists = result.playlists;
-        } catch (const Rpc::RpcCallException&) {
-            // Not authenticated yet, or a transient failure — the sidebar
-            // simply won't show playlists for this source until it retries
-            // (e.g. after auth completes, see wireSource's onAuthStatusChanged).
+        } catch (const std::exception& e) {
+            // std::exception, not Rpc::RpcCallException — critically also
+            // catches Rpc::ProtocolParseError (a well-formed response whose
+            // *content* violates the protocol schema, e.g. a field of the
+            // wrong JSON type). That distinction is exactly what caused a
+            // real bug: a backend returning Playlist.trackCount as a JSON
+            // string for some entries threw ProtocolParseError, which this
+            // catch didn't match, so the exception propagated straight out
+            // of this .detach()'d coroutine (silently discarded — see
+            // Coro.h's promise_type::unhandled_exception) and skipped the
+            // sidebarModel_->setSource() call below entirely — the source
+            // never appeared as a sidebar row at all, not just missing its
+            // playlists.
+            //
+            // No toast here — this runs automatically (not from a button)
+            // and RpcCallException specifically fires routinely for every
+            // not-yet-authenticated source at startup, which isn't worth
+            // interrupting the user for. But any failure here can also mean
+            // a real upstream problem for a source that IS authenticated,
+            // which used to be entirely invisible — console log it either
+            // way so that case is at least diagnosable without re-running
+            // the backend by hand. The sidebar itself simply won't show
+            // playlists for this source until it retries (e.g. after auth
+            // completes, see wireSource's onAuthStatusChanged).
+            qCWarning(lcMainWindow) << "catalog.listPlaylists failed for" << client->sourceId() << ":"
+                                     << e.what();
         }
     }
     sidebarModel_->setSource(client->sourceId(), client->sourceName(), playlists);
+    // setSource() just recreated this source's header row from scratch,
+    // dropping any warning icon it had — reapply from the cached state.
+    // Needed because this coroutine and the auth.start flow kicked off
+    // alongside it in wireSource() race: an auth/prompt can arrive and set
+    // the icon before this RPC round-trip finishes, in which case this call
+    // would otherwise silently wipe it back off.
+    updateSourceAuthIndicator(client->sourceId());
 }
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)
@@ -242,6 +383,13 @@ void MainWindow::onSidebarActivated(const QModelIndex& index)
     const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
     if (kind == SidebarModel::Kind::History) {
         showHistory();
+        return;
+    }
+    if (kind == SidebarModel::Kind::SourceHeader) {
+        // Unconditional — every source gets a panel (name/description/
+        // capabilities), not just ones with an auth problem. See
+        // SourcePanel's class doc.
+        showSourceStatusPanel(index.data(SidebarModel::SourceIdRole).toString());
         return;
     }
     if (kind != SidebarModel::Kind::Wave && kind != SidebarModel::Kind::Liked && kind != SidebarModel::Kind::Playlist)
@@ -277,6 +425,8 @@ void MainWindow::playCurrentPlaylist()
 
 void MainWindow::showHistory()
 {
+    currentStatusPanelSourceId_.clear();
+    sourcePanel_->hide();
     showingHistory_ = true;
     currentPlaylistSourceId_.clear(); // no single source — the header's Play-all button is hidden below anyway
     currentPlaylist_ = Playlist { QStringLiteral("history"), tr("History"), std::nullopt, std::nullopt,
@@ -298,6 +448,8 @@ void MainWindow::showHistory()
 
 Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlist)
 {
+    currentStatusPanelSourceId_.clear();
+    sourcePanel_->hide();
     showingHistory_ = false;
     playlistHeader_->setPlayButtonVisible(true);
     currentPlaylistSourceId_ = sourceId;
@@ -336,8 +488,12 @@ Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlis
             ListTracksResult result = co_await Rpc::catalogListTracks(*client, params);
             trackListModel_->setTracks(sourceId, result.tracks);
         }
-    } catch (const Rpc::RpcCallException& e) {
-        toastNotifier_->showError(e.error().message);
+    } catch (const std::exception& e) {
+        // std::exception, not Rpc::RpcCallException — also catches
+        // Rpc::ProtocolParseError, see loadPlaylistsAsync's comment for why
+        // that distinction matters.
+        qCWarning(lcMainWindow) << "loading tracks failed for" << sourceId << ":" << e.what();
+        toastNotifier_->showError(QString::fromStdString(e.what()));
     }
     trackListBusyIndicator_->hide();
 }
@@ -358,8 +514,9 @@ Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed)
         StartRadioParams params { seed };
         StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
         playback_.startRadio(sourceId, result.stationId, result.initialTracks);
-    } catch (const Rpc::RpcCallException& e) {
-        toastNotifier_->showError(e.error().message);
+    } catch (const std::exception& e) {
+        qCWarning(lcMainWindow) << "starting radio failed for" << sourceId << ":" << e.what();
+        toastNotifier_->showError(QString::fromStdString(e.what()));
     }
     playlistHeader_->setPlayBusy(false);
 }
@@ -384,17 +541,20 @@ Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
         co_return;
-    authBanner_->setSubmitBusy(true);
+    sourcePanel_->setAuthActionBusy(true);
     try {
         SubmitParams params;
         for (auto it = fields.constBegin(); it != fields.constEnd(); ++it) {
             params.fields.insert(it.key(), it.value().toString());
         }
         co_await Rpc::authSubmit(*client, params);
-    } catch (const Rpc::RpcCallException& e) {
-        authBanner_->showError(sourceId, e.error().message);
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcMainWindow) << "auth.submit failed for" << sourceId << ":" << message;
+        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+        sourcePanel_->showError(message);
     }
-    authBanner_->setSubmitBusy(false);
+    sourcePanel_->setAuthActionBusy(false);
 }
 
 void MainWindow::showAboutDialog()

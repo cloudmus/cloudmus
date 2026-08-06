@@ -1,6 +1,7 @@
 #include "SidebarModel.h"
 
 #include <QFont>
+#include <QIcon>
 #include <QVariant>
 
 namespace Ui {
@@ -20,7 +21,8 @@ QStandardItem* SidebarModel::findOrCreateSourceRoot(const QString& sourceId, con
     auto* item = new QStandardItem(sourceName.toUpper());
     item->setData(static_cast<int>(Kind::SourceHeader), KindRole);
     item->setData(sourceId, SourceIdRole);
-    item->setSelectable(false);
+    // Selectable by default (unlike PlaylistsHeader below) — every source
+    // opens a SourcePanel when clicked, not just ones with an auth problem.
     QFont font = item->font();
     font.setBold(true);
     item->setFont(font);
@@ -85,6 +87,12 @@ void SidebarModel::removeSource(const QString& sourceId)
             invisibleRootItem()->removeRow(row);
         }
     }
+}
+
+void SidebarModel::setSourceAuthProblem(const QString& sourceId, const QString& sourceName, bool hasProblem)
+{
+    QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
+    root->setIcon(hasProblem ? QIcon::fromTheme(QStringLiteral("dialog-warning")) : QIcon());
 }
 
 } // namespace Ui

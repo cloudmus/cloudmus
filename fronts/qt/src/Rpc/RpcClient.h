@@ -104,6 +104,8 @@ public:
     const QJsonObject& capabilities() const { return capabilities_; }
     const QString& sourceId() const { return sourceId_; }
     const QString& sourceName() const { return sourceName_; }
+    // Optional (protocol 1.2+) — empty if the source didn't supply one.
+    const QString& sourceDescription() const { return sourceDescription_; }
     const BackendManifest& manifest() const { return manifest_; }
     QStringList stderrTail() const { return transport_.stderrTail(); }
 
@@ -139,6 +141,7 @@ private:
     bool available_ = false;
     QString sourceId_;
     QString sourceName_;
+    QString sourceDescription_;
     QJsonObject capabilities_;
 };
 

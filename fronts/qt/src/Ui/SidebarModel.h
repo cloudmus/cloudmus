@@ -51,6 +51,17 @@ public:
     void setSource(const QString& sourceId, const QString& sourceName, const QList<Playlist>& playlists);
     void removeSource(const QString& sourceId);
 
+    // Toggles the warning icon on a source's header row in place, without
+    // touching its playlist children — unlike setSource(), safe to call
+    // from an auth notification handler that races with a concurrent
+    // setSource() rebuild (see MainWindow::updateSourceAuthIndicator, called
+    // again after every setSource() for exactly this reason). Creates the
+    // header row if it doesn't exist yet (an auth/prompt can arrive before
+    // the first setSource() call finishes). Every source's header row is
+    // selectable regardless of hasProblem — see findOrCreateSourceRoot();
+    // this only ever toggles the icon.
+    void setSourceAuthProblem(const QString& sourceId, const QString& sourceName, bool hasProblem);
+
     // Inserts the top-level "History" row once, ahead of every source root
     // (idempotent — a no-op if already present).
     void ensureHistoryItem();
