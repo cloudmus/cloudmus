@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QProgressBar>
 #include <QSplitter>
+#include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QTreeView>
@@ -442,7 +443,16 @@ void MainWindow::showHistory()
         entries.append({ e.sourceId, e.track, e.playedAt });
     trackListModel_->setMixedSourceTracks(entries);
 
-    repositionTrackListBusyIndicator();
+    // Deferred to the next event-loop iteration, not called synchronously
+    // here — playlistHeader_->setPlaylist() above just posted a
+    // LayoutRequest (its heightForWidth() may have changed — see its own
+    // updateGeometry() call), which Qt only processes asynchronously.
+    // Reading trackListView_->y() before that pass runs picks up
+    // whatever position was left over from the *previous* playlist's
+    // banner height, not the new one — this was the actual cause of the
+    // busy indicator appearing to jump around at an arbitrary vertical
+    // position after switching lists.
+    QTimer::singleShot(0, this, [this]() { repositionTrackListBusyIndicator(); });
     trackListBusyIndicator_->hide();
 }
 
@@ -472,7 +482,8 @@ Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlis
         co_return;
     }
 
-    repositionTrackListBusyIndicator();
+    // Deferred — see showHistory()'s identical call for why.
+    QTimer::singleShot(0, this, [this]() { repositionTrackListBusyIndicator(); });
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
         co_return;

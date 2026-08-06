@@ -1,6 +1,7 @@
 #include "NowPlayingBar.h"
 
 #include <QDesktopServices>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -39,6 +40,13 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
 
     titleLabel_ = new QLabel(tr("Nothing playing"), this);
     artistLabel_ = new QLabel(this);
+    // Ignored horizontally so a long title/artist's sizeHint can't force
+    // this bar (and the whole window) to stay at least that wide — see
+    // updateElidedText()/resizeEvent(), which re-elide the *displayed*
+    // text by hand to whatever width the layout actually ends up giving
+    // these labels.
+    titleLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    artistLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     auto* textLayout = new QVBoxLayout;
     textLayout->setContentsMargins(0, 0, 0, 0);
     textLayout->addWidget(titleLabel_);
@@ -129,14 +137,15 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
 
 void NowPlayingBar::setTrack(const Track& track)
 {
-    titleLabel_->setText(track.title);
+    currentTrackTitle_ = track.title;
     QString artistNames;
     for (int i = 0; i < track.artists.size(); ++i) {
         if (i > 0)
             artistNames += QStringLiteral(", ");
         artistNames += track.artists[i].name;
     }
-    artistLabel_->setText(artistNames);
+    currentArtistNames_ = artistNames;
+    updateElidedText();
     currentWebUrl_ = track.webUrl.value_or(QString());
     coverAndTitle_->setCursor(currentWebUrl_.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
 
@@ -192,5 +201,19 @@ void NowPlayingBar::setVolume(int volume0To100)
 }
 
 void NowPlayingBar::setTrailingWidget(QWidget* widget) { buttonsRow_->addWidget(widget); }
+
+void NowPlayingBar::updateElidedText()
+{
+    const QFontMetrics titleMetrics(titleLabel_->font());
+    titleLabel_->setText(titleMetrics.elidedText(currentTrackTitle_, Qt::ElideRight, titleLabel_->width()));
+    const QFontMetrics artistMetrics(artistLabel_->font());
+    artistLabel_->setText(artistMetrics.elidedText(currentArtistNames_, Qt::ElideRight, artistLabel_->width()));
+}
+
+void NowPlayingBar::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    updateElidedText();
+}
 
 } // namespace Ui

@@ -8,7 +8,6 @@
 class QLabel;
 class QPushButton;
 class QVBoxLayout;
-class QHBoxLayout;
 class QStackedLayout;
 class QResizeEvent;
 class QTimer;
@@ -20,7 +19,14 @@ class CoverArtCache;
 // Shown above the track list when a sidebar playlist/liked/radioStation
 // item is selected (also embedded as SourcePanel's hero). Two visual modes,
 // chosen per setPlaylist() call based on whether the playlist has a real
-// cover URL:
+// cover URL — each mode is a fully independent, fully-built-at-construction
+// page (own cover label, own title/description/Play button), switched via
+// pageStack_ rather than sharing/reparenting widgets between them: an
+// earlier version tried reparenting one shared text panel back and forth
+// between the two modes' layouts, which turned out to leave stale
+// heightForWidth results behind across the reparent (the text would
+// disappear/collapse in one of the two modes) — not worth chasing further
+// when two small, fully-independent widget sets sidestep the whole problem.
 //  - No real cover (a generated placeholder — see GeneratedCoverArt.h): the
 //    classic full-bleed banner — cover stretched to fill the whole widget,
 //    dark gradient scrim, forced white text overlaid on top. A generated
@@ -31,9 +37,10 @@ class CoverArtCache;
 //    matched to NowPlayingBar's toolbar album art with the image's own
 //    aspect ratio preserved (no cropping/stretching), on a plain theme-
 //    following card background.
-// titleLabel_/descriptionLabel_/playButton_ are shared between both modes
-// (reparented into whichever mode's container is active, restyled to
-// match, in setPlaylist()) rather than duplicated.
+// setPlaylist() keeps both modes' text content in sync regardless of which
+// is currently visible (cheap, and avoids a stale-content flash if the
+// mode changes again right after); setPlayButtonVisible()/setPlayBusy()
+// likewise act on both Play buttons together.
 class PlaylistHeader : public QWidget {
     Q_OBJECT
 
@@ -72,20 +79,15 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
+    // Builds one title/description/Play-button trio (font, word-wrap,
+    // playClicked connection — everything identical between the two
+    // modes), used once per mode in the constructor.
+    void buildTextTrio(QLabel*& title, QLabel*& description, QPushButton*& button);
     void applyFullBleedCover(const QPixmap& pixmap);
     void applyThumbnailCover(const QPixmap& pixmap);
     void regenerateFullBleedCover();
 
     CoverArtCache* coverCache_;
-
-    // Shared between both modes — see the class doc. textPanel_ is moved
-    // between fullBleedStack_ and thumbnailRow_ (and restyled to match) in
-    // setPlaylist().
-    QWidget* textPanel_ = nullptr;
-    QVBoxLayout* textLayout_ = nullptr;
-    QLabel* titleLabel_ = nullptr;
-    QLabel* descriptionLabel_ = nullptr;
-    QPushButton* playButton_ = nullptr;
 
     // Switches this widget's entire content between fullBleedPage_ and
     // thumbnailPage_ — see setPlaylist().
@@ -93,22 +95,30 @@ private:
 
     QWidget* fullBleedPage_ = nullptr;
     QLabel* fullBleedCoverLabel_ = nullptr;
-    // StackAll: fullBleedCoverLabel_ and textPanel_ (while it's this mode's
-    // guest) both occupy the full page rect; textPanel_ is raised above so
-    // its (transparent-background) title/description/button paint over
-    // the cover.
+    QWidget* fullBleedTextPanel_ = nullptr;
+    QVBoxLayout* fullBleedTextLayout_ = nullptr;
+    QLabel* fullBleedTitleLabel_ = nullptr;
+    QLabel* fullBleedDescriptionLabel_ = nullptr;
+    QPushButton* fullBleedPlayButton_ = nullptr;
+    // StackAll: fullBleedCoverLabel_ and fullBleedTextPanel_ both occupy
+    // the full page rect; fullBleedTextPanel_ is raised above so its
+    // (transparent-background) title/description/button paint over the
+    // cover.
     QStackedLayout* fullBleedStack_ = nullptr;
     QTimer* coverRegenerateTimer_ = nullptr;
 
     QWidget* thumbnailPage_ = nullptr;
     QLabel* thumbnailCoverLabel_ = nullptr;
-    QHBoxLayout* thumbnailRow_ = nullptr;
+    QVBoxLayout* thumbnailTextLayout_ = nullptr;
+    QLabel* thumbnailTitleLabel_ = nullptr;
+    QLabel* thumbnailDescriptionLabel_ = nullptr;
+    QPushButton* thumbnailPlayButton_ = nullptr;
     QVBoxLayout* thumbnailOuterLayout_ = nullptr;
 
     QString currentCoverUrl_;
-    // Only needed for regenerateFullBleedCover() — titleLabel_->text()
-    // would work too, but this keeps that a display concern instead of
-    // overloading it as generation input as well.
+    // Only needed for regenerateFullBleedCover() — fullBleedTitleLabel_'s
+    // own text would work too, but this keeps that a display concern
+    // instead of overloading it as generation input as well.
     QString currentTitle_;
 };
 

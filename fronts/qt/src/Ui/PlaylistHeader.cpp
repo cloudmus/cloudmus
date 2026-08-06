@@ -45,43 +45,21 @@ PlaylistHeader::PlaylistHeader(CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
     , coverCache_(coverCache)
 {
-    // --- shared text content, moves between modes (see setPlaylist()) ---
-    titleLabel_ = new QLabel;
-    QFont titleFont = titleLabel_->font();
-    titleFont.setBold(true);
-    titleFont.setPointSize(titleFont.pointSize() + 2);
-    titleLabel_->setFont(titleFont);
+    // --- full-bleed mode (no real cover): classic banner, gradient scrim, forced white text ---
+    buildTextTrio(fullBleedTitleLabel_, fullBleedDescriptionLabel_, fullBleedPlayButton_);
+    fullBleedTitleLabel_->setStyleSheet(kWhiteTextStyle);
+    fullBleedDescriptionLabel_->setStyleSheet(kWhiteDescStyle);
 
-    descriptionLabel_ = new QLabel;
-    descriptionLabel_->setWordWrap(true);
+    fullBleedTextPanel_ = new QWidget;
+    fullBleedTextPanel_->setStyleSheet(kGradientStyle);
+    fullBleedTextLayout_ = new QVBoxLayout(fullBleedTextPanel_);
+    fullBleedTextLayout_->setContentsMargins(kStandardMargin, kStandardMargin, kStandardMargin, kStandardMargin);
+    fullBleedTextLayout_->addStretch(0);
+    fullBleedTextLayout_->addWidget(fullBleedTitleLabel_);
+    fullBleedTextLayout_->addWidget(fullBleedDescriptionLabel_);
+    fullBleedTextLayout_->addWidget(fullBleedPlayButton_, 0, Qt::AlignLeft);
+    fullBleedTextLayout_->addStretch(0);
 
-    playButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-start")), tr("Play"));
-    connect(playButton_, &QPushButton::clicked, this, &PlaylistHeader::playClicked);
-
-    // titleLabel_/descriptionLabel_ stay stretched to the full column width
-    // (their own setAlignment(), toggled in setPlaylist(), handles
-    // left-vs-centered *text*) — word-wrapped descriptionLabel_
-    // specifically must not get an alignment flag here instead: an
-    // unstretched item is sized to sizeHint(), and a word-wrapped label's
-    // sizeHint() width comes from an arbitrary internal Qt heuristic
-    // (~256px in testing), which would lock its wrap width to that instead
-    // of the column's actual width. playButton_ does need its alignment
-    // flag toggled (Left/HCenter) — unlike the labels it isn't
-    // transparent-background, so left as stretched it would visually
-    // become a full-width button in both modes. The two addStretch()es are
-    // only load-bearing in full-bleed mode (centers this column within the
-    // whole banner height when there's no track list below — see
-    // setPlaylist()); thumbnail mode keeps both at 0 and centers the whole
-    // cover+text row instead, one level further out.
-    textPanel_ = new QWidget;
-    textLayout_ = new QVBoxLayout(textPanel_);
-    textLayout_->addStretch(0);
-    textLayout_->addWidget(titleLabel_);
-    textLayout_->addWidget(descriptionLabel_);
-    textLayout_->addWidget(playButton_, 0, Qt::AlignLeft);
-    textLayout_->addStretch(0);
-
-    // --- full-bleed mode (no real cover) ---
     fullBleedCoverLabel_ = new QLabel;
     fullBleedCoverLabel_->setScaledContents(true);
     // QLabel::minimumSizeHint() for a pixmap-holding label reports the
@@ -99,8 +77,8 @@ PlaylistHeader::PlaylistHeader(CoverArtCache* coverCache, QWidget* parent)
     fullBleedStack_->setContentsMargins(0, 0, 0, 0);
     fullBleedStack_->setStackingMode(QStackedLayout::StackAll);
     fullBleedStack_->addWidget(fullBleedCoverLabel_);
-    // textPanel_ itself is added/removed here dynamically by setPlaylist()
-    // depending on mode, not fixed at construction time.
+    fullBleedStack_->addWidget(fullBleedTextPanel_);
+    fullBleedStack_->setCurrentWidget(fullBleedTextPanel_);
 
     // See resizeEvent()/regenerateFullBleedCover() — full-bleed mode only.
     coverRegenerateTimer_ = new QTimer(this);
@@ -108,33 +86,62 @@ PlaylistHeader::PlaylistHeader(CoverArtCache* coverCache, QWidget* parent)
     coverRegenerateTimer_->setInterval(200);
     connect(coverRegenerateTimer_, &QTimer::timeout, this, &PlaylistHeader::regenerateFullBleedCover);
 
-    // --- thumbnail mode (real cover) ---
+    // --- thumbnail mode (real cover): small aspect-correct thumbnail beside plain themed text ---
+    buildTextTrio(thumbnailTitleLabel_, thumbnailDescriptionLabel_, thumbnailPlayButton_);
+
     thumbnailCoverLabel_ = new QLabel;
     thumbnailCoverLabel_->setScaledContents(true);
 
     thumbnailPage_ = new QWidget;
     thumbnailPage_->setObjectName(QStringLiteral("playlistHeaderCard"));
-    // palette(...) role, not a hardcoded color — this sits behind plain
+    // palette(...) roles, not hardcoded colors — this sits behind plain
     // text beside a small fixed-size thumbnail, not arbitrary full-bleed
     // photo content, so it follows system theme like ToastNotifier/
-    // SourcePanel's authCard_ do.
+    // SourcePanel's authCard_ do. A bottom border only, not a full rounded
+    // card outline: this header sits flush edge-to-edge above
+    // trackListView_ (no side/top margin between them and the splitter),
+    // so a boxed-card look doesn't fit — but palette(base) can be
+    // (and, in the dark theme, is) visually identical to the list below
+    // it, leaving no visible seam between "header" and "tracks" at all
+    // without an explicit divider line.
     thumbnailPage_->setStyleSheet(
-        QStringLiteral("#playlistHeaderCard { background: palette(base); border-radius: 8px; }"));
+        QStringLiteral("#playlistHeaderCard { background: palette(base); border-bottom: 1px solid palette(mid); }"));
 
-    thumbnailRow_ = new QHBoxLayout;
-    thumbnailRow_->setSpacing(kStandardMargin);
-    thumbnailRow_->addWidget(thumbnailCoverLabel_);
-    thumbnailRow_->setAlignment(thumbnailCoverLabel_, Qt::AlignVCenter);
-    // textPanel_ added here dynamically by setPlaylist(), stretch 1 to
-    // claim the remaining row width.
+    // titleLabel_/descriptionLabel_ stay stretched to the full column width
+    // in both modes (their own setAlignment(), toggled in setPlaylist(),
+    // handles left-vs-centered *text*) — word-wrapped description
+    // specifically must not get an alignment flag here instead: an
+    // unstretched item is sized to sizeHint(), and a word-wrapped label's
+    // sizeHint() width comes from an arbitrary internal Qt heuristic
+    // (~256px in testing), which would lock its wrap width to that instead
+    // of the column's actual width.
+    thumbnailTextLayout_ = new QVBoxLayout;
+    thumbnailTextLayout_->addWidget(thumbnailTitleLabel_);
+    thumbnailTextLayout_->addWidget(thumbnailDescriptionLabel_);
+    thumbnailTextLayout_->addWidget(thumbnailPlayButton_, 0, Qt::AlignLeft);
 
+    auto* thumbnailRow = new QHBoxLayout;
+    thumbnailRow->setSpacing(kStandardMargin);
+    thumbnailRow->addWidget(thumbnailCoverLabel_);
+    thumbnailRow->setAlignment(thumbnailCoverLabel_, Qt::AlignVCenter);
+    thumbnailRow->addLayout(thumbnailTextLayout_, 1);
+
+    // Top/bottom stretch toggled in setPlaylist(): a browsable playlist/
+    // liked banner is packed to the top (stretch 0, so the row doesn't get
+    // pushed anywhere), a radioStation (My Wave) one — which has no track
+    // list underneath eating the rest of the window — is vertically
+    // centered instead, by widening this widget itself (MainWindow.cpp
+    // gives playlistHeader_ the layout stretch trackListView_ would
+    // otherwise claim, whenever trackListView_ is hidden) and by the
+    // stretch on both sides here centering the row within that extra
+    // height.
     thumbnailOuterLayout_ = new QVBoxLayout(thumbnailPage_);
     thumbnailOuterLayout_->setContentsMargins(kStandardMargin, kStandardMargin, kStandardMargin, kStandardMargin);
     thumbnailOuterLayout_->addStretch(0);
-    thumbnailOuterLayout_->addLayout(thumbnailRow_);
+    thumbnailOuterLayout_->addLayout(thumbnailRow);
     thumbnailOuterLayout_->addStretch(0);
 
-    // --- mode switch ---
+    // --- mode switch: two fully independent, fully-built pages ---
     pageStack_ = new QStackedLayout(this);
     pageStack_->setContentsMargins(0, 0, 0, 0);
     pageStack_->addWidget(fullBleedPage_);
@@ -154,6 +161,21 @@ PlaylistHeader::PlaylistHeader(CoverArtCache* coverCache, QWidget* parent)
     hide();
 }
 
+void PlaylistHeader::buildTextTrio(QLabel*& title, QLabel*& description, QPushButton*& button)
+{
+    title = new QLabel;
+    QFont titleFont = title->font();
+    titleFont.setBold(true);
+    titleFont.setPointSize(titleFont.pointSize() + 2);
+    title->setFont(titleFont);
+
+    description = new QLabel;
+    description->setWordWrap(true);
+
+    button = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-start")), tr("Play"));
+    connect(button, &QPushButton::clicked, this, &PlaylistHeader::playClicked);
+}
+
 void PlaylistHeader::setPlaylist(const Playlist& playlist)
 {
     // Cancel a debounced regenerateFullBleedCover() left over from resizing
@@ -165,11 +187,7 @@ void PlaylistHeader::setPlaylist(const Playlist& playlist)
     currentTitle_ = playlist.title;
     currentCoverUrl_ = playlist.coverUrl.value_or(QString());
 
-    titleLabel_->setText(playlist.title);
     const QString description = playlist.description.value_or(QString());
-    descriptionLabel_->setText(description);
-    descriptionLabel_->setVisible(!description.isEmpty());
-
     // radioStation (My Wave) has no track list below this banner (see
     // MainWindow::showPlaylistAsync()) — MainWindow.cpp hands its layout
     // stretch to playlistHeader_ in that case, so there's real extra
@@ -177,28 +195,31 @@ void PlaylistHeader::setPlaylist(const Playlist& playlist)
     // staying out of the track list's way.
     const bool hasTrackList = playlist.kind != QStringLiteral("radioStation");
     const Qt::Alignment textAlign = hasTrackList ? Qt::AlignLeft : Qt::AlignHCenter;
-    titleLabel_->setAlignment(textAlign);
-    descriptionLabel_->setAlignment(textAlign);
-    textLayout_->setAlignment(playButton_, textAlign);
 
-    const bool hasRealCover = !currentCoverUrl_.isEmpty();
-    if (hasRealCover) {
-        if (textPanel_->parentWidget() != thumbnailPage_) {
-            fullBleedStack_->removeWidget(textPanel_);
-            textLayout_->setContentsMargins(0, 0, 0, 0); // thumbnailOuterLayout_ already pads the whole row
-            textPanel_->setStyleSheet(QString());
-            titleLabel_->setStyleSheet(QString());
-            descriptionLabel_->setStyleSheet(QString());
-            thumbnailRow_->addWidget(textPanel_, 1);
-        }
-        // Centering here happens one level out (the whole cover+text row,
-        // via thumbnailOuterLayout_) rather than within textLayout_ itself
-        // — see the constructor's comment on textLayout_'s stretches.
-        textLayout_->setStretch(0, 0);
-        textLayout_->setStretch(textLayout_->count() - 1, 0);
-        thumbnailOuterLayout_->setStretch(0, hasTrackList ? 0 : 1);
-        thumbnailOuterLayout_->setStretch(thumbnailOuterLayout_->count() - 1, hasTrackList ? 0 : 1);
+    // Both modes' text content stays in sync regardless of which is
+    // currently visible — see the class doc.
+    fullBleedTitleLabel_->setText(playlist.title);
+    fullBleedTitleLabel_->setAlignment(textAlign);
+    fullBleedDescriptionLabel_->setText(description);
+    fullBleedDescriptionLabel_->setVisible(!description.isEmpty());
+    fullBleedDescriptionLabel_->setAlignment(textAlign);
+    fullBleedTextLayout_->setAlignment(fullBleedPlayButton_, textAlign);
+    fullBleedTextLayout_->setStretch(0, hasTrackList ? 0 : 1);
+    fullBleedTextLayout_->setStretch(fullBleedTextLayout_->count() - 1, hasTrackList ? 0 : 1);
 
+    thumbnailTitleLabel_->setText(playlist.title);
+    thumbnailTitleLabel_->setAlignment(textAlign);
+    thumbnailDescriptionLabel_->setText(description);
+    thumbnailDescriptionLabel_->setVisible(!description.isEmpty());
+    thumbnailDescriptionLabel_->setAlignment(textAlign);
+    thumbnailTextLayout_->setAlignment(thumbnailPlayButton_, textAlign);
+    thumbnailOuterLayout_->setStretch(0, hasTrackList ? 0 : 1);
+    thumbnailOuterLayout_->setStretch(thumbnailOuterLayout_->count() - 1, hasTrackList ? 0 : 1);
+
+    if (currentCoverUrl_.isEmpty()) {
+        pageStack_->setCurrentWidget(fullBleedPage_);
+        applyFullBleedCover(generateMeshAuraGradientCover(playlist.title, size()));
+    } else {
         pageStack_->setCurrentWidget(thumbnailPage_);
         // A deliberately tiny target width alongside the real target
         // height: CoverArtCache scales via Qt::KeepAspectRatioByExpanding
@@ -209,33 +230,34 @@ void PlaylistHeader::setPlaylist(const Playlist& playlist)
         // height=kCoverSize with an aspect-correct width, no cropping.
         // See applyThumbnailCover().
         applyThumbnailCover(coverCache_->pixmap(currentCoverUrl_, QSize(1, kCoverSize)));
-    } else {
-        if (textPanel_->parentWidget() != fullBleedPage_) {
-            thumbnailRow_->removeWidget(textPanel_);
-            textLayout_->setContentsMargins(kStandardMargin, kStandardMargin, kStandardMargin, kStandardMargin);
-            textPanel_->setStyleSheet(kGradientStyle);
-            titleLabel_->setStyleSheet(kWhiteTextStyle);
-            descriptionLabel_->setStyleSheet(kWhiteDescStyle);
-            fullBleedStack_->addWidget(textPanel_);
-        }
-        fullBleedStack_->setCurrentWidget(textPanel_); // raise above fullBleedCoverLabel_
-        textLayout_->setStretch(0, hasTrackList ? 0 : 1);
-        textLayout_->setStretch(textLayout_->count() - 1, hasTrackList ? 0 : 1);
-
-        pageStack_->setCurrentWidget(fullBleedPage_);
-        applyFullBleedCover(generateMeshAuraGradientCover(playlist.title, size()));
     }
 
+    // heightForWidth()'s return value just changed (new title/description
+    // text, possibly a mode switch) but this widget's own geometry didn't
+    // — nothing tells the parent layout its cached size hint for this
+    // child is stale without this call. Omitting it is exactly what made
+    // the banner's height inconsistent/not-minimal switching between
+    // playlists: the parent kept using whichever size hint happened to be
+    // cached from before, only catching up whenever some unrelated event
+    // (e.g. a window resize) forced a fresh layout pass.
+    updateGeometry();
     show();
 }
 
-void PlaylistHeader::setPlayButtonVisible(bool visible) { playButton_->setVisible(visible); }
+void PlaylistHeader::setPlayButtonVisible(bool visible)
+{
+    fullBleedPlayButton_->setVisible(visible);
+    thumbnailPlayButton_->setVisible(visible);
+}
 
 void PlaylistHeader::setPlayBusy(bool busy)
 {
-    playButton_->setEnabled(!busy);
-    playButton_->setIcon(
-        QIcon::fromTheme(busy ? QStringLiteral("view-refresh") : QStringLiteral("media-playback-start")));
+    const QIcon icon
+        = QIcon::fromTheme(busy ? QStringLiteral("view-refresh") : QStringLiteral("media-playback-start"));
+    fullBleedPlayButton_->setEnabled(!busy);
+    fullBleedPlayButton_->setIcon(icon);
+    thumbnailPlayButton_->setEnabled(!busy);
+    thumbnailPlayButton_->setIcon(icon);
 }
 
 QSize PlaylistHeader::sizeHint() const
@@ -248,30 +270,29 @@ bool PlaylistHeader::hasHeightForWidth() const { return true; }
 
 int PlaylistHeader::heightForWidth(int w) const
 {
-    // Neither this widget's own top-level layout (pageStack_) nor, in
-    // full-bleed mode, fullBleedStack_ propagate heightForWidth on their
-    // own — QStackedLayout doesn't implement it regardless of stacking
-    // mode. textPanel_'s own QVBoxLayout does (it's a plain QBoxLayout,
-    // same as the rest of this method relies on) — ask it directly in
-    // both modes, just accounting for how much width it actually gets in
-    // each.
+    // Neither this widget's own top-level layout (pageStack_) nor
+    // fullBleedStack_ propagate heightForWidth on their own —
+    // QStackedLayout doesn't implement it regardless of stacking mode. The
+    // relevant mode's own QVBoxLayout does (plain QBoxLayout) — ask it
+    // directly, accounting for how much width it actually gets in each
+    // mode.
     if (currentCoverUrl_.isEmpty()) {
-        // Full-bleed mode: textPanel_ fills this widget's full width (see
-        // the constructor — its container is a StackAll stack that itself
-        // fills fullBleedPage_, which fills this widget via pageStack_).
-        const int hfw = textPanel_->layout()->heightForWidth(w);
-        return hfw >= 0 ? hfw : textPanel_->layout()->sizeHint().height();
+        // Full-bleed mode: fullBleedTextPanel_ fills this widget's full
+        // width (its container is a StackAll stack that itself fills
+        // fullBleedPage_, which fills this widget via pageStack_) — its own
+        // layout's contentsMargins already account for the banner padding.
+        const int hfw = fullBleedTextLayout_->heightForWidth(w);
+        return hfw >= 0 ? hfw : fullBleedTextLayout_->sizeHint().height();
     }
-    // Thumbnail mode: textPanel_ only gets what's left of this widget's
-    // width after thumbnailOuterLayout_'s own left/right margins, the
-    // cover's fixed aspect-correct width, and the row spacing between them
-    // — and the result needs thumbnailOuterLayout_'s top/bottom margins
-    // added back (textLayout_'s own margins are zero in this mode — see
-    // setPlaylist() — so heightForWidth() below reports the unpadded
-    // content height only).
+    // Thumbnail mode: thumbnailTextLayout_ only gets what's left of this
+    // widget's width after thumbnailOuterLayout_'s own left/right margins,
+    // the cover's fixed aspect-correct width, and the row spacing between
+    // them — and the result needs thumbnailOuterLayout_'s top/bottom
+    // margins added back (thumbnailTextLayout_ has no margins of its own,
+    // so heightForWidth() below reports the unpadded content height only).
     const int available = w - 2 * kStandardMargin - thumbnailCoverLabel_->width() - kStandardMargin;
-    const int hfw = textPanel_->layout()->heightForWidth(qMax(available, 0));
-    const int textHeight = hfw >= 0 ? hfw : textPanel_->layout()->sizeHint().height();
+    const int hfw = thumbnailTextLayout_->heightForWidth(qMax(available, 0));
+    const int textHeight = hfw >= 0 ? hfw : thumbnailTextLayout_->sizeHint().height();
     return qMax(textHeight, thumbnailCoverLabel_->height()) + 2 * kStandardMargin;
 }
 
@@ -295,6 +316,12 @@ void PlaylistHeader::applyThumbnailCover(const QPixmap& pixmap)
     // setScaledContents further stretch/distort it.
     thumbnailCoverLabel_->setFixedSize(pixmap.size());
     thumbnailCoverLabel_->setPixmap(pixmap);
+    // heightForWidth() depends on thumbnailCoverLabel_'s own width/height —
+    // when this runs from the async pixmapReady path (cache miss during
+    // setPlaylist()'s own synchronous call, see the constructor), that
+    // dependency just changed well after setPlaylist()'s own
+    // updateGeometry() call already ran, so it needs its own here too.
+    updateGeometry();
 }
 
 void PlaylistHeader::resizeEvent(QResizeEvent* event)

@@ -7,6 +7,7 @@
 class QHBoxLayout;
 class QLabel;
 class QPushButton;
+class QResizeEvent;
 class QSlider;
 
 namespace Ui {
@@ -47,8 +48,18 @@ signals:
     void seekRequested(qint64 positionMs);
     void volumeChanged(int volume0To100);
 
+protected:
+    // titleLabel_/artistLabel_ are given Qt::ElideRight text — sizePolicy
+    // Ignored so their sizeHint doesn't force this bar (and the whole
+    // window) to stay at least as wide as the current track's full title,
+    // but a QLabel doesn't elide its own text automatically at whatever
+    // width the layout actually gives it — needs re-eliding by hand
+    // whenever that width changes.
+    void resizeEvent(QResizeEvent* event) override;
+
 private:
     void updatePlayPauseIcon();
+    void updateElidedText();
 
     CoverArtCache* coverCache_;
     ClickableArea* coverAndTitle_ = nullptr;
@@ -69,6 +80,11 @@ private:
 
     QString currentWebUrl_;
     QString currentCoverUrl_;
+    // Full, unelided text — titleLabel_/artistLabel_ only ever show an
+    // elided (and thus lossy) copy of these, so setTrack() and the
+    // resize-driven re-elide both need the originals kept somewhere.
+    QString currentTrackTitle_;
+    QString currentArtistNames_;
     bool playing_ = false;
     bool userIsDraggingSeek_ = false;
     qint64 lastDurationMs_ = 0;
