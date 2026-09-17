@@ -17,10 +17,17 @@ class TrackRowDelegate : public QStyledItemDelegate {
 public:
     explicit TrackRowDelegate(CoverArtCache* coverCache, QObject* parent = nullptr);
 
+    // Marks (sourceId, trackId) as the row to render as "currently
+    // playing" — an accent-colored, bold title. Pass empty strings to
+    // clear the indicator (e.g. nothing loaded). Does not itself trigger a
+    // repaint — callers update the view (see MainWindow's
+    // PlaybackController::trackChanged wiring).
+    void setCurrentlyPlaying(const QString& sourceId, const QString& trackId);
+
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     bool editorEvent(QEvent* event, QAbstractItemModel* model, const QStyleOptionViewItem& option,
-                     const QModelIndex& index) override;
+        const QModelIndex& index) override;
 
 signals:
     // The cover thumbnail's hover-only play overlay (see paint()) was
@@ -39,6 +46,8 @@ private:
     QString formatPlayedAt(const QDateTime& utcWhen) const;
 
     CoverArtCache* coverCache_;
+    QString currentSourceId_;
+    QString currentTrackId_;
     static constexpr int kRowHeight = 48;
     static constexpr int kThumbSize = 36;
 };

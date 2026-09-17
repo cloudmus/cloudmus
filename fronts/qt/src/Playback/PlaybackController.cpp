@@ -52,11 +52,12 @@ void PlaybackController::loadQueue(const QString& sourceId, const QList<Track>& 
     for (const Track& t : tracks) {
         queue_.append(QueueEntry { sourceId, t });
     }
+    emit queueAvailabilityChanged(hasQueue());
     playIndex(startIndex);
 }
 
-void PlaybackController::startRadio(const QString& sourceId, const QString& stationId,
-                                    const QList<Track>& initialTracks)
+void PlaybackController::startRadio(
+    const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks)
 {
     waveMode_ = true;
     waveSourceId_ = sourceId;
@@ -66,6 +67,7 @@ void PlaybackController::startRadio(const QString& sourceId, const QString& stat
     for (const Track& t : initialTracks) {
         queue_.append(QueueEntry { sourceId, t });
     }
+    emit queueAvailabilityChanged(hasQueue());
     playIndex(0);
 }
 
@@ -100,7 +102,7 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
     // read before the suspension) and the actual audio plays fine (that
     // comes from a separate track/streamReady notification, not from
     // `entry`), but trackChanged(entry.track, ...) below — which drives the
-    // now-playing bar's title/cover — could fire with a dangling QueueEntry,
+    // hero panel's title/cover — could fire with a dangling QueueEntry,
     // showing garbage or blank metadata for a track that's audibly playing.
     const QueueEntry entry = queue_[index];
     const int id = client->allocateRequestId();
@@ -121,7 +123,10 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
         co_return;
     }
 
+    const bool wasCurrentTrack = hasCurrentTrack();
     index_ = index;
+    if (!wasCurrentTrack)
+        emit currentTrackAvailabilityChanged(true);
     if (waveMode_) {
         TrackStartedParams started { entry.track.id };
         Rpc::feedbackTrackStarted(*client, started).detach();
@@ -207,10 +212,20 @@ void PlaybackController::stop()
 {
     audioPlayer_->stop();
     playTimeoutTimer_->stop();
+    // Discards any in-flight playback.play this stop() interrupts —
+    // without this, a track/streamReady that arrives after index_ is
+    // reset below would pass handleStreamReady()'s requestId check (it's
+    // still "the latest" — nothing superseded it, the user just stopped)
+    // and then dereference queue_[index_] at index_ == -1.
+    latestRequestId_ = -1;
+    const bool hadCurrentTrack = hasCurrentTrack();
+    index_ = -1; // the current track becomes undefined — see hasCurrentTrack()
     if (playing_) {
         playing_ = false;
         emit playingChanged(false);
     }
+    if (hadCurrentTrack)
+        emit currentTrackAvailabilityChanged(false);
 }
 
 void PlaybackController::next() { advance(1, /*wasSkip=*/true); }

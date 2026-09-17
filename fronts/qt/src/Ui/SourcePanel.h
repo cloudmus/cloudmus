@@ -16,14 +16,14 @@ class QProgressBar;
 namespace Ui {
 
 class CoverArtCache;
-class PlaylistHeader;
+class HeroPanel;
 
-// Shown in the content area (replacing PlaylistHeader + the track list) when
+// Shown in the content area (replacing the hero+track-list splitter) when
 // the user selects any source's sidebar header row — see
 // SidebarModel::Kind::SourceHeader and MainWindow::showSourceStatusPanel().
 // Unlike a real playlist, every source gets this, not just ones with an
 // auth problem: a hero (cover/name/description, via an internally owned
-// PlaylistHeader fed a synthetic Playlist — reusing its generated-cover
+// HeroPanel fed a synthetic Playlist — reusing its generated-cover
 // machinery rather than reimplementing it) and a one-line capabilities
 // summary are always shown; the auth section below (prompt/error/Retry) is
 // the only conditional part, hidden unless there's actually something to
@@ -50,7 +50,7 @@ public:
     // the auth section — call showPrompt()/showError()/clearAuthSection()
     // separately (MainWindow does so right after, from cached state).
     void setSource(const QString& sourceId, const QString& sourceName, const QString& description,
-                   const QJsonObject& capabilities);
+        const QJsonObject& capabilities);
 
     // Renders the source's last-known prompt (deviceCode/usernamePassword/
     // oauthRedirect, discriminated by params["flow"] — see
@@ -82,7 +82,7 @@ private:
 
     QString currentSourceId_;
 
-    PlaylistHeader* hero_ = nullptr;
+    HeroPanel* hero_ = nullptr;
     QLabel* capabilitiesLabel_ = nullptr;
 
     QWidget* authCard_ = nullptr;

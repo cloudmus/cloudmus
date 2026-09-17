@@ -28,6 +28,13 @@ int Settings::sidebarWidth() const { return settings_.value(QStringLiteral("wind
 
 void Settings::setSidebarWidth(int width) { settings_.setValue(QStringLiteral("window/sidebarWidth"), width); }
 
+// Default 430px favors the hero panel over the track list (~60/40 of the
+// ~720px content area left after the default 960px window width and 240px
+// sidebar), per the UI design.
+int Settings::heroPanelWidth() const { return settings_.value(QStringLiteral("window/heroPanelWidth"), 430).toInt(); }
+
+void Settings::setHeroPanelWidth(int width) { settings_.setValue(QStringLiteral("window/heroPanelWidth"), width); }
+
 int Settings::volume() const { return settings_.value(QStringLiteral("playback/volume"), 100).toInt(); }
 
 void Settings::setVolume(int volume0To100) { settings_.setValue(QStringLiteral("playback/volume"), volume0To100); }

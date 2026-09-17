@@ -16,9 +16,10 @@
 #include <QVBoxLayout>
 
 #include "CoverArtCache.h"
+#include "EmptyStatePlaceholder.h"
+#include "HeroPanel.h"
 #include "NowPlayingBar.h"
 #include "PlaybackHistory.h"
-#include "PlaylistHeader.h"
 #include "RpcMethods.h"
 #include "SettingsDialog.h"
 #include "SidebarModel.h"
@@ -39,7 +40,7 @@ Q_LOGGING_CATEGORY(lcMainWindow, "cloudmus.ui.mainwindow")
 } // namespace
 
 MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackController& playback,
-                       Config::Settings& settings, QWidget* parent)
+    Config::Settings& settings, QWidget* parent)
     : QMainWindow(parent)
     , sourceManager_(sourceManager)
     , playback_(playback)
@@ -52,12 +53,18 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     coverArtCache_ = new CoverArtCache(this);
     playbackHistory_ = new History::PlaybackHistory(this);
 
-    // --- now-playing controls, merged into the top toolbar alongside the
-    // hamburger menu (see AGENTS.md/the plan: standard system frame, so
-    // this sits below the OS titlebar, not literally overlapping its
-    // buttons) ---
-    nowPlayingBar_ = new NowPlayingBar(coverArtCache_, this);
+    // --- now-playing controls, merged into the bottom toolbar alongside
+    // the hamburger menu. No cover art here — HeroPanel (below) shows
+    // whatever's playing instead, so it isn't duplicated. ---
+    nowPlayingBar_ = new NowPlayingBar(this);
+    // setVolume() alone only moves the slider — it's built on a
+    // QSignalBlocker specifically so restoring the persisted position at
+    // startup doesn't loop back through volumeChanged (see its .cpp). That
+    // means it never actually reaches AudioPlayer, which otherwise starts
+    // at mpv's own default (max) until the user first drags the slider —
+    // apply the persisted value to playback_ explicitly here too.
     nowPlayingBar_->setVolume(settings_.volume());
+    playback_.setVolume(settings_.volume());
     connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, &playback_, &Playback::PlaybackController::togglePause);
     connect(nowPlayingBar_, &NowPlayingBar::nextClicked, &playback_, &Playback::PlaybackController::next);
     connect(nowPlayingBar_, &NowPlayingBar::previousClicked, &playback_, &Playback::PlaybackController::previous);
@@ -68,10 +75,37 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         settings_.setVolume(v);
     });
 
+    // The single declarative source of truth for every control's enabled
+    // state and value — see NowPlayingBar::setTrackAvailable()'s doc
+    // comment. Also where Stop's "reset to undefined" becomes visible:
+    // once hasCurrentTrack() goes false, heroPanel_ reverts to promoting
+    // the browsed playlist/cover art and the track list's
+    // currently-playing row clears, instead of leaving the last-played
+    // track's info on screen.
+    connect(&playback_, &Playback::PlaybackController::currentTrackAvailabilityChanged, this, [this](bool available) {
+        nowPlayingBar_->setTrackAvailable(available);
+        if (!available) {
+            heroPanel_->setPlaylist(currentPlaylist_);
+            trackRowDelegate_->setCurrentlyPlaying(QString(), QString());
+            trackListView_->viewport()->update();
+        }
+    });
+    connect(&playback_, &Playback::PlaybackController::queueAvailabilityChanged, this,
+        [this](bool available) { nowPlayingBar_->setQueueAvailable(available); });
+
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
-            [this](const Track& track, const QString&) { nowPlayingBar_->setTrack(track); });
+        [this](const Track& track, const QString& sourceId) { playbackHistory_->record(sourceId, track); });
+    // HeroPanel shows what's playing instead of the browsed playlist's
+    // promo card whenever playback_.hasCurrentTrack() — see
+    // showPlaylistAsync()/showHistory()'s guard, and the
+    // currentTrackAvailabilityChanged handler above for how Stop reverts it.
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
-            [this](const Track& track, const QString& sourceId) { playbackHistory_->record(sourceId, track); });
+        [this](const Track& track, const QString&) { heroPanel_->setNowPlaying(track); });
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
+        [this](const Track& track, const QString& sourceId) {
+            trackRowDelegate_->setCurrentlyPlaying(sourceId, track.id);
+            trackListView_->viewport()->update();
+        });
     connect(playbackHistory_, &History::PlaybackHistory::changed, this, [this]() {
         if (showingHistory_)
             showHistory(); // refresh in place — a track just started playing
@@ -83,6 +117,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     auto* toolbar = new QToolBar(this);
     toolbar->setMovable(false);
     toolbar->setFloatable(false);
+    toolbar->setAllowedAreas(Qt::BottomToolBarArea);
     toolbar->addWidget(nowPlayingBar_);
     // Into NowPlayingBar's own transport-button row (top row, right end),
     // not a separate toolbar item — see setTrailingWidget()'s comment for
@@ -100,7 +135,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
     menuButton->setMenu(menu);
     nowPlayingBar_->setTrailingWidget(menuButton);
-    addToolBar(toolbar);
+    addToolBar(Qt::BottomToolBarArea, toolbar);
 
     // --- sidebar + track list ---
     sidebarModel_ = new SidebarModel(this);
@@ -121,8 +156,13 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
 
-    playlistHeader_ = new PlaylistHeader(coverArtCache_, this);
-    connect(playlistHeader_, &PlaylistHeader::playClicked, this, &MainWindow::playCurrentPlaylist);
+    heroPanel_ = new HeroPanel(coverArtCache_, this);
+    // Always the tall full-height splitter pane below, regardless of
+    // whether trackListPane_ is currently visible — unlike the old
+    // PlaylistHeader, this is never toggled again after construction (see
+    // setTrackListVisible()).
+    heroPanel_->setFillMode(true);
+    connect(heroPanel_, &HeroPanel::playClicked, this, &MainWindow::playCurrentPlaylist);
 
     trackListModel_ = new TrackListModel(this);
     trackRowDelegate_ = new TrackRowDelegate(coverArtCache_, this);
@@ -137,54 +177,69 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
 
     auto* trackListContainer = new QWidget(this);
-    trackListLayout_ = new QVBoxLayout(trackListContainer);
-    trackListLayout_->setContentsMargins(0, 0, 0, 0);
-    trackListLayout_->setSpacing(0);
-    // Stretch 0/1: without it, QVBoxLayout has no explicit weighting between
-    // the two items in this direction, so it falls back to growing every
-    // item proportionally to fill the container — stretching
-    // playlistHeader_ with the window instead of leaving it at its
-    // content-driven height. Giving trackListView_ all the stretch (and
-    // playlistHeader_ none) is also why PlaylistHeader deliberately isn't
-    // QSizePolicy::Fixed itself — see that class's constructor for why that
-    // specific combination (Fixed + a width-dependent heightForWidth)
-    // fights window resizing instead. setTrackListVisible() swaps which of
-    // the two gets the stretch when trackListView_ is hidden entirely
-    // (radioStation/My Wave) — see its own comment in the header.
-    trackListLayout_->addWidget(playlistHeader_);
-    trackListLayout_->addWidget(trackListView_, 1);
+    auto* trackListContainerLayout = new QVBoxLayout(trackListContainer);
+    trackListContainerLayout->setContentsMargins(0, 0, 0, 0);
+    trackListContainerLayout->setSpacing(0);
+
+    // trackListPane_ is trackListView_'s own immediate parent (rather than
+    // adding trackListView_ straight into contentSplitter_) purely so
+    // trackListBusyIndicator_ below keeps a same-parent x()/y() to position
+    // itself against.
+    trackListPane_ = new QWidget(this);
+    auto* trackListPaneLayout = new QVBoxLayout(trackListPane_);
+    trackListPaneLayout->setContentsMargins(0, 0, 0, 0);
+    trackListPaneLayout->setSpacing(0);
+    trackListPaneLayout->addWidget(trackListView_);
+
+    contentSplitter_ = new QSplitter(Qt::Horizontal, trackListContainer);
+    contentSplitter_->addWidget(heroPanel_);
+    contentSplitter_->addWidget(trackListPane_);
+    contentSplitter_->setSizes({ settings_.heroPanelWidth(), 290 });
+    connect(contentSplitter_, &QSplitter::splitterMoved, this,
+        [this]() { settings_.setHeroPanelWidth(contentSplitter_->sizes().first()); });
+    trackListContainerLayout->addWidget(contentSplitter_, 1);
 
     sourcePanel_ = new SourcePanel(coverArtCache_, trackListContainer);
     connect(sourcePanel_, &SourcePanel::submitRequested, this,
-            [this](const QString& sourceId, const QJsonObject& fields) { submitAuthAsync(sourceId, fields).detach(); });
+        [this](const QString& sourceId, const QJsonObject& fields) { submitAuthAsync(sourceId, fields).detach(); });
     connect(sourcePanel_, &SourcePanel::retryRequested, this,
-            [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
-    trackListLayout_->addWidget(sourcePanel_, 1);
+        [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
+    trackListContainerLayout->addWidget(sourcePanel_, 1);
 
-    // Not part of trackListLayout: a layout-managed progress bar would
+    // Shown by default (contentSplitter_ hidden below) until the first
+    // playlist/History/source selection swaps it out — see
+    // showPlaylistAsync()/showHistory()/showSourceStatusPanel().
+    emptyStatePlaceholder_ = new EmptyStatePlaceholder(trackListContainer);
+    trackListContainerLayout->addWidget(emptyStatePlaceholder_, 1);
+    contentSplitter_->hide();
+
+    // Not part of trackListPaneLayout: a layout-managed progress bar would
     // shrink the list by its own height whenever it's shown/hidden,
     // shoving the whole view down. It's a free-floating child positioned
-    // absolutely over trackListView_'s top edge instead (not the
-    // container's — playlistHeader_ above it can be shown/hidden too,
-    // which shifts where the list itself actually starts) — see
-    // eventFilter()/repositionTrackListBusyIndicator().
-    trackListBusyIndicator_ = new QProgressBar(trackListContainer);
+    // absolutely over trackListView_'s top edge instead — see
+    // eventFilter()/repositionTrackListBusyIndicator(). Parented (and
+    // event-filtered) on trackListPane_, not trackListContainer: dragging
+    // contentSplitter_'s handle resizes trackListPane_ directly without
+    // necessarily resizing trackListContainer, so watching the outer
+    // container would silently stop tracking this indicator's position
+    // during a splitter drag.
+    trackListBusyIndicator_ = new QProgressBar(trackListPane_);
     trackListBusyIndicator_->setRange(0, 0);
     trackListBusyIndicator_->setMaximumHeight(4);
     trackListBusyIndicator_->setTextVisible(false);
     trackListBusyIndicator_->hide();
-    trackListContainer->installEventFilter(this);
+    trackListPane_->installEventFilter(this);
 
     auto* splitter = new QSplitter(this);
     splitter->addWidget(sidebarView_);
     splitter->addWidget(trackListContainer);
     splitter->setSizes({ settings_.sidebarWidth(), 720 });
     connect(splitter, &QSplitter::splitterMoved, this,
-            [this, splitter]() { settings_.setSidebarWidth(splitter->sizes().first()); });
+        [this, splitter]() { settings_.setSidebarWidth(splitter->sizes().first()); });
 
     toastNotifier_ = new ToastNotifier(this);
     connect(&playback_, &Playback::PlaybackController::errorOccurred, this,
-            [this](const QString& message) { toastNotifier_->showError(message); });
+        [this](const QString& message) { toastNotifier_->showError(message); });
 
     auto* central = new QWidget(this);
     auto* centralLayout = new QVBoxLayout(central);
@@ -297,8 +352,8 @@ void MainWindow::showSourceStatusPanel(const QString& sourceId)
 {
     showingHistory_ = false;
     currentPlaylistSourceId_.clear();
-    playlistHeader_->hide();
-    trackListView_->hide();
+    emptyStatePlaceholder_->hide();
+    contentSplitter_->hide();
     trackListBusyIndicator_->hide();
     currentStatusPanelSourceId_ = sourceId;
 
@@ -365,8 +420,7 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
             // the backend by hand. The sidebar itself simply won't show
             // playlists for this source until it retries (e.g. after auth
             // completes, see wireSource's onAuthStatusChanged).
-            qCWarning(lcMainWindow) << "catalog.listPlaylists failed for" << client->sourceId() << ":"
-                                     << e.what();
+            qCWarning(lcMainWindow) << "catalog.listPlaylists failed for" << client->sourceId() << ":" << e.what();
         }
     }
     sidebarModel_->setSource(client->sourceId(), client->sourceName(), playlists);
@@ -428,14 +482,21 @@ void MainWindow::showHistory()
 {
     currentStatusPanelSourceId_.clear();
     sourcePanel_->hide();
+    emptyStatePlaceholder_->hide();
+    contentSplitter_->show();
     showingHistory_ = true;
     currentPlaylistSourceId_.clear(); // no single source — the header's Play-all button is hidden below anyway
     currentPlaylist_ = Playlist { QStringLiteral("history"), tr("History"), std::nullopt, std::nullopt,
-                                  static_cast<int>(playbackHistory_->entries().size()), QStringLiteral("playlist") };
+        static_cast<int>(playbackHistory_->entries().size()), QStringLiteral("playlist") };
     // Before setPlaylist(), not after — see setTrackListVisible()'s comment.
     setTrackListVisible(true);
-    playlistHeader_->setPlaylist(currentPlaylist_);
-    playlistHeader_->setPlayButtonVisible(false);
+    // While something is playing, heroPanel_ stays showing that track
+    // instead of switching back to a promo card for History — see
+    // showPlaylistAsync()'s identical guard; Stop reverts this (see the
+    // currentTrackAvailabilityChanged handler in the constructor).
+    if (!playback_.hasCurrentTrack())
+        heroPanel_->setPlaylist(currentPlaylist_);
+    heroPanel_->setPlayButtonVisible(false);
 
     QList<TrackListModel::MixedSourceEntry> entries;
     entries.reserve(playbackHistory_->entries().size());
@@ -444,7 +505,7 @@ void MainWindow::showHistory()
     trackListModel_->setMixedSourceTracks(entries);
 
     // Deferred to the next event-loop iteration, not called synchronously
-    // here — playlistHeader_->setPlaylist() above just posted a
+    // here — heroPanel_->setPlaylist() above may have just posted a
     // LayoutRequest (its heightForWidth() may have changed — see its own
     // updateGeometry() call), which Qt only processes asynchronously.
     // Reading trackListView_->y() before that pass runs picks up
@@ -460,18 +521,25 @@ Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlis
 {
     currentStatusPanelSourceId_.clear();
     sourcePanel_->hide();
+    emptyStatePlaceholder_->hide();
+    contentSplitter_->show();
     showingHistory_ = false;
-    playlistHeader_->setPlayButtonVisible(true);
+    heroPanel_->setPlayButtonVisible(true);
     currentPlaylistSourceId_ = sourceId;
     currentPlaylist_ = playlist;
 
     // Before setPlaylist(), not after — see setTrackListVisible()'s comment:
-    // it decides how large a generated cover to render from
-    // playlistHeader_'s *current* size(), which needs to already reflect
-    // this stretch change.
+    // it decides how large a generated cover/overlay to render from
+    // heroPanel_'s *current* size(), which needs to already reflect this
+    // splitter-size change.
     const bool isRadioStation = playlist.kind == QStringLiteral("radioStation");
     setTrackListVisible(!isRadioStation);
-    playlistHeader_->setPlaylist(playlist);
+    // While something is playing, heroPanel_ stays showing the globally
+    // playing track regardless of which playlist is browsed here — it
+    // never reverts to this playlist's promo card until Stop is pressed
+    // (see the currentTrackAvailabilityChanged handler in the constructor).
+    if (!playback_.hasCurrentTrack())
+        heroPanel_->setPlaylist(playlist);
 
     if (isRadioStation) {
         // Continuous, not a fixed list — see docs/protocol.md's
@@ -520,7 +588,7 @@ Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed)
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
         co_return;
-    playlistHeader_->setPlayBusy(true);
+    heroPanel_->setPlayBusy(true);
     try {
         StartRadioParams params { seed };
         StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
@@ -529,7 +597,7 @@ Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed)
         qCWarning(lcMainWindow) << "starting radio failed for" << sourceId << ":" << e.what();
         toastNotifier_->showError(QString::fromStdString(e.what()));
     }
-    playlistHeader_->setPlayBusy(false);
+    heroPanel_->setPlayBusy(false);
 }
 
 void MainWindow::onTrackDoubleClicked(const QModelIndex& index)
@@ -570,8 +638,8 @@ Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields
 
 void MainWindow::showAboutDialog()
 {
-    QMessageBox::about(this, tr("About CloudMus"),
-                       tr("CloudMus — a lightweight Qt frontend for cloudmus music sources."));
+    QMessageBox::about(
+        this, tr("About CloudMus"), tr("CloudMus — a lightweight Qt frontend for cloudmus music sources."));
 }
 
 void MainWindow::quitForReal()
@@ -606,17 +674,27 @@ void MainWindow::repositionTrackListBusyIndicator()
 
 void MainWindow::setTrackListVisible(bool visible)
 {
-    trackListView_->setVisible(visible);
-    trackListLayout_->setStretchFactor(playlistHeader_, visible ? 0 : 1);
-    // Force the new geometry through synchronously instead of leaving it
-    // for the next event-loop pass: every caller calls this before
-    // PlaylistHeader::setPlaylist(), which reads playlistHeader_->size() to
-    // decide how large a generated cover to render (see
-    // GeneratedCoverArt.h) — without this, that size() call still sees
-    // whatever this widget's size was under its *previous* stretch factor,
-    // and setScaledContents then stretches the resulting cover up to the
-    // real (larger) banner, visibly blurry/banded.
-    trackListLayout_->activate();
+    trackListPane_->setVisible(visible);
+    if (visible) {
+        // Restore the persisted/current hero-vs-list ratio. QSplitter
+        // interprets setSizes() by ratio, not absolute sum, so re-asserting
+        // settings_.heroPanelWidth() here is correct whether this is the
+        // very first show or a restore right after a My Wave collapse.
+        contentSplitter_->setSizes({ settings_.heroPanelWidth(), 290 });
+    } else {
+        // Collapse: hand the whole splitter width to heroPanel_ — the
+        // radioStation (My Wave) case, where there's no track list at all.
+        contentSplitter_->setSizes({ contentSplitter_->width(), 0 });
+    }
+    // Unlike the old QVBoxLayout::setStretchFactor()-based version of this
+    // method (which needed an explicit activate() to force a pending
+    // LayoutRequest through synchronously — see the equivalent comment in
+    // git history), QSplitter::setSizes() resizes its children directly
+    // and immediately, not via a deferred layout pass — every caller here
+    // still calls this before HeroPanel::setPlaylist()/setNowPlaying(),
+    // which read heroPanel_'s size() to decide how large a generated
+    // cover/overlay to render (see GeneratedCoverArt.h), and that already
+    // sees the post-setSizes() size with no extra step needed.
 }
 
 } // namespace Ui

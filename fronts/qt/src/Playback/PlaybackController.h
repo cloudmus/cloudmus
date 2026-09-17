@@ -51,6 +51,7 @@ public:
 
     bool isPlaying() const { return playing_; }
     bool hasCurrentTrack() const { return index_ >= 0 && index_ < queue_.size(); }
+    bool hasQueue() const { return !queue_.isEmpty(); }
     const Track& currentTrack() const { return queue_[index_].track; }
     const QString& currentSourceId() const { return queue_[index_].sourceId; }
 
@@ -60,6 +61,16 @@ signals:
     void positionChanged(qint64 positionMs, qint64 durationMs);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
     void errorOccurred(QString message);
+    // Emitted whenever hasCurrentTrack() actually changes: true right
+    // before trackChanged() when a play succeeds, false when stop()
+    // clears the current track back to undefined. The single declarative
+    // source of truth UI enablement (play/pause, stop, seek) and
+    // MainWindow's hero-panel/row-highlight reset react to — see
+    // NowPlayingBar::setTrackAvailable().
+    void currentTrackAvailabilityChanged(bool available);
+    // Emitted whenever hasQueue() changes (loadQueue()/startRadio()
+    // populate it) — declaratively drives previous/next enablement.
+    void queueAvailabilityChanged(bool available);
 
 private:
     void playIndex(int index);

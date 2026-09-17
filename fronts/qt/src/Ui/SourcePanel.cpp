@@ -1,9 +1,9 @@
 #include "SourcePanel.h"
 
+#include <QClipboard>
 #include <QDesktopServices>
 #include <QFont>
 #include <QGuiApplication>
-#include <QClipboard>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QJsonArray>
@@ -15,8 +15,8 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include "HeroPanel.h"
 #include "Models.h"
-#include "PlaylistHeader.h"
 
 namespace Ui {
 
@@ -39,7 +39,7 @@ QString joinNonEmpty(const QStringList& parts)
 SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
 {
-    hero_ = new PlaylistHeader(coverCache, this);
+    hero_ = new HeroPanel(coverCache, this);
     hero_->setPlayButtonVisible(false);
 
     capabilitiesLabel_ = new QLabel(this);
@@ -54,11 +54,11 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     authCard_ = new QWidget(this);
     authCard_->setObjectName(QStringLiteral("sourceAuthCard"));
     // palette(...) roles, not hardcoded colors — this sits on a plain
-    // background (unlike PlaylistHeader's cover-art overlay, which is the
+    // background (unlike HeroPanel's generated-art background, which is the
     // deliberate exception), so it should follow system theme like
     // ToastNotifier does. See ToastNotifier.cpp for the same convention.
     authCard_->setStyleSheet(QStringLiteral("#sourceAuthCard { background: palette(base); "
-                                             "border: 1px solid palette(mid); border-radius: 10px; }"));
+                                            "border: 1px solid palette(mid); border-radius: 10px; }"));
     authCard_->setMaximumWidth(kCardMaxWidth);
 
     auto* iconLabel = new QLabel(authCard_);
@@ -85,7 +85,7 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
 
     copyCodeButton_ = new QPushButton(tr("Copy code"), authCard_);
     connect(copyCodeButton_, &QPushButton::clicked, this,
-            [this]() { QGuiApplication::clipboard()->setText(codeLabel_->text()); });
+        [this]() { QGuiApplication::clipboard()->setText(codeLabel_->text()); });
     copyCodeButton_->hide();
 
     formLayout_ = new QHBoxLayout;
@@ -106,7 +106,7 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
 
     openBrowserButton_ = new QPushButton(tr("Open Browser"), authCard_);
     connect(openBrowserButton_, &QPushButton::clicked, this,
-            [this]() { QDesktopServices::openUrl(QUrl(pendingOAuthUrl_)); });
+        [this]() { QDesktopServices::openUrl(QUrl(pendingOAuthUrl_)); });
     openBrowserButton_->hide();
 
     retryButton_ = new QPushButton(tr("Retry"), authCard_);
@@ -194,13 +194,14 @@ QString SourcePanel::capabilitiesSummary(const QJsonObject& capabilities)
     return joinNonEmpty(parts);
 }
 
-void SourcePanel::setSource(const QString& sourceId, const QString& sourceName, const QString& description,
-                             const QJsonObject& capabilities)
+void SourcePanel::setSource(
+    const QString& sourceId, const QString& sourceName, const QString& description, const QJsonObject& capabilities)
 {
     currentSourceId_ = sourceId;
     const std::optional<QString> playlistDescription
         = description.isEmpty() ? std::nullopt : std::optional<QString>(description);
-    hero_->setPlaylist(Playlist { sourceId, sourceName, playlistDescription, std::nullopt, 0, QStringLiteral("source") });
+    hero_->setPlaylist(
+        Playlist { sourceId, sourceName, playlistDescription, std::nullopt, 0, QStringLiteral("source") });
     const QString summary = capabilitiesSummary(capabilities);
     capabilitiesLabel_->setText(summary);
     capabilitiesLabel_->setVisible(!summary.isEmpty());

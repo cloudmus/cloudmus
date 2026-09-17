@@ -65,12 +65,12 @@ add_executable(cloudmus-qt
     src/History/PlaybackHistory.cpp
 
     src/Ui/MainWindow.cpp
-    src/Ui/ClickableArea.h  # header-only Q_OBJECT class, no matching .cpp — must be listed explicitly for AUTOMOC
     src/Ui/SidebarModel.cpp
     src/Ui/TrackListModel.cpp
     src/Ui/TrackRowDelegate.cpp
     src/Ui/NowPlayingBar.cpp
-    src/Ui/PlaylistHeader.cpp
+    src/Ui/HeroPanel.cpp
+    src/Ui/EmptyStatePlaceholder.cpp
     src/Ui/GeneratedCoverArt.cpp
     src/Ui/SourcePanel.cpp
     src/Ui/ToastNotifier.cpp

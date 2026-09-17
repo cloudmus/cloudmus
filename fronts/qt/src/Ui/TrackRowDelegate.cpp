@@ -1,5 +1,6 @@
 #include "TrackRowDelegate.h"
 
+#include <QFont>
 #include <QIcon>
 #include <QMouseEvent>
 #include <QPainter>
@@ -24,6 +25,12 @@ TrackRowDelegate::TrackRowDelegate(CoverArtCache* coverCache, QObject* parent)
     : QStyledItemDelegate(parent)
     , coverCache_(coverCache)
 {
+}
+
+void TrackRowDelegate::setCurrentlyPlaying(const QString& sourceId, const QString& trackId)
+{
+    currentSourceId_ = sourceId;
+    currentTrackId_ = trackId;
 }
 
 QRect TrackRowDelegate::thumbRect(const QRect& rowRect) const
@@ -89,13 +96,21 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
         const QIcon playIcon = QIcon::fromTheme(QStringLiteral("media-playback-start"));
         const QSize iconSize(18, 18);
         const QRect iconRect(thumb.center().x() - iconSize.width() / 2, thumb.center().y() - iconSize.height() / 2,
-                             iconSize.width(), iconSize.height());
+            iconSize.width(), iconSize.height());
         playIcon.paint(painter, iconRect, Qt::AlignCenter, QIcon::Normal, QIcon::On);
     }
 
-    const QColor textColor = option.state & QStyle::State_Selected ? option.palette.color(QPalette::HighlightedText)
-                                                                   : option.palette.color(QPalette::Text);
-    QColor secondaryColor = textColor;
+    const bool isCurrentTrack = !currentTrackId_.isEmpty() && track.id == currentTrackId_
+        && index.data(TrackListModel::SourceIdRole).toString() == currentSourceId_;
+
+    QColor textColor;
+    if (option.state & QStyle::State_Selected)
+        textColor = option.palette.color(QPalette::HighlightedText);
+    else if (isCurrentTrack)
+        textColor = option.palette.color(QPalette::Highlight); // accent-colored title, see below
+    else
+        textColor = option.palette.color(QPalette::Text);
+    QColor secondaryColor = option.state & QStyle::State_Selected ? textColor : option.palette.color(QPalette::Text);
     secondaryColor.setAlpha(160);
 
     const QString durationText = formatDuration(track.durationMs);
@@ -124,18 +139,31 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     }
 
     painter->setPen(textColor);
-    painter->drawText(titleRect, Qt::AlignVCenter | Qt::AlignLeft,
-                      metrics.elidedText(track.title, Qt::ElideRight, titleRect.width()));
+    if (isCurrentTrack) {
+        // A separate bold QFont/QFontMetrics for eliding *and* drawing —
+        // eliding with the regular metrics above but painting bold would
+        // let the now-wider glyphs overflow past the elided width.
+        QFont boldFont = option.font;
+        boldFont.setBold(true);
+        const QFontMetrics boldMetrics(boldFont);
+        painter->setFont(boldFont);
+        painter->drawText(titleRect, Qt::AlignVCenter | Qt::AlignLeft,
+            boldMetrics.elidedText(track.title, Qt::ElideRight, titleRect.width()));
+        painter->setFont(option.font);
+    } else {
+        painter->drawText(titleRect, Qt::AlignVCenter | Qt::AlignLeft,
+            metrics.elidedText(track.title, Qt::ElideRight, titleRect.width()));
+    }
     painter->setPen(secondaryColor);
     painter->drawText(artistRect, Qt::AlignVCenter | Qt::AlignLeft,
-                      metrics.elidedText(artistNames, Qt::ElideRight, artistRect.width()));
+        metrics.elidedText(artistNames, Qt::ElideRight, artistRect.width()));
 
     painter->setPen(secondaryColor);
     if (!playedAtText.isEmpty()) {
-        const QRect playedAtRect(rect.right() - margin - rightColumnWidth, rect.top() + margin - 2, rightColumnWidth,
-                                 metrics.height());
-        QRect durationRect2(rect.right() - margin - rightColumnWidth, playedAtRect.bottom(), rightColumnWidth,
-                            metrics.height());
+        const QRect playedAtRect(
+            rect.right() - margin - rightColumnWidth, rect.top() + margin - 2, rightColumnWidth, metrics.height());
+        QRect durationRect2(
+            rect.right() - margin - rightColumnWidth, playedAtRect.bottom(), rightColumnWidth, metrics.height());
         painter->drawText(playedAtRect, Qt::AlignVCenter | Qt::AlignRight, playedAtText);
         painter->drawText(durationRect2, Qt::AlignVCenter | Qt::AlignRight, durationText);
     } else {
@@ -148,8 +176,8 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
 
 QSize TrackRowDelegate::sizeHint(const QStyleOptionViewItem&, const QModelIndex&) const { return QSize(0, kRowHeight); }
 
-bool TrackRowDelegate::editorEvent(QEvent* event, QAbstractItemModel* model, const QStyleOptionViewItem& option,
-                                   const QModelIndex& index)
+bool TrackRowDelegate::editorEvent(
+    QEvent* event, QAbstractItemModel* model, const QStyleOptionViewItem& option, const QModelIndex& index)
 {
     if (event->type() == QEvent::MouseButtonRelease) {
         auto* mouseEvent = static_cast<QMouseEvent*>(event);

@@ -17,6 +17,9 @@ public:
     int sidebarWidth() const;
     void setSidebarWidth(int width);
 
+    int heroPanelWidth() const;
+    void setHeroPanelWidth(int width);
+
     int volume() const;
     void setVolume(int volume0To100);
 

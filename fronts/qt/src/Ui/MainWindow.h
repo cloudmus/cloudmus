@@ -14,7 +14,7 @@ class QListView;
 class QModelIndex;
 class QProgressBar;
 class QCloseEvent;
-class QVBoxLayout;
+class QSplitter;
 
 namespace History {
 class PlaybackHistory;
@@ -29,7 +29,8 @@ class NowPlayingBar;
 class SourcePanel;
 class ToastNotifier;
 class CoverArtCache;
-class PlaylistHeader;
+class HeroPanel;
+class EmptyStatePlaceholder;
 
 // Sidebar + track list + persistent now-playing bar + per-source auth status
 // panel + hamburger menu (Settings/About/Quit) — see the plan's UI/UX design.
@@ -38,7 +39,7 @@ class MainWindow : public QMainWindow {
 
 public:
     MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackController& playback, Config::Settings& settings,
-               QWidget* parent = nullptr);
+        QWidget* parent = nullptr);
     ~MainWindow() override;
 
     // Called by the tray's Quit action — bypasses close-to-tray.
@@ -81,12 +82,13 @@ private:
     // there. See the equivalent comment on RpcClient::call() for the full
     // explanation of this coroutine-lifetime pitfall.
     //
-    // A single click on a sidebar item only shows its PlaylistHeader
-    // (cover/title/description) and, for a browsable kind, its track list —
-    // it never starts playback by itself (see docs/protocol.md's
-    // Playlist.kind note and the plan for why My Wave must not auto-play on
-    // select). Playback starts from PlaylistHeader's Play button, a track
-    // double-click, or double-clicking the sidebar item itself
+    // A single click on a sidebar item only shows its HeroPanel promo card
+    // (cover/title/description, unless something's already playing — see
+    // Playback::PlaybackController::hasCurrentTrack()) and, for a
+    // browsable kind, its track list — it never starts playback by itself (see
+    // docs/protocol.md's Playlist.kind note and the plan for why My Wave
+    // must not auto-play on select). Playback starts from HeroPanel's Play
+    // button, a track double-click, or double-clicking the sidebar item itself
     // (onSidebarDoubleClicked, which awaits this and then calls
     // playCurrentPlaylist()).
     Rpc::Task<void> showPlaylistAsync(QString sourceId, Playlist playlist);
@@ -140,29 +142,39 @@ private:
     Config::Settings& settings_;
 
     void repositionTrackListBusyIndicator();
-    // Shows/hides trackListView_ and, together with it, hands playlistHeader_
-    // the layout stretch trackListView_ would otherwise claim — a
+    // Shows/hides trackListPane_ and, together with it, collapses/restores
+    // contentSplitter_'s sizes so heroPanel_ claims the freed width — a
     // radioStation (My Wave) selection hides the list entirely, and without
-    // this playlistHeader_ would just stay pinned at its own small content
-    // height instead of using the freed-up space (see
-    // PlaylistHeader::setPlaylist()'s comment for the other half of this).
+    // this heroPanel_ would just stay pinned at its persisted width instead
+    // of using the freed-up space (see HeroPanel::setFillMode() — it stays
+    // true regardless, this is purely about the splitter's own sizes now).
     void setTrackListVisible(bool visible);
 
     SidebarModel* sidebarModel_ = nullptr;
     QTreeView* sidebarView_ = nullptr;
-    PlaylistHeader* playlistHeader_ = nullptr;
+    HeroPanel* heroPanel_ = nullptr;
     TrackListModel* trackListModel_ = nullptr;
     QListView* trackListView_ = nullptr;
-    QVBoxLayout* trackListLayout_ = nullptr;
+    QSplitter* contentSplitter_ = nullptr;
+    // Thin wrapper around just trackListView_ — its own immediate parent,
+    // needed so trackListBusyIndicator_'s x()/y()-based positioning (same
+    // parent as trackListView_) and the resize event filter both keep
+    // working when contentSplitter_ resizes this pane independently of
+    // trackListContainer as a whole (see the .cpp).
+    QWidget* trackListPane_ = nullptr;
     QProgressBar* trackListBusyIndicator_ = nullptr;
     CoverArtCache* coverArtCache_ = nullptr;
     TrackRowDelegate* trackRowDelegate_ = nullptr;
     NowPlayingBar* nowPlayingBar_ = nullptr;
     SourcePanel* sourcePanel_ = nullptr;
+    // Shown instead of contentSplitter_/sourcePanel_ until the first
+    // playlist/History/source selection — see the constructor and
+    // showPlaylistAsync()/showHistory()/showSourceStatusPanel().
+    EmptyStatePlaceholder* emptyStatePlaceholder_ = nullptr;
     ToastNotifier* toastNotifier_ = nullptr;
     History::PlaybackHistory* playbackHistory_ = nullptr;
 
-    // Stashed so PlaylistHeader's Play button (clicked well after
+    // Stashed so HeroPanel's Play button (clicked well after
     // showPlaylistAsync returns) knows what to start — see its handler in
     // the .cpp.
     QString currentPlaylistSourceId_;

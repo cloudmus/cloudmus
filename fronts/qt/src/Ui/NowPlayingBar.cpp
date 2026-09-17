@@ -1,17 +1,11 @@
 #include "NowPlayingBar.h"
 
-#include <QDesktopServices>
-#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
-#include <QUrl>
 #include <QVBoxLayout>
-
-#include "ClickableArea.h"
-#include "CoverArtCache.h"
 
 namespace Ui {
 
@@ -23,9 +17,8 @@ QString formatDuration(qint64 ms)
 }
 } // namespace
 
-NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
+NowPlayingBar::NowPlayingBar(QWidget* parent)
     : QWidget(parent)
-    , coverCache_(coverCache)
 {
     // No setFixedHeight(): the controls column below is two rows now
     // (buttons, then sliders) instead of one, so its natural height varies
@@ -33,44 +26,6 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
     // hardcoding — Fixed vertical policy alone already means "use
     // sizeHint()'s height as both min and max".
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-
-    coverLabel_ = new QLabel(this);
-    coverLabel_->setFixedSize(56, 56);
-    coverLabel_->setScaledContents(true);
-
-    titleLabel_ = new QLabel(tr("Nothing playing"), this);
-    artistLabel_ = new QLabel(this);
-    // Ignored horizontally so a long title/artist's sizeHint can't force
-    // this bar (and the whole window) to stay at least that wide — see
-    // updateElidedText()/resizeEvent(), which re-elide the *displayed*
-    // text by hand to whatever width the layout actually ends up giving
-    // these labels.
-    titleLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    artistLabel_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    auto* textLayout = new QVBoxLayout;
-    textLayout->setContentsMargins(0, 0, 0, 0);
-    textLayout->addWidget(titleLabel_);
-    textLayout->addWidget(artistLabel_);
-
-    coverAndTitle_ = new ClickableArea(this);
-    coverAndTitle_->setCursor(Qt::PointingHandCursor);
-    auto* coverAndTitleLayout = new QHBoxLayout(coverAndTitle_);
-    coverAndTitleLayout->setContentsMargins(8, 8, 8, 8);
-    coverAndTitleLayout->addWidget(coverLabel_);
-    coverAndTitleLayout->addLayout(textLayout);
-    connect(coverAndTitle_, &ClickableArea::clicked, this, [this]() {
-        if (!currentWebUrl_.isEmpty())
-            QDesktopServices::openUrl(QUrl(currentWebUrl_));
-    });
-    // pixmap() below may return a null placeholder while the cover fetches
-    // in the background (see CoverArtCache) — repaint once it's ready.
-    connect(coverCache_, &CoverArtCache::pixmapReady, this, [this](const QString& url) {
-        if (url != currentCoverUrl_)
-            return;
-        QPixmap pixmap = coverCache_->pixmap(url, coverLabel_->size());
-        if (!pixmap.isNull())
-            coverLabel_->setPixmap(pixmap);
-    });
 
     previousButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-skip-backward")), QString(), this);
     playPauseButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-start")), QString(), this);
@@ -80,6 +35,13 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
     connect(nextButton_, &QPushButton::clicked, this, &NowPlayingBar::nextClicked);
     connect(stopButton_, &QPushButton::clicked, this, &NowPlayingBar::stopClicked);
+    // Nothing loaded yet at construction — setTrackAvailable()/
+    // setQueueAvailable() (driven by PlaybackController's own state, see
+    // MainWindow) enable these once there's something to act on.
+    previousButton_->setEnabled(false);
+    playPauseButton_->setEnabled(false);
+    nextButton_->setEnabled(false);
+    stopButton_->setEnabled(false);
     // Top row of the controls column below — transport buttons, then
     // whatever setTrailingWidget() appends (MainWindow's hamburger menu
     // button) pinned to the right by the stretch.
@@ -94,6 +56,7 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
     durationLabel_ = new QLabel(QStringLiteral("0:00"), this);
     seekSlider_ = new QSlider(Qt::Horizontal, this);
     seekSlider_->setRange(0, 0);
+    seekSlider_->setEnabled(false);
     connect(seekSlider_, &QSlider::sliderPressed, this, [this]() { userIsDraggingSeek_ = true; });
     connect(seekSlider_, &QSlider::sliderReleased, this, [this]() {
         userIsDraggingSeek_ = false;
@@ -125,40 +88,30 @@ NowPlayingBar::NowPlayingBar(CoverArtCache* coverCache, QWidget* parent)
     // — that one row left this widget's fixed 72px height mostly empty
     // padding above/below it, since none of these controls are anywhere
     // near that tall on their own.
-    auto* controlsColumn = new QVBoxLayout;
-    controlsColumn->addLayout(buttonsRow_);
-    controlsColumn->addLayout(slidersRow);
-
-    auto* rootLayout = new QHBoxLayout(this);
-    rootLayout->setContentsMargins(0, 0, 8, 0);
-    rootLayout->addWidget(coverAndTitle_);
-    rootLayout->addLayout(controlsColumn, 1);
+    auto* rootLayout = new QVBoxLayout(this);
+    rootLayout->setContentsMargins(8, 4, 8, 4);
+    rootLayout->addLayout(buttonsRow_);
+    rootLayout->addLayout(slidersRow);
 }
 
-void NowPlayingBar::setTrack(const Track& track)
+void NowPlayingBar::setTrackAvailable(bool available)
 {
-    currentTrackTitle_ = track.title;
-    QString artistNames;
-    for (int i = 0; i < track.artists.size(); ++i) {
-        if (i > 0)
-            artistNames += QStringLiteral(", ");
-        artistNames += track.artists[i].name;
+    playPauseButton_->setEnabled(available);
+    stopButton_->setEnabled(available);
+    seekSlider_->setEnabled(available);
+    if (!available) {
+        lastDurationMs_ = 0;
+        seekSlider_->setRange(0, 0);
+        seekSlider_->setValue(0);
+        elapsedLabel_->setText(QStringLiteral("0:00"));
+        durationLabel_->setText(QStringLiteral("0:00"));
     }
-    currentArtistNames_ = artistNames;
-    updateElidedText();
-    currentWebUrl_ = track.webUrl.value_or(QString());
-    coverAndTitle_->setCursor(currentWebUrl_.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
+}
 
-    currentCoverUrl_ = track.coverUrl.value_or(QString());
-    if (!currentCoverUrl_.isEmpty()) {
-        QPixmap pixmap = coverCache_->pixmap(currentCoverUrl_, coverLabel_->size());
-        if (!pixmap.isNull())
-            coverLabel_->setPixmap(pixmap);
-        else
-            coverLabel_->clear(); // fetch is in flight — pixmapReady above repaints once it lands
-    } else {
-        coverLabel_->clear();
-    }
+void NowPlayingBar::setQueueAvailable(bool available)
+{
+    previousButton_->setEnabled(available);
+    nextButton_->setEnabled(available);
 }
 
 void NowPlayingBar::setPlaying(bool playing)
@@ -170,9 +123,9 @@ void NowPlayingBar::setPlaying(bool playing)
 void NowPlayingBar::setLoading(bool loading)
 {
     playPauseButton_->setEnabled(!loading);
-    playPauseButton_->setIcon(QIcon::fromTheme(
-        loading ? QStringLiteral("view-refresh")
-                : (playing_ ? QStringLiteral("media-playback-pause") : QStringLiteral("media-playback-start"))));
+    playPauseButton_->setIcon(QIcon::fromTheme(loading
+            ? QStringLiteral("view-refresh")
+            : (playing_ ? QStringLiteral("media-playback-pause") : QStringLiteral("media-playback-start"))));
 }
 
 void NowPlayingBar::updatePlayPauseIcon()
@@ -201,19 +154,5 @@ void NowPlayingBar::setVolume(int volume0To100)
 }
 
 void NowPlayingBar::setTrailingWidget(QWidget* widget) { buttonsRow_->addWidget(widget); }
-
-void NowPlayingBar::updateElidedText()
-{
-    const QFontMetrics titleMetrics(titleLabel_->font());
-    titleLabel_->setText(titleMetrics.elidedText(currentTrackTitle_, Qt::ElideRight, titleLabel_->width()));
-    const QFontMetrics artistMetrics(artistLabel_->font());
-    artistLabel_->setText(artistMetrics.elidedText(currentArtistNames_, Qt::ElideRight, artistLabel_->width()));
-}
-
-void NowPlayingBar::resizeEvent(QResizeEvent* event)
-{
-    QWidget::resizeEvent(event);
-    updateElidedText();
-}
 
 } // namespace Ui
