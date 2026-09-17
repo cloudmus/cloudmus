@@ -1,10 +1,12 @@
 #include "NowPlayingBar.h"
 
+#include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
+#include <QUrl>
 #include <QVBoxLayout>
 
 namespace Ui {
@@ -31,17 +33,27 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     playPauseButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-start")), QString(), this);
     nextButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-skip-forward")), QString(), this);
     stopButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-stop")), QString(), this);
+    // Opens the current track's page on its source platform (e.g. a
+    // Yandex Music/YouTube Music track URL) — see setTrackWebUrl().
+    openTrackPageButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("internet-web-browser")), QString(), this);
+    openTrackPageButton_->setToolTip(tr("Open track page"));
     connect(previousButton_, &QPushButton::clicked, this, &NowPlayingBar::previousClicked);
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
     connect(nextButton_, &QPushButton::clicked, this, &NowPlayingBar::nextClicked);
     connect(stopButton_, &QPushButton::clicked, this, &NowPlayingBar::stopClicked);
+    connect(openTrackPageButton_, &QPushButton::clicked, this, [this]() {
+        if (!currentWebUrl_.isEmpty())
+            QDesktopServices::openUrl(QUrl(currentWebUrl_));
+    });
     // Nothing loaded yet at construction — setTrackAvailable()/
-    // setQueueAvailable() (driven by PlaybackController's own state, see
-    // MainWindow) enable these once there's something to act on.
+    // setQueueAvailable()/setTrackWebUrl() (driven by PlaybackController's
+    // own state, see MainWindow) enable these once there's something to
+    // act on.
     previousButton_->setEnabled(false);
     playPauseButton_->setEnabled(false);
     nextButton_->setEnabled(false);
     stopButton_->setEnabled(false);
+    openTrackPageButton_->setEnabled(false);
     // Top row of the controls column below — transport buttons, then
     // whatever setTrailingWidget() appends (MainWindow's hamburger menu
     // button) pinned to the right by the stretch.
@@ -50,6 +62,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     buttonsRow_->addWidget(playPauseButton_);
     buttonsRow_->addWidget(nextButton_);
     buttonsRow_->addWidget(stopButton_);
+    buttonsRow_->addWidget(openTrackPageButton_);
     buttonsRow_->addStretch(1);
 
     elapsedLabel_ = new QLabel(QStringLiteral("0:00"), this);
@@ -112,6 +125,12 @@ void NowPlayingBar::setQueueAvailable(bool available)
 {
     previousButton_->setEnabled(available);
     nextButton_->setEnabled(available);
+}
+
+void NowPlayingBar::setTrackWebUrl(const QString& url)
+{
+    currentWebUrl_ = url;
+    openTrackPageButton_->setEnabled(!url.isEmpty());
 }
 
 void NowPlayingBar::setPlaying(bool playing)

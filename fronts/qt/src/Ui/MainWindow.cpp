@@ -85,6 +85,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(&playback_, &Playback::PlaybackController::currentTrackAvailabilityChanged, this, [this](bool available) {
         nowPlayingBar_->setTrackAvailable(available);
         if (!available) {
+            nowPlayingBar_->setTrackWebUrl(QString());
             heroPanel_->setPlaylist(currentPlaylist_);
             trackRowDelegate_->setCurrentlyPlaying(QString(), QString());
             trackListView_->viewport()->update();
@@ -95,6 +96,9 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
 
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
         [this](const Track& track, const QString& sourceId) { playbackHistory_->record(sourceId, track); });
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this, [this](const Track& track, const QString&) {
+        nowPlayingBar_->setTrackWebUrl(track.webUrl.value_or(QString()));
+    });
     // HeroPanel shows what's playing instead of the browsed playlist's
     // promo card whenever playback_.hasCurrentTrack() — see
     // showPlaylistAsync()/showHistory()'s guard, and the

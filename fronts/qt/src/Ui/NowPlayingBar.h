@@ -41,6 +41,13 @@ public:
     // Previous/next only make sense with something loaded to navigate —
     // enables/disables both together.
     void setQueueAvailable(bool available);
+    // Enables the "open track page" button iff url is non-empty (a track
+    // without a webUrl, or no current track at all — pass an empty
+    // string either way), and is what that button opens on click. Handled
+    // entirely inside this class (unlike the transport buttons, which
+    // just emit a signal for MainWindow/PlaybackController to act on)
+    // since opening a URL needs no playback-state coordination.
+    void setTrackWebUrl(const QString& url);
 
     // Appended to the right end of the transport-button row (top row — see
     // the .cpp), after a stretch that keeps it pinned there. MainWindow
@@ -66,6 +73,7 @@ private:
     QPushButton* playPauseButton_ = nullptr;
     QPushButton* nextButton_ = nullptr;
     QPushButton* stopButton_ = nullptr;
+    QPushButton* openTrackPageButton_ = nullptr;
     QSlider* seekSlider_ = nullptr;
     QLabel* elapsedLabel_ = nullptr;
     QLabel* durationLabel_ = nullptr;
@@ -77,6 +85,7 @@ private:
     bool playing_ = false;
     bool userIsDraggingSeek_ = false;
     qint64 lastDurationMs_ = 0;
+    QString currentWebUrl_;
 };
 
 } // namespace Ui
