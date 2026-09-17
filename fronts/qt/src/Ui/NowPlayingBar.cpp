@@ -1,6 +1,7 @@
 #include "NowPlayingBar.h"
 
 #include <QDesktopServices>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -35,7 +36,12 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     stopButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-stop")), QString(), this);
     // Opens the current track's page on its source platform (e.g. a
     // Yandex Music/YouTube Music track URL) — see setTrackWebUrl().
-    openTrackPageButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("internet-web-browser")), QString(), this);
+    // open-link-symbolic (the standard "external link" box-with-arrow
+    // glyph) — not e.g. internet-web-browser, a colorful application/
+    // category icon in Breeze that clashed with the flat monochrome
+    // media-* glyphs the transport buttons use; this one is a plain
+    // action icon, same family/style as the rest of this row.
+    openTrackPageButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("open-link-symbolic")), QString(), this);
     openTrackPageButton_->setToolTip(tr("Open track page"));
     connect(previousButton_, &QPushButton::clicked, this, &NowPlayingBar::previousClicked);
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
@@ -62,6 +68,17 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     buttonsRow_->addWidget(playPauseButton_);
     buttonsRow_->addWidget(nextButton_);
     buttonsRow_->addWidget(stopButton_);
+
+    // A vertical separator, not just spacing, so openTrackPageButton_
+    // visually reads as its own group — a "jump elsewhere" action,
+    // distinct from the track transport controls to its left.
+    auto* transportSeparator = new QFrame(this);
+    transportSeparator->setFrameShape(QFrame::VLine);
+    transportSeparator->setFrameShadow(QFrame::Sunken);
+    buttonsRow_->addSpacing(6);
+    buttonsRow_->addWidget(transportSeparator);
+    buttonsRow_->addSpacing(6);
+
     buttonsRow_->addWidget(openTrackPageButton_);
     buttonsRow_->addStretch(1);
 
