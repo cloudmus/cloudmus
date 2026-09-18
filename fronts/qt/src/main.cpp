@@ -39,6 +39,13 @@ int main(int argc, char** argv)
     QApplication app(argc, argv);
     QApplication::setOrganizationName(QStringLiteral("cloudmus"));
     QApplication::setApplicationName(QStringLiteral("cloudmus-qt"));
+    // Must match the "cloudmus-qt.desktop" basename AppRun installs to
+    // ~/.local/share/applications/ (see AppRun's own comment) — without a
+    // consistent app_id tying the two together, Wayland compositors that
+    // can't take a window icon directly from the client (the bundled Qt6
+    // in the AppImage predates the xdg-toplevel-icon-v1 protocol) have no
+    // way to resolve one from a .desktop file's Icon= key at all.
+    QApplication::setDesktopFileName(QStringLiteral("cloudmus-qt"));
     installLogging(); // reads --debug / CLOUDMUS_QT_DEBUG — see Logging.h
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/icons/logo.svg")));
     QApplication::setQuitOnLastWindowClosed(false); // closing to tray must not exit the app

@@ -4,5 +4,6 @@ Name=CloudMus
 Comment=A multi-source music player
 Exec=cloudmus-qt
 Icon=cloudmus-qt
+StartupWMClass=cloudmus-qt
 Categories=AudioVideo;Audio;Player;
 Terminal=false

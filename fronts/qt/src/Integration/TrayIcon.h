@@ -31,6 +31,12 @@ signals:
     void quitRequested();
 
 private:
+    // Picks tray_icon_dark.svg/tray_icon_light.svg (see icons.qrc) to match
+    // the current color scheme — a plain white glyph reads fine on a dark
+    // panel but disappears on a light one, and vice versa. Called once at
+    // construction and again whenever the desktop's scheme changes live.
+    void updateTrayIcon();
+
     QWidget* mainWindow_;
     QSystemTrayIcon* trayIcon_ = nullptr;
     QAction* playPauseAction_ = nullptr;

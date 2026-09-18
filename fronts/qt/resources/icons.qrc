@@ -3,5 +3,7 @@
         <file>icons/logo.svg</file>
         <file>icons/logo.png</file>
         <file>icons/small_logo.svg</file>
+        <file>icons/tray_icon_dark.svg</file>
+        <file>icons/tray_icon_light.svg</file>
     </qresource>
 </RCC>

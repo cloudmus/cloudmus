@@ -26,6 +26,37 @@ PYTHON3="$HERE/usr/bin/python3"
 # rather than clobbering it).
 export QT_QPA_PLATFORMTHEME="${QT_QPA_PLATFORMTHEME:-xdgdesktopportal}"
 
+# Without this, the mouse cursor looks visually foreign on KDE Plasma
+# Wayland sessions specifically: unlike most other desktops, Plasma's own
+# Wayland session does not export XCURSOR_THEME/XCURSOR_SIZE at all
+# (confirmed empirically: `env | grep -i xcursor` is empty there), relying
+# instead on its own KDEPlatformTheme integration to hand the cursor theme
+# to Qt directly — the same plugin that's ABI-incompatible with this
+# AppImage's bundled Qt6 as noted above, and for the same reason can't be
+# loaded here. Without either mechanism, the bundled QtWaylandClient has no
+# way to discover a theme name and falls back to a generic cursor instead
+# of the user's actual one (Breeze, in practice). Only set if unset, so an
+# already-correct value (this var *is* exported properly on most non-KDE
+# desktops) is never clobbered.
+if [ -z "${XCURSOR_THEME:-}" ]; then
+    KCMINPUTRC="${XDG_CONFIG_HOME:-$HOME/.config}/kcminputrc"
+    if [ -f "$KCMINPUTRC" ]; then
+        CONFIGURED_CURSOR_THEME="$(sed -n 's/^cursorTheme=//p' "$KCMINPUTRC" | tail -n1)"
+    else
+        CONFIGURED_CURSOR_THEME=""
+    fi
+    if [ -n "$CONFIGURED_CURSOR_THEME" ]; then
+        export XCURSOR_THEME="$CONFIGURED_CURSOR_THEME"
+    elif [ -d /usr/share/icons/breeze_cursors ]; then
+        # No explicit kcminputrc override present (the common case — Plasma
+        # ships this as its own implicit default rather than writing it out)
+        # but the theme's files are actually installed, which is itself a
+        # strong signal this is a Plasma-ish desktop — use it rather than
+        # leaving the cursor generic.
+        export XCURSOR_THEME=breeze_cursors
+    fi
+fi
+
 # libavformat (mpv's network/demuxer layer, separate from Qt's own
 # OpenSSL-backed TLS backend) links against GnuTLS, compiled by Debian
 # with Debian's own default CA trust-store path baked in
@@ -147,6 +178,52 @@ do
 {"id":"$id","name":"$name","argv":["$PYTHON3","-m","$module"],"protocolVersion":"1.2"}
 JSON
 done
+
+# Without this, the window looks visually foreign in a different way than
+# the QT_QPA_PLATFORMTHEME/XCURSOR_THEME issues above: it gets a
+# completely generic Wayland icon in the KWin decoration/Alt-Tab, not our
+# logo. The bundled Qt6 (6.5.3) predates the xdg-toplevel-icon-v1 Wayland
+# protocol (confirmed absent via `strings` on libQt6WaylandClient.so.6 —
+# no toplevel_icon/icon_manager symbols at all), which is the only
+# mechanism a client has to hand the compositor an icon directly. Without
+# it, KWin's one remaining way to resolve a window's icon is matching its
+# app_id (set via QApplication::setDesktopFileName() in main.cpp) against
+# an *installed* .desktop file's Icon= key — same as any normally
+# packaged app — but nothing installs one on the host; AppDir's own copy
+# under usr/share/{applications,icons}/ (written by build-in-docker.sh)
+# only self-describes the AppImage for thumbnailing/appimagetool, never
+# reaches ~/.local/share.
+#
+# $APPIMAGE (set by the AppImage runtime itself, before this script ever
+# runs) is the stable path to the *.AppImage file — unlike $HERE, which
+# points at this run's temporary mount and disappears when it exits.
+# Only set when actually launched as a real .AppImage (not a bare
+# extracted AppDir run, used for local debugging) — skip entirely
+# otherwise, rather than writing a launcher entry pointing nowhere
+# useful. Unlike the backend manifests above, deliberately no
+# trap-cleanup: both files point at (or copy from) content that stays
+# valid after this process exits, same as any real app installation —
+# removing them on quit would just make the user's app menu entry vanish
+# for no reason.
+if [ -n "${APPIMAGE:-}" ]; then
+    DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+    mkdir -p "$DATA_HOME/applications" "$DATA_HOME/icons/hicolor/512x512/apps"
+    cp "$HERE/usr/share/icons/hicolor/512x512/apps/cloudmus-qt.png" \
+        "$DATA_HOME/icons/hicolor/512x512/apps/cloudmus-qt.png"
+    sed "s|^Exec=.*|Exec=$APPIMAGE|" \
+        "$HERE/usr/share/applications/cloudmus-qt.desktop" \
+        > "$DATA_HOME/applications/cloudmus-qt.desktop"
+    # Best-effort: without this, KDE's own periodic rescan still picks up
+    # the new/changed .desktop file eventually, just not necessarily
+    # before this very launch's window already mapped and asked for an
+    # icon. Not every desktop has this binary at all (KDE-specific).
+    for sycoca in kbuildsycoca6 kbuildsycoca5; do
+        if command -v "$sycoca" >/dev/null 2>&1; then
+            "$sycoca" --noincremental >/dev/null 2>&1 || true
+            break
+        fi
+    done
+fi
 
 # NOT exec'd into AppRun.real (unlike a typical AppImage wrapper):
 # exec-replacing this process means it never "exits" in bash's own

@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QIcon>
 #include <QMenu>
+#include <QStyleHints>
 #include <QSystemTrayIcon>
 #include <QWidget>
 
@@ -13,7 +14,9 @@ TrayIcon::TrayIcon(QWidget* mainWindow, QObject* parent)
     : QObject(parent)
     , mainWindow_(mainWindow)
 {
-    trayIcon_ = new QSystemTrayIcon(QIcon(QStringLiteral(":/icons/icons/small_logo.svg")), this);
+    trayIcon_ = new QSystemTrayIcon(this);
+    updateTrayIcon();
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, &TrayIcon::updateTrayIcon);
     trayIcon_->setToolTip(QStringLiteral("CloudMus"));
 
     auto* menu = new QMenu();
@@ -59,6 +62,16 @@ void TrayIcon::setPlaying(bool playing)
     playPauseAction_->setText(playing ? tr("Pause") : tr("Play"));
     playPauseAction_->setIcon(
         QIcon::fromTheme(playing ? QStringLiteral("media-playback-pause") : QStringLiteral("media-playback-start")));
+}
+
+void TrayIcon::updateTrayIcon()
+{
+    // Unknown (no portal/desktop integration reporting a scheme) defaults
+    // to the light-panel (black) glyph — a light panel is the more common
+    // case, and black-on-unknown is less likely to vanish than white-on-unknown.
+    const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    trayIcon_->setIcon(QIcon(dark ? QStringLiteral(":/icons/icons/tray_icon_dark.svg")
+                                   : QStringLiteral(":/icons/icons/tray_icon_light.svg")));
 }
 
 } // namespace Integration
