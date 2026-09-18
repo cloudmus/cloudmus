@@ -5,6 +5,7 @@ __pycache__/
 downloads/
 *.mp3
 build/
+build-appimage/
 dist/
 
 # protocol/codegen output — regenerate with:

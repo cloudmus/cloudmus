@@ -1,0 +1,173 @@
+#!/bin/bash
+# cloudmus-qt AppImage entry point. Wraps AppRun.real (renamed by
+# build-in-docker.sh) — for Qt6, linuxdeploy skips generating an actual
+# launcher binary/script there at all ("skipping AppRun hook creation on
+# Qt 6" in its own build log); it's just a plain symlink straight to
+# usr/bin/cloudmus-qt. Qt itself finds its own plugins via the qt.conf
+# linuxdeploy-plugin-qt places next to the binary, and every bundled
+# shared library gets its RPATH patched to $ORIGIN at build time — so
+# nothing in this whole launch chain ever sets PATH or LD_LIBRARY_PATH.
+# This script's own job is seeding backend manifests (and a couple of
+# env vars, below) before handing off to it.
+set -euo pipefail
+HERE="$(dirname "$(readlink -f "${0}")")"
+PYTHON3="$HERE/usr/bin/python3"
+
+# Without this, cloudmus-qt looks visually foreign on KDE/GNOME/etc.: the
+# actual desktop-specific Qt platform theme plugin (e.g. KDE's Plasma
+# integration) is compiled against the *system's* Qt and isn't
+# ABI-compatible with the Qt6 bundled in this AppImage, so it can't be
+# loaded here even if present on the host. xdgdesktopportal is Qt's own
+# cross-desktop answer to this, bundled in every Qt6 install (including
+# ours) — it reads color scheme/accent/fonts from the running
+# xdg-desktop-portal service over D-Bus instead of needing a
+# desktop-specific plugin at all. Only set if the user hasn't already
+# chosen a platform theme themselves (respects an existing override
+# rather than clobbering it).
+export QT_QPA_PLATFORMTHEME="${QT_QPA_PLATFORMTHEME:-xdgdesktopportal}"
+
+# libavformat (mpv's network/demuxer layer, separate from Qt's own
+# OpenSSL-backed TLS backend) links against GnuTLS, compiled by Debian
+# with Debian's own default CA trust-store path baked in
+# (/etc/ssl/certs/ca-certificates.crt) — which doesn't exist on every
+# distro this AppImage might run on (confirmed missing on openSUSE, which
+# uses per-certificate hashed symlinks under /etc/ssl/certs instead of
+# one combined file there). Without a valid trust store, TLS certificate
+# verification fails silently rather than with a clear error — mpv just
+# reports an empty Mime-type and "No format found" for a perfectly
+# normal stream URL. AudioPlayer.cpp reads this to set mpv's own
+# documented --tls-ca-file option directly. Reusing the certifi package's
+# CA bundle (already bundled as a transitive backend dependency —
+# requests/urllib3 pull it in) instead of shipping a second copy of the
+# same certificate list.
+CERTIFI_BUNDLE="$HERE/usr/python-runtime/lib/python3.11/site-packages/certifi/cacert.pem"
+if [ -f "$CERTIFI_BUNDLE" ]; then
+    export CLOUDMUS_TLS_CA_FILE="$CERTIFI_BUNDLE"
+fi
+
+# mpv's built-in ytdl_hook script shells out to a yt-dlp/youtube-dl
+# *executable* for any URL its own demuxer probing doesn't immediately
+# recognize (confirmed via mpv's own log: "youtube-dl failed: not found
+# or not enough permissions" — happens even for a direct, extension-less
+# backend stream URL, not just video-site pages). We bundle the yt-dlp
+# *package* already (a youtube-music backend dependency, which also
+# produces this console-script binary) — just needed exposing to mpv.
+#
+# Getting there took a few wrong turns, all confirmed empirically rather
+# than assumed, because Debian 11's libmpv is old (0.32.0):
+#   1. A CLOUDMUS_YTDLP_PATH env var, read by AudioPlayer.cpp to set
+#      mpv's script-opts=ytdl_hook-ytdl_path, was rejected outright
+#      ("script-opts: unknown key ytdl_path, ignoring") — that option
+#      only exists in a *later* mpv than 0.32.0.
+#   2. Guessing the pre-rename key "path" next: still "unknown key path,
+#      ignoring" — in 0.32.0's actual source, that name lives on a
+#      separate internal Lua table, never registered as a
+#      script-opts-configurable option in this version at all.
+#   3. What 0.32.0 *does* support: mp.find_config_file("youtube-dl") — a
+#      lookup through mpv's own config-directory search path, falling
+#      back to bare "youtube-dl" via PATH only if that returns nothing.
+#      Setting MPV_HOME here to redirect that search to an AppImage-
+#      owned directory (instead of the user's real ~/.config/mpv/)
+#      still weren't enough on its own, though: embedded libmpv defaults
+#      its own "config" option to "no" specifically to avoid touching
+#      *any* user files unless asked, and that also gates
+#      find_config_file, not just mpv.conf/input.conf loading. The
+#      actually-working fix is in AudioPlayer.cpp: reading
+#      CLOUDMUS_MPV_CONFIG_DIR (set below) to call mpv_set_option_string
+#      for both "config-dir" *and* "config"="yes" directly through mpv's
+#      own C API — confirmed to work where the MPV_HOME env var alone
+#      did not. Safe to do unconditionally: this points at our own
+#      empty-except-for-youtube-dl directory, never the user's real mpv
+#      config, so nothing else ends up read from it.
+MPV_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cloudmus/mpv-appimage"
+mkdir -p "$MPV_CONFIG_DIR"
+
+# A plain symlink to usr/bin/yt-dlp doesn't work: that file is pip's own
+# generated console-script wrapper, and pip bakes the *build-time*
+# absolute path of the interpreter into its shebang line
+# (`#!/workspace/dist/AppDir/usr/python-runtime/bin/python3.11` — the
+# Docker build container's bind-mount path, not anything that exists on
+# the actual machine this runs on) — confirmed by cat-ing it directly.
+# exec() on that phantom path fails with ENOENT, which mpv's ytdl_hook
+# reports as the same generic "not found or not enough permissions" as
+# if the file were missing entirely. A freshly generated wrapper here,
+# with $PYTHON3 (this run's real, correctly-resolved interpreter path)
+# baked in directly instead of trusting pip's shebang, sidesteps that
+# entirely — same reasoning as the backend manifests just below, and for
+# the same underlying reason (only $HERE, computed once we're actually
+# running, is trustworthy — nothing fixed at build time is).
+#
+# rm -f first, always: `>` redirection follows an existing symlink
+# rather than replacing it, so a dangling one left over from an earlier
+# run (a real thing that happened here mid-development, when this used
+# to be `ln -sf` straight to $APPDIR/usr/bin/yt-dlp — the *previous*
+# run's now-torn-down mount path) makes the write below fail with
+# "No such file or directory", same as if the parent directory itself
+# were missing.
+rm -f "$MPV_CONFIG_DIR/youtube-dl"
+cat > "$MPV_CONFIG_DIR/youtube-dl" <<SH
+#!/bin/sh
+exec "$PYTHON3" -m yt_dlp "\$@"
+SH
+chmod +x "$MPV_CONFIG_DIR/youtube-dl"
+export CLOUDMUS_MPV_CONFIG_DIR="$MPV_CONFIG_DIR"
+
+# Deliberately NOT touching PATH here. BackendManifest.cpp's discovery
+# scans the *whole* ~/.config/cloudmus/backends.d/ directory, with no
+# restriction on where a manifest came from — a user can already drop
+# their own backend's manifest.json there (per the README's "Adding a
+# new backend"), e.g. one that runs on their system Python with its own
+# separate set of pip packages. QProcess inherits this process's
+# environment for every child it spawns, so prepending this AppImage's
+# usr/bin to PATH would silently redirect even a user-added backend's own
+# bare "python3" into our bundled, limited (only our four backends'
+# dependencies) interpreter instead of theirs. Writing an absolute path
+# into just the files we own, below, avoids that entirely.
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cloudmus/backends.d"
+mkdir -p "$CONFIG_DIR"
+
+# Only ever touch the exact three files below — never anything else that
+# might already be in this directory (a user's own backend manifest is
+# left completely alone). Safe to overwrite every launch: these three
+# are fully owned/managed by this AppImage, not user config, and need a
+# fresh absolute path every time since $APPDIR is a new mount point per
+# launch.
+MANIFEST_FILES=(
+    "$CONFIG_DIR/local-folder.json"
+    "$CONFIG_DIR/yandex-music.json"
+    "$CONFIG_DIR/youtube-music.json"
+)
+for spec in \
+    "local-folder:cloudmus_backend_local:Local Folder" \
+    "yandex-music:cloudmus_backend_yandex:Yandex Music" \
+    "youtube-music:cloudmus_backend_ytmusic:YouTube Music"
+do
+  IFS=: read -r id module name <<< "$spec"
+  cat > "$CONFIG_DIR/$id.json" <<JSON
+{"id":"$id","name":"$name","argv":["$PYTHON3","-m","$module"],"protocolVersion":"1.2"}
+JSON
+done
+
+# NOT exec'd into AppRun.real (unlike a typical AppImage wrapper):
+# exec-replacing this process means it never "exits" in bash's own
+# sense, so an EXIT trap here would never fire, leaving the three files
+# above dangling with this run's now-dead mount path
+# ($APPDIR/usr/bin/python3 under /tmp/.mount_.../, gone the moment this
+# AppImage process ends) — permanently shadowing a *separate*,
+# non-AppImage dev build of cloudmus-qt sharing this same
+# ~/.config/cloudmus/backends.d/ directory (BackendManifest.cpp always
+# scans it first, before any dev-repo-relative fallback), since it has
+# no way to know these entries have gone stale. Confirmed happening in
+# practice: after quitting an AppImage run, a plain dev build's
+# backends all failed with "backend disconnected" (QProcess silently
+# failing to spawn a since-unmounted path) until these files were
+# deleted by hand. Running AppRun.real as a real child instead, and
+# cleaning these files up once it exits (whether normally or via a
+# signal), keeps them valid for exactly as long as they actually are.
+cleanup() {
+    rm -f "${MANIFEST_FILES[@]}"
+}
+trap cleanup EXIT
+
+"$HERE/AppRun.real" "$@"
+exit $?

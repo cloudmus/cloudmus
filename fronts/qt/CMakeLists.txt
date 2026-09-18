@@ -19,14 +19,25 @@ pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
 # plan's "Generated code: gitignored" note for why this tradeoff was made.
 # Prefer the repo's own .venv (where the rest of the project already
 # installs jinja2/pyyaml, see backends/py-rpc-common) over a bare system
-# python3 that likely doesn't have them.
+# python3 that likely doesn't have them — but only as a default: guarded
+# by `if(NOT PYTHON3_EXECUTABLE)` so an explicit `-DPYTHON3_EXECUTABLE=`
+# on the cmake command line wins instead. Needed for the AppImage Docker
+# build (see packaging/appimage/build-in-docker.sh): the host repo's own
+# .venv gets bind-mounted into the container along with everything else,
+# so `EXISTS .venv/bin/python3` is still true in there, but that venv was
+# created against the host's Python and doesn't resolve its packages
+# correctly under the container's different Python/filesystem — it
+# "exists" but can't actually see jinja2, unlike the container's own
+# system python3 which build-in-docker.sh installs jinja2/pyyaml into.
 set(CLOUDMUS_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 get_filename_component(CLOUDMUS_REPO_ROOT ${CLOUDMUS_REPO_ROOT} ABSOLUTE)
 
-if(EXISTS ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
-    set(PYTHON3_EXECUTABLE ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
-else()
-    find_program(PYTHON3_EXECUTABLE NAMES python3 python REQUIRED)
+if(NOT PYTHON3_EXECUTABLE)
+    if(EXISTS ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
+        set(PYTHON3_EXECUTABLE ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
+    else()
+        find_program(PYTHON3_EXECUTABLE NAMES python3 python REQUIRED)
+    endif()
 endif()
 set(GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
 set(GENERATED_CPP_STAMP ${CMAKE_CURRENT_BINARY_DIR}/generated_cpp.stamp)
@@ -87,6 +98,16 @@ add_executable(cloudmus-qt
     resources/icons.qrc
 )
 add_dependencies(cloudmus-qt protocol_codegen_cpp)
+
+# GCC needs this explicitly for C++20 coroutines (Rpc::Task<T>,
+# co_await/co_return in RpcClient/PlaybackController/etc.) on the GCC
+# versions older, still-widely-deployed distros ship (e.g. GCC 10 on
+# Debian 11, used for the AppImage build — see packaging/appimage/) — a
+# no-op on toolchains where coroutines are already enabled unconditionally
+# under -std=c++20.
+target_compile_options(cloudmus-qt PRIVATE
+    $<$<CXX_COMPILER_ID:GNU>:-fcoroutines>
+)
 
 target_compile_definitions(cloudmus-qt PRIVATE
     CLOUDMUS_DEV_REPO_ROOT="${CLOUDMUS_REPO_ROOT}"

@@ -3,6 +3,9 @@
 #include <QObject>
 #include <QString>
 
+class QNetworkAccessManager;
+class QNetworkReply;
+
 struct mpv_handle;
 struct mpv_event;
 
@@ -50,9 +53,20 @@ private:
 
     static void mpvWakeup(void* ctx);
 
+    void loadUrl(const QString& url);
+
     mpv_handle* mpv_ = nullptr;
     qint64 lastPositionMs_ = 0;
     qint64 lastDurationMs_ = 0;
+
+    // Owned by this (parented), not mpv_ — see AudioPlayer.cpp's play()
+    // for why a redirect-resolution preflight through Qt's own network
+    // stack exists at all before handing mpv a URL.
+    QNetworkAccessManager* networkManager_ = nullptr;
+    // The in-flight preflight request, if any — a fresh play() call
+    // aborts and replaces this rather than letting a stale reply from an
+    // already-superseded track race the new one.
+    QNetworkReply* pendingRedirectResolve_ = nullptr;
 };
 
 } // namespace Playback
