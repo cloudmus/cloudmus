@@ -44,9 +44,17 @@ void paintEqualizerGlyph(QPainter* painter, const QRect& rect, const QColor& col
     constexpr int kBarWidth = 2;
     constexpr int kBarGap = 2;
     const int totalWidth = 3 * kBarWidth + 2 * kBarGap;
+    int maxBarHeight = kBarHeights[0];
+    for (int h : kBarHeights)
+        maxBarHeight = qMax(maxBarHeight, h);
+    // Bars share a baseline (classic equalizer look), but that baseline
+    // itself is centered in `rect` via the tallest bar's own extent — not
+    // pinned to rect.bottom(), which glued the whole glyph to the bottom
+    // of the (full row-height) rect it's given instead of centering it.
+    const int baseline = rect.center().y() + maxBarHeight / 2;
     int x = rect.center().x() - totalWidth / 2;
     for (int barHeight : kBarHeights) {
-        const QRect bar(x, rect.bottom() - barHeight, kBarWidth, barHeight);
+        const QRect bar(x, baseline - barHeight, kBarWidth, barHeight);
         painter->fillRect(bar, color);
         x += kBarWidth + kBarGap;
     }
@@ -137,7 +145,14 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
         painter->fillRect(thumb, QColor(0, 0, 0, 140));
         painter->setClipping(false);
 
-        const QIcon playIcon = Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::OnAccent, 18);
+        // Ink, not OnAccent: this sits over a plain dark scrim (fillRect
+        // above), not an accent-colored background — OnAccent is paired
+        // against accent's own light/dark brightness (white on light
+        // theme's darker accent, near-black on dark theme's lighter
+        // accent), which is backwards here. Ink is the theme-adaptive
+        // foreground color (light on dark theme, dark on light theme) this
+        // context actually needs.
+        const QIcon playIcon = Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 18);
         const QSize iconSize(18, 18);
         const QRect iconRect(thumb.center().x() - iconSize.width() / 2, thumb.center().y() - iconSize.height() / 2,
             iconSize.width(), iconSize.height());
