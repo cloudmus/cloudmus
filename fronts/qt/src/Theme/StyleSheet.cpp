@@ -116,24 +116,6 @@ QString slidersBlock(const Palette& p)
             hex(p.ink));
 }
 
-QString scrollbarBlock(const Palette& p)
-{
-    return QStringLiteral("QScrollBar:vertical {"
-                          "    width: 6px;"
-                          "    background: transparent;"
-                          "    margin: 0;"
-                          "}"
-                          "QScrollBar::handle:vertical {"
-                          "    background: %1;"
-                          "    border-radius: 3px;"
-                          "    min-height: 24px;"
-                          "}"
-                          "QScrollBar::handle:vertical:hover { background: %2; }"
-                          "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }"
-                          "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; }")
-        .arg(hex(p.borderStrong), hex(p.inkSecondary));
-}
-
 QString toolBarBlock(const Palette& p)
 {
     // Fusion paints QToolBar with its own native panel/gradient by default
@@ -242,8 +224,12 @@ QString sidebarTreeBlock(const Palette& p)
 QString buildStyleSheet(Mode mode)
 {
     const Palette& p = palette(mode);
-    return buttonsBlock(p) + textButtonsBlock(p) + slidersBlock(p) + scrollbarBlock(p) + toolBarBlock(p)
-        + panelsBlock(p) + progressBarBlock(p) + sidebarTreeBlock(p);
+    // No scrollbar QSS block anymore: the app's only two scrollable views
+    // (sidebarView_, trackListView_) both use Ui::OverlayScrollBar, which
+    // hides the real QScrollBar entirely and paints its own floating
+    // handle — a QSS rule for QScrollBar would never be reached.
+    return buttonsBlock(p) + textButtonsBlock(p) + slidersBlock(p) + toolBarBlock(p) + panelsBlock(p)
+        + progressBarBlock(p) + sidebarTreeBlock(p);
 }
 
 void applyGlobalStyleSheet(QApplication& app)

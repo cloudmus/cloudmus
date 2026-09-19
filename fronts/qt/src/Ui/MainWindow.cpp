@@ -25,6 +25,7 @@
 #include "Metrics.h"
 #include "NavItemDelegate.h"
 #include "NowPlayingBar.h"
+#include "OverlayScrollBar.h"
 #include "PlaybackHistory.h"
 #include "RpcMethods.h"
 #include "SettingsDialog.h"
@@ -178,6 +179,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     sidebarView_->setIndentation(Theme::Spacing::space5);
     sidebarView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(sidebarView_);
+    OverlayScrollBar::attach(sidebarView_);
     // Real mouse-move events over the viewport drive NavItemDelegate's hover
     // via eventFilter() below — needs mouse tracking on to get them without
     // a button held. Qt's own per-row State_MouseOver isn't used at all
@@ -217,6 +219,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListView_->setMouseTracking(true);
     trackListView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(trackListView_);
+    OverlayScrollBar::attach(trackListView_);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
 
