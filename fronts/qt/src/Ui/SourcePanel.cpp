@@ -16,7 +16,11 @@
 #include <QVBoxLayout>
 
 #include "HeroPanel.h"
+#include "Icons.h"
 #include "Models.h"
+#include "Spacing.h"
+#include "Tokens.h"
+#include "Typography.h"
 
 namespace Ui {
 
@@ -44,25 +48,26 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
 
     capabilitiesLabel_ = new QLabel(this);
     capabilitiesLabel_->setWordWrap(true);
-    // A real QPalette role via setForegroundRole(), not a stylesheet color
-    // string — "muted secondary text" isn't one of the named roles the Qt
-    // Style Sheets palette() function recognizes, but QPalette::PlaceholderText
-    // is a real enum value the style already knows how to render, same
-    // theme-following spirit as ToastNotifier's palette(...) roles.
-    capabilitiesLabel_->setForegroundRole(QPalette::PlaceholderText);
+    capabilitiesLabel_->setFont(Theme::font(Theme::TextStyle::BodySecondary));
+    // ink-secondary, not QPalette::PlaceholderText — this is ordinary
+    // secondary UI text (a capability summary), not placeholder/disabled
+    // text, which is the only thing the design system's ink-tertiary token
+    // is for. Set via objectName + Theme::StyleSheet rather than a direct
+    // setPalette() call, same one-QSS-authoring-surface convention as
+    // #sourceAuthCard/#toastLabel below.
+    capabilitiesLabel_->setObjectName(QStringLiteral("secondaryLabel"));
 
     authCard_ = new QWidget(this);
     authCard_->setObjectName(QStringLiteral("sourceAuthCard"));
-    // palette(...) roles, not hardcoded colors — this sits on a plain
-    // background (unlike HeroPanel's generated-art background, which is the
-    // deliberate exception), so it should follow system theme like
-    // ToastNotifier does. See ToastNotifier.cpp for the same convention.
-    authCard_->setStyleSheet(QStringLiteral("#sourceAuthCard { background: palette(base); "
-                                            "border: 1px solid palette(mid); border-radius: 10px; }"));
+    // Styled by Theme::StyleSheet's global #sourceAuthCard rule now (surface-200/
+    // border/radius-md, regenerated on every theme change) — not a local
+    // setStyleSheet() call, which used the palette(...) QSS functions to
+    // follow the native theme; this app now owns a fixed palette instead.
     authCard_->setMaximumWidth(kCardMaxWidth);
 
     auto* iconLabel = new QLabel(authCard_);
-    iconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("dialog-warning")).pixmap(kIconSize, kIconSize));
+    iconLabel->setPixmap(
+        Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, kIconSize).pixmap(kIconSize, kIconSize));
 
     messageLabel_ = new QLabel(authCard_);
     messageLabel_->setWordWrap(true);
@@ -84,6 +89,8 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     codeLabel_->hide();
 
     copyCodeButton_ = new QPushButton(tr("Copy code"), authCard_);
+    copyCodeButton_->setProperty("variant", "secondary");
+    copyCodeButton_->setFont(Theme::font(Theme::TextStyle::Button));
     connect(copyCodeButton_, &QPushButton::clicked, this,
         [this]() { QGuiApplication::clipboard()->setText(codeLabel_->text()); });
     copyCodeButton_->hide();
@@ -92,6 +99,8 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     multilineFieldsLayout_ = new QVBoxLayout;
 
     submitButton_ = new QPushButton(tr("Submit"), authCard_);
+    submitButton_->setProperty("variant", "primary");
+    submitButton_->setFont(Theme::font(Theme::TextStyle::Button));
     connect(submitButton_, &QPushButton::clicked, this, [this]() {
         QJsonObject fields;
         for (auto it = fieldEdits_.constBegin(); it != fieldEdits_.constEnd(); ++it) {
@@ -105,11 +114,15 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     submitButton_->hide();
 
     openBrowserButton_ = new QPushButton(tr("Open Browser"), authCard_);
+    openBrowserButton_->setProperty("variant", "secondary");
+    openBrowserButton_->setFont(Theme::font(Theme::TextStyle::Button));
     connect(openBrowserButton_, &QPushButton::clicked, this,
         [this]() { QDesktopServices::openUrl(QUrl(pendingOAuthUrl_)); });
     openBrowserButton_->hide();
 
     retryButton_ = new QPushButton(tr("Retry"), authCard_);
+    retryButton_->setProperty("variant", "secondary");
+    retryButton_->setFont(Theme::font(Theme::TextStyle::Button));
     connect(retryButton_, &QPushButton::clicked, this, [this]() { emit retryRequested(currentSourceId_); });
     retryButton_->hide();
 
@@ -129,7 +142,8 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     buttonRow->addStretch(1);
 
     auto* cardLayout = new QVBoxLayout(authCard_);
-    cardLayout->setContentsMargins(16, 16, 16, 16);
+    cardLayout->setContentsMargins(
+        Theme::Spacing::space6, Theme::Spacing::space6, Theme::Spacing::space6, Theme::Spacing::space6);
     cardLayout->setSpacing(10);
     cardLayout->addLayout(headerRow);
     cardLayout->addWidget(codeLabel_);

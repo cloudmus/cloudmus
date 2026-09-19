@@ -9,8 +9,9 @@ class CoverArtCache;
 
 // Compact, one-line row: small inline cover thumbnail + title/artist
 // stacked + duration right-aligned — see the plan's UI/UX design (chosen
-// over a multi-column table). Pulls colors from the option's palette at
-// paint time so it follows KDE light/dark theme switches automatically.
+// over a multi-column table). Colors/fonts come from Theme::Tokens/
+// Theme::Typography (the CloudMus design system's own fixed palette), not
+// QPalette — the app no longer rides the native/KDE theme for these tokens.
 class TrackRowDelegate : public QStyledItemDelegate {
     Q_OBJECT
 
@@ -48,7 +49,7 @@ private:
     CoverArtCache* coverCache_;
     QString currentSourceId_;
     QString currentTrackId_;
-    static constexpr int kRowHeight = 48;
+    static constexpr int kRowHeight = 52; // design system's TrackRow spec
     static constexpr int kThumbSize = 36;
 };
 

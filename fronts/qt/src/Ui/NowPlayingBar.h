@@ -12,8 +12,8 @@ namespace Ui {
 // Lives in the bottom toolbar, merged with the hamburger menu button:
 // transport buttons, seek bar, volume. No track title/artist/cover here —
 // HeroPanel already shows what's playing in the central panel, so it
-// isn't duplicated. Icons come from the system theme (QIcon::fromTheme),
-// not bundled art.
+// isn't duplicated. Icons come from Theme::icon() (bundled Material Icons,
+// Rounded/filled style, tinted per design token), not the system icon theme.
 //
 // Every control here is declarative, not imperatively toggled: its
 // enabled state and value are a pure function of what PlaybackController

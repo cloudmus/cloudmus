@@ -1,5 +1,6 @@
 #include "ToastNotifier.h"
 
+#include <QGraphicsDropShadowEffect>
 #include <QLabel>
 #include <QTimer>
 
@@ -19,11 +20,19 @@ ToastNotifier::ToastNotifier(QWidget* anchor)
 void ToastNotifier::showError(const QString& message)
 {
     auto* toast = new QLabel(message, anchor_);
+    toast->setObjectName(QStringLiteral("toastLabel")); // styled by Theme::StyleSheet's global #toastLabel rule
     toast->setWindowFlags(Qt::Widget);
     toast->setWordWrap(true);
     toast->setAutoFillBackground(true);
-    toast->setStyleSheet(QStringLiteral("QLabel { background: palette(tooltip-base); color: palette(tooltip-text); "
-                                        "border-radius: 4px; padding: 8px 12px; }"));
+    // A popup floating over arbitrary content with no border — the design
+    // system's one permitted exception to "no shadows by default"
+    // (QGraphicsDropShadowEffect in code, not a QSS box-shadow, which Qt
+    // Style Sheets don't support at all).
+    auto* shadow = new QGraphicsDropShadowEffect(toast);
+    shadow->setBlurRadius(16);
+    shadow->setOffset(0, 2);
+    shadow->setColor(QColor(0, 0, 0, 80));
+    toast->setGraphicsEffect(shadow);
     toast->setMaximumWidth(anchor_->width() / 2);
     toast->adjustSize();
     toast->show();

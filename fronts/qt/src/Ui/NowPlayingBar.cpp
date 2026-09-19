@@ -1,14 +1,21 @@
 #include "NowPlayingBar.h"
 
 #include <QDesktopServices>
+#include <QEnterEvent>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
+#include <QStyle>
 #include <QUrl>
 #include <QVBoxLayout>
+
+#include "Icons.h"
+#include "Metrics.h"
+#include "Spacing.h"
+#include "Typography.h"
 
 namespace Ui {
 
@@ -18,6 +25,114 @@ QString formatDuration(qint64 ms)
     const qint64 totalSeconds = qMax<qint64>(0, ms) / 1000;
     return QStringLiteral("%1:%2").arg(totalSeconds / 60).arg(totalSeconds % 60, 2, 10, QLatin1Char('0'));
 }
+
+// An Icon Button (design system spec) whose glyph itself needs to swap
+// color on hover — QSS/currentColor can't recolor SVG icon *content* in
+// Qt, only the background (handled declaratively via the "icon"/"play"
+// dynamic property + Theme::StyleSheet's QPushButton[variant=...] rules),
+// so the icon swap has to happen here in code.
+class IconHoverButton : public QPushButton {
+public:
+    // Neutral: the usual transport control — transparent-to-surface-200
+    // background, ink-secondary glyph at rest, ink on hover (see
+    // Theme::StyleSheet's QPushButton[variant="icon"] rule).
+    // Accent: the play/pause button specifically — this app's primary
+    // action, so it gets the same accent-filled treatment as HeroPanel's
+    // big play button (QPushButton[variant="play"]), just at the smaller
+    // Icon Button size. Its glyph is always on-accent regardless of
+    // hover — ink-secondary/ink would be unreadable against a solid
+    // accent fill.
+    enum class Scheme {
+        Neutral,
+        Accent
+    };
+
+    explicit IconHoverButton(const QString& iconName, Scheme scheme, QWidget* parent)
+        : QPushButton(parent)
+        , iconName_(iconName)
+        , scheme_(scheme)
+    {
+        setProperty("variant", scheme_ == Scheme::Accent ? "play" : "icon");
+        setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
+        setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
+        applyIcon(restColor());
+    }
+
+    // Playback-state-driven icon changes (play/pause/refresh) go through
+    // this, not setIcon() directly, so a subsequent hover/leave doesn't
+    // reset the glyph back to whatever name the button was constructed
+    // with.
+    void setIconName(const QString& name)
+    {
+        iconName_ = name;
+        applyIcon(underMouse() ? hoverColor() : restColor());
+    }
+
+protected:
+    void enterEvent(QEnterEvent* event) override
+    {
+        applyIcon(hoverColor());
+        QPushButton::enterEvent(event);
+    }
+    void leaveEvent(QEvent* event) override
+    {
+        applyIcon(restColor());
+        QPushButton::leaveEvent(event);
+    }
+
+private:
+    Theme::IconColor restColor() const
+    {
+        return scheme_ == Scheme::Accent ? Theme::IconColor::OnAccent : Theme::IconColor::InkSecondary;
+    }
+    Theme::IconColor hoverColor() const
+    {
+        return scheme_ == Scheme::Accent ? Theme::IconColor::OnAccent : Theme::IconColor::Ink;
+    }
+    void applyIcon(Theme::IconColor color) { setIcon(Theme::icon(iconName_, color, Theme::Metrics::iconGlyphSize)); }
+
+    QString iconName_;
+    Scheme scheme_;
+};
+
+// The volume handle is visible only while hovering or dragging its track —
+// QSS can't bind one subcontrol's visibility to the widget's own hover
+// state in a single declarative rule the way `::handle:hover` sounds like
+// it should, so this toggles a dynamic property the stylesheet's
+// `QSlider[handleVisible="false"]::handle` rule reads. The seek slider is
+// the opposite: its accent handle stays visible at all times (a plain
+// QSlider, see the constructor below) so the current playback position
+// reads at a glance without needing to hover the bar first.
+class HoverHandleSlider : public QSlider {
+public:
+    explicit HoverHandleSlider(QWidget* parent)
+        : QSlider(Qt::Horizontal, parent)
+    {
+        setProperty("handleVisible", false);
+        connect(this, &QSlider::sliderPressed, this, [this]() { setHandleVisible(true); });
+        connect(this, &QSlider::sliderReleased, this, [this]() { setHandleVisible(underMouse()); });
+    }
+
+protected:
+    void enterEvent(QEnterEvent* event) override
+    {
+        setHandleVisible(true);
+        QSlider::enterEvent(event);
+    }
+    void leaveEvent(QEvent* event) override
+    {
+        setHandleVisible(isSliderDown());
+        QSlider::leaveEvent(event);
+    }
+
+private:
+    void setHandleVisible(bool visible)
+    {
+        setProperty("handleVisible", visible);
+        style()->unpolish(this);
+        style()->polish(this);
+    }
+};
 } // namespace
 
 NowPlayingBar::NowPlayingBar(QWidget* parent)
@@ -30,18 +145,15 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // sizeHint()'s height as both min and max".
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    previousButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-skip-backward")), QString(), this);
-    playPauseButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-start")), QString(), this);
-    nextButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-skip-forward")), QString(), this);
-    stopButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-stop")), QString(), this);
+    previousButton_ = new IconHoverButton(QStringLiteral("skip_previous"), IconHoverButton::Scheme::Neutral, this);
+    playPauseButton_ = new IconHoverButton(QStringLiteral("play_arrow"), IconHoverButton::Scheme::Accent, this);
+    nextButton_ = new IconHoverButton(QStringLiteral("skip_next"), IconHoverButton::Scheme::Neutral, this);
+    stopButton_ = new IconHoverButton(QStringLiteral("stop"), IconHoverButton::Scheme::Neutral, this);
     // Opens the current track's page on its source platform (e.g. a
     // Yandex Music/YouTube Music track URL) — see setTrackWebUrl().
-    // open-link-symbolic (the standard "external link" box-with-arrow
-    // glyph) — not e.g. internet-web-browser, a colorful application/
-    // category icon in Breeze that clashed with the flat monochrome
-    // media-* glyphs the transport buttons use; this one is a plain
-    // action icon, same family/style as the rest of this row.
-    openTrackPageButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("open-link-symbolic")), QString(), this);
+    // open_in_new (the standard "external link" box-with-arrow glyph) — a
+    // plain action icon, same family/style as the rest of this row.
+    openTrackPageButton_ = new IconHoverButton(QStringLiteral("open_in_new"), IconHoverButton::Scheme::Neutral, this);
     openTrackPageButton_->setToolTip(tr("Open track page"));
     connect(previousButton_, &QPushButton::clicked, this, &NowPlayingBar::previousClicked);
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
@@ -73,8 +185,15 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // visually reads as its own group — a "jump elsewhere" action,
     // distinct from the track transport controls to its left.
     auto* transportSeparator = new QFrame(this);
+    transportSeparator->setObjectName(QStringLiteral("transportSeparator"));
     transportSeparator->setFrameShape(QFrame::VLine);
-    transportSeparator->setFrameShadow(QFrame::Sunken);
+    // Plain, not Sunken: a sunken/raised bevel is drawn from palette
+    // light/dark roles regardless of QSS `color`, which would silently
+    // ignore Theme::StyleSheet's #transportSeparator rule and keep
+    // whatever 3D bevel the native style draws — this design system's flat
+    // depth model (tone + hairline border, no bevels/shadows) needs a
+    // plain line that actually takes that color.
+    transportSeparator->setFrameShadow(QFrame::Plain);
     buttonsRow_->addSpacing(6);
     buttonsRow_->addWidget(transportSeparator);
     buttonsRow_->addSpacing(6);
@@ -84,7 +203,14 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
 
     elapsedLabel_ = new QLabel(QStringLiteral("0:00"), this);
     durationLabel_ = new QLabel(QStringLiteral("0:00"), this);
+    // Tabular figures so the transport bar's width doesn't jitter as the
+    // digits change during playback.
+    elapsedLabel_->setFont(Theme::tabularFont(Theme::TextStyle::Caption));
+    durationLabel_->setFont(Theme::tabularFont(Theme::TextStyle::Caption));
+    // Plain QSlider: the accent handle stays visible at all times (see
+    // HoverHandleSlider's doc comment above).
     seekSlider_ = new QSlider(Qt::Horizontal, this);
+    seekSlider_->setObjectName(QStringLiteral("seekSlider"));
     seekSlider_->setRange(0, 0);
     seekSlider_->setEnabled(false);
     connect(seekSlider_, &QSlider::sliderPressed, this, [this]() { userIsDraggingSeek_ = true; });
@@ -92,7 +218,8 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
         userIsDraggingSeek_ = false;
         emit seekRequested(seekSlider_->value());
     });
-    volumeSlider_ = new QSlider(Qt::Horizontal, this);
+    volumeSlider_ = new HoverHandleSlider(this);
+    volumeSlider_->setObjectName(QStringLiteral("volumeSlider"));
     volumeSlider_->setRange(0, 100);
     volumeSlider_->setFixedWidth(100);
     connect(volumeSlider_, &QSlider::valueChanged, this, &NowPlayingBar::volumeChanged);
@@ -107,10 +234,11 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     slidersRow->addWidget(durationLabel_);
     slidersRow->addSpacing(12);
     auto* volumeIconLabel = new QLabel(this);
-    // Matches the transport buttons (also QIcon::fromTheme) instead of an
-    // emoji glyph, which looked out of place next to them and depended on
-    // the font actually having a color-emoji glyph for it.
-    volumeIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("audio-volume-high")).pixmap(16, 16));
+    // Matches the transport buttons (also Theme::icon) instead of an emoji
+    // glyph, which looked out of place next to them and depended on the
+    // font actually having a color-emoji glyph for it.
+    volumeIconLabel->setPixmap(
+        Theme::icon(QStringLiteral("volume_up"), Theme::IconColor::InkSecondary, 16).pixmap(16, 16));
     slidersRow->addWidget(volumeIconLabel);
     slidersRow->addWidget(volumeSlider_);
 
@@ -119,7 +247,14 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // padding above/below it, since none of these controls are anywhere
     // near that tall on their own.
     auto* rootLayout = new QVBoxLayout(this);
-    rootLayout->setContentsMargins(8, 4, 8, 4);
+    // Design system's space4 (sides) / space3 (top/bottom) — was a much
+    // tighter (8, 4, 8, 4), cramped against the design mockup's roomier bar.
+    rootLayout->setContentsMargins(
+        Theme::Spacing::space4, Theme::Spacing::space3, Theme::Spacing::space4, Theme::Spacing::space3);
+    // Design system's space2 — was the layout's default spacing (a couple
+    // px), leaving the buttons row and the sliders row visually stuck
+    // together against the design mockup's clearer gap between them.
+    rootLayout->setSpacing(Theme::Spacing::space2);
     rootLayout->addLayout(buttonsRow_);
     rootLayout->addLayout(slidersRow);
 }
@@ -159,15 +294,15 @@ void NowPlayingBar::setPlaying(bool playing)
 void NowPlayingBar::setLoading(bool loading)
 {
     playPauseButton_->setEnabled(!loading);
-    playPauseButton_->setIcon(QIcon::fromTheme(loading
-            ? QStringLiteral("view-refresh")
-            : (playing_ ? QStringLiteral("media-playback-pause") : QStringLiteral("media-playback-start"))));
+    static_cast<IconHoverButton*>(playPauseButton_)
+        ->setIconName(
+            loading ? QStringLiteral("refresh") : (playing_ ? QStringLiteral("pause") : QStringLiteral("play_arrow")));
 }
 
 void NowPlayingBar::updatePlayPauseIcon()
 {
-    playPauseButton_->setIcon(
-        QIcon::fromTheme(playing_ ? QStringLiteral("media-playback-pause") : QStringLiteral("media-playback-start")));
+    static_cast<IconHoverButton*>(playPauseButton_)
+        ->setIconName(playing_ ? QStringLiteral("pause") : QStringLiteral("play_arrow"));
 }
 
 void NowPlayingBar::setPosition(qint64 positionMs, qint64 durationMs)

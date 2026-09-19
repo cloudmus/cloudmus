@@ -8,6 +8,8 @@
 #include <QSystemTrayIcon>
 #include <QWidget>
 
+#include "Icons.h"
+
 namespace Integration {
 
 TrayIcon::TrayIcon(QWidget* mainWindow, QObject* parent)
@@ -19,11 +21,17 @@ TrayIcon::TrayIcon(QWidget* mainWindow, QObject* parent)
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, &TrayIcon::updateTrayIcon);
     trayIcon_->setToolTip(QStringLiteral("CloudMus"));
 
+    // Context-menu action icons are in scope for the Material Icons
+    // migration (unlike the tray glyph itself, updateTrayIcon()'s brand
+    // asset, untouched below) — a QMenu popup gets the design system's
+    // Panel treatment via Theme::StyleSheet's global QMenu rule.
     auto* menu = new QMenu();
-    auto* previousAction = menu->addAction(QIcon::fromTheme(QStringLiteral("media-skip-backward")), tr("Previous"));
-    playPauseAction_ = menu->addAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), tr("Play"));
-    auto* nextAction = menu->addAction(QIcon::fromTheme(QStringLiteral("media-skip-forward")), tr("Next"));
-    auto* stopAction = menu->addAction(QIcon::fromTheme(QStringLiteral("media-playback-stop")), tr("Stop"));
+    auto* previousAction
+        = menu->addAction(Theme::icon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16), tr("Previous"));
+    playPauseAction_
+        = menu->addAction(Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"));
+    auto* nextAction = menu->addAction(Theme::icon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16), tr("Next"));
+    auto* stopAction = menu->addAction(Theme::icon(QStringLiteral("stop"), Theme::IconColor::Ink, 16), tr("Stop"));
     menu->addSeparator();
     auto* showHideAction = menu->addAction(tr("Show/Hide"));
     menu->addSeparator();
@@ -33,8 +41,8 @@ TrayIcon::TrayIcon(QWidget* mainWindow, QObject* parent)
     connect(playPauseAction_, &QAction::triggered, this, &TrayIcon::playPauseRequested);
     connect(nextAction, &QAction::triggered, this, &TrayIcon::nextRequested);
     connect(stopAction, &QAction::triggered, this, &TrayIcon::stopRequested);
-    connect(showHideAction, &QAction::triggered, this,
-            [this]() { mainWindow_->setVisible(!mainWindow_->isVisible()); });
+    connect(
+        showHideAction, &QAction::triggered, this, [this]() { mainWindow_->setVisible(!mainWindow_->isVisible()); });
     connect(quitAction, &QAction::triggered, this, &TrayIcon::quitRequested);
 
     trayIcon_->setContextMenu(menu);
@@ -61,7 +69,7 @@ void TrayIcon::setPlaying(bool playing)
 {
     playPauseAction_->setText(playing ? tr("Pause") : tr("Play"));
     playPauseAction_->setIcon(
-        QIcon::fromTheme(playing ? QStringLiteral("media-playback-pause") : QStringLiteral("media-playback-start")));
+        Theme::icon(playing ? QStringLiteral("pause") : QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16));
 }
 
 void TrayIcon::updateTrayIcon()
@@ -71,7 +79,7 @@ void TrayIcon::updateTrayIcon()
     // case, and black-on-unknown is less likely to vanish than white-on-unknown.
     const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
     trayIcon_->setIcon(QIcon(dark ? QStringLiteral(":/icons/icons/tray_icon_dark.svg")
-                                   : QStringLiteral(":/icons/icons/tray_icon_light.svg")));
+                                  : QStringLiteral(":/icons/icons/tray_icon_light.svg")));
 }
 
 } // namespace Integration

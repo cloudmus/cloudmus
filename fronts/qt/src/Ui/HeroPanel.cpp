@@ -11,12 +11,16 @@
 
 #include "CoverArtCache.h"
 #include "GeneratedCoverArt.h"
+#include "Icons.h"
+#include "Metrics.h"
+#include "Spacing.h"
+#include "Typography.h"
 
 namespace Ui {
 
 namespace {
-constexpr int kStandardMargin = 12;
-constexpr int kItemSpacing = 8;
+constexpr int kStandardMargin = Theme::Spacing::space4;
+constexpr int kItemSpacing = Theme::Spacing::space2;
 
 // Applied as a multiplier of the base app font's point size, not a fixed
 // +Npt bump. 2.0 was the first pass; ×(1/1.2) is the follow-up "a bit
@@ -38,18 +42,30 @@ HeroPanel::HeroPanel(CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
     , coverCache_(coverCache)
 {
-    titleFont_ = font();
-    titleFont_.setBold(true);
-    titleFont_.setPointSizeF(titleFont_.pointSizeF() * kFontScale);
+    // Theme::Typography::font(Display/BodySecondary) as the base for this
+    // widget's own proportional up-scaling — the immersive hero keeps its
+    // existing kFontScale/kSubtitleFontScale multipliers on top (see their
+    // doc comment above) rather than switching to the design system's raw
+    // display/body-secondary pixel sizes outright, since those are tuned
+    // for compact UI text, not a full-bleed hero title.
+    titleFont_ = Theme::font(Theme::TextStyle::Display, font());
+    titleFont_.setPixelSize(qRound(titleFont_.pixelSize() * kFontScale));
 
-    subtitleFont_ = font();
-    subtitleFont_.setPointSizeF(subtitleFont_.pointSizeF() * kSubtitleFontScale);
+    subtitleFont_ = Theme::font(Theme::TextStyle::BodySecondary, font());
+    subtitleFont_.setPixelSize(qRound(subtitleFont_.pixelSize() * kSubtitleFontScale));
 
     // The one real child widget — see the class doc for why it isn't
     // drawn in paintEvent() like everything else. Not added to any
     // QLayout; relayout() positions it by hand via setGeometry(), so it
     // can never impose a size constraint on this widget either.
-    playButton_ = new QPushButton(QIcon::fromTheme(QStringLiteral("media-playback-start")), tr("Play"), this);
+    playButton_ = new QPushButton(
+        Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::OnAccent, Theme::Metrics::playGlyphSize), QString(),
+        this);
+    playButton_->setToolTip(tr("Play"));
+    playButton_->setObjectName(QStringLiteral("heroPlayButton")); // 40px — see StyleSheet's radius override
+    playButton_->setProperty("variant", "play");
+    playButton_->setIconSize(QSize(Theme::Metrics::playGlyphSize, Theme::Metrics::playGlyphSize));
+    playButton_->setFixedSize(Theme::Metrics::playButtonSize, Theme::Metrics::playButtonSize);
     connect(playButton_, &QPushButton::clicked, this, &HeroPanel::playClicked);
     playButton_->hide(); // nothing to show until applyContent()
 
@@ -153,9 +169,9 @@ void HeroPanel::setPlayButtonVisible(bool visible)
 
 void HeroPanel::setPlayBusy(bool busy)
 {
-    const QIcon icon = QIcon::fromTheme(busy ? QStringLiteral("view-refresh") : QStringLiteral("media-playback-start"));
     playButton_->setEnabled(!busy);
-    playButton_->setIcon(icon);
+    playButton_->setIcon(Theme::icon(busy ? QStringLiteral("refresh") : QStringLiteral("play_arrow"),
+        Theme::IconColor::OnAccent, Theme::Metrics::playGlyphSize));
 }
 
 void HeroPanel::setFillMode(bool fill)
@@ -185,7 +201,12 @@ int HeroPanel::heightForWidth(int w) const
     const int subtitleHeight = subtitleText_.isEmpty()
         ? 0
         : subtitleMetrics.boundingRect(QRect(0, 0, availWidth, INT_MAX), Qt::TextWordWrap, subtitleText_).height();
-    const int buttonHeight = showButton ? playButton_->sizeHint().height() : 0;
+    // size(), not sizeHint(): the button is fixed at 40x40 (design system's
+    // circular play-button spec) via setFixedSize() in the constructor,
+    // not laid out by a QLayout that would otherwise respect that
+    // constraint on its own — sizeHint() would still report the button's
+    // unconstrained icon+padding size.
+    const int buttonHeight = showButton ? playButton_->size().height() : 0;
 
     int total = 0;
     if (hasCover)
@@ -237,7 +258,7 @@ void HeroPanel::relayout()
     const int subtitleHeight = subtitleText_.isEmpty()
         ? 0
         : subtitleMetrics.boundingRect(QRect(0, 0, avail.width(), INT_MAX), Qt::TextWordWrap, subtitleText_).height();
-    const QSize buttonSize = playButton_->sizeHint();
+    const QSize buttonSize = playButton_->size(); // fixed 40x40 — see heightForWidth()'s comment
 
     int totalHeight = 0;
     if (hasCover)

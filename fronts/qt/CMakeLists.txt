@@ -77,6 +77,7 @@ add_executable(cloudmus-qt
 
     src/Ui/MainWindow.cpp
     src/Ui/SidebarModel.cpp
+    src/Ui/NavItemDelegate.cpp
     src/Ui/TrackListModel.cpp
     src/Ui/TrackRowDelegate.cpp
     src/Ui/NowPlayingBar.cpp
@@ -88,6 +89,13 @@ add_executable(cloudmus-qt
     src/Ui/SettingsDialog.cpp
     src/Ui/CoverArtCache.cpp
 
+    src/Theme/Tokens.cpp
+    src/Theme/Typography.cpp
+    src/Theme/Fonts.cpp
+    src/Theme/Icons.cpp
+    src/Theme/CoverPlaceholder.cpp
+    src/Theme/StyleSheet.cpp
+
     src/Integration/TrayIcon.cpp
     src/Integration/NotificationToast.cpp
     src/Integration/MprisService.cpp
@@ -96,6 +104,7 @@ add_executable(cloudmus-qt
     ${GENERATED_DIR}/RpcMethods.cpp
 
     resources/icons.qrc
+    resources/fonts.qrc
 )
 add_dependencies(cloudmus-qt protocol_codegen_cpp)
 
@@ -118,6 +127,7 @@ target_include_directories(cloudmus-qt PRIVATE
     src/Rpc
     src/Playback
     src/Ui
+    src/Theme
     src/Integration
     src/Config
     src/History

@@ -1,8 +1,8 @@
 #include "SidebarModel.h"
 
-#include <QFont>
-#include <QIcon>
 #include <QVariant>
+
+#include "Icons.h"
 
 namespace Ui {
 
@@ -23,9 +23,8 @@ QStandardItem* SidebarModel::findOrCreateSourceRoot(const QString& sourceId, con
     item->setData(sourceId, SourceIdRole);
     // Selectable by default (unlike PlaylistsHeader below) — every source
     // opens a SourcePanel when clicked, not just ones with an auth problem.
-    QFont font = item->font();
-    font.setBold(true);
-    item->setFont(font);
+    // Text weight/color is NavItemDelegate's job now (see MainWindow), not
+    // a font baked into the item.
     invisibleRootItem()->appendRow(item);
     return item;
 }
@@ -50,7 +49,11 @@ void SidebarModel::setSource(const QString& sourceId, const QString& sourceName,
         QStandardItem* parent = root;
         if (kind == Kind::Playlist) {
             if (playlistsHeader == nullptr) {
-                playlistsHeader = new QStandardItem(tr("Playlists"));
+                // .toUpper() here, not a paint-time transform — see the
+                // design system's label-upper convention (SourcePanel/
+                // findOrCreateSourceRoot's sourceName.toUpper() above does
+                // the same).
+                playlistsHeader = new QStandardItem(tr("Playlists").toUpper());
                 playlistsHeader->setData(static_cast<int>(Kind::PlaylistsHeader), KindRole);
                 playlistsHeader->setData(sourceId, SourceIdRole);
                 playlistsHeader->setSelectable(false);
@@ -92,7 +95,7 @@ void SidebarModel::removeSource(const QString& sourceId)
 void SidebarModel::setSourceAuthProblem(const QString& sourceId, const QString& sourceName, bool hasProblem)
 {
     QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
-    root->setIcon(hasProblem ? QIcon::fromTheme(QStringLiteral("dialog-warning")) : QIcon());
+    root->setIcon(hasProblem ? Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, 16) : QIcon());
 }
 
 } // namespace Ui

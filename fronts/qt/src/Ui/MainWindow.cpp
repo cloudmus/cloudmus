@@ -7,7 +7,10 @@
 #include <QLoggingCategory>
 #include <QMenu>
 #include <QMessageBox>
+#include <QCursor>
+#include <QMouseEvent>
 #include <QProgressBar>
+#include <QScrollBar>
 #include <QSplitter>
 #include <QTimer>
 #include <QToolBar>
@@ -18,12 +21,16 @@
 #include "CoverArtCache.h"
 #include "EmptyStatePlaceholder.h"
 #include "HeroPanel.h"
+#include "Icons.h"
+#include "Metrics.h"
+#include "NavItemDelegate.h"
 #include "NowPlayingBar.h"
 #include "PlaybackHistory.h"
 #include "RpcMethods.h"
 #include "SettingsDialog.h"
 #include "SidebarModel.h"
 #include "SourcePanel.h"
+#include "Spacing.h"
 #include "ToastNotifier.h"
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
@@ -127,7 +134,17 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     // not a separate toolbar item — see setTrailingWidget()'s comment for
     // why the menu itself is still built here rather than in that class.
     auto* menuButton = new QToolButton(nowPlayingBar_);
-    menuButton->setIcon(QIcon::fromTheme(QStringLiteral("application-menu")));
+    // Theme::Metrics::iconButtonSize/iconGlyphSize to match NowPlayingBar's
+    // IconHoverButton transport controls beside it — same Icon Button
+    // treatment (surface-200 circle at rest, surface-300/400 hover/pressed)
+    // via Theme::StyleSheet's QPushButton[variant="icon"] rule, which also
+    // matches QToolButton, so it doesn't stand out as a native square
+    // button next to the round transport row.
+    menuButton->setIcon(
+        Theme::icon(QStringLiteral("menu"), Theme::IconColor::InkSecondary, Theme::Metrics::iconGlyphSize));
+    menuButton->setProperty("variant", "icon");
+    menuButton->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
+    menuButton->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
     menuButton->setPopupMode(QToolButton::InstantPopup);
     auto* menu = new QMenu(menuButton);
     menu->addAction(tr("Settings…"), this, [this]() {
@@ -146,16 +163,35 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     sidebarModel_->ensureHistoryItem();
     sidebarView_ = new QTreeView(this);
     sidebarView_->setModel(sidebarModel_);
+    sidebarDelegate_ = new NavItemDelegate(sidebarView_);
+    sidebarView_->setItemDelegate(sidebarDelegate_);
     sidebarView_->setHeaderHidden(true);
     // Items are QStandardItems, editable by default — without this, the
     // double-click wired below to start playback also opens a rename
     // editor on the row.
     sidebarView_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    // Left at the style's native branch rendering (arrows + connector
-    // lines) — tried stripping just the lines while keeping arrows via a
-    // QSS ::branch override, but the style draws them as one primitive per
-    // state, so trimming one always distorted or dropped the other.
-    sidebarView_->setIndentation(12);
+    // Indent step per nesting level (source -> section -> playlist), per
+    // the design system's NavItem spec — the branch arrow's own color now
+    // comes from Theme::StyleSheet's QTreeView::branch image rules instead
+    // of the style's native rendering.
+    sidebarView_->setIndentation(Theme::Spacing::space5);
+    sidebarView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    // Real mouse-move events over the viewport drive NavItemDelegate's hover
+    // via eventFilter() below — needs mouse tracking on to get them without
+    // a button held. Qt's own per-row State_MouseOver isn't used at all
+    // (see NavItemDelegate's class doc) specifically because it doesn't
+    // survive a scroll: dragging the scrollbar slides row content under a
+    // stationary cursor without producing a move event, so the scrollbar's
+    // valueChanged below recomputes hover the same way, straight from
+    // indexAt() against the cursor's current position — not by trying to
+    // synthesize whatever event Qt would otherwise have delivered.
+    sidebarView_->viewport()->setMouseTracking(true);
+    sidebarView_->viewport()->installEventFilter(this);
+    connect(sidebarView_->verticalScrollBar(), &QScrollBar::valueChanged, sidebarView_, [this]() {
+        const QPoint viewportPos = sidebarView_->viewport()->mapFromGlobal(QCursor::pos());
+        const bool inside = sidebarView_->viewport()->rect().contains(viewportPos);
+        updateSidebarHover(inside ? sidebarView_->indexAt(viewportPos) : QModelIndex());
+    });
     connect(sidebarModel_, &QStandardItemModel::rowsInserted, sidebarView_, &QTreeView::expandAll);
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
@@ -177,6 +213,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     // Needed for State_MouseOver to be set at all — see the delegate's
     // hover-only play button drawn over the cover thumbnail.
     trackListView_->setMouseTracking(true);
+    trackListView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
 
@@ -668,7 +705,34 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
     if (event->type() == QEvent::Resize) {
         repositionTrackListBusyIndicator();
     }
+    if (watched == sidebarView_->viewport()) {
+        if (event->type() == QEvent::MouseMove) {
+            updateSidebarHover(sidebarView_->indexAt(static_cast<QMouseEvent*>(event)->pos()));
+        } else if (event->type() == QEvent::Leave) {
+            updateSidebarHover(QModelIndex());
+        }
+    }
     return QMainWindow::eventFilter(watched, event);
+}
+
+void MainWindow::updateSidebarHover(const QModelIndex& index)
+{
+    const QModelIndex previous = sidebarDelegate_->hoveredIndex();
+    if (previous == index)
+        return;
+    sidebarDelegate_->setHoveredIndex(index);
+    // Full row width, not just visualRect() — NavItemDelegate now paints
+    // hover/selected backgrounds across the whole row (indentation/branch
+    // area included), so invalidating only the narrow item-column rect
+    // would leave that left strip stale.
+    const auto fullRowRect = [this](const QModelIndex& idx) {
+        const QRect item = sidebarView_->visualRect(idx);
+        return QRect(0, item.top(), sidebarView_->viewport()->width(), item.height());
+    };
+    if (previous.isValid())
+        sidebarView_->viewport()->update(fullRowRect(previous));
+    if (index.isValid())
+        sidebarView_->viewport()->update(fullRowRect(index));
 }
 
 void MainWindow::repositionTrackListBusyIndicator()

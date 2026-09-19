@@ -23,6 +23,7 @@ class PlaybackHistory;
 namespace Ui {
 
 class SidebarModel;
+class NavItemDelegate;
 class TrackListModel;
 class TrackRowDelegate;
 class NowPlayingBar;
@@ -149,9 +150,16 @@ private:
     // of using the freed-up space (see HeroPanel::setFillMode() — it stays
     // true regardless, this is purely about the splitter's own sizes now).
     void setTrackListVisible(bool visible);
+    // Recomputes and repaints NavItemDelegate's hover state for the sidebar
+    // — called from real mouse-move/leave on sidebarView_'s viewport (via
+    // eventFilter()) and from its scrollbar's valueChanged, since Qt's own
+    // per-row hover tracking doesn't survive a scroll (see NavItemDelegate's
+    // class doc). A no-op if `index` is already the current hovered one.
+    void updateSidebarHover(const QModelIndex& index);
 
     SidebarModel* sidebarModel_ = nullptr;
     QTreeView* sidebarView_ = nullptr;
+    NavItemDelegate* sidebarDelegate_ = nullptr;
     HeroPanel* heroPanel_ = nullptr;
     TrackListModel* trackListModel_ = nullptr;
     QListView* trackListView_ = nullptr;

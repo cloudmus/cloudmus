@@ -7,7 +7,13 @@
 #include <QPainterPath>
 
 #include "CoverArtCache.h"
+#include "CoverPlaceholder.h"
+#include "Icons.h"
+#include "Radius.h"
+#include "Spacing.h"
+#include "Tokens.h"
 #include "TrackListModel.h"
+#include "Typography.h"
 
 namespace Ui {
 
@@ -18,6 +24,32 @@ QString formatDuration(qint64 ms)
     const qint64 minutes = totalSeconds / 60;
     const qint64 seconds = totalSeconds % 60;
     return QStringLiteral("%1:%2").arg(minutes).arg(seconds, 2, 10, QLatin1Char('0'));
+}
+
+void fillRoundedRect(QPainter* painter, const QRect& rect, const QColor& color, int radius)
+{
+    QPainterPath path;
+    path.addRoundedRect(rect, radius, radius);
+    painter->fillPath(path, color);
+}
+
+constexpr int kEqualizerWidth = 12;
+constexpr int kEqualizerGap = Theme::Spacing::space2;
+
+// 3 uneven, fixed-height bars — not animated. Drawn immediately left of the
+// duration column on the currently-playing row (see paint()).
+void paintEqualizerGlyph(QPainter* painter, const QRect& rect, const QColor& color)
+{
+    static const int kBarHeights[3] = { 5, 12, 8 };
+    constexpr int kBarWidth = 2;
+    constexpr int kBarGap = 2;
+    const int totalWidth = 3 * kBarWidth + 2 * kBarGap;
+    int x = rect.center().x() - totalWidth / 2;
+    for (int barHeight : kBarHeights) {
+        const QRect bar(x, rect.bottom() - barHeight, kBarWidth, barHeight);
+        painter->fillRect(bar, color);
+        x += kBarWidth + kBarGap;
+    }
 }
 } // namespace
 
@@ -57,13 +89,24 @@ QString TrackRowDelegate::formatPlayedAt(const QDateTime& utcWhen) const
 void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
     const Track track = index.data(TrackListModel::TrackRole).value<Track>();
+    const Theme::Palette& pal = Theme::palette();
 
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);
 
-    if (option.state & QStyle::State_Selected) {
-        painter->fillRect(option.rect, option.palette.highlight());
-    }
+    const bool isCurrentTrack = !currentTrackId_.isEmpty() && track.id == currentTrackId_
+        && index.data(TrackListModel::SourceIdRole).toString() == currentSourceId_;
+    const bool selected = option.state & QStyle::State_Selected;
+    const bool hovered = option.state & QStyle::State_MouseOver;
+
+    // Selected and playing render identically per the design system's
+    // States table (surface-400 + accent text/icon) — this app has no
+    // persistent multi-select browsing UX beyond single-click activation,
+    // so the two concepts reading the same way is not a meaningful loss.
+    if (selected || isCurrentTrack)
+        fillRoundedRect(painter, option.rect, pal.surface400, Theme::Radius::md);
+    else if (hovered)
+        fillRoundedRect(painter, option.rect, pal.surface300, Theme::Radius::md);
 
     const QRect rect = option.rect;
     const int margin = (rect.height() - kThumbSize) / 2;
@@ -73,12 +116,13 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
         = track.coverUrl ? coverCache_->pixmap(*track.coverUrl, QSize(kThumbSize, kThumbSize)) : QPixmap();
     if (!thumbPixmap.isNull()) {
         QPainterPath clip;
-        clip.addRoundedRect(thumb, 4, 4);
+        clip.addRoundedRect(thumb, Theme::Radius::coverArtSm, Theme::Radius::coverArtSm);
         painter->setClipPath(clip);
         painter->drawPixmap(thumb, thumbPixmap);
         painter->setClipping(false);
     } else {
-        painter->fillRect(thumb, option.palette.alternateBase());
+        const QString stableId = index.data(TrackListModel::SourceIdRole).toString() + track.id;
+        Theme::paintCoverPlaceholder(painter, thumb, stableId);
     }
 
     // Hover-only play button, drawn over the cover thumbnail (the
@@ -86,36 +130,32 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     // requires the view to have mouse tracking on for State_MouseOver to be
     // set at all (see MainWindow.cpp). editorEvent() below hit-tests clicks
     // against the same thumbRect().
-    if (option.state & QStyle::State_MouseOver) {
+    if (hovered) {
         QPainterPath clip;
-        clip.addRoundedRect(thumb, 4, 4);
+        clip.addRoundedRect(thumb, Theme::Radius::coverArtSm, Theme::Radius::coverArtSm);
         painter->setClipPath(clip);
         painter->fillRect(thumb, QColor(0, 0, 0, 140));
         painter->setClipping(false);
 
-        const QIcon playIcon = QIcon::fromTheme(QStringLiteral("media-playback-start"));
+        const QIcon playIcon = Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::OnAccent, 18);
         const QSize iconSize(18, 18);
         const QRect iconRect(thumb.center().x() - iconSize.width() / 2, thumb.center().y() - iconSize.height() / 2,
             iconSize.width(), iconSize.height());
         playIcon.paint(painter, iconRect, Qt::AlignCenter, QIcon::Normal, QIcon::On);
     }
 
-    const bool isCurrentTrack = !currentTrackId_.isEmpty() && track.id == currentTrackId_
-        && index.data(TrackListModel::SourceIdRole).toString() == currentSourceId_;
+    const QColor textColor = (selected || isCurrentTrack) ? pal.accent : pal.ink;
+    const QColor secondaryColor = pal.inkSecondary;
 
-    QColor textColor;
-    if (option.state & QStyle::State_Selected)
-        textColor = option.palette.color(QPalette::HighlightedText);
-    else if (isCurrentTrack)
-        textColor = option.palette.color(QPalette::Highlight); // accent-colored title, see below
-    else
-        textColor = option.palette.color(QPalette::Text);
-    QColor secondaryColor = option.state & QStyle::State_Selected ? textColor : option.palette.color(QPalette::Text);
-    secondaryColor.setAlpha(160);
+    const QFont titleFont = Theme::font(Theme::TextStyle::Title, option.font);
+    const QFont secondaryFont = Theme::font(Theme::TextStyle::BodySecondary, option.font);
+    const QFont captionFont = Theme::tabularFont(Theme::TextStyle::Caption, option.font);
+    const QFontMetrics titleMetrics(titleFont);
+    const QFontMetrics secondaryMetrics(secondaryFont);
+    const QFontMetrics captionMetrics(captionFont);
 
     const QString durationText = formatDuration(track.durationMs);
-    const QFontMetrics metrics(option.font);
-    const int durationWidth = metrics.horizontalAdvance(durationText);
+    const int durationWidth = captionMetrics.horizontalAdvance(durationText);
 
     // History rows (see TrackListModel::PlayedAtRole) get a second stacked
     // label here, mirroring the title/artist stack on the left — mixing in
@@ -123,13 +163,18 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     // playedAtText empty and this whole block a no-op.
     const QDateTime playedAt = index.data(TrackListModel::PlayedAtRole).toDateTime();
     const QString playedAtText = playedAt.isValid() ? formatPlayedAt(playedAt) : QString();
-    const int playedAtWidth = playedAtText.isEmpty() ? 0 : metrics.horizontalAdvance(playedAtText);
+    const int playedAtWidth = playedAtText.isEmpty() ? 0 : captionMetrics.horizontalAdvance(playedAtText);
     const int rightColumnWidth = qMax(durationWidth, playedAtWidth);
+    // The 3-bar equalizer sits immediately left of the duration column on
+    // the playing row — it sits *before* the duration rather than replacing
+    // it, so remaining/elapsed context stays visible (design system allows
+    // either; this app keeps the duration).
+    const int equalizerReserve = isCurrentTrack ? kEqualizerWidth + kEqualizerGap : 0;
 
     const int textLeft = thumb.right() + margin;
-    const int textRight = rect.right() - margin - rightColumnWidth - margin;
-    const QRect titleRect(textLeft, rect.top() + margin - 2, textRight - textLeft, metrics.height());
-    QRect artistRect(textLeft, titleRect.bottom(), textRight - textLeft, metrics.height());
+    const int textRight = rect.right() - margin - rightColumnWidth - equalizerReserve - margin;
+    const QRect titleRect(textLeft, rect.top() + margin - 2, textRight - textLeft, titleMetrics.height());
+    const QRect artistRect(textLeft, titleRect.bottom(), textRight - textLeft, secondaryMetrics.height());
 
     QString artistNames;
     for (int i = 0; i < track.artists.size(); ++i) {
@@ -139,31 +184,28 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     }
 
     painter->setPen(textColor);
-    if (isCurrentTrack) {
-        // A separate bold QFont/QFontMetrics for eliding *and* drawing —
-        // eliding with the regular metrics above but painting bold would
-        // let the now-wider glyphs overflow past the elided width.
-        QFont boldFont = option.font;
-        boldFont.setBold(true);
-        const QFontMetrics boldMetrics(boldFont);
-        painter->setFont(boldFont);
-        painter->drawText(titleRect, Qt::AlignVCenter | Qt::AlignLeft,
-            boldMetrics.elidedText(track.title, Qt::ElideRight, titleRect.width()));
-        painter->setFont(option.font);
-    } else {
-        painter->drawText(titleRect, Qt::AlignVCenter | Qt::AlignLeft,
-            metrics.elidedText(track.title, Qt::ElideRight, titleRect.width()));
-    }
-    painter->setPen(secondaryColor);
-    painter->drawText(artistRect, Qt::AlignVCenter | Qt::AlignLeft,
-        metrics.elidedText(artistNames, Qt::ElideRight, artistRect.width()));
+    painter->setFont(titleFont);
+    painter->drawText(titleRect, Qt::AlignVCenter | Qt::AlignLeft,
+        titleMetrics.elidedText(track.title, Qt::ElideRight, titleRect.width()));
 
     painter->setPen(secondaryColor);
+    painter->setFont(secondaryFont);
+    painter->drawText(artistRect, Qt::AlignVCenter | Qt::AlignLeft,
+        secondaryMetrics.elidedText(artistNames, Qt::ElideRight, artistRect.width()));
+
+    if (isCurrentTrack) {
+        const QRect eqRect(
+            rect.right() - margin - rightColumnWidth - equalizerReserve, rect.top(), kEqualizerWidth, rect.height());
+        paintEqualizerGlyph(painter, eqRect, pal.accent);
+    }
+
+    painter->setFont(captionFont);
+    painter->setPen(secondaryColor);
     if (!playedAtText.isEmpty()) {
-        const QRect playedAtRect(
-            rect.right() - margin - rightColumnWidth, rect.top() + margin - 2, rightColumnWidth, metrics.height());
-        QRect durationRect2(
-            rect.right() - margin - rightColumnWidth, playedAtRect.bottom(), rightColumnWidth, metrics.height());
+        const QRect playedAtRect(rect.right() - margin - rightColumnWidth, rect.top() + margin - 2, rightColumnWidth,
+            captionMetrics.height());
+        const QRect durationRect2(
+            rect.right() - margin - rightColumnWidth, playedAtRect.bottom(), rightColumnWidth, captionMetrics.height());
         painter->drawText(playedAtRect, Qt::AlignVCenter | Qt::AlignRight, playedAtText);
         painter->drawText(durationRect2, Qt::AlignVCenter | Qt::AlignRight, durationText);
     } else {

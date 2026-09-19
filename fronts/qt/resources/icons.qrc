@@ -6,4 +6,19 @@
         <file>icons/tray_icon_dark.svg</file>
         <file>icons/tray_icon_light.svg</file>
     </qresource>
+    <qresource prefix="/icons/symbols">
+        <file alias="play_arrow.svg">icons/symbols/play_arrow.svg</file>
+        <file alias="pause.svg">icons/symbols/pause.svg</file>
+        <file alias="stop.svg">icons/symbols/stop.svg</file>
+        <file alias="skip_previous.svg">icons/symbols/skip_previous.svg</file>
+        <file alias="skip_next.svg">icons/symbols/skip_next.svg</file>
+        <file alias="volume_up.svg">icons/symbols/volume_up.svg</file>
+        <file alias="menu.svg">icons/symbols/menu.svg</file>
+        <file alias="warning.svg">icons/symbols/warning.svg</file>
+        <file alias="open_in_new.svg">icons/symbols/open_in_new.svg</file>
+        <file alias="refresh.svg">icons/symbols/refresh.svg</file>
+        <file alias="music_note.svg">icons/symbols/music_note.svg</file>
+        <file alias="chevron_right.svg">icons/symbols/chevron_right.svg</file>
+        <file alias="expand_more.svg">icons/symbols/expand_more.svg</file>
+    </qresource>
 </RCC>

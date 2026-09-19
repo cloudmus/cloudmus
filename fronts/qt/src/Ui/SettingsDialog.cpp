@@ -9,6 +9,8 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
+#include "Typography.h"
+
 namespace Ui {
 
 SettingsDialog::SettingsDialog(Config::Settings& settings, QWidget* parent)
@@ -19,9 +21,13 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, QWidget* parent)
 
     closeToTrayCheck_ = new QCheckBox(tr("Closing the window minimizes to the tray instead of quitting"), this);
     closeToTrayCheck_->setChecked(settings_.closeMinimizesToTray());
+    closeToTrayCheck_->setFont(Theme::font(Theme::TextStyle::Body));
 
     downloadDirEdit_ = new QLineEdit(settings_.downloadDirectory(), this);
+    downloadDirEdit_->setFont(Theme::font(Theme::TextStyle::Body));
     auto* browseButton = new QPushButton(tr("Browse…"), this);
+    browseButton->setProperty("variant", "secondary");
+    browseButton->setFont(Theme::font(Theme::TextStyle::Button));
     connect(browseButton, &QPushButton::clicked, this, [this]() {
         const QString dir = QFileDialog::getExistingDirectory(this, tr("Download folder"), downloadDirEdit_->text());
         if (!dir.isEmpty())
@@ -35,6 +41,10 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, QWidget* parent)
     form->addRow(tr("Download folder:"), downloadRow);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    buttons->button(QDialogButtonBox::Ok)->setProperty("variant", "primary");
+    buttons->button(QDialogButtonBox::Cancel)->setProperty("variant", "secondary");
+    for (QAbstractButton* button : buttons->buttons())
+        button->setFont(Theme::font(Theme::TextStyle::Button));
     connect(buttons, &QDialogButtonBox::accepted, this, [this]() {
         save();
         accept();
