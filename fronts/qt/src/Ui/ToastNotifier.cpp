@@ -49,8 +49,14 @@ void ToastNotifier::showError(const QString& message)
 void ToastNotifier::repositionToasts()
 {
     int y = anchor_->height() - 16;
-    for (auto it = activeToasts_.rbegin(); it != activeToasts_.rend(); ++it) {
-        QWidget* toast = *it;
+    // Backward index loop, not rbegin()/rend(): std::reverse_iterator over
+    // QList<QWidget*>::iterator hits an ambiguous indirectly_readable_traits
+    // instantiation on libstdc++ from GCC 10 (Debian bullseye's default) —
+    // QList's iterator has exposed both value_type and element_type since
+    // Qt 6.7's C++20 ranges support, which GCC 10's (pre-fix) libstdc++
+    // can't disambiguate between. Fixed in GCC 11+, but bullseye stays on 10.
+    for (int i = activeToasts_.size() - 1; i >= 0; --i) {
+        QWidget* toast = activeToasts_.at(i);
         y -= toast->height();
         toast->move(anchor_->width() - toast->width() - 16, y);
         toast->raise();

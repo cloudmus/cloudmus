@@ -104,12 +104,20 @@ RUN apt-get install -y --no-install-recommends \
 # PyPI package is "aqtinstall", but the module/console script it installs
 # is named "aqt", not "aqtinstall". No --modules flag: QtSvg (the one
 # extra component cloudmus-qt needs beyond Core/Widgets/Network/DBus) is
-# not a separate addon for 6.5.3 — it's already bundled into the base
-# gcc_64 package's own archives (confirmed by inspecting Updates.xml
-# directly: qtsvg-*.7z appears in the base package's
-# <DownloadableArchives>, and there is no qt.qt6.653.addons.qtsvg entry
-# at all). Passing --modules qtsvg errors out ("packages ['qtsvg'] were
-# not found") since aqt has nothing separate to install.
+# not a separate addon for 6.9.3 either — same as 6.5.3, it's already
+# bundled into the base gcc_64 package's own archives (confirmed by
+# inspecting Updates.xml directly: qtsvg-*.7z appears in the base
+# package's <DownloadableArchives>, and there is no
+# qt.qt6.693.addons.qtsvg entry at all). Passing --modules qtsvg errors
+# out ("packages ['qtsvg'] were not found") since aqt has nothing
+# separate to install.
+#
+# QT_VERSION=6.9.3, not something newer: official prebuilt Qt6 binaries
+# need glibc >=2.28 through Qt 6.9, but >=2.34 from Qt 6.10 on (per Qt's
+# own Linux requirements docs) — bullseye's glibc 2.31 (see this
+# Dockerfile's own top comment for why bullseye) clears the 6.9 floor but
+# not 6.10's, so 6.9.3 is the newest line that keeps this build's whole
+# point (an old, widely-compatible glibc floor) intact.
 #
 # --base pins a specific mirror instead of letting aqt probe
 # download.qt.io first and fall back automatically — download.qt.io can
@@ -130,7 +138,7 @@ RUN apt-get install -y --no-install-recommends \
 # HTTP_PROXY above, if set, applies here too — on a network where
 # certain hosts are blocked outright, that's the other half of getting
 # any of this to succeed at all.
-RUN QT_UPDATES_PATH="online/qtsdkrepository/linux_x64/desktop/qt6_653/Updates.xml"; \
+RUN QT_UPDATES_PATH="online/qtsdkrepository/linux_x64/desktop/qt6_693/qt6_693/Updates.xml"; \
     for mirror in \
         https://download.qt.io \
         https://mirrors.dotsrc.org/qtproject \
@@ -154,7 +162,7 @@ RUN QT_UPDATES_PATH="online/qtsdkrepository/linux_x64/desktop/qt6_653/Updates.xm
 # doesn't also redo this pip install every time.
 RUN python3 -m pip install --no-cache-dir aqtinstall
 
-ARG QT_VERSION=6.5.3
+ARG QT_VERSION=6.9.3
 # --UNSAFE-ignore-hash: aqt validates each downloaded archive against a
 # checksum it fetches from a *hardcoded* mirror list that always
 # includes download.qt.io, regardless of --base — confirmed by watching
@@ -166,7 +174,15 @@ ARG QT_VERSION=6.5.3
 # HTTPS from a mirror step above already confirmed to serve the real Qt
 # SDK tree, so skipping this extra verification is an acceptable
 # tradeoff here, not a "trust some random host" shortcut.
-RUN aqt install-qt linux desktop "${QT_VERSION}" gcc_64 \
+#
+# arch is "linux_gcc_64", not "gcc_64": Qt renamed this arch specifier
+# starting with 6.7.0 (disambiguating it from other platforms' gcc_64-style
+# names in Qt's unified package tree) — confirmed against the real
+# repository listing, which serves qt.qt6.693.linux_gcc_64 for 6.9.3, not
+# qt.qt6.693.gcc_64. The *installed* directory name is unaffected by this
+# rename and is still "gcc_64" (see Qt6_DIR/PATH below) — only the name you
+# pass to `aqt install-qt` changed.
+RUN aqt install-qt linux desktop "${QT_VERSION}" linux_gcc_64 \
         --outputdir /opt/qt \
         --base "$(cat /opt/qt-mirror.txt)" \
         --UNSAFE-ignore-hash

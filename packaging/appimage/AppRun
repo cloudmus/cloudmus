@@ -182,11 +182,17 @@ done
 # Without this, the window looks visually foreign in a different way than
 # the QT_QPA_PLATFORMTHEME/XCURSOR_THEME issues above: it gets a
 # completely generic Wayland icon in the KWin decoration/Alt-Tab, not our
-# logo. The bundled Qt6 (6.5.3) predates the xdg-toplevel-icon-v1 Wayland
-# protocol (confirmed absent via `strings` on libQt6WaylandClient.so.6 —
-# no toplevel_icon/icon_manager symbols at all), which is the only
-# mechanism a client has to hand the compositor an icon directly. Without
-# it, KWin's one remaining way to resolve a window's icon is matching its
+# logo. This was written against the bundled Qt 6.5.3, confirmed via
+# `strings` on libQt6WaylandClient.so.6 to predate the xdg-toplevel-icon-v1
+# Wayland protocol (no toplevel_icon/icon_manager symbols at all) — the
+# only mechanism a client has to hand the compositor an icon directly.
+# NOT re-verified against the bundled Qt 6.9.3 (see Dockerfile's
+# QT_VERSION) — Qt's own docs already list an xdg-toplevel-icon protocol
+# attribution page for 6.9.3, so this workaround may now be partially or
+# fully redundant; re-run the same `strings` check against the 6.9.3
+# build's libQt6WaylandClient.so.6 before assuming either way. Until then,
+# this workaround stays in place as a safe (if possibly now-unnecessary)
+# fallback: KWin's one remaining way to resolve a window's icon is matching its
 # app_id (set via QApplication::setDesktopFileName() in main.cpp) against
 # an *installed* .desktop file's Icon= key — same as any normally
 # packaged app — but nothing installs one on the host; AppDir's own copy
