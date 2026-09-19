@@ -1,14 +1,15 @@
 #!/bin/bash
-# cloudmus-qt AppImage entry point. Wraps AppRun.real (renamed by
-# build-in-docker.sh) — for Qt6, linuxdeploy skips generating an actual
-# launcher binary/script there at all ("skipping AppRun hook creation on
-# Qt 6" in its own build log); it's just a plain symlink straight to
-# usr/bin/cloudmus-qt. Qt itself finds its own plugins via the qt.conf
-# linuxdeploy-plugin-qt places next to the binary, and every bundled
-# shared library gets its RPATH patched to $ORIGIN at build time — so
-# nothing in this whole launch chain ever sets PATH or LD_LIBRARY_PATH.
-# This script's own job is seeding backend manifests (and a couple of
-# env vars, below) before handing off to it.
+# cloudmus-qt AppImage entry point. Hands off to usr/bin/cloudmus-qt
+# directly — for Qt6, linuxdeploy skips generating an actual launcher
+# binary/script ("skipping AppRun hook creation on Qt 6" in its own build
+# log); the "AppRun.real" it leaves behind (renamed by build-in-docker.sh
+# to make room for this script under the name "AppRun") is just a plain
+# symlink to that same binary. Qt itself finds its own plugins via the
+# qt.conf linuxdeploy-plugin-qt places next to the binary, and every
+# bundled shared library gets its RPATH patched to $ORIGIN at build time
+# — so nothing in this whole launch chain ever sets PATH or
+# LD_LIBRARY_PATH. This script's own job is seeding backend manifests
+# (and a couple of env vars, below) before handing off to it.
 set -euo pipefail
 HERE="$(dirname "$(readlink -f "${0}")")"
 PYTHON3="$HERE/usr/bin/python3"
@@ -231,20 +232,19 @@ if [ -n "${APPIMAGE:-}" ]; then
     done
 fi
 
-# NOT exec'd into AppRun.real (unlike a typical AppImage wrapper):
-# exec-replacing this process means it never "exits" in bash's own
-# sense, so an EXIT trap here would never fire, leaving the three files
-# above dangling with this run's now-dead mount path
-# ($APPDIR/usr/bin/python3 under /tmp/.mount_.../, gone the moment this
-# AppImage process ends) — permanently shadowing a *separate*,
-# non-AppImage dev build of cloudmus-qt sharing this same
-# ~/.config/cloudmus/backends.d/ directory (BackendManifest.cpp always
-# scans it first, before any dev-repo-relative fallback), since it has
-# no way to know these entries have gone stale. Confirmed happening in
-# practice: after quitting an AppImage run, a plain dev build's
-# backends all failed with "backend disconnected" (QProcess silently
-# failing to spawn a since-unmounted path) until these files were
-# deleted by hand. Running AppRun.real as a real child instead, and
+# NOT exec'd (unlike a typical AppImage wrapper): exec-replacing this
+# process means it never "exits" in bash's own sense, so an EXIT trap
+# here would never fire, leaving the three files above dangling with
+# this run's now-dead mount path ($APPDIR/usr/bin/python3 under
+# /tmp/.mount_.../, gone the moment this AppImage process ends) —
+# permanently shadowing a *separate*, non-AppImage dev build of
+# cloudmus-qt sharing this same ~/.config/cloudmus/backends.d/ directory
+# (BackendManifest.cpp always scans it first, before any dev-repo-relative
+# fallback), since it has no way to know these entries have gone stale.
+# Confirmed happening in practice: after quitting an AppImage run, a
+# plain dev build's backends all failed with "backend disconnected"
+# (QProcess silently failing to spawn a since-unmounted path) until these
+# files were deleted by hand. Running it as a real child instead, and
 # cleaning these files up once it exits (whether normally or via a
 # signal), keeps them valid for exactly as long as they actually are.
 cleanup() {
@@ -252,5 +252,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-"$HERE/AppRun.real" "$@"
+# usr/bin/cloudmus-qt directly, not the "AppRun.real" symlink build-in-
+# docker.sh leaves next to it (both name the exact same file — linuxdeploy
+# never generates a real launcher for Qt6, just that symlink) — invoking
+# it by this path instead makes `ps`/`top`/crash messages show the
+# process as "cloudmus-qt", not the meaningless "AppRun.real".
+"$HERE/usr/bin/cloudmus-qt" "$@"
 exit $?

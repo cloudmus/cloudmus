@@ -228,6 +228,159 @@ cp /opt/openssl3-bundle/libssl.so.3 /opt/openssl3-bundle/libcrypto.so.3 "${APPDI
 ln -s libssl.so.3 "${APPDIR}/usr/lib/libssl.so"
 ln -s libcrypto.so.3 "${APPDIR}/usr/lib/libcrypto.so"
 
+# Bundling the GL dispatch libraries by hand, same reasoning as OpenSSL
+# above: linuxdeploy has a built-in excludelist (not something this repo
+# configures) that treats the whole GL/GLX/EGL family as "always present
+# on any Linux desktop" and deliberately never bundles it, even though
+# libQt6Gui.so.6, libQt6OpenGL.so.6, and the bundled libmpv.so.1 (from
+# bullseye's libmpv-dev) all have real ELF NEEDED entries on it —
+# confirmed via objdump -p, and confirmed *not* our own doing: this
+# project's CMakeLists.txt requests no Qt6::OpenGL* component and no code
+# under fronts/qt/src/ touches QOpenGL* at all; AudioPlayer.cpp configures
+# mpv with vid=no (audio only), never mpv's GL render API either. That
+# "always present" assumption fails on a minimal/headless install (no
+# desktop Mesa stack pulled in), which is exactly what surfaced this as
+# "libOpenGL.so.0: cannot open shared object file" on a bare Ubuntu VM.
+#
+# Only the thin vendor-neutral dispatch/API libraries below are bundled —
+# never the Mesa vendor/DRI backend itself (libGLX_mesa.so.0,
+# libEGL_mesa.so.0, DRI drivers, libdrm), which these dispatch libs
+# dlopen() at runtime based on the *target* machine's actual GPU/kernel,
+# and which is exactly why linuxdeploy's own excludelist treats this
+# whole family as host-provided in the first place. Bundling only the
+# dispatch shims is safe even on a machine with zero GPU acceleration:
+# nothing in this app ever calls a GL function (see above), so these only
+# need to be *loadable* to satisfy the ELF NEEDED at process startup —
+# never actually invoked.
+cp /usr/lib/x86_64-linux-gnu/libOpenGL.so.0 \
+    /usr/lib/x86_64-linux-gnu/libGLX.so.0 \
+    /usr/lib/x86_64-linux-gnu/libGLdispatch.so.0 \
+    /usr/lib/x86_64-linux-gnu/libGL.so.1 \
+    /usr/lib/x86_64-linux-gnu/libEGL.so.1 \
+    /usr/lib/x86_64-linux-gnu/libGLESv2.so.2 \
+    /usr/lib/x86_64-linux-gnu/libGLESv1_CM.so.1 \
+    "${APPDIR}/usr/lib/"
+
+# Closing the rest of the dependency graph by hand, generically: bullseye's
+# libmpv-dev (bundled above) itself directly needs ~40 shared libraries
+# (confirmed via objdump -p on libmpv.so.1 — jack, sndio, the whole cdio
+# family, smbclient, rubberband, SDL2, uchardet, lcms2, bluray, dvdnav,
+# lua5.2, wayland client libs, xkbcommon, jpeg, archive, pulse, asound,
+# the full ffmpeg family, on top of the GL family already handled above),
+# and linuxdeploy's excludelist treats a surprising chunk of that as
+# "presumed present on the host" too — confirmed in practice: after
+# bundling only the GL libraries above, the next real-machine test
+# (a bare Ubuntu VM) failed on "libjack.so.0: cannot open shared object
+# file" next. Enumerating this one crash report at a time doesn't scale
+# against a dependency graph this wide, so instead of a second static
+# list, this closes the *whole* graph: scan every ELF already in the
+# AppDir, bundle whatever it needs that isn't there yet and isn't on the
+# deny-list below, and repeat until a full pass adds nothing new (a
+# freshly-bundled library can itself need something not yet bundled).
+#
+# The deny-list is the same "host-provided" reasoning as the GL block
+# above, generalized to the four kinds of things that must NOT come from
+# this build:
+#   - The base runtime (libc/libstdc++/libgcc_s/ld-linux and friends):
+#     this whole build's low-glibc-floor strategy (see Dockerfile) is
+#     built on running against whatever glibc the *target* machine
+#     actually has, not shipping our own.
+#   - X11 (libX11 and its extension libraries): linuxdeploy itself never
+#     bundles these either, on the same "any Linux desktop has it"
+#     assumption — left alone here for consistency, not re-litigated.
+#   - GL/EGL/GLX/OpenGL/GLES (already bundled by name above, so excluded
+#     here only to avoid a redundant second copy) plus the Mesa
+#     vendor/DRI backend and hardware-specific libraries (libGLX_mesa,
+#     libEGL_mesa, libglapi, libdrm, libgbm, libva*, libvdpau) — these
+#     dlopen() a concrete GPU/kernel backend at runtime and must keep
+#     coming from the target machine, exactly as explained in the GL
+#     block above; this list just extends that same boundary to the
+#     libraries beyond the five it names explicitly.
+#   - Wayland client libraries (libwayland-client/cursor/egl/server) —
+#     added after a real regression, not by original design: bullseye's
+#     libwayland is 1.18, but Qt 6.9.3's official prebuilt
+#     libQt6WaylandClient.so.6 needs wl_proxy_marshal_flags, only added
+#     in libwayland 1.20. Bundling bullseye's old copy (which linuxdeploy
+#     *does* do on its own, unlike GL/X11 — confirmed via objdump -p
+#     showing it already sitting in usr/lib before this loop ever runs)
+#     shadowed a real, new-enough libwayland-client the host already had,
+#     turning a working Wayland session into "undefined symbol:
+#     wl_proxy_marshal_flags" (confirmed via QT_DEBUG_PLUGINS=1) — a
+#     regression from the Qt 6.5.3 -> 6.9.3 bump, since 6.5.3's older
+#     Wayland client module apparently never needed that symbol. Same
+#     underlying reasoning as X11: a windowing-system client library has
+#     to match the actual session/compositor it's running under, which
+#     only the host can guarantee — a frozen build-container snapshot
+#     can't. The explicit rm below undoes linuxdeploy's own bundling of
+#     these four files; the regex just stops this loop from adding them
+#     straight back on the next pass.
+#   - Fontconfig/Freetype (libfontconfig.so.1, libfreetype.so.6) — same
+#     "reads host-specific state" reasoning as Wayland/X11 above, not a
+#     GPU/kernel one this time: fontconfig parses the *host's* actual
+#     /etc/fonts/*.conf XML files (real host paths, nothing inside this
+#     AppImage), and bullseye's fontconfig is old enough to not understand
+#     a newer host's XML schema (xsi:nil attributes, a <reset-dirs>
+#     element — confirmed on an openSUSE Tumbleweed host, a rolling
+#     release with a much newer fontconfig than 2021's bullseye),
+#     producing a wall of "invalid attribute"/"invalid constant"/"unknown
+#     element" warnings on every startup even though fontconfig itself
+#     tolerates the unparseable parts and keeps going. Same fix as
+#     Wayland: every real Linux desktop already has a working, host-
+#     version-matched fontconfig (nothing renders text without one) —
+#     bundling a frozen build-container snapshot only reintroduces the
+#     version-skew problem Wayland already taught us to avoid here.
+#
+# Everything else this loop finds (jack, sndio, cdio, smbclient,
+# rubberband, SDL2, uchardet, lcms2, bluray, dvdnav, lua5.2, xkbcommon,
+# jpeg, archive, pulse, asound, ffmpeg) is an ordinary userspace library
+# with no host-specific state — same "only needs to be loadable, not
+# necessarily exercised" reasoning as OpenSSL and the GL dispatch shims
+# above.
+rm -f "${APPDIR}"/usr/lib/libwayland-client.so* \
+    "${APPDIR}"/usr/lib/libwayland-cursor.so* \
+    "${APPDIR}"/usr/lib/libwayland-egl.so* \
+    "${APPDIR}"/usr/lib/libwayland-server.so* \
+    "${APPDIR}"/usr/lib/libfontconfig.so* \
+    "${APPDIR}"/usr/lib/libfreetype.so*
+
+HOST_PROVIDED_LIB_REGEX='^lib(c|m|dl|pthread|rt|resolv|nsl|util|anl)\.so|^libstdc\+\+\.so|^libgcc_s\.so|^ld-linux|^libX|^libEGL\.so|^libGL\.so|^libGLX\.so|^libGLdispatch\.so|^libOpenGL\.so|^libGLES|^libglapi\.so|^libdrm|^libgbm\.so|^libva|^libvdpau\.so|^libwayland|^libfontconfig\.so|^libfreetype\.so'
+for _pass in 1 2 3 4 5; do
+    added=0
+    while IFS= read -r -d '' _elf; do
+        while read -r _lib; do
+            [ -n "$_lib" ] || continue
+            [[ "$_lib" =~ $HOST_PROVIDED_LIB_REGEX ]] && continue
+            [ -e "${APPDIR}/usr/lib/${_lib}" ] && continue
+            _src=$(find /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu -maxdepth 1 -name "$_lib" 2>/dev/null | head -n1)
+            if [ -n "$_src" ]; then
+                cp "$_src" "${APPDIR}/usr/lib/${_lib}"
+                added=1
+            fi
+        done < <(ldd "$_elf" 2>/dev/null | awk '{print $1}')
+    done < <(find "${APPDIR}/usr/lib" "${APPDIR}/usr/bin" -type f \( -name '*.so*' -o -perm -u+x \) -print0)
+    echo "==> Dependency closure pass ${_pass}: added ${added} new librar$([ "$added" = 1 ] && echo y || echo ies)"
+    [ "$added" -eq 0 ] && break
+done
+
+# Blanket RPATH patch over every top-level library in usr/lib, regardless
+# of which step put it there (linuxdeploy's own bundling, the manual
+# OpenSSL/GL blocks above, or the closure loop just above): confirmed
+# empirically that a file linuxdeploy bundled *itself*
+# (libwayland-client.so.0, needed by Qt's Wayland platform integration)
+# ships with no RPATH/RUNPATH at all, so its own NEEDED libffi.so.7 could
+# only be found via the *target machine's* default search paths — not
+# this AppDir — even though libffi.so.7 sits right next to it, bundled,
+# in this very directory. DT_RUNPATH is deliberately not inherited by a
+# library's own further dependencies (unlike the legacy DT_RPATH), so
+# patching only the top-level executable (which linuxdeploy does do
+# correctly — cloudmus-qt's own RUNPATH is $ORIGIN/../lib) was never
+# going to be enough once *any* bundled library has further un-bundled-
+# looking dependencies of its own. Cheaper and more robust than tracking
+# down which specific files need it: just make every file in usr/lib able
+# to find every one of its siblings, unconditionally.
+find "${APPDIR}/usr/lib" -maxdepth 1 -type f -name '*.so*' -print0 | \
+    xargs -0 -I{} patchelf --set-rpath '$ORIGIN' {}
+
 # --- 6. Wrap linuxdeploy's generated AppRun (it correctly sets up
 # QT_PLUGIN_PATH and friends for the bundled Qt6 — not something worth
 # reimplementing by hand) with ours, which seeds backend manifests
