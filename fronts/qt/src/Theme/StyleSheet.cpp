@@ -219,6 +219,18 @@ QString sidebarTreeBlock(const Palette& p)
         .arg(hex(p.surface400), hex(p.accent));
 }
 
+// trackListView_ is otherwise fully unstyled (TrackRowDelegate self-paints
+// every row, but the QListView's own background behind/around them was
+// never touched) — left at Qt's default Fusion palette background, a
+// light gray visibly mismatched against the rest of this dark-themed
+// app. surface0 per the design mockup (pixel-sampled directly — the main
+// content area and this list are both #14100D, while the sidebar/toolbar
+// chrome is the lighter #1C1714 = surface100).
+QString trackListBlock(const Palette& p)
+{
+    return QStringLiteral("QListView { background: %1; border: none; outline: 0; }").arg(hex(p.surface0));
+}
+
 } // namespace
 
 QString buildStyleSheet(Mode mode)
@@ -229,7 +241,7 @@ QString buildStyleSheet(Mode mode)
     // hides the real QScrollBar entirely and paints its own floating
     // handle — a QSS rule for QScrollBar would never be reached.
     return buttonsBlock(p) + textButtonsBlock(p) + slidersBlock(p) + toolBarBlock(p) + panelsBlock(p)
-        + progressBarBlock(p) + sidebarTreeBlock(p);
+        + progressBarBlock(p) + sidebarTreeBlock(p) + trackListBlock(p);
 }
 
 void applyGlobalStyleSheet(QApplication& app)

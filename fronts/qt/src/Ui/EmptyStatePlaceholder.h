@@ -16,6 +16,9 @@ class EmptyStatePlaceholder : public QWidget {
 
 public:
     explicit EmptyStatePlaceholder(QWidget* parent = nullptr);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
 };
 
 } // namespace Ui
