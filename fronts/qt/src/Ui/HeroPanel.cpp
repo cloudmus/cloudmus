@@ -4,6 +4,7 @@
 #include <QIcon>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPushButton>
 #include <QRadialGradient>
 #include <QResizeEvent>
@@ -13,6 +14,7 @@
 #include "GeneratedCoverArt.h"
 #include "Icons.h"
 #include "Metrics.h"
+#include "Radius.h"
 #include "Spacing.h"
 #include "Typography.h"
 
@@ -321,8 +323,17 @@ void HeroPanel::paintEvent(QPaintEvent* event)
     vignette.setColorAt(1.0, QColor(0, 0, 0, 0));
     painter.fillRect(rect(), vignette);
 
-    if (!coverPixmap_.isNull() && coverRect_.isValid())
+    if (!coverPixmap_.isNull() && coverRect_.isValid()) {
+        // Radius::md, not coverArtSm: that token is explicitly reserved
+        // for the small track-row thumbnails (see Radius.h) — this cover
+        // is large enough to read as its own panel, matching the same
+        // radius #sourceAuthCard and other panels already use.
+        QPainterPath clip;
+        clip.addRoundedRect(coverRect_, Theme::Radius::md, Theme::Radius::md);
+        painter.setClipPath(clip);
         painter.drawPixmap(coverRect_, coverPixmap_);
+        painter.setClipping(false);
+    }
 
     const Qt::Alignment textAlign = fillMode_ ? Qt::AlignHCenter : Qt::AlignLeft;
     if (!titleText_.isEmpty() && titleRect_.isValid()) {
