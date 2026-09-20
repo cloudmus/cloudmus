@@ -4,7 +4,10 @@ CloudMus backend for YouTube Music, built on
 [`ytmusicapi`](https://ytmusicapi.readthedocs.io/) for catalog/library
 access and [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) to resolve a
 playable audio stream URL per track (`ytmusicapi` itself only gives back
-metadata, not a stream — see `cloudmus_backend_ytmusic/playback.py`).
+metadata, not a stream — see `cloudmus_backend_ytmusic/playback.py`) and to
+actually download one (`cloudmus_backend_ytmusic/download.py`, `format:
+"bestaudio/best"` with no postprocessing — no `ffmpeg` dependency, since
+there's no video track to merge/transcode).
 
 Package: `cloudmus_backend_ytmusic`. Manifest: `manifest.json` (auto-
 discovered by fronts — see the top-level repo docs on backend discovery).
@@ -13,15 +16,45 @@ discovered by fronts — see the top-level repo docs on backend discovery).
 
 ```
 playback: providesStream (yt-dlp resolves the stream URL; no self-playback)
-browse:   playlists, likedTracks   (radio and search are NOT implemented yet)
-feedback: like, dislike            (skip is not implemented)
-download: not implemented
+browse:   playlists, likedTracks, radio   (search is NOT implemented yet)
+feedback: like, dislike, skip
+download: yes, via yt-dlp (cloudmus_backend_ytmusic/download.py)
 auth:     required, flow "usernamePassword" (see below — NOT deviceCode)
 ```
 
-Not implemented: `catalog.startRadio`, `catalog.downloadTrack`,
-`browse.search` (the protocol doesn't even have a `catalog.search` method
-yet — see `docs/protocol.md`).
+Not implemented: `browse.search` (the protocol doesn't even have a
+`catalog.search` method yet — see `docs/protocol.md`).
+
+`catalog.downloadTrack` tags the downloaded file from yt-dlp's own
+extracted metadata (its YouTube extractor parses Music-aware `track`/
+`artist`/`album` fields for a `music.youtube.com` URL, cleaner than the raw
+video title) rather than an `ytmusicapi` lookup — no single-track method
+there returns the same shape `catalog.to_track()` expects. Tagging is
+best-effort and only wired up for `.m4a` (MP4 atoms) and `.opus` (Ogg
+Vorbis comments) — whatever container yt-dlp actually returns for
+`bestaudio` (commonly `.webm`) is saved untagged if neither applies.
+
+### Radio — track-seeded only, not adaptive
+
+`catalog.startRadio` (`cloudmus_backend_ytmusic/radio.py`) is built on
+`ytmusicapi`'s `get_watch_playlist(videoId=..., radio=True)`, which needs a
+concrete track id to seed from — there is no `ytmusicapi` call that
+resolves a home-page algorithmic mix ("My Supermix" or otherwise) to an id
+(confirmed against the installed package: no `get_mixes()`-style method,
+nothing documented in `get_home()`'s shelves). So `seed` here is always a
+`trackId`, not a station/genre id the way Yandex's `"seed"` can be — this
+backend's radio only works from the front's "Start Radio from This Track"
+action, not a home-page "My Wave"-equivalent.
+
+It's also not adaptive: `ytmusicapi` has no radio/mix-specific feedback
+endpoint tied to a session (unlike Yandex's rotor API, whose
+`trackStarted`/`trackFinished`/`skip` calls carry a `batch_id` that
+actually influences future picks). `feedback.trackStarted`/
+`.trackFinished`/`.skip` are implemented (required once `browse.radio` is
+declared) but only `trackStarted`'s bookkeeping has any effect — it
+reseeds the next `get_watch_playlist` call from wherever listening
+actually got to, so the radio progresses instead of repeating the same
+batch, but nothing about *what* comes next responds to like/dislike/skip.
 
 ## Authentication — read this before anything else
 
@@ -99,7 +132,10 @@ All files are written `chmod 0600` (contain session cookies / tokens).
 
 - `ytmusicapi>=1.8,<2` — catalog/library access, both auth mechanisms.
 - `yt-dlp>=2024.1` — the only thing `ytmusicapi` can't do: resolving a
-  playable audio stream URL for a track (`playback.py`).
+  playable audio stream URL for a track (`playback.py`) and downloading one
+  (`download.py`).
+- `mutagen>=1.47` — best-effort tag writing on a downloaded file
+  (`download.py`).
 - `cloudmus-rpc-common` — shared NDJSON/JSON-RPC scaffolding (see
   `backends/py-rpc-common`).
 

@@ -1,3 +1,5 @@
+import pytest
+
 from cloudmus_backend_ytmusic import catalog
 
 
@@ -89,3 +91,80 @@ def test_available_tracks_filters_unavailable_and_missing_video_id():
     songs = [_song(videoId="a"), _song(videoId="b", isAvailable=False), {"title": "no id"}]
     result = catalog._available_tracks(songs)
     assert [s["videoId"] for s in result] == ["a"]
+
+
+def test_find_supermix_id_matches_exact_title_across_shelves():
+    # Confirmed live against a real account: "My Supermix" appears under
+    # more than one shelf (e.g. both "Listen again" and "Mixed for you"),
+    # always with the same playlistId — matching on the item's own title
+    # rather than the (less stable) shelf title.
+    home = [
+        {"title": "Listen again", "contents": [{"title": "Some Song", "playlistId": "RDAMVMxyz"}]},
+        {
+            "title": "Mixed for you",
+            "contents": [
+                {"title": "My Supermix", "playlistId": "RDTMsupermix123"},
+                {"title": "My Mix 1", "playlistId": "RDTMmix1"},
+            ],
+        },
+    ]
+    assert catalog._find_supermix_id(home) == "RDTMsupermix123"
+
+
+def test_find_supermix_id_absent_returns_none():
+    home = [{"title": "Listen again", "contents": [{"title": "Some Song", "playlistId": "RDAMVMxyz"}]}]
+    assert catalog._find_supermix_id(home) is None
+
+
+def test_find_supermix_id_ignores_items_with_no_playlist_id():
+    # e.g. an artist or album result card, which get_home() also returns
+    # mixed into the same shelves (has "browseId", not "playlistId").
+    home = [{"title": "Mixed for you", "contents": [{"title": "My Supermix", "browseId": "UCxyz"}]}]
+    assert catalog._find_supermix_id(home) is None
+
+
+def test_supermix_playlist_shape():
+    p = catalog._supermix_playlist("RDTMsupermix123")
+    d = p.to_dict()
+    assert d == {"id": "RDTMsupermix123", "title": "My Supermix", "trackCount": 0, "kind": "radioStation"}
+
+
+class _FakeClient:
+    def __init__(self, home, library_playlists, liked_tracks):
+        self._home = home
+        self._library_playlists = library_playlists
+        self._liked_tracks = liked_tracks
+
+    def get_home(self, limit=3):
+        return self._home
+
+    def get_library_playlists(self):
+        return self._library_playlists
+
+    def get_liked_songs(self):
+        return {"tracks": self._liked_tracks}
+
+
+@pytest.mark.asyncio
+async def test_list_playlists_includes_supermix_when_present():
+    client = _FakeClient(
+        home=[{"title": "Mixed for you", "contents": [{"title": "My Supermix", "playlistId": "RDTMsupermix123"}]}],
+        library_playlists=[{"playlistId": "PL1", "title": "My Playlist", "count": 1}],
+        liked_tracks=[],
+    )
+    result = await catalog.list_playlists(client)
+    kinds_by_id = {p["id"]: p["kind"] for p in result["playlists"]}
+    assert kinds_by_id["RDTMsupermix123"] == "radioStation"
+    assert kinds_by_id[catalog.LIKED_PLAYLIST_ID] == "liked"
+    assert kinds_by_id["PL1"] == "playlist"
+
+
+@pytest.mark.asyncio
+async def test_list_playlists_omits_supermix_when_get_home_fails():
+    class _FailingHomeClient(_FakeClient):
+        def get_home(self, limit=3):
+            raise RuntimeError("network blip")
+
+    client = _FailingHomeClient(home=None, library_playlists=[], liked_tracks=[])
+    result = await catalog.list_playlists(client)  # must not raise
+    assert all(p["kind"] != "radioStation" for p in result["playlists"])

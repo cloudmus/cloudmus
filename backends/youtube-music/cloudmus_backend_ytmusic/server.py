@@ -9,8 +9,9 @@ from rpc_common.generated.methods import emit_track_stream_ready
 from rpc_common.generated.models import StreamReadyParams
 from rpc_common.server import BackendError, BackendServer
 
-from . import catalog, client as client_module, playback
+from . import catalog, client as client_module, download, playback
 from .auth import BrowserAuthSession
+from .radio import RadioSession
 
 CAPABILITIES = {
     "playback": {
@@ -18,9 +19,9 @@ CAPABILITIES = {
         "selfPlayback": False,
         "controls": {"pause": False, "seek": False, "volume": False},
     },
-    "browse": {"playlists": True, "likedTracks": True, "radio": False, "search": False},
-    "feedback": {"like": True, "dislike": True, "skip": False},
-    "download": False,
+    "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False},
+    "feedback": {"like": True, "dislike": True, "skip": True},
+    "download": True,
     # usernamePassword, not deviceCode: device-code OAuth login itself still
     # works, but every data call made with the resulting token currently
     # 400s due to a confirmed upstream break (see auth.py's module
@@ -42,7 +43,15 @@ def build_server() -> BackendServer:
     )
 
     auth_session = BrowserAuthSession()
+    radio_session: RadioSession | None = None
     inflight_plays: dict[int, tuple[asyncio.Task, asyncio.Event]] = {}
+
+    def get_radio_session() -> RadioSession:
+        nonlocal radio_session
+        client = client_module.get_client()
+        if radio_session is None or radio_session.client is not client:
+            radio_session = RadioSession(client, server.notify)
+        return radio_session
 
     # --- auth ---
 
@@ -90,6 +99,24 @@ def build_server() -> BackendServer:
     @server.method("catalog.listLiked")
     async def handle_list_liked(params: dict, request_id: int) -> dict:
         return await catalog.list_liked(client_module.get_client())
+
+    @server.method("catalog.startRadio")
+    async def handle_start_radio(params: dict, request_id: int) -> dict:
+        try:
+            return await get_radio_session().start(params.get("seed"))
+        except ValueError as e:
+            raise BackendError(errors.STATE_INVALID, str(e), errors.app_error_data(retryable=False))
+
+    @server.method("catalog.downloadTrack")
+    async def handle_download_track(params: dict, request_id: int) -> dict:
+        try:
+            return await download.download_track(params["trackId"], params["destDir"])
+        except LookupError:
+            raise BackendError(
+                errors.RESOURCE_NOT_FOUND,
+                "Track not found",
+                errors.app_error_data(retryable=False, detail=f"trackId={params['trackId']}"),
+            )
 
     # --- playback ---
 
@@ -164,6 +191,21 @@ def build_server() -> BackendServer:
     @server.method("feedback.undislike")
     async def handle_undislike(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().rate_song, params["trackId"], LikeStatus.INDIFFERENT)
+        return {}
+
+    @server.method("feedback.trackStarted")
+    async def handle_track_started(params: dict, request_id: int) -> dict:
+        await get_radio_session().track_started(params["trackId"])
+        return {}
+
+    @server.method("feedback.trackFinished")
+    async def handle_track_finished(params: dict, request_id: int) -> dict:
+        await get_radio_session().track_finished(params["trackId"], params["playedMs"])
+        return {}
+
+    @server.method("feedback.skip")
+    async def handle_skip(params: dict, request_id: int) -> dict:
+        await get_radio_session().skip(params["trackId"], params["playedMs"])
         return {}
 
     return server

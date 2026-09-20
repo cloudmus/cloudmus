@@ -12,6 +12,16 @@ from rpc_common.generated.models import Album, Artist, Playlist, Track
 LIKED_PLAYLIST_ID = "__liked__"
 LIKED_PLAYLIST_TITLE = "Liked Songs"
 
+# "My Supermix" (radio.py's My-Wave-equivalent) has no dedicated ytmusicapi
+# lookup — it's discovered by scanning get_home()'s shelves for an item
+# with this exact title, confirmed live against a real account: it shows
+# up (with a stable "RDTM..."-prefixed playlistId) under both a "Listen
+# again" and a "Mixed for you" shelf. Matching on the literal title string
+# rather than the shelf title (which varies) or the id prefix (shared by
+# several other auto-mixes YouTube also surfaces the same way — "My Mix 1"
+# .."My Mix 7", "Discover Mix", "New Release Mix", ...).
+SUPERMIX_TITLE = "My Supermix"
+
 
 def _cover_url(thumbnails: list[dict] | None) -> str | None:
     if not thumbnails:
@@ -77,6 +87,21 @@ def _liked_playlist(track_count: int) -> Playlist:
     return Playlist(id=LIKED_PLAYLIST_ID, title=LIKED_PLAYLIST_TITLE, trackCount=track_count, kind="liked")
 
 
+def _find_supermix_id(home: list[dict]) -> str | None:
+    for shelf in home:
+        for item in shelf.get("contents") or []:
+            if item.get("title") == SUPERMIX_TITLE and item.get("playlistId"):
+                return item["playlistId"]
+    return None
+
+
+def _supermix_playlist(playlist_id: str) -> Playlist:
+    # trackCount=0 — same "not applicable" convention as Yandex's My Wave
+    # (a continuous radio, not a fixed-length list; see docs/protocol.md's
+    # kind: radioStation note).
+    return Playlist(id=playlist_id, title=SUPERMIX_TITLE, trackCount=0, kind="radioStation")
+
+
 def _available_tracks(songs: list[dict]) -> list[dict]:
     # isAvailable=False tracks (region-blocked, taken down, ...) would just
     # fail in playback.py's yt-dlp resolution — filter them out here instead
@@ -85,14 +110,24 @@ def _available_tracks(songs: list[dict]) -> list[dict]:
 
 
 async def list_playlists(client: YTMusic) -> dict:
-    def fetch() -> tuple[list[dict], int]:
+    def fetch() -> tuple[list[dict], int, str | None]:
         real_playlists = client.get_library_playlists() or []
         liked = client.get_liked_songs()
         liked_count = len(_available_tracks(liked.get("tracks") or []))
-        return real_playlists, liked_count
+        try:
+            supermix_id = _find_supermix_id(client.get_home(limit=10))
+        except Exception:
+            # Best-effort — Supermix is a nice-to-have extra entry, not
+            # worth failing the whole playlists list over a get_home()
+            # hiccup the way a failed get_liked_songs()/
+            # get_library_playlists() legitimately would.
+            supermix_id = None
+        return real_playlists, liked_count, supermix_id
 
-    real_playlists, liked_count = await asyncio.to_thread(fetch)
+    real_playlists, liked_count, supermix_id = await asyncio.to_thread(fetch)
     playlists = [_liked_playlist(liked_count)]
+    if supermix_id:
+        playlists.append(_supermix_playlist(supermix_id))
     playlists += [to_playlist(p) for p in real_playlists]
     return {"playlists": [p.to_dict() for p in playlists]}
 

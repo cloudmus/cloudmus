@@ -7,6 +7,7 @@ dependencies = [
     "cloudmus-rpc-common",
     "ytmusicapi>=1.8,<2",
     "yt-dlp>=2024.1",
+    "mutagen>=1.47",
 ]
 
 [project.optional-dependencies]
