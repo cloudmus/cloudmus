@@ -180,6 +180,10 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     dislikeButton_ = new IconHoverButton(QStringLiteral("thumb_down"), IconHoverButton::Scheme::Neutral, this);
     dislikeButton_->setCheckable(true);
     dislikeButton_->setToolTip(tr("Dislike"));
+    // Not checkable, unlike like/dislike — a repeat download is a normal
+    // thing to ask for again, not a state to toggle off.
+    downloadButton_ = new IconHoverButton(QStringLiteral("file_download"), IconHoverButton::Scheme::Neutral, this);
+    downloadButton_->setToolTip(tr("Save to Downloads"));
     connect(previousButton_, &QPushButton::clicked, this, &NowPlayingBar::previousClicked);
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
     connect(nextButton_, &QPushButton::clicked, this, &NowPlayingBar::nextClicked);
@@ -193,6 +197,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // (setChecked() under the hood) never loop back into another RPC call.
     connect(likeButton_, &QPushButton::clicked, this, &NowPlayingBar::likeClicked);
     connect(dislikeButton_, &QPushButton::clicked, this, &NowPlayingBar::dislikeClicked);
+    connect(downloadButton_, &QPushButton::clicked, this, &NowPlayingBar::downloadClicked);
     // Nothing loaded yet at construction — setTrackAvailable()/
     // setQueueAvailable()/setTrackWebUrl() (driven by PlaybackController's
     // own state, see MainWindow) enable these once there's something to
@@ -204,6 +209,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     openTrackPageButton_->setEnabled(false);
     likeButton_->setEnabled(false);
     dislikeButton_->setEnabled(false);
+    downloadButton_->setEnabled(false);
     // Top row of the controls column below — transport buttons, then
     // whatever setTrailingWidget() appends (MainWindow's hamburger menu
     // button) pinned to the right by the stretch.
@@ -234,6 +240,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     buttonsRow_->addWidget(openTrackPageButton_);
     buttonsRow_->addWidget(likeButton_);
     buttonsRow_->addWidget(dislikeButton_);
+    buttonsRow_->addWidget(downloadButton_);
     buttonsRow_->addStretch(1);
 
     elapsedLabel_ = new QLabel(QStringLiteral("0:00"), this);
@@ -362,6 +369,26 @@ void NowPlayingBar::refreshDislikeButton()
     dislikeButton_->setChecked(disliked_);
     static_cast<IconHoverButton*>(dislikeButton_)
         ->setIconName(dislikeBusy_ ? QStringLiteral("refresh") : QStringLiteral("thumb_down"));
+}
+
+void NowPlayingBar::setDownloadState(bool capabilitySupported)
+{
+    downloadSupported_ = capabilitySupported;
+    downloadBusy_ = false;
+    refreshDownloadButton();
+}
+
+void NowPlayingBar::setDownloadBusy(bool busy)
+{
+    downloadBusy_ = busy;
+    refreshDownloadButton();
+}
+
+void NowPlayingBar::refreshDownloadButton()
+{
+    downloadButton_->setEnabled(downloadSupported_ && !downloadBusy_);
+    static_cast<IconHoverButton*>(downloadButton_)
+        ->setIconName(downloadBusy_ ? QStringLiteral("refresh") : QStringLiteral("file_download"));
 }
 
 void NowPlayingBar::setPlaying(bool playing)

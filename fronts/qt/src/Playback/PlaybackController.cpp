@@ -71,6 +71,32 @@ void PlaybackController::startRadio(
     playIndex(0);
 }
 
+void PlaybackController::enqueueNext(const QString& sourceId, const Track& track)
+{
+    const bool wasEmpty = !hasQueue();
+    const int insertPos = hasCurrentTrack() ? index_ + 1 : 0;
+    queue_.insert(insertPos, QueueEntry { sourceId, track });
+    if (wasEmpty)
+        emit queueAvailabilityChanged(true);
+    if (!hasCurrentTrack())
+        playIndex(0);
+}
+
+void PlaybackController::enqueueAtEnd(const QString& sourceId, const Track& track)
+{
+    const bool wasEmpty = !hasQueue();
+    const bool shouldPlayImmediately = !hasCurrentTrack();
+    queue_.append(QueueEntry { sourceId, track });
+    if (wasEmpty)
+        emit queueAvailabilityChanged(true);
+    // Play the entry just appended (queue_.size() - 1), not index 0 — stop()
+    // leaves hasCurrentTrack() false without clearing queue_, so index 0
+    // could be a stale leftover entry from before Stop was pressed rather
+    // than the track this call is actually about.
+    if (shouldPlayImmediately)
+        playIndex(queue_.size() - 1);
+}
+
 void PlaybackController::handleTracksAdded(const QString& sourceId, const TracksAddedParams& params)
 {
     if (!waveMode_ || sourceId != waveSourceId_ || params.stationId != waveStationId_)

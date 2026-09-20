@@ -3,6 +3,7 @@
 #include <QAction>
 #include <QCloseEvent>
 #include <QCursor>
+#include <QDesktopServices>
 #include <QEvent>
 #include <QListView>
 #include <QLoggingCategory>
@@ -15,6 +16,7 @@
 #include <QToolBar>
 #include <QToolButton>
 #include <QTreeView>
+#include <QUrl>
 #include <QVBoxLayout>
 
 #include "AboutDialog.h"
@@ -59,6 +61,14 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     setWindowTitle(QStringLiteral("CloudMus"));
     resize(960, 640);
     restoreGeometry(settings_.windowGeometry());
+    // QMainWindow's default behavior: right-clicking a toolbar/dock area
+    // pops up a menu of toggle-visibility checkboxes for every toolbar
+    // (createPopupMenu()). With only one toolbar here (the transport bar —
+    // play/pause, like/dislike, downloads, the hamburger menu itself) and
+    // no menu bar to bring it back from, an accidental click there would
+    // hide the only way to control playback at all. Disabling it entirely
+    // is Qt's own documented fix (QMainWindow::setContextMenuPolicy docs).
+    setContextMenuPolicy(Qt::NoContextMenu);
 
     coverArtCache_ = new CoverArtCache(this);
     playbackHistory_ = new History::PlaybackHistory(this);
@@ -84,10 +94,17 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         playback_.setVolume(v);
         settings_.setVolume(v);
     });
-    connect(
-        nowPlayingBar_, &NowPlayingBar::likeClicked, this, [this](bool liked) { likeToggledAsync(liked).detach(); });
-    connect(nowPlayingBar_, &NowPlayingBar::dislikeClicked, this,
-        [this](bool disliked) { dislikeToggledAsync(disliked).detach(); });
+    connect(nowPlayingBar_, &NowPlayingBar::likeClicked, this, [this](bool liked) {
+        if (!playback_.hasCurrentTrack())
+            return;
+        likeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, liked).detach();
+    });
+    connect(nowPlayingBar_, &NowPlayingBar::dislikeClicked, this, [this](bool disliked) {
+        if (!playback_.hasCurrentTrack())
+            return;
+        dislikeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, disliked).detach();
+    });
+    connect(nowPlayingBar_, &NowPlayingBar::downloadClicked, this, [this]() { downloadCurrentTrackAsync().detach(); });
 
     // The single declarative source of truth for every control's enabled
     // state and value — see NowPlayingBar::setTrackAvailable()'s doc
@@ -102,6 +119,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
             nowPlayingBar_->setTrackWebUrl(QString());
             nowPlayingBar_->setLikeState(false, false);
             nowPlayingBar_->setDislikeState(false, false);
+            nowPlayingBar_->setDownloadState(false);
             heroPanel_->setPlaylist(currentPlaylist_);
             trackRowDelegate_->setCurrentlyPlaying(QString(), QString());
             trackListView_->viewport()->update();
@@ -118,11 +136,11 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
         [this](const Track& track, const QString& sourceId) {
             const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-            const QJsonObject feedback = client != nullptr
-                ? client->capabilities().value(QStringLiteral("feedback")).toObject()
-                : QJsonObject();
+            const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
+            const QJsonObject feedback = capabilities.value(QStringLiteral("feedback")).toObject();
             nowPlayingBar_->setLikeState(feedback.value(QStringLiteral("like")).toBool(), track.liked.value_or(false));
             nowPlayingBar_->setDislikeState(feedback.value(QStringLiteral("dislike")).toBool(), /*disliked=*/false);
+            nowPlayingBar_->setDownloadState(capabilities.value(QStringLiteral("download")).toBool());
         });
     // HeroPanel shows what's playing instead of the browsed playlist's
     // promo card whenever playback_.hasCurrentTrack() — see
@@ -241,6 +259,8 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     OverlayScrollBar::attach(trackListView_);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
+    trackListView_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(trackListView_, &QListView::customContextMenuRequested, this, &MainWindow::onTrackContextMenuRequested);
 
     auto* trackListContainer = new QWidget(this);
     auto* trackListContainerLayout = new QVBoxLayout(trackListContainer);
@@ -682,6 +702,88 @@ void MainWindow::onTrackDoubleClicked(const QModelIndex& index)
     playback_.loadQueue(trackListModel_->sourceId(), trackListModel_->allTracks(), index.row());
 }
 
+void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
+{
+    const QModelIndex index = trackListView_->indexAt(pos);
+    if (!index.isValid())
+        return;
+    const int row = index.row();
+    const QString sourceId
+        = trackListModel_->isMixedSource() ? trackListModel_->sourceIdAt(row) : trackListModel_->sourceId();
+    const Track track = trackListModel_->trackAt(row);
+
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
+    const QJsonObject feedback = capabilities.value(QStringLiteral("feedback")).toObject();
+    const bool likeSupported = feedback.value(QStringLiteral("like")).toBool();
+    const bool dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
+    const bool radioSupported
+        = capabilities.value(QStringLiteral("browse")).toObject().value(QStringLiteral("radio")).toBool();
+    const bool downloadSupported = capabilities.value(QStringLiteral("download")).toBool();
+    const QString webUrl = track.webUrl.value_or(QString());
+
+    auto* menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+
+    // Icon + text, Theme::IconColor::Ink at 16px — same convention
+    // Integration::TrayIcon's menu already uses for its own QAction icons.
+    menu->addAction(Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), this,
+        [this, index]() { onTrackDoubleClicked(index); });
+    menu->addAction(Theme::icon(QStringLiteral("playlist_play"), Theme::IconColor::Ink, 16), tr("Play Next"), this,
+        [this, sourceId, track]() { playback_.enqueueNext(sourceId, track); });
+    menu->addAction(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Add to Queue"), this,
+        [this, sourceId, track]() { playback_.enqueueAtEnd(sourceId, track); });
+
+    if (likeSupported || dislikeSupported) {
+        menu->addSeparator();
+        if (likeSupported) {
+            QAction* likeAction
+                = menu->addAction(Theme::icon(QStringLiteral("thumb_up"), Theme::IconColor::Ink, 16), tr("Like"));
+            likeAction->setCheckable(true);
+            const bool liked = track.liked.value_or(false);
+            likeAction->setChecked(liked);
+            connect(likeAction, &QAction::triggered, this, [this, sourceId, id = track.id, liked]() {
+                likeToggledAsync(sourceId, id, !liked, /*announceSuccess=*/true).detach();
+            });
+        }
+        if (dislikeSupported) {
+            // Not checkable, unlike Like — the protocol carries no
+            // persisted "disliked" field on Track (see NowPlayingBar's
+            // toolbar dislike button, which has the same limitation), so
+            // there's no accurate checked state to seed this from. A
+            // one-shot "mark as disliked" action instead.
+            QAction* dislikeAction
+                = menu->addAction(Theme::icon(QStringLiteral("thumb_down"), Theme::IconColor::Ink, 16), tr("Dislike"));
+            connect(dislikeAction, &QAction::triggered, this, [this, sourceId, id = track.id]() {
+                dislikeToggledAsync(sourceId, id, /*disliked=*/true, /*announceSuccess=*/true).detach();
+            });
+        }
+    }
+
+    if (radioSupported) {
+        menu->addSeparator();
+        menu->addAction(Theme::icon(QStringLiteral("radio"), Theme::IconColor::Ink, 16),
+            tr("Start Radio from This Track"), this, [this, sourceId, id = track.id]() {
+                startRadioAsync(sourceId, QStringLiteral("track:%1").arg(id)).detach();
+            });
+    }
+
+    if (!webUrl.isEmpty() || downloadSupported) {
+        menu->addSeparator();
+        if (!webUrl.isEmpty()) {
+            menu->addAction(Theme::icon(QStringLiteral("open_in_new"), Theme::IconColor::Ink, 16),
+                tr("Open Track Page"), this, [webUrl]() { QDesktopServices::openUrl(QUrl(webUrl)); });
+        }
+        if (downloadSupported) {
+            menu->addAction(Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, 16),
+                tr("Save to Downloads"), this,
+                [this, sourceId, track]() { downloadTrackAsync(sourceId, track).detach(); });
+        }
+    }
+
+    menu->popup(trackListView_->viewport()->mapToGlobal(pos));
+}
+
 Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields)
 {
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
@@ -703,12 +805,8 @@ Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields
     sourcePanel_->setAuthActionBusy(false);
 }
 
-Rpc::Task<void> MainWindow::likeToggledAsync(bool liked)
+Rpc::Task<void> MainWindow::likeToggledAsync(QString sourceId, QString trackId, bool liked, bool announceSuccess)
 {
-    if (!playback_.hasCurrentTrack())
-        co_return;
-    const QString sourceId = playback_.currentSourceId();
-    const QString trackId = playback_.currentTrack().id;
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr || !client->available())
         co_return;
@@ -742,6 +840,8 @@ Rpc::Task<void> MainWindow::likeToggledAsync(bool liked)
             if (liked)
                 nowPlayingBar_->setDislikeState(dislikeSupported, false);
         }
+        if (announceSuccess)
+            toastNotifier_->showInfo(liked ? tr("Added to Liked") : tr("Removed from Liked"));
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcMainWindow) << "feedback.like/unlike failed for" << trackId << ":" << message;
@@ -751,12 +851,8 @@ Rpc::Task<void> MainWindow::likeToggledAsync(bool liked)
     }
 }
 
-Rpc::Task<void> MainWindow::dislikeToggledAsync(bool disliked)
+Rpc::Task<void> MainWindow::dislikeToggledAsync(QString sourceId, QString trackId, bool disliked, bool announceSuccess)
 {
-    if (!playback_.hasCurrentTrack())
-        co_return;
-    const QString sourceId = playback_.currentSourceId();
-    const QString trackId = playback_.currentTrack().id;
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr || !client->available())
         co_return;
@@ -789,6 +885,8 @@ Rpc::Task<void> MainWindow::dislikeToggledAsync(bool disliked)
             if (disliked)
                 nowPlayingBar_->setLikeState(likeSupported, false);
         }
+        if (announceSuccess)
+            toastNotifier_->showInfo(disliked ? tr("Disliked") : tr("Removed dislike"));
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcMainWindow) << "feedback.dislike/undislike failed for" << trackId << ":" << message;
@@ -796,6 +894,43 @@ Rpc::Task<void> MainWindow::dislikeToggledAsync(bool disliked)
         if (stillCurrent())
             nowPlayingBar_->setDislikeState(dislikeSupported, !disliked);
     }
+}
+
+Rpc::Task<void> MainWindow::downloadTrackAsync(QString sourceId, Track track)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available())
+        co_return;
+    toastNotifier_->showInfo(tr("Downloading \"%1\"…").arg(track.title));
+    try {
+        DownloadTrackParams params { track.id, settings_.downloadDirectory() };
+        DownloadTrackResult result = co_await Rpc::catalogDownloadTrack(*client, params);
+        Q_UNUSED(result);
+        toastNotifier_->showInfo(tr("Saved \"%1\"").arg(track.title));
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcMainWindow) << "catalog.downloadTrack failed for" << track.id << ":" << message;
+        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+    }
+}
+
+Rpc::Task<void> MainWindow::downloadCurrentTrackAsync()
+{
+    if (!playback_.hasCurrentTrack())
+        co_return;
+    const QString sourceId = playback_.currentSourceId();
+    const QString trackId = playback_.currentTrack().id;
+    const Track track = playback_.currentTrack();
+    auto stillCurrent = [this, sourceId, trackId]() {
+        return playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
+            && playback_.currentTrack().id == trackId;
+    };
+
+    if (stillCurrent())
+        nowPlayingBar_->setDownloadBusy(true);
+    co_await downloadTrackAsync(sourceId, track); // toasts + the RPC call itself
+    if (stillCurrent())
+        nowPlayingBar_->setDownloadBusy(false);
 }
 
 void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }

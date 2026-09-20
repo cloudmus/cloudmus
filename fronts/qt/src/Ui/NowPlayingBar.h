@@ -72,6 +72,14 @@ public:
     void setLikeBusy(bool busy);
     void setDislikeBusy(bool busy);
 
+    // Save to Downloads — no toggle/checked state (unlike like/dislike, a
+    // repeat download is a perfectly normal thing to ask for again), just
+    // enabled iff the source declares the `download` capability and busy
+    // while catalog.downloadTrack is in flight (same "refresh" glyph-swap
+    // convention as setLikeBusy()/setDislikeBusy()).
+    void setDownloadState(bool capabilitySupported);
+    void setDownloadBusy(bool busy);
+
     // Appended to the right end of the transport-button row (top row — see
     // the .cpp), after a stretch that keeps it pinned there. MainWindow
     // hands its hamburger-menu QToolButton in here rather than this class
@@ -94,11 +102,13 @@ signals:
     // separately track "was it liked before."
     void likeClicked(bool liked);
     void dislikeClicked(bool disliked);
+    void downloadClicked();
 
 private:
     void updatePlayPauseIcon();
     void refreshLikeButton();
     void refreshDislikeButton();
+    void refreshDownloadButton();
 
     QPushButton* previousButton_ = nullptr;
     QPushButton* playPauseButton_ = nullptr;
@@ -107,6 +117,7 @@ private:
     QPushButton* openTrackPageButton_ = nullptr;
     QPushButton* likeButton_ = nullptr;
     QPushButton* dislikeButton_ = nullptr;
+    QPushButton* downloadButton_ = nullptr;
     QSlider* seekSlider_ = nullptr;
     QLabel* elapsedLabel_ = nullptr;
     QLabel* durationLabel_ = nullptr;
@@ -129,6 +140,8 @@ private:
     bool dislikeSupported_ = false;
     bool disliked_ = false;
     bool dislikeBusy_ = false;
+    bool downloadSupported_ = false;
+    bool downloadBusy_ = false;
 };
 
 } // namespace Ui

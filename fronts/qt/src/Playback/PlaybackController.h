@@ -36,6 +36,17 @@ public:
     void loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex);
     void startRadio(const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks);
 
+    // Insert a single track without disturbing the rest of the queue
+    // (unlike loadQueue/startRadio, which replace it wholesale) — for the
+    // track list's context menu. Each QueueEntry already carries its own
+    // sourceId, so a track from a different source than what's currently
+    // playing queues just fine. If nothing is playing when either is
+    // called, the queue was effectively empty for the user's purposes, so
+    // "queue it" just means "play it now" — same fallback loadQueue/
+    // startRadio already have via playIndex().
+    void enqueueNext(const QString& sourceId, const Track& track);
+    void enqueueAtEnd(const QString& sourceId, const Track& track);
+
     // Called by whoever wires up RpcClient::notifications for each source
     // (see Ui/MainWindow.cpp) — not signals themselves, since the caller
     // already has the per-client dispatch table to fill in.

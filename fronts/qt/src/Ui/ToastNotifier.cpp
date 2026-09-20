@@ -17,7 +17,11 @@ ToastNotifier::ToastNotifier(QWidget* anchor)
 {
 }
 
-void ToastNotifier::showError(const QString& message)
+void ToastNotifier::showError(const QString& message) { showToast(message); }
+
+void ToastNotifier::showInfo(const QString& message) { showToast(message); }
+
+void ToastNotifier::showToast(const QString& message)
 {
     auto* toast = new QLabel(message, anchor_);
     toast->setObjectName(QStringLiteral("toastLabel")); // styled by Theme::StyleSheet's global #toastLabel rule

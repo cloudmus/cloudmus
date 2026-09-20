@@ -59,6 +59,13 @@ private:
     void onSidebarActivated(const QModelIndex& index);
     void onSidebarDoubleClicked(const QModelIndex& index);
     void onTrackDoubleClicked(const QModelIndex& index);
+    // Right-click on trackListView_ — resolves the row exactly like
+    // onTrackDoubleClicked() does, then builds a QMenu gated by the row's
+    // source capabilities (Play/Play Next/Add to Queue always shown;
+    // Like/Dislike/Start Radio/Save to Downloads only when the source
+    // declares the matching capability; Open Track Page only when the
+    // track has a webUrl).
+    void onTrackContextMenuRequested(const QPoint& pos);
     // Shared by the header's Play button and onSidebarDoubleClicked() — both
     // just need "start playing whatever's currently shown" once it's
     // loaded (currentPlaylistSourceId_/currentPlaylist_/trackListModel_).
@@ -104,16 +111,34 @@ private:
     // for the duration) so a click can't be repeated mid-flight and the
     // user sees something actually happened.
     Rpc::Task<void> retryAuthAsync(QString sourceId);
-    // Like/dislike button handlers: `liked`/`disliked` is the user's
-    // requested new state (see NowPlayingBar::likeClicked/dislikeClicked's
-    // doc comment). Shows a busy indicator for the duration, persists the
+    // Like/dislike for an arbitrary track (the toolbar's like/dislike
+    // clicks pass playback_.currentSourceId()/currentTrack().id; the track
+    // list's context menu passes whatever row was right-clicked — this
+    // doesn't have to be the currently-playing track). `liked`/`disliked`
+    // is the requested new state (see NowPlayingBar::likeClicked/
+    // dislikeClicked's doc comment for the toolbar case). Persists the
     // result into every in-memory Track cache on success (TrackListModel,
     // PlaybackController's queue, PlaybackHistory — see their
     // markTrackLiked()/setTrackLiked(), added specifically so replaying a
-    // liked track later reflects it instead of reading a stale copy), and
-    // rolls the button back to its prior state plus a toast on failure.
-    Rpc::Task<void> likeToggledAsync(bool liked);
-    Rpc::Task<void> dislikeToggledAsync(bool disliked);
+    // liked track later reflects it instead of reading a stale copy).
+    // NowPlayingBar's busy/checked state and rollback-on-failure only
+    // apply when the acted-on track is still the one it's currently
+    // showing (see the stillCurrent() guard in the .cpp) — a context-menu
+    // click on some other row leaves the toolbar alone. `announceSuccess`
+    // shows a toast on success: the toolbar's own button already gives
+    // visual confirmation for its own clicks (announceSuccess=false,
+    // default), but a context-menu click has no other feedback
+    // (announceSuccess=true).
+    Rpc::Task<void> likeToggledAsync(QString sourceId, QString trackId, bool liked, bool announceSuccess = false);
+    Rpc::Task<void> dislikeToggledAsync(QString sourceId, QString trackId, bool disliked, bool announceSuccess = false);
+    // catalog.downloadTrack into settings_.downloadDirectory() — the track
+    // list context menu's "Save to Downloads" (only offered when the
+    // track's source declares the `download` capability).
+    Rpc::Task<void> downloadTrackAsync(QString sourceId, Track track);
+    // Toolbar's Save-to-Downloads button: wraps downloadTrackAsync() for
+    // the currently-playing track with NowPlayingBar's busy indicator,
+    // same stillCurrent()-guard shape as likeToggledAsync().
+    Rpc::Task<void> downloadCurrentTrackAsync();
 
     // Per-source auth status, cached here since nothing on RpcClient itself
     // persists it (onAuthPromptRaw/notifications.onAuthStatusChanged are
