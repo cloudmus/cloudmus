@@ -33,6 +33,7 @@
 #include "SmoothScroller.h"
 #include "SourcePanel.h"
 #include "Spacing.h"
+#include "ThemedSplitter.h"
 #include "ToastNotifier.h"
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
@@ -238,7 +239,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListPaneLayout->setSpacing(0);
     trackListPaneLayout->addWidget(trackListView_);
 
-    contentSplitter_ = new QSplitter(Qt::Horizontal, trackListContainer);
+    contentSplitter_ = new ThemedSplitter(Qt::Horizontal, trackListContainer);
     contentSplitter_->addWidget(heroPanel_);
     contentSplitter_->addWidget(trackListPane_);
     contentSplitter_->setSizes({ settings_.heroPanelWidth(), 290 });
@@ -277,7 +278,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListBusyIndicator_->hide();
     trackListPane_->installEventFilter(this);
 
-    auto* splitter = new QSplitter(this);
+    auto* splitter = new ThemedSplitter(this);
     splitter->addWidget(sidebarView_);
     splitter->addWidget(trackListContainer);
     splitter->setSizes({ settings_.sidebarWidth(), 720 });

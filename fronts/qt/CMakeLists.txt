@@ -88,6 +88,7 @@ add_executable(cloudmus-qt
     src/Ui/ToastNotifier.cpp
     src/Ui/SmoothScroller.cpp
     src/Ui/OverlayScrollBar.cpp
+    src/Ui/ThemedSplitter.cpp
     src/Ui/SettingsDialog.cpp
     src/Ui/CoverArtCache.cpp
 
