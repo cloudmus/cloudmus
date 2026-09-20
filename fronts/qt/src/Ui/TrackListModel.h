@@ -47,6 +47,14 @@ public:
     void setMixedSourceTracks(const QList<MixedSourceEntry>& entries);
     void appendTracks(const QList<Track>& tracks);
     void clear();
+    // Patches Track::liked on every row matching (sourceId, trackId) — by
+    // id, since a row's source is sourceId_ normally or
+    // mixedSourceIds_[row] in a mixed-source (History) list, same as
+    // sourceIdAt(). No-op if the track isn't currently displayed. Fixes
+    // replaying a liked track from an already-loaded list showing it as
+    // unliked (the list was never re-fetched, so it still had the Track
+    // copy's original `liked` value from whenever it was fetched).
+    void markTrackLiked(const QString& sourceId, const QString& trackId, bool liked);
 
     const QString& sourceId() const { return sourceId_; }
     bool isMixedSource() const { return mixedSource_; }

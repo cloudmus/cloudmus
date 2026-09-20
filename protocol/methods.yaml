@@ -156,6 +156,24 @@ methods:
     result: {type: object, properties: {}, required: []}
     timeoutMs: 5000
 
+  feedback.unlike:
+    requiresCapability: feedback.like
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  feedback.undislike:
+    requiresCapability: feedback.dislike
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
   feedback.trackStarted:
     requiresCapability: browse.radio
     params:

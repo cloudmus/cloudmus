@@ -161,6 +161,16 @@ def build_server() -> BackendServer:
         await asyncio.to_thread(client_module.get_client().users_dislikes_tracks_add, params["trackId"])
         return {}
 
+    @server.method("feedback.unlike")
+    async def handle_unlike(params: dict, request_id: int) -> dict:
+        await asyncio.to_thread(client_module.get_client().users_likes_tracks_remove, params["trackId"])
+        return {}
+
+    @server.method("feedback.undislike")
+    async def handle_undislike(params: dict, request_id: int) -> dict:
+        await asyncio.to_thread(client_module.get_client().users_dislikes_tracks_remove, params["trackId"])
+        return {}
+
     @server.method("feedback.trackStarted")
     async def handle_track_started(params: dict, request_id: int) -> dict:
         await get_radio_session().track_started(params["trackId"])

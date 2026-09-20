@@ -21,5 +21,7 @@
         <file alias="chevron_right.svg">icons/symbols/chevron_right.svg</file>
         <file alias="expand_more.svg">icons/symbols/expand_more.svg</file>
         <file alias="check.svg">icons/symbols/check.svg</file>
+        <file alias="thumb_up.svg">icons/symbols/thumb_up.svg</file>
+        <file alias="thumb_down.svg">icons/symbols/thumb_down.svg</file>
     </qresource>
 </RCC>

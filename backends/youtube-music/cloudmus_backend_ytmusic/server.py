@@ -153,4 +153,17 @@ def build_server() -> BackendServer:
         await asyncio.to_thread(client_module.get_client().rate_song, params["trackId"], LikeStatus.DISLIKE)
         return {}
 
+    # Rating is a single tri-state field on this backend (LIKE/DISLIKE/
+    # INDIFFERENT) — unlike and undislike both just clear it back to
+    # INDIFFERENT, there's no separate "remove" call.
+    @server.method("feedback.unlike")
+    async def handle_unlike(params: dict, request_id: int) -> dict:
+        await asyncio.to_thread(client_module.get_client().rate_song, params["trackId"], LikeStatus.INDIFFERENT)
+        return {}
+
+    @server.method("feedback.undislike")
+    async def handle_undislike(params: dict, request_id: int) -> dict:
+        await asyncio.to_thread(client_module.get_client().rate_song, params["trackId"], LikeStatus.INDIFFERENT)
+        return {}
+
     return server

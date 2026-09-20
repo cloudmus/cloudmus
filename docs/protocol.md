@@ -343,6 +343,8 @@ results here are just acks.
 |---|---|---|
 | `feedback.like` | `{"trackId": string}` | `feedback.like` |
 | `feedback.dislike` | `{"trackId": string}` | `feedback.dislike` |
+| `feedback.unlike` | `{"trackId": string}` | `feedback.like` |
+| `feedback.undislike` | `{"trackId": string}` | `feedback.dislike` |
 | `feedback.trackStarted` | `{"trackId": string}` | `browse.radio` (radio attribution) |
 | `feedback.trackFinished` | `{"trackId": string, "playedMs": number}` | `browse.radio` |
 | `feedback.skip` | `{"trackId": string, "playedMs": number}` | `feedback.skip` or `browse.radio` |
@@ -351,6 +353,12 @@ All return `{}` on success. `trackStarted`/`trackFinished`/`skip` exist
 specifically to let a radio/wave-style source adapt its recommendations —
 send them whenever `browse.radio` is the active capability, independent of
 whether `feedback.skip` itself is separately declared.
+
+`unlike`/`undislike` reverse a previous `like`/`dislike` (reuse the same
+capability flag — a source that can like can un-like). Liking/disliking a
+track is exclusive: a successful `like` clears any prior dislike and vice
+versa (both shipped sources enforce this server-side), so a front should
+mirror that locally rather than showing both states lit up at once.
 
 ### 7.5 Download
 

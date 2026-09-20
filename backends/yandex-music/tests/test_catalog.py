@@ -39,6 +39,14 @@ def test_to_track_handles_missing_album_and_cover():
     assert t.coverUrl is None
 
 
+def test_to_track_liked_defaults_unset_but_can_be_forced_true():
+    # yandex_music's Track has no liked attribute of its own — list_liked()
+    # passes liked=True explicitly since every track it returns came from
+    # users_likes_tracks() (see catalog.py's to_track docstring).
+    assert catalog.to_track(_track()).liked is None
+    assert catalog.to_track(_track(), liked=True).liked is True
+
+
 def test_to_playlist_maps_fields():
     p = catalog.to_playlist(SimpleNamespace(playlist_id="1:3", title="My Playlist", track_count=42))
     d = p.to_dict()

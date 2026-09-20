@@ -31,6 +31,11 @@ public:
     // Most-recent-first.
     void record(const QString& sourceId, const Track& track);
     const QList<HistoryEntry>& entries() const { return entries_; }
+    // Patches Track::liked on every entry matching (sourceId, trackId),
+    // persists (history.json), and emits changed() if anything matched —
+    // so replaying a liked track from History (including after an app
+    // restart) shows it as liked instead of whatever it was recorded with.
+    void markTrackLiked(const QString& sourceId, const QString& trackId, bool liked);
 
 signals:
     void changed();

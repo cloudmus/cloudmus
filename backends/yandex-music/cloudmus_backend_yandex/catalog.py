@@ -43,7 +43,13 @@ def _web_url(t: YTrack) -> str | None:
     return f"https://music.yandex.ru/album/{t.albums[0].id}/track/{track_num}"
 
 
-def to_track(t: YTrack) -> Track:
+def to_track(t: YTrack, *, liked: bool | None = None) -> Track:
+    # yandex_music's Track object has no liked/is_liked attribute — likes
+    # are tracked upstream only as a separate id list (users_likes_tracks()),
+    # so there's nothing to read off `t` itself. Callers that already know a
+    # track is liked (list_liked() — every track it returns came from that
+    # id list) pass it in explicitly; anywhere else it stays unset (the
+    # front just treats it as "unknown", not "not liked").
     artists = [Artist(id=str(a.id), name=a.name or "") for a in (t.artists or [])]
     album = None
     if t.albums:
@@ -58,6 +64,7 @@ def to_track(t: YTrack) -> Track:
         coverUrl=_cover_url(t.cover_uri),
         explicit=t.explicit,
         webUrl=_web_url(t),
+        liked=liked,
     )
 
 
@@ -131,4 +138,7 @@ async def list_liked(client: Client) -> dict:
         return client.tracks(ids) if ids else []
 
     tracks = await asyncio.to_thread(fetch)
-    return {"tracks": [to_track(t).to_dict() for t in tracks]}
+    # Every track here came from users_likes_tracks() itself — liked=True
+    # unconditionally, rather than leaving it unset like to_track()'s
+    # default (see its docstring).
+    return {"tracks": [to_track(t, liked=True).to_dict() for t in tracks]}

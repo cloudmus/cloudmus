@@ -2,11 +2,11 @@
 
 #include <QAction>
 #include <QCloseEvent>
+#include <QCursor>
 #include <QEvent>
 #include <QListView>
 #include <QLoggingCategory>
 #include <QMenu>
-#include <QCursor>
 #include <QMouseEvent>
 #include <QProgressBar>
 #include <QScrollBar>
@@ -84,6 +84,10 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         playback_.setVolume(v);
         settings_.setVolume(v);
     });
+    connect(
+        nowPlayingBar_, &NowPlayingBar::likeClicked, this, [this](bool liked) { likeToggledAsync(liked).detach(); });
+    connect(nowPlayingBar_, &NowPlayingBar::dislikeClicked, this,
+        [this](bool disliked) { dislikeToggledAsync(disliked).detach(); });
 
     // The single declarative source of truth for every control's enabled
     // state and value — see NowPlayingBar::setTrackAvailable()'s doc
@@ -96,6 +100,8 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         nowPlayingBar_->setTrackAvailable(available);
         if (!available) {
             nowPlayingBar_->setTrackWebUrl(QString());
+            nowPlayingBar_->setLikeState(false, false);
+            nowPlayingBar_->setDislikeState(false, false);
             heroPanel_->setPlaylist(currentPlaylist_);
             trackRowDelegate_->setCurrentlyPlaying(QString(), QString());
             trackListView_->viewport()->update();
@@ -109,6 +115,15 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, [this](const Track& track, const QString&) {
         nowPlayingBar_->setTrackWebUrl(track.webUrl.value_or(QString()));
     });
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
+        [this](const Track& track, const QString& sourceId) {
+            const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+            const QJsonObject feedback = client != nullptr
+                ? client->capabilities().value(QStringLiteral("feedback")).toObject()
+                : QJsonObject();
+            nowPlayingBar_->setLikeState(feedback.value(QStringLiteral("like")).toBool(), track.liked.value_or(false));
+            nowPlayingBar_->setDislikeState(feedback.value(QStringLiteral("dislike")).toBool(), /*disliked=*/false);
+        });
     // HeroPanel shows what's playing instead of the browsed playlist's
     // promo card whenever playback_.hasCurrentTrack() — see
     // showPlaylistAsync()/showHistory()'s guard, and the
@@ -688,10 +703,102 @@ Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields
     sourcePanel_->setAuthActionBusy(false);
 }
 
-void MainWindow::showAboutDialog()
+Rpc::Task<void> MainWindow::likeToggledAsync(bool liked)
 {
-    Ui::AboutDialog(this).exec();
+    if (!playback_.hasCurrentTrack())
+        co_return;
+    const QString sourceId = playback_.currentSourceId();
+    const QString trackId = playback_.currentTrack().id;
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available())
+        co_return;
+    const QJsonObject feedback = client->capabilities().value(QStringLiteral("feedback")).toObject();
+    const bool likeSupported = feedback.value(QStringLiteral("like")).toBool();
+    const bool dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
+    // The track (or the whole queue) may have changed by the time the
+    // co_await below resumes — only touch nowPlayingBar_ if it's still
+    // showing the track this click was for; the caches below are patched
+    // unconditionally, since they matter regardless of what's on screen.
+    auto stillCurrent = [this, sourceId, trackId]() {
+        return playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
+            && playback_.currentTrack().id == trackId;
+    };
+
+    if (stillCurrent())
+        nowPlayingBar_->setLikeBusy(true);
+    try {
+        if (liked)
+            co_await Rpc::feedbackLike(*client, LikeParams { trackId });
+        else
+            co_await Rpc::feedbackUnlike(*client, UnlikeParams { trackId });
+        playback_.setTrackLiked(sourceId, trackId, liked);
+        trackListModel_->markTrackLiked(sourceId, trackId, liked);
+        playbackHistory_->markTrackLiked(sourceId, trackId, liked);
+        if (stillCurrent()) {
+            nowPlayingBar_->setLikeState(likeSupported, liked);
+            // Both backends cross-clear the opposite rating server-side on
+            // a successful like (see docs/protocol.md §7.4) — mirror that
+            // locally so the UI never shows both lit up at once.
+            if (liked)
+                nowPlayingBar_->setDislikeState(dislikeSupported, false);
+        }
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcMainWindow) << "feedback.like/unlike failed for" << trackId << ":" << message;
+        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+        if (stillCurrent())
+            nowPlayingBar_->setLikeState(likeSupported, !liked);
+    }
 }
+
+Rpc::Task<void> MainWindow::dislikeToggledAsync(bool disliked)
+{
+    if (!playback_.hasCurrentTrack())
+        co_return;
+    const QString sourceId = playback_.currentSourceId();
+    const QString trackId = playback_.currentTrack().id;
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available())
+        co_return;
+    const QJsonObject feedback = client->capabilities().value(QStringLiteral("feedback")).toObject();
+    const bool likeSupported = feedback.value(QStringLiteral("like")).toBool();
+    const bool dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
+    auto stillCurrent = [this, sourceId, trackId]() {
+        return playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
+            && playback_.currentTrack().id == trackId;
+    };
+
+    if (stillCurrent())
+        nowPlayingBar_->setDislikeBusy(true);
+    try {
+        if (disliked)
+            co_await Rpc::feedbackDislike(*client, DislikeParams { trackId });
+        else
+            co_await Rpc::feedbackUndislike(*client, UndislikeParams { trackId });
+        if (disliked) {
+            // Cross-clear Like the same way likeToggledAsync() does for
+            // Dislike — see docs/protocol.md §7.4. Caches patched
+            // unconditionally (see likeToggledAsync's stillCurrent() doc
+            // comment); only the NowPlayingBar update below is gated.
+            playback_.setTrackLiked(sourceId, trackId, false);
+            trackListModel_->markTrackLiked(sourceId, trackId, false);
+            playbackHistory_->markTrackLiked(sourceId, trackId, false);
+        }
+        if (stillCurrent()) {
+            nowPlayingBar_->setDislikeState(dislikeSupported, disliked);
+            if (disliked)
+                nowPlayingBar_->setLikeState(likeSupported, false);
+        }
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcMainWindow) << "feedback.dislike/undislike failed for" << trackId << ":" << message;
+        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+        if (stillCurrent())
+            nowPlayingBar_->setDislikeState(dislikeSupported, !disliked);
+    }
+}
+
+void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }
 
 void MainWindow::quitForReal()
 {

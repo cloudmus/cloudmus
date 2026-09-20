@@ -236,4 +236,12 @@ void PlaybackController::seek(qint64 positionMs) { audioPlayer_->seek(positionMs
 
 void PlaybackController::setVolume(int volume0To100) { audioPlayer_->setVolume(volume0To100); }
 
+void PlaybackController::setTrackLiked(const QString& sourceId, const QString& trackId, bool liked)
+{
+    for (QueueEntry& entry : queue_) {
+        if (entry.sourceId == sourceId && entry.track.id == trackId)
+            entry.track.liked = liked;
+    }
+}
+
 } // namespace Playback

@@ -5,6 +5,14 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.3 — `feedback.unlike` / `feedback.undislike`
+
+- **Additive, backward-compatible**: two new methods, `feedback.unlike` and
+  `feedback.undislike` (§7.4), reverse a previous `like`/`dislike` — same
+  params shape as `feedback.like`/`feedback.dislike`, same required
+  capability flags. A source that never declared `feedback.like`/`.dislike`
+  is simply never sent these either.
+
 ## 1.2 — `source.description`
 
 - **Additive, backward-compatible**: `initialize`'s result gains an optional

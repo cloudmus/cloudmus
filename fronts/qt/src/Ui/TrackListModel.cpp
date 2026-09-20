@@ -61,6 +61,17 @@ void TrackListModel::clear()
 
 QString TrackListModel::sourceIdAt(int row) const { return mixedSource_ ? mixedSourceIds_[row] : sourceId_; }
 
+void TrackListModel::markTrackLiked(const QString& sourceId, const QString& trackId, bool liked)
+{
+    for (int row = 0; row < tracks_.size(); ++row) {
+        if (sourceIdAt(row) == sourceId && tracks_[row].id == trackId) {
+            tracks_[row].liked = liked;
+            const QModelIndex idx = index(row);
+            emit dataChanged(idx, idx, { TrackRole });
+        }
+    }
+}
+
 int TrackListModel::rowCount(const QModelIndex& parent) const
 {
     if (parent.isValid())

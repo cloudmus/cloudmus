@@ -56,6 +56,12 @@ public:
         setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
         setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
         applyIcon(restColor());
+        // Checked buttons (like/dislike) need their glyph re-tinted on
+        // toggle too — checked state can be set programmatically (see
+        // setLikeState()/setDislikeState()) without a hover/leave event
+        // ever firing.
+        connect(
+            this, &QPushButton::toggled, this, [this](bool) { applyIcon(underMouse() ? hoverColor() : restColor()); });
     }
 
     // Playback-state-driven icon changes (play/pause/refresh) go through
@@ -81,12 +87,20 @@ protected:
     }
 
 private:
+    // Checked reads as "activated" (liked/disliked) regardless of scheme —
+    // an accent-colored glyph on top of the QSS :checked background
+    // (Theme::StyleSheet.cpp's icon-variant rule) rather than just the flat
+    // highlight every other checked icon button would otherwise get.
     Theme::IconColor restColor() const
     {
+        if (isChecked())
+            return Theme::IconColor::Accent;
         return scheme_ == Scheme::Accent ? Theme::IconColor::OnAccent : Theme::IconColor::InkSecondary;
     }
     Theme::IconColor hoverColor() const
     {
+        if (isChecked())
+            return Theme::IconColor::Accent;
         return scheme_ == Scheme::Accent ? Theme::IconColor::OnAccent : Theme::IconColor::Ink;
     }
     void applyIcon(Theme::IconColor color) { setIcon(Theme::icon(iconName_, color, Theme::Metrics::iconGlyphSize)); }
@@ -155,6 +169,17 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // plain action icon, same family/style as the rest of this row.
     openTrackPageButton_ = new IconHoverButton(QStringLiteral("open_in_new"), IconHoverButton::Scheme::Neutral, this);
     openTrackPageButton_->setToolTip(tr("Open track page"));
+    // Like/dislike — checkable, real toggles (feedback.like/.dislike and
+    // their .unlike/.undislike counterparts). Checked reads as "sent" (see
+    // IconHoverButton's checked handling above); clicking again reverses
+    // it (see setLikeState()/setDislikeState() and MainWindow's
+    // likeToggledAsync()/dislikeToggledAsync()).
+    likeButton_ = new IconHoverButton(QStringLiteral("thumb_up"), IconHoverButton::Scheme::Neutral, this);
+    likeButton_->setCheckable(true);
+    likeButton_->setToolTip(tr("Like"));
+    dislikeButton_ = new IconHoverButton(QStringLiteral("thumb_down"), IconHoverButton::Scheme::Neutral, this);
+    dislikeButton_->setCheckable(true);
+    dislikeButton_->setToolTip(tr("Dislike"));
     connect(previousButton_, &QPushButton::clicked, this, &NowPlayingBar::previousClicked);
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
     connect(nextButton_, &QPushButton::clicked, this, &NowPlayingBar::nextClicked);
@@ -163,6 +188,11 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
         if (!currentWebUrl_.isEmpty())
             QDesktopServices::openUrl(QUrl(currentWebUrl_));
     });
+    // clicked(), not toggled(): clicked() only fires from real user
+    // interaction, so MainWindow's setLikeState()/setDislikeState() calls
+    // (setChecked() under the hood) never loop back into another RPC call.
+    connect(likeButton_, &QPushButton::clicked, this, &NowPlayingBar::likeClicked);
+    connect(dislikeButton_, &QPushButton::clicked, this, &NowPlayingBar::dislikeClicked);
     // Nothing loaded yet at construction — setTrackAvailable()/
     // setQueueAvailable()/setTrackWebUrl() (driven by PlaybackController's
     // own state, see MainWindow) enable these once there's something to
@@ -172,6 +202,8 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     nextButton_->setEnabled(false);
     stopButton_->setEnabled(false);
     openTrackPageButton_->setEnabled(false);
+    likeButton_->setEnabled(false);
+    dislikeButton_->setEnabled(false);
     // Top row of the controls column below — transport buttons, then
     // whatever setTrailingWidget() appends (MainWindow's hamburger menu
     // button) pinned to the right by the stretch.
@@ -181,9 +213,10 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     buttonsRow_->addWidget(nextButton_);
     buttonsRow_->addWidget(stopButton_);
 
-    // A vertical separator, not just spacing, so openTrackPageButton_
-    // visually reads as its own group — a "jump elsewhere" action,
-    // distinct from the track transport controls to its left.
+    // A vertical separator, not just spacing, so openTrackPageButton_/
+    // likeButton_/dislikeButton_ visually read as their own group — "act on
+    // the current track" actions, distinct from the transport controls to
+    // their left.
     auto* transportSeparator = new QFrame(this);
     transportSeparator->setObjectName(QStringLiteral("transportSeparator"));
     transportSeparator->setFrameShape(QFrame::VLine);
@@ -199,6 +232,8 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     buttonsRow_->addSpacing(6);
 
     buttonsRow_->addWidget(openTrackPageButton_);
+    buttonsRow_->addWidget(likeButton_);
+    buttonsRow_->addWidget(dislikeButton_);
     buttonsRow_->addStretch(1);
 
     elapsedLabel_ = new QLabel(QStringLiteral("0:00"), this);
@@ -283,6 +318,50 @@ void NowPlayingBar::setTrackWebUrl(const QString& url)
 {
     currentWebUrl_ = url;
     openTrackPageButton_->setEnabled(!url.isEmpty());
+}
+
+void NowPlayingBar::setLikeState(bool capabilitySupported, bool liked)
+{
+    likeSupported_ = capabilitySupported;
+    liked_ = liked;
+    likeBusy_ = false;
+    refreshLikeButton();
+}
+
+void NowPlayingBar::setLikeBusy(bool busy)
+{
+    likeBusy_ = busy;
+    refreshLikeButton();
+}
+
+void NowPlayingBar::refreshLikeButton()
+{
+    likeButton_->setEnabled(likeSupported_ && !likeBusy_);
+    likeButton_->setChecked(liked_);
+    static_cast<IconHoverButton*>(likeButton_)
+        ->setIconName(likeBusy_ ? QStringLiteral("refresh") : QStringLiteral("thumb_up"));
+}
+
+void NowPlayingBar::setDislikeState(bool capabilitySupported, bool disliked)
+{
+    dislikeSupported_ = capabilitySupported;
+    disliked_ = disliked;
+    dislikeBusy_ = false;
+    refreshDislikeButton();
+}
+
+void NowPlayingBar::setDislikeBusy(bool busy)
+{
+    dislikeBusy_ = busy;
+    refreshDislikeButton();
+}
+
+void NowPlayingBar::refreshDislikeButton()
+{
+    dislikeButton_->setEnabled(dislikeSupported_ && !dislikeBusy_);
+    dislikeButton_->setChecked(disliked_);
+    static_cast<IconHoverButton*>(dislikeButton_)
+        ->setIconName(dislikeBusy_ ? QStringLiteral("refresh") : QStringLiteral("thumb_down"));
 }
 
 void NowPlayingBar::setPlaying(bool playing)

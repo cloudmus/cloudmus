@@ -49,6 +49,15 @@ public:
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
 
+    // Patches Track::liked on every queue entry matching (sourceId,
+    // trackId) — by id rather than assuming "the current entry", since by
+    // the time a like/unlike RPC call resolves the user may have already
+    // skipped away from the track it was for (see
+    // MainWindow::likeToggledAsync's stillCurrent() guard). Keeps a
+    // previous/next back to this track in the same queue showing the
+    // right like state instead of the stale value it was loaded with.
+    void setTrackLiked(const QString& sourceId, const QString& trackId, bool liked);
+
     bool isPlaying() const { return playing_; }
     bool hasCurrentTrack() const { return index_ >= 0 && index_ < queue_.size(); }
     bool hasQueue() const { return !queue_.isEmpty(); }

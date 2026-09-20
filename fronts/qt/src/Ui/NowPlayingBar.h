@@ -49,6 +49,29 @@ public:
     // since opening a URL needs no playback-state coordination.
     void setTrackWebUrl(const QString& url);
 
+    // Like/dislike are real toggles (feedback.like/.dislike and their
+    // .unlike/.undislike counterparts — see protocol/methods.yaml 1.3).
+    // setLikeState()/setDislikeState() are the authoritative "here's the
+    // real state" setter — called from MainWindow::trackChanged (seeded
+    // from Track::liked; dislike has no persisted protocol field, so it
+    // always starts false on a new track) and again once a click's RPC
+    // call resolves (success: the new state; failure: rolled back to the
+    // old one). Always clears busy.
+    //
+    // capabilitySupported false or no current track means "don't even
+    // offer this" (enabled = false) regardless of liked/disliked.
+    void setLikeState(bool capabilitySupported, bool liked);
+    void setDislikeState(bool capabilitySupported, bool disliked);
+    // While a like/dislike RPC call is in flight: disables the button and
+    // swaps its glyph to the same "refresh" busy indicator
+    // playPauseButton_/HeroPanel's play button already use for loading
+    // (see setLoading() below). Leaves the checked state alone — Qt
+    // already flipped it to the clicked target before likeClicked/
+    // dislikeClicked fired, so the accent tint (IconHoverButton's checked
+    // color) already shows which way the pending call is heading.
+    void setLikeBusy(bool busy);
+    void setDislikeBusy(bool busy);
+
     // Appended to the right end of the transport-button row (top row — see
     // the .cpp), after a stretch that keeps it pinned there. MainWindow
     // hands its hamburger-menu QToolButton in here rather than this class
@@ -65,15 +88,25 @@ signals:
     void stopClicked();
     void seekRequested(qint64 positionMs);
     void volumeChanged(int volume0To100);
+    // Carries the user's requested new state — QPushButton::clicked(bool
+    // checked) already reflects it (Qt flips isChecked() before emitting
+    // clicked() for a checkable button), so MainWindow doesn't need to
+    // separately track "was it liked before."
+    void likeClicked(bool liked);
+    void dislikeClicked(bool disliked);
 
 private:
     void updatePlayPauseIcon();
+    void refreshLikeButton();
+    void refreshDislikeButton();
 
     QPushButton* previousButton_ = nullptr;
     QPushButton* playPauseButton_ = nullptr;
     QPushButton* nextButton_ = nullptr;
     QPushButton* stopButton_ = nullptr;
     QPushButton* openTrackPageButton_ = nullptr;
+    QPushButton* likeButton_ = nullptr;
+    QPushButton* dislikeButton_ = nullptr;
     QSlider* seekSlider_ = nullptr;
     QLabel* elapsedLabel_ = nullptr;
     QLabel* durationLabel_ = nullptr;
@@ -86,6 +119,16 @@ private:
     bool userIsDraggingSeek_ = false;
     qint64 lastDurationMs_ = 0;
     QString currentWebUrl_;
+
+    // Last known non-busy state, restored by setLikeBusy(false)/
+    // setDislikeBusy(false) rather than recomputed — a busy transition
+    // doesn't get a fresh capability/liked value handed to it.
+    bool likeSupported_ = false;
+    bool liked_ = false;
+    bool likeBusy_ = false;
+    bool dislikeSupported_ = false;
+    bool disliked_ = false;
+    bool dislikeBusy_ = false;
 };
 
 } // namespace Ui

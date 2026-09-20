@@ -104,6 +104,16 @@ private:
     // for the duration) so a click can't be repeated mid-flight and the
     // user sees something actually happened.
     Rpc::Task<void> retryAuthAsync(QString sourceId);
+    // Like/dislike button handlers: `liked`/`disliked` is the user's
+    // requested new state (see NowPlayingBar::likeClicked/dislikeClicked's
+    // doc comment). Shows a busy indicator for the duration, persists the
+    // result into every in-memory Track cache on success (TrackListModel,
+    // PlaybackController's queue, PlaybackHistory — see their
+    // markTrackLiked()/setTrackLiked(), added specifically so replaying a
+    // liked track later reflects it instead of reading a stale copy), and
+    // rolls the button back to its prior state plus a toast on failure.
+    Rpc::Task<void> likeToggledAsync(bool liked);
+    Rpc::Task<void> dislikeToggledAsync(bool disliked);
 
     // Per-source auth status, cached here since nothing on RpcClient itself
     // persists it (onAuthPromptRaw/notifications.onAuthStatusChanged are

@@ -93,4 +93,19 @@ void PlaybackHistory::record(const QString& sourceId, const Track& track)
     emit changed();
 }
 
+void PlaybackHistory::markTrackLiked(const QString& sourceId, const QString& trackId, bool liked)
+{
+    bool anyMatched = false;
+    for (HistoryEntry& e : entries_) {
+        if (e.sourceId == sourceId && e.track.id == trackId) {
+            e.track.liked = liked;
+            anyMatched = true;
+        }
+    }
+    if (anyMatched) {
+        save();
+        emit changed();
+    }
+}
+
 } // namespace History
