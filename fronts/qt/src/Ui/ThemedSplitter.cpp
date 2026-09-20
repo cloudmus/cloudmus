@@ -11,7 +11,7 @@ namespace Ui {
 
 namespace {
 constexpr int kHandleWidth = 1; // real reserved width == the painted line's width, exactly
-constexpr int kGrabMargin = 5; // extra px, on each side of a handle, that still grabs it
+constexpr int kGrabMargin = 2; // extra px, on each side of a handle, that still grabs it
 } // namespace
 
 // Paints a 1px themed line spanning the (equally thin) handle rect — no
