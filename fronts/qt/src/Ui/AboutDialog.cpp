@@ -23,7 +23,7 @@ AboutDialog::AboutDialog(QWidget* parent)
     logoLabel->setAlignment(Qt::AlignCenter);
 
     auto* titleLabel = new QLabel(tr("CloudMus"), this);
-    titleLabel->setFont(Theme::font(Theme::TextStyle::Title));
+    titleLabel->setFont(Theme::font(Theme::TextStyle::Display));
     titleLabel->setAlignment(Qt::AlignCenter);
 
     auto* descriptionLabel = new QLabel(tr("A lightweight Qt frontend for cloudmus music sources."), this);
