@@ -56,8 +56,14 @@ class RadioSession:
             "initialTracks": [catalog.to_track(t).to_dict() for t in tracks],
         }
 
-    async def _top_up(self) -> None:
-        result = await asyncio.to_thread(self.client.rotor_station_tracks, self.station)
+    async def _top_up(self, played_track_id: str) -> None:
+        # queue=played_track_id tells the rotor API to advance the chain
+        # past the track that was just finished/skipped — the yandex_music
+        # library's own rotor_station_tracks() docstring documents this as
+        # required ("1. pass the id of the track that came before"); without
+        # it the API just re-returns the same batch head every time, which
+        # is why the wave used to appear stuck replaying the same tracks.
+        result = await asyncio.to_thread(self.client.rotor_station_tracks, self.station, queue=played_track_id)
         if result is None:
             return
         self.batch_id = result.batch_id
@@ -89,7 +95,7 @@ class RadioSession:
                 logger.debug("rotor_station_feedback_track_finished failed: %s", e)
 
         await asyncio.to_thread(send)
-        await self._top_up()
+        await self._top_up(track_id)
 
     async def skip(self, track_id: str, played_ms: int) -> None:
         def send() -> None:
@@ -101,4 +107,4 @@ class RadioSession:
                 logger.debug("rotor_station_feedback_skip failed: %s", e)
 
         await asyncio.to_thread(send)
-        await self._top_up()
+        await self._top_up(track_id)
