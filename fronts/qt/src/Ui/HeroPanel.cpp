@@ -324,12 +324,14 @@ void HeroPanel::paintEvent(QPaintEvent* event)
     painter.fillRect(rect(), vignette);
 
     if (!coverPixmap_.isNull() && coverRect_.isValid()) {
-        // Radius::md, not coverArtSm: that token is explicitly reserved
-        // for the small track-row thumbnails (see Radius.h) — this cover
-        // is large enough to read as its own panel, matching the same
-        // radius #sourceAuthCard and other panels already use.
+        // 2x Radius::md, not the bare token: this cover is large enough
+        // that md's own 8px (right for #sourceAuthCard and other panels
+        // at their usual size) read as barely-rounded here — doubled
+        // rather than reused, since this is now specific to how big this
+        // particular cover renders, not the shared panel radius itself.
+        constexpr int kCoverRadius = Theme::Radius::md * 2;
         QPainterPath clip;
-        clip.addRoundedRect(coverRect_, Theme::Radius::md, Theme::Radius::md);
+        clip.addRoundedRect(coverRect_, kCoverRadius, kCoverRadius);
         painter.setClipPath(clip);
         painter.drawPixmap(coverRect_, coverPixmap_);
         painter.setClipping(false);
