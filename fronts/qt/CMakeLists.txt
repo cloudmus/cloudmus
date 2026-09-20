@@ -89,6 +89,7 @@ add_executable(cloudmus-qt
     src/Ui/SmoothScroller.cpp
     src/Ui/OverlayScrollBar.cpp
     src/Ui/ThemedSplitter.cpp
+    src/Ui/ThemedToolTip.cpp
     src/Ui/SettingsDialog.cpp
     src/Ui/CoverArtCache.cpp
 
@@ -98,6 +99,7 @@ add_executable(cloudmus-qt
     src/Theme/Icons.cpp
     src/Theme/CoverPlaceholder.cpp
     src/Theme/StyleSheet.cpp
+    src/Theme/Style.cpp
 
     src/Integration/TrayIcon.cpp
     src/Integration/NotificationToast.cpp

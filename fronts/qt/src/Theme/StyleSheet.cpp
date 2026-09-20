@@ -152,11 +152,15 @@ QString panelsBlock(const Palette& p)
                           "    border-radius: %6px;"
                           "    padding: %7px %8px;"
                           "}"
-                          "QMenu {"
-                          "    background: %1;"
-                          "    border: 1px solid %2;"
-                          "    color: %5;"
-                          "}"
+                          // Background/border/radius are NOT set here:
+                          // Theme::CloudMusStyle now paints QMenu's whole
+                          // panel (PE_PanelMenu) with genuine rounding —
+                          // a plain QSS border-radius only draws a rounded
+                          // shape inside a still-rectangular opaque window
+                          // (confirmed in practice), it doesn't actually
+                          // mask the widget. Only per-item styling stays
+                          // in QSS.
+                          "QMenu { color: %5; }"
                           "QMenu::item:selected { background: %9; }"
                           "#transportSeparator { color: %2; }"
                           "#secondaryLabel { color: %10; }")

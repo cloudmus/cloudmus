@@ -1,5 +1,7 @@
 #include <QApplication>
 #include <QIcon>
+#include <QSize>
+#include <QStyleFactory>
 
 #include "Coro.h"
 #include "Fonts.h"
@@ -12,7 +14,9 @@
 #include "RpcClient.h"
 #include "Settings.h"
 #include "SourceManager.h"
+#include "Style.h"
 #include "StyleSheet.h"
+#include "ThemedToolTip.h"
 #include "TrayIcon.h"
 
 namespace {
@@ -44,8 +48,11 @@ int main(int argc, char** argv)
     // properties like border-radius on QPushButton/QToolButton, which is
     // why the design system's round Icon/Play buttons rendered as plain
     // squares under it — Fusion is Qt's own style and fully respects the
-    // stylesheet Theme::StyleSheet generates.
-    QApplication::setStyle(QStringLiteral("Fusion"));
+    // stylesheet Theme::StyleSheet generates. Wrapped in CloudMusStyle for
+    // the one thing QSS alone can't do: genuinely rounding QMenu (see
+    // Style.h) — every other widget still renders exactly as plain Fusion
+    // would.
+    QApplication::setStyle(new Theme::CloudMusStyle(QStyleFactory::create(QStringLiteral("Fusion"))));
     QApplication::setOrganizationName(QStringLiteral("cloudmus"));
     QApplication::setApplicationName(QStringLiteral("cloudmus-qt"));
     // Must match the "cloudmus-qt.desktop" basename AppRun installs to
@@ -62,7 +69,22 @@ int main(int argc, char** argv)
     // a stale substitution sticking around for that first caller.
     Theme::registerApplicationFonts();
     Theme::applyGlobalStyleSheet(app);
-    QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/icons/logo.svg")));
+    new Ui::ThemedToolTip(&app); // global service, not tied to any specific widget — see its own class doc
+    // A bare-SVG QIcon lets Qt's SVG engine render sharply at whatever
+    // size is *requested*, but under X11 (including XWayland) Qt still
+    // has to bake a handful of concrete raster sizes into the
+    // _NET_WM_ICON property — Alt+Tab/Present Windows-style switchers
+    // commonly read that property directly, unlike the taskbar/task
+    // manager widget (which resolves the icon via the .desktop file's
+    // Icon= key instead, matched through StartupWMClass/setDesktopFileName
+    // above) — confirmed in practice: the taskbar icon updated correctly
+    // on its own, but Alt+Tab kept showing a soft/blurry one. Without an
+    // explicit large size, whatever modest default Qt bakes in gets
+    // upscaled for Alt+Tab's bigger preview. Adding the already-bundled
+    // 512px PNG explicitly guarantees a genuinely sharp large variant.
+    QIcon appIcon(QStringLiteral(":/icons/icons/logo.svg"));
+    appIcon.addFile(QStringLiteral(":/icons/icons/logo.png"), QSize(512, 512));
+    QApplication::setWindowIcon(appIcon);
     QApplication::setQuitOnLastWindowClosed(false); // closing to tray must not exit the app
 
     Config::Settings settings;

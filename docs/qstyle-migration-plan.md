@@ -2,9 +2,27 @@
 
 ## Status
 
-**Decided, not started.** This document exists so the analysis behind the decision survives
-between sessions — implementation is deliberately deferred; do not start it without checking in
-first, since it's a substantial, multi-file change to the frontend's entire visual layer.
+**Partially started; most of this document's original scope has since been solved by other,
+separate mechanisms — re-read before resuming.**
+
+- Overlay scrollbars (`Ui::OverlayScrollBar`), the custom splitter handles/grab-zone (
+  `Ui::ThemedSplitter`), and the `QTreeView` chevron indicator (QSS + `Theme::Icons::
+  chevronAssetPath()` + `NavItemDelegate`) were all implemented as their own self-contained
+  classes/QSS fixes in a later session, **not** through a `QStyle` as this document originally
+  proposed. Their sections below (`macOS-style overlay scrollbar`, `QTreeView branch/indentation
+  fix`, `Custom splitter handles`) are historical design rationale only — do not re-implement them
+  via `Theme::CloudMusStyle`.
+- `Theme::CloudMusStyle : public QProxyStyle` (wrapping Fusion) now exists
+  (`fronts/qt/src/Theme/Style.h`/`.cpp`) — but it was started for a reason this document didn't
+  anticipate: **`QMenu` rounding**, not the four items in the original scope table. Plain QSS
+  `border-radius` on `QMenu` does not actually round the popup's window (confirmed empirically —
+  the window stays rectangular with corners filled by background color); genuine rounding needs
+  `WA_TranslucentBackground` + a maintained `setMask()`, which only a `QStyle` can apply to every
+  `QMenu` instance, including ones Qt constructs internally (e.g. `QLineEdit`'s built-in
+  right-click context menu) that the app never gets a pointer to. `QMenu` has therefore moved from
+  "Stays QSS" to the style — see the updated scope table below.
+- Hover-fade animation (buttons) and the system accent-color mechanism remain **not started**,
+  exactly as originally planned.
 
 ## Context
 
@@ -81,14 +99,16 @@ workaround). Re-implementing something QSS already renders correctly in `drawPri
 | Icon/play button background + hover-fade animation | `drawControl(CE_PushButtonBevel)`, `polish(QWidget*)` + an event filter | Animation is impossible in QSS |
 | `QTreeView` branch/chevron indicator | `drawPrimitive(PE_IndicatorBranch)` | Removes the PNG-file-cache detour entirely — paint `Theme::icon()`'s `QIcon` directly, no disk I/O, no oversampling-vs-DPI mismatch |
 | Sidebar's native "current item" decoration | `drawPrimitive(PE_FrameFocusRect)` → no-op for the sidebar tree | `NavItemDelegate` already fully paints selection itself; today's QSS `selection-background-color`/`selection-color` just recolors this native decoration to blend in instead of removing the redundant paint |
-| Overlay scrollbar geometry/painting | `styleHint(SH_ScrollBar_Transient)`, `pixelMetric(PM_ScrollBarExtent)`, `drawComplexControl(CC_ScrollBar)` | True overlay (zero reserved layout width, floats over content, auto-hide) needs geometry control QSS's box model can't express |
+| Overlay scrollbar geometry/painting | `styleHint(SH_ScrollBar_Transient)`, `pixelMetric(PM_ScrollBarExtent)`, `drawComplexControl(CC_ScrollBar)` | True overlay (zero reserved layout width, floats over content, auto-hide) needs geometry control QSS's box model can't express — **superseded**: solved instead by `Ui::OverlayScrollBar`, a self-contained helper attached per-view; not implemented via this table |
+| `QMenu` panel background/border/rounding | `polish()`/`unpolish()` (`WA_TranslucentBackground` + shadow + mask-maintaining event filter), `drawPrimitive(PE_PanelMenu)`, `drawPrimitive(PE_FrameMenu)` (no-op, avoids Fusion's rectangular frame double-drawing over the rounded panel) | QSS `border-radius` only draws a rounded shape inside a still-rectangular opaque window — doesn't mask the widget, so corners stay square and clickable outside the rounded shape. Only a `QStyle` reaches every `QMenu` instance, including ones Qt itself constructs (e.g. `QLineEdit`'s context menu) that the app has no pointer to and so cannot subclass. **Implemented.** |
 
-**Stays QSS** (`Theme::StyleSheet.cpp`, kept but smaller): `QMenu` background/border/selected-item
-color, `QProgressBar` groove/chunk, `QToolBar` flattening, the one-off objectName rules
-(`#sourceAuthCard`, `#toastLabel`, `#transportSeparator`, `#secondaryLabel`), `primary`/
-`secondary` text buttons (static fill/border, no animation requested for these), `QSlider`
-groove/handle colors, and new coverage for `QCheckBox`/`QLineEdit`/`QDialogButtonBox` (plain
-color/border rules — no reason to route these through `drawPrimitive`).
+**Stays QSS** (`Theme::StyleSheet.cpp`, kept but smaller): `QMenu`'s per-item color/selection
+rules (background/border/rounding moved to the style, see above), `QProgressBar` groove/chunk,
+`QToolBar` flattening, the one-off objectName rules (`#sourceAuthCard`, `#toastLabel`,
+`#transportSeparator`, `#secondaryLabel`), `primary`/`secondary` text buttons (static fill/border,
+no animation requested for these), `QSlider` groove/handle colors, and new coverage for
+`QCheckBox`/`QLineEdit`/`QDialogButtonBox` (plain color/border rules — no reason to route these
+through `drawPrimitive`).
 
 QSS and a custom `QStyle` compose fine — QSS is evaluated by Qt's style-sheet engine, which
 itself calls into whatever the *current* `QStyle` is for anything it doesn't override itself.
@@ -268,7 +288,11 @@ Each phase independently buildable and testable — deliberately not one giant r
 1. **Skeleton, zero visual change.** `CloudMusStyle` wrapping Fusion, every method either
    omitted or trivially forwarding. Wire into `main.cpp` + `CMakeLists.txt`. Verify: app looks
    pixel-identical to before (QSS still does 100% of the work; this phase only proves the
-   wrap-Fusion approach is safe here).
+   wrap-Fusion approach is safe here). **Done** — and immediately followed by `QMenu` rounding
+   (`polish()`/`drawPrimitive(PE_PanelMenu/PE_FrameMenu)`) in the same pass, once it became clear
+   QSS alone couldn't round `QMenu` (see Status above). Overlay scrollbars, splitters, and the
+   `QTreeView` chevron — originally planned as later phases here — were instead solved by separate
+   mechanisms outside this style; skip them if resuming this plan.
 2. **Accent color.** `AccentColor.h/.cpp`, the `main()` capture, `Tokens.cpp`'s internals switch.
    Verify: unmodified desktop → zero visual change (coral fallback); a desktop with a customized
    accent (e.g. KDE System Settings) → picked up correctly.
