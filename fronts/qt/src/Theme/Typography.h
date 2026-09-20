@@ -2,6 +2,8 @@
 
 #include <QFont>
 
+class QWidget;
+
 namespace Theme {
 
 enum class TextStyle {
@@ -32,5 +34,17 @@ QFont font(TextStyle style, const QFont& base = QFont());
 // 6.7+ per-QFont API, applied only where digits actually need to stay
 // aligned.
 QFont tabularFont(TextStyle style, const QFont& base = QFont());
+
+// Explicitly opts a widget OUT of the Manrope default QApplication::setFont()
+// establishes app-wide (see main.cpp) — for a native/system dialog
+// (QFileDialog, QColorDialog, QPrintDialog, ...) that should keep the
+// platform's own font instead of ours. Qt's font inheritance follows the
+// widget parent-child tree with no "stop here" boundary a dialog or window
+// can raise, and QApplication::setFont()'s default applies with no subtree
+// opt-out either — so restoring the real platform font on the dialog
+// instance itself is the only way back. Call this on every native dialog
+// this app constructs itself (right after construction, before exec());
+// see StyleSheet.cpp's file-level comment for the equivalent QSS-side rule.
+void useSystemFont(QWidget* widget);
 
 } // namespace Theme

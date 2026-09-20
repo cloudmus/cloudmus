@@ -12,6 +12,33 @@ namespace Theme {
 
 namespace {
 
+// RULE FOR EVERY BLOCK BELOW: never write a bare Qt widget-class selector
+// (`QSlider { ... }`, `QDialog { ... }`, `QToolBar { ... }`, ...).
+// Theme::applyGlobalStyleSheet() installs this stylesheet at the
+// QApplication level, which applies process-wide to literally every
+// QWidget with no subtree opt-out — including widgets built by native/
+// system dialogs this app invokes but doesn't own (QFileDialog,
+// QColorDialog, QPrintDialog, ...), which are expected to stay fully
+// native-looking. A bare type selector matches those too if they happen
+// to use the same Qt widget class internally (confirmed in practice:
+// QFileDialog's file list is a QTreeView, its bookmark sidebar a
+// QListView, its zoom control a QSlider — all types this app also styles
+// for its own UI). Always scope instead, by:
+//   - `#objectName` for one specific widget instance (e.g. #sidebarView,
+//     #seekSlider) — set via `widget->setObjectName(...)` at construction.
+//   - `[property="value"]` for a named category of instances that should
+//     share one look (e.g. `variant` on buttons, `themed` on dialogs/
+//     progress bars) — set via `widget->setProperty(...)`.
+// The one deliberate exception is QMenu (`panelsBlock()` below): every
+// QMenu in the app, including ones Qt constructs internally like
+// QLineEdit's context menu, is SUPPOSED to be themed — see
+// Theme::CloudMusStyle's class doc for why that one needs to be universal.
+//
+// The equivalent rule for FONTS (QApplication::setFont() in main.cpp,
+// which has no scoping mechanism at all, not even this one) is
+// Theme::useSystemFont() (Typography.h) — call it on any native dialog
+// instance this app constructs itself.
+
 QString hex(const QColor& c) { return c.name(QColor::HexRgb); }
 
 QString buttonsBlock(const Palette& p)
@@ -85,33 +112,42 @@ QString textButtonsBlock(const Palette& p)
         .arg(hex(p.border), hex(p.surface300));
 }
 
+// Scoped to #seekSlider/#volumeSlider explicitly, NOT a bare QSlider type
+// selector — this app is not the only place a QSlider can show up: e.g.
+// QFileDialog's own view-zoom slider is a QSlider too, and a bare
+// type-selector rule was bleeding our accent-colored handle into that
+// native-looking dialog. Same reasoning as sidebarTreeBlock()/
+// trackListBlock() scoping to #sidebarView/#trackListView.
 QString slidersBlock(const Palette& p)
 {
     return QStringLiteral(
-        "QSlider::groove:horizontal {"
+        "QSlider#seekSlider::groove:horizontal, QSlider#volumeSlider::groove:horizontal {"
         "    height: 3px;"
         "    background: %1;"
         "    border-radius: 1px;"
         "}"
-        "QSlider::groove:horizontal:hover { background: %2; }"
-        "QSlider::sub-page:horizontal { background: %3; border-radius: 1px; }"
-        "QSlider::add-page:horizontal { background: transparent; }"
-        "QSlider::handle:horizontal {"
+        "QSlider#seekSlider::groove:horizontal:hover, QSlider#volumeSlider::groove:horizontal:hover {"
+        "    background: %2;"
+        "}"
+        "QSlider#seekSlider::sub-page:horizontal, QSlider#volumeSlider::sub-page:horizontal {"
+        "    background: %3; border-radius: 1px;"
+        "}"
+        "QSlider#seekSlider::add-page:horizontal, QSlider#volumeSlider::add-page:horizontal {"
+        "    background: transparent;"
+        "}"
+        "QSlider#seekSlider::handle:horizontal, QSlider#volumeSlider::handle:horizontal {"
         "    width: 12px; height: 12px; margin: -5px 0;"
         "    border-radius: 6px;"
         "    background: %3;"
         "}"
-        "QSlider::handle:horizontal:hover { background: %4; }"
-        "QSlider[handleVisible=\"false\"]::handle:horizontal { background: transparent; }"
+        "QSlider#seekSlider::handle:horizontal:hover, QSlider#volumeSlider::handle:horizontal:hover {"
+        "    background: %4;"
+        "}"
+        "QSlider#seekSlider[handleVisible=\"false\"]::handle:horizontal,"
+        "QSlider#volumeSlider[handleVisible=\"false\"]::handle:horizontal { background: transparent; }"
         "QSlider#volumeSlider::sub-page:horizontal { background: %5; }"
         "QSlider#volumeSlider::handle:horizontal { background: %6; }"
-        "QSlider#volumeSlider::handle:horizontal:hover { background: %7; }"
-        // An ID selector (#volumeSlider) outranks a bare attribute
-        // selector (QSlider[handleVisible="false"]) in Qt's CSS-like
-        // specificity, so without repeating the ID here, the rule two
-        // lines up unconditionally wins and the volume handle never
-        // actually hides — this is the one that has to.
-        "QSlider#volumeSlider[handleVisible=\"false\"]::handle:horizontal { background: transparent; }")
+        "QSlider#volumeSlider::handle:horizontal:hover { background: %7; }")
         .arg(hex(p.border), hex(p.borderStrong), hex(p.accent), hex(p.accentHover), hex(p.inkSecondary), hex(p.ink),
             hex(p.ink));
 }
@@ -127,14 +163,14 @@ QString toolBarBlock(const Palette& p)
     // border-top (design system's `border` token) is the one exception —
     // it's what visually separates the transport bar from the content
     // above it in the design mockup.
-    return QStringLiteral("QToolBar {"
+    return QStringLiteral("QToolBar#transportToolBar {"
                           "    background: %1;"
                           "    border: none;"
                           "    border-top: 1px solid %2;"
                           "    spacing: 0px;"
                           "}"
-                          "QToolBar::separator { background: transparent; width: 0px; height: 0px; }"
-                          "QToolBar::handle { width: 0px; height: 0px; }")
+                          "QToolBar#transportToolBar::separator { background: transparent; width: 0px; height: 0px; }"
+                          "QToolBar#transportToolBar::handle { width: 0px; height: 0px; }")
         .arg(hex(p.surface100), hex(p.border));
 }
 
@@ -170,24 +206,31 @@ QString panelsBlock(const Palette& p)
         .arg(hex(p.inkSecondary));
 }
 
+// Scoped to [themed="true"] (both busyIndicator_ instances opt in via
+// setProperty), not a bare QProgressBar type selector — see this file's
+// top-of-namespace rule comment.
 QString progressBarBlock(const Palette& p)
 {
-    return QStringLiteral("QProgressBar {"
+    return QStringLiteral("QProgressBar[themed=\"true\"] {"
                           "    background: %1;"
                           "    border: none;"
                           "}"
-                          "QProgressBar::chunk { background: %2; }")
+                          "QProgressBar[themed=\"true\"]::chunk { background: %2; }")
         .arg(hex(p.surface300), hex(p.accent));
 }
 
 QString sidebarTreeBlock(const Palette& p)
 {
-    const QString chevronClosed = chevronAssetPath(QStringLiteral("chevron_right"), IconColor::InkSecondary, 12);
-    const QString chevronOpen = chevronAssetPath(QStringLiteral("expand_more"), IconColor::InkSecondary, 12);
-    const QString chevronClosedSelected = chevronAssetPath(QStringLiteral("chevron_right"), IconColor::Accent, 12);
-    const QString chevronOpenSelected = chevronAssetPath(QStringLiteral("expand_more"), IconColor::Accent, 12);
+    const QString chevronClosed = iconAssetPath(QStringLiteral("chevron_right"), IconColor::InkSecondary, 12);
+    const QString chevronOpen = iconAssetPath(QStringLiteral("expand_more"), IconColor::InkSecondary, 12);
+    const QString chevronClosedSelected = iconAssetPath(QStringLiteral("chevron_right"), IconColor::Accent, 12);
+    const QString chevronOpenSelected = iconAssetPath(QStringLiteral("expand_more"), IconColor::Accent, 12);
 
-    return QStringLiteral("QTreeView {"
+    // Scoped to #sidebarView, NOT a bare QTreeView type selector — a
+    // QFileDialog's detail-view file listing is a QTreeView too, and a
+    // bare-type rule here was painting its background/branch chevrons the
+    // same as our own sidebar, inside a dialog meant to stay fully native.
+    return QStringLiteral("QTreeView#sidebarView {"
                           "    background: %1;"
                           "    border: none;"
                           "    outline: 0;"
@@ -206,17 +249,21 @@ QString sidebarTreeBlock(const Palette& p)
                           // Explicit width/height, not just image: — without a fixed box,
                           // Fusion sizes the branch indicator (and the gap it reserves
                           // before the row's text) from the image's own pixel dimensions,
-                          // so chevronAssetPath's 4x-oversampled source (needed for
+                          // so iconAssetPath's 4x-oversampled source (needed for
                           // crispness at a fractional display scale, see Icons.cpp) blew
                           // the indicator up to 4x its intended 12px size instead of just
                           // supersampling it. Pinning the box to 12px makes Qt scale the
                           // oversampled image down into it instead.
-                          "QTreeView::branch:closed:has-children { image: url(\"%2\"); width: 12px; height: 12px; }"
-                          "QTreeView::branch:open:has-children { image: url(\"%3\"); width: 12px; height: 12px; }"
-                          "QTreeView::branch:selected:closed:has-children {"
+                          "QTreeView#sidebarView::branch:closed:has-children {"
+                          "    image: url(\"%2\"); width: 12px; height: 12px;"
+                          "}"
+                          "QTreeView#sidebarView::branch:open:has-children {"
+                          "    image: url(\"%3\"); width: 12px; height: 12px;"
+                          "}"
+                          "QTreeView#sidebarView::branch:selected:closed:has-children {"
                           "    image: url(\"%4\"); width: 12px; height: 12px;"
                           "}"
-                          "QTreeView::branch:selected:open:has-children {"
+                          "QTreeView#sidebarView::branch:selected:open:has-children {"
                           "    image: url(\"%5\"); width: 12px; height: 12px;"
                           "}")
         .arg(hex(p.surface100), chevronClosed, chevronOpen, chevronClosedSelected, chevronOpenSelected)
@@ -230,9 +277,66 @@ QString sidebarTreeBlock(const Palette& p)
 // app. surface0 per the design mockup (pixel-sampled directly — the main
 // content area and this list are both #14100D, while the sidebar/toolbar
 // chrome is the lighter #1C1714 = surface100).
+//
+// Scoped to #trackListView, NOT a bare QListView type selector — same
+// "a native dialog uses this widget type too" reasoning as
+// sidebarTreeBlock()'s #sidebarView scoping (QFileDialog's bookmark
+// sidebar is a QListView).
 QString trackListBlock(const Palette& p)
 {
-    return QStringLiteral("QListView { background: %1; border: none; outline: 0; }").arg(hex(p.surface0));
+    return QStringLiteral("QListView#trackListView { background: %1; border: none; outline: 0; }").arg(hex(p.surface0));
+}
+
+// Covers QLineEdit/QCheckBox app-wide by widget TYPE (so any future one —
+// dialog or not — gets the design system's look for free), but the dialog
+// window background itself is scoped to `QDialog[themed="true"]`, NOT
+// a bare `QDialog` selector: QDialog is also the base class of QFileDialog
+// (and QColorDialog/QFontDialog/etc.), so a bare-type rule was bleeding
+// into the native folder picker — half-restyled (our dark background) but
+// still built from dozens of native-icon-laden widgets we don't own and
+// don't want to reskin. `themed` is the same "opt in via a dynamic
+// property" convention buttons already use for `variant` — every CUSTOM
+// app dialog (Ui::SettingsDialog, Ui::AboutDialog, and any future one)
+// calls `setProperty("themed", true)` in its constructor; native/system
+// dialogs never set it and stay fully native as intended.
+//
+// surface100 (the same "chrome" tone as the toolbar/sidebar) for the
+// dialog's own window background: a utility window like Settings/About
+// reads closer to the app's chrome than to main content (surface0).
+// Fields/checkbox sit one tone up at surface200, the same "raised
+// control" treatment #sourceAuthCard and the secondary button variant
+// already use.
+QString dialogsBlock(const Palette& p)
+{
+    const QString checkIcon = iconAssetPath(QStringLiteral("check"), IconColor::OnAccent, 12);
+
+    return QStringLiteral("QDialog[themed=\"true\"] { background: %1; color: %2; }"
+                          "QLineEdit {"
+                          "    background: %3;"
+                          "    border: 1px solid %4;"
+                          "    border-radius: %5px;"
+                          "    padding: %6px %7px;"
+                          "    color: %2;"
+                          "    selection-background-color: %8;"
+                          "    selection-color: %9;"
+                          "}"
+                          "QLineEdit:focus { border: 1px solid %8; }"
+                          "QCheckBox { spacing: %7px; color: %2; }"
+                          "QCheckBox::indicator {"
+                          "    width: 16px; height: 16px;"
+                          "    border-radius: %5px;"
+                          "    border: 1px solid %10;"
+                          "    background: %3;"
+                          "}"
+                          "QCheckBox::indicator:hover { border-color: %8; }"
+                          "QCheckBox::indicator:checked {"
+                          "    background: %8;"
+                          "    border-color: %8;"
+                          "    image: url(\"%11\");"
+                          "}")
+        .arg(hex(p.surface100), hex(p.ink), hex(p.surface200), hex(p.border), QString::number(Radius::sm),
+            QString::number(Spacing::space1), QString::number(Spacing::space2), hex(p.accent), hex(p.onAccent))
+        .arg(hex(p.borderStrong), checkIcon);
 }
 
 } // namespace
@@ -245,7 +349,7 @@ QString buildStyleSheet(Mode mode)
     // hides the real QScrollBar entirely and paints its own floating
     // handle — a QSS rule for QScrollBar would never be reached.
     return buttonsBlock(p) + textButtonsBlock(p) + slidersBlock(p) + toolBarBlock(p) + panelsBlock(p)
-        + progressBarBlock(p) + sidebarTreeBlock(p) + trackListBlock(p);
+        + progressBarBlock(p) + sidebarTreeBlock(p) + trackListBlock(p) + dialogsBlock(p);
 }
 
 void applyGlobalStyleSheet(QApplication& app)

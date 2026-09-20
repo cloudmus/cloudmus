@@ -127,6 +127,7 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     retryButton_->hide();
 
     busyIndicator_ = new QProgressBar(authCard_);
+    busyIndicator_->setProperty("themed", true); // see StyleSheet.cpp's progressBarBlock()
     busyIndicator_->setRange(0, 0); // indeterminate
     busyIndicator_->setFixedWidth(80);
     busyIndicator_->setMaximumHeight(6);

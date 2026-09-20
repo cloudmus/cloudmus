@@ -18,6 +18,7 @@
 #include "StyleSheet.h"
 #include "ThemedToolTip.h"
 #include "TrayIcon.h"
+#include "Typography.h"
 
 namespace {
 
@@ -68,6 +69,13 @@ int main(int argc, char** argv)
     // naming it is used, so registering the Manrope weight files late risks
     // a stale substitution sticking around for that first caller.
     Theme::registerApplicationFonts();
+    // Registering the font files above only makes Manrope AVAILABLE — it's
+    // not the actual default until something requests it. Without this,
+    // every widget that never calls Theme::font() explicitly (a
+    // QFormLayout's auto-generated row QLabel, QDialogButtonBox, etc.)
+    // silently falls back to whatever generic font Qt/the platform picks,
+    // never matching the design system.
+    QApplication::setFont(Theme::font(Theme::TextStyle::Body));
     Theme::applyGlobalStyleSheet(app);
     new Ui::ThemedToolTip(&app); // global service, not tied to any specific widget — see its own class doc
     // A bare-SVG QIcon lets Qt's SVG engine render sharply at whatever

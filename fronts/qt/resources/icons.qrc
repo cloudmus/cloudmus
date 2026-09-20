@@ -20,5 +20,6 @@
         <file alias="music_note.svg">icons/symbols/music_note.svg</file>
         <file alias="chevron_right.svg">icons/symbols/chevron_right.svg</file>
         <file alias="expand_more.svg">icons/symbols/expand_more.svg</file>
+        <file alias="check.svg">icons/symbols/check.svg</file>
     </qresource>
 </RCC>

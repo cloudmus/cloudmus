@@ -6,7 +6,6 @@
 #include <QListView>
 #include <QLoggingCategory>
 #include <QMenu>
-#include <QMessageBox>
 #include <QCursor>
 #include <QMouseEvent>
 #include <QProgressBar>
@@ -18,6 +17,7 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
+#include "AboutDialog.h"
 #include "CoverArtCache.h"
 #include "EmptyStatePlaceholder.h"
 #include "HeroPanel.h"
@@ -129,6 +129,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(&playback_, &Playback::PlaybackController::positionChanged, nowPlayingBar_, &NowPlayingBar::setPosition);
 
     auto* toolbar = new QToolBar(this);
+    toolbar->setObjectName(QStringLiteral("transportToolBar")); // see StyleSheet.cpp's toolBarBlock()
     toolbar->setMovable(false);
     toolbar->setFloatable(false);
     toolbar->setAllowedAreas(Qt::BottomToolBarArea);
@@ -165,6 +166,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     sidebarModel_ = new SidebarModel(this);
     sidebarModel_->ensureHistoryItem();
     sidebarView_ = new QTreeView(this);
+    sidebarView_->setObjectName(QStringLiteral("sidebarView")); // see StyleSheet.cpp's sidebarTreeBlock()
     sidebarView_->setModel(sidebarModel_);
     sidebarDelegate_ = new NavItemDelegate(sidebarView_);
     sidebarView_->setItemDelegate(sidebarDelegate_);
@@ -213,6 +215,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackRowDelegate_ = new TrackRowDelegate(coverArtCache_, this);
     connect(coverArtCache_, &CoverArtCache::pixmapReady, this, [this]() { trackListView_->viewport()->update(); });
     trackListView_ = new QListView(this);
+    trackListView_->setObjectName(QStringLiteral("trackListView")); // see StyleSheet.cpp's trackListBlock()
     trackListView_->setModel(trackListModel_);
     trackListView_->setItemDelegate(trackRowDelegate_);
     // Needed for State_MouseOver to be set at all — see the delegate's
@@ -272,6 +275,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     // container would silently stop tracking this indicator's position
     // during a splitter drag.
     trackListBusyIndicator_ = new QProgressBar(trackListPane_);
+    trackListBusyIndicator_->setProperty("themed", true); // see StyleSheet.cpp's progressBarBlock()
     trackListBusyIndicator_->setRange(0, 0);
     trackListBusyIndicator_->setMaximumHeight(4);
     trackListBusyIndicator_->setTextVisible(false);
@@ -686,8 +690,7 @@ Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields
 
 void MainWindow::showAboutDialog()
 {
-    QMessageBox::about(
-        this, tr("About CloudMus"), tr("CloudMus — a lightweight Qt frontend for cloudmus music sources."));
+    Ui::AboutDialog(this).exec();
 }
 
 void MainWindow::quitForReal()

@@ -65,7 +65,7 @@ QHash<QString, QPixmap>& iconCache()
     return cache;
 }
 
-QHash<QString, QString>& chevronPathCache()
+QHash<QString, QString>& iconPathCache()
 {
     static QHash<QString, QString> cache;
     return cache;
@@ -90,7 +90,7 @@ void ensureInvalidationConnected()
     static const bool connected = [] {
         QObject::connect(&notifier(), &Notifier::changed, &notifier(), []() {
             iconCache().clear();
-            chevronPathCache().clear();
+            iconPathCache().clear();
         });
         return true;
     }();
@@ -127,25 +127,24 @@ QIcon iconWithColor(const QString& name, const QColor& color, int pixelSize)
     return QIcon(it.value());
 }
 
-QString chevronAssetPath(const QString& glyphName, IconColor color, int pixelSize)
+QString iconAssetPath(const QString& glyphName, IconColor color, int pixelSize)
 {
     ensureInvalidationConnected();
     const Mode mode = currentMode();
     // A fixed oversample factor, NOT the screen's actual devicePixelRatio:
-    // this ends up saved as a plain PNG file consumed by QSS's
-    // `QTreeView::branch { image: url(...); }`, which carries no
-    // devicePixelRatio metadata of its own (unlike the QPixmap/QIcon path
-    // icon()/iconWithColor() use, where setDevicePixelRatio() is honored by
-    // QPainter). Baking in the real DPR here only matched Qt's on-screen
-    // rendering by coincidence at an integer scale factor, and produced a
-    // mismatched, blurry chevron at a fractional one (125%/150%).
-    // Oversampling by a fixed, generous amount instead guarantees a sharp
-    // source to downscale from at whatever size the branch decorator
-    // actually renders it at, integer scale or not.
+    // this ends up saved as a plain PNG file consumed by a QSS `image:
+    // url(...)` rule, which carries no devicePixelRatio metadata of its
+    // own (unlike the QPixmap/QIcon path icon()/iconWithColor() use, where
+    // setDevicePixelRatio() is honored by QPainter). Baking in the real
+    // DPR here only matched Qt's on-screen rendering by coincidence at an
+    // integer scale factor, and produced a mismatched, blurry glyph at a
+    // fractional one (125%/150%). Oversampling by a fixed, generous amount
+    // instead guarantees a sharp source to downscale from at whatever size
+    // the QSS rule actually renders it at, integer scale or not.
     constexpr int kOversample = 4;
     const QString key = cacheKey(glyphName, color, pixelSize * kOversample, /*dpr=*/1.0, mode);
 
-    QHash<QString, QString>& cache = chevronPathCache();
+    QHash<QString, QString>& cache = iconPathCache();
     auto it = cache.find(key);
     if (it != cache.end())
         return it.value();

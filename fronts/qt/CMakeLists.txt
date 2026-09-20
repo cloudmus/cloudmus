@@ -76,6 +76,7 @@ add_executable(cloudmus-qt
     src/History/PlaybackHistory.cpp
 
     src/Ui/MainWindow.cpp
+    src/Ui/AboutDialog.cpp
     src/Ui/SidebarModel.cpp
     src/Ui/NavItemDelegate.cpp
     src/Ui/TrackListModel.cpp

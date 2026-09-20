@@ -1,5 +1,8 @@
 #include "Typography.h"
 
+#include <QFontDatabase>
+#include <QWidget>
+
 namespace Theme {
 
 namespace {
@@ -64,6 +67,11 @@ QFont tabularFont(TextStyle style, const QFont& base)
     // the AppImage build's Qt floor is 6.9.3 (see packaging/appimage/).
     f.setFeature(QFont::Tag("tnum"), 1);
     return f;
+}
+
+void useSystemFont(QWidget* widget)
+{
+    widget->setFont(QFontDatabase::systemFont(QFontDatabase::GeneralFont));
 }
 
 } // namespace Theme

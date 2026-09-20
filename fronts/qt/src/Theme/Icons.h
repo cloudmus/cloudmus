@@ -34,11 +34,10 @@ QIcon icon(const QString& name, IconColor color, int pixelSize = 16);
 QIcon iconWithColor(const QString& name, const QColor& color, int pixelSize = 16);
 
 // Same recoloring as icon(), but writes the result to a small on-disk PNG
-// cache and returns its absolute path — needed because QSS's
-// `QTreeView::branch { image: url(...); }` requires a real file, not an
-// in-memory QPixmap. `glyphName` is "chevron_right" (collapsed) or
-// "expand_more" (expanded) — the sidebar's two branch states. Regenerated
+// cache and returns its absolute path — needed because QSS `image:
+// url(...)` rules (QTreeView::branch's chevrons, QCheckBox::indicator's
+// checkmark) require a real file, not an in-memory QPixmap. Regenerated
 // once per (glyphName, color, pixelSize, mode); reused after.
-QString chevronAssetPath(const QString& glyphName, IconColor color, int pixelSize = 12);
+QString iconAssetPath(const QString& glyphName, IconColor color, int pixelSize = 12);
 
 } // namespace Theme
