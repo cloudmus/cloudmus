@@ -85,7 +85,18 @@ public:
                 flashTimer_.start();
             }
         });
-        connect(bar_, &QScrollBar::rangeChanged, this, [this](int, int) { updateHandleRect(); });
+        connect(bar_, &QScrollBar::rangeChanged, this, [this](int, int) {
+            updateHandleRect();
+            // Recompute from current hover/drag flags, not just re-check
+            // the existing state: content can become scrollable while
+            // the view is already hovered (e.g. expanding a list that no
+            // longer fits) with no Enter/Leave event to trigger a normal
+            // hover update, so the handle needs to appear immediately
+            // rather than waiting for the mouse to leave and re-enter —
+            // and the reverse (content shrinking to fit while showing)
+            // needs the same immediate re-evaluation to hide it.
+            refreshState();
+        });
 
         reposition();
         raise();
@@ -156,14 +167,14 @@ protected:
     {
         handleHovered_ = true;
         flashTimer_.stop();
-        setState(State::Wide);
+        refreshState();
     }
 
     void leaveEvent(QEvent*) override
     {
         handleHovered_ = false;
         if (!dragging_)
-            setState(viewHovered_ ? State::Narrow : State::Hidden);
+            refreshState();
     }
 
     void mousePressEvent(QMouseEvent* event) override
@@ -173,7 +184,7 @@ protected:
         dragging_ = true;
         dragStartY_ = event->position().y();
         dragStartValue_ = bar_->value();
-        setState(State::Wide);
+        refreshState();
     }
 
     void mouseMoveEvent(QMouseEvent* event) override
@@ -194,7 +205,7 @@ protected:
         if (event->button() != Qt::LeftButton || !dragging_)
             return;
         dragging_ = false;
-        setState(handleHovered_ ? State::Wide : (viewHovered_ ? State::Narrow : State::Hidden));
+        refreshState();
     }
 
 private:
@@ -203,9 +214,26 @@ private:
     void setViewHovered(bool hovered)
     {
         viewHovered_ = hovered;
+        refreshState();
+    }
+
+    // Computes the state that should currently apply from the live
+    // hover/drag flags (rather than assuming the existing state_ is
+    // still correct) and applies it via setState()'s own "nothing to
+    // grab" guard. Used any time one of those flags changes, *and* any
+    // time the underlying scrollable range changes — content becoming
+    // scrollable while the view is already hovered, or ceasing to be
+    // scrollable while the handle happens to be showing, both need to
+    // take effect immediately rather than waiting for the next hover
+    // transition to notice.
+    void refreshState()
+    {
         if (dragging_ || handleHovered_)
-            return; // already at or above Narrow — don't downgrade
-        setState(hovered ? State::Narrow : State::Hidden);
+            setState(State::Wide);
+        else if (viewHovered_)
+            setState(State::Narrow);
+        else
+            setState(State::Hidden);
     }
 
     void updateHandleRect()
@@ -226,6 +254,12 @@ private:
 
     void setState(State state)
     {
+        // Nothing to grab when the content already fits — never show any
+        // state above Hidden regardless of what triggered this call
+        // (hover, drag, flash-on-scroll), since none of those callers
+        // individually check whether there's an actual range to scroll.
+        if (state != State::Hidden && bar_->maximum() <= bar_->minimum())
+            state = State::Hidden;
         if (state_ == state)
             return;
         state_ = state;
