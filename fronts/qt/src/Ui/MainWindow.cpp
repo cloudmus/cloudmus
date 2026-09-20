@@ -762,10 +762,17 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
 
     if (radioSupported) {
         menu->addSeparator();
+        // The bare track id — each backend that declares browse.radio
+        // decides for itself how to turn a track id into whatever
+        // station-addressing scheme it needs (e.g. Yandex's rotor API
+        // wants a "track:<id>"-style address; YouTube's get_watch_playlist
+        // takes a plain videoId directly). A front-imposed prefix here
+        // broke YouTube radio (it received "track:<id>" as a literal,
+        // invalid videoId) — seed is source-defined per docs/protocol.md
+        // §7.1, so the front must not format it.
         menu->addAction(Theme::icon(QStringLiteral("radio"), Theme::IconColor::Ink, 16),
-            tr("Start Radio from This Track"), this, [this, sourceId, id = track.id]() {
-                startRadioAsync(sourceId, QStringLiteral("track:%1").arg(id)).detach();
-            });
+            tr("Start Radio from This Track"), this,
+            [this, sourceId, id = track.id]() { startRadioAsync(sourceId, id).detach(); });
     }
 
     if (!webUrl.isEmpty() || downloadSupported) {

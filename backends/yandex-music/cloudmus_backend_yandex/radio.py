@@ -27,6 +27,28 @@ logger = logging.getLogger(__name__)
 NotifyFn = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 
+def _resolve_station(seed: str | None) -> str:
+    # seed (protocol/methods.yaml's catalog.startRadio) is source-defined —
+    # the front never formats it, only ever either omits it or echoes an id
+    # it already has verbatim (docs/protocol.md §7.1). Two shapes reach
+    # here in practice: an already-complete rotor station address (e.g.
+    # WAVE_STATION_ID = "user:onyourwave", from the My Wave sidebar entry's
+    # own Playlist.id), or a bare trackId (from the track list's "Start
+    # Radio from This Track" context-menu action). Yandex's rotor API
+    # addresses every station as "<type>:<id>" (confirmed in the
+    # yandex_music library's own docs — "user:onyourwave", "track:1234",
+    # "genre:pop", ...), so a seed with no colon at all can only be the
+    # bare-trackId case and needs the "track:" type prefixed on here,
+    # where this Yandex-specific formatting knowledge belongs (it used to
+    # live in the front, which broke once a second radio.RadioSession-style
+    # backend — YouTube — started receiving the same seed unprefixed).
+    if not seed:
+        return catalog.WAVE_STATION_ID
+    if ":" in seed:
+        return seed
+    return f"track:{seed}"
+
+
 class RadioSession:
     def __init__(self, client: Client, notify: NotifyFn):
         self.client = client
@@ -35,7 +57,7 @@ class RadioSession:
         self.batch_id: str | None = None
 
     async def start(self, seed: str | None) -> dict:
-        self.station = seed or catalog.WAVE_STATION_ID
+        self.station = _resolve_station(seed)
 
         def start_feedback() -> None:
             try:
