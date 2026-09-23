@@ -9,6 +9,7 @@
 #include <QGraphicsScene>
 #include <QPainter>
 #include <QRadialGradient>
+#include <QtMath>
 
 namespace Ui {
 
@@ -95,6 +96,10 @@ void applyNoise(QImage& image, Mulberry32& rng)
     }
 }
 
+// Shared by the cover and its edge fade so the two always match.
+constexpr qreal kBlurRadius = 45.0;
+const int kBlurPad = qCeil(kBlurRadius * 2.0);
+
 } // namespace
 
 QPixmap generateMeshAuraGradientCover(const QString& title, const QSize& size)
@@ -110,12 +115,20 @@ QPixmap generateMeshAuraGradientCover(const QString& title, const QSize& size)
     const QString seedInput = title + QDate::currentDate().toString(Qt::ISODate);
     Mulberry32 rng(xmur3(seedInput));
 
-    QImage image(w, h, QImage::Format_ARGB32_Premultiplied);
+    // Rendered with a margin on every side and cropped after the blur:
+    // blurring right up to the image edge pulls in transparency from
+    // outside it, leaving a semi-transparent fringe that lets whatever is
+    // behind the widget show through (and flicker when two of these are
+    // crossfaded). With the margin, the result is opaque edge to edge; any
+    // edge falloff is generateMeshAuraEdgeFade()'s job, painted on top.
+    const int pad = kBlurPad;
+    QImage image(w + 2 * pad, h + 2 * pad, QImage::Format_ARGB32_Premultiplied);
     QPainter painter(&image);
     painter.setRenderHint(QPainter::Antialiasing);
 
     const int baseHue = static_cast<int>(rng.next() * 360.0);
-    painter.fillRect(0, 0, w, h, QColor::fromHslF(static_cast<float>(baseHue) / 360.0f, 0.50f, 0.12f));
+    const QColor baseColor = QColor::fromHslF(static_cast<float>(baseHue) / 360.0f, 0.50f, 0.12f);
+    painter.fillRect(image.rect(), baseColor);
 
     // Five soft, alpha-fading radial-gradient blobs, blended over one
     // another and the background via QPainter's default SourceOver — same
@@ -136,6 +149,7 @@ QPixmap generateMeshAuraGradientCover(const QString& title, const QSize& size)
     const qreal scale = std::sqrt(static_cast<qreal>(w) * static_cast<qreal>(h)) / 600.0;
 
     painter.setPen(Qt::NoPen);
+    painter.translate(pad, pad);
     for (int i = 0; i < 5; ++i) {
         const qreal cx = rng.next() * w;
         const qreal cy = rng.next() * h;
@@ -157,10 +171,37 @@ QPixmap generateMeshAuraGradientCover(const QString& title, const QSize& size)
     }
     painter.end();
 
-    image = blurImage(image, 45.0);
+    // The blur's faint tails still reach a little past the margin; laying
+    // the result over the base color makes it strictly opaque.
+    const QImage blurred = blurImage(image, kBlurRadius).copy(pad, pad, w, h);
+    image = QImage(w, h, QImage::Format_ARGB32_Premultiplied);
+    image.fill(baseColor);
+    QPainter(&image).drawImage(0, 0, blurred);
     applyNoise(image, rng);
 
     return QPixmap::fromImage(image);
+}
+
+QPixmap generateMeshAuraEdgeFade(const QSize& size, const QColor& color)
+{
+    const int w = qMax(size.width(), 1);
+    const int h = qMax(size.height(), 1);
+
+    // An opaque rect blurred against transparency around it: its alpha is
+    // the coverage the cover itself would have had near its edges.
+    QImage coverage(w + 2 * kBlurPad, h + 2 * kBlurPad, QImage::Format_ARGB32_Premultiplied);
+    coverage.fill(Qt::transparent);
+    QPainter(&coverage).fillRect(kBlurPad, kBlurPad, w, h, Qt::white);
+    coverage = blurImage(coverage, kBlurRadius).copy(kBlurPad, kBlurPad, w, h);
+
+    // Whatever the cover doesn't cover, `color` shows through.
+    QImage fade(w, h, QImage::Format_ARGB32_Premultiplied);
+    fade.fill(color);
+    QPainter painter(&fade);
+    painter.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+    painter.drawImage(0, 0, coverage);
+    painter.end();
+    return QPixmap::fromImage(fade);
 }
 
 } // namespace Ui

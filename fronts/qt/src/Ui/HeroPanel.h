@@ -6,6 +6,7 @@
 #include <QWidget>
 
 #include "Models.h"
+#include "Transition.h"
 
 class QPushButton;
 class QResizeEvent;
@@ -32,11 +33,11 @@ class CoverArtCache;
 // Two reasons: (1) a layout's children fight the panel being shrunk below
 // their own size hints (a real cover pixmap or long title text refusing
 // to compress), which a plain paintEvent() has no equivalent of — it just
-// redraws whatever fits at whatever size it's given; (2) this is prep for
-// upcoming appear/transition animations on the cover and text — animating
-// paint parameters (position/opacity) frame to frame is straightforward,
-// animating a QLabel's geometry inside a QLayout fighting it the whole
-// time is not. playButton_ is the one exception (needs real click/hover
+// redraws whatever fits at whatever size it's given; (2) every one of
+// those elements animates between contents (see Ui::LayerTransition) —
+// animating paint parameters (opacity/scale) frame to frame is
+// straightforward, animating a QLabel's geometry inside a QLayout
+// fighting it the whole time is not. playButton_ is the one exception (needs real click/hover
 // handling) — it stays a normal QPushButton child, but positioned by hand
 // via setGeometry() in relayout(), not managed by any QLayout, so it
 // can't itself impose a size constraint on this widget either.
@@ -95,6 +96,16 @@ private:
         QString bgSeed; // playlist title, or track album/track title
         bool isPromo = true;
     };
+    struct CoverLayer {
+        QString url;
+        QPixmap pixmap;
+        QRect rect;
+    };
+    struct TextLayer {
+        QString text;
+        QRect rect;
+        int flags; // QPainter::drawText() alignment/wrap flags
+    };
     void applyContent(const Content& content);
     void regenerateSizedLayers();
     void refreshCoverOverlay();
@@ -104,6 +115,9 @@ private:
     // Shared measurement math with heightForWidth() (see the .cpp) so the
     // two can't disagree about how tall the content block is.
     void relayout();
+    // Swaps `layer` to `text` with a crossfade — or leaves it alone if it
+    // already shows exactly that text. Geometry is filled in by relayout().
+    static void setTextLayer(LayerTransition<TextLayer>& layer, const QString& text);
 
     CoverArtCache* coverCache_;
 
@@ -111,8 +125,16 @@ private:
 
     QTimer* regenerateTimer_ = nullptr;
 
-    QPixmap backgroundPixmap_;
-    QPixmap coverPixmap_;
+    // Each keeps drawing a previous value while it animates out, so the
+    // old cover/text stays at its old geometry even after relayout()
+    // moves things around for the new content — see LayerTransition.
+    LayerTransition<QPixmap> backgroundLayer_;
+    // Static edge falloff over the background layers (see paintEvent()).
+    QPixmap edgeFade_;
+    QColor edgeFadeColor_;
+    LayerTransition<CoverLayer> coverLayer_;
+    LayerTransition<TextLayer> titleLayer_;
+    LayerTransition<TextLayer> subtitleLayer_;
 
     QRect coverRect_;
     QRect titleRect_;

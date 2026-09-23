@@ -91,6 +91,7 @@ add_executable(cloudmus-qt
     src/Ui/OverlayScrollBar.cpp
     src/Ui/ThemedSplitter.cpp
     src/Ui/ThemedSlider.cpp
+    src/Ui/Transition.cpp
     src/Ui/ThemedToolTip.cpp
     src/Ui/SettingsDialog.cpp
     src/Ui/CoverArtCache.cpp

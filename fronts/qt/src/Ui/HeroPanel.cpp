@@ -36,6 +36,19 @@ constexpr qreal kSubtitleFontScale = 1.0;
 // renders at (see overlayTargetSide()). Same history: 0.5 → ×1.5 → ×(1/1.2).
 constexpr qreal kCoverFraction = 0.75 / 1.2;
 
+// New cover grows in from 150%, a leaving one shrinks away to 50% —
+// both fading. The exit is shorter and accelerates (InCubic) so the old
+// cover gets out of the way while the new one settles (OutCubic).
+const TransitionEffect kCoverEnter { 450, QEasingCurve::OutCubic, { 0.0, 1.5 } };
+const TransitionEffect kCoverExit { 300, QEasingCurve::InCubic, { 0.0, 0.5 } };
+const TransitionEffect kTextEnter { 350, QEasingCurve::OutCubic, { 0.0, 1.0 } };
+const TransitionEffect kTextExit { 200, QEasingCurve::InQuad, { 0.0, 1.0 } };
+// The old background stays fully opaque underneath (exit to {1, 1}) for
+// as long as the new one takes to fade in over it — fading both at once
+// would let the window behind show through mid-transition.
+const TransitionEffect kBackgroundEnter { 500, QEasingCurve::InOutQuad, { 0.0, 1.0 } };
+const TransitionEffect kBackgroundExit { 500, QEasingCurve::Linear, { 1.0, 1.0 } };
+
 const QColor kWhiteText = QColor(255, 255, 255);
 const QColor kWhiteSubtext = QColor(255, 255, 255, 220);
 } // namespace
@@ -43,6 +56,10 @@ const QColor kWhiteSubtext = QColor(255, 255, 255, 220);
 HeroPanel::HeroPanel(CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
     , coverCache_(coverCache)
+    , backgroundLayer_(this, kBackgroundEnter, kBackgroundExit)
+    , coverLayer_(this, kCoverEnter, kCoverExit)
+    , titleLayer_(this, kTextEnter, kTextExit)
+    , subtitleLayer_(this, kTextEnter, kTextExit)
 {
     // Theme::Typography::font(Display/BodySecondary) as the base for this
     // widget's own proportional up-scaling — the immersive hero keeps its
@@ -89,7 +106,7 @@ HeroPanel::HeroPanel(CoverArtCache* coverCache, QWidget* parent)
     });
 
     setFillMode(false);
-    backgroundPixmap_ = generateMeshAuraGradientCover(QString(), size());
+    backgroundLayer_.show(generateMeshAuraGradientCover(QString(), size()), /*animate=*/false);
 }
 
 void HeroPanel::setPlaylist(const Playlist& playlist)
@@ -122,12 +139,16 @@ void HeroPanel::clearNowPlaying()
     regenerateTimer_->stop();
     isPromo_ = true;
     currentCoverUrl_.clear();
-    currentBgSeed_.clear();
     titleText_.clear();
     subtitleText_.clear();
-    coverPixmap_ = QPixmap();
+    coverLayer_.hide();
+    titleLayer_.hide();
+    subtitleLayer_.hide();
     playButton_->hide();
-    backgroundPixmap_ = generateMeshAuraGradientCover(QString(), size());
+    if (!currentBgSeed_.isEmpty()) {
+        currentBgSeed_.clear();
+        backgroundLayer_.show(generateMeshAuraGradientCover(QString(), size()));
+    }
     relayout();
     updateGeometry();
 }
@@ -142,18 +163,24 @@ void HeroPanel::applyContent(const Content& content)
     regenerateTimer_->stop();
 
     isPromo_ = content.isPromo;
-    currentCoverUrl_ = content.coverUrl;
-    currentBgSeed_ = content.bgSeed;
     titleText_ = content.title;
     subtitleText_ = content.subtitle;
+    setTextLayer(titleLayer_, titleText_);
+    setTextLayer(subtitleLayer_, subtitleText_);
 
-    backgroundPixmap_ = generateMeshAuraGradientCover(currentBgSeed_, size());
-
-    if (!currentCoverUrl_.isEmpty()) {
-        refreshCoverOverlay();
-    } else {
-        coverPixmap_ = QPixmap();
+    // Same seed/cover (e.g. the next track off the same album) keeps the
+    // existing background and cover as they are instead of re-animating
+    // them into an identical copy of themselves.
+    if (content.bgSeed != currentBgSeed_) {
+        currentBgSeed_ = content.bgSeed;
+        backgroundLayer_.show(generateMeshAuraGradientCover(currentBgSeed_, size()));
     }
+
+    if (content.coverUrl != currentCoverUrl_) {
+        currentCoverUrl_ = content.coverUrl;
+        coverLayer_.hide();
+    }
+    refreshCoverOverlay();
 
     // heightForWidth()'s return value just changed (new title/subtitle
     // text) but this widget's own geometry didn't — nothing tells the
@@ -161,6 +188,17 @@ void HeroPanel::applyContent(const Content& content)
     // this call. See the old PlaylistHeader's identical comment.
     relayout();
     updateGeometry();
+}
+
+void HeroPanel::setTextLayer(LayerTransition<TextLayer>& layer, const QString& text)
+{
+    const TextLayer* current = layer.current();
+    if (current && current->text == text)
+        return;
+    if (text.isEmpty())
+        layer.hide();
+    else
+        layer.show(TextLayer { text, QRect(), 0 });
 }
 
 void HeroPanel::setPlayButtonVisible(bool visible)
@@ -229,8 +267,17 @@ void HeroPanel::refreshCoverOverlay()
         return;
     const int side = overlayTargetSide();
     // May return a null placeholder while the fetch is in flight —
-    // pixmapReady's handler (constructor) calls this again once it lands.
-    coverPixmap_ = coverCache_->pixmap(currentCoverUrl_, QSize(side, side));
+    // pixmapReady's handler (constructor) calls this again once it lands,
+    // so the new cover's entrance starts when there's actually something
+    // to show, not when its URL arrives.
+    const QPixmap pixmap = coverCache_->pixmap(currentCoverUrl_, QSize(side, side));
+    if (!pixmap.isNull()) {
+        CoverLayer* current = coverLayer_.current();
+        if (current && current->url == currentCoverUrl_)
+            current->pixmap = pixmap; // same cover re-rendered for a new size — no animation
+        else
+            coverLayer_.show(CoverLayer { currentCoverUrl_, pixmap, coverRect_ });
+    }
     relayout();
 }
 
@@ -240,7 +287,9 @@ void HeroPanel::regenerateSizedLayers()
     // no content set (currentBgSeed_ is just empty then — still a valid,
     // deterministic seed) — otherwise the panel shows a stale render from
     // whatever size it happened to be at construction/last content change.
-    backgroundPixmap_ = generateMeshAuraGradientCover(currentBgSeed_, size());
+    edgeFade_ = generateMeshAuraEdgeFade(size(), edgeFadeColor_);
+    // Crossfades from the stretched old render to the sharp new one.
+    backgroundLayer_.show(generateMeshAuraGradientCover(currentBgSeed_, size()));
     if (!currentCoverUrl_.isEmpty())
         refreshCoverOverlay();
     else
@@ -289,6 +338,20 @@ void HeroPanel::relayout()
     if (subtitleHeight > 0)
         y += subtitleHeight + kItemSpacing;
 
+    // Only the current layers follow the new layout; leaving ones finish
+    // their exit where they were.
+    const Qt::Alignment textAlign = fillMode_ ? Qt::AlignHCenter : Qt::AlignLeft;
+    if (CoverLayer* cover = coverLayer_.current())
+        cover->rect = coverRect_;
+    if (TextLayer* title = titleLayer_.current()) {
+        title->rect = titleRect_;
+        title->flags = textAlign | Qt::AlignVCenter;
+    }
+    if (TextLayer* subtitle = subtitleLayer_.current()) {
+        subtitle->rect = subtitleRect_;
+        subtitle->flags = textAlign | Qt::TextWordWrap;
+    }
+
     if (showButton) {
         playButton_->setGeometry(centeredX(buttonSize.width()), y, buttonSize.width(), buttonSize.height());
         playButton_->show();
@@ -306,8 +369,23 @@ void HeroPanel::paintEvent(QPaintEvent* event)
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
-    if (!backgroundPixmap_.isNull())
-        painter.drawPixmap(rect(), backgroundPixmap_);
+    backgroundLayer_.forEach([&](const QPixmap& pixmap, const LayerState& state) {
+        painter.setOpacity(state.opacity);
+        painter.drawPixmap(rect(), pixmap);
+    });
+    painter.setOpacity(1.0);
+
+    // Static, above the animated background layers — see
+    // generateMeshAuraEdgeFade(). Stretched until the debounced
+    // regenerateSizedLayers() catches up with a resize, same as the
+    // background itself. The window color is what used to show through
+    // the cover's own translucent edges before it became opaque.
+    const QColor edgeColor = palette().color(QPalette::Window);
+    if (edgeFade_.isNull() || edgeFadeColor_ != edgeColor) {
+        edgeFade_ = generateMeshAuraEdgeFade(size(), edgeColor);
+        edgeFadeColor_ = edgeColor;
+    }
+    painter.drawPixmap(rect(), edgeFade_);
 
     // Deliberately the *inverse* of a photographic vignette: dark at the
     // panel's center, fading to transparent at the edges. The center is
@@ -323,31 +401,38 @@ void HeroPanel::paintEvent(QPaintEvent* event)
     vignette.setColorAt(1.0, QColor(0, 0, 0, 0));
     painter.fillRect(rect(), vignette);
 
-    if (!coverPixmap_.isNull() && coverRect_.isValid()) {
-        // 2x Radius::md, not the bare token: this cover is large enough
-        // that md's own 8px (right for #sourceAuthCard and other panels
-        // at their usual size) read as barely-rounded here — doubled
-        // rather than reused, since this is now specific to how big this
-        // particular cover renders, not the shared panel radius itself.
-        constexpr int kCoverRadius = Theme::Radius::md * 2;
+    // 2x Radius::md, not the bare token: this cover is large enough that
+    // md's own 8px (right for #sourceAuthCard and other panels at their
+    // usual size) read as barely-rounded here — doubled rather than
+    // reused, since this is now specific to how big this particular cover
+    // renders, not the shared panel radius itself.
+    constexpr int kCoverRadius = Theme::Radius::md * 2;
+    coverLayer_.forEach([&](const CoverLayer& cover, const LayerState& state) {
+        if (cover.pixmap.isNull() || !cover.rect.isValid())
+            return;
+        painter.save();
+        applyLayerState(painter, state, QRectF(cover.rect).center());
         QPainterPath clip;
-        clip.addRoundedRect(coverRect_, kCoverRadius, kCoverRadius);
+        clip.addRoundedRect(cover.rect, kCoverRadius, kCoverRadius);
         painter.setClipPath(clip);
-        painter.drawPixmap(coverRect_, coverPixmap_);
-        painter.setClipping(false);
-    }
+        painter.drawPixmap(cover.rect, cover.pixmap);
+        painter.restore();
+    });
 
-    const Qt::Alignment textAlign = fillMode_ ? Qt::AlignHCenter : Qt::AlignLeft;
-    if (!titleText_.isEmpty() && titleRect_.isValid()) {
-        painter.setFont(titleFont_);
-        painter.setPen(kWhiteText);
-        painter.drawText(titleRect_, textAlign | Qt::AlignVCenter, titleText_);
-    }
-    if (!subtitleText_.isEmpty() && subtitleRect_.isValid()) {
-        painter.setFont(subtitleFont_);
-        painter.setPen(kWhiteSubtext);
-        painter.drawText(subtitleRect_, textAlign | Qt::TextWordWrap, subtitleText_);
-    }
+    const auto paintText = [&](const QFont& font, const QColor& color) {
+        return [&painter, font, color](const TextLayer& text, const LayerState& state) {
+            if (!text.rect.isValid())
+                return;
+            painter.save();
+            applyLayerState(painter, state, QRectF(text.rect).center());
+            painter.setFont(font);
+            painter.setPen(color);
+            painter.drawText(text.rect, text.flags, text.text);
+            painter.restore();
+        };
+    };
+    titleLayer_.forEach(paintText(titleFont_, kWhiteText));
+    subtitleLayer_.forEach(paintText(subtitleFont_, kWhiteSubtext));
 }
 
 void HeroPanel::resizeEvent(QResizeEvent* event)
