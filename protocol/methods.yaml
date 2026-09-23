@@ -31,7 +31,14 @@ methods:
       required: [playlists]
       properties:
         playlists: {type: array, items: {$ref: "schema/playlist.yaml"}}
-    timeoutMs: 5000
+    # Longer than the 5000ms default for other browse/auth calls: some
+    # backends fan this out into several chained upstream requests (e.g.
+    # youtube-music's ytmusicapi wrapper does three sequential calls —
+    # library playlists, liked songs, then a home-feed scan for the
+    # supermix id — inside one listPlaylists), which routinely exceeded a
+    # 5s budget and surfaced as a spurious "request timed out". See
+    # docs/protocol.md §7.1.
+    timeoutMs: 20000
 
   catalog.listTracks:
     requiresCapability: browse.playlists

@@ -295,6 +295,11 @@ alongside any real `kind: "playlist"` entries. A front therefore calls
 `catalog.listPlaylists` whenever any of the three `browse.*` capabilities
 above is true, not only `browse.playlists`.
 
+- Recommended client-side timeout: **20 seconds** (longer than the ~5s
+  default for other browse/auth calls — some backends fan this out into
+  several chained upstream requests, e.g. youtube-music's ytmusicapi
+  wrapper does three sequential calls per `listPlaylists`).
+
 `cursor` is an **opaque string** — the front only ever passes back exactly
 what it last received in `nextCursor`; it has no structure a front is
 allowed to depend on. Absence of `nextCursor` in a result means "no more

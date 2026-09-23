@@ -494,10 +494,20 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
     const bool shouldFetch = browse.value(QStringLiteral("playlists")).toBool()
         || browse.value(QStringLiteral("likedTracks")).toBool() || browse.value(QStringLiteral("radio")).toBool();
     QList<Playlist> playlists;
+    // Set when the fetch failed with a client-side timeout (RpcClient's own
+    // local deadline, error code -1 — see RpcClient::registerPending) while
+    // otherwise looking fine — worth surfacing, unlike the routine
+    // "not-yet-authenticated" rejection below, which always fails fast with
+    // a proper error object rather than by timing out, so it can never hit
+    // this branch.
+    bool fetchTimedOut = false;
     if (shouldFetch) {
         try {
             ListPlaylistsResult result = co_await Rpc::catalogListPlaylists(*client);
             playlists = result.playlists;
+        } catch (const Rpc::RpcCallException& e) {
+            fetchTimedOut = e.error().code == -1;
+            qCWarning(lcMainWindow) << "catalog.listPlaylists failed for" << client->sourceId() << ":" << e.what();
         } catch (const std::exception& e) {
             // std::exception, not Rpc::RpcCallException — critically also
             // catches Rpc::ProtocolParseError (a well-formed response whose
@@ -527,13 +537,17 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
     }
     sidebarModel_->setSource(client->sourceId(), client->sourceName(), playlists);
     // setSource() just recreated this source's header row from scratch,
-    // dropping any warning/loading icon it had — reapply from the cached
-    // state. Needed because this coroutine and the auth.start flow kicked
-    // off alongside it in wireSource() race: an auth/prompt can arrive and
-    // set the icon before this RPC round-trip finishes, in which case this
-    // call would otherwise silently wipe it back off.
+    // dropping any warning/loading/error icon it had — reapply from the
+    // cached state. Needed because this coroutine and the auth.start flow
+    // kicked off alongside it in wireSource() race: an auth/prompt can
+    // arrive and set the icon before this RPC round-trip finishes, in which
+    // case this call would otherwise silently wipe it back off.
     updateSourceAuthIndicator(client->sourceId());
     sidebarModel_->setSourceLoading(client->sourceId(), client->sourceName(), false);
+    sidebarModel_->setSourceFetchError(client->sourceId(), client->sourceName(), fetchTimedOut);
+    if (fetchTimedOut) {
+        toastNotifier_->showError(tr("%1: timed out loading playlists").arg(client->sourceName()));
+    }
 }
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)

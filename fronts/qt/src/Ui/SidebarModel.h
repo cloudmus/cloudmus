@@ -40,12 +40,14 @@ public:
         // MainWindow can show the playlist header without a second RPC
         // round-trip — see fronts/qt/AGENTS.md/the plan on Playlist.kind.
         PlaylistDataRole,
-        // Stashed on a source's header row so setSourceAuthProblem() and
-        // setSourceLoading() — which each only know about their own flag —
-        // can still combine both into the one decoration icon a row has
-        // room for. See updateSourceHeaderIcon().
+        // Stashed on a source's header row so setSourceAuthProblem(),
+        // setSourceLoading(), and setSourceFetchError() — which each only
+        // know about their own flag — can still combine all three into the
+        // one decoration icon a row has room for. See
+        // updateSourceHeaderIcon().
         HasAuthProblemRole,
         IsLoadingRole,
+        HasFetchErrorRole,
     };
 
     explicit SidebarModel(QObject* parent = nullptr);
@@ -74,6 +76,14 @@ public:
     // including the initial one and a context menu's "Force Refresh".
     void setSourceLoading(const QString& sourceId, const QString& sourceName, bool loading);
 
+    // Toggles a source's header-row error icon in place, same shape as
+    // setSourceAuthProblem()/setSourceLoading() above — MainWindow calls
+    // this with `true` when a catalog.listPlaylists fetch times out for an
+    // already-authenticated source (an unexpected failure, unlike the
+    // routine "not yet authenticated" rejection, which stays silent) and
+    // with `false` once a subsequent fetch succeeds.
+    void setSourceFetchError(const QString& sourceId, const QString& sourceName, bool hasError);
+
     // Inserts the top-level "History" row once, ahead of every source root
     // (idempotent — a no-op if already present).
     void ensureHistoryItem();
@@ -81,9 +91,10 @@ public:
 private:
     QStandardItem* findOrCreateSourceRoot(const QString& sourceId, const QString& sourceName);
     // Repaints a source header's icon from its HasAuthProblemRole/
-    // IsLoadingRole data (auth problem wins — it's the more actionable
-    // state), called by both setSourceAuthProblem() and setSourceLoading()
-    // after they update their own flag.
+    // IsLoadingRole/HasFetchErrorRole data (auth problem wins — it's the
+    // more actionable state — then fetch error, then loading), called by
+    // setSourceAuthProblem()/setSourceLoading()/setSourceFetchError() after
+    // each updates its own flag.
     static void updateSourceHeaderIcon(QStandardItem* root);
 };
 

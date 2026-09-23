@@ -106,9 +106,19 @@ void SidebarModel::setSourceLoading(const QString& sourceId, const QString& sour
     updateSourceHeaderIcon(root);
 }
 
+void SidebarModel::setSourceFetchError(const QString& sourceId, const QString& sourceName, bool hasError)
+{
+    QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
+    root->setData(hasError, HasFetchErrorRole);
+    updateSourceHeaderIcon(root);
+}
+
 void SidebarModel::updateSourceHeaderIcon(QStandardItem* root)
 {
-    if (root->data(HasAuthProblemRole).toBool()) {
+    // No dedicated "error" glyph exists yet — reuse the same warning icon
+    // as an auth problem (both mean "something's wrong with this source,
+    // right-click to retry").
+    if (root->data(HasAuthProblemRole).toBool() || root->data(HasFetchErrorRole).toBool()) {
         root->setIcon(Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, 16));
     } else if (root->data(IsLoadingRole).toBool()) {
         root->setIcon(Theme::icon(QStringLiteral("refresh"), Theme::IconColor::InkSecondary, 16));
