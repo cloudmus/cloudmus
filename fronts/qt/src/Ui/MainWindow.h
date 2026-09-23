@@ -58,6 +58,11 @@ private:
     void onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail);
     void onSidebarActivated(const QModelIndex& index);
     void onSidebarDoubleClicked(const QModelIndex& index);
+    // Right-click on sidebarView_. A source header offers "Force Refresh
+    // Playlists" (re-runs loadPlaylistsAsync); a Wave/Liked/Playlist row
+    // offers "Play" (same as double-click — see onSidebarDoubleClicked).
+    // Any other row (PlaylistsHeader/History) gets no menu.
+    void onSidebarContextMenuRequested(const QPoint& pos);
     void onTrackDoubleClicked(const QModelIndex& index);
     // Right-click on trackListView_ — resolves the row exactly like
     // onTrackDoubleClicked() does, then builds a QMenu gated by the row's

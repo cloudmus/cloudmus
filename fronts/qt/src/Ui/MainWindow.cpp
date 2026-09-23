@@ -235,6 +235,20 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(sidebarModel_, &QStandardItemModel::rowsInserted, sidebarView_, &QTreeView::expandAll);
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
+    sidebarView_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(sidebarView_, &QTreeView::customContextMenuRequested, this, &MainWindow::onSidebarContextMenuRequested);
+
+    // Every discovered backend gets its header row up front, before its
+    // process has even been spawned (sourceManager_.startAll() runs after
+    // MainWindow is constructed — see main.cpp) — a backend that's slow to
+    // start or still authenticating must stay visible instead of only
+    // appearing once loadPlaylistsAsync() below first succeeds. Shown as
+    // loading until wireSource()'s loadPlaylistsAsync() call fills it in
+    // for real.
+    for (const auto& manifest : Rpc::discoverManifests()) {
+        sidebarModel_->setSource(manifest.id, manifest.name, { });
+        sidebarModel_->setSourceLoading(manifest.id, manifest.name, true);
+    }
 
     heroPanel_ = new HeroPanel(coverArtCache_, this);
     // Always the tall full-height splitter pane below, regardless of
@@ -475,6 +489,7 @@ void MainWindow::onSourceUnavailable(const QString& manifestId, const QString& n
 
 Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
 {
+    sidebarModel_->setSourceLoading(client->sourceId(), client->sourceName(), true);
     const QJsonObject browse = client->capabilities().value(QStringLiteral("browse")).toObject();
     const bool shouldFetch = browse.value(QStringLiteral("playlists")).toBool()
         || browse.value(QStringLiteral("likedTracks")).toBool() || browse.value(QStringLiteral("radio")).toBool();
@@ -512,12 +527,13 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
     }
     sidebarModel_->setSource(client->sourceId(), client->sourceName(), playlists);
     // setSource() just recreated this source's header row from scratch,
-    // dropping any warning icon it had — reapply from the cached state.
-    // Needed because this coroutine and the auth.start flow kicked off
-    // alongside it in wireSource() race: an auth/prompt can arrive and set
-    // the icon before this RPC round-trip finishes, in which case this call
-    // would otherwise silently wipe it back off.
+    // dropping any warning/loading icon it had — reapply from the cached
+    // state. Needed because this coroutine and the auth.start flow kicked
+    // off alongside it in wireSource() race: an auth/prompt can arrive and
+    // set the icon before this RPC round-trip finishes, in which case this
+    // call would otherwise silently wipe it back off.
     updateSourceAuthIndicator(client->sourceId());
+    sidebarModel_->setSourceLoading(client->sourceId(), client->sourceName(), false);
 }
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)
@@ -552,6 +568,40 @@ void MainWindow::onSidebarDoubleClicked(const QModelIndex& index)
     const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
     const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
     openAndPlayPlaylistAsync(sourceId, playlist).detach();
+}
+
+void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
+{
+    const QModelIndex index = sidebarView_->indexAt(pos);
+    if (!index.isValid())
+        return;
+    const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
+    const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
+
+    auto* menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+
+    if (kind == SidebarModel::Kind::SourceHeader) {
+        menu->addAction(Theme::icon(QStringLiteral("refresh"), Theme::IconColor::Ink, 16),
+            tr("Force Refresh Playlists"), this, [this, sourceId]() {
+                Rpc::RpcClient* client = sourceManager_.client(sourceId);
+                if (client != nullptr)
+                    loadPlaylistsAsync(client).detach();
+            });
+    } else if (kind == SidebarModel::Kind::Wave || kind == SidebarModel::Kind::Liked
+        || kind == SidebarModel::Kind::Playlist) {
+        menu->addAction(
+            Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), this, [this, index]() {
+                const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
+                const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
+                openAndPlayPlaylistAsync(sourceId, playlist).detach();
+            });
+    } else {
+        menu->deleteLater();
+        return;
+    }
+
+    menu->popup(sidebarView_->viewport()->mapToGlobal(pos));
 }
 
 void MainWindow::playCurrentPlaylist()

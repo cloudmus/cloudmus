@@ -95,7 +95,26 @@ void SidebarModel::removeSource(const QString& sourceId)
 void SidebarModel::setSourceAuthProblem(const QString& sourceId, const QString& sourceName, bool hasProblem)
 {
     QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
-    root->setIcon(hasProblem ? Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, 16) : QIcon());
+    root->setData(hasProblem, HasAuthProblemRole);
+    updateSourceHeaderIcon(root);
+}
+
+void SidebarModel::setSourceLoading(const QString& sourceId, const QString& sourceName, bool loading)
+{
+    QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
+    root->setData(loading, IsLoadingRole);
+    updateSourceHeaderIcon(root);
+}
+
+void SidebarModel::updateSourceHeaderIcon(QStandardItem* root)
+{
+    if (root->data(HasAuthProblemRole).toBool()) {
+        root->setIcon(Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, 16));
+    } else if (root->data(IsLoadingRole).toBool()) {
+        root->setIcon(Theme::icon(QStringLiteral("refresh"), Theme::IconColor::InkSecondary, 16));
+    } else {
+        root->setIcon(QIcon());
+    }
 }
 
 } // namespace Ui

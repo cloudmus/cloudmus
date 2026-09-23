@@ -40,6 +40,12 @@ public:
         // MainWindow can show the playlist header without a second RPC
         // round-trip — see fronts/qt/AGENTS.md/the plan on Playlist.kind.
         PlaylistDataRole,
+        // Stashed on a source's header row so setSourceAuthProblem() and
+        // setSourceLoading() — which each only know about their own flag —
+        // can still combine both into the one decoration icon a row has
+        // room for. See updateSourceHeaderIcon().
+        HasAuthProblemRole,
+        IsLoadingRole,
     };
 
     explicit SidebarModel(QObject* parent = nullptr);
@@ -62,12 +68,23 @@ public:
     // this only ever toggles the icon.
     void setSourceAuthProblem(const QString& sourceId, const QString& sourceName, bool hasProblem);
 
+    // Toggles a source's header-row loading icon in place, same shape and
+    // same setSource()-survival caveat as setSourceAuthProblem() above —
+    // MainWindow calls this around every (re)fetch of a source's playlists,
+    // including the initial one and a context menu's "Force Refresh".
+    void setSourceLoading(const QString& sourceId, const QString& sourceName, bool loading);
+
     // Inserts the top-level "History" row once, ahead of every source root
     // (idempotent — a no-op if already present).
     void ensureHistoryItem();
 
 private:
     QStandardItem* findOrCreateSourceRoot(const QString& sourceId, const QString& sourceName);
+    // Repaints a source header's icon from its HasAuthProblemRole/
+    // IsLoadingRole data (auth problem wins — it's the more actionable
+    // state), called by both setSourceAuthProblem() and setSourceLoading()
+    // after they update their own flag.
+    static void updateSourceHeaderIcon(QStandardItem* root);
 };
 
 } // namespace Ui
