@@ -12,6 +12,13 @@ meaning.
   params shape as `feedback.like`/`feedback.dislike`, same required
   capability flags. A source that never declared `feedback.like`/`.dislike`
   is simply never sent these either.
+- **Additive, backward-compatible**: `Track` gains an optional `disliked`
+  field, the counterpart of `liked` — omitted when the source doesn't know
+  (or doesn't track) dislike state. A source that does know should set
+  `liked`/`disliked` on every track it returns, not just in `listLiked`.
+- **Additive, backward-compatible**: `radio/tracksAdded` gains an optional
+  `replaceUpcoming` flag (§7.1): the batch replaces the queue's unplayed
+  tail instead of being appended. Absent means append, as before.
 
 ## 1.2 — `source.description`
 

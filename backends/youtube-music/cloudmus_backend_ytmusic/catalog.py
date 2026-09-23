@@ -68,6 +68,7 @@ def to_track(song: dict) -> Track:
         album=album,
         coverUrl=_cover_url(song.get("thumbnails")),
         liked=song.get("likeStatus") == "LIKE" if "likeStatus" in song else None,
+        disliked=song.get("likeStatus") == "DISLIKE" if "likeStatus" in song else None,
         explicit=song.get("isExplicit", False),
         webUrl=f"https://music.youtube.com/watch?v={video_id}",
     )

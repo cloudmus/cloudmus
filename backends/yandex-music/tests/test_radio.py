@@ -160,23 +160,49 @@ async def test_feedback_events_go_through_session_endpoint_with_batch_id():
 
 
 @pytest.mark.asyncio
-async def test_top_up_emits_only_tracks_not_seen_this_session():
-    # The front must never receive a track it was already shown in the
-    # initial batch. _FakeClient re-serves the queued id on alternating
-    # tracks calls; the session must filter those out and only push fresh.
+async def test_top_up_replaces_upcoming_with_unplayed_tracks():
+    # Every top-up is the wave's recomputed upcoming sequence: it's sent
+    # with replaceUpcoming so the front swaps its unplayed tail instead of
+    # growing the queue by a whole batch per track.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    await session.track_started("1")
+
+    await session._top_up("1")  # advances, server returns a fresh id
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1
+    assert added[0]["replaceUpcoming"] is True
+    assert [t["id"] for t in added[0]["tracks"]] == ["3"]
+
+
+@pytest.mark.asyncio
+async def test_top_up_never_serves_an_already_played_track_as_upcoming():
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    await session.track_started("1")
+
+    await session._top_up("1")
+    # Alternating call: the server re-serves the queued id, which already
+    # played — nothing upcoming is left, so nothing is pushed.
+    await session._top_up("1")
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1
+
+
+@pytest.mark.asyncio
+async def test_top_up_may_reserve_a_served_but_unplayed_track():
+    # Track "2" was served in the initial batch but never started — a later
+    # sequence recommending it again is legitimate (it replaces the tail).
     client = _FakeClient()
     notifier = _NotifyRecorder()
     session = RadioSession(client, notifier)
     await session.start(seed=None)
 
-    await session._top_up("1")  # advances, server returns a fresh id
+    await session._top_up("2")
+    await session._top_up("2")  # re-serves "2", unplayed
     added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
-    assert len(added) == 1
-    fresh_ids = [t["id"] for t in added[0]["tracks"]]
-    assert len(fresh_ids) == 1
-
-    # Alternating call: server re-serves the queued id (already seen) — must
-    # not be pushed again.
-    await session._top_up("1")
-    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
-    assert len(added) == 1
+    assert [t["id"] for t in added[-1]["tracks"]] == ["2"]

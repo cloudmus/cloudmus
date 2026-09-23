@@ -154,21 +154,25 @@ def build_server() -> BackendServer:
     @server.method("feedback.like")
     async def handle_like(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().users_likes_tracks_add, params["trackId"])
+        catalog.likes.set_liked(params["trackId"], True)
         return {}
 
     @server.method("feedback.dislike")
     async def handle_dislike(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().users_dislikes_tracks_add, params["trackId"])
+        catalog.likes.set_disliked(params["trackId"], True)
         return {}
 
     @server.method("feedback.unlike")
     async def handle_unlike(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().users_likes_tracks_remove, params["trackId"])
+        catalog.likes.set_liked(params["trackId"], False)
         return {}
 
     @server.method("feedback.undislike")
     async def handle_undislike(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().users_dislikes_tracks_remove, params["trackId"])
+        catalog.likes.set_disliked(params["trackId"], False)
         return {}
 
     @server.method("feedback.trackStarted")

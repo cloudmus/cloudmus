@@ -217,6 +217,7 @@ expected to always emit the full shape above.
   "durationMs": 391200,
   "coverUrl": "https://...",     // optional, falls back to album cover if absent
   "liked": false,                 // optional, omitted if the source doesn't track like-state
+  "disliked": false,              // optional (1.3+), omitted if the source doesn't track dislike-state
   "explicit": false,               // optional
   "webUrl": "https://music.yandex.ru/album/7224367/track/51672522"  // optional, added in 1.1 (§12);
                                     // a browsable page for this track. Absent when the source has no
@@ -313,6 +314,16 @@ the source pushes more tracks proactively via `radio/tracksAdded` (§8) —
 there is no `catalog.getMoreRadioTracks` pull method; a source decides when
 to top up the queue.
 
+By default the front appends a `radio/tracksAdded` batch to its queue. A
+source whose upstream recomputes the whole upcoming sequence after every
+feedback event (e.g. Yandex's adaptive My Wave, which reacts to skips and
+likes) sets `replaceUpcoming: true` instead: the batch then replaces every
+queued track after the one currently playing (or starting), so the queue
+stays "already played + the station's current recommendations" rather
+than growing by a full batch per track. Tracks the user queued explicitly
+(Play Next / Add to Queue) are kept, and incoming tracks already in the
+played part of the queue are dropped by the front.
+
 ### 7.2 Playback — `providesStream` sources
 
 | Method | Params | Result |
@@ -398,7 +409,7 @@ mirror that locally rather than showing both states lit up at once.
 |---|---|---|
 | `state/changed` | `PlaybackState` (§6) | `selfPlayback` sources, whenever play/pause/seek/volume/track changes |
 | `track/streamReady` | `{"requestId": number, "trackId": string, "stream": StreamDescriptor}` | `providesStream` sources, asynchronously after `playback.play` |
-| `radio/tracksAdded` | `{"stationId": string, "tracks": [Track, ...]}` | Any source with `browse.radio`, proactively as it tops up the queue |
+| `radio/tracksAdded` | `{"stationId": string, "tracks": [Track, ...], "replaceUpcoming"?: bool}` | Any source with `browse.radio`, proactively as it tops up the queue (§7.1 for `replaceUpcoming`) |
 | `auth/prompt` | flow-specific, see §10 | Sources with `auth.required: true`, mid-flow |
 | `auth/statusChanged` | `{"status": "authenticated"} \| {"status": "error", "message": string}` | Any source, on auth state transitions |
 | `error` | `{"code": number, "message": string, "data"?: object}` | Any source, for non-fatal issues worth surfacing in the UI (e.g. "track unavailable, skipping") |

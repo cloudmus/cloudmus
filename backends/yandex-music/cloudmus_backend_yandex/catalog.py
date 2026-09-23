@@ -4,12 +4,75 @@ ym_player/downloader.py's playlist_tracks()."""
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from yandex_music import Client, Playlist as YPlaylist, Track as YTrack
 
 from rpc_common.generated.models import Album, Artist, Playlist, Track
 
 COVER_SIZE = "400x400"
+
+logger = logging.getLogger(__name__)
+
+
+def _bare_id(track_id: object) -> str:
+    # Likes/dislikes lists carry "trackId:albumId" while a Track's own
+    # track_id may or may not include the album part — compare bare ids.
+    return str(track_id).split(":", 1)[0]
+
+
+class LikeCache:
+    """The account's liked/disliked track ids.
+
+    yandex_music's Track has no liked/disliked attribute — both are only
+    available upstream as separate id lists — so every Track this backend
+    returns is annotated from this cache (see to_track()), not just the
+    ones listLiked returns. Reloaded with every catalog.listPlaylists (the
+    front's refresh point) and patched in place by the feedback.* handlers,
+    so a like made from this app shows up immediately everywhere.
+    """
+
+    def __init__(self) -> None:
+        self.liked: set[str] = set()
+        self.disliked: set[str] = set()
+        self.loaded = False
+
+    def load(self, client: Client) -> None:
+        liked = client.users_likes_tracks()
+        self.liked = {_bare_id(i) for i in (liked.tracks_ids if liked else [])}
+        try:
+            disliked = client.users_dislikes_tracks()
+            self.disliked = {_bare_id(i) for i in (disliked.tracks_ids if disliked else [])}
+        except Exception as e:  # dislikes are a nice-to-have; likes still load
+            logger.debug("loading dislikes failed: %s", e)
+            self.disliked = set()
+        self.loaded = True
+
+    def ensure_loaded(self, client: Client) -> None:
+        if not self.loaded:
+            try:
+                self.load(client)
+            except Exception as e:
+                logger.debug("loading likes failed: %s", e)
+
+    def set_liked(self, track_id: str, liked: bool) -> None:
+        tid = _bare_id(track_id)
+        if liked:
+            self.liked.add(tid)
+            self.disliked.discard(tid)  # the service cross-clears — docs/protocol.md §7.4
+        else:
+            self.liked.discard(tid)
+
+    def set_disliked(self, track_id: str, disliked: bool) -> None:
+        tid = _bare_id(track_id)
+        if disliked:
+            self.disliked.add(tid)
+            self.liked.discard(tid)
+        else:
+            self.disliked.discard(tid)
+
+
+likes = LikeCache()
 
 # The station id yandex_music's rotor API uses for the personal "wave"
 # station (see radio.py, which imports this rather than keeping its own
@@ -44,12 +107,16 @@ def _web_url(t: YTrack) -> str | None:
 
 
 def to_track(t: YTrack, *, liked: bool | None = None) -> Track:
-    # yandex_music's Track object has no liked/is_liked attribute — likes
-    # are tracked upstream only as a separate id list (users_likes_tracks()),
-    # so there's nothing to read off `t` itself. Callers that already know a
-    # track is liked (list_liked() — every track it returns came from that
-    # id list) pass it in explicitly; anywhere else it stays unset (the
-    # front just treats it as "unknown", not "not liked").
+    # liked/disliked come from the account-wide LikeCache (see its doc);
+    # `liked` overrides it for callers that know better (list_liked()).
+    # Left unset (unknown to the front, not "not liked") until the cache
+    # has loaded at least once.
+    disliked = None
+    if likes.loaded:
+        tid = _bare_id(t.track_id)
+        if liked is None:
+            liked = tid in likes.liked
+        disliked = tid in likes.disliked
     artists = [Artist(id=str(a.id), name=a.name or "") for a in (t.artists or [])]
     album = None
     if t.albums:
@@ -65,6 +132,7 @@ def to_track(t: YTrack, *, liked: bool | None = None) -> Track:
         explicit=t.explicit,
         webUrl=_web_url(t),
         liked=liked,
+        disliked=disliked,
     )
 
 
@@ -113,9 +181,8 @@ async def list_playlists(client: Client) -> dict:
     # so both are unconditional.
     def fetch() -> tuple[list[YPlaylist], int]:
         real_playlists = client.users_playlists_list() or []
-        liked = client.users_likes_tracks()
-        liked_count = len(liked.tracks_ids) if liked else 0
-        return real_playlists, liked_count
+        likes.load(client)  # also refreshes every later track's liked/disliked
+        return real_playlists, len(likes.liked)
 
     real_playlists, liked_count = await asyncio.to_thread(fetch)
     playlists = [_wave_playlist(), _liked_playlist(liked_count)]
@@ -127,6 +194,7 @@ async def list_tracks(client: Client, playlist_id: str) -> dict:
     playlist = await asyncio.to_thread(_find_playlist, client, playlist_id)
     if playlist is None:
         raise LookupError(playlist_id)
+    await asyncio.to_thread(likes.ensure_loaded, client)
     tracks = await asyncio.to_thread(playlist_tracks, playlist)
     return {"tracks": [to_track(t).to_dict() for t in tracks]}
 
@@ -135,6 +203,7 @@ async def list_liked(client: Client) -> dict:
     def fetch() -> list[YTrack]:
         liked = client.users_likes_tracks()
         ids = liked.tracks_ids if liked else []
+        likes.ensure_loaded(client)
         return client.tracks(ids) if ids else []
 
     tracks = await asyncio.to_thread(fetch)

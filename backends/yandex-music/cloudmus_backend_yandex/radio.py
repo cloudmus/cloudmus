@@ -5,9 +5,10 @@ In the old monolith the Player owned the queue and decided for itself when
 to fetch more tracks (once the local queue ran low). In this protocol the
 front owns the queue instead (docs/protocol.md §7.1) — the backend only
 gets a chance to react on catalog.startRadio and on each feedback.* call, so
-it tops up by pushing a fresh batch via radio/tracksAdded whenever a track
-finishes or is skipped, mirroring the same "keep the pipeline full" intent
-without needing to know the front's exact queue depth.
+it pushes the session's recomputed upcoming sequence via radio/tracksAdded
+(with replaceUpcoming, see docs/protocol.md §7.1) whenever a track finishes
+or is skipped: the wave adapts to every play/skip/like, so each batch
+supersedes the previous one's unplayed tracks rather than adding to them.
 
 This backend talks to Yandex's *session* rotor API (/rotor/session/*), not
 the legacy station one (/rotor/station/{station}/feedback): the legacy
@@ -64,7 +65,10 @@ class RadioSession:
         self.station = catalog.WAVE_STATION_ID
         self.radio_session_id: str | None = None
         self.batch_id: str | None = None
-        self._seen: set[str] = set()
+        # Tracks that actually started playing this session — never
+        # re-served as "upcoming". Tracks merely served (but replaced before
+        # being reached) may legitimately come back in a later sequence.
+        self._played: set[str] = set()
 
     def _post(self, path: str, payload: dict) -> dict:
         result = self.client._request.post(f"{self.client.base_url}{path}", json=payload)
@@ -101,6 +105,8 @@ class RadioSession:
 
     async def start(self, seed: str | None) -> dict:
         self.station = _resolve_station(seed)
+        # So the station's tracks carry liked/disliked too (see catalog.LikeCache).
+        await asyncio.to_thread(catalog.likes.ensure_loaded, self.client)
 
         result = await asyncio.to_thread(
             self._post,
@@ -115,7 +121,7 @@ class RadioSession:
         self.radio_session_id = result.get("radioSessionId")
         self.batch_id = result.get("batchId")
         tracks = self._tracks_from(result)
-        self._seen = {str(t.id) for t in tracks}
+        self._played = set()
         await self._send_feedback("radioStarted", **{"from": "cloudmus"})
 
         return {
@@ -139,19 +145,22 @@ class RadioSession:
             return
         self.batch_id = result.get("batchId", self.batch_id)
         tracks = self._tracks_from(result)
-        # Never re-serve a track the front has already seen this session —
-        # an already-seen track merely advancing past (e.g. the played one
-        # surfacing again) must not be pushed again as a "new" track.
-        fresh = [t for t in tracks if str(t.id) not in self._seen]
-        self._seen.update(str(t.id) for t in tracks)
+        # The sequence can still start with the track just played (the
+        # chain head advancing past it) — only unplayed ones are upcoming.
+        upcoming = [t for t in tracks if str(t.id) not in self._played]
 
-        if fresh:
+        if upcoming:
             await emit_radio_tracks_added(
                 self._notify,
-                TracksAddedParams(stationId=self.station, tracks=[catalog.to_track(t) for t in fresh]),
+                TracksAddedParams(
+                    stationId=self.station,
+                    tracks=[catalog.to_track(t) for t in upcoming],
+                    replaceUpcoming=True,
+                ),
             )
 
     async def track_started(self, track_id: str) -> None:
+        self._played.add(str(track_id))
         await self._send_feedback("trackStarted", trackId=track_id)
 
     async def track_finished(self, track_id: str, played_ms: int) -> None:

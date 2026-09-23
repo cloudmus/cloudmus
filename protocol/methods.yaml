@@ -277,6 +277,10 @@ notifications:
       properties:
         stationId: {type: string}
         tracks: {type: array, items: {$ref: "schema/track.yaml"}}
+        # true: `tracks` is the station's new upcoming sequence and replaces
+        # the not-yet-played tail of the front's queue instead of being
+        # appended to it (docs/protocol.md §7.1). Absent/false: append.
+        replaceUpcoming: {type: boolean}
 
   auth/prompt:
     # Flow-specific shape (deviceCode | usernamePassword | oauthRedirect, see
