@@ -21,12 +21,15 @@
         <file alias="chevron_right.svg">icons/symbols/chevron_right.svg</file>
         <file alias="expand_more.svg">icons/symbols/expand_more.svg</file>
         <file alias="check.svg">icons/symbols/check.svg</file>
-        <file alias="thumb_up.svg">icons/symbols/thumb_up.svg</file>
-        <file alias="thumb_down.svg">icons/symbols/thumb_down.svg</file>
+        <file alias="favorite.svg">icons/symbols/favorite.svg</file>
+        <file alias="favorite_border.svg">icons/symbols/favorite_border.svg</file>
+        <file alias="heart_broken.svg">icons/symbols/heart_broken.svg</file>
         <file alias="playlist_play.svg">icons/symbols/playlist_play.svg</file>
         <file alias="playlist_add.svg">icons/symbols/playlist_add.svg</file>
         <file alias="radio.svg">icons/symbols/radio.svg</file>
         <file alias="file_download.svg">icons/symbols/file_download.svg</file>
         <file alias="history.svg">icons/symbols/history.svg</file>
+        <file alias="close.svg">icons/symbols/close.svg</file>
+        <file alias="search.svg">icons/symbols/search.svg</file>
     </qresource>
 </RCC>

@@ -7,6 +7,10 @@
 
 #include "Models.h"
 
+namespace Library {
+class TrackStates;
+}
+
 namespace Ui {
 
 // Backs the center track-list view. One instance per MainWindow, repointed
@@ -23,6 +27,12 @@ public:
         // currently only History populates this. TrackRowDelegate checks
         // QDateTime::isValid() to decide whether to draw it at all.
         PlayedAtRole,
+        // From Library::TrackStates (see setTrackStates()), not the Track
+        // copy: bool, or invalid while unknown.
+        LikedRole,
+        DislikedRole,
+        // When the track was last played at all (any list), UTC; invalid if never.
+        LastPlayedRole,
     };
 
     // One row for setMixedSourceTracks() — see that method's doc comment
@@ -47,14 +57,10 @@ public:
     void setMixedSourceTracks(const QList<MixedSourceEntry>& entries);
     void appendTracks(const QList<Track>& tracks);
     void clear();
-    // Patches Track::liked on every row matching (sourceId, trackId) — by
-    // id, since a row's source is sourceId_ normally or
-    // mixedSourceIds_[row] in a mixed-source (History) list, same as
-    // sourceIdAt(). No-op if the track isn't currently displayed. Fixes
-    // replaying a liked track from an already-loaded list showing it as
-    // unliked (the list was never re-fetched, so it still had the Track
-    // copy's original `liked` value from whenever it was fetched).
-    void markTrackLiked(const QString& sourceId, const QString& trackId, bool liked);
+    // Where LikedRole/DislikedRole/LastPlayedRole come from — rows
+    // repaint whenever it reports a change. Without one those roles are
+    // empty. See Library::TrackStates.
+    void setTrackStates(Library::TrackStates* states);
 
     const QString& sourceId() const { return sourceId_; }
     bool isMixedSource() const { return mixedSource_; }
@@ -66,6 +72,9 @@ public:
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
 private:
+    void onStateChanged(const QString& sourceId, const QString& trackId);
+
+    Library::TrackStates* states_ = nullptr;
     QString sourceId_;
     QVector<Track> tracks_;
     QVector<QString> mixedSourceIds_; // parallel to tracks_, only populated when mixedSource_

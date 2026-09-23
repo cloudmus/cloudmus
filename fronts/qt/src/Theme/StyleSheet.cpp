@@ -288,6 +288,7 @@ QLineEdit {
     selection-color: %9;
 }
 QLineEdit:focus { border: 1px solid %8; }
+QLineEdit[variant="filter"] { padding: %7px %7px; border-radius: %12px; }
 QCheckBox { spacing: %7px; color: %2; }
 QCheckBox::indicator {
     width: 16px; height: 16px;
@@ -303,7 +304,7 @@ QCheckBox::indicator:checked {
 })")
         .arg(hex(p.surface100), hex(p.ink), hex(p.surface200), hex(p.border), QString::number(Radius::sm),
             QString::number(Spacing::space1), QString::number(Spacing::space2), hex(p.accent), hex(p.onAccent))
-        .arg(hex(p.borderStrong), checkIcon);
+        .arg(hex(p.borderStrong), checkIcon, QString::number(Radius::md));
 }
 
 } // namespace

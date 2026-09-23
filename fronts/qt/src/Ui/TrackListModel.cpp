@@ -1,5 +1,7 @@
 #include "TrackListModel.h"
 
+#include "TrackStates.h"
+
 namespace Ui {
 
 TrackListModel::TrackListModel(QObject* parent)
@@ -61,13 +63,22 @@ void TrackListModel::clear()
 
 QString TrackListModel::sourceIdAt(int row) const { return mixedSource_ ? mixedSourceIds_[row] : sourceId_; }
 
-void TrackListModel::markTrackLiked(const QString& sourceId, const QString& trackId, bool liked)
+void TrackListModel::setTrackStates(Library::TrackStates* states)
+{
+    states_ = states;
+    connect(states_, &Library::TrackStates::changed, this, &TrackListModel::onStateChanged);
+    connect(states_, &Library::TrackStates::bulkChanged, this, [this]() {
+        if (!tracks_.isEmpty())
+            emit dataChanged(index(0), index(tracks_.size() - 1), { LikedRole, DislikedRole, LastPlayedRole });
+    });
+}
+
+void TrackListModel::onStateChanged(const QString& sourceId, const QString& trackId)
 {
     for (int row = 0; row < tracks_.size(); ++row) {
-        if (sourceIdAt(row) == sourceId && tracks_[row].id == trackId) {
-            tracks_[row].liked = liked;
+        if (tracks_[row].id == trackId && sourceIdAt(row) == sourceId) {
             const QModelIndex idx = index(row);
-            emit dataChanged(idx, idx, { TrackRole });
+            emit dataChanged(idx, idx, { LikedRole, DislikedRole, LastPlayedRole });
         }
     }
 }
@@ -91,6 +102,17 @@ QVariant TrackListModel::data(const QModelIndex& index, int role) const
             return sourceIdAt(index.row());
         case PlayedAtRole:
             return mixedSource_ ? QVariant::fromValue(playedAt_[index.row()]) : QVariant();
+        case LikedRole:
+        case DislikedRole:
+        case LastPlayedRole: {
+            if (states_ == nullptr)
+                return { };
+            const Library::TrackState state = states_->state(sourceIdAt(index.row()), t.id);
+            if (role == LastPlayedRole)
+                return state.lastPlayedAt.isValid() ? QVariant::fromValue(state.lastPlayedAt) : QVariant();
+            const std::optional<bool>& flag = role == LikedRole ? state.liked : state.disliked;
+            return flag.has_value() ? QVariant(*flag) : QVariant();
+        }
         case Qt::DisplayRole:
             return t.title;
         default:

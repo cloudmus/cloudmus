@@ -18,6 +18,9 @@ class AudioPlayer;
 struct QueueEntry {
     QString sourceId;
     Track track;
+    // Put there by the user (Play Next / Add to Queue) — survives a radio
+    // replacing its upcoming tracks (see handleTracksAdded()).
+    bool userQueued = false;
 };
 
 // Ties an Rpc::SourceManager (many backends) to one shared AudioPlayer
@@ -34,6 +37,11 @@ public:
     ~PlaybackController() override;
 
     void loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex);
+    // Same, for a queue whose entries can come from different sources
+    // (e.g. History) — each QueueEntry carries its own sourceId.
+    void loadQueue(const QVector<QueueEntry>& entries, int startIndex);
+    // Jumps to `index` within the current queue without replacing it.
+    void playAt(int index);
     void startRadio(const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks);
 
     // Insert a single track without disturbing the rest of the queue
@@ -60,20 +68,13 @@ public:
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
 
-    // Patches Track::liked on every queue entry matching (sourceId,
-    // trackId) — by id rather than assuming "the current entry", since by
-    // the time a like/unlike RPC call resolves the user may have already
-    // skipped away from the track it was for (see
-    // MainWindow::likeToggledAsync's stillCurrent() guard). Keeps a
-    // previous/next back to this track in the same queue showing the
-    // right like state instead of the stale value it was loaded with.
-    void setTrackLiked(const QString& sourceId, const QString& trackId, bool liked);
-
     bool isPlaying() const { return playing_; }
     bool hasCurrentTrack() const { return index_ >= 0 && index_ < queue_.size(); }
     bool hasQueue() const { return !queue_.isEmpty(); }
     const Track& currentTrack() const { return queue_[index_].track; }
     const QString& currentSourceId() const { return queue_[index_].sourceId; }
+    const QVector<QueueEntry>& queue() const { return queue_; }
+    int currentIndex() const { return index_; }
 
 signals:
     void trackChanged(const Track& track, const QString& sourceId);
@@ -91,6 +92,9 @@ signals:
     // Emitted whenever hasQueue() changes (loadQueue()/startRadio()
     // populate it) — declaratively drives previous/next enablement.
     void queueAvailabilityChanged(bool available);
+    // Emitted whenever queue() changes content — replaced, inserted into,
+    // or extended by a radio's tracksAdded. The main track list mirrors it.
+    void queueChanged();
 
 private:
     void playIndex(int index);
@@ -106,6 +110,13 @@ private:
     bool playing_ = false;
 
     int latestRequestId_ = -1;
+    // Queue index of the in-flight playback.play (-1 if none): it's about
+    // to become index_, so a radio replacing its upcoming tracks must keep it.
+    int startingIndex_ = -1;
+    // A radio ran out of queued tracks at the end of one: the next
+    // radio/tracksAdded continues playback (see advance()/handleTracksAdded()).
+    bool awaitingRadioTracks_ = false;
+    int radioWaitGeneration_ = 0;
     QString latestRequestSourceId_;
     QTimer* playTimeoutTimer_ = nullptr;
     qint64 lastKnownPositionMs_ = 0;

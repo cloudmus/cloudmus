@@ -9,6 +9,7 @@
 
 #include "Metrics.h"
 #include "Radius.h"
+#include "Shadow.h"
 #include "Tokens.h"
 #include "Typography.h"
 
@@ -38,35 +39,9 @@ QRect menuPanelRect(const QRect& widgetRect)
     return widgetRect.adjusted(kMenuShadowMargin, kMenuShadowMargin, -kMenuShadowMargin, -kMenuShadowMargin);
 }
 
-// Fake blur: concentric rounded-rect OUTLINES (not filled disks) growing
-// outward from the real panel and fading out. Outlines, not fills, matter
-// here — filled, overlapping rounded rects all share the same center, so
-// every pixel near the panel edge sits inside ALL of them at once, and
-// SourceOver-compositing that many semi-transparent fills on top of each
-// other compounds their alpha (1-(1-a)^n) far past any single layer's own
-// alpha — that compounding was the actual cause of the shadow reading as
-// much too dark/harsh. A thin ring per spread step touches each pixel at
-// most once, so the painted alpha is what it looks like.
 void paintMenuShadow(QPainter* painter, const QRect& panelRect)
 {
-    painter->save();
-    painter->setBrush(Qt::NoBrush);
-    // Runs down past 0 into negative spreads: the rings are shifted down by
-    // kMenuShadowOffsetY, so without these the strip right under the
-    // panel's bottom edge would get no ring at all and show as a visible
-    // unshadowed gap. Elsewhere they sit under the opaque panel, unseen.
-    for (int spread = kMenuShadowMargin; spread >= 1 - kMenuShadowOffsetY; --spread) {
-        const qreal t = qreal(qMax(spread, 0)) / kMenuShadowMargin; // 1 at the outer edge, 0 at the panel
-        const int alpha = qRound(kMenuShadowMaxAlpha * (1.0 - t) * (1.0 - t));
-        if (alpha <= 0)
-            continue;
-        const QRect layerRect = panelRect.adjusted(-spread, -spread, spread, spread).translated(0, kMenuShadowOffsetY);
-        // Width 2, one step apart: a 1px gap between consecutive rings
-        // would show as faint seams: this overlaps them by ~1px instead.
-        painter->setPen(QPen(QColor(0, 0, 0, alpha), 2));
-        painter->drawPath(roundedPath(QRectF(layerRect), Radius::md + spread));
-    }
-    painter->restore();
+    paintSoftShadow(painter, panelRect, kMenuShadowMargin, kMenuShadowOffsetY, kMenuShadowMaxAlpha, Radius::md);
 }
 
 // App-owned splitters opt in via setProperty("themed", true) — same

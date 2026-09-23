@@ -35,6 +35,20 @@ int Settings::heroPanelWidth() const { return settings_.value(QStringLiteral("wi
 
 void Settings::setHeroPanelWidth(int width) { settings_.setValue(QStringLiteral("window/heroPanelWidth"), width); }
 
+Settings::ActivePlaylistRef Settings::lastActivePlaylist() const
+{
+    return { settings_.value(QStringLiteral("playback/activeSourceId")).toString(),
+        settings_.value(QStringLiteral("playback/activePlaylistId")).toString(),
+        settings_.value(QStringLiteral("playback/activePlaylistKind")).toString() };
+}
+
+void Settings::setLastActivePlaylist(const ActivePlaylistRef& ref)
+{
+    settings_.setValue(QStringLiteral("playback/activeSourceId"), ref.sourceId);
+    settings_.setValue(QStringLiteral("playback/activePlaylistId"), ref.playlistId);
+    settings_.setValue(QStringLiteral("playback/activePlaylistKind"), ref.kind);
+}
+
 int Settings::volume() const { return settings_.value(QStringLiteral("playback/volume"), 100).toInt(); }
 
 void Settings::setVolume(int volume0To100) { settings_.setValue(QStringLiteral("playback/volume"), volume0To100); }

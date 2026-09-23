@@ -1,5 +1,7 @@
 #include "PlaybackController.h"
 
+#include <QSet>
+
 #include <QTimer>
 
 #include "AudioPlayer.h"
@@ -46,20 +48,39 @@ PlaybackController::~PlaybackController() = default;
 
 void PlaybackController::loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex)
 {
+    QVector<QueueEntry> entries;
+    entries.reserve(tracks.size());
+    for (const Track& t : tracks)
+        entries.append(QueueEntry { sourceId, t });
+    loadQueue(entries, startIndex);
+}
+
+void PlaybackController::loadQueue(const QVector<QueueEntry>& entries, int startIndex)
+{
     waveMode_ = false;
-    queue_.clear();
-    queue_.reserve(tracks.size());
-    for (const Track& t : tracks) {
-        queue_.append(QueueEntry { sourceId, t });
-    }
+    awaitingRadioTracks_ = false;
+    queue_ = entries;
     emit queueAvailabilityChanged(hasQueue());
+    emit queueChanged();
     playIndex(startIndex);
+}
+
+void PlaybackController::playAt(int index)
+{
+    awaitingRadioTracks_ = false;
+    // Jumping away from the current track is a skip as far as a radio is
+    // concerned — and its feedback is what makes the station send the next
+    // tracks, so without it jumping to the last queued track dead-ends.
+    if (index != index_)
+        sendFeedbackFinishedOrSkip(/*wasSkip=*/true);
+    playIndex(index);
 }
 
 void PlaybackController::startRadio(
     const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks)
 {
     waveMode_ = true;
+    awaitingRadioTracks_ = false;
     waveSourceId_ = sourceId;
     waveStationId_ = stationId;
     queue_.clear();
@@ -68,6 +89,7 @@ void PlaybackController::startRadio(
         queue_.append(QueueEntry { sourceId, t });
     }
     emit queueAvailabilityChanged(hasQueue());
+    emit queueChanged();
     playIndex(0);
 }
 
@@ -75,9 +97,10 @@ void PlaybackController::enqueueNext(const QString& sourceId, const Track& track
 {
     const bool wasEmpty = !hasQueue();
     const int insertPos = hasCurrentTrack() ? index_ + 1 : 0;
-    queue_.insert(insertPos, QueueEntry { sourceId, track });
+    queue_.insert(insertPos, QueueEntry { sourceId, track, /*userQueued=*/true });
     if (wasEmpty)
         emit queueAvailabilityChanged(true);
+    emit queueChanged();
     if (!hasCurrentTrack())
         playIndex(0);
 }
@@ -86,9 +109,10 @@ void PlaybackController::enqueueAtEnd(const QString& sourceId, const Track& trac
 {
     const bool wasEmpty = !hasQueue();
     const bool shouldPlayImmediately = !hasCurrentTrack();
-    queue_.append(QueueEntry { sourceId, track });
+    queue_.append(QueueEntry { sourceId, track, /*userQueued=*/true });
     if (wasEmpty)
         emit queueAvailabilityChanged(true);
+    emit queueChanged();
     // Play the entry just appended (queue_.size() - 1), not index 0 — stop()
     // leaves hasCurrentTrack() false without clearing queue_, so index 0
     // could be a stale leftover entry from before Stop was pressed rather
@@ -101,8 +125,34 @@ void PlaybackController::handleTracksAdded(const QString& sourceId, const Tracks
 {
     if (!waveMode_ || sourceId != waveSourceId_ || params.stationId != waveStationId_)
         return;
-    for (const Track& t : params.tracks) {
-        queue_.append(QueueEntry { sourceId, t });
+    if (params.replaceUpcoming.value_or(false)) {
+        // The station recomputed what comes next (docs/protocol.md §7.1):
+        // drop the station's own unplayed tracks after the current (or
+        // starting) one, keep what the user queued, then append the new
+        // sequence minus anything already in the played part.
+        const int keep = qMin(qMax(index_, startingIndex_), int(queue_.size()) - 1);
+        QSet<QString> playedIds;
+        for (int i = 0; i <= keep; ++i)
+            playedIds.insert(queue_[i].track.id);
+        QVector<QueueEntry> userQueued;
+        for (int i = keep + 1; i < queue_.size(); ++i) {
+            if (queue_[i].userQueued)
+                userQueued.append(queue_[i]);
+        }
+        queue_.resize(keep + 1);
+        queue_ += userQueued;
+        for (const Track& t : params.tracks) {
+            if (!playedIds.contains(t.id))
+                queue_.append(QueueEntry { sourceId, t });
+        }
+    } else {
+        for (const Track& t : params.tracks)
+            queue_.append(QueueEntry { sourceId, t });
+    }
+    emit queueChanged();
+    if (awaitingRadioTracks_ && index_ + 1 < queue_.size()) {
+        awaitingRadioTracks_ = false;
+        playIndex(index_ + 1);
     }
 }
 
@@ -134,6 +184,7 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
     const int id = client->allocateRequestId();
     latestRequestId_ = id;
     latestRequestSourceId_ = entry.sourceId;
+    startingIndex_ = index;
     emit loadingChanged(true);
     playTimeoutTimer_->start();
 
@@ -142,6 +193,7 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
         co_await client->callWithId<PlayResult>(id, QStringLiteral("playback.play"), params.toJson(), 5000);
     } catch (const Rpc::RpcCallException& e) {
         if (id == latestRequestId_) {
+            startingIndex_ = -1;
             playTimeoutTimer_->stop();
             emit loadingChanged(false);
             emit errorOccurred(QString::fromStdString(e.error().message.toStdString()));
@@ -151,6 +203,8 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
 
     const bool wasCurrentTrack = hasCurrentTrack();
     index_ = index;
+    if (id == latestRequestId_)
+        startingIndex_ = -1;
     if (!wasCurrentTrack)
         emit currentTrackAvailabilityChanged(true);
     if (waveMode_) {
@@ -196,8 +250,22 @@ void PlaybackController::advance(int delta, bool wasSkip)
     if (nextIndex < 0)
         nextIndex = 0;
     if (nextIndex >= queue_.size()) {
-        if (waveMode_)
-            return; // wait for radio/tracksAdded to top up the queue
+        if (waveMode_) {
+            // The feedback just sent makes the station push more tracks;
+            // handleTracksAdded() picks playback up from there.
+            awaitingRadioTracks_ = true;
+            emit loadingChanged(true);
+            // Don't spin forever if the station has nothing more to send.
+            const int generation = ++radioWaitGeneration_;
+            QTimer::singleShot(15000, this, [this, generation]() {
+                if (!awaitingRadioTracks_ || generation != radioWaitGeneration_)
+                    return;
+                awaitingRadioTracks_ = false;
+                emit loadingChanged(false);
+                emit errorOccurred(QStringLiteral("The station sent no more tracks"));
+            });
+            return;
+        }
         nextIndex = queue_.size() - 1;
     }
     playIndex(nextIndex);
@@ -244,6 +312,11 @@ void PlaybackController::stop()
     // still "the latest" — nothing superseded it, the user just stopped)
     // and then dereference queue_[index_] at index_ == -1.
     latestRequestId_ = -1;
+    startingIndex_ = -1;
+    if (awaitingRadioTracks_) {
+        awaitingRadioTracks_ = false;
+        emit loadingChanged(false);
+    }
     const bool hadCurrentTrack = hasCurrentTrack();
     index_ = -1; // the current track becomes undefined — see hasCurrentTrack()
     if (playing_) {
@@ -261,13 +334,5 @@ void PlaybackController::previous() { advance(-1, /*wasSkip=*/true); }
 void PlaybackController::seek(qint64 positionMs) { audioPlayer_->seek(positionMs); }
 
 void PlaybackController::setVolume(int volume0To100) { audioPlayer_->setVolume(volume0To100); }
-
-void PlaybackController::setTrackLiked(const QString& sourceId, const QString& trackId, bool liked)
-{
-    for (QueueEntry& entry : queue_) {
-        if (entry.sourceId == sourceId && entry.track.id == trackId)
-            entry.track.liked = liked;
-    }
-}
 
 } // namespace Playback

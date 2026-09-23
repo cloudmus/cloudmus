@@ -12,6 +12,7 @@
 #include <QWidget>
 
 #include "Radius.h"
+#include "Shadow.h"
 #include "Spacing.h"
 #include "Tokens.h"
 #include "Typography.h"
@@ -33,23 +34,9 @@ constexpr int kShadowMargin = 8;
 constexpr int kShadowOffsetY = 2;
 constexpr int kShadowMaxAlpha = 40;
 
-// Concentric rounded-rect OUTLINES (not filled disks) — see
-// Theme::CloudMusStyle's paintMenuShadow() comment for why outlines avoid
-// the alpha-compounding bug filled, overlapping shapes would cause.
 void paintShadow(QPainter* painter, const QRect& contentRect)
 {
-    painter->save();
-    painter->setBrush(Qt::NoBrush);
-    for (int spread = kShadowMargin; spread >= 1; --spread) {
-        const qreal t = qreal(spread) / kShadowMargin;
-        const int alpha = qRound(kShadowMaxAlpha * (1.0 - t) * (1.0 - t));
-        if (alpha <= 0)
-            continue;
-        const QRect layerRect = contentRect.adjusted(-spread, -spread, spread, spread).translated(0, kShadowOffsetY);
-        painter->setPen(QPen(QColor(0, 0, 0, alpha), 2));
-        painter->drawRoundedRect(layerRect, Theme::Radius::sm + spread, Theme::Radius::sm + spread);
-    }
-    painter->restore();
+    Theme::paintSoftShadow(painter, contentRect, kShadowMargin, kShadowOffsetY, kShadowMaxAlpha, Theme::Radius::sm);
 }
 } // namespace
 

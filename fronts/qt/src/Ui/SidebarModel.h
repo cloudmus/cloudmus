@@ -51,6 +51,9 @@ public:
         // manifest's "icon"), drawn tinted at paint time — see
         // setSourceIconPath().
         SourceIconPathRole,
+        // True on the one row whose playlist is the active (playing) one —
+        // NavItemDelegate marks it with a ▶ at the right edge.
+        IsActiveRole,
     };
 
     explicit SidebarModel(QObject* parent = nullptr);
@@ -92,6 +95,15 @@ public:
     // re-applies the path to every row it creates.
     void setSourceIconPath(const QString& sourceId, const QString& iconPath);
 
+    // Marks the active playlist's row (clearing the previous one). History
+    // is addressed as (empty sourceId, "history"); an empty playlistId
+    // clears the mark. Remembered, so rows recreated by setSource() pick
+    // it up again.
+    void setActivePlaylist(const QString& sourceId, const QString& playlistId);
+    // The row for (sourceId, playlistId) — same addressing as above — or
+    // an invalid index if it isn't in the sidebar (yet).
+    QModelIndex indexForPlaylist(const QString& sourceId, const QString& playlistId) const;
+
     // Inserts the top-level "History" row once, ahead of every source root
     // (idempotent — a no-op if already present).
     void ensureHistoryItem();
@@ -99,7 +111,12 @@ public:
 private:
     QStandardItem* findOrCreateSourceRoot(const QString& sourceId, const QString& sourceName);
 
+    bool isActive(const QStandardItem* item) const;
+    void refreshActiveMarks(QStandardItem* parent);
+
     QHash<QString, QString> sourceIconPaths_;
+    QString activeSourceId_;
+    QString activePlaylistId_;
 };
 
 } // namespace Ui

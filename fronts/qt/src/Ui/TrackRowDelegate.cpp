@@ -18,14 +18,6 @@
 namespace Ui {
 
 namespace {
-QString formatDuration(qint64 ms)
-{
-    const qint64 totalSeconds = ms / 1000;
-    const qint64 minutes = totalSeconds / 60;
-    const qint64 seconds = totalSeconds % 60;
-    return QStringLiteral("%1:%2").arg(minutes).arg(seconds, 2, 10, QLatin1Char('0'));
-}
-
 void fillRoundedRect(QPainter* painter, const QRect& rect, const QColor& color, int radius)
 {
     QPainterPath path;
@@ -73,13 +65,27 @@ void TrackRowDelegate::setCurrentlyPlaying(const QString& sourceId, const QStrin
     currentTrackId_ = trackId;
 }
 
+void TrackRowDelegate::setRowInsets(int left, int right)
+{
+    insetLeft_ = left;
+    insetRight_ = right;
+}
+
 QRect TrackRowDelegate::thumbRect(const QRect& rowRect) const
 {
     const int margin = (rowRect.height() - kThumbSize) / 2;
     return QRect(rowRect.left() + margin, rowRect.top() + margin, kThumbSize, kThumbSize);
 }
 
-QString TrackRowDelegate::formatPlayedAt(const QDateTime& utcWhen) const
+QString TrackRowDelegate::formatDuration(qint64 ms)
+{
+    const qint64 totalSeconds = ms / 1000;
+    const qint64 minutes = totalSeconds / 60;
+    const qint64 seconds = totalSeconds % 60;
+    return QStringLiteral("%1:%2").arg(minutes).arg(seconds, 2, 10, QLatin1Char('0'));
+}
+
+QString TrackRowDelegate::formatPlayedAt(const QDateTime& utcWhen)
 {
     const QDateTime local = utcWhen.toLocalTime();
     const QDate today = QDate::currentDate();
@@ -111,12 +117,12 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     // States table (surface-400 + accent text/icon) — this app has no
     // persistent multi-select browsing UX beyond single-click activation,
     // so the two concepts reading the same way is not a meaningful loss.
+    const QRect rect = insetRow(option.rect);
     if (selected || isCurrentTrack)
-        fillRoundedRect(painter, option.rect, pal.surface400, Theme::Radius::md);
+        fillRoundedRect(painter, rect, pal.surface400, Theme::Radius::md);
     else if (hovered)
-        fillRoundedRect(painter, option.rect, pal.surface300, Theme::Radius::md);
+        fillRoundedRect(painter, rect, pal.surface300, Theme::Radius::md);
 
-    const QRect rect = option.rect;
     const int margin = (rect.height() - kThumbSize) / 2;
     const QRect thumb = thumbRect(rect);
 
@@ -175,7 +181,8 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     // History rows (see TrackListModel::PlayedAtRole) get a second stacked
     // label here, mirroring the title/artist stack on the left — mixing in
     // an invalid QDateTime for a non-history row is exactly what leaves
-    // playedAtText empty and this whole block a no-op.
+    // playedAtText empty and this whole block a no-op. (When a track was
+    // last played in general is on its hover card — see TrackHoverCard.)
     const QDateTime playedAt = index.data(TrackListModel::PlayedAtRole).toDateTime();
     const QString playedAtText = playedAt.isValid() ? formatPlayedAt(playedAt) : QString();
     const int playedAtWidth = playedAtText.isEmpty() ? 0 : captionMetrics.horizontalAdvance(playedAtText);
@@ -186,8 +193,20 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     // either; this app keeps the duration).
     const int equalizerReserve = isCurrentTrack ? kEqualizerWidth + kEqualizerGap : 0;
 
+    // Liked / disliked badge, left of the equalizer and the right column.
+    const bool liked = index.data(TrackListModel::LikedRole).toBool();
+    const bool disliked = !liked && index.data(TrackListModel::DislikedRole).toBool();
+    const int badgeReserve = (liked || disliked) ? kBadgeSize + kEqualizerGap : 0;
+    if (liked || disliked) {
+        const QRect badgeRect(rect.right() - margin - rightColumnWidth - equalizerReserve - badgeReserve + 1,
+            rect.center().y() - kBadgeSize / 2, kBadgeSize, kBadgeSize);
+        Theme::icon(liked ? QStringLiteral("favorite") : QStringLiteral("heart_broken"),
+            liked ? Theme::IconColor::Accent : Theme::IconColor::InkTertiary, kBadgeSize)
+            .paint(painter, badgeRect);
+    }
+
     const int textLeft = thumb.right() + margin;
-    const int textRight = rect.right() - margin - rightColumnWidth - equalizerReserve - margin;
+    const int textRight = rect.right() - margin - rightColumnWidth - equalizerReserve - badgeReserve - margin;
     const QRect titleRect(textLeft, rect.top() + margin - 2, textRight - textLeft, titleMetrics.height());
     const QRect artistRect(textLeft, titleRect.bottom(), textRight - textLeft, secondaryMetrics.height());
 
@@ -238,7 +257,7 @@ bool TrackRowDelegate::editorEvent(
 {
     if (event->type() == QEvent::MouseButtonRelease) {
         auto* mouseEvent = static_cast<QMouseEvent*>(event);
-        if (mouseEvent->button() == Qt::LeftButton && thumbRect(option.rect).contains(mouseEvent->pos())) {
+        if (mouseEvent->button() == Qt::LeftButton && thumbRect(insetRow(option.rect)).contains(mouseEvent->pos())) {
             emit playRequested(index);
             return true;
         }

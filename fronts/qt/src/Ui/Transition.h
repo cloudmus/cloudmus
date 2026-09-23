@@ -1,10 +1,12 @@
 #pragma once
 
 #include <QEasingCurve>
+#include <QPointF>
 #include <QVariantAnimation>
 #include <QWidget>
 
 #include <algorithm>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -15,11 +17,13 @@ class QPointF;
 
 namespace Ui {
 
-// How a layer is drawn at a given moment. {1, 1} is the resting state a
-// layer settles into once it has fully entered.
+// How a layer is drawn at a given moment. {1, 1, (0, 0)} is the resting
+// state a layer settles into once it has fully entered. `offset` is a
+// translation in pixels, applied before scaling.
 struct LayerState {
     qreal opacity = 1.0;
     qreal scale = 1.0;
+    QPointF offset;
 };
 
 // One direction of a transition. An enter effect animates a new layer
@@ -35,8 +39,9 @@ struct TransitionEffect {
 
 LayerState lerp(const LayerState& from, const LayerState& to, qreal t);
 
-// Sets the painter's opacity and scales around `origin` (typically the
-// layer rect's center). Call between painter.save() and painter.restore().
+// Sets the painter's opacity, translates by the state's offset and scales
+// around `origin` (typically the layer rect's center). Call between
+// painter.save() and painter.restore().
 void applyLayerState(QPainter& painter, const LayerState& state, const QPointF& origin);
 
 // Animated replacement of one visual element of a custom-painted widget
@@ -85,6 +90,10 @@ public:
         retireCurrent(animate);
         target_->update();
     }
+
+    // Called once nothing is animating any more: the current layer (if
+    // any) is at rest and no leaving layers remain.
+    void setOnSettled(std::function<void()> onSettled) { onSettled_ = std::move(onSettled); }
 
     T* current() { return current_ ? &current_->value : nullptr; }
     const T* current() const { return current_ ? &current_->value : nullptr; }
@@ -159,6 +168,8 @@ private:
             current_->anim.release()->deleteLater();
         }
         target_->update();
+        if (onSettled_ && leaving_.empty() && (!current_ || !current_->anim))
+            onSettled_();
     }
 
     QWidget* target_;
@@ -166,6 +177,7 @@ private:
     TransitionEffect exit_;
     std::optional<Layer> current_;
     std::vector<Layer> leaving_;
+    std::function<void()> onSettled_;
 };
 
 } // namespace Ui

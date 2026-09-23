@@ -74,6 +74,7 @@ add_executable(cloudmus-qt
     src/Config/Settings.cpp
 
     src/History/PlaybackHistory.cpp
+    src/Library/TrackStates.cpp
 
     src/Ui/MainWindow.cpp
     src/Ui/AboutDialog.cpp
@@ -91,6 +92,10 @@ add_executable(cloudmus-qt
     src/Ui/OverlayScrollBar.cpp
     src/Ui/ThemedSlider.cpp
     src/Ui/Transition.cpp
+    src/Ui/TrackHoverCard.cpp
+    src/Theme/Shadow.cpp
+    src/Ui/AnimatedPresenter.cpp
+    src/Ui/PlaylistSheet.cpp
     src/Ui/ThemedToolTip.cpp
     src/Ui/SettingsDialog.cpp
     src/Ui/CoverArtCache.cpp
@@ -138,6 +143,7 @@ target_include_directories(cloudmus-qt PRIVATE
     src/Integration
     src/Config
     src/History
+    src/Library
 )
 
 target_link_libraries(cloudmus-qt PRIVATE

@@ -29,6 +29,7 @@
 #include "NowPlayingBar.h"
 #include "OverlayScrollBar.h"
 #include "PlaybackHistory.h"
+#include "PlaylistSheet.h"
 #include "RpcMethods.h"
 #include "SettingsDialog.h"
 #include "SidebarModel.h"
@@ -36,8 +37,10 @@
 #include "SourcePanel.h"
 #include "Spacing.h"
 #include "ToastNotifier.h"
+#include "TrackHoverCard.h"
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
+#include "TrackStates.h"
 
 namespace Ui {
 
@@ -71,6 +74,21 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
 
     coverArtCache_ = new CoverArtCache(this);
     playbackHistory_ = new History::PlaybackHistory(this);
+    trackStates_ = new Library::TrackStates(this);
+    // History's saved snapshots: when each track was last played, plus
+    // whatever like state it was recorded with — only where nothing
+    // fresher is known (a source's own report always wins, see observe()).
+    for (const History::HistoryEntry& e : playbackHistory_->entries()) {
+        trackStates_->setLastPlayed(e.sourceId, e.track.id, e.playedAt);
+        trackStates_->observe(e.sourceId, e.track, /*onlyIfUnknown=*/true);
+    }
+    connect(
+        trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
+            if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
+                && playback_.currentTrack().id == trackId)
+                refreshNowPlayingFeedback();
+        });
+    connect(trackStates_, &Library::TrackStates::bulkChanged, this, &MainWindow::refreshNowPlayingFeedback);
 
     // --- now-playing controls, merged into the bottom toolbar alongside
     // the hamburger menu. No cover art here — HeroPanel (below) shows
@@ -119,42 +137,49 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
             nowPlayingBar_->setLikeState(false, false);
             nowPlayingBar_->setDislikeState(false, false);
             nowPlayingBar_->setDownloadState(false);
-            heroPanel_->setPlaylist(currentPlaylist_);
+            refreshHero();
             trackRowDelegate_->setCurrentlyPlaying(QString(), QString());
             trackListView_->viewport()->update();
+            sheet_->trackDelegate()->setCurrentlyPlaying(QString(), QString());
+            sheet_->updateRows();
         }
     });
+    connect(&playback_, &Playback::PlaybackController::queueChanged, this, &MainWindow::refreshMainList);
     connect(&playback_, &Playback::PlaybackController::queueAvailabilityChanged, this,
         [this](bool available) { nowPlayingBar_->setQueueAvailable(available); });
 
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
-        [this](const Track& track, const QString& sourceId) { playbackHistory_->record(sourceId, track); });
+        [this](const Track& track, const QString& sourceId) {
+            playbackHistory_->record(sourceId, track);
+            trackStates_->setLastPlayed(sourceId, track.id, QDateTime::currentDateTimeUtc());
+        });
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, [this](const Track& track, const QString&) {
         nowPlayingBar_->setTrackWebUrl(track.webUrl.value_or(QString()));
     });
-    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
-        [this](const Track& track, const QString& sourceId) {
+    connect(
+        &playback_, &Playback::PlaybackController::trackChanged, this, [this](const Track&, const QString& sourceId) {
             const Rpc::RpcClient* client = sourceManager_.client(sourceId);
             const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
-            const QJsonObject feedback = capabilities.value(QStringLiteral("feedback")).toObject();
-            nowPlayingBar_->setLikeState(feedback.value(QStringLiteral("like")).toBool(), track.liked.value_or(false));
-            nowPlayingBar_->setDislikeState(feedback.value(QStringLiteral("dislike")).toBool(), /*disliked=*/false);
+            refreshNowPlayingFeedback();
             nowPlayingBar_->setDownloadState(capabilities.value(QStringLiteral("download")).toBool());
         });
-    // HeroPanel shows what's playing instead of the browsed playlist's
-    // promo card whenever playback_.hasCurrentTrack() — see
-    // showPlaylistAsync()/showHistory()'s guard, and the
-    // currentTrackAvailabilityChanged handler above for how Stop reverts it.
+    // HeroPanel shows what's playing instead of the active playlist's
+    // promo card whenever playback_.hasCurrentTrack() — see refreshHero(),
+    // and the currentTrackAvailabilityChanged handler above for how Stop
+    // reverts it.
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
         [this](const Track& track, const QString&) { heroPanel_->setNowPlaying(track); });
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
         [this](const Track& track, const QString& sourceId) {
             trackRowDelegate_->setCurrentlyPlaying(sourceId, track.id);
             trackListView_->viewport()->update();
+            sheet_->trackDelegate()->setCurrentlyPlaying(sourceId, track.id);
+            sheet_->updateRows();
         });
     connect(playbackHistory_, &History::PlaybackHistory::changed, this, [this]() {
-        if (showingHistory_)
-            showHistory(); // refresh in place — a track just started playing
+        // Refresh in place — a track just started playing.
+        if (sheetContext_.isHistory && sheet_->isPresented())
+            fillHistorySheet();
     });
     connect(&playback_, &Playback::PlaybackController::playingChanged, nowPlayingBar_, &NowPlayingBar::setPlaying);
     connect(&playback_, &Playback::PlaybackController::loadingChanged, nowPlayingBar_, &NowPlayingBar::setLoading);
@@ -256,9 +281,10 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     // PlaylistHeader, this is never toggled again after construction (see
     // setTrackListVisible()).
     heroPanel_->setFillMode(true);
-    connect(heroPanel_, &HeroPanel::playClicked, this, &MainWindow::playCurrentPlaylist);
+    connect(heroPanel_, &HeroPanel::playClicked, this, &MainWindow::playActive);
 
     trackListModel_ = new TrackListModel(this);
+    trackListModel_->setTrackStates(trackStates_);
     trackRowDelegate_ = new TrackRowDelegate(coverArtCache_, this);
     connect(coverArtCache_, &CoverArtCache::pixmapReady, this, [this]() { trackListView_->viewport()->update(); });
     trackListView_ = new QListView(this);
@@ -277,6 +303,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(trackListView_, &QListView::customContextMenuRequested, this, &MainWindow::onTrackContextMenuRequested);
 
     auto* trackListContainer = new QWidget(this);
+    trackListContainer_ = trackListContainer;
     auto* trackListContainerLayout = new QVBoxLayout(trackListContainer);
     trackListContainerLayout->setContentsMargins(0, 0, 0, 0);
     trackListContainerLayout->setSpacing(0);
@@ -300,19 +327,41 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         [this]() { settings_.setHeroPanelWidth(contentSplitter_->sizes().first()); });
     trackListContainerLayout->addWidget(contentSplitter_, 1);
 
-    sourcePanel_ = new SourcePanel(coverArtCache_, trackListContainer);
+    // Shown instead of contentSplitter_ until there's an active playlist
+    // (restored or first played) — see refreshMainList().
+    emptyStatePlaceholder_ = new EmptyStatePlaceholder(trackListContainer);
+    trackListContainerLayout->addWidget(emptyStatePlaceholder_, 1);
+    contentSplitter_->hide();
+
+    // Not in the layout: covers the whole container (hero + active list)
+    // when presented, kept filling it by eventFilter()'s resize handling.
+    sheet_ = new PlaylistSheet(coverArtCache_, trackListContainer);
+    sheet_->trackModel()->setTrackStates(trackStates_);
+    const auto sourceName = [this](const QString& sourceId) {
+        const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+        return client != nullptr ? client->sourceName() : QString();
+    };
+    TrackHoverCard::attach(trackListView_, coverArtCache_, sourceName);
+    TrackHoverCard::attach(sheet_->trackView(), coverArtCache_, sourceName);
+    trackListContainer->installEventFilter(this);
+    sourcePanel_ = sheet_->sourcePanel();
     connect(sourcePanel_, &SourcePanel::submitRequested, this,
         [this](const QString& sourceId, const QJsonObject& fields) { submitAuthAsync(sourceId, fields).detach(); });
     connect(sourcePanel_, &SourcePanel::retryRequested, this,
         [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
-    trackListContainerLayout->addWidget(sourcePanel_, 1);
-
-    // Shown by default (contentSplitter_ hidden below) until the first
-    // playlist/History/source selection swaps it out — see
-    // showPlaylistAsync()/showHistory()/showSourceStatusPanel().
-    emptyStatePlaceholder_ = new EmptyStatePlaceholder(trackListContainer);
-    trackListContainerLayout->addWidget(emptyStatePlaceholder_, 1);
-    contentSplitter_->hide();
+    connect(sheet_, &PlaylistSheet::trackActivated, this, &MainWindow::activateFromSheet);
+    connect(sheet_, &PlaylistSheet::playAllClicked, this, &MainWindow::playAllFromSheet);
+    connect(sheet_, &PlaylistSheet::closeRequested, this, &MainWindow::closeSheet);
+    connect(sheet_, &PlaylistSheet::trackContextMenuRequested, this, [this](int row, const QPoint& globalPos) {
+        TrackListModel* model = sheet_->trackModel();
+        showTrackMenu(
+            model->sourceIdAt(row), model->trackAt(row), globalPos, [this, row]() { activateFromSheet(row); });
+    });
+    connect(sheet_, &PlaylistSheet::dismissed, this, [this]() {
+        sheetContext_ = ActiveContext();
+        currentStatusPanelSourceId_.clear();
+        syncSidebarSelection();
+    });
 
     // Not part of trackListPaneLayout: a layout-managed progress bar would
     // shrink the list by its own height whenever it's shown/hidden,
@@ -353,6 +402,17 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
 
     connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, &MainWindow::wireSource);
     connect(&sourceManager_, &Rpc::SourceManager::sourceUnavailable, this, &MainWindow::onSourceUnavailable);
+
+    // Restore the last active playlist (without playing it). History is
+    // local, so it's restored right away; a backend playlist has to wait
+    // for that backend's playlists — see loadPlaylistsAsync().
+    const Config::Settings::ActivePlaylistRef saved = settings_.lastActivePlaylist();
+    if (saved.kind == QStringLiteral("history")) {
+        setActiveContext(historyContext());
+        loadActiveTracksAsync(activeContext_).detach();
+    } else if (!saved.sourceId.isEmpty() && !saved.playlistId.isEmpty()) {
+        pendingRestore_ = saved;
+    }
 }
 
 MainWindow::~MainWindow() { settings_.setWindowGeometry(saveGeometry()); }
@@ -361,8 +421,10 @@ void MainWindow::wireSource(Rpc::RpcClient* client)
 {
     client->notifications.onTrackStreamReady
         = [this, client](const StreamReadyParams& p) { playback_.handleStreamReady(client->sourceId(), p); };
-    client->notifications.onRadioTracksAdded
-        = [this, client](const TracksAddedParams& p) { playback_.handleTracksAdded(client->sourceId(), p); };
+    client->notifications.onRadioTracksAdded = [this, client](const TracksAddedParams& p) {
+        trackStates_->observe(client->sourceId(), p.tracks);
+        playback_.handleTracksAdded(client->sourceId(), p);
+    };
     client->notifications.onError = [this](const ErrorParams& e) { toastNotifier_->showError(e.message); };
     client->onAuthPromptRaw = [this, client](const QJsonObject& params) {
         SourceAuthState& state = sourceAuthStates_[client->sourceId()];
@@ -453,12 +515,10 @@ void MainWindow::updateSourceAuthIndicator(const QString& sourceId)
 
 void MainWindow::showSourceStatusPanel(const QString& sourceId)
 {
-    showingHistory_ = false;
-    currentPlaylistSourceId_.clear();
-    emptyStatePlaceholder_->hide();
-    contentSplitter_->hide();
-    trackListBusyIndicator_->hide();
+    sheetContext_ = ActiveContext();
     currentStatusPanelSourceId_ = sourceId;
+    sheet_->showSource();
+    sheet_->present();
 
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
@@ -550,13 +610,31 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
     if (fetchTimedOut) {
         toastNotifier_->showError(tr("%1: timed out loading playlists").arg(client->sourceName()));
     }
+
+    // Startup restore of the last active playlist, once its source has
+    // listed it — unless something else became active in the meantime.
+    if (!activeContext_.isValid() && pendingRestore_.sourceId == client->sourceId()) {
+        for (const Playlist& playlist : playlists) {
+            if (playlist.id != pendingRestore_.playlistId)
+                continue;
+            setActiveContext(ActiveContext { client->sourceId(), playlist });
+            loadActiveTracksAsync(activeContext_).detach();
+            break;
+        }
+        pendingRestore_ = Config::Settings::ActivePlaylistRef();
+    }
+    // setSource() rebuilt this source's rows, dropping their selection.
+    syncSidebarSelection();
 }
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)
 {
     const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
     if (kind == SidebarModel::Kind::History) {
-        showHistory();
+        if (activeContext_.isHistory)
+            closeSheet();
+        else
+            openHistoryInSheet();
         return;
     }
     if (kind == SidebarModel::Kind::SourceHeader) {
@@ -570,20 +648,27 @@ void MainWindow::onSidebarActivated(const QModelIndex& index)
         return;
     const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
     const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
-    showPlaylistAsync(sourceId, playlist).detach();
+    // The active playlist is what the main area already shows — clicking
+    // it just gets the sheet out of the way.
+    if (activeContext_.sameAs(ActiveContext { sourceId, playlist })) {
+        closeSheet();
+        return;
+    }
+    openInSheetAsync(sourceId, playlist).detach();
 }
 
 void MainWindow::onSidebarDoubleClicked(const QModelIndex& index)
 {
     const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
-    // History has no single queue to play as a whole (mixed sourceIds — see
-    // TrackListModel::isMixedSource()); double-clicking it just opens it,
-    // same as a single click, same as onSidebarActivated above.
+    if (kind == SidebarModel::Kind::History) {
+        activate(historyContext(), { }, 0); // activate() fills History's queue itself
+        return;
+    }
     if (kind != SidebarModel::Kind::Wave && kind != SidebarModel::Kind::Liked && kind != SidebarModel::Kind::Playlist)
         return;
     const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
     const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
-    openAndPlayPlaylistAsync(sourceId, playlist).detach();
+    activateAndPlayAsync(sourceId, playlist).detach();
 }
 
 void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
@@ -610,7 +695,7 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
             Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), this, [this, index]() {
                 const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
                 const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
-                openAndPlayPlaylistAsync(sourceId, playlist).detach();
+                activateAndPlayAsync(sourceId, playlist).detach();
             });
     } else {
         menu->deleteLater();
@@ -620,123 +705,260 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
     menu->popup(sidebarView_->viewport()->mapToGlobal(pos));
 }
 
-void MainWindow::playCurrentPlaylist()
+MainWindow::ActiveContext MainWindow::historyContext() const
 {
-    if (currentPlaylistSourceId_.isEmpty())
+    ActiveContext context;
+    context.isHistory = true;
+    context.playlist = Playlist { QStringLiteral("history"), tr("History"), std::nullopt, std::nullopt,
+        static_cast<int>(playbackHistory_->entries().size()), QStringLiteral("playlist") };
+    return context;
+}
+
+void MainWindow::setActiveContext(const ActiveContext& context)
+{
+    const bool changed = !activeContext_.sameAs(context);
+    activeContext_ = context;
+    if (changed)
+        activeTracks_.clear();
+    sidebarModel_->setActivePlaylist(context.isHistory ? QString() : context.sourceId,
+        context.isHistory ? QStringLiteral("history") : context.playlist.id);
+    if (context.persistent) {
+        settings_.setLastActivePlaylist({ context.isHistory ? QString() : context.sourceId, context.playlist.id,
+            context.isHistory ? QStringLiteral("history") : context.playlist.kind });
+    }
+    refreshHero();
+    refreshMainList();
+    syncSidebarSelection();
+}
+
+void MainWindow::activate(const ActiveContext& context, const QVector<Playback::QueueEntry>& entries, int startIndex)
+{
+    if (context.isRadio()) {
+        startRadioAsync(context.sourceId, context.playlist.id, context).detach();
+        closeSheet();
         return;
-    if (currentPlaylist_.kind == QStringLiteral("radioStation")) {
-        startRadioAsync(currentPlaylistSourceId_, currentPlaylist_.id).detach();
-    } else if (!trackListModel_->allTracks().isEmpty()) {
-        playback_.loadQueue(currentPlaylistSourceId_, trackListModel_->allTracks(), 0);
+    }
+    QVector<Playback::QueueEntry> queue = entries;
+    if (queue.isEmpty() && context.isHistory) {
+        for (const History::HistoryEntry& e : playbackHistory_->entries())
+            queue.append(Playback::QueueEntry { e.sourceId, e.track });
+    }
+    if (queue.isEmpty())
+        return;
+    setActiveContext(context);
+    playback_.loadQueue(queue, qBound(0, startIndex, int(queue.size()) - 1));
+    closeSheet();
+}
+
+Rpc::Task<QVector<Playback::QueueEntry>> MainWindow::fetchTracksAsync(QString sourceId, Playlist playlist)
+{
+    QVector<Playback::QueueEntry> entries;
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return entries;
+    QList<Track> tracks;
+    if (playlist.kind == QStringLiteral("liked")) {
+        ListLikedParams params { std::nullopt };
+        tracks = (co_await Rpc::catalogListLiked(*client, params)).tracks;
+    } else {
+        ListTracksParams params { playlist.id, std::nullopt };
+        tracks = (co_await Rpc::catalogListTracks(*client, params)).tracks;
+    }
+    trackStates_->observe(sourceId, tracks);
+    entries.reserve(tracks.size());
+    for (const Track& track : tracks)
+        entries.append(Playback::QueueEntry { sourceId, track });
+    co_return entries;
+}
+
+Rpc::Task<void> MainWindow::activateAndPlayAsync(QString sourceId, Playlist playlist)
+{
+    const ActiveContext context { sourceId, playlist };
+    if (context.isRadio()) {
+        activate(context, { }, 0);
+        co_return;
+    }
+    try {
+        const QVector<Playback::QueueEntry> entries = co_await fetchTracksAsync(sourceId, playlist);
+        activate(context, entries, 0);
+    } catch (const std::exception& e) {
+        qCWarning(lcMainWindow) << "loading tracks failed for" << sourceId << ":" << e.what();
+        toastNotifier_->showError(QString::fromStdString(e.what()));
     }
 }
 
-void MainWindow::showHistory()
+Rpc::Task<void> MainWindow::loadActiveTracksAsync(ActiveContext context)
+{
+    if (context.isRadio())
+        co_return;
+    QVector<Playback::QueueEntry> entries;
+    if (context.isHistory) {
+        for (const History::HistoryEntry& e : playbackHistory_->entries())
+            entries.append(Playback::QueueEntry { e.sourceId, e.track });
+    } else {
+        trackListBusyIndicator_->show();
+        try {
+            entries = co_await fetchTracksAsync(context.sourceId, context.playlist);
+        } catch (const std::exception& e) {
+            qCWarning(lcMainWindow) << "loading tracks failed for" << context.sourceId << ":" << e.what();
+        }
+        trackListBusyIndicator_->hide();
+    }
+    // Only if it's still the active playlist and nothing got queued meanwhile.
+    if (!activeContext_.sameAs(context))
+        co_return;
+    activeTracks_ = entries;
+    refreshMainList();
+}
+
+void MainWindow::refreshMainList()
+{
+    const bool hasActive = activeContext_.isValid() || playback_.hasQueue();
+    emptyStatePlaceholder_->setVisible(!hasActive);
+    contentSplitter_->setVisible(hasActive);
+
+    const QVector<Playback::QueueEntry>& entries = playback_.hasQueue() ? playback_.queue() : activeTracks_;
+    QList<TrackListModel::MixedSourceEntry> rows;
+    rows.reserve(entries.size());
+    for (const Playback::QueueEntry& entry : entries)
+        rows.append({ entry.sourceId, entry.track, QDateTime() });
+    // A radio's tracksAdded refreshes this while the user may be scrolled
+    // down the list — keep their place across the model reset.
+    const int scroll = trackListView_->verticalScrollBar()->value();
+    trackListModel_->setMixedSourceTracks(rows);
+    trackListView_->verticalScrollBar()->setValue(scroll);
+
+    // A radio station that hasn't started yet has nothing to list — the
+    // hero (with its Play button) takes the whole width then.
+    const bool showList = !(rows.isEmpty() && activeContext_.isRadio());
+    if (showList != trackListPane_->isVisibleTo(contentSplitter_))
+        setTrackListVisible(showList);
+}
+
+void MainWindow::refreshHero()
+{
+    if (playback_.hasCurrentTrack())
+        return; // trackChanged keeps the hero on the playing track
+    if (!activeContext_.isValid()) {
+        heroPanel_->clearNowPlaying();
+        return;
+    }
+    heroPanel_->setPlaylist(activeContext_.playlist);
+    heroPanel_->setPlayButtonVisible(true);
+}
+
+void MainWindow::syncSidebarSelection()
+{
+    QModelIndex target;
+    if (sheet_->isPresented()) {
+        if (sheetContext_.isValid())
+            target = sidebarModel_->indexForPlaylist(sheetContext_.isHistory ? QString() : sheetContext_.sourceId,
+                sheetContext_.isHistory ? QStringLiteral("history") : sheetContext_.playlist.id);
+        else if (!currentStatusPanelSourceId_.isEmpty())
+            return; // a source page — the clicked header row stays selected
+    } else if (activeContext_.isValid()) {
+        target = sidebarModel_->indexForPlaylist(activeContext_.isHistory ? QString() : activeContext_.sourceId,
+            activeContext_.isHistory ? QStringLiteral("history") : activeContext_.playlist.id);
+    }
+    if (target.isValid())
+        sidebarView_->setCurrentIndex(target);
+    else
+        sidebarView_->clearSelection();
+}
+
+void MainWindow::playActive()
+{
+    if (!activeContext_.isValid())
+        return;
+    if (activeContext_.isRadio()) {
+        startRadioAsync(activeContext_.sourceId, activeContext_.playlist.id, activeContext_).detach();
+    } else if (playback_.hasQueue()) {
+        playback_.playAt(0);
+    } else {
+        activate(activeContext_, activeTracks_, 0);
+    }
+}
+
+Rpc::Task<void> MainWindow::openInSheetAsync(QString sourceId, Playlist playlist)
 {
     currentStatusPanelSourceId_.clear();
-    sourcePanel_->hide();
-    emptyStatePlaceholder_->hide();
-    contentSplitter_->show();
-    showingHistory_ = true;
-    currentPlaylistSourceId_.clear(); // no single source — the header's Play-all button is hidden below anyway
-    currentPlaylist_ = Playlist { QStringLiteral("history"), tr("History"), std::nullopt, std::nullopt,
-        static_cast<int>(playbackHistory_->entries().size()), QStringLiteral("playlist") };
-    // Before setPlaylist(), not after — see setTrackListVisible()'s comment.
-    setTrackListVisible(true);
-    // While something is playing, heroPanel_ stays showing that track
-    // instead of switching back to a promo card for History — see
-    // showPlaylistAsync()'s identical guard; Stop reverts this (see the
-    // currentTrackAvailabilityChanged handler in the constructor).
-    if (!playback_.hasCurrentTrack())
-        heroPanel_->setPlaylist(currentPlaylist_);
-    heroPanel_->setPlayButtonVisible(false);
+    sheetContext_ = ActiveContext { sourceId, playlist };
+    const QString coverUrl = playlist.coverUrl.value_or(QString());
+    if (sheetContext_.isRadio()) {
+        sheet_->trackModel()->clear();
+        sheet_->showRadio(playlist.title, playlist.description.value_or(QString()), coverUrl, playlist.title);
+        sheet_->present();
+        co_return;
+    }
+    sheet_->trackModel()->clear();
+    sheet_->showTracks(playlist.title, tr("%n track(s)", nullptr, playlist.trackCount), coverUrl, playlist.title,
+        /*canPlayAll=*/true);
+    sheet_->present();
 
+    sheet_->setBusy(true);
+    try {
+        const QVector<Playback::QueueEntry> entries = co_await fetchTracksAsync(sourceId, playlist);
+        // The user may have opened something else while this was loading.
+        if (!sheetContext_.sameAs(ActiveContext { sourceId, playlist }))
+            co_return;
+        QList<TrackListModel::MixedSourceEntry> rows;
+        rows.reserve(entries.size());
+        for (const Playback::QueueEntry& entry : entries)
+            rows.append({ entry.sourceId, entry.track, QDateTime() });
+        sheet_->trackModel()->setMixedSourceTracks(rows);
+        sheet_->setSubtitle(tr("%n track(s)", nullptr, int(rows.size())));
+    } catch (const std::exception& e) {
+        qCWarning(lcMainWindow) << "loading tracks failed for" << sourceId << ":" << e.what();
+        toastNotifier_->showError(QString::fromStdString(e.what()));
+    }
+    if (sheetContext_.sameAs(ActiveContext { sourceId, playlist }))
+        sheet_->setBusy(false);
+}
+
+void MainWindow::openHistoryInSheet()
+{
+    currentStatusPanelSourceId_.clear();
+    sheetContext_ = historyContext();
+    sheet_->showTracks(tr("History"), QString(), QString(), QStringLiteral("history"), /*canPlayAll=*/true);
+    sheet_->setBusy(false);
+    fillHistorySheet();
+    sheet_->present();
+}
+
+void MainWindow::fillHistorySheet()
+{
     QList<TrackListModel::MixedSourceEntry> entries;
     entries.reserve(playbackHistory_->entries().size());
     for (const History::HistoryEntry& e : playbackHistory_->entries())
         entries.append({ e.sourceId, e.track, e.playedAt });
-    trackListModel_->setMixedSourceTracks(entries);
-
-    // Deferred to the next event-loop iteration, not called synchronously
-    // here — heroPanel_->setPlaylist() above may have just posted a
-    // LayoutRequest (its heightForWidth() may have changed — see its own
-    // updateGeometry() call), which Qt only processes asynchronously.
-    // Reading trackListView_->y() before that pass runs picks up
-    // whatever position was left over from the *previous* playlist's
-    // banner height, not the new one — this was the actual cause of the
-    // busy indicator appearing to jump around at an arbitrary vertical
-    // position after switching lists.
-    QTimer::singleShot(0, this, [this]() { repositionTrackListBusyIndicator(); });
-    trackListBusyIndicator_->hide();
+    sheet_->trackModel()->setMixedSourceTracks(entries);
+    sheet_->setSubtitle(tr("%n track(s)", nullptr, int(entries.size())));
 }
 
-Rpc::Task<void> MainWindow::showPlaylistAsync(QString sourceId, Playlist playlist)
+void MainWindow::closeSheet() { sheet_->dismiss(); }
+
+void MainWindow::activateFromSheet(int row)
 {
-    currentStatusPanelSourceId_.clear();
-    sourcePanel_->hide();
-    emptyStatePlaceholder_->hide();
-    contentSplitter_->show();
-    showingHistory_ = false;
-    heroPanel_->setPlayButtonVisible(true);
-    currentPlaylistSourceId_ = sourceId;
-    currentPlaylist_ = playlist;
-
-    // Before setPlaylist(), not after — see setTrackListVisible()'s comment:
-    // it decides how large a generated cover/overlay to render from
-    // heroPanel_'s *current* size(), which needs to already reflect this
-    // splitter-size change.
-    const bool isRadioStation = playlist.kind == QStringLiteral("radioStation");
-    setTrackListVisible(!isRadioStation);
-    // While something is playing, heroPanel_ stays showing the globally
-    // playing track regardless of which playlist is browsed here — it
-    // never reverts to this playlist's promo card until Stop is pressed
-    // (see the currentTrackAvailabilityChanged handler in the constructor).
-    if (!playback_.hasCurrentTrack())
-        heroPanel_->setPlaylist(playlist);
-
-    if (isRadioStation) {
-        // Continuous, not a fixed list — see docs/protocol.md's
-        // Playlist.kind note. Only the header + Play button show; no RPC
-        // call here, that's what makes this not auto-play (the Play button
-        // handler wired in the constructor calls startRadioAsync()).
-        trackListModel_->clear();
-        co_return;
-    }
-
-    // Deferred — see showHistory()'s identical call for why.
-    QTimer::singleShot(0, this, [this]() { repositionTrackListBusyIndicator(); });
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr)
-        co_return;
-
-    trackListBusyIndicator_->show();
-    try {
-        if (playlist.kind == QStringLiteral("liked")) {
-            ListLikedParams params { std::nullopt };
-            ListLikedResult result = co_await Rpc::catalogListLiked(*client, params);
-            trackListModel_->setTracks(sourceId, result.tracks);
-        } else {
-            ListTracksParams params { playlist.id, std::nullopt };
-            ListTracksResult result = co_await Rpc::catalogListTracks(*client, params);
-            trackListModel_->setTracks(sourceId, result.tracks);
-        }
-    } catch (const std::exception& e) {
-        // std::exception, not Rpc::RpcCallException — also catches
-        // Rpc::ProtocolParseError, see loadPlaylistsAsync's comment for why
-        // that distinction matters.
-        qCWarning(lcMainWindow) << "loading tracks failed for" << sourceId << ":" << e.what();
-        toastNotifier_->showError(QString::fromStdString(e.what()));
-    }
-    trackListBusyIndicator_->hide();
+    TrackListModel* model = sheet_->trackModel();
+    if (row < 0 || row >= model->rowCount())
+        return;
+    QVector<Playback::QueueEntry> entries;
+    entries.reserve(model->rowCount());
+    for (int i = 0; i < model->rowCount(); ++i)
+        entries.append(Playback::QueueEntry { model->sourceIdAt(i), model->trackAt(i) });
+    activate(sheetContext_, entries, row);
 }
 
-Rpc::Task<void> MainWindow::openAndPlayPlaylistAsync(QString sourceId, Playlist playlist)
+void MainWindow::playAllFromSheet()
 {
-    co_await showPlaylistAsync(sourceId, playlist);
-    playCurrentPlaylist();
+    if (sheetContext_.isRadio()) {
+        activate(sheetContext_, { }, 0);
+        return;
+    }
+    activateFromSheet(0);
 }
 
-Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed)
+Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed, ActiveContext context)
 {
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
@@ -745,6 +967,10 @@ Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed)
     try {
         StartRadioParams params { seed };
         StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
+        trackStates_->observe(sourceId, result.initialTracks);
+        // Before startRadio(), so the queue it emits lands in the main
+        // list under the right playlist.
+        setActiveContext(context);
         playback_.startRadio(sourceId, result.stationId, result.initialTracks);
     } catch (const std::exception& e) {
         qCWarning(lcMainWindow) << "starting radio failed for" << sourceId << ":" << e.what();
@@ -757,15 +983,12 @@ void MainWindow::onTrackDoubleClicked(const QModelIndex& index)
 {
     if (!index.isValid())
         return;
-    if (trackListModel_->isMixedSource()) {
-        // History rows can come from different backends, and
-        // PlaybackController::loadQueue takes one sourceId for the whole
-        // queue — so replay just the clicked track instead of queuing the
-        // rest of the list.
-        playback_.loadQueue(trackListModel_->sourceIdAt(index.row()), { trackListModel_->trackAt(index.row()) }, 0);
-        return;
-    }
-    playback_.loadQueue(trackListModel_->sourceId(), trackListModel_->allTracks(), index.row());
+    // The main list mirrors the queue once there is one (see
+    // refreshMainList()), so its rows are queue indices.
+    if (playback_.hasQueue())
+        playback_.playAt(index.row());
+    else
+        activate(activeContext_, activeTracks_, index.row());
 }
 
 void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
@@ -774,10 +997,13 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
     if (!index.isValid())
         return;
     const int row = index.row();
-    const QString sourceId
-        = trackListModel_->isMixedSource() ? trackListModel_->sourceIdAt(row) : trackListModel_->sourceId();
-    const Track track = trackListModel_->trackAt(row);
+    showTrackMenu(trackListModel_->sourceIdAt(row), trackListModel_->trackAt(row),
+        trackListView_->viewport()->mapToGlobal(pos), [this, index]() { onTrackDoubleClicked(index); });
+}
 
+void MainWindow::showTrackMenu(
+    const QString& sourceId, const Track& track, const QPoint& globalPos, std::function<void()> play)
+{
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
     const QJsonObject feedback = capabilities.value(QStringLiteral("feedback")).toObject();
@@ -793,8 +1019,8 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
 
     // Icon + text, Theme::IconColor::Ink at 16px — same convention
     // Integration::TrayIcon's menu already uses for its own QAction icons.
-    menu->addAction(Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), this,
-        [this, index]() { onTrackDoubleClicked(index); });
+    menu->addAction(
+        Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), this, std::move(play));
     menu->addAction(Theme::icon(QStringLiteral("playlist_play"), Theme::IconColor::Ink, 16), tr("Play Next"), this,
         [this, sourceId, track]() { playback_.enqueueNext(sourceId, track); });
     menu->addAction(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Add to Queue"), this,
@@ -803,25 +1029,23 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
     if (likeSupported || dislikeSupported) {
         menu->addSeparator();
         if (likeSupported) {
-            QAction* likeAction
-                = menu->addAction(Theme::icon(QStringLiteral("thumb_up"), Theme::IconColor::Ink, 16), tr("Like"));
+            QAction* likeAction = menu->addAction(
+                Theme::icon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16), tr("Like"));
             likeAction->setCheckable(true);
-            const bool liked = track.liked.value_or(false);
+            const bool liked = trackStates_->state(sourceId, track.id).liked.value_or(false);
             likeAction->setChecked(liked);
             connect(likeAction, &QAction::triggered, this, [this, sourceId, id = track.id, liked]() {
                 likeToggledAsync(sourceId, id, !liked, /*announceSuccess=*/true).detach();
             });
         }
         if (dislikeSupported) {
-            // Not checkable, unlike Like — the protocol carries no
-            // persisted "disliked" field on Track (see NowPlayingBar's
-            // toolbar dislike button, which has the same limitation), so
-            // there's no accurate checked state to seed this from. A
-            // one-shot "mark as disliked" action instead.
-            QAction* dislikeAction
-                = menu->addAction(Theme::icon(QStringLiteral("thumb_down"), Theme::IconColor::Ink, 16), tr("Dislike"));
-            connect(dislikeAction, &QAction::triggered, this, [this, sourceId, id = track.id]() {
-                dislikeToggledAsync(sourceId, id, /*disliked=*/true, /*announceSuccess=*/true).detach();
+            QAction* dislikeAction = menu->addAction(
+                Theme::icon(QStringLiteral("heart_broken"), Theme::IconColor::Ink, 16), tr("Dislike"));
+            dislikeAction->setCheckable(true);
+            const bool disliked = trackStates_->state(sourceId, track.id).disliked.value_or(false);
+            dislikeAction->setChecked(disliked);
+            connect(dislikeAction, &QAction::triggered, this, [this, sourceId, id = track.id, disliked]() {
+                dislikeToggledAsync(sourceId, id, !disliked, /*announceSuccess=*/true).detach();
             });
         }
     }
@@ -837,8 +1061,15 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
         // invalid videoId) — seed is source-defined per docs/protocol.md
         // §7.1, so the front must not format it.
         menu->addAction(Theme::icon(QStringLiteral("radio"), Theme::IconColor::Ink, 16),
-            tr("Start Radio from This Track"), this,
-            [this, sourceId, id = track.id]() { startRadioAsync(sourceId, id).detach(); });
+            tr("Start Radio from This Track"), this, [this, sourceId, id = track.id, title = track.title]() {
+                // An ad-hoc station — active while it plays, but not one to
+                // restore at startup.
+                ActiveContext context { sourceId,
+                    Playlist { id, tr("Radio: %1").arg(title), std::nullopt, std::nullopt, 0,
+                        QStringLiteral("radioStation") } };
+                context.persistent = false;
+                startRadioAsync(sourceId, id, context).detach();
+            });
     }
 
     if (!webUrl.isEmpty() || downloadSupported) {
@@ -854,7 +1085,7 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
         }
     }
 
-    menu->popup(trackListView_->viewport()->mapToGlobal(pos));
+    menu->popup(globalPos);
 }
 
 Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields)
@@ -902,9 +1133,8 @@ Rpc::Task<void> MainWindow::likeToggledAsync(QString sourceId, QString trackId, 
             co_await Rpc::feedbackLike(*client, LikeParams { trackId });
         else
             co_await Rpc::feedbackUnlike(*client, UnlikeParams { trackId });
-        playback_.setTrackLiked(sourceId, trackId, liked);
-        trackListModel_->markTrackLiked(sourceId, trackId, liked);
-        playbackHistory_->markTrackLiked(sourceId, trackId, liked);
+        trackStates_->setLiked(sourceId, trackId, liked);
+        playbackHistory_->markTrackLiked(sourceId, trackId, liked); // keeps the saved snapshot fresh
         if (stillCurrent()) {
             nowPlayingBar_->setLikeState(likeSupported, liked);
             // Both backends cross-clear the opposite rating server-side on
@@ -944,19 +1174,21 @@ Rpc::Task<void> MainWindow::dislikeToggledAsync(QString sourceId, QString trackI
             co_await Rpc::feedbackDislike(*client, DislikeParams { trackId });
         else
             co_await Rpc::feedbackUndislike(*client, UndislikeParams { trackId });
-        if (disliked) {
-            // Cross-clear Like the same way likeToggledAsync() does for
-            // Dislike — see docs/protocol.md §7.4. Caches patched
-            // unconditionally (see likeToggledAsync's stillCurrent() doc
-            // comment); only the NowPlayingBar update below is gated.
-            playback_.setTrackLiked(sourceId, trackId, false);
-            trackListModel_->markTrackLiked(sourceId, trackId, false);
+        // Unconditional, unlike the NowPlayingBar update below (see
+        // likeToggledAsync's stillCurrent() doc comment). setDisliked()
+        // also cross-clears Like — docs/protocol.md §7.4.
+        trackStates_->setDisliked(sourceId, trackId, disliked);
+        if (disliked)
             playbackHistory_->markTrackLiked(sourceId, trackId, false);
-        }
         if (stillCurrent()) {
             nowPlayingBar_->setDislikeState(dislikeSupported, disliked);
-            if (disliked)
+            if (disliked) {
                 nowPlayingBar_->setLikeState(likeSupported, false);
+                // No point listening to a track just disliked — move on,
+                // like the services' own players do. next() also sends the
+                // skip feedback a radio uses to adapt its upcoming tracks.
+                playback_.next();
+            }
         }
         if (announceSuccess)
             toastNotifier_->showInfo(disliked ? tr("Disliked") : tr("Removed dislike"));
@@ -1006,6 +1238,19 @@ Rpc::Task<void> MainWindow::downloadCurrentTrackAsync()
         nowPlayingBar_->setDownloadBusy(false);
 }
 
+void MainWindow::refreshNowPlayingFeedback()
+{
+    if (!playback_.hasCurrentTrack())
+        return;
+    const QString sourceId = playback_.currentSourceId();
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    const QJsonObject feedback
+        = client != nullptr ? client->capabilities().value(QStringLiteral("feedback")).toObject() : QJsonObject();
+    const Library::TrackState state = trackStates_->state(sourceId, playback_.currentTrack().id);
+    nowPlayingBar_->setLikeState(feedback.value(QStringLiteral("like")).toBool(), state.liked.value_or(false));
+    nowPlayingBar_->setDislikeState(feedback.value(QStringLiteral("dislike")).toBool(), state.disliked.value_or(false));
+}
+
 void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }
 
 void MainWindow::quitForReal()
@@ -1029,6 +1274,8 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
     if (event->type() == QEvent::Resize) {
         repositionTrackListBusyIndicator();
+        if (watched == trackListContainer_)
+            sheet_->setGeometry(trackListContainer_->rect());
     }
     if (watched == sidebarView_->viewport()) {
         if (event->type() == QEvent::MouseMove) {

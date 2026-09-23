@@ -24,6 +24,17 @@ public:
     // repaint — callers update the view (see MainWindow's
     // PlaybackController::trackChanged wiring).
     void setCurrentlyPlaying(const QString& sourceId, const QString& trackId);
+    // Horizontal padding inside the view: each row (highlight and content)
+    // is inset by this much, e.g. to line up with a header above the list
+    // and keep the right-hand text clear of an overlay scrollbar.
+    void setRowInsets(int left, int right);
+
+    // "Today, 16:34" / "Yesterday, 16:34" / "31.07.2026, 16:34" in the
+    // viewer's local time zone (History::PlaybackHistory persists UTC —
+    // see its record()). Shared with TrackHoverCard.
+    static QString formatPlayedAt(const QDateTime& utcWhen);
+    // "3:07"
+    static QString formatDuration(qint64 ms);
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override;
@@ -40,17 +51,16 @@ private:
     // Shared between paint() (drawing the hover overlay) and editorEvent()
     // (hit-testing a click against it) so they can never disagree.
     QRect thumbRect(const QRect& rowRect) const;
-    // "Today, 16:34" / "Yesterday, 16:34" / "31.07.2026, 16:34" in the
-    // viewer's local time zone (History::PlaybackHistory persists UTC —
-    // see its record()). A member, not a free function, so it can use
-    // tr() for "Today"/"Yesterday".
-    QString formatPlayedAt(const QDateTime& utcWhen) const;
+    QRect insetRow(const QRect& itemRect) const { return itemRect.adjusted(insetLeft_, 0, -insetRight_, 0); }
 
     CoverArtCache* coverCache_;
     QString currentSourceId_;
     QString currentTrackId_;
+    int insetLeft_ = 0;
+    int insetRight_ = 0;
     static constexpr int kRowHeight = 52; // design system's TrackRow spec
     static constexpr int kThumbSize = 36;
+    static constexpr int kBadgeSize = 14;
 };
 
 } // namespace Ui

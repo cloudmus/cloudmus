@@ -4,6 +4,8 @@
 #include <QJsonObject>
 #include <QMainWindow>
 
+#include <functional>
+
 #include "Coro.h"
 #include "PlaybackController.h"
 #include "Settings.h"
@@ -20,6 +22,10 @@ namespace History {
 class PlaybackHistory;
 }
 
+namespace Library {
+class TrackStates;
+}
+
 namespace Ui {
 
 class SidebarModel;
@@ -32,6 +38,7 @@ class ToastNotifier;
 class CoverArtCache;
 class HeroPanel;
 class EmptyStatePlaceholder;
+class PlaylistSheet;
 
 // Sidebar + track list + persistent now-playing bar + per-source auth status
 // panel + hamburger menu (Settings/About/Quit) — see the plan's UI/UX design.
@@ -63,22 +70,64 @@ private:
     // offers "Play" (same as double-click — see onSidebarDoubleClicked).
     // Any other row (PlaylistsHeader/History) gets no menu.
     void onSidebarContextMenuRequested(const QPoint& pos);
+    // The main track list mirrors the active playlist: the playback queue
+    // once anything was queued, or activeTracks_ before that — see
+    // refreshMainList(). A double-click jumps within it.
     void onTrackDoubleClicked(const QModelIndex& index);
-    // Right-click on trackListView_ — resolves the row exactly like
-    // onTrackDoubleClicked() does, then builds a QMenu gated by the row's
-    // source capabilities (Play/Play Next/Add to Queue always shown;
-    // Like/Dislike/Start Radio/Save to Downloads only when the source
-    // declares the matching capability; Open Track Page only when the
-    // track has a webUrl).
     void onTrackContextMenuRequested(const QPoint& pos);
-    // Shared by the header's Play button and onSidebarDoubleClicked() — both
-    // just need "start playing whatever's currently shown" once it's
-    // loaded (currentPlaylistSourceId_/currentPlaylist_/trackListModel_).
-    void playCurrentPlaylist();
+    // Shared track context menu for the main list and the sheet: Play
+    // (`play`, which differs between the two)/Play Next/Add to Queue always
+    // shown; Like/Dislike/Start Radio/Save to Downloads only when the
+    // source declares the matching capability; Open Track Page only when
+    // the track has a webUrl.
+    void showTrackMenu(
+        const QString& sourceId, const Track& track, const QPoint& globalPos, std::function<void()> play);
+    // HeroPanel's Play button: (re)starts the active playlist.
+    void playActive();
     void showAboutDialog();
-    // Synchronous, unlike showPlaylistAsync() — History is local state, no
-    // RPC round-trip needed. See History::PlaybackHistory.
-    void showHistory();
+
+    // --- active playlist (what the main area shows and the queue came from)
+    struct ActiveContext {
+        QString sourceId; // empty for History
+        Playlist playlist;
+        bool isHistory = false;
+        // False for ad-hoc contexts (a radio started from a track) that
+        // can't be restored at startup — they aren't saved to settings.
+        bool persistent = true;
+        bool isValid() const { return isHistory || !playlist.id.isEmpty(); }
+        bool isRadio() const { return playlist.kind == QStringLiteral("radioStation"); }
+        bool sameAs(const ActiveContext& other) const
+        {
+            return isHistory == other.isHistory && sourceId == other.sourceId && playlist.id == other.playlist.id;
+        }
+    };
+    ActiveContext historyContext() const;
+    // Makes `context` active without touching playback: sidebar marker,
+    // settings, hero promo (when nothing plays), main list.
+    void setActiveContext(const ActiveContext& context);
+    // Makes `context` active and plays `entries` from startIndex; closes the sheet.
+    void activate(const ActiveContext& context, const QVector<Playback::QueueEntry>& entries, int startIndex);
+    // Fetches a playlist's tracks (Liked/regular; not radio) — throws on RPC failure.
+    Rpc::Task<QVector<Playback::QueueEntry>> fetchTracksAsync(QString sourceId, Playlist playlist);
+    // Sidebar double-click / context-menu Play: fetch, then activate().
+    Rpc::Task<void> activateAndPlayAsync(QString sourceId, Playlist playlist);
+    // Startup restore: fills activeTracks_ for the restored context.
+    Rpc::Task<void> loadActiveTracksAsync(ActiveContext context);
+    void refreshMainList();
+    // Hero shows the playing track (trackChanged) or, with nothing
+    // playing, the active playlist's promo card.
+    void refreshHero();
+    // Sidebar selection follows what is on screen: the sheet's playlist
+    // while it's open, the active one otherwise.
+    void syncSidebarSelection();
+
+    // --- the sheet (anything that isn't the active playlist)
+    Rpc::Task<void> openInSheetAsync(QString sourceId, Playlist playlist);
+    void openHistoryInSheet();
+    void fillHistorySheet();
+    void closeSheet();
+    void activateFromSheet(int row);
+    void playAllFromSheet();
 
     // Mirrors the TUI's on_mount auth check (fronts/tui/cloudmus_tui/app.py):
     // ask auth.getStatus, and if the backend isn't already authenticated,
@@ -95,21 +144,8 @@ private:
     // there. See the equivalent comment on RpcClient::call() for the full
     // explanation of this coroutine-lifetime pitfall.
     //
-    // A single click on a sidebar item only shows its HeroPanel promo card
-    // (cover/title/description, unless something's already playing — see
-    // Playback::PlaybackController::hasCurrentTrack()) and, for a
-    // browsable kind, its track list — it never starts playback by itself (see
-    // docs/protocol.md's Playlist.kind note and the plan for why My Wave
-    // must not auto-play on select). Playback starts from HeroPanel's Play
-    // button, a track double-click, or double-clicking the sidebar item itself
-    // (onSidebarDoubleClicked, which awaits this and then calls
-    // playCurrentPlaylist()).
-    Rpc::Task<void> showPlaylistAsync(QString sourceId, Playlist playlist);
-    // onSidebarDoubleClicked()'s handler: awaits showPlaylistAsync() (so the
-    // double-clicked item is loaded regardless of what was shown before),
-    // then plays it via playCurrentPlaylist().
-    Rpc::Task<void> openAndPlayPlaylistAsync(QString sourceId, Playlist playlist);
-    Rpc::Task<void> startRadioAsync(QString sourceId, QString seed);
+    // Starts a radio station and, once it's running, makes `context` active.
+    Rpc::Task<void> startRadioAsync(QString sourceId, QString seed, ActiveContext context);
     Rpc::Task<void> submitAuthAsync(QString sourceId, QJsonObject fields);
     // The Retry button's handler: wraps ensureAuthenticatedAsync with
     // sourcePanel_'s busy state (disables Retry/Submit + shows a spinner
@@ -121,11 +157,8 @@ private:
     // list's context menu passes whatever row was right-clicked — this
     // doesn't have to be the currently-playing track). `liked`/`disliked`
     // is the requested new state (see NowPlayingBar::likeClicked/
-    // dislikeClicked's doc comment for the toolbar case). Persists the
-    // result into every in-memory Track cache on success (TrackListModel,
-    // PlaybackController's queue, PlaybackHistory — see their
-    // markTrackLiked()/setTrackLiked(), added specifically so replaying a
-    // liked track later reflects it instead of reading a stale copy).
+    // dislikeClicked's doc comment for the toolbar case). On success the
+    // new state goes into trackStates_, which every view reads from.
     // NowPlayingBar's busy/checked state and rollback-on-failure only
     // apply when the acted-on track is still the one it's currently
     // showing (see the stillCurrent() guard in the .cpp) — a context-menu
@@ -167,9 +200,9 @@ private:
     // section too, so a prompt/status update arriving while the panel is
     // already open refreshes it live instead of needing a re-click.
     void updateSourceAuthIndicator(const QString& sourceId);
-    // Entry point from onSidebarActivated: swaps the content area over to
-    // sourcePanel_ for this source (every source gets this, not just ones
-    // with an auth problem — see SourcePanel's class doc).
+    // Entry point from onSidebarActivated: opens sourcePanel_ for this
+    // source in the sheet (every source gets this, not just ones with an
+    // auth problem — see SourcePanel's class doc).
     void showSourceStatusPanel(const QString& sourceId);
     // Shared by showSourceStatusPanel() and updateSourceAuthIndicator()'s
     // live-refresh path: paints just sourcePanel_'s auth section (prompt /
@@ -214,24 +247,29 @@ private:
     CoverArtCache* coverArtCache_ = nullptr;
     TrackRowDelegate* trackRowDelegate_ = nullptr;
     NowPlayingBar* nowPlayingBar_ = nullptr;
+    // Lives inside sheet_ (its source page).
     SourcePanel* sourcePanel_ = nullptr;
-    // Shown instead of contentSplitter_/sourcePanel_ until the first
-    // playlist/History/source selection — see the constructor and
-    // showPlaylistAsync()/showHistory()/showSourceStatusPanel().
+    // Shown instead of contentSplitter_ while there's no active playlist
+    // at all (first run) — see refreshMainList().
     EmptyStatePlaceholder* emptyStatePlaceholder_ = nullptr;
+    QWidget* trackListContainer_ = nullptr;
+    PlaylistSheet* sheet_ = nullptr;
     ToastNotifier* toastNotifier_ = nullptr;
     History::PlaybackHistory* playbackHistory_ = nullptr;
+    // Like/dislike/last-played per track, shared by every view — see
+    // Library::TrackStates.
+    Library::TrackStates* trackStates_ = nullptr;
+    // Pushes trackStates_'s like/dislike for the playing track into nowPlayingBar_.
+    void refreshNowPlayingFeedback();
 
-    // Stashed so HeroPanel's Play button (clicked well after
-    // showPlaylistAsync returns) knows what to start — see its handler in
-    // the .cpp.
-    QString currentPlaylistSourceId_;
-    Playlist currentPlaylist_;
-    // True while the sidebar's History entry is the active selection, so a
-    // live PlaybackHistory::changed() (a track just started playing) knows
-    // to refresh the view instead of touching it while some other playlist
-    // is showing.
-    bool showingHistory_ = false;
+    ActiveContext activeContext_;
+    // The active playlist's tracks while nothing has been queued from it
+    // yet (restored at startup) — see refreshMainList().
+    QVector<Playback::QueueEntry> activeTracks_;
+    // What the sheet shows (invalid while it shows a source page or is closed).
+    ActiveContext sheetContext_;
+    // Saved active playlist waiting for its source's playlists to load.
+    Config::Settings::ActivePlaylistRef pendingRestore_;
 
     bool reallyQuitting_ = false;
 };

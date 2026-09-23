@@ -2,6 +2,8 @@
 
 #include <QVariant>
 
+#include <functional>
+
 namespace Ui {
 
 SidebarModel::SidebarModel(QObject* parent)
@@ -66,6 +68,7 @@ void SidebarModel::setSource(const QString& sourceId, const QString& sourceName,
         item->setData(sourceId, SourceIdRole);
         item->setData(p.id, PlaylistIdRole);
         item->setData(QVariant::fromValue(p), PlaylistDataRole);
+        item->setData(isActive(item), IsActiveRole);
         parent->appendRow(item);
     }
 }
@@ -78,6 +81,7 @@ void SidebarModel::ensureHistoryItem()
     }
     auto* item = new QStandardItem(tr("History"));
     item->setData(static_cast<int>(Kind::History), KindRole);
+    item->setData(isActive(item), IsActiveRole);
     invisibleRootItem()->insertRow(0, item);
 }
 
@@ -117,6 +121,58 @@ void SidebarModel::setSourceIconPath(const QString& sourceId, const QString& ico
         if (item->data(SourceIdRole).toString() == sourceId)
             item->setData(iconPath, SourceIconPathRole);
     }
+}
+
+bool SidebarModel::isActive(const QStandardItem* item) const
+{
+    if (activePlaylistId_.isEmpty())
+        return false;
+    const auto kind = static_cast<Kind>(item->data(KindRole).toInt());
+    if (kind == Kind::History)
+        return activeSourceId_.isEmpty() && activePlaylistId_ == QStringLiteral("history");
+    if (kind != Kind::Wave && kind != Kind::Liked && kind != Kind::Playlist)
+        return false;
+    return item->data(SourceIdRole).toString() == activeSourceId_
+        && item->data(PlaylistIdRole).toString() == activePlaylistId_;
+}
+
+void SidebarModel::refreshActiveMarks(QStandardItem* parent)
+{
+    for (int row = 0; row < parent->rowCount(); ++row) {
+        QStandardItem* item = parent->child(row);
+        const bool active = isActive(item);
+        if (item->data(IsActiveRole).toBool() != active)
+            item->setData(active, IsActiveRole);
+        refreshActiveMarks(item);
+    }
+}
+
+void SidebarModel::setActivePlaylist(const QString& sourceId, const QString& playlistId)
+{
+    activeSourceId_ = sourceId;
+    activePlaylistId_ = playlistId;
+    refreshActiveMarks(invisibleRootItem());
+}
+
+QModelIndex SidebarModel::indexForPlaylist(const QString& sourceId, const QString& playlistId) const
+{
+    const std::function<QModelIndex(const QStandardItem*)> find = [&](const QStandardItem* parent) -> QModelIndex {
+        for (int row = 0; row < parent->rowCount(); ++row) {
+            const QStandardItem* item = parent->child(row);
+            const auto kind = static_cast<Kind>(item->data(KindRole).toInt());
+            if (kind == Kind::History && sourceId.isEmpty() && playlistId == QStringLiteral("history"))
+                return item->index();
+            if ((kind == Kind::Wave || kind == Kind::Liked || kind == Kind::Playlist)
+                && item->data(SourceIdRole).toString() == sourceId
+                && item->data(PlaylistIdRole).toString() == playlistId)
+                return item->index();
+            const QModelIndex nested = find(item);
+            if (nested.isValid())
+                return nested;
+        }
+        return QModelIndex();
+    };
+    return find(invisibleRootItem());
 }
 
 } // namespace Ui

@@ -97,6 +97,14 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     // displaces the source's own icon. Auth problem / fetch error win over
     // loading — they're the actionable states (right-click to retry).
     int textRight = rect.right() - Theme::Spacing::space2;
+    // The active (playing) playlist's marker shares that same right-edge
+    // slot — a playlist row never has a status icon.
+    if (index.data(SidebarModel::IsActiveRole).toBool()) {
+        const int markerLeft = fullRowRect.right() - Theme::Spacing::space2 - kIconSide + 1;
+        Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Accent, kIconSide)
+            .paint(painter, QRect(markerLeft, rect.center().y() - kIconSide / 2, kIconSide, kIconSide));
+        textRight = qMin(textRight, markerLeft - Theme::Spacing::space2 - 1);
+    }
     if (kind == SidebarModel::Kind::SourceHeader) {
         QIcon statusIcon;
         if (index.data(SidebarModel::HasAuthProblemRole).toBool()

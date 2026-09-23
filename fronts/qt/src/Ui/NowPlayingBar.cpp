@@ -135,10 +135,10 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // IconHoverButton's checked handling above); clicking again reverses
     // it (see setLikeState()/setDislikeState() and MainWindow's
     // likeToggledAsync()/dislikeToggledAsync()).
-    likeButton_ = new IconHoverButton(QStringLiteral("thumb_up"), IconHoverButton::Scheme::Neutral, this);
+    likeButton_ = new IconHoverButton(QStringLiteral("favorite_border"), IconHoverButton::Scheme::Neutral, this);
     likeButton_->setCheckable(true);
     likeButton_->setToolTip(tr("Like"));
-    dislikeButton_ = new IconHoverButton(QStringLiteral("thumb_down"), IconHoverButton::Scheme::Neutral, this);
+    dislikeButton_ = new IconHoverButton(QStringLiteral("heart_broken"), IconHoverButton::Scheme::Neutral, this);
     dislikeButton_->setCheckable(true);
     dislikeButton_->setToolTip(tr("Dislike"));
     // Not checkable, unlike like/dislike — a repeat download is a normal
@@ -307,7 +307,9 @@ void NowPlayingBar::refreshLikeButton()
     likeButton_->setEnabled(likeSupported_ && !likeBusy_);
     likeButton_->setChecked(liked_);
     static_cast<IconHoverButton*>(likeButton_)
-        ->setIconName(likeBusy_ ? QStringLiteral("refresh") : QStringLiteral("thumb_up"));
+        ->setIconName(likeBusy_ ? QStringLiteral("refresh")
+                : liked_        ? QStringLiteral("favorite") // filled once liked, outline otherwise
+                                : QStringLiteral("favorite_border"));
 }
 
 void NowPlayingBar::setDislikeState(bool capabilitySupported, bool disliked)
@@ -329,7 +331,7 @@ void NowPlayingBar::refreshDislikeButton()
     dislikeButton_->setEnabled(dislikeSupported_ && !dislikeBusy_);
     dislikeButton_->setChecked(disliked_);
     static_cast<IconHoverButton*>(dislikeButton_)
-        ->setIconName(dislikeBusy_ ? QStringLiteral("refresh") : QStringLiteral("thumb_down"));
+        ->setIconName(dislikeBusy_ ? QStringLiteral("refresh") : QStringLiteral("heart_broken"));
 }
 
 void NowPlayingBar::setDownloadState(bool capabilitySupported)
