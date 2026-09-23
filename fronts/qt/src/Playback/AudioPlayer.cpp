@@ -244,6 +244,16 @@ void AudioPlayer::loadUrl(const QString& url)
     // hands mpv the raw stream URL directly against the same CDN without
     // that problem, so this follows suit.
     qCDebug(lcAudioPlayer) << "loading URL:" << url;
+
+    // Right before loadfile, not in play(): mpv's "pause" property isn't
+    // reset by loadfile, so a new track must clear it to always start
+    // audible regardless of whatever pause state was left over from
+    // before. Doing this back in play() instead left a window — the HEAD
+    // preflight above is a real network round-trip — during which mpv was
+    // unpaused but still had the *old* file loaded, producing an audible
+    // blip of the previous track before this loadfile replaced it.
+    resume();
+
     const QByteArray urlUtf8 = url.toUtf8();
     const char* args[] = { "loadfile", urlUtf8.constData(), "replace", nullptr };
     mpv_command_async(mpv_, 0, args);
