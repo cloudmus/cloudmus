@@ -8,13 +8,13 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
-#include <QStyle>
 #include <QUrl>
 #include <QVBoxLayout>
 
 #include "Icons.h"
 #include "Metrics.h"
 #include "Spacing.h"
+#include "ThemedSlider.h"
 #include "Typography.h"
 
 namespace Ui {
@@ -107,45 +107,6 @@ private:
 
     QString iconName_;
     Scheme scheme_;
-};
-
-// The volume handle is visible only while hovering or dragging its track —
-// QSS can't bind one subcontrol's visibility to the widget's own hover
-// state in a single declarative rule the way `::handle:hover` sounds like
-// it should, so this toggles a dynamic property the stylesheet's
-// `QSlider[handleVisible="false"]::handle` rule reads. The seek slider is
-// the opposite: its accent handle stays visible at all times (a plain
-// QSlider, see the constructor below) so the current playback position
-// reads at a glance without needing to hover the bar first.
-class HoverHandleSlider : public QSlider {
-public:
-    explicit HoverHandleSlider(QWidget* parent)
-        : QSlider(Qt::Horizontal, parent)
-    {
-        setProperty("handleVisible", false);
-        connect(this, &QSlider::sliderPressed, this, [this]() { setHandleVisible(true); });
-        connect(this, &QSlider::sliderReleased, this, [this]() { setHandleVisible(underMouse()); });
-    }
-
-protected:
-    void enterEvent(QEnterEvent* event) override
-    {
-        setHandleVisible(true);
-        QSlider::enterEvent(event);
-    }
-    void leaveEvent(QEvent* event) override
-    {
-        setHandleVisible(isSliderDown());
-        QSlider::leaveEvent(event);
-    }
-
-private:
-    void setHandleVisible(bool visible)
-    {
-        setProperty("handleVisible", visible);
-        style()->unpolish(this);
-        style()->polish(this);
-    }
 };
 } // namespace
 
@@ -249,9 +210,9 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // digits change during playback.
     elapsedLabel_->setFont(Theme::tabularFont(Theme::TextStyle::Caption));
     durationLabel_->setFont(Theme::tabularFont(Theme::TextStyle::Caption));
-    // Plain QSlider: the accent handle stays visible at all times (see
-    // HoverHandleSlider's doc comment above).
-    seekSlider_ = new QSlider(Qt::Horizontal, this);
+    // The seek handle stays visible at all times so the current playback
+    // position reads at a glance; the volume one only shows on hover.
+    seekSlider_ = new ThemedSlider(ThemedSlider::Scheme::Accent, ThemedSlider::HandleVisibility::Always, this);
     seekSlider_->setObjectName(QStringLiteral("seekSlider"));
     seekSlider_->setRange(0, 0);
     seekSlider_->setEnabled(false);
@@ -260,7 +221,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
         userIsDraggingSeek_ = false;
         emit seekRequested(seekSlider_->value());
     });
-    volumeSlider_ = new HoverHandleSlider(this);
+    volumeSlider_ = new ThemedSlider(ThemedSlider::Scheme::Neutral, ThemedSlider::HandleVisibility::OnHover, this);
     volumeSlider_->setObjectName(QStringLiteral("volumeSlider"));
     volumeSlider_->setRange(0, 100);
     volumeSlider_->setFixedWidth(100);

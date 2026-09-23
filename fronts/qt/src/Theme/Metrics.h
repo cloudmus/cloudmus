@@ -13,4 +13,9 @@ constexpr int iconGlyphSize = 20;
 constexpr int playButtonSize = 40;
 constexpr int playGlyphSize = 16;
 
+// Ui::ThemedSlider's round handle. Also its PM_SliderLength (see
+// CloudMusStyle::pixelMetric()), so the handle QSlider hit-tests is
+// exactly the circle that gets painted.
+constexpr int sliderHandleDiameter = 12;
+
 } // namespace Theme::Metrics

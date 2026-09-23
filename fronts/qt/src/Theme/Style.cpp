@@ -6,6 +6,7 @@
 #include <QPainterPath>
 #include <QStyleOption>
 
+#include "Metrics.h"
 #include "Radius.h"
 #include "Tokens.h"
 #include "Typography.h"
@@ -49,8 +50,12 @@ void paintMenuShadow(QPainter* painter, const QRect& panelRect)
 {
     painter->save();
     painter->setBrush(Qt::NoBrush);
-    for (int spread = kMenuShadowMargin; spread >= 1; --spread) {
-        const qreal t = qreal(spread) / kMenuShadowMargin; // 1 at the outer edge, ~0 near the panel
+    // Runs down past 0 into negative spreads: the rings are shifted down by
+    // kMenuShadowOffsetY, so without these the strip right under the
+    // panel's bottom edge would get no ring at all and show as a visible
+    // unshadowed gap. Elsewhere they sit under the opaque panel, unseen.
+    for (int spread = kMenuShadowMargin; spread >= 1 - kMenuShadowOffsetY; --spread) {
+        const qreal t = qreal(qMax(spread, 0)) / kMenuShadowMargin; // 1 at the outer edge, 0 at the panel
         const int alpha = qRound(kMenuShadowMaxAlpha * (1.0 - t) * (1.0 - t));
         if (alpha <= 0)
             continue;
@@ -147,7 +152,19 @@ int CloudMusStyle::pixelMetric(PixelMetric metric, const QStyleOption* option, c
     // layout math (that's PM_MenuHMargin/VMargin's job, untouched here).
     if (metric == PM_MenuPanelWidth && qobject_cast<const QMenu*>(widget))
         return kMenuShadowMargin;
+    // Matched by class name so Theme doesn't depend on Ui, and so other
+    // QSliders (e.g. QFileDialog's zoom slider) keep Fusion's own metric.
+    if (metric == PM_SliderLength && widget && widget->inherits("Ui::ThemedSlider"))
+        return Metrics::sliderHandleDiameter;
     return QProxyStyle::pixelMetric(metric, option, widget);
+}
+
+int CloudMusStyle::styleHint(
+    StyleHint hint, const QStyleOption* option, const QWidget* widget, QStyleHintReturn* returnData) const
+{
+    if (hint == SH_Slider_AbsoluteSetButtons)
+        return Qt::LeftButton | Qt::MiddleButton;
+    return QProxyStyle::styleHint(hint, option, widget, returnData);
 }
 
 bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)

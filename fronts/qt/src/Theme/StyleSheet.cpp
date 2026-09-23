@@ -25,7 +25,7 @@ namespace {
 // QListView, its zoom control a QSlider — all types this app also styles
 // for its own UI). Always scope instead, by:
 //   - `#objectName` for one specific widget instance (e.g. #sidebarView,
-//     #seekSlider) — set via `widget->setObjectName(...)` at construction.
+//     #trackListView) — set via `widget->setObjectName(...)` at construction.
 //   - `[property="value"]` for a named category of instances that should
 //     share one look (e.g. `variant` on buttons, `themed` on dialogs/
 //     progress bars) — set via `widget->setProperty(...)`.
@@ -111,45 +111,6 @@ QPushButton[variant="secondary"]:hover { background: %11; })")
         .arg(hex(p.accent), hex(p.onAccent), QString::number(Radius::sm), QString::number(Spacing::space2),
             QString::number(Spacing::space3), hex(p.accentHover), hex(p.accentPressed), hex(p.surface200), hex(p.ink))
         .arg(hex(p.border), hex(p.surface300));
-}
-
-// Scoped to #seekSlider/#volumeSlider explicitly, NOT a bare QSlider type
-// selector — this app is not the only place a QSlider can show up: e.g.
-// QFileDialog's own view-zoom slider is a QSlider too, and a bare
-// type-selector rule was bleeding our accent-colored handle into that
-// native-looking dialog. Same reasoning as sidebarTreeBlock()/
-// trackListBlock() scoping to #sidebarView/#trackListView.
-QString slidersBlock(const Palette& p)
-{
-    return QStringLiteral(R"(QSlider#seekSlider::groove:horizontal, QSlider#volumeSlider::groove:horizontal {
-    height: 3px;
-    background: %1;
-    border-radius: 1px;
-}
-QSlider#seekSlider::groove:horizontal:hover, QSlider#volumeSlider::groove:horizontal:hover {
-    background: %2;
-}
-QSlider#seekSlider::sub-page:horizontal, QSlider#volumeSlider::sub-page:horizontal {
-    background: %3; border-radius: 1px;
-}
-QSlider#seekSlider::add-page:horizontal, QSlider#volumeSlider::add-page:horizontal {
-    background: transparent;
-}
-QSlider#seekSlider::handle:horizontal, QSlider#volumeSlider::handle:horizontal {
-    width: 12px; height: 12px; margin: -5px 0;
-    border-radius: 6px;
-    background: %3;
-}
-QSlider#seekSlider::handle:horizontal:hover, QSlider#volumeSlider::handle:horizontal:hover {
-    background: %4;
-}
-QSlider#seekSlider[handleVisible="false"]::handle:horizontal,
-QSlider#volumeSlider[handleVisible="false"]::handle:horizontal { background: transparent; }
-QSlider#volumeSlider::sub-page:horizontal { background: %5; }
-QSlider#volumeSlider::handle:horizontal { background: %6; }
-QSlider#volumeSlider::handle:horizontal:hover { background: %7; })")
-        .arg(hex(p.border), hex(p.borderStrong), hex(p.accent), hex(p.accentHover), hex(p.inkSecondary), hex(p.ink),
-            hex(p.ink));
 }
 
 QString toolBarBlock(const Palette& p)
@@ -354,8 +315,8 @@ QString buildStyleSheet(Mode mode)
     // (sidebarView_, trackListView_) both use Ui::OverlayScrollBar, which
     // hides the real QScrollBar entirely and paints its own floating
     // handle — a QSS rule for QScrollBar would never be reached.
-    return buttonsBlock(p) + textButtonsBlock(p) + slidersBlock(p) + toolBarBlock(p) + panelsBlock(p)
-        + progressBarBlock(p) + sidebarTreeBlock(p) + trackListBlock(p) + dialogsBlock(p);
+    return buttonsBlock(p) + textButtonsBlock(p) + toolBarBlock(p) + panelsBlock(p) + progressBarBlock(p)
+        + sidebarTreeBlock(p) + trackListBlock(p) + dialogsBlock(p);
 }
 
 void applyGlobalStyleSheet(QApplication& app)

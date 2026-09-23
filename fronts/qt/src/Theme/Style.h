@@ -24,8 +24,9 @@ namespace Theme {
 // QFrame's own frame width.
 //
 // Scope is intentionally narrow: only QMenu's panel/frame drawing and
-// polish are overridden here. Everything else falls through to Fusion
-// unchanged.
+// polish, plus the slider click behavior hint (see styleHint()) and
+// Ui::ThemedSlider's handle length (see pixelMetric()), are overridden
+// here. Everything else falls through to Fusion unchanged.
 class CloudMusStyle : public QProxyStyle {
 public:
     using QProxyStyle::QProxyStyle;
@@ -42,8 +43,17 @@ public:
     void drawControl(ControlElement element, const QStyleOption* option, QPainter* painter,
         const QWidget* widget = nullptr) const override;
 
-    int pixelMetric(PixelMetric metric, const QStyleOption* option = nullptr,
-        const QWidget* widget = nullptr) const override;
+    int pixelMetric(
+        PixelMetric metric, const QStyleOption* option = nullptr, const QWidget* widget = nullptr) const override;
+
+    // Qt's default QSlider only jumps straight to the clicked point on a
+    // middle-click; a left-click on the groove instead takes a single page
+    // step towards it, which reads as "the handle didn't move" and makes
+    // the seek/volume sliders feel like they must be dragged by the handle.
+    // Adding the left button to SH_Slider_AbsoluteSetButtons reuses Qt's own
+    // click-to-position path, so dragging onward from that click still works.
+    int styleHint(StyleHint hint, const QStyleOption* option = nullptr, const QWidget* widget = nullptr,
+        QStyleHintReturn* returnData = nullptr) const override;
 
     // Compensates for pixelMetric()'s PM_MenuPanelWidth growing the menu's
     // window by the shadow margin on every side: Qt positions that
