@@ -13,6 +13,9 @@ struct BackendManifest {
     QStringList argv;
     QString protocolVersion;
     QString manifestPath;
+    // Absolute path to the optional monochrome sidebar icon SVG (manifest
+    // "icon", resolved relative to the manifest file); empty if none/missing.
+    QString iconPath;
 };
 
 // Scans ~/.config/cloudmus/backends.d/*.json for installed backend

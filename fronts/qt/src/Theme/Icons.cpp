@@ -43,9 +43,11 @@ qreal devicePixelRatio()
 // alpha shape, then flood the result with the target color using
 // CompositionMode_SourceIn — currentColor doesn't work on SVGs painted via
 // Qt, so this is the actual per-token-color recolor every icon needs.
-QPixmap renderTinted(const QString& glyphName, const QColor& color, int pixelSize, qreal dpr)
+QString glyphPath(const QString& glyphName) { return QStringLiteral(":/icons/symbols/%1.svg").arg(glyphName); }
+
+QPixmap renderTinted(const QString& svgPath, const QColor& color, int pixelSize, qreal dpr)
 {
-    QSvgRenderer renderer(QStringLiteral(":/icons/symbols/%1.svg").arg(glyphName));
+    QSvgRenderer renderer(svgPath);
     const int devicePixels = qMax(1, qRound(pixelSize * dpr));
     QPixmap pixmap(devicePixels, devicePixels);
     pixmap.fill(Qt::transparent);
@@ -99,20 +101,25 @@ void ensureInvalidationConnected()
 
 } // namespace
 
-QIcon icon(const QString& name, IconColor color, int pixelSize)
+QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize)
 {
     ensureInvalidationConnected();
     const Mode mode = currentMode();
     const qreal dpr = devicePixelRatio();
-    const QString key = cacheKey(name, color, pixelSize, dpr, mode);
+    const QString key = cacheKey(svgPath, color, pixelSize, dpr, mode);
 
     QHash<QString, QPixmap>& cache = iconCache();
     auto it = cache.find(key);
     if (it == cache.end()) {
         const QColor resolved = colorFor(color, palette(mode));
-        it = cache.insert(key, renderTinted(name, resolved, pixelSize, dpr));
+        it = cache.insert(key, renderTinted(svgPath, resolved, pixelSize, dpr));
     }
     return QIcon(it.value());
+}
+
+QIcon icon(const QString& name, IconColor color, int pixelSize)
+{
+    return iconFromFile(glyphPath(name), color, pixelSize);
 }
 
 QIcon iconWithColor(const QString& name, const QColor& color, int pixelSize)
@@ -123,7 +130,7 @@ QIcon iconWithColor(const QString& name, const QColor& color, int pixelSize)
     QHash<QString, QPixmap>& cache = iconCache();
     auto it = cache.find(key);
     if (it == cache.end())
-        it = cache.insert(key, renderTinted(name, color, pixelSize, dpr));
+        it = cache.insert(key, renderTinted(glyphPath(name), color, pixelSize, dpr));
     return QIcon(it.value());
 }
 
@@ -150,7 +157,7 @@ QString iconAssetPath(const QString& glyphName, IconColor color, int pixelSize)
         return it.value();
 
     const QColor resolved = colorFor(color, palette(mode));
-    const QPixmap pixmap = renderTinted(glyphName, resolved, pixelSize * kOversample, /*dpr=*/1.0);
+    const QPixmap pixmap = renderTinted(glyphPath(glyphName), resolved, pixelSize * kOversample, /*dpr=*/1.0);
 
     const QString dir
         = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/theme-icons");

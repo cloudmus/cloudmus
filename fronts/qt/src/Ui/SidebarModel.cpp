@@ -2,8 +2,6 @@
 
 #include <QVariant>
 
-#include "Icons.h"
-
 namespace Ui {
 
 SidebarModel::SidebarModel(QObject* parent)
@@ -21,6 +19,7 @@ QStandardItem* SidebarModel::findOrCreateSourceRoot(const QString& sourceId, con
     auto* item = new QStandardItem(sourceName.toUpper());
     item->setData(static_cast<int>(Kind::SourceHeader), KindRole);
     item->setData(sourceId, SourceIdRole);
+    item->setData(sourceIconPaths_.value(sourceId), SourceIconPathRole);
     // Selectable by default (unlike PlaylistsHeader below) — every source
     // opens a SourcePanel when clicked, not just ones with an auth problem.
     // Text weight/color is NavItemDelegate's job now (see MainWindow), not
@@ -96,34 +95,27 @@ void SidebarModel::setSourceAuthProblem(const QString& sourceId, const QString& 
 {
     QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
     root->setData(hasProblem, HasAuthProblemRole);
-    updateSourceHeaderIcon(root);
 }
 
 void SidebarModel::setSourceLoading(const QString& sourceId, const QString& sourceName, bool loading)
 {
     QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
     root->setData(loading, IsLoadingRole);
-    updateSourceHeaderIcon(root);
 }
 
 void SidebarModel::setSourceFetchError(const QString& sourceId, const QString& sourceName, bool hasError)
 {
     QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
     root->setData(hasError, HasFetchErrorRole);
-    updateSourceHeaderIcon(root);
 }
 
-void SidebarModel::updateSourceHeaderIcon(QStandardItem* root)
+void SidebarModel::setSourceIconPath(const QString& sourceId, const QString& iconPath)
 {
-    // No dedicated "error" glyph exists yet — reuse the same warning icon
-    // as an auth problem (both mean "something's wrong with this source,
-    // right-click to retry").
-    if (root->data(HasAuthProblemRole).toBool() || root->data(HasFetchErrorRole).toBool()) {
-        root->setIcon(Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, 16));
-    } else if (root->data(IsLoadingRole).toBool()) {
-        root->setIcon(Theme::icon(QStringLiteral("refresh"), Theme::IconColor::InkSecondary, 16));
-    } else {
-        root->setIcon(QIcon());
+    sourceIconPaths_.insert(sourceId, iconPath);
+    for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
+        QStandardItem* item = invisibleRootItem()->child(row);
+        if (item->data(SourceIdRole).toString() == sourceId)
+            item->setData(iconPath, SourceIconPathRole);
     }
 }
 

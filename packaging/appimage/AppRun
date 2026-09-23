@@ -176,7 +176,7 @@ for spec in \
 do
   IFS=: read -r id module name <<< "$spec"
   cat > "$CONFIG_DIR/$id.json" <<JSON
-{"id":"$id","name":"$name","argv":["$PYTHON3","-m","$module"],"protocolVersion":"1.2"}
+{"id":"$id","name":"$name","argv":["$PYTHON3","-m","$module"],"protocolVersion":"1.2","icon":"$HERE/usr/share/cloudmus/backend-icons/$id.svg"}
 JSON
 done
 

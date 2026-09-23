@@ -27,5 +27,6 @@
         <file alias="playlist_add.svg">icons/symbols/playlist_add.svg</file>
         <file alias="radio.svg">icons/symbols/radio.svg</file>
         <file alias="file_download.svg">icons/symbols/file_download.svg</file>
+        <file alias="history.svg">icons/symbols/history.svg</file>
     </qresource>
 </RCC>

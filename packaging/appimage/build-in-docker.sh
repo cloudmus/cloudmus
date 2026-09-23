@@ -92,6 +92,13 @@ mkdir -p "${APPDIR}/usr/share/applications" "${APPDIR}/usr/share/icons/hicolor/5
 cp packaging/appimage/cloudmus-qt.desktop "${APPDIR}/usr/share/applications/cloudmus-qt.desktop"
 cp art/logo.png "${APPDIR}/usr/share/icons/hicolor/512x512/apps/cloudmus-qt.png"
 
+# Each backend's sidebar icon (manifest.json's "icon") — AppRun writes
+# an absolute path to these into the manifests it seeds every launch.
+mkdir -p "${APPDIR}/usr/share/cloudmus/backend-icons"
+for id in local-folder yandex-music youtube-music; do
+    cp "backends/${id}/icon.svg" "${APPDIR}/usr/share/cloudmus/backend-icons/${id}.svg"
+done
+
 # --- 4. Extract the packaging tools once (no FUSE in Docker — invoking
 # each tool's own squashfs-root/AppRun directly is more reliable here
 # than repeated --appimage-extract-and-run calls). ---

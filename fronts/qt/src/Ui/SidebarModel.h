@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QHash>
 #include <QStandardItemModel>
 #include <QString>
 
@@ -40,14 +41,16 @@ public:
         // MainWindow can show the playlist header without a second RPC
         // round-trip — see fronts/qt/AGENTS.md/the plan on Playlist.kind.
         PlaylistDataRole,
-        // Stashed on a source's header row so setSourceAuthProblem(),
-        // setSourceLoading(), and setSourceFetchError() — which each only
-        // know about their own flag — can still combine all three into the
-        // one decoration icon a row has room for. See
-        // updateSourceHeaderIcon().
+        // A source header row's status flags — NavItemDelegate combines
+        // them into the one status icon drawn at the row's right edge
+        // (auth problem or fetch error: warning; else loading: refresh).
         HasAuthProblemRole,
         IsLoadingRole,
         HasFetchErrorRole,
+        // Absolute path to the source's monochrome icon SVG (the backend
+        // manifest's "icon"), drawn tinted at paint time — see
+        // setSourceIconPath().
+        SourceIconPathRole,
     };
 
     explicit SidebarModel(QObject* parent = nullptr);
@@ -84,18 +87,19 @@ public:
     // with `false` once a subsequent fetch succeeds.
     void setSourceFetchError(const QString& sourceId, const QString& sourceName, bool hasError);
 
+    // Remembered per source id, not just set on the current header row:
+    // setSource() rebuilds that row from scratch, and findOrCreateSourceRoot()
+    // re-applies the path to every row it creates.
+    void setSourceIconPath(const QString& sourceId, const QString& iconPath);
+
     // Inserts the top-level "History" row once, ahead of every source root
     // (idempotent — a no-op if already present).
     void ensureHistoryItem();
 
 private:
     QStandardItem* findOrCreateSourceRoot(const QString& sourceId, const QString& sourceName);
-    // Repaints a source header's icon from its HasAuthProblemRole/
-    // IsLoadingRole/HasFetchErrorRole data (auth problem wins — it's the
-    // more actionable state — then fetch error, then loading), called by
-    // setSourceAuthProblem()/setSourceLoading()/setSourceFetchError() after
-    // each updates its own flag.
-    static void updateSourceHeaderIcon(QStandardItem* root);
+
+    QHash<QString, QString> sourceIconPaths_;
 };
 
 } // namespace Ui

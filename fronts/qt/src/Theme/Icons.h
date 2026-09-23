@@ -25,6 +25,11 @@ enum class IconColor {
 // QColor a given IconColor resolves to.
 QIcon icon(const QString& name, IconColor color, int pixelSize = 16);
 
+// Same as icon(), for a monochrome SVG outside the bundled glyph set —
+// e.g. a backend's own sidebar icon from its manifest. Same cache and
+// same invalidation on a theme flip, keyed by the path.
+QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize = 16);
+
 // Same recolor, but for the handful of call sites (CoverPlaceholder's tone
 // tiles) that need a specific Palette color IconColor has no semantic slot
 // for (e.g. surface-100 as a glyph color) rather than one of the 5 named

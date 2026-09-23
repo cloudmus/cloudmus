@@ -65,6 +65,13 @@ bool parseManifest(const QString& path, BackendManifest& out)
     out.name = obj.value(QStringLiteral("name")).toString();
     out.protocolVersion = obj.value(QStringLiteral("protocolVersion")).toString();
     out.manifestPath = path;
+    out.iconPath.clear();
+    const QString icon = obj.value(QStringLiteral("icon")).toString();
+    if (!icon.isEmpty()) {
+        const QString resolved = QDir(QFileInfo(path).absolutePath()).absoluteFilePath(icon);
+        if (QFileInfo::exists(resolved))
+            out.iconPath = resolved;
+    }
     out.argv.clear();
     for (const QJsonValue& v : obj.value(QStringLiteral("argv")).toArray()) {
         out.argv.append(v.toString());

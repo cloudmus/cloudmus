@@ -245,6 +245,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     // loading until wireSource()'s loadPlaylistsAsync() call fills it in
     // for real.
     for (const auto& manifest : Rpc::discoverManifests()) {
+        sidebarModel_->setSourceIconPath(manifest.id, manifest.iconPath);
         sidebarModel_->setSource(manifest.id, manifest.name, { });
         sidebarModel_->setSourceLoading(manifest.id, manifest.name, true);
     }

@@ -4,6 +4,7 @@
 #include <QPainter>
 #include <QWidget>
 
+#include "Icons.h"
 #include "SidebarModel.h"
 #include "Spacing.h"
 #include "Tokens.h"
@@ -72,13 +73,42 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     // between the chevron and the text specifically on expandable rows
     // (History/Local Folder, with no chevron/children, looked fine either
     // way — nothing to stack with there).
+    // Resolved here, at paint time, rather than stored as a QIcon in the
+    // model: a tinted icon depends on the current theme and on this row's
+    // selection state, neither of which the model knows about.
+    constexpr int kIconSide = 16;
+    const Theme::IconColor iconColor = selected ? Theme::IconColor::Accent : Theme::IconColor::InkSecondary;
+    QIcon rowIcon;
+    if (kind == SidebarModel::Kind::History)
+        rowIcon = Theme::icon(QStringLiteral("history"), iconColor, kIconSide);
+    else if (const QString path = index.data(SidebarModel::SourceIconPathRole).toString(); !path.isEmpty())
+        rowIcon = Theme::iconFromFile(path, iconColor, kIconSide);
+    else
+        rowIcon = index.data(Qt::DecorationRole).value<QIcon>();
+
     int textLeft = rect.left() + Theme::Spacing::space2;
-    const QIcon rowIcon = index.data(Qt::DecorationRole).value<QIcon>();
     if (!rowIcon.isNull()) {
-        constexpr int kIconSide = 16;
         const QRect iconRect(textLeft, rect.center().y() - kIconSide / 2, kIconSide, kIconSide);
         rowIcon.paint(painter, iconRect);
         textLeft = iconRect.right() + Theme::Spacing::space2;
+    }
+
+    // A source header's status sits at the row's right edge, so it never
+    // displaces the source's own icon. Auth problem / fetch error win over
+    // loading — they're the actionable states (right-click to retry).
+    int textRight = rect.right() - Theme::Spacing::space2;
+    if (kind == SidebarModel::Kind::SourceHeader) {
+        QIcon statusIcon;
+        if (index.data(SidebarModel::HasAuthProblemRole).toBool()
+            || index.data(SidebarModel::HasFetchErrorRole).toBool())
+            statusIcon = Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, kIconSide);
+        else if (index.data(SidebarModel::IsLoadingRole).toBool())
+            statusIcon = Theme::icon(QStringLiteral("refresh"), Theme::IconColor::InkSecondary, kIconSide);
+        if (!statusIcon.isNull()) {
+            const int statusLeft = fullRowRect.right() - Theme::Spacing::space2 - kIconSide + 1;
+            statusIcon.paint(painter, QRect(statusLeft, rect.center().y() - kIconSide / 2, kIconSide, kIconSide));
+            textRight = qMin(textRight, statusLeft - Theme::Spacing::space2 - 1);
+        }
     }
 
     QFont textFont = Theme::font(Theme::TextStyle::Body);
@@ -87,7 +117,7 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     painter->setFont(textFont);
     painter->setPen(selected ? pal.accent : pal.ink);
 
-    const QRect textRect(textLeft, rect.top(), rect.right() - textLeft - Theme::Spacing::space2 + 1, rect.height());
+    const QRect textRect(textLeft, rect.top(), textRight - textLeft + 1, rect.height());
     const QFontMetrics metrics(textFont);
     painter->drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft,
         metrics.elidedText(index.data(Qt::DisplayRole).toString(), Qt::ElideRight, textRect.width()));

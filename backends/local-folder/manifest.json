@@ -2,5 +2,6 @@
   "id": "local-folder",
   "name": "Local Folder",
   "argv": ["python3", "-m", "cloudmus_backend_local"],
-  "protocolVersion": "1.2"
+  "protocolVersion": "1.2",
+  "icon": "icon.svg"
 }

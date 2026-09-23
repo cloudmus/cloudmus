@@ -203,7 +203,9 @@ building/testing. See `protocol/README.md` for details.
 ## Adding a new backend
 
 1. Create a folder under `backends/<service-name>/`
-2. Write a `manifest.json` (id, name, argv, protocolVersion)
+2. Write a `manifest.json` (id, name, argv, protocolVersion, and optionally
+   `icon`: a monochrome 24×24 SVG, path relative to the manifest — the Qt
+   front tints it to match its theme)
 3. Implement the protocol methods: `initialize`, `catalog.*`, `playback.*`, ...
 4. Use `backends/py-rpc-common` as the shared transport
 5. Validate it against the conformance suite
