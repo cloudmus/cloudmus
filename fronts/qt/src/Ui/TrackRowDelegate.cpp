@@ -151,14 +151,10 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
         painter->fillRect(thumb, QColor(0, 0, 0, 140));
         painter->setClipping(false);
 
-        // Ink, not OnAccent: this sits over a plain dark scrim (fillRect
-        // above), not an accent-colored background — OnAccent is paired
-        // against accent's own light/dark brightness (white on light
-        // theme's darker accent, near-black on dark theme's lighter
-        // accent), which is backwards here. Ink is the theme-adaptive
-        // foreground color (light on dark theme, dark on light theme) this
-        // context actually needs.
-        const QIcon playIcon = Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 18);
+        // Always white: it sits over the fixed dark scrim above, not over a
+        // theme surface — a theme token like Ink turns near-black in the
+        // light theme and vanishes against the scrim.
+        const QIcon playIcon = Theme::iconWithColor(QStringLiteral("play_arrow"), QColor(255, 255, 255), 18);
         const QSize iconSize(18, 18);
         const QRect iconRect(thumb.center().x() - iconSize.width() / 2, thumb.center().y() - iconSize.height() / 2,
             iconSize.width(), iconSize.height());

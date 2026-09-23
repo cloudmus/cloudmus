@@ -10,6 +10,7 @@
 #include "Metrics.h"
 #include "Radius.h"
 #include "Shadow.h"
+#include "Spacing.h"
 #include "Tokens.h"
 #include "Typography.h"
 
@@ -125,7 +126,25 @@ void CloudMusStyle::drawControl(
         const QRect panelRect = menuPanelRect(widget->rect());
         painter->setClipPath(
             roundedPath(QRectF(panelRect).adjusted(0.5, 0.5, -0.5, -0.5), Radius::md), Qt::IntersectClip);
-        QProxyStyle::drawControl(element, option, painter, widget);
+        // The hovered item gets only a tinted, rounded fill: Fusion's own
+        // selected look adds an outlined frame around it. Paint the fill
+        // here, then let Fusion draw the item as unselected (icon, text,
+        // check, shortcut) on top of it.
+        const auto* item = qstyleoption_cast<const QStyleOptionMenuItem*>(option);
+        if (item != nullptr && (item->state & State_Selected) && (item->state & State_Enabled)
+            && item->menuItemType != QStyleOptionMenuItem::Separator) {
+            painter->setRenderHint(QPainter::Antialiasing);
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(palette().surface400);
+            // Full item width: PM_MenuHMargin/VMargin (see pixelMetric())
+            // already inset every item equally from the panel's edges.
+            painter->drawRoundedRect(QRectF(item->rect), Radius::sm, Radius::sm);
+            QStyleOptionMenuItem unselected = *item;
+            unselected.state &= ~State_Selected;
+            QProxyStyle::drawControl(element, &unselected, painter, widget);
+        } else {
+            QProxyStyle::drawControl(element, option, painter, widget);
+        }
         painter->restore();
         return;
     }
@@ -149,6 +168,11 @@ int CloudMusStyle::pixelMetric(PixelMetric metric, const QStyleOption* option, c
     // layout math (that's PM_MenuHMargin/VMargin's job, untouched here).
     if (metric == PM_MenuPanelWidth && qobject_cast<const QMenu*>(widget))
         return kMenuShadowMargin;
+    // Equal breathing room on every side between the panel and its items,
+    // so the first/last item's hover fill doesn't run into the panel's
+    // rounded edge.
+    if ((metric == PM_MenuHMargin || metric == PM_MenuVMargin) && qobject_cast<const QMenu*>(widget))
+        return Spacing::space1;
     // Matched by class name so Theme doesn't depend on Ui, and so other
     // QSliders (e.g. QFileDialog's zoom slider) keep Fusion's own metric.
     // <= 1 switches QSplitterHandle into its built-in "tiny mode": the
