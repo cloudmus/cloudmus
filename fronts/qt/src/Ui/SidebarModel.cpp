@@ -26,7 +26,21 @@ QStandardItem* SidebarModel::findOrCreateSourceRoot(const QString& sourceId, con
     // opens a SourcePanel when clicked, not just ones with an auth problem.
     // Text weight/color is NavItemDelegate's job now (see MainWindow), not
     // a font baked into the item.
-    invisibleRootItem()->appendRow(item);
+    //
+    // Sources are kept sorted by name (History stays first): setSource()
+    // rebuilds a source's row on every (re)load, and appending it would
+    // shuffle the sidebar order each time a source refreshes.
+    int insertRow = invisibleRootItem()->rowCount();
+    for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
+        const QStandardItem* other = invisibleRootItem()->child(row);
+        if (static_cast<Kind>(other->data(KindRole).toInt()) != Kind::SourceHeader)
+            continue;
+        if (QString::localeAwareCompare(item->text(), other->text()) < 0) {
+            insertRow = row;
+            break;
+        }
+    }
+    invisibleRootItem()->insertRow(insertRow, item);
     return item;
 }
 
@@ -121,6 +135,48 @@ void SidebarModel::setSourceIconPath(const QString& sourceId, const QString& ico
         if (item->data(SourceIdRole).toString() == sourceId)
             item->setData(iconPath, SourceIconPathRole);
     }
+}
+
+QList<Playlist> SidebarModel::playlistsFor(const QString& sourceId) const
+{
+    QList<Playlist> out;
+    const std::function<void(const QStandardItem*)> collect = [&](const QStandardItem* parent) {
+        for (int row = 0; row < parent->rowCount(); ++row) {
+            const QStandardItem* item = parent->child(row);
+            const auto kind = static_cast<Kind>(item->data(KindRole).toInt());
+            if (kind == Kind::Wave || kind == Kind::Liked || kind == Kind::Playlist)
+                out.append(item->data(PlaylistDataRole).value<Playlist>());
+            collect(item);
+        }
+    };
+    for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
+        const QStandardItem* root = invisibleRootItem()->child(row);
+        if (root->data(SourceIdRole).toString() == sourceId
+            && static_cast<Kind>(root->data(KindRole).toInt()) == Kind::SourceHeader)
+            collect(root);
+    }
+    return out;
+}
+
+QModelIndex SidebarModel::indexForSource(const QString& sourceId) const
+{
+    for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
+        const QStandardItem* root = invisibleRootItem()->child(row);
+        if (static_cast<Kind>(root->data(KindRole).toInt()) == Kind::SourceHeader
+            && root->data(SourceIdRole).toString() == sourceId)
+            return root->index();
+    }
+    return QModelIndex();
+}
+
+bool SidebarModel::isSourceLoading(const QString& sourceId) const
+{
+    for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
+        const QStandardItem* root = invisibleRootItem()->child(row);
+        if (root->data(SourceIdRole).toString() == sourceId)
+            return root->data(IsLoadingRole).toBool();
+    }
+    return false;
 }
 
 bool SidebarModel::isActive(const QStandardItem* item) const

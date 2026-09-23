@@ -80,8 +80,10 @@ public:
         connect(&Theme::notifier(), &Theme::Notifier::changed, this, qOverload<>(&QWidget::update));
     }
 
-    void set(const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed)
+    void set(const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed,
+        const QString& iconPath)
     {
+        iconPath_ = iconPath;
         title_ = title;
         subtitle_ = subtitle;
         coverUrl_ = coverUrl;
@@ -119,6 +121,15 @@ protected:
         else
             painter.drawPixmap(coverRect, cover);
         painter.restore();
+        // A source's own icon over its generated cover (always dark-ish
+        // and colorful, so plain white reads on it in either theme).
+        if (!iconPath_.isEmpty()) {
+            constexpr int kIconSide = 28;
+            Theme::iconFromFile(iconPath_, QColor(255, 255, 255, 235), kIconSide)
+                .paint(&painter,
+                    QRect(coverRect.center().x() - kIconSide / 2 + 1, coverRect.center().y() - kIconSide / 2 + 1,
+                        kIconSide, kIconSide));
+        }
 
         const int textLeft = coverRect.right() + 1 + Theme::Spacing::space3;
         const QRect textRect(textLeft, 0, width() - textLeft, height());
@@ -150,6 +161,7 @@ private:
     QString subtitle_;
     QString coverUrl_;
     QPixmap generatedCover_;
+    QString iconPath_;
 };
 
 // Case-insensitive substring match on title, artist names and album.
@@ -312,10 +324,10 @@ PlaylistSheet::PlaylistSheet(CoverArtCache* coverCache, QWidget* parent)
     connect(presenter_, &AnimatedPresenter::dismissed, this, &PlaylistSheet::dismissed);
 }
 
-void PlaylistSheet::setHeader(
-    const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed)
+void PlaylistSheet::setHeader(const QString& title, const QString& subtitle, const QString& coverUrl,
+    const QString& coverSeed, const QString& iconPath)
 {
-    headerInfo_->set(title, subtitle, coverUrl, coverSeed);
+    headerInfo_->set(title, subtitle, coverUrl, coverSeed, iconPath);
     headerInfo_->show();
 }
 
@@ -340,11 +352,9 @@ void PlaylistSheet::showRadio(
     setBusy(false);
 }
 
-void PlaylistSheet::showSource()
+void PlaylistSheet::showSource(const QString& name, const QString& description, const QString& iconPath)
 {
-    // SourcePanel carries its own banner (name/description/cover), so the
-    // header row keeps only the back button.
-    headerInfo_->hide();
+    setHeader(name, description, QString(), name, iconPath);
     playAllButton_->hide();
     filterEdit_->hide();
     pages_->setCurrentWidget(sourcePanel_);

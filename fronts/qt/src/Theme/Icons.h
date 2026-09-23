@@ -29,6 +29,8 @@ QIcon icon(const QString& name, IconColor color, int pixelSize = 16);
 // e.g. a backend's own sidebar icon from its manifest. Same cache and
 // same invalidation on a theme flip, keyed by the path.
 QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize = 16);
+// Same, tinted to an explicit color (e.g. white over a generated cover).
+QIcon iconFromFile(const QString& svgPath, const QColor& color, int pixelSize = 16);
 
 // Same recolor, but for the handful of call sites (CoverPlaceholder's tone
 // tiles) that need a specific Palette color IconColor has no semantic slot

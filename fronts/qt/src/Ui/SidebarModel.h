@@ -95,6 +95,12 @@ public:
     // re-applies the path to every row it creates.
     void setSourceIconPath(const QString& sourceId, const QString& iconPath);
 
+    // A source's playlists (Wave/Liked/regular, sidebar order), its icon
+    // path and whether its playlists are being (re)loaded — for its page.
+    QList<Playlist> playlistsFor(const QString& sourceId) const;
+    QString sourceIconPath(const QString& sourceId) const { return sourceIconPaths_.value(sourceId); }
+    bool isSourceLoading(const QString& sourceId) const;
+
     // Marks the active playlist's row (clearing the previous one). History
     // is addressed as (empty sourceId, "history"); an empty playlistId
     // clears the mark. Remembered, so rows recreated by setSource() pick
@@ -103,6 +109,8 @@ public:
     // The row for (sourceId, playlistId) — same addressing as above — or
     // an invalid index if it isn't in the sidebar (yet).
     QModelIndex indexForPlaylist(const QString& sourceId, const QString& playlistId) const;
+    // A source's header row, or an invalid index.
+    QModelIndex indexForSource(const QString& sourceId) const;
 
     // Inserts the top-level "History" row once, ahead of every source root
     // (idempotent — a no-op if already present).

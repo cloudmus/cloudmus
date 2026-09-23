@@ -13,6 +13,13 @@ class TrackStates;
 
 namespace Ui {
 
+// "1 track" / "12 tracks" — the app ships no translation files, so
+// tr("%n track(s)") would show its raw "(s)" form.
+inline QString trackCountText(int count)
+{
+    return count == 1 ? QStringLiteral("1 track") : QStringLiteral("%1 tracks").arg(count);
+}
+
 // Backs the center track-list view. One instance per MainWindow, repointed
 // at a new source/track set whenever the sidebar selection changes.
 class TrackListModel : public QAbstractListModel {

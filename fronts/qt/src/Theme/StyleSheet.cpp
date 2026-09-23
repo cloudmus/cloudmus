@@ -76,6 +76,7 @@ QToolButton[variant="icon"]:pressed, QToolButton[variant="icon"]:checked { backg
 QToolButton[variant="icon"]::menu-indicator { image: none; }
 QPushButton[variant="icon"][filled="true"], QToolButton[variant="icon"][filled="true"] { background: %2; }
 QPushButton[variant="icon"][filled="true"]:hover, QToolButton[variant="icon"][filled="true"]:hover { background: %3; }
+QPushButton[variant="icon"][compact="true"], QToolButton[variant="icon"][compact="true"] { border-radius: 10px; }
 QPushButton[variant="play"] {
     background: %4;
     border: 0px solid transparent;
@@ -145,8 +146,8 @@ QString panelsBlock(const Palette& p)
     // a plain QSS border-radius only draws a rounded
     // shape inside a still-rectangular opaque window
     // (confirmed in practice), it doesn't actually
-    // mask the widget. Only per-item styling stays
-    // in QSS.
+    // mask the widget. The hovered item's fill is
+    // CloudMusStyle's too (see its drawControl()).
     //
     // "border: 0px solid transparent", not "border: none" — see
     // buttonsBlock()'s comment on why not "none".
@@ -163,12 +164,10 @@ QString panelsBlock(const Palette& p)
     padding: %7px %8px;
 }
 QMenu { color: %5; }
-QMenu::item:selected { background: %9; }
 #transportSeparator { color: %2; }
-#secondaryLabel { color: %10; })")
+#secondaryLabel { color: %9; })")
         .arg(hex(p.surface200), hex(p.border), QString::number(Radius::md), hex(p.surface400), hex(p.ink),
-            QString::number(Radius::sm), QString::number(Spacing::space2), QString::number(Spacing::space3),
-            hex(p.surface300))
+            QString::number(Radius::sm), QString::number(Spacing::space2), QString::number(Spacing::space3))
         .arg(hex(p.inkSecondary));
 }
 

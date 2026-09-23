@@ -41,8 +41,10 @@ public:
         bool canPlayAll);
     // A continuous radio station: no list, just the header and Play.
     void showRadio(const QString& title, const QString& description, const QString& coverUrl, const QString& coverSeed);
-    // A backend's page — sourcePanel(), filled by MainWindow.
-    void showSource();
+    // A backend's page — sourcePanel(), filled by MainWindow. The header
+    // shows the source like a playlist: a generated cover with the
+    // source's own icon (`iconPath`, may be empty), name and description.
+    void showSource(const QString& name, const QString& description, const QString& iconPath);
     void setSubtitle(const QString& subtitle);
     void setBusy(bool busy);
     // Repaints the track rows (e.g. the delegate's now-playing highlight moved).
@@ -71,7 +73,8 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    void setHeader(const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed);
+    void setHeader(const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed,
+        const QString& iconPath = QString());
     int sourceRow(const QModelIndex& viewIndex) const;
 
     class HeaderInfo;

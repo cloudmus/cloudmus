@@ -349,6 +349,12 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         [this](const QString& sourceId, const QJsonObject& fields) { submitAuthAsync(sourceId, fields).detach(); });
     connect(sourcePanel_, &SourcePanel::retryRequested, this,
         [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
+    connect(sourcePanel_, &SourcePanel::playlistActivated, this,
+        [this](const QString& sourceId, const Playlist& playlist) { openInSheetAsync(sourceId, playlist).detach(); });
+    connect(sourcePanel_, &SourcePanel::refreshRequested, this, [this](const QString& sourceId) {
+        if (Rpc::RpcClient* client = sourceManager_.client(sourceId))
+            loadPlaylistsAsync(client).detach();
+    });
     connect(sheet_, &PlaylistSheet::trackActivated, this, &MainWindow::activateFromSheet);
     connect(sheet_, &PlaylistSheet::playAllClicked, this, &MainWindow::playAllFromSheet);
     connect(sheet_, &PlaylistSheet::closeRequested, this, &MainWindow::closeSheet);
@@ -517,16 +523,18 @@ void MainWindow::showSourceStatusPanel(const QString& sourceId)
 {
     sheetContext_ = ActiveContext();
     currentStatusPanelSourceId_ = sourceId;
-    sheet_->showSource();
-    sheet_->present();
 
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
     const QString description = client != nullptr ? client->sourceDescription() : QString();
     const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
-    sourcePanel_->setSource(sourceId, sourceName, description, capabilities);
+    sheet_->showSource(sourceName, description, sidebarModel_->sourceIconPath(sourceId));
+    sourcePanel_->setSource(sourceId, capabilities);
+    sourcePanel_->setPlaylists(sidebarModel_->playlistsFor(sourceId), sidebarModel_->isSourceLoading(sourceId));
 
     refreshAuthSection(sourceId, sourceAuthStates_.value(sourceId));
+    // Last: presenting snapshots the sheet, so fill it first.
+    sheet_->present();
 }
 
 void MainWindow::refreshAuthSection(const QString& sourceId, const SourceAuthState& state)
@@ -546,12 +554,15 @@ void MainWindow::onSourceUnavailable(const QString& manifestId, const QString& n
 {
     Q_UNUSED(stderrTail);
     sidebarModel_->removeSource(manifestId);
+    syncSidebarSelection();
     toastNotifier_->showError(tr("%1 is unavailable").arg(name));
 }
 
 Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
 {
     sidebarModel_->setSourceLoading(client->sourceId(), client->sourceName(), true);
+    if (currentStatusPanelSourceId_ == client->sourceId())
+        sourcePanel_->setPlaylists(sidebarModel_->playlistsFor(client->sourceId()), /*loading=*/true);
     const QJsonObject browse = client->capabilities().value(QStringLiteral("browse")).toObject();
     const bool shouldFetch = browse.value(QStringLiteral("playlists")).toBool()
         || browse.value(QStringLiteral("likedTracks")).toBool() || browse.value(QStringLiteral("radio")).toBool();
@@ -625,6 +636,8 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
     }
     // setSource() rebuilt this source's rows, dropping their selection.
     syncSidebarSelection();
+    if (currentStatusPanelSourceId_ == client->sourceId())
+        sourcePanel_->setPlaylists(playlists, /*loading=*/false);
 }
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)
@@ -855,7 +868,10 @@ void MainWindow::syncSidebarSelection()
             target = sidebarModel_->indexForPlaylist(sheetContext_.isHistory ? QString() : sheetContext_.sourceId,
                 sheetContext_.isHistory ? QStringLiteral("history") : sheetContext_.playlist.id);
         else if (!currentStatusPanelSourceId_.isEmpty())
-            return; // a source page — the clicked header row stays selected
+            // A source page: its header row. Not left as is — setSource()
+            // recreates that row on every reload, and the view would
+            // otherwise leave the selection on whatever row slid into its place.
+            target = sidebarModel_->indexForSource(currentStatusPanelSourceId_);
     } else if (activeContext_.isValid()) {
         target = sidebarModel_->indexForPlaylist(activeContext_.isHistory ? QString() : activeContext_.sourceId,
             activeContext_.isHistory ? QStringLiteral("history") : activeContext_.playlist.id);
@@ -891,7 +907,7 @@ Rpc::Task<void> MainWindow::openInSheetAsync(QString sourceId, Playlist playlist
         co_return;
     }
     sheet_->trackModel()->clear();
-    sheet_->showTracks(playlist.title, tr("%n track(s)", nullptr, playlist.trackCount), coverUrl, playlist.title,
+    sheet_->showTracks(playlist.title, trackCountText(playlist.trackCount), coverUrl, playlist.title,
         /*canPlayAll=*/true);
     sheet_->present();
 
@@ -906,7 +922,7 @@ Rpc::Task<void> MainWindow::openInSheetAsync(QString sourceId, Playlist playlist
         for (const Playback::QueueEntry& entry : entries)
             rows.append({ entry.sourceId, entry.track, QDateTime() });
         sheet_->trackModel()->setMixedSourceTracks(rows);
-        sheet_->setSubtitle(tr("%n track(s)", nullptr, int(rows.size())));
+        sheet_->setSubtitle(trackCountText(int(rows.size())));
     } catch (const std::exception& e) {
         qCWarning(lcMainWindow) << "loading tracks failed for" << sourceId << ":" << e.what();
         toastNotifier_->showError(QString::fromStdString(e.what()));
@@ -932,7 +948,7 @@ void MainWindow::fillHistorySheet()
     for (const History::HistoryEntry& e : playbackHistory_->entries())
         entries.append({ e.sourceId, e.track, e.playedAt });
     sheet_->trackModel()->setMixedSourceTracks(entries);
-    sheet_->setSubtitle(tr("%n track(s)", nullptr, int(entries.size())));
+    sheet_->setSubtitle(trackCountText(int(entries.size())));
 }
 
 void MainWindow::closeSheet() { sheet_->dismiss(); }
@@ -1029,21 +1045,23 @@ void MainWindow::showTrackMenu(
     if (likeSupported || dislikeSupported) {
         menu->addSeparator();
         if (likeSupported) {
-            QAction* likeAction = menu->addAction(
-                Theme::icon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16), tr("Like"));
-            likeAction->setCheckable(true);
+            // State shown by the icon (filled accent heart), not a check box:
+            // Fusion frames a checked item's icon, which reads as a stray border.
             const bool liked = trackStates_->state(sourceId, track.id).liked.value_or(false);
-            likeAction->setChecked(liked);
+            QAction* likeAction
+                = menu->addAction(liked ? Theme::icon(QStringLiteral("favorite"), Theme::IconColor::Accent, 16)
+                                        : Theme::icon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16),
+                    liked ? tr("Unlike") : tr("Like"));
             connect(likeAction, &QAction::triggered, this, [this, sourceId, id = track.id, liked]() {
                 likeToggledAsync(sourceId, id, !liked, /*announceSuccess=*/true).detach();
             });
         }
         if (dislikeSupported) {
-            QAction* dislikeAction = menu->addAction(
-                Theme::icon(QStringLiteral("heart_broken"), Theme::IconColor::Ink, 16), tr("Dislike"));
-            dislikeAction->setCheckable(true);
             const bool disliked = trackStates_->state(sourceId, track.id).disliked.value_or(false);
-            dislikeAction->setChecked(disliked);
+            QAction* dislikeAction
+                = menu->addAction(Theme::icon(QStringLiteral("heart_broken"),
+                                      disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16),
+                    disliked ? tr("Remove Dislike") : tr("Dislike"));
             connect(dislikeAction, &QAction::triggered, this, [this, sourceId, id = track.id, disliked]() {
                 dislikeToggledAsync(sourceId, id, !disliked, /*announceSuccess=*/true).detach();
             });

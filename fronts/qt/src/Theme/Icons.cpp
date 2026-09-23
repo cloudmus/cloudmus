@@ -117,6 +117,17 @@ QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize)
     return QIcon(it.value());
 }
 
+QIcon iconFromFile(const QString& svgPath, const QColor& color, int pixelSize)
+{
+    const qreal dpr = devicePixelRatio();
+    const QString key = QStringLiteral("%1|%2|%3|%4").arg(svgPath, color.name(QColor::HexArgb)).arg(pixelSize).arg(dpr);
+    QHash<QString, QPixmap>& cache = iconCache();
+    auto it = cache.find(key);
+    if (it == cache.end())
+        it = cache.insert(key, renderTinted(svgPath, color, pixelSize, dpr));
+    return QIcon(it.value());
+}
+
 QIcon icon(const QString& name, IconColor color, int pixelSize)
 {
     return iconFromFile(glyphPath(name), color, pixelSize);

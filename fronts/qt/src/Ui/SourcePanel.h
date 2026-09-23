@@ -5,10 +5,13 @@
 #include <QString>
 #include <QWidget>
 
+#include "Models.h"
+
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
+class QToolButton;
 class QHBoxLayout;
 class QVBoxLayout;
 class QProgressBar;
@@ -16,41 +19,34 @@ class QProgressBar;
 namespace Ui {
 
 class CoverArtCache;
-class HeroPanel;
 
-// Shown in the content area (replacing the hero+track-list splitter) when
-// the user selects any source's sidebar header row — see
-// SidebarModel::Kind::SourceHeader and MainWindow::showSourceStatusPanel().
-// Unlike a real playlist, every source gets this, not just ones with an
-// auth problem: a hero (cover/name/description, via an internally owned
-// HeroPanel fed a synthetic Playlist — reusing its generated-cover
-// machinery rather than reimplementing it) and a one-line capabilities
-// summary are always shown; the auth section below (prompt/error/Retry) is
-// the only conditional part, hidden unless there's actually something to
-// act on.
+// A backend's page, shown in PlaylistSheet (which supplies the header:
+// back button, icon, name, description — see PlaylistSheet::showSource()).
+// Three compact, top-aligned sections that scroll together:
+//  - STATUS: "Connected", or the auth card (prompt / error + Retry) while
+//    there's something to act on — showPrompt()/showError()/clearAuthSection().
+//  - FEATURES: capability chips.
+//  - PLAYLISTS: this source's playlists (click opens one), with Refresh.
 //
-// Replaces the old global AuthBanner (single currentSourceId_ slot, dropped
-// events for any source but the most recently active one) and this
-// session's first SourceStatusPanel iteration (whole panel was the auth
-// section, so a problem-free source had nothing to show and the panel
-// looked broken/empty). MainWindow caches auth state per source itself
-// (see MainWindow::SourceAuthState) and calls setSource() once per
-// selection, then showPrompt()/showError()/clearAuthSection() as that
-// state changes — this widget holds no source-identity bookkeeping beyond
-// currentSourceId_, needed only to stamp outgoing submitRequested/
-// retryRequested signals.
+// MainWindow caches auth state per source itself (see
+// MainWindow::SourceAuthState) and calls setSource() once per selection,
+// then showPrompt()/showError()/clearAuthSection() as that state changes —
+// this widget holds no source-identity bookkeeping beyond currentSourceId_,
+// needed only to stamp its outgoing signals.
 class SourcePanel : public QWidget {
     Q_OBJECT
 
 public:
     explicit SourcePanel(CoverArtCache* coverCache, QWidget* parent = nullptr);
 
-    // Call once per source selection: renders the hero (name/description/
-    // generated cover) and the capabilities summary line. Does not touch
-    // the auth section — call showPrompt()/showError()/clearAuthSection()
-    // separately (MainWindow does so right after, from cached state).
-    void setSource(const QString& sourceId, const QString& sourceName, const QString& description,
-        const QJsonObject& capabilities);
+    // Call once per source selection: renders the capability chips. Does
+    // not touch the auth section — call showPrompt()/showError()/
+    // clearAuthSection() separately (MainWindow does so right after, from
+    // cached state), nor the playlists — see setPlaylists().
+    void setSource(const QString& sourceId, const QJsonObject& capabilities);
+    // `loading`: a fetch is in flight — shown instead of "No playlists"
+    // while the list is still empty.
+    void setPlaylists(const QList<Playlist>& playlists, bool loading);
 
     // Renders the source's last-known prompt (deviceCode/usernamePassword/
     // oauthRedirect, discriminated by params["flow"] — see
@@ -71,6 +67,8 @@ public:
 signals:
     void submitRequested(QString sourceId, QJsonObject fields);
     void retryRequested(QString sourceId);
+    void playlistActivated(QString sourceId, Playlist playlist);
+    void refreshRequested(QString sourceId);
 
 private:
     void clearFormFields();
@@ -78,12 +76,17 @@ private:
     // previous showPrompt()/showError() call left visible — shared by both
     // entry points (and clearAuthSection(), which just stops there).
     void resetAuthChrome();
-    static QString capabilitiesSummary(const QJsonObject& capabilities);
+    void refreshPlaylistsSection();
 
     QString currentSourceId_;
 
-    HeroPanel* hero_ = nullptr;
-    QLabel* capabilitiesLabel_ = nullptr;
+    QWidget* statusRow_ = nullptr; // "✓ Connected"
+    QHBoxLayout* chipsLayout_ = nullptr;
+    QWidget* playlistRows_ = nullptr;
+    QWidget* playlistsHint_ = nullptr;
+    QToolButton* refreshButton_ = nullptr;
+    QList<Playlist> playlists_;
+    bool playlistsLoading_ = false;
 
     QWidget* authCard_ = nullptr;
     QLabel* messageLabel_ = nullptr;
