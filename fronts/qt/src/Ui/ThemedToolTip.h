@@ -14,7 +14,7 @@ namespace Ui {
 // border-radius just draws a rounded shape inside a still-rectangular,
 // opaque window). Same "native mechanism isn't flexible enough, paint it
 // ourselves" pattern already used this session by SmoothScroller/
-// OverlayScrollBar/ThemedSplitter.
+// OverlayScrollBar.
 //
 // One global instance for the whole application, not attached to any
 // specific widget — construct once (see main.cpp) after

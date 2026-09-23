@@ -24,9 +24,10 @@ namespace Theme {
 // QFrame's own frame width.
 //
 // Scope is intentionally narrow: only QMenu's panel/frame drawing and
-// polish, plus the slider click behavior hint (see styleHint()) and
-// Ui::ThemedSlider's handle length (see pixelMetric()), are overridden
-// here. Everything else falls through to Fusion unchanged.
+// polish, plus the slider click behavior hint (see styleHint()),
+// Ui::ThemedSlider's handle length and themed QSplitters' 1px handle
+// (see pixelMetric()/drawControl()), are overridden here. Everything
+// else falls through to Fusion unchanged.
 class CloudMusStyle : public QProxyStyle {
 public:
     using QProxyStyle::QProxyStyle;

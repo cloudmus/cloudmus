@@ -4,6 +4,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
+#include <QSplitter>
 #include <QStyleOption>
 
 #include "Metrics.h"
@@ -66,6 +67,20 @@ void paintMenuShadow(QPainter* painter, const QRect& panelRect)
         painter->drawPath(roundedPath(QRectF(layerRect), Radius::md + spread));
     }
     painter->restore();
+}
+
+// App-owned splitters opt in via setProperty("themed", true) — same
+// convention as themed dialogs/progress bars (see StyleSheet.cpp), so a
+// native dialog's own QSplitter (e.g. QFileDialog's) keeps Fusion's look.
+// Qt hands the style either the QSplitter itself or one of its handles.
+bool isThemedSplitter(const QWidget* widget)
+{
+    const QSplitter* splitter = qobject_cast<const QSplitter*>(widget);
+    if (!splitter) {
+        if (const auto* handle = qobject_cast<const QSplitterHandle*>(widget))
+            splitter = handle->splitter();
+    }
+    return splitter && splitter->property("themed").toBool();
 }
 
 } // namespace
@@ -140,6 +155,13 @@ void CloudMusStyle::drawControl(
         return;
     }
 
+    if (element == CE_Splitter && isThemedSplitter(widget)) {
+        // option->rect is the handle's contentsRect() — just the 1px line,
+        // not the wider grab area around it (see pixelMetric()).
+        painter->fillRect(option->rect, palette().border);
+        return;
+    }
+
     QProxyStyle::drawControl(element, option, painter, widget);
 }
 
@@ -154,6 +176,12 @@ int CloudMusStyle::pixelMetric(PixelMetric metric, const QStyleOption* option, c
         return kMenuShadowMargin;
     // Matched by class name so Theme doesn't depend on Ui, and so other
     // QSliders (e.g. QFileDialog's zoom slider) keep Fusion's own metric.
+    // <= 1 switches QSplitterHandle into its built-in "tiny mode": the
+    // handle takes 1px in the layout, but its widget grows 2px contents
+    // margins on each side over the neighboring panes, masked so only the
+    // 1px line paints while the whole 5px still grabs the mouse.
+    if (metric == PM_SplitterWidth && isThemedSplitter(widget))
+        return 1;
     if (metric == PM_SliderLength && widget && widget->inherits("Ui::ThemedSlider"))
         return Metrics::sliderHandleDiameter;
     return QProxyStyle::pixelMetric(metric, option, widget);
