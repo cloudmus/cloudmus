@@ -205,20 +205,24 @@ PlaylistSheet::PlaylistSheet(CoverArtCache* coverCache, QWidget* parent)
     playAllButton_->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
     connect(playAllButton_, &QPushButton::clicked, this, &PlaylistSheet::playAllClicked);
 
-    closeButton_ = new QToolButton(this);
-    closeButton_->setProperty("variant", "icon");
-    closeButton_->setToolTip(tr("Close"));
-    closeButton_->setIcon(
-        Theme::icon(QStringLiteral("close"), Theme::IconColor::InkSecondary, Theme::Metrics::iconGlyphSize));
-    closeButton_->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
-    closeButton_->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
-    connect(closeButton_, &QToolButton::clicked, this, &PlaylistSheet::closeRequested);
+    // Back, at the sheet's left edge — right next to the sidebar the sheet
+    // was opened from, so closing it doesn't need a trip across the window.
+    // Filled so it reads as a round button even at rest.
+    backButton_ = new QToolButton(this);
+    backButton_->setProperty("variant", "icon");
+    backButton_->setProperty("filled", true);
+    backButton_->setToolTip(tr("Back"));
+    backButton_->setIcon(
+        Theme::icon(QStringLiteral("arrow_back"), Theme::IconColor::Ink, Theme::Metrics::iconGlyphSize));
+    backButton_->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
+    backButton_->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
+    connect(backButton_, &QToolButton::clicked, this, &PlaylistSheet::closeRequested);
 
     auto* headerRow = new QHBoxLayout;
-    headerRow->setSpacing(Theme::Spacing::space2);
+    headerRow->setSpacing(Theme::Spacing::space3);
+    headerRow->addWidget(backButton_);
     headerRow->addWidget(headerInfo_, 1);
     headerRow->addWidget(playAllButton_);
-    headerRow->addWidget(closeButton_);
 
     filterEdit_ = new QLineEdit(this);
     filterEdit_->setProperty("variant", "filter"); // see StyleSheet.cpp's inputsBlock()
@@ -234,9 +238,9 @@ PlaylistSheet::PlaylistSheet(CoverArtCache* coverCache, QWidget* parent)
     connect(filterEdit_, &QLineEdit::textChanged, filterProxy_, &FilterProxy::setNeedle);
 
     trackDelegate_ = new TrackRowDelegate(coverCache, this);
-    // Rows line up with the header: the thumbnail under the header's cover
+    // Rows line up with the header: the thumbnail under the back button
     // (header margin minus the row's own thumbnail inset), the duration
-    // under the close button — which also keeps it clear of the overlay
+    // under the Play button — which also keeps it clear of the overlay
     // scrollbar floating at the view's right edge.
     trackDelegate_->setRowInsets(Theme::Spacing::space2, Theme::Spacing::space1);
     connect(coverCache, &CoverArtCache::pixmapReady, this, [this]() { trackView_->viewport()->update(); });
@@ -339,7 +343,7 @@ void PlaylistSheet::showRadio(
 void PlaylistSheet::showSource()
 {
     // SourcePanel carries its own banner (name/description/cover), so the
-    // header row keeps only the close button.
+    // header row keeps only the back button.
     headerInfo_->hide();
     playAllButton_->hide();
     filterEdit_->hide();

@@ -22,7 +22,7 @@ class TrackRowDelegate;
 // for looking at anything that isn't the active playlist: another
 // playlist, Liked, History, a radio station, or a backend's page. Slides
 // in from the left while fading in, and back out the same way (see
-// AnimatedPresenter). Closing it — ×, Esc — reveals the active playlist
+// AnimatedPresenter). Closing it — the back button, Esc — reveals the active playlist
 // again underneath; MainWindow decides what starting a track here means
 // (activating this playlist).
 //
@@ -79,7 +79,7 @@ private:
 
     HeaderInfo* headerInfo_ = nullptr;
     QPushButton* playAllButton_ = nullptr;
-    QToolButton* closeButton_ = nullptr;
+    QToolButton* backButton_ = nullptr;
     QLineEdit* filterEdit_ = nullptr;
     QStackedWidget* pages_ = nullptr;
     QListView* trackView_ = nullptr;

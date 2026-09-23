@@ -74,6 +74,8 @@ QPushButton[variant="icon"]:hover, QToolButton[variant="icon"]:hover { backgroun
 QPushButton[variant="icon"]:pressed, QPushButton[variant="icon"]:checked,
 QToolButton[variant="icon"]:pressed, QToolButton[variant="icon"]:checked { background: %3; }
 QToolButton[variant="icon"]::menu-indicator { image: none; }
+QPushButton[variant="icon"][filled="true"], QToolButton[variant="icon"][filled="true"] { background: %2; }
+QPushButton[variant="icon"][filled="true"]:hover, QToolButton[variant="icon"][filled="true"]:hover { background: %3; }
 QPushButton[variant="play"] {
     background: %4;
     border: 0px solid transparent;

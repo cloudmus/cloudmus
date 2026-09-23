@@ -29,7 +29,7 @@
         <file alias="radio.svg">icons/symbols/radio.svg</file>
         <file alias="file_download.svg">icons/symbols/file_download.svg</file>
         <file alias="history.svg">icons/symbols/history.svg</file>
-        <file alias="close.svg">icons/symbols/close.svg</file>
+        <file alias="arrow_back.svg">icons/symbols/arrow_back.svg</file>
         <file alias="search.svg">icons/symbols/search.svg</file>
     </qresource>
 </RCC>
