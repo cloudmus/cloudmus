@@ -3,54 +3,72 @@ import pytest
 from cloudmus_backend_yandex.radio import RadioSession, _resolve_station
 
 
-class _FakeSequenceEntry:
-    def __init__(self, track):
-        self.track = track
+class _TrackDict:
+    """Minimal but valid yandex_music track dicts for Track.de_json."""
+
+    @staticmethod
+    def make(id_, title=None):
+        return {"id": str(id_), "title": title or f"Track {id_}", "durationMs": 1000}
 
 
-class _FakeStationTracksResult:
-    def __init__(self, batch_id, tracks):
-        self.batch_id = batch_id
-        self.sequence = [_FakeSequenceEntry(t) for t in tracks]
+class _FakeRequest:
+    def __init__(self, client):
+        self.client = client
 
-
-class _FakeTrack:
-    def __init__(self, track_id):
-        self.track_id = track_id
-        self.title = f"Track {track_id}"
-        self.artists = []
-        self.albums = []
-        self.duration_ms = 1000
-        self.cover_uri = None
-        self.explicit = False
+    def post(self, url, json=None, **kwargs):
+        return self.client._respond(url, json)
 
 
 class _FakeClient:
     def __init__(self):
-        self.tracks_calls: list[tuple[str, object]] = []  # (station, queue) per rotor_station_tracks call
+        self.base_url = "https://api.music.yandex.net"
+        self.report_unknown_fields = False
+        self._request = _FakeRequest(self)
+        self.calls = []  # (url, json) per post call
+        self._next_id = 1
+        self._tracks_calls = 0
 
-    def rotor_station_feedback_radio_started(self, station, from_=None):
-        return True
+    def _track_dict(self):
+        id_ = self._next_id
+        self._next_id += 1
+        return _TrackDict.make(id_)
 
-    def rotor_station_feedback_track_started(self, station, track_id, batch_id=None):
-        return True
+    def _respond(self, url, json):
+        self.calls.append((url, json))
+        if url.endswith("/rotor/session/new"):
+            return {
+            "radioSessionId": "sess-1",
+            "batchId": "batch-0",
+            "sequence": [
+                {"type": "track", "track": self._track_dict()},
+                {"type": "track", "track": self._track_dict()},
+            ],
+        }
+        if url.endswith("/rotor/session/sess-1/tracks"):
+            self._tracks_calls += 1
+            fresh = [{"type": "track", "track": self._track_dict()}]
+            # When the dedup-under-test passes a queue for an id the server
+            # has already served, the server may (incorrectly) re-serve it —
+            # simulate the id that is queued being re-served right back.
+            queued_id = json["queue"][0] if json and json.get("queue") else None
+            served = fresh
+            if queued_id and self._tracks_calls % 2 == 0:
+                served = [{"type": "track", "track": {"id": str(queued_id), "title": "Repeat", "durationMs": 1000}}]
+            return {
+                "batchId": f"batch-{self._tracks_calls}",
+                "sequence": served,
+            }
+        if url.endswith("/rotor/session/sess-1/feedback"):
+            return {}
+        raise AssertionError(f"unexpected url: {url}")
 
-    def rotor_station_feedback_track_finished(self, station, track_id, total_played_seconds, batch_id=None):
-        return True
 
-    def rotor_station_feedback_skip(self, station, track_id, total_played_seconds, batch_id=None):
-        return True
+class _NotifyRecorder:
+    def __init__(self):
+        self.events = []
 
-    def rotor_station_tracks(self, station, queue=None):
-        self.tracks_calls.append((station, queue))
-        # A real station always advances past `queue` — simulate that here
-        # so the test would fail if _top_up() ever stopped passing it.
-        next_id = str(len(self.tracks_calls))
-        return _FakeStationTracksResult(batch_id=f"batch-{next_id}", tracks=[_FakeTrack(next_id)])
-
-
-async def _noop_notify(method: str, params: dict) -> None:
-    return None
+    async def __call__(self, method, params):
+        self.events.append((method, params))
 
 
 def test_resolve_station_defaults_to_my_wave_when_no_seed():
@@ -74,17 +92,91 @@ def test_resolve_station_passes_through_an_already_complete_station_address():
 
 
 @pytest.mark.asyncio
-async def test_top_up_passes_played_track_as_queue_to_advance_the_chain():
-    # Regression test: rotor_station_tracks() needs queue=<just-played
-    # track id> to advance the station's chain (see radio.py's _top_up()
-    # doc comment) — omitting it made the wave re-serve the same batch
-    # forever instead of progressing.
+async def test_start_creates_session_and_sends_radio_started_feedback():
+    # The legacy flow called the dead /rotor/station/.../feedback endpoint;
+    # the session flow must POST /rotor/session/new to bootstrap the session
+    # and then ack with a radioStarted event on the *session* endpoint.
     client = _FakeClient()
-    session = RadioSession(client, _noop_notify)
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+
+    result = await session.start(seed=None)
+
+    session_new = next(c for c in client.calls if c[0].endswith("/rotor/session/new"))
+    assert session_new[1]["seeds"] == ["user:onyourwave"]
+    assert session.radio_session_id == "sess-1"
+    assert session.batch_id == "batch-0"
+    assert len(result["initialTracks"]) == 2
+
+    feedback = next(c for c in client.calls if c[0].endswith("/feedback"))
+    assert feedback[1]["batch_id"] == "batch-0"
+    assert feedback[1]["event"]["type"] == "radioStarted"
+    assert feedback[1]["event"]["from"] == "cloudmus"
+
+
+@pytest.mark.asyncio
+async def test_top_up_passes_played_track_as_queue_on_session_endpoint():
+    # Regression: the session API's /rotor/session/{id}/tracks needs
+    # queue=[<just-played track id>] to advance the chain (see radio.py's
+    # _top_up() doc comment) — omitting it made the wave re-serve the same
+    # batch forever instead of progressing.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
     await session.start(seed=None)
 
-    await session.track_finished("1", played_ms=30000)
-    assert client.tracks_calls[-1] == (session.station, "1")
+    await session.track_finished("2", played_ms=30000)
+    tracks_call = next(c for c in client.calls if c[0].endswith("/tracks"))
+    assert tracks_call[1] == {"queue": ["2"]}
+    assert session.batch_id == "batch-1"
 
-    await session.skip("2", played_ms=5000)
-    assert client.tracks_calls[-1] == (session.station, "2")
+
+@pytest.mark.asyncio
+async def test_feedback_events_go_through_session_endpoint_with_batch_id():
+    # All feedback (not just top-up) must use /rotor/session/{id}/feedback
+    # — the legacy /rotor/station/.../feedback endpoint returns
+    # 400 "condition is not met" for every event type.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+
+    await session.track_started("1")
+    await session.track_finished("2", played_ms=12000)
+    await session.skip("3", played_ms=2500)
+
+    feedbacks = [c for c in client.calls if c[0].endswith("/feedback")]
+    assert len(feedbacks) == 4  # radioStarted + the three events above
+
+    by_type = {c[1]["event"]["type"]: c[1] for c in feedbacks}
+    assert by_type["trackStarted"]["event"]["trackId"] == "1"
+    assert by_type["trackFinished"]["event"]["totalPlayedSeconds"] == 12.0
+    assert by_type["skip"]["event"]["totalPlayedSeconds"] == 2.5
+    # trackFinished advances the session (updates batch_id), so skip goes
+    # out against the *new* batch.
+    assert by_type["trackStarted"]["batch_id"] == "batch-0"
+    assert by_type["trackFinished"]["batch_id"] == "batch-0"
+    assert by_type["skip"]["batch_id"] == "batch-1"
+
+
+@pytest.mark.asyncio
+async def test_top_up_emits_only_tracks_not_seen_this_session():
+    # The front must never receive a track it was already shown in the
+    # initial batch. _FakeClient re-serves the queued id on alternating
+    # tracks calls; the session must filter those out and only push fresh.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+
+    await session._top_up("1")  # advances, server returns a fresh id
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1
+    fresh_ids = [t["id"] for t in added[0]["tracks"]]
+    assert len(fresh_ids) == 1
+
+    # Alternating call: server re-serves the queued id (already seen) — must
+    # not be pushed again.
+    await session._top_up("1")
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1

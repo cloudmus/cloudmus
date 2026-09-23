@@ -8,14 +8,22 @@ gets a chance to react on catalog.startRadio and on each feedback.* call, so
 it tops up by pushing a fresh batch via radio/tracksAdded whenever a track
 finishes or is skipped, mirroring the same "keep the pipeline full" intent
 without needing to know the front's exact queue depth.
+
+This backend talks to Yandex's *session* rotor API (/rotor/session/*), not
+the legacy station one (/rotor/station/{station}/feedback): the legacy
+feedback endpoint is dead (every call returns 400 "condition is not met"),
+so the server never learned about plays/skips and kept re-serving the same
+chain head. The session flow accepts feedback (radioStarted/trackStarted/
+trackFinished/skip, each 200) and advances the chain via session/tracks.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any, Awaitable, Callable
 
-from yandex_music import Client
+from yandex_music import Client, Track
 
 from rpc_common.generated.methods import emit_radio_tracks_added
 from rpc_common.generated.models import TracksAddedParams
@@ -54,24 +62,61 @@ class RadioSession:
         self.client = client
         self._notify = notify
         self.station = catalog.WAVE_STATION_ID
+        self.radio_session_id: str | None = None
         self.batch_id: str | None = None
+        self._seen: set[str] = set()
+
+    def _post(self, path: str, payload: dict) -> dict:
+        result = self.client._request.post(f"{self.client.base_url}{path}", json=payload)
+        return result if isinstance(result, dict) else {}
+
+    def _tracks_from(self, result: dict) -> list[Track]:
+        tracks = []
+        for entry in result.get("sequence") or []:
+            if entry.get("type") != "track":
+                continue
+            track = entry.get("track")
+            if track:
+                t = Track.de_json(track, self.client)
+                if t is not None:
+                    tracks.append(t)
+        return tracks
+
+    async def _send_feedback(self, event_type: str, **event: Any) -> None:
+        if not self.radio_session_id or not self.batch_id:
+            return
+        path = f"/rotor/session/{self.radio_session_id}/feedback"
+        payload = {
+            "batch_id": self.batch_id,
+            "event": {"type": event_type, "timestamp": int(time.time()), **event},
+        }
+
+        def send() -> None:
+            try:
+                self._post(path, payload)
+            except Exception as e:
+                logger.debug("session feedback %s failed: %s", event_type, e)
+
+        await asyncio.to_thread(send)
 
     async def start(self, seed: str | None) -> dict:
         self.station = _resolve_station(seed)
 
-        def start_feedback() -> None:
-            try:
-                self.client.rotor_station_feedback_radio_started(self.station, from_="cloudmus")
-            except Exception as e:
-                logger.debug("rotor_station_feedback_radio_started failed: %s", e)
-
-        await asyncio.to_thread(start_feedback)
-
-        result = await asyncio.to_thread(self.client.rotor_station_tracks, self.station)
-        tracks = []
-        if result is not None:
-            self.batch_id = result.batch_id
-            tracks = [seq.track for seq in result.sequence if seq.track]
+        result = await asyncio.to_thread(
+            self._post,
+            "/rotor/session/new",
+            {
+                "seeds": [self.station],
+                "includeTracksInResponse": True,
+                "includeWaveModel": True,
+                "interactive": True,
+            },
+        )
+        self.radio_session_id = result.get("radioSessionId")
+        self.batch_id = result.get("batchId")
+        tracks = self._tracks_from(result)
+        self._seen = {str(t.id) for t in tracks}
+        await self._send_feedback("radioStarted", **{"from": "cloudmus"})
 
         return {
             "stationId": self.station,
@@ -79,54 +124,42 @@ class RadioSession:
         }
 
     async def _top_up(self, played_track_id: str) -> None:
-        # queue=played_track_id tells the rotor API to advance the chain
-        # past the track that was just finished/skipped — the yandex_music
-        # library's own rotor_station_tracks() docstring documents this as
-        # required ("1. pass the id of the track that came before"); without
-        # it the API just re-returns the same batch head every time, which
-        # is why the wave used to appear stuck replaying the same tracks.
-        result = await asyncio.to_thread(self.client.rotor_station_tracks, self.station, queue=played_track_id)
-        if result is None:
+        # queue=[played_track_id] tells the session API to advance the chain
+        # past the track that was just finished/skipped. Unlike the legacy
+        # station flow this is a session-scoped call, so it also updates our
+        # batch_id — feedback events for the *next* batch must reference it.
+        if not self.radio_session_id:
             return
-        self.batch_id = result.batch_id
-        tracks = [seq.track for seq in result.sequence if seq.track]
-        if tracks:
+        result = await asyncio.to_thread(
+            self._post,
+            f"/rotor/session/{self.radio_session_id}/tracks",
+            {"queue": [played_track_id]},
+        )
+        if not result:
+            return
+        self.batch_id = result.get("batchId", self.batch_id)
+        tracks = self._tracks_from(result)
+        # Never re-serve a track the front has already seen this session —
+        # an already-seen track merely advancing past (e.g. the played one
+        # surfacing again) must not be pushed again as a "new" track.
+        fresh = [t for t in tracks if str(t.id) not in self._seen]
+        self._seen.update(str(t.id) for t in tracks)
+
+        if fresh:
             await emit_radio_tracks_added(
                 self._notify,
-                TracksAddedParams(stationId=self.station, tracks=[catalog.to_track(t) for t in tracks]),
+                TracksAddedParams(stationId=self.station, tracks=[catalog.to_track(t) for t in fresh]),
             )
 
     async def track_started(self, track_id: str) -> None:
-        def send() -> None:
-            try:
-                self.client.rotor_station_feedback_track_started(
-                    self.station, track_id, batch_id=self.batch_id
-                )
-            except Exception as e:
-                logger.debug("rotor_station_feedback_track_started failed: %s", e)
-
-        await asyncio.to_thread(send)
+        await self._send_feedback("trackStarted", trackId=track_id)
 
     async def track_finished(self, track_id: str, played_ms: int) -> None:
-        def send() -> None:
-            try:
-                self.client.rotor_station_feedback_track_finished(
-                    self.station, track_id, played_ms / 1000, batch_id=self.batch_id
-                )
-            except Exception as e:
-                logger.debug("rotor_station_feedback_track_finished failed: %s", e)
-
-        await asyncio.to_thread(send)
+        await self._send_feedback(
+            "trackFinished", trackId=track_id, totalPlayedSeconds=played_ms / 1000
+        )
         await self._top_up(track_id)
 
     async def skip(self, track_id: str, played_ms: int) -> None:
-        def send() -> None:
-            try:
-                self.client.rotor_station_feedback_skip(
-                    self.station, track_id, played_ms / 1000, batch_id=self.batch_id
-                )
-            except Exception as e:
-                logger.debug("rotor_station_feedback_skip failed: %s", e)
-
-        await asyncio.to_thread(send)
+        await self._send_feedback("skip", trackId=track_id, totalPlayedSeconds=played_ms / 1000)
         await self._top_up(track_id)
