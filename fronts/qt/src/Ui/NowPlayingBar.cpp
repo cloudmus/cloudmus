@@ -212,7 +212,10 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     durationLabel_->setFont(Theme::tabularFont(Theme::TextStyle::Caption));
     // The seek handle stays visible at all times so the current playback
     // position reads at a glance; the volume one only shows on hover.
-    seekSlider_ = new ThemedSlider(ThemedSlider::Scheme::Accent, ThemedSlider::HandleVisibility::Always, this);
+    auto* seekSlider = new ThemedSlider(ThemedSlider::Scheme::Accent, ThemedSlider::HandleVisibility::Always, this);
+    // The slider's range is the track's duration in ms — show where the drag would seek to.
+    seekSlider->setValueBubble([](int positionMs) { return formatDuration(positionMs); });
+    seekSlider_ = seekSlider;
     seekSlider_->setObjectName(QStringLiteral("seekSlider"));
     seekSlider_->setRange(0, 0);
     seekSlider_->setEnabled(false);
@@ -221,7 +224,9 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
         userIsDraggingSeek_ = false;
         emit seekRequested(seekSlider_->value());
     });
-    volumeSlider_ = new ThemedSlider(ThemedSlider::Scheme::Neutral, ThemedSlider::HandleVisibility::OnHover, this);
+    auto* volumeSlider = new ThemedSlider(ThemedSlider::Scheme::Neutral, ThemedSlider::HandleVisibility::OnHover, this);
+    volumeSlider->setValueBubble([](int volume) { return QStringLiteral("%1%").arg(volume); });
+    volumeSlider_ = volumeSlider;
     volumeSlider_->setObjectName(QStringLiteral("volumeSlider"));
     volumeSlider_->setRange(0, 100);
     volumeSlider_->setFixedWidth(100);

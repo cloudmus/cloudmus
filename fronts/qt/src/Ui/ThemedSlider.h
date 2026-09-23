@@ -1,6 +1,9 @@
 #pragma once
 
+#include <QPointer>
 #include <QSlider>
+
+#include <functional>
 
 class QVariantAnimation;
 
@@ -40,6 +43,12 @@ public:
     void setScheme(Scheme scheme);
     void setHandleVisibility(HandleVisibility handleVisibility);
 
+    // Turns such a slider's value bubble on: while the handle is dragged,
+    // a small label with `format(value)` floats above it, fading/popping
+    // in on press and out on release. An empty function turns it off.
+    using BubbleFormatter = std::function<QString(int value)>;
+    void setValueBubble(BubbleFormatter format);
+
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
@@ -50,12 +59,23 @@ protected:
 
 private:
     void refreshEngaged();
+    // Handle center in this widget's coordinates — shared by paintEvent()
+    // and the bubble so the bubble's pointer sits exactly on the handle.
+    QPointF handleCenter() const;
+    void showBubble();
+    void updateBubble();
+    void hideBubble();
 
     Scheme scheme_;
     HandleVisibility handleVisibility_;
     // 0 = at rest, 1 = hovered/dragged; animated between the two.
     qreal engagedProgress_ = 0.0;
     QVariantAnimation* engagedAnim_ = nullptr;
+
+    BubbleFormatter bubbleFormat_;
+    // A child of window(), not of this slider: it floats above the slider,
+    // outside its own (handle-high) bounds. QPointer — the window owns it.
+    QPointer<QWidget> bubble_;
 };
 
 } // namespace Ui
