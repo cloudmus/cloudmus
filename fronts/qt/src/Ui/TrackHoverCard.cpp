@@ -16,6 +16,7 @@
 #include "Radius.h"
 #include "Shadow.h"
 #include "Spacing.h"
+#include "TextLayout.h"
 #include "Tokens.h"
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
@@ -241,50 +242,17 @@ private:
 
     static int wrappedHeight(const QFont& font, const QString& text, int maxLines)
     {
-        if (text.isEmpty())
-            return 0;
-        const QFontMetrics metrics(font);
-        const int full = metrics.boundingRect(QRect(0, 0, kCoverSide, INT_MAX), Qt::TextWordWrap, text).height();
-        return qMin(full, maxLines * metrics.lineSpacing());
+        return TextLayout::wrappedHeight(font, text, kCoverSide, maxLines);
     }
 
-    // Draws `text` word-wrapped into at most `maxLines` lines (eliding the
-    // last one) and returns the y just below it.
+    // Draws `text` wrapped into at most `maxLines` lines (the last elided)
+    // and returns the y just below it.
     static int drawWrapped(QPainter& painter, const QFont& font, const QColor& color, const QString& text, int x, int y,
         int width, int maxLines)
     {
-        if (text.isEmpty())
-            return y;
-        const int height = wrappedHeight(font, text, maxLines);
-        const QFontMetrics metrics(font);
-        painter.setFont(font);
+        const int height = TextLayout::wrappedHeight(font, text, width, maxLines);
         painter.setPen(color);
-        const int fullHeight = metrics.boundingRect(QRect(0, 0, width, INT_MAX), Qt::TextWordWrap, text).height();
-        if (fullHeight <= height) {
-            painter.drawText(QRect(x, y, width, height), Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, text);
-        } else {
-            // Too long: first lines as they wrap, the last one elided.
-            QString remaining = text;
-            int lineY = y;
-            for (int line = 0; line < maxLines; ++line) {
-                const bool last = line == maxLines - 1;
-                QString lineText;
-                if (last) {
-                    lineText = metrics.elidedText(remaining, Qt::ElideRight, width);
-                } else {
-                    int cut = remaining.size();
-                    while (cut > 0 && metrics.horizontalAdvance(remaining.left(cut)) > width) {
-                        const int space = remaining.lastIndexOf(QLatin1Char(' '), cut - 1);
-                        cut = space > 0 ? space : cut - 1;
-                    }
-                    lineText = remaining.left(cut);
-                    remaining = remaining.mid(cut).trimmed();
-                }
-                painter.drawText(
-                    QRect(x, lineY, width, metrics.lineSpacing()), Qt::AlignLeft | Qt::AlignVCenter, lineText);
-                lineY += metrics.lineSpacing();
-            }
-        }
+        TextLayout::drawWrapped(painter, font, QRect(x, y, width, height), Qt::AlignLeft, text, maxLines);
         return y + height;
     }
 

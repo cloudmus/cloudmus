@@ -16,6 +16,7 @@
 #include "Metrics.h"
 #include "Radius.h"
 #include "Spacing.h"
+#include "TextLayout.h"
 #include "Typography.h"
 
 namespace Ui {
@@ -48,6 +49,11 @@ const TransitionEffect kTextExit { 200, QEasingCurve::InQuad, { 0.0, 1.0 } };
 // would let the window behind show through mid-transition.
 const TransitionEffect kBackgroundEnter { 500, QEasingCurve::InOutQuad, { 0.0, 1.0 } };
 const TransitionEffect kBackgroundExit { 500, QEasingCurve::Linear, { 1.0, 1.0 } };
+
+// Long titles wrap instead of running off the panel's edges; past these
+// line counts the last line is elided.
+constexpr int kTitleMaxLines = 2;
+constexpr int kSubtitleMaxLines = 3;
 
 const QColor kWhiteText = QColor(255, 255, 255);
 const QColor kWhiteSubtext = QColor(255, 255, 255, 220);
@@ -198,7 +204,7 @@ void HeroPanel::setTextLayer(LayerTransition<TextLayer>& layer, const QString& t
     if (text.isEmpty())
         layer.hide();
     else
-        layer.show(TextLayer { text, QRect(), 0 });
+        layer.show(TextLayer { text, QRect(), Qt::AlignLeft, 1 });
 }
 
 void HeroPanel::setPlayButtonVisible(bool visible)
@@ -235,12 +241,8 @@ int HeroPanel::heightForWidth(int w) const
     const int coverSide = hasCover ? overlayTargetSide() : 0;
     const bool showButton = isPromo_ && playButtonVisible_;
 
-    const QFontMetrics titleMetrics(titleFont_);
-    const QFontMetrics subtitleMetrics(subtitleFont_);
-    const int titleHeight = titleText_.isEmpty() ? 0 : titleMetrics.height();
-    const int subtitleHeight = subtitleText_.isEmpty()
-        ? 0
-        : subtitleMetrics.boundingRect(QRect(0, 0, availWidth, INT_MAX), Qt::TextWordWrap, subtitleText_).height();
+    const int titleHeight = TextLayout::wrappedHeight(titleFont_, titleText_, availWidth, kTitleMaxLines);
+    const int subtitleHeight = TextLayout::wrappedHeight(subtitleFont_, subtitleText_, availWidth, kSubtitleMaxLines);
     // size(), not sizeHint(): the button is fixed at 40x40 (design system's
     // circular play-button spec) via setFixedSize() in the constructor,
     // not laid out by a QLayout that would otherwise respect that
@@ -303,12 +305,9 @@ void HeroPanel::relayout()
     const int coverSide = hasCover ? overlayTargetSide() : 0;
     const bool showButton = isPromo_ && playButtonVisible_;
 
-    const QFontMetrics titleMetrics(titleFont_);
-    const QFontMetrics subtitleMetrics(subtitleFont_);
-    const int titleHeight = titleText_.isEmpty() ? 0 : titleMetrics.height();
-    const int subtitleHeight = subtitleText_.isEmpty()
-        ? 0
-        : subtitleMetrics.boundingRect(QRect(0, 0, avail.width(), INT_MAX), Qt::TextWordWrap, subtitleText_).height();
+    const int titleHeight = TextLayout::wrappedHeight(titleFont_, titleText_, avail.width(), kTitleMaxLines);
+    const int subtitleHeight
+        = TextLayout::wrappedHeight(subtitleFont_, subtitleText_, avail.width(), kSubtitleMaxLines);
     const QSize buttonSize = playButton_->size(); // fixed 40x40 — see heightForWidth()'s comment
 
     int totalHeight = 0;
@@ -345,11 +344,13 @@ void HeroPanel::relayout()
         cover->rect = coverRect_;
     if (TextLayer* title = titleLayer_.current()) {
         title->rect = titleRect_;
-        title->flags = textAlign | Qt::AlignVCenter;
+        title->align = textAlign;
+        title->maxLines = kTitleMaxLines;
     }
     if (TextLayer* subtitle = subtitleLayer_.current()) {
         subtitle->rect = subtitleRect_;
-        subtitle->flags = textAlign | Qt::TextWordWrap;
+        subtitle->align = textAlign;
+        subtitle->maxLines = kSubtitleMaxLines;
     }
 
     if (showButton) {
@@ -425,9 +426,8 @@ void HeroPanel::paintEvent(QPaintEvent* event)
                 return;
             painter.save();
             applyLayerState(painter, state, QRectF(text.rect).center());
-            painter.setFont(font);
             painter.setPen(color);
-            painter.drawText(text.rect, text.flags, text.text);
+            TextLayout::drawWrapped(painter, font, text.rect, text.align, text.text, text.maxLines);
             painter.restore();
         };
     };

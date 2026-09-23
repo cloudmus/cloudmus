@@ -104,7 +104,8 @@ private:
     struct TextLayer {
         QString text;
         QRect rect;
-        int flags; // QPainter::drawText() alignment/wrap flags
+        Qt::Alignment align; // horizontal
+        int maxLines; // wrapped, the last line elided — see TextLayout
     };
     void applyContent(const Content& content);
     void regenerateSizedLayers();

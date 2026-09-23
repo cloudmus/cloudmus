@@ -1,5 +1,8 @@
 #include "CoverArtCache.h"
 
+#include "GeneratedCoverArt.h"
+
+#include <QImage>
 #include <QNetworkDiskCache>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -12,8 +15,8 @@ CoverArtCache::CoverArtCache(QObject* parent)
     : QObject(parent)
 {
     auto* diskCache = new QNetworkDiskCache(this);
-    diskCache->setCacheDirectory(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
-                                 + QStringLiteral("/cloudmus/covers"));
+    diskCache->setCacheDirectory(
+        QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/covers"));
     network_.setCache(diskCache);
     memoryCache_.setMaxCost(64);
 }
@@ -52,14 +55,14 @@ void CoverArtCache::fetch(const QString& url, QSize targetSize)
         if (reply->error() != QNetworkReply::NoError)
             return;
 
-        QPixmap full;
+        QImage full;
         if (!full.loadFromData(reply->readAll()))
             return;
         // Decode-and-downscale immediately so the in-memory cache never
-        // holds a full-resolution image.
-        QPixmap* scaled
-            = new QPixmap(full.scaled(targetSize, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation));
-        memoryCache_.insert(key, scaled);
+        // holds a full-resolution image — and to exactly targetSize, with
+        // a non-square cover fitted over its own blur rather than
+        // stretched by whoever draws it into a square (see fitCover()).
+        memoryCache_.insert(key, new QPixmap(fitCover(full, targetSize)));
         emit pixmapReady(url);
     });
 }

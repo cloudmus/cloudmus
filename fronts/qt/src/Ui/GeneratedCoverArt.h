@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QColor>
+#include <QImage>
 #include <QPixmap>
 #include <QSize>
 #include <QString>
@@ -32,5 +33,13 @@ QPixmap generateMeshAuraGradientCover(const QString& title, const QSize& size);
 // backdrop. Painted over the cover, the two together look like the cover
 // softly dissolving into `color` at the edges.
 QPixmap generateMeshAuraEdgeFade(const QSize& size, const QColor& color);
+
+// `source` at exactly `target` size without distorting it: a cover that
+// isn't the target's shape is fitted inside (aspect kept, centered) over a
+// blurred, slightly dimmed copy of itself scaled to fill the whole target
+// — the usual "letterbox with its own blur" treatment, so a non-square
+// cover drawn into a square slot neither stretches nor gets cropped.
+// Covers already (nearly) the target's shape are just scaled.
+QPixmap fitCover(const QImage& source, const QSize& target);
 
 } // namespace Ui

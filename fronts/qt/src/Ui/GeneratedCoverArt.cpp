@@ -204,4 +204,37 @@ QPixmap generateMeshAuraEdgeFade(const QSize& size, const QColor& color)
     return QPixmap::fromImage(fade);
 }
 
+QPixmap fitCover(const QImage& source, const QSize& target)
+{
+    if (source.isNull() || target.isEmpty())
+        return { };
+    const qreal sourceAspect = qreal(source.width()) / source.height();
+    const qreal targetAspect = qreal(target.width()) / target.height();
+    if (qAbs(sourceAspect / targetAspect - 1.0) < 0.02)
+        return QPixmap::fromImage(source.scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+
+    // Background: the cover filling the whole target, blurred. Rendered
+    // with a margin and cropped after, like the mesh cover, so the blur
+    // doesn't pull transparency in at the edges.
+    const qreal radius = qMax(4.0, target.width() / 10.0);
+    const int pad = qCeil(radius * 2.0);
+    const QSize padded = target + QSize(2 * pad, 2 * pad);
+    QImage fill = source.scaled(padded, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+    fill = fill.copy((fill.width() - padded.width()) / 2, (fill.height() - padded.height()) / 2, padded.width(),
+                   padded.height())
+               .convertToFormat(QImage::Format_ARGB32_Premultiplied);
+    const QImage background = blurImage(fill, radius).copy(pad, pad, target.width(), target.height());
+
+    QImage out(target, QImage::Format_ARGB32_Premultiplied);
+    out.fill(Qt::black);
+    QPainter painter(&out);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
+    painter.drawImage(0, 0, background);
+    painter.fillRect(out.rect(), QColor(0, 0, 0, 60)); // so the real cover stands out from its blur
+    const QImage fitted = source.scaled(target, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    painter.drawImage((target.width() - fitted.width()) / 2, (target.height() - fitted.height()) / 2, fitted);
+    painter.end();
+    return QPixmap::fromImage(out);
+}
+
 } // namespace Ui
