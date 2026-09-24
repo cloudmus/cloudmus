@@ -18,6 +18,7 @@
 #include "AnimatedPresenter.h"
 #include "CoverArtCache.h"
 #include "GeneratedCoverArt.h"
+#include "HeroPanel.h"
 #include "Icons.h"
 #include "Metrics.h"
 #include "OverlayScrollBar.h"
@@ -43,23 +44,6 @@ constexpr int kCoverSide = 56;
 // short one reads as the page arriving. See AnimatedPresenter.
 const TransitionEffect kSheetEnter { 280, QEasingCurve::OutCubic, { 0.0, 1.0, QPointF(-80.0, 0.0) } };
 const TransitionEffect kSheetExit { 220, QEasingCurve::InCubic, { 0.0, 1.0, QPointF(-80.0, 0.0) } };
-
-// The radio page's hint text, painted with the current palette.
-class RadioHint : public QWidget {
-public:
-    using QWidget::QWidget;
-
-protected:
-    void paintEvent(QPaintEvent*) override
-    {
-        QPainter painter(this);
-        painter.setFont(Theme::font(Theme::TextStyle::BodySecondary));
-        painter.setPen(Theme::palette().inkSecondary);
-        painter.drawText(rect().adjusted(Theme::Spacing::space4, Theme::Spacing::space4, -Theme::Spacing::space4, 0),
-            Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap,
-            tr("A continuous radio station — press Play to start listening."));
-    }
-};
 
 } // namespace
 
@@ -289,13 +273,10 @@ PlaylistSheet::PlaylistSheet(CoverArtCache* coverCache, QWidget* parent)
     busyIndicator_->hide();
     trackView_->installEventFilter(this);
 
-    radioPage_ = new RadioHint(this);
-
     sourcePanel_ = new SourcePanel(coverCache, this);
 
     pages_ = new QStackedWidget(this);
     pages_->addWidget(trackView_);
-    pages_->addWidget(radioPage_);
     pages_->addWidget(sourcePanel_);
 
     auto* layout = new QVBoxLayout(this);
@@ -309,6 +290,24 @@ PlaylistSheet::PlaylistSheet(CoverArtCache* coverCache, QWidget* parent)
     headerBlock->addWidget(filterEdit_);
     layout->addLayout(headerBlock);
     layout->addWidget(pages_, 1);
+
+    // Not a pages_ page: it covers the whole sheet, header row included, so
+    // the gradient runs to the top edge like the main screen's hero. The
+    // back button stays where it is on every other page, raised over it.
+    radioHero_ = new HeroPanel(coverCache, this);
+    radioHero_->setFillMode(true);
+    radioHero_->setPlayButtonVisible(true);
+    radioHero_->hide();
+    connect(radioHero_, &HeroPanel::playClicked, this, &PlaylistSheet::playAllClicked);
+    backButton_->raise();
+    // The radio page hides the header's title block and the pages under the
+    // hero; they keep their space so the back button stays top-left instead
+    // of the layouts centering it as their only visible item.
+    for (QWidget* widget : { static_cast<QWidget*>(headerInfo_), static_cast<QWidget*>(pages_) }) {
+        QSizePolicy policy = widget->sizePolicy();
+        policy.setRetainSizeWhenHidden(true);
+        widget->setSizePolicy(policy);
+    }
 
     // Window-wide, not just while focus is inside the sheet: clicking the
     // sidebar to open it leaves focus there. Enabled only while presented.
@@ -337,6 +336,8 @@ void PlaylistSheet::setHeader(const QString& title, const QString& subtitle, con
 void PlaylistSheet::showTracks(
     const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed, bool canPlayAll)
 {
+    radioHero_->hide();
+    pages_->show();
     setHeader(title, subtitle, coverUrl, coverSeed);
     playAllButton_->setVisible(canPlayAll);
     filterEdit_->clear();
@@ -345,18 +346,22 @@ void PlaylistSheet::showTracks(
     trackView_->scrollToTop();
 }
 
-void PlaylistSheet::showRadio(
-    const QString& title, const QString& description, const QString& coverUrl, const QString& coverSeed)
+void PlaylistSheet::showRadio(const Playlist& station)
 {
-    setHeader(title, description, coverUrl, coverSeed);
-    playAllButton_->show();
+    radioHero_->setPlaylist(station);
+    radioHero_->setGeometry(rect());
+    radioHero_->show();
+    headerInfo_->hide();
+    playAllButton_->hide();
     filterEdit_->hide();
-    pages_->setCurrentWidget(radioPage_);
+    pages_->hide(); // covered anyway; hidden so Tab doesn't wander into it
     setBusy(false);
 }
 
 void PlaylistSheet::showSource(const QString& name, const QString& description, const QString& iconPath)
 {
+    radioHero_->hide();
+    pages_->show();
     setHeader(name, description, QString(), name, iconPath);
     playAllButton_->hide();
     filterEdit_->hide();
@@ -390,6 +395,12 @@ void PlaylistSheet::paintEvent(QPaintEvent*)
 {
     // Opaque: the sheet fully covers the active playlist underneath.
     QPainter(this).fillRect(rect(), Theme::palette().surface0);
+}
+
+void PlaylistSheet::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    radioHero_->setGeometry(rect());
 }
 
 bool PlaylistSheet::eventFilter(QObject* watched, QEvent* event)

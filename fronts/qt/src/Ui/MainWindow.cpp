@@ -62,6 +62,16 @@ namespace {
 // "I clicked X and nothing happened" has something to look at in the
 // console even if the toast was missed.
 Q_LOGGING_CATEGORY(lcMainWindow, "cloudmus.ui.mainwindow")
+
+// A station as a HeroPanel promotes it (the sheet's radio page, and the
+// main screen before it starts): one without a description of its own
+// (YouTube's "My Supermix") says what it is, instead of a bare title.
+Playlist radioPromo(Playlist station)
+{
+    if (station.description.value_or(QString()).isEmpty())
+        station.description = MainWindow::tr("A continuous radio station");
+    return station;
+}
 } // namespace
 
 MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackController& playback,
@@ -875,7 +885,7 @@ void MainWindow::refreshHero()
         heroPanel_->clearNowPlaying();
         return;
     }
-    heroPanel_->setPlaylist(activeContext_.playlist);
+    heroPanel_->setPlaylist(activeContext_.isRadio() ? radioPromo(activeContext_.playlist) : activeContext_.playlist);
     heroPanel_->setPlayButtonVisible(true);
 }
 
@@ -921,7 +931,7 @@ Rpc::Task<void> MainWindow::openInSheetAsync(QString sourceId, Playlist playlist
     const QString coverUrl = playlist.coverUrl.value_or(QString());
     if (sheetContext_.isRadio()) {
         sheet_->trackModel()->clear();
-        sheet_->showRadio(playlist.title, playlist.description.value_or(QString()), coverUrl, playlist.title);
+        sheet_->showRadio(radioPromo(playlist));
         sheet_->present();
         co_return;
     }

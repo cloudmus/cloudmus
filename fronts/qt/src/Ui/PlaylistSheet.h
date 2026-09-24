@@ -2,6 +2,8 @@
 
 #include <QWidget>
 
+#include "Models.h"
+
 class QLineEdit;
 class QListView;
 class QProgressBar;
@@ -14,6 +16,7 @@ namespace Ui {
 
 class AnimatedPresenter;
 class CoverArtCache;
+class HeroPanel;
 class SourcePanel;
 class TrackListModel;
 class TrackRowDelegate;
@@ -39,8 +42,11 @@ public:
     // `canPlayAll` shows the header's Play button. Clears the filter.
     void showTracks(const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed,
         bool canPlayAll);
-    // A continuous radio station: no list, just the header and Play.
-    void showRadio(const QString& title, const QString& description, const QString& coverUrl, const QString& coverSeed);
+    // A continuous radio station: nothing to list, so the whole sheet is a
+    // HeroPanel promoting it — gradient background, big cover, title,
+    // description and Play (which emits playAllClicked()) — as the main
+    // screen shows an idle active station. Only the back button stays.
+    void showRadio(const Playlist& station);
     // A backend's page — sourcePanel(), filled by MainWindow. The header
     // shows the source like a playlist: a generated cover with the
     // source's own icon (`iconPath`, may be empty), name and description.
@@ -70,6 +76,7 @@ signals:
 
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
@@ -86,7 +93,7 @@ private:
     QLineEdit* filterEdit_ = nullptr;
     QStackedWidget* pages_ = nullptr;
     QListView* trackView_ = nullptr;
-    QWidget* radioPage_ = nullptr;
+    HeroPanel* radioHero_ = nullptr; // over the whole sheet, under backButton_
     QProgressBar* busyIndicator_ = nullptr;
     SourcePanel* sourcePanel_ = nullptr;
     TrackListModel* trackModel_ = nullptr;
