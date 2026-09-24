@@ -1,0 +1,87 @@
+# X.X.X (2026-09-24)
+
+- Build the AppImage in GitHub Actions and attach it to releases
+- Tray: like/dislike and playlists; Show/Hide restores a minimized window
+- Place submenus flush with their parent menu's panel
+- In-app toasts: countdown bar, close button, animated entrance and regroup
+- Add/remove the track to/from playlists from the toolbar and track menu
+- Style check boxes and radio buttons in menus
+- Protocol + backends: editing the user's playlists
+- Notifications: every track, with cover and app icon; click shows player
+- Rework the About dialog; version from git describe; compact buttons
+- Fix smooth-scroll jump; smooth-scroll the backend page
+- Square track-row fills in full-width lists, rounded only when inset
+- Fade track covers in over the placeholder once they load
+- Yandex: waves from a track follow its style; keep the queue on finish
+- Add animated edge fades to scrollable lists
+- Rework the backend page; stable sidebar order and selection
+- Higher-contrast light theme; flat menu hover; white row play icon
+- Fit non-square covers over their own blur; wrap long titles
+- Replace the sheet's close button with a round back button on the left
+- Add an animated value bubble to ThemedSlider
+- Qt: active playlist + browse sheet, queue view, shared track state
+- Protocol: Track.disliked and radio replaceUpcoming; Yandex like cache
+- Add backend and history icons to the sidebar
+- Replace ThemedSplitter hacks with CloudMusStyle splitter metrics
+- Add layer transitions and animate HeroPanel content changes
+- Replace slider QSS with a self-painted animated ThemedSlider
+- Raise catalog.listPlaylists timeout and surface fetch failures
+- Fix silent playback after starting a track while paused
+- Add sidebar context menu, always-visible backends, and loading icon
+- Migrate Yandex wave to the session rotor API with dedup
+- Try to play wave from track with Yandex Music
+- Download audio from Youtube Music
+- Fix stylesheet strings
+- cloudmus-qt: track list context menu, downloads toolbar button
+- Fix Yandex wave replaying the same tracks forever
+- Add like/dislike toolbar buttons, feedback.unlike/undislike methods
+- cloudmus-qt: style Settings/About per the design system
+- cloudmus-qt: genuinely round QMenu via a custom QStyle, fix tooltip
+- cloudmus-qt: double the hero panel's cover art corner radius
+- cloudmus-qt: round the hero panel's cover art corners
+- Recolor main logo to coral, sync app's stale bundled copies
+- cloudmus-qt: fix empty-state and track-list background colors
+- cloudmus-qt: halve the splitter's mouse-grab margin
+- cloudmus-qt: fix overlay scrollbar visibility edge cases
+- cloudmus-qt: add thin themed splitter handles with a wide grab zone
+- cloudmus-qt: add macOS/GNOME-style overlay scrollbars
+- cloudmus-qt: fix hover play-icon color and equalizer glyph centering
+- cloudmus-qt: add eased mouse-wheel scrolling, reusable across views
+- cloudmus-qt: fix AppImage runtime crashes on real-machine testing
+- cloudmus-qt: bump AppImage Qt to 6.9.3, plan QStyle migration
+- cloudmus-qt: apply CloudMus design system, sidebar hover delegate
+- cloudmus-qt: fix cursor, tray icon, and window icon under AppImage
+- Add AppImage packaging for cloudmus-qt, bundling Python backends
+- cloudmus-qt: fix open-track-page button icon, group it separately
+- cloudmus-qt: add an "open track page" button to the playback bar
+- cloudmus-qt: redesign playback bar/hero panel, declarative controls
+- Add README and MIT license
+- cloudmus-qt: fix PlaylistHeader dual-mode bug, banner/eliding polish
+- cloudmus-qt: per-source auth panel, async-action feedback, PlaylistHeader modes
+- Add a youtube-music backend (browser-cookie auth, catalog, playback)
+- Protocol: add optional source.description and auth field multiline hint
+- cloudmus-qt: use a theme icon for the volume slider, not an emoji glyph
+- cloudmus-qt: two-row NowPlayingBar layout, menu button into the button row
+- cloudmus-qt: generate deterministic playlist covers when there's no real one
+- cloudmus-qt: fix PlaylistHeader min-size, split its layout by playlist kind
+- Ignore Qt Creator's local project state under fronts/qt/.qtcreator/
+- cloudmus-qt: content-driven PlaylistHeader height, show played-at in History
+- cloudmus-qt: double-click a sidebar playlist to play it, sidebar UI polish
+- cloudmus-qt: replace Qt Multimedia with libmpv for audio playback
+- Log full RPC params/results and every outbound Yandex Music HTTP call
+- Fix dangling reference that could blank out cover/title during My Wave
+- cloudmus-qt: hover play button over the cover thumbnail in track rows
+- cloudmus-qt: persist playback history and add a History playlist
+- Rename displayed app name to CloudMus
+- Log every RPC dispatch and mirror backend stderr live in the Qt front
+- cloudmus-qt: merge now-playing bar into the top toolbar
+- cloudmus-qt: use bundled app icon and tray icon
+- Stop auto-playing My Wave: playlists get cover/description/Play button
+- Add cloudmus-qt: pure C++20/Qt6 desktop frontend for cloudmus
+- Make the protocol schema-first with generated Python/C++ stubs
+- Split cloudmus into fronts/ and backends/ over JSON-RPC 2.0
+- Fix playback stopping after track ends and add retry-with-backoff for track transitions
+- Add architecture plan and protocol spec for cloudmus source/front split
+- Add portable build pipeline and fix packaged-app runtime issues
+- Add ym-player: console client and TUI player for Yandex Music
+
