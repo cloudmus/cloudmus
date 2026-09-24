@@ -50,6 +50,10 @@ public:
         QWidget* parent = nullptr);
     ~MainWindow() override;
 
+    // Shared with integrations that show the current track's cover (the
+    // desktop notification).
+    CoverArtCache* coverArtCache() const { return coverArtCache_; }
+
     // Called by the tray's Quit action — bypasses close-to-tray.
     void quitForReal();
 

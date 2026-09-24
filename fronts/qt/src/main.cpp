@@ -3,7 +3,10 @@
 #include <QSize>
 #include <QStyleFactory>
 
+#include <memory>
+
 #include "Coro.h"
+#include "CoverArtCache.h"
 #include "Fonts.h"
 #include "GlobalShortcuts.h"
 #include "Logging.h"
@@ -19,6 +22,7 @@
 #include "ThemedToolTip.h"
 #include "TrayIcon.h"
 #include "Typography.h"
+#include "Version.h"
 
 namespace {
 
@@ -56,6 +60,7 @@ int main(int argc, char** argv)
     QApplication::setStyle(new Theme::CloudMusStyle(QStyleFactory::create(QStringLiteral("Fusion"))));
     QApplication::setOrganizationName(QStringLiteral("cloudmus"));
     QApplication::setApplicationName(QStringLiteral("cloudmus-qt"));
+    QApplication::setApplicationVersion(QStringLiteral(CLOUDMUS_VERSION));
     // Must match the "cloudmus-qt.desktop" basename AppRun installs to
     // ~/.local/share/applications/ (see AppRun's own comment) — without a
     // consistent app_id tying the two together, Wayland compositors that
@@ -126,15 +131,57 @@ int main(int argc, char** argv)
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &window, &Ui::MainWindow::quitForReal);
 
     Integration::NotificationToast notificationToast;
+    // The notification carries the track's cover from the UI's own cache.
+    // If it's still loading, the notification goes out right away without
+    // it and is updated in place once it arrives (while still on screen).
+    struct PendingCover {
+        QString url;
+        QString title;
+        QString artists;
+    };
+    auto pendingCover = std::make_shared<PendingCover>();
+    const QSize notificationCoverSize(256, 256);
+    Ui::CoverArtCache* coverCache = window.coverArtCache();
     QObject::connect(&playback, &Playback::PlaybackController::trackChanged, &notificationToast,
-        [&notificationToast](const Track& track, const QString&) {
+        [&notificationToast, coverCache, pendingCover, notificationCoverSize](const Track& track, const QString&) {
             QString artists;
             for (int i = 0; i < track.artists.size(); ++i) {
                 if (i > 0)
                     artists += QStringLiteral(", ");
                 artists += track.artists[i].name;
             }
-            notificationToast.showTrackChange(track.title, artists, QPixmap());
+            QString coverUrl = track.coverUrl.value_or(QString());
+            if (coverUrl.isEmpty() && track.album.has_value())
+                coverUrl = track.album->coverUrl.value_or(QString());
+            const QPixmap cover = coverUrl.isEmpty() ? QPixmap() : coverCache->pixmap(coverUrl, notificationCoverSize);
+            *pendingCover = { cover.isNull() ? coverUrl : QString(), track.title, artists };
+            notificationToast.showTrackChange(track.title, artists, cover);
+        });
+    // Clicking the notification brings the player window up — out of the
+    // tray, from minimized, or from behind other windows.
+    QObject::connect(&notificationToast, &Integration::NotificationToast::activated, &window,
+        [&window](const QString& activationToken) {
+            // On Wayland a window may only take focus with a token from the
+            // compositor; Qt's Wayland backend picks it up from this
+            // variable when the window requests activation.
+            if (!activationToken.isEmpty())
+                qputenv("XDG_ACTIVATION_TOKEN", activationToken.toUtf8());
+            if (window.isMinimized())
+                window.showNormal();
+            else
+                window.show();
+            window.raise();
+            window.activateWindow();
+        });
+    QObject::connect(coverCache, &Ui::CoverArtCache::pixmapReady, &notificationToast,
+        [&notificationToast, coverCache, pendingCover, notificationCoverSize](const QString& url) {
+            if (pendingCover->url.isEmpty() || url != pendingCover->url)
+                return;
+            const QPixmap cover = coverCache->pixmap(url, notificationCoverSize);
+            if (cover.isNull())
+                return; // another size of the same URL landed; ours is still coming
+            pendingCover->url.clear();
+            notificationToast.updateCover(pendingCover->title, pendingCover->artists, cover);
         });
 
     Integration::GlobalShortcuts globalShortcuts;
