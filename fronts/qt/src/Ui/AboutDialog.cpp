@@ -230,6 +230,15 @@ AboutDialog::AboutDialog(QWidget* parent)
     root->addWidget(pages, 1); // takes any extra height when resized
     root->addSpacing(Theme::Spacing::space4);
     root->addWidget(buttons);
+
+    // Sized here, not left to show()'s adjustSize(): show() creates the
+    // native window first, at QWidget's default 100×30, and on Wayland,
+    // when the dialog opens on a screen with another scale than the one Qt
+    // guessed (e.g. a 150% laptop panel next to a 100% monitor), the
+    // screen change replays that stale 100×30 as a resize. At that width
+    // the wrapped description made updateMinimumHeight() demand ~1000px,
+    // and the dialog opened narrow and absurdly tall.
+    resize(sizeHint());
 }
 
 QSize AboutDialog::sizeHint() const
