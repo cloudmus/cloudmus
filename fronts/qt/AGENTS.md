@@ -1,7 +1,23 @@
 # Agent instructions — cloudmus Qt frontend (C++)
 
-Scope: `fronts/qt/` only (the C++20 Qt desktop frontend). The rest of the
-repo is Python and follows its own conventions.
+Scope: `fronts/qt/` only (the C++20 Qt desktop frontend). These rules come
+on top of the repo-wide ones in the root `AGENTS.md` (generated code,
+protocol changes, conventions, commits) — read that first.
+
+## Build and run
+
+```
+cmake -S fronts/qt -B fronts/qt/build
+cmake --build fronts/qt/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
+```
+
+- CMake regenerates the C++ protocol stubs (`fronts/qt/generated/`) itself;
+  no separate `generate.py --lang cpp` step is needed for this build.
+- `CLOUDMUS_QT_DEBUG=1` enables the debug log.
+- Settings live in `~/.config/cloudmus/fronts/qt/config.ini`.
+- The version shown in the app comes from `cmake/Version.cmake`
+  (`git describe`), regenerated on every build.
 
 ## Naming
 
