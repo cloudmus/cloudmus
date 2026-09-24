@@ -5,10 +5,10 @@ In the old monolith the Player owned the queue and decided for itself when
 to fetch more tracks (once the local queue ran low). In this protocol the
 front owns the queue instead (docs/protocol.md §7.1) — the backend only
 gets a chance to react on catalog.startRadio and on each feedback.* call, so
-it pushes the session's recomputed upcoming sequence via radio/tracksAdded
-(with replaceUpcoming, see docs/protocol.md §7.1) whenever a track finishes
-or is skipped: the wave adapts to every play/skip/like, so each batch
-supersedes the previous one's unplayed tracks rather than adding to them.
+it reacts to feedback via radio/tracksAdded: a skip means "not this" and
+replaces the front's unplayed tail with the session's recomputed sequence
+(replaceUpcoming, docs/protocol.md §7.1); a track played to the end leaves
+what's queued alone and only tops the queue up once it runs low.
 
 This backend talks to Yandex's *session* rotor API (/rotor/session/*), not
 the legacy station one (/rotor/station/{station}/feedback): the legacy
@@ -33,6 +33,10 @@ from . import catalog
 
 logger = logging.getLogger(__name__)
 
+# After a track plays to the end, the queue is only topped up (appended to)
+# once fewer than this many served tracks are still waiting to play.
+UPCOMING_LOW_WATER = 3
+
 NotifyFn = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 
@@ -51,11 +55,20 @@ def _resolve_station(seed: str | None) -> str:
     # where this Yandex-specific formatting knowledge belongs (it used to
     # live in the front, which broke once a second radio.RadioSession-style
     # backend — YouTube — started receiving the same seed unprefixed).
+    #
+    # A colon alone doesn't mean "station address", though: this backend's
+    # own Track.id is yandex_music's track_id, "<trackId>:<albumId>" (see
+    # catalog.to_track) — passing that through verbatim sent Yandex a
+    # nonexistent station and it silently fell back to the generic wave,
+    # so "radio from this track" never followed the track at all. A station
+    # type is always a word ("user", "track", "genre", ...); a track id is
+    # numeric.
     if not seed:
         return catalog.WAVE_STATION_ID
-    if ":" in seed:
+    kind, sep, _ = seed.partition(":")
+    if sep and not kind.isdigit():
         return seed
-    return f"track:{seed}"
+    return f"track:{catalog._bare_id(seed)}"
 
 
 class RadioSession:
@@ -69,6 +82,9 @@ class RadioSession:
         # re-served as "upcoming". Tracks merely served (but replaced before
         # being reached) may legitimately come back in a later sequence.
         self._played: set[str] = set()
+        # Tracks served to the front that haven't started yet, in queue
+        # order — the station's own part of the front's upcoming queue.
+        self._upcoming: list[str] = []
 
     def _post(self, path: str, payload: dict) -> dict:
         result = self.client._request.post(f"{self.client.base_url}{path}", json=payload)
@@ -85,6 +101,26 @@ class RadioSession:
                 if t is not None:
                     tracks.append(t)
         return tracks
+
+    def _session_seeds(self, station: str) -> list[str]:
+        # A track-seeded session on its own is the user's personal wave,
+        # only nudged by the track — measured on a folk track it served
+        # house/dance (the account's overall taste) almost exclusively, so
+        # "radio from this track" didn't follow the track's style. Adding
+        # the track's (album) genre as a second seed keeps it in that style
+        # (same probe: folk 10 of 15) while likes/skips still steer it.
+        # Best effort: without a genre it's just the track seed.
+        kind, _, track_id = station.partition(":")
+        if kind != "track":
+            return [station]
+        try:
+            tracks = self.client.tracks([track_id])
+            albums = tracks[0].albums if tracks else None
+            genre = albums[0].genre if albums else None
+        except Exception as e:
+            logger.debug("looking up the seed track's genre failed: %s", e)
+            genre = None
+        return [station, f"genre:{genre}"] if genre else [station]
 
     async def _send_feedback(self, event_type: str, **event: Any) -> None:
         if not self.radio_session_id or not self.batch_id:
@@ -108,11 +144,12 @@ class RadioSession:
         # So the station's tracks carry liked/disliked too (see catalog.LikeCache).
         await asyncio.to_thread(catalog.likes.ensure_loaded, self.client)
 
+        seeds = await asyncio.to_thread(self._session_seeds, self.station)
         result = await asyncio.to_thread(
             self._post,
             "/rotor/session/new",
             {
-                "seeds": [self.station],
+                "seeds": seeds,
                 "includeTracksInResponse": True,
                 "includeWaveModel": True,
                 "interactive": True,
@@ -122,6 +159,7 @@ class RadioSession:
         self.batch_id = result.get("batchId")
         tracks = self._tracks_from(result)
         self._played = set()
+        self._upcoming = [str(t.id) for t in tracks]
         await self._send_feedback("radioStarted", **{"from": "cloudmus"})
 
         return {
@@ -129,7 +167,7 @@ class RadioSession:
             "initialTracks": [catalog.to_track(t).to_dict() for t in tracks],
         }
 
-    async def _top_up(self, played_track_id: str) -> None:
+    async def _top_up(self, played_track_id: str, *, replace: bool) -> None:
         # queue=[played_track_id] tells the session API to advance the chain
         # past the track that was just finished/skipped. Unlike the legacy
         # station flow this is a session-scoped call, so it also updates our
@@ -148,27 +186,43 @@ class RadioSession:
         # The sequence can still start with the track just played (the
         # chain head advancing past it) — only unplayed ones are upcoming.
         upcoming = [t for t in tracks if str(t.id) not in self._played]
+        if replace:
+            # The new sequence supersedes everything still queued.
+            new = upcoming
+            self._upcoming = [str(t.id) for t in new]
+        else:
+            # Appended after what's already queued — skip anything in it.
+            new = [t for t in upcoming if str(t.id) not in self._upcoming]
+            self._upcoming += [str(t.id) for t in new]
 
-        if upcoming:
+        if new:
             await emit_radio_tracks_added(
                 self._notify,
                 TracksAddedParams(
                     stationId=self.station,
-                    tracks=[catalog.to_track(t) for t in upcoming],
-                    replaceUpcoming=True,
+                    tracks=[catalog.to_track(t) for t in new],
+                    replaceUpcoming=replace or None,
                 ),
             )
 
     async def track_started(self, track_id: str) -> None:
-        self._played.add(str(track_id))
+        tid = str(track_id)
+        self._played.add(tid)
+        # Everything queued up to it has been played or jumped past.
+        if tid in self._upcoming:
+            del self._upcoming[: self._upcoming.index(tid) + 1]
         await self._send_feedback("trackStarted", trackId=track_id)
 
     async def track_finished(self, track_id: str, played_ms: int) -> None:
         await self._send_feedback(
             "trackFinished", trackId=track_id, totalPlayedSeconds=played_ms / 1000
         )
-        await self._top_up(track_id)
+        # Played to the end: nothing to correct, keep what's queued. The
+        # feedback above still steers the batches fetched later.
+        if len(self._upcoming) < UPCOMING_LOW_WATER:
+            await self._top_up(track_id, replace=False)
 
     async def skip(self, track_id: str, played_ms: int) -> None:
         await self._send_feedback("skip", trackId=track_id, totalPlayedSeconds=played_ms / 1000)
-        await self._top_up(track_id)
+        # "Not this": let the recomputed sequence replace what's queued.
+        await self._top_up(track_id, replace=True)

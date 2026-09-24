@@ -315,9 +315,11 @@ there is no `catalog.getMoreRadioTracks` pull method; a source decides when
 to top up the queue.
 
 By default the front appends a `radio/tracksAdded` batch to its queue. A
-source whose upstream recomputes the whole upcoming sequence after every
-feedback event (e.g. Yandex's adaptive My Wave, which reacts to skips and
-likes) sets `replaceUpcoming: true` instead: the batch then replaces every
+source whose upstream recomputes the upcoming sequence in reaction to
+feedback may set `replaceUpcoming: true` when that's what the user asked
+for — e.g. Yandex's My Wave does it on a skip ("not this"), but after a
+track played to the end it leaves the queue alone and only appends once it
+runs low. With the flag, the batch replaces every
 queued track after the one currently playing (or starting), so the queue
 stays "already played + the station's current recommendations" rather
 than growing by a full batch per track. Tracks the user queued explicitly

@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 from cloudmus_backend_yandex.radio import RadioSession, _resolve_station
@@ -82,6 +84,13 @@ def test_resolve_station_prefixes_a_bare_track_id():
     # the front, since a second radio-capable backend — YouTube — needs a
     # different shape for the same bare id) and this backend prefixes it.
     assert _resolve_station("12345") == "track:12345"
+
+
+def test_resolve_station_turns_a_track_album_id_into_a_track_station():
+    # Regression: this backend's own Track.id is "<trackId>:<albumId>" —
+    # its colon must not make it pass through as if it were already a
+    # station address (Yandex then silently plays the generic wave).
+    assert _resolve_station("12345:6789") == "track:12345"
 
 
 def test_resolve_station_passes_through_an_already_complete_station_address():
@@ -170,7 +179,7 @@ async def test_top_up_replaces_upcoming_with_unplayed_tracks():
     await session.start(seed=None)
     await session.track_started("1")
 
-    await session._top_up("1")  # advances, server returns a fresh id
+    await session._top_up("1", replace=True)  # advances, server returns a fresh id
     added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
     assert len(added) == 1
     assert added[0]["replaceUpcoming"] is True
@@ -185,10 +194,10 @@ async def test_top_up_never_serves_an_already_played_track_as_upcoming():
     await session.start(seed=None)
     await session.track_started("1")
 
-    await session._top_up("1")
+    await session._top_up("1", replace=True)
     # Alternating call: the server re-serves the queued id, which already
     # played — nothing upcoming is left, so nothing is pushed.
-    await session._top_up("1")
+    await session._top_up("1", replace=True)
     added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
     assert len(added) == 1
 
@@ -202,7 +211,85 @@ async def test_top_up_may_reserve_a_served_but_unplayed_track():
     session = RadioSession(client, notifier)
     await session.start(seed=None)
 
-    await session._top_up("2")
-    await session._top_up("2")  # re-serves "2", unplayed
+    await session._top_up("2", replace=True)
+    await session._top_up("2", replace=True)  # re-serves "2", unplayed
     added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
     assert [t["id"] for t in added[-1]["tracks"]] == ["2"]
+
+
+@pytest.mark.asyncio
+async def test_track_station_adds_the_tracks_genre_as_a_second_seed():
+    # A track seed alone is the personal wave barely nudged by the track;
+    # the track's genre keeps the station in its style.
+    client = _FakeClient()
+    client.tracks = lambda ids: [SimpleNamespace(albums=[SimpleNamespace(genre="folk")])]
+    session = RadioSession(client, _NotifyRecorder())
+    await session.start(seed="150804586:41815842")
+    new = [json for url, json in client.calls if url.endswith("/rotor/session/new")]
+    assert new[0]["seeds"] == ["track:150804586", "genre:folk"]
+    assert session.station == "track:150804586"
+
+
+@pytest.mark.asyncio
+async def test_track_station_falls_back_to_the_track_seed_without_a_genre():
+    client = _FakeClient()  # no tracks() at all — the lookup fails
+    session = RadioSession(client, _NotifyRecorder())
+    await session.start(seed="12345")
+    new = [json for url, json in client.calls if url.endswith("/rotor/session/new")]
+    assert new[0]["seeds"] == ["track:12345"]
+
+
+@pytest.mark.asyncio
+async def test_finished_track_keeps_the_queue_when_enough_is_upcoming():
+    # Played to the end with plenty still queued: nothing is fetched or
+    # pushed, so the front's planned tracks don't change.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    session._upcoming = ["a", "b", "c", "d"]
+
+    await session.track_finished("x", played_ms=180000)
+    assert not any(url.endswith("/tracks") for url, _ in client.calls)
+    assert not [p for m, p in notifier.events if m == "radio/tracksAdded"]
+
+
+@pytest.mark.asyncio
+async def test_finished_track_appends_when_running_low():
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)  # serves "1", "2"
+    await session.track_started("1")  # upcoming: ["2"]
+
+    await session.track_finished("1", played_ms=180000)
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1
+    assert "replaceUpcoming" not in added[0]  # appended, not replacing
+    assert [t["id"] for t in added[0]["tracks"]] == ["3"]
+    assert session._upcoming == ["2", "3"]
+
+
+@pytest.mark.asyncio
+async def test_skip_replaces_the_queued_tracks():
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    await session.track_started("1")
+
+    await session.skip("1", played_ms=5000)
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert added[-1]["replaceUpcoming"] is True
+    assert session._upcoming == [t["id"] for t in added[-1]["tracks"]]
+
+
+@pytest.mark.asyncio
+async def test_track_started_drops_everything_up_to_it_from_upcoming():
+    client = _FakeClient()
+    session = RadioSession(client, _NotifyRecorder())
+    await session.start(seed=None)
+    session._upcoming = ["a", "b", "c", "d"]
+    await session.track_started("c")  # jumped past a, b
+    assert session._upcoming == ["d"]
+
