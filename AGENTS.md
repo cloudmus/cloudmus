@@ -103,7 +103,7 @@ python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local  # pe
 
 ## Changelog
 
-`CHANGELOG.md` is seeded from git by `./update_changelog_from_git.sh`: it
+`CHANGELOG.md` is seeded from git by `./update-changelog-from-git.sh`: it
 inserts a `# X.X.X (<date>)` heading on top with one `- ` bullet per commit
 subject since the last version in the file. `X.X.X` is replaced with the
 real version (the `x.y.z` release tag) when releasing.
@@ -160,7 +160,7 @@ release:
 
 1. Pull fresh tags from GitHub: `git fetch --tags --force origin` (a tag
    may have been moved or created there).
-2. Run `./update_changelog_from_git.sh` to add the commits since the last
+2. Run `./update-changelog-from-git.sh` to add the commits since the last
    release to `CHANGELOG.md` under a new `# X.X.X (<date>)` heading.
 3. Tidy up that section (see "Tidy up CHANGELOG" above).
 4. Pick the version from what the section contains: only bug fixes → a
