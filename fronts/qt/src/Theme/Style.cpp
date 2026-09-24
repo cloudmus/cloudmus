@@ -4,8 +4,10 @@
 #include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
+#include <QScreen>
 #include <QSplitter>
 #include <QStyleOption>
+#include <QWindow>
 
 #include "Metrics.h"
 #include "Radius.h"
@@ -43,6 +45,56 @@ QRect menuPanelRect(const QRect& widgetRect)
 void paintMenuShadow(QPainter* painter, const QRect& panelRect)
 {
     paintSoftShadow(painter, panelRect, kMenuShadowMargin, kMenuShadowOffsetY, kMenuShadowMaxAlpha, Radius::md);
+}
+
+// Places a submenu (window already sized, not yet mapped) beside the
+// parent's panel: its visible panel a small gap off the parent panel's
+// right edge — or its left one when there's no room on the right — and
+// its first item level with the item that opened it. Qt's own placement
+// counts from window edges, i.e. from the shadow margins on both menus.
+void placeSubmenu(QMenu* menu, const QMenu* parentMenu)
+{
+    constexpr int kGap = Spacing::space1;
+    const QRect item = parentMenu->actionGeometry(menu->menuAction());
+    const QRect parentPanel = menuPanelRect(parentMenu->rect());
+    int firstItemTop = kMenuShadowMargin;
+    for (QAction* action : menu->actions()) {
+        if (action->isVisible() && !action->isSeparator()) {
+            firstItemTop = menu->actionGeometry(action).top();
+            break;
+        }
+    }
+    const QPoint rightOf = parentMenu->mapToGlobal(
+        QPoint(parentPanel.right() + 1 + kGap - kMenuShadowMargin, item.top() - firstItemTop));
+    QPoint pos = rightOf;
+    const QRect screen = menu->screen()->availableGeometry();
+    const QRect panelAt = menuPanelRect(QRect(pos, menu->size()));
+    if (panelAt.right() > screen.right()) {
+        const int parentLeft = parentMenu->mapToGlobal(parentPanel.topLeft()).x();
+        pos.setX(parentLeft - kGap - menu->width() + kMenuShadowMargin);
+    }
+    // Keep the panel (not the shadow) within the screen vertically.
+    const int panelBottom = pos.y() + menu->height() - kMenuShadowMargin;
+    if (panelBottom > screen.bottom() + 1)
+        pos.ry() -= panelBottom - (screen.bottom() + 1);
+    pos.setY(qMax(pos.y(), screen.top() - kMenuShadowMargin));
+    menu->move(pos);
+
+    // Wayland: a client can't place its popups — the compositor does, from
+    // an anchor rect in the parent's coordinates, and for a submenu Qt
+    // hands it the parent's item rect, ignoring the move() above. Qt's
+    // Wayland plugin takes these window properties over its own choice:
+    // an anchor rect spanning the same two candidate spots — the submenu's
+    // left edge at its right end, or (flipped when there's no room) its
+    // right edge at its left end — at the height computed above.
+    if (QWindow* window = menu->windowHandle()) {
+        const int rightX = parentPanel.right() + 1 + kGap - kMenuShadowMargin;
+        const int leftX = parentPanel.left() - kGap + kMenuShadowMargin;
+        const QRect anchor(leftX, item.top() - firstItemTop, rightX - leftX, 1);
+        window->setProperty("_q_waylandPopupAnchorRect", anchor);
+        window->setProperty("_q_waylandPopupAnchor", QVariant::fromValue(Qt::Edges(Qt::TopEdge | Qt::RightEdge)));
+        window->setProperty("_q_waylandPopupGravity", QVariant::fromValue(Qt::Edges(Qt::BottomEdge | Qt::RightEdge)));
+    }
 }
 
 // A menu itself, or a widget inside one (e.g. a QCheckBox row put into a
@@ -310,8 +362,16 @@ bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)
         // (flipped near a screen edge to stay on-screen), this fixed
         // offset no longer matches which corner was anchored — accepted,
         // not the reported case and not fixable without private Qt state.
-        if (auto* menu = qobject_cast<QMenu*>(watched))
-            menu->move(menu->pos() - QPoint(kMenuShadowMargin, kMenuShadowMargin));
+        //
+        // A submenu is placed from scratch instead (see placeSubmenu()):
+        // Qt put it by the parent's item, not at a point of the caller's.
+        if (auto* menu = qobject_cast<QMenu*>(watched)) {
+            const auto* parentMenu = qobject_cast<const QMenu*>(menu->parentWidget());
+            if (parentMenu && parentMenu->isVisible() && parentMenu->actions().contains(menu->menuAction()))
+                placeSubmenu(menu, parentMenu);
+            else
+                menu->move(menu->pos() - QPoint(kMenuShadowMargin, kMenuShadowMargin));
+        }
     }
     return QProxyStyle::eventFilter(watched, event);
 }
