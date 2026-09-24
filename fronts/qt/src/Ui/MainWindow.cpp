@@ -22,6 +22,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QWidgetAction>
+#include <QWindow>
 
 #include <optional>
 
@@ -149,6 +150,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
             nowPlayingBar_->setDislikeState(false, false);
             nowPlayingBar_->setDownloadState(false);
             nowPlayingBar_->setPlaylistsState(false);
+            emit nowPlayingFeedbackChanged();
             refreshHero();
             trackRowDelegate_->setCurrentlyPlaying(QString(), QString());
             trackListView_->viewport()->update();
@@ -175,6 +177,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
             refreshNowPlayingFeedback();
             nowPlayingBar_->setDownloadState(capabilities.value(QStringLiteral("download")).toBool());
             nowPlayingBar_->setPlaylistsState(sourceCanEditPlaylists(sourceId));
+            emit nowPlayingFeedbackChanged();
         });
     // HeroPanel shows what's playing instead of the active playlist's
     // promo card whenever playback_.hasCurrentTrack() — see refreshHero(),
@@ -1294,6 +1297,72 @@ void MainWindow::refreshNowPlayingFeedback()
     const Library::TrackState state = trackStates_->state(sourceId, playback_.currentTrack().id);
     nowPlayingBar_->setLikeState(feedback.value(QStringLiteral("like")).toBool(), state.liked.value_or(false));
     nowPlayingBar_->setDislikeState(feedback.value(QStringLiteral("dislike")).toBool(), state.disliked.value_or(false));
+    emit nowPlayingFeedbackChanged();
+}
+
+MainWindow::NowPlayingFeedback MainWindow::nowPlayingFeedback() const
+{
+    NowPlayingFeedback result;
+    if (!playback_.hasCurrentTrack())
+        return result;
+    const QString sourceId = playback_.currentSourceId();
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    const QJsonObject feedback
+        = client != nullptr ? client->capabilities().value(QStringLiteral("feedback")).toObject() : QJsonObject();
+    const Library::TrackState state = trackStates_->state(sourceId, playback_.currentTrack().id);
+    result.likeSupported = feedback.value(QStringLiteral("like")).toBool();
+    result.liked = state.liked.value_or(false);
+    result.dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
+    result.disliked = state.disliked.value_or(false);
+    result.playlistsSupported = sourceCanEditPlaylists(sourceId);
+    return result;
+}
+
+void MainWindow::setNowPlayingLiked(bool liked)
+{
+    if (playback_.hasCurrentTrack())
+        likeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, liked).detach();
+}
+
+void MainWindow::setNowPlayingDisliked(bool disliked)
+{
+    if (playback_.hasCurrentTrack())
+        dislikeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, disliked).detach();
+}
+
+void MainWindow::fillNowPlayingPlaylistsMenu(QMenu* menu)
+{
+    menu->clear();
+    if (!playback_.hasCurrentTrack())
+        return;
+    fillPlaylistsMenuAsync(menu, playback_.currentSourceId(), playback_.currentTrack(), std::nullopt,
+        /*checkActions=*/true)
+        .detach();
+}
+
+bool MainWindow::isOnScreen() const
+{
+    return isVisible() && !isMinimized() && (windowHandle() == nullptr || windowHandle()->isExposed());
+}
+
+void MainWindow::bringToFront(const QString& activationToken)
+{
+    // Qt's Wayland backend picks the token up from this variable when the
+    // window requests activation.
+    if (!activationToken.isEmpty())
+        qputenv("XDG_ACTIVATION_TOKEN", activationToken.toUtf8());
+    setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
+    show();
+    raise();
+    activateWindow();
+}
+
+void MainWindow::toggleShown()
+{
+    if (isOnScreen())
+        hide();
+    else
+        bringToFront();
 }
 
 bool MainWindow::sourceCanEditPlaylists(const QString& sourceId) const
@@ -1318,7 +1387,7 @@ void MainWindow::showPlaylistsMenu(QPoint anchor)
 }
 
 Rpc::Task<void> MainWindow::fillPlaylistsMenuAsync(
-    QPointer<QMenu> menu, QString sourceId, Track track, std::optional<QPoint> reopenAt)
+    QPointer<QMenu> menu, QString sourceId, Track track, std::optional<QPoint> reopenAt, bool checkActions)
 {
     const auto showNote = [&menu](const QString& text) {
         menu->clear();
@@ -1347,6 +1416,15 @@ Rpc::Task<void> MainWindow::fillPlaylistsMenuAsync(
 
     menu->clear();
     for (const Playlist& playlist : playlists) {
+        if (checkActions) {
+            QAction* action = menu->addAction(playlist.title);
+            action->setCheckable(true);
+            action->setChecked(containing.contains(playlist.id));
+            connect(action, &QAction::toggled, this, [this, sourceId, track, playlist](bool checked) {
+                setTrackInPlaylistAsync(sourceId, track, playlist, checked).detach();
+            });
+            continue;
+        }
         // A check box row rather than a checkable QAction: toggling one
         // doesn't close the menu, so several playlists can be changed in
         // one go — see MenuCheckRow.

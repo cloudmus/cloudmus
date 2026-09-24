@@ -21,6 +21,8 @@ void MprisRootAdaptor::Quit() { emit quitRequested(); }
 
 void MprisRootAdaptor::Raise()
 {
+    // Back from minimized too (keeping it maximized if it was).
+    mainWindow_->setWindowState((mainWindow_->windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
     mainWindow_->show();
     mainWindow_->raise();
     mainWindow_->activateWindow();

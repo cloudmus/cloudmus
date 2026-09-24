@@ -60,8 +60,40 @@ public:
     // Called by the tray's Quit action — bypasses close-to-tray.
     void quitForReal();
 
+    // --- window visibility (tray, notification clicks, MPRIS Raise)
+    // Whether the window can actually be seen: shown, and neither
+    // minimized nor otherwise taken off screen by the compositor (a
+    // minimized window on Wayland only shows as not exposed).
+    bool isOnScreen() const;
+    // Out of the tray, back from minimized (keeping it maximized if it
+    // was) and in front of other windows. `activationToken` — the
+    // compositor's permission to take focus on Wayland, when the caller
+    // got one (a notification click).
+    void bringToFront(const QString& activationToken = QString());
+    // The tray's Show/Hide: hides the window only when it's on screen;
+    // a minimized one is brought back instead.
+    void toggleShown();
+
+    // --- the playing track's like/dislike and playlists, for the tray
+    struct NowPlayingFeedback {
+        bool likeSupported = false;
+        bool liked = false;
+        bool dislikeSupported = false;
+        bool disliked = false;
+        bool playlistsSupported = false;
+    };
+    NowPlayingFeedback nowPlayingFeedback() const;
+    void setNowPlayingLiked(bool liked);
+    void setNowPlayingDisliked(bool disliked);
+    // Fills `menu` with the playlists checklist for the playing track —
+    // as checkable actions (a tray menu is exported over D-Bus, where
+    // widget rows don't exist).
+    void fillNowPlayingPlaylistsMenu(QMenu* menu);
+
 signals:
     void aboutToReallyQuit();
+    // Anything nowPlayingFeedback() reports may have changed.
+    void nowPlayingFeedbackChanged();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -95,10 +127,14 @@ private:
     // adds/removes it. Shows "Loading…" until membership arrives; with
     // `reopenAt`, re-pops the menu there once filled (it grew, and has to
     // stay on screen). Used by the toolbar button and the context menu.
-    Rpc::Task<void> fillPlaylistsMenuAsync(
-        QPointer<QMenu> menu, QString sourceId, Track track, std::optional<QPoint> reopenAt = std::nullopt);
+    // `checkActions`: plain checkable actions instead of check box rows
+    // (the tray's menu, which lives outside the app).
+    Rpc::Task<void> fillPlaylistsMenuAsync(QPointer<QMenu> menu, QString sourceId, Track track,
+        std::optional<QPoint> reopenAt = std::nullopt, bool checkActions = false);
+    // `box` (if any) is disabled while the request runs and unchecked
+    // back on failure.
     Rpc::Task<void> setTrackInPlaylistAsync(
-        QString sourceId, Track track, Playlist playlist, bool add, QPointer<QCheckBox> box);
+        QString sourceId, Track track, Playlist playlist, bool add, QPointer<QCheckBox> box = nullptr);
     // Keeps what's on screen in step after a successful add/remove: the
     // sheet's list and header if it shows that playlist, the active
     // playlist's not-yet-queued tracks.

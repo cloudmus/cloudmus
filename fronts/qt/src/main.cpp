@@ -160,19 +160,7 @@ int main(int argc, char** argv)
     // Clicking the notification brings the player window up — out of the
     // tray, from minimized, or from behind other windows.
     QObject::connect(&notificationToast, &Integration::NotificationToast::activated, &window,
-        [&window](const QString& activationToken) {
-            // On Wayland a window may only take focus with a token from the
-            // compositor; Qt's Wayland backend picks it up from this
-            // variable when the window requests activation.
-            if (!activationToken.isEmpty())
-                qputenv("XDG_ACTIVATION_TOKEN", activationToken.toUtf8());
-            if (window.isMinimized())
-                window.showNormal();
-            else
-                window.show();
-            window.raise();
-            window.activateWindow();
-        });
+        [&window](const QString& activationToken) { window.bringToFront(activationToken); });
     QObject::connect(coverCache, &Ui::CoverArtCache::pixmapReady, &notificationToast,
         [&notificationToast, coverCache, pendingCover, notificationCoverSize](const QString& url) {
             if (pendingCover->url.isEmpty() || url != pendingCover->url)

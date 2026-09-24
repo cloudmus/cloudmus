@@ -12,6 +12,8 @@
         <file alias="stop.svg">icons/symbols/stop.svg</file>
         <file alias="skip_previous.svg">icons/symbols/skip_previous.svg</file>
         <file alias="skip_next.svg">icons/symbols/skip_next.svg</file>
+        <file alias="visibility.svg">icons/symbols/visibility.svg</file>
+        <file alias="visibility_off.svg">icons/symbols/visibility_off.svg</file>
         <file alias="volume_up.svg">icons/symbols/volume_up.svg</file>
         <file alias="menu.svg">icons/symbols/menu.svg</file>
         <file alias="warning.svg">icons/symbols/warning.svg</file>
