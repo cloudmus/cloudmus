@@ -81,6 +81,11 @@ class RadioSession:
         # Tracks that actually started playing this session — never
         # re-served as "upcoming". Tracks merely served (but replaced before
         # being reached) may legitimately come back in a later sequence.
+        # Both sets hold bare track ids: the front reports a track by its
+        # protocol Track.id ("<trackId>:<albumId>", see catalog.to_track),
+        # while a served sequence's Track.id is the bare one — compared
+        # as-is they never matched, so _upcoming never drained and a track
+        # played to the end never topped the wave up.
         self._played: set[str] = set()
         # Tracks served to the front that haven't started yet, in queue
         # order — the station's own part of the front's upcoming queue.
@@ -159,7 +164,7 @@ class RadioSession:
         self.batch_id = result.get("batchId")
         tracks = self._tracks_from(result)
         self._played = set()
-        self._upcoming = [str(t.id) for t in tracks]
+        self._upcoming = [catalog._bare_id(t.id) for t in tracks]
         await self._send_feedback("radioStarted", **{"from": "cloudmus"})
 
         return {
@@ -185,15 +190,15 @@ class RadioSession:
         tracks = self._tracks_from(result)
         # The sequence can still start with the track just played (the
         # chain head advancing past it) — only unplayed ones are upcoming.
-        upcoming = [t for t in tracks if str(t.id) not in self._played]
+        upcoming = [t for t in tracks if catalog._bare_id(t.id) not in self._played]
         if replace:
             # The new sequence supersedes everything still queued.
             new = upcoming
-            self._upcoming = [str(t.id) for t in new]
+            self._upcoming = [catalog._bare_id(t.id) for t in new]
         else:
             # Appended after what's already queued — skip anything in it.
-            new = [t for t in upcoming if str(t.id) not in self._upcoming]
-            self._upcoming += [str(t.id) for t in new]
+            new = [t for t in upcoming if catalog._bare_id(t.id) not in self._upcoming]
+            self._upcoming += [catalog._bare_id(t.id) for t in new]
 
         if new:
             await emit_radio_tracks_added(
@@ -206,7 +211,7 @@ class RadioSession:
             )
 
     async def track_started(self, track_id: str) -> None:
-        tid = str(track_id)
+        tid = catalog._bare_id(track_id)
         self._played.add(tid)
         # Everything queued up to it has been played or jumped past.
         if tid in self._upcoming:

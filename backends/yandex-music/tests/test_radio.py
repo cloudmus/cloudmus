@@ -9,8 +9,11 @@ class _TrackDict:
     """Minimal but valid yandex_music track dicts for Track.de_json."""
 
     @staticmethod
-    def make(id_, title=None):
-        return {"id": str(id_), "title": title or f"Track {id_}", "durationMs": 1000}
+    def make(id_, title=None, album_id=None):
+        track = {"id": str(id_), "title": title or f"Track {id_}", "durationMs": 1000}
+        if album_id is not None:
+            track["albums"] = [{"id": album_id}]
+        return track
 
 
 class _FakeRequest:
@@ -22,7 +25,14 @@ class _FakeRequest:
 
 
 class _FakeClient:
-    def __init__(self):
+    def __init__(self, with_albums=False, batch_size=None):
+        # with_albums: served tracks carry an album, so their track_id (and
+        # the protocol Track.id the front reports back) is "<id>:<albumId>",
+        # as for real Yandex tracks. batch_size: serve that many fresh
+        # tracks per call, never re-serving the queued one (a well-behaved
+        # server) — by default 2 on start and 1 per top-up, with re-serves.
+        self.with_albums = with_albums
+        self.batch_size = batch_size
         self.base_url = "https://api.music.yandex.net"
         self.report_unknown_fields = False
         self._request = _FakeRequest(self)
@@ -33,7 +43,7 @@ class _FakeClient:
     def _track_dict(self):
         id_ = self._next_id
         self._next_id += 1
-        return _TrackDict.make(id_)
+        return _TrackDict.make(id_, album_id=100 + id_ if self.with_albums else None)
 
     def _respond(self, url, json):
         self.calls.append((url, json))
@@ -42,19 +52,18 @@ class _FakeClient:
             "radioSessionId": "sess-1",
             "batchId": "batch-0",
             "sequence": [
-                {"type": "track", "track": self._track_dict()},
-                {"type": "track", "track": self._track_dict()},
+                {"type": "track", "track": self._track_dict()} for _ in range(self.batch_size or 2)
             ],
         }
         if url.endswith("/rotor/session/sess-1/tracks"):
             self._tracks_calls += 1
-            fresh = [{"type": "track", "track": self._track_dict()}]
+            fresh = [{"type": "track", "track": self._track_dict()} for _ in range(self.batch_size or 1)]
             # When the dedup-under-test passes a queue for an id the server
             # has already served, the server may (incorrectly) re-serve it —
             # simulate the id that is queued being re-served right back.
             queued_id = json["queue"][0] if json and json.get("queue") else None
             served = fresh
-            if queued_id and self._tracks_calls % 2 == 0:
+            if queued_id and self._tracks_calls % 2 == 0 and not self.batch_size:
                 served = [{"type": "track", "track": {"id": str(queued_id), "title": "Repeat", "durationMs": 1000}}]
             return {
                 "batchId": f"batch-{self._tracks_calls}",
@@ -293,3 +302,26 @@ async def test_track_started_drops_everything_up_to_it_from_upcoming():
     await session.track_started("c")  # jumped past a, b
     assert session._upcoming == ["d"]
 
+
+@pytest.mark.asyncio
+async def test_tracks_played_to_the_end_keep_topping_up_with_album_track_ids():
+    # The front reports tracks by their protocol Track.id, "<id>:<albumId>"
+    # for real Yandex tracks, while the session tracks bare ids — listening
+    # straight through (no skips) must still drain the queue and top it up,
+    # or the wave just stops at the end of the first batch.
+    client = _FakeClient(with_albums=True, batch_size=5)
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    result = await session.start(seed=None)
+    queue = [t["id"] for t in result["initialTracks"]]
+    assert queue[0] == "1:101"
+
+    for _ in range(12):
+        track_id = queue.pop(0)
+        await session.track_started(track_id)
+        await session.track_finished(track_id, played_ms=180000)
+        for m, p in notifier.events:
+            if m == "radio/tracksAdded":
+                queue += [t["id"] for t in p["tracks"] if t["id"] not in queue]
+        notifier.events.clear()
+        assert queue, "the wave ran out of tracks"
