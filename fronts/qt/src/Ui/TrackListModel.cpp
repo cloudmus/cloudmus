@@ -50,6 +50,34 @@ void TrackListModel::appendTracks(const QList<Track>& tracks)
     endInsertRows();
 }
 
+void TrackListModel::appendEntry(const QString& sourceId, const Track& track)
+{
+    const int row = tracks_.size();
+    beginInsertRows(QModelIndex(), row, row);
+    tracks_.append(track);
+    if (mixedSource_) {
+        mixedSourceIds_.append(sourceId);
+        playedAt_.append(QDateTime());
+    }
+    endInsertRows();
+}
+
+void TrackListModel::removeFirst(const QString& sourceId, const QString& trackId)
+{
+    for (int row = 0; row < tracks_.size(); ++row) {
+        if (tracks_[row].id != trackId || sourceIdAt(row) != sourceId)
+            continue;
+        beginRemoveRows(QModelIndex(), row, row);
+        tracks_.removeAt(row);
+        if (mixedSource_) {
+            mixedSourceIds_.removeAt(row);
+            playedAt_.removeAt(row);
+        }
+        endRemoveRows();
+        return;
+    }
+}
+
 void TrackListModel::clear()
 {
     beginResetModel();

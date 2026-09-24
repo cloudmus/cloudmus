@@ -78,6 +78,9 @@ public:
     // while catalog.downloadTrack is in flight (same "refresh" glyph-swap
     // convention as setLikeBusy()/setDislikeBusy()).
     void setDownloadState(bool capabilitySupported);
+    // The "playlists" button (add to / remove from the user's playlists):
+    // enabled iff the current track's source declares browse.editPlaylists.
+    void setPlaylistsState(bool capabilitySupported);
     void setDownloadBusy(bool busy);
 
     // Appended to the right end of the transport-button row (top row — see
@@ -103,6 +106,9 @@ signals:
     void likeClicked(bool liked);
     void dislikeClicked(bool disliked);
     void downloadClicked();
+    // `anchor`: global position (the button's bottom-left) to open the
+    // playlists menu at.
+    void playlistsClicked(QPoint anchor);
 
 private:
     void updatePlayPauseIcon();
@@ -118,6 +124,7 @@ private:
     QPushButton* likeButton_ = nullptr;
     QPushButton* dislikeButton_ = nullptr;
     QPushButton* downloadButton_ = nullptr;
+    QPushButton* playlistsButton_ = nullptr;
     QSlider* seekSlider_ = nullptr;
     QLabel* elapsedLabel_ = nullptr;
     QLabel* durationLabel_ = nullptr;

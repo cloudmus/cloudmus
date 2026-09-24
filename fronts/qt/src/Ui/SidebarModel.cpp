@@ -169,6 +169,26 @@ QModelIndex SidebarModel::indexForSource(const QString& sourceId) const
     return QModelIndex();
 }
 
+QList<Playlist> SidebarModel::editablePlaylistsFor(const QString& sourceId) const
+{
+    QList<Playlist> out;
+    for (const Playlist& playlist : playlistsFor(sourceId)) {
+        if (playlist.editable.value_or(false))
+            out.append(playlist);
+    }
+    return out;
+}
+
+void SidebarModel::setPlaylistTrackCount(const QString& sourceId, const QString& playlistId, int trackCount)
+{
+    QStandardItem* item = itemFromIndex(indexForPlaylist(sourceId, playlistId));
+    if (item == nullptr)
+        return;
+    Playlist playlist = item->data(PlaylistDataRole).value<Playlist>();
+    playlist.trackCount = trackCount;
+    item->setData(QVariant::fromValue(playlist), PlaylistDataRole);
+}
+
 bool SidebarModel::isSourceLoading(const QString& sourceId) const
 {
     for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {

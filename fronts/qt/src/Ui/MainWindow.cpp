@@ -1,16 +1,19 @@
 #include "MainWindow.h"
 
 #include <QAction>
+#include <QCheckBox>
 #include <QCloseEvent>
 #include <QCursor>
 #include <QDesktopServices>
 #include <QEvent>
+#include <QHBoxLayout>
 #include <QListView>
 #include <QLoggingCategory>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QProgressBar>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QSplitter>
 #include <QTimer>
 #include <QToolBar>
@@ -18,12 +21,16 @@
 #include <QTreeView>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QWidgetAction>
+
+#include <optional>
 
 #include "AboutDialog.h"
 #include "CoverArtCache.h"
 #include "EmptyStatePlaceholder.h"
 #include "HeroPanel.h"
 #include "Icons.h"
+#include "MenuCheckRow.h"
 #include "Metrics.h"
 #include "NavItemDelegate.h"
 #include "NowPlayingBar.h"
@@ -43,6 +50,7 @@
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
 #include "TrackStates.h"
+#include "Typography.h"
 
 namespace Ui {
 
@@ -124,6 +132,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         dislikeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, disliked).detach();
     });
     connect(nowPlayingBar_, &NowPlayingBar::downloadClicked, this, [this]() { downloadCurrentTrackAsync().detach(); });
+    connect(nowPlayingBar_, &NowPlayingBar::playlistsClicked, this, &MainWindow::showPlaylistsMenu);
 
     // The single declarative source of truth for every control's enabled
     // state and value — see NowPlayingBar::setTrackAvailable()'s doc
@@ -139,6 +148,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
             nowPlayingBar_->setLikeState(false, false);
             nowPlayingBar_->setDislikeState(false, false);
             nowPlayingBar_->setDownloadState(false);
+            nowPlayingBar_->setPlaylistsState(false);
             refreshHero();
             trackRowDelegate_->setCurrentlyPlaying(QString(), QString());
             trackListView_->viewport()->update();
@@ -164,6 +174,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
             const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
             refreshNowPlayingFeedback();
             nowPlayingBar_->setDownloadState(capabilities.value(QStringLiteral("download")).toBool());
+            nowPlayingBar_->setPlaylistsState(sourceCanEditPlaylists(sourceId));
         });
     // HeroPanel shows what's playing instead of the active playlist's
     // promo card whenever playback_.hasCurrentTrack() — see refreshHero(),
@@ -1046,6 +1057,17 @@ void MainWindow::showTrackMenu(
         [this, sourceId, track]() { playback_.enqueueNext(sourceId, track); });
     menu->addAction(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Add to Queue"), this,
         [this, sourceId, track]() { playback_.enqueueAtEnd(sourceId, track); });
+    if (sourceCanEditPlaylists(sourceId)) {
+        QMenu* playlists
+            = menu->addMenu(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Playlists"));
+        // Filled on first open only — getTrackPlaylists is a round-trip.
+        connect(playlists, &QMenu::aboutToShow, this, [this, playlists, sourceId, track]() {
+            if (playlists->property("filled").toBool())
+                return;
+            playlists->setProperty("filled", true);
+            fillPlaylistsMenuAsync(playlists, sourceId, track).detach();
+        });
+    }
 
     if (likeSupported || dislikeSupported) {
         menu->addSeparator();
@@ -1272,6 +1294,142 @@ void MainWindow::refreshNowPlayingFeedback()
     const Library::TrackState state = trackStates_->state(sourceId, playback_.currentTrack().id);
     nowPlayingBar_->setLikeState(feedback.value(QStringLiteral("like")).toBool(), state.liked.value_or(false));
     nowPlayingBar_->setDislikeState(feedback.value(QStringLiteral("dislike")).toBool(), state.disliked.value_or(false));
+}
+
+bool MainWindow::sourceCanEditPlaylists(const QString& sourceId) const
+{
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    return client != nullptr
+        && client->capabilities()
+               .value(QStringLiteral("browse"))
+               .toObject()
+               .value(QStringLiteral("editPlaylists"))
+               .toBool();
+}
+
+void MainWindow::showPlaylistsMenu(QPoint anchor)
+{
+    if (!playback_.hasCurrentTrack())
+        return;
+    auto* menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    fillPlaylistsMenuAsync(menu, playback_.currentSourceId(), playback_.currentTrack(), anchor).detach();
+    menu->popup(anchor);
+}
+
+Rpc::Task<void> MainWindow::fillPlaylistsMenuAsync(
+    QPointer<QMenu> menu, QString sourceId, Track track, std::optional<QPoint> reopenAt)
+{
+    const auto showNote = [&menu](const QString& text) {
+        menu->clear();
+        menu->addAction(text)->setEnabled(false);
+    };
+    showNote(tr("Loading…"));
+
+    const QList<Playlist> playlists = sidebarModel_->editablePlaylistsFor(sourceId);
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (playlists.isEmpty() || client == nullptr) {
+        showNote(tr("No playlists"));
+        co_return;
+    }
+    QStringList containing;
+    try {
+        containing
+            = (co_await Rpc::catalogGetTrackPlaylists(*client, GetTrackPlaylistsParams { track.id })).playlistIds;
+    } catch (const std::exception& e) {
+        qCWarning(lcMainWindow) << "catalog.getTrackPlaylists failed for" << track.id << ":" << e.what();
+        if (menu)
+            showNote(tr("Couldn't load playlists"));
+        co_return;
+    }
+    if (!menu)
+        co_return; // closed meanwhile
+
+    menu->clear();
+    for (const Playlist& playlist : playlists) {
+        // A check box row rather than a checkable QAction: toggling one
+        // doesn't close the menu, so several playlists can be changed in
+        // one go — see MenuCheckRow.
+        auto* row = new MenuCheckRow(playlist.title, menu);
+        QCheckBox* box = row->checkBox();
+        box->setChecked(containing.contains(playlist.id));
+        auto* action = new QWidgetAction(menu);
+        action->setDefaultWidget(row);
+        menu->addAction(action);
+        connect(box, &QCheckBox::toggled, this, [this, sourceId, track, playlist, box](bool checked) {
+            setTrackInPlaylistAsync(sourceId, track, playlist, checked, box).detach();
+        });
+    }
+    if (reopenAt && menu->isVisible())
+        menu->popup(*reopenAt); // grew past "Loading…" — keep it on screen
+}
+
+Rpc::Task<void> MainWindow::setTrackInPlaylistAsync(
+    QString sourceId, Track track, Playlist playlist, bool add, QPointer<QCheckBox> box)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return;
+    if (box)
+        box->setEnabled(false); // one request at a time per playlist
+    try {
+        int trackCount = 0;
+        if (add)
+            trackCount = (co_await Rpc::catalogAddToPlaylist(*client, AddToPlaylistParams { playlist.id, track.id }))
+                             .trackCount;
+        else
+            trackCount
+                = (co_await Rpc::catalogRemoveFromPlaylist(*client, RemoveFromPlaylistParams { playlist.id, track.id }))
+                      .trackCount;
+        applyPlaylistEdit(sourceId, track, playlist.id, add, trackCount);
+        toastNotifier_->showInfo(
+            add ? tr("Added to \"%1\"").arg(playlist.title) : tr("Removed from \"%1\"").arg(playlist.title));
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcMainWindow) << "playlist edit failed for" << playlist.id << ":" << message;
+        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+        if (box) {
+            const QSignalBlocker blocker(box);
+            box->setChecked(!add); // back to how it really is
+        }
+    }
+    if (box)
+        box->setEnabled(true);
+}
+
+void MainWindow::applyPlaylistEdit(
+    const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount)
+{
+    sidebarModel_->setPlaylistTrackCount(sourceId, playlistId, trackCount);
+
+    const auto isThatPlaylist = [&](const ActiveContext& context) {
+        return !context.isHistory && context.sourceId == sourceId && context.playlist.id == playlistId;
+    };
+    if (isThatPlaylist(sheetContext_)) {
+        sheetContext_.playlist.trackCount = trackCount;
+        if (added)
+            sheet_->trackModel()->appendEntry(sourceId, track);
+        else
+            sheet_->trackModel()->removeFirst(sourceId, track.id);
+        sheet_->setSubtitle(trackCountText(trackCount));
+    }
+    if (isThatPlaylist(activeContext_)) {
+        activeContext_.playlist.trackCount = trackCount;
+        // Only the not-yet-queued tracks — a running queue stays as it is.
+        if (!playback_.hasQueue()) {
+            if (added) {
+                activeTracks_.append(Playback::QueueEntry { sourceId, track });
+            } else {
+                for (int i = 0; i < activeTracks_.size(); ++i) {
+                    if (activeTracks_[i].track.id == track.id) {
+                        activeTracks_.removeAt(i);
+                        break;
+                    }
+                }
+            }
+            refreshMainList();
+        }
+    }
 }
 
 void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }

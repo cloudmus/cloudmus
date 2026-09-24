@@ -159,6 +159,10 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     connect(likeButton_, &QPushButton::clicked, this, &NowPlayingBar::likeClicked);
     connect(dislikeButton_, &QPushButton::clicked, this, &NowPlayingBar::dislikeClicked);
     connect(downloadButton_, &QPushButton::clicked, this, &NowPlayingBar::downloadClicked);
+    playlistsButton_ = new IconHoverButton(QStringLiteral("playlist_add"), IconHoverButton::Scheme::Neutral, this);
+    playlistsButton_->setToolTip(tr("Add to playlist"));
+    connect(playlistsButton_, &QPushButton::clicked, this,
+        [this]() { emit playlistsClicked(playlistsButton_->mapToGlobal(playlistsButton_->rect().bottomLeft())); });
     // Nothing loaded yet at construction — setTrackAvailable()/
     // setQueueAvailable()/setTrackWebUrl() (driven by PlaybackController's
     // own state, see MainWindow) enable these once there's something to
@@ -171,6 +175,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     likeButton_->setEnabled(false);
     dislikeButton_->setEnabled(false);
     downloadButton_->setEnabled(false);
+    playlistsButton_->setEnabled(false);
     // Top row of the controls column below — transport buttons, then
     // whatever setTrailingWidget() appends (MainWindow's hamburger menu
     // button) pinned to the right by the stretch.
@@ -202,6 +207,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     buttonsRow_->addWidget(likeButton_);
     buttonsRow_->addWidget(dislikeButton_);
     buttonsRow_->addWidget(downloadButton_);
+    buttonsRow_->addWidget(playlistsButton_);
     buttonsRow_->addStretch(1);
 
     elapsedLabel_ = new QLabel(QStringLiteral("0:00"), this);
@@ -338,6 +344,8 @@ void NowPlayingBar::refreshDislikeButton()
     static_cast<IconHoverButton*>(dislikeButton_)
         ->setIconName(dislikeBusy_ ? QStringLiteral("refresh") : QStringLiteral("heart_broken"));
 }
+
+void NowPlayingBar::setPlaylistsState(bool capabilitySupported) { playlistsButton_->setEnabled(capabilitySupported); }
 
 void NowPlayingBar::setDownloadState(bool capabilitySupported)
 {

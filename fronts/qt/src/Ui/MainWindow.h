@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QJsonObject>
 #include <QMainWindow>
+#include <QPointer>
 
 #include <functional>
 
@@ -17,6 +18,8 @@ class QModelIndex;
 class QProgressBar;
 class QCloseEvent;
 class QSplitter;
+class QMenu;
+class QCheckBox;
 
 namespace History {
 class PlaybackHistory;
@@ -86,6 +89,25 @@ private:
     // the track has a webUrl.
     void showTrackMenu(
         const QString& sourceId, const Track& track, const QPoint& globalPos, std::function<void()> play);
+    // --- editing playlists (docs/protocol.md §7.6)
+    // Fills `menu` with the user's editable playlists on the track's
+    // source, each a checkbox — checked when the track is in it; toggling
+    // adds/removes it. Shows "Loading…" until membership arrives; with
+    // `reopenAt`, re-pops the menu there once filled (it grew, and has to
+    // stay on screen). Used by the toolbar button and the context menu.
+    Rpc::Task<void> fillPlaylistsMenuAsync(
+        QPointer<QMenu> menu, QString sourceId, Track track, std::optional<QPoint> reopenAt = std::nullopt);
+    Rpc::Task<void> setTrackInPlaylistAsync(
+        QString sourceId, Track track, Playlist playlist, bool add, QPointer<QCheckBox> box);
+    // Keeps what's on screen in step after a successful add/remove: the
+    // sheet's list and header if it shows that playlist, the active
+    // playlist's not-yet-queued tracks.
+    void applyPlaylistEdit(
+        const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
+    // The toolbar button's menu for the playing track.
+    void showPlaylistsMenu(QPoint anchor);
+    bool sourceCanEditPlaylists(const QString& sourceId) const;
+
     // HeroPanel's Play button: (re)starts the active playlist.
     void playActive();
     void showAboutDialog();

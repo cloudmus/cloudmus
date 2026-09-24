@@ -63,6 +63,11 @@ public:
     // MainWindow::onTrackDoubleClicked / isMixedSource()).
     void setMixedSourceTracks(const QList<MixedSourceEntry>& entries);
     void appendTracks(const QList<Track>& tracks);
+    // One row in/out of a mixed-source list (setMixedSourceTracks) —
+    // e.g. after adding a track to / removing it from the playlist shown.
+    void appendEntry(const QString& sourceId, const Track& track);
+    // Removes the first row with this (sourceId, trackId); no-op if none.
+    void removeFirst(const QString& sourceId, const QString& trackId);
     void clear();
     // Where LikedRole/DislikedRole/LastPlayedRole come from — rows
     // repaint whenever it reports a change. Without one those roles are
