@@ -1,0 +1,36 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: track.yaml
+title: Track
+type: object
+required: [id, title, artists, durationMs]
+properties:
+  id: {type: string}
+  title: {type: string}
+  artists:
+    type: array
+    items:
+      type: object
+      x-name: Artist              # anonymous inline object -> needs an explicit generated-class name
+      required: [id, name]
+      properties:
+        id: {type: string}
+        name: {type: string}
+      additionalProperties: false
+  album:
+    type: object
+    x-name: Album                 # anonymous inline object -> needs an explicit generated-class name
+    required: [id, title]
+    properties:
+      id: {type: string}
+      title: {type: string}
+      coverUrl: {type: string}
+    additionalProperties: false
+  durationMs: {type: integer}
+  coverUrl: {type: string}          # optional, falls back to album cover if absent
+  liked: {type: boolean}            # optional, omitted if the source doesn't track like-state
+  disliked: {type: boolean}         # optional, omitted if the source doesn't track dislike-state
+  explicit: {type: boolean}         # optional
+  webUrl: {type: string}            # optional; a browsable page for this track (e.g. music.yandex.ru
+                                     # track page). Absent when the source has no such page (e.g. local
+                                     # files). Added in protocol 1.1 (see docs/protocol-changelog.md).
+additionalProperties: false

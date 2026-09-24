@@ -1,0 +1,22 @@
+[project]
+name = "cloudmus-rpc-common"
+version = "0.1.0"
+description = "Shared NDJSON/JSON-RPC transport, envelope helpers, and conformance testing harness for cloudmus front/backend components"
+requires-python = ">=3.11"
+dependencies = [
+    "jsonschema>=4.17",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["rpc_common*"]
+
+[tool.setuptools.package-data]
+rpc_common = []

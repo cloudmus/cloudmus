@@ -25,15 +25,30 @@ across more than one backend.
 
 Decisions already made with the user (do not re-litigate):
 - **Monorepo**: one git repo, subdirectories per component, versioned together.
-- **Two sources for v1**: `sources/yandex-music` (real, migrated from today's
-  code) and `sources/mock-radio` (new, trivial, deliberately exercises the
-  *other* capability branch — self-playback instead of stream-provisioning —
-  to prove the front handles both).
-- **Discovery via manifest files**: each source drops a small JSON manifest
+- **Two top-level component folders only**: `fronts/` (UI players — TUI today,
+  Qt/GTK later) and `backends/` (per-service adapters). No separate top-level
+  `protocol/` or `libs/` folder — protocol prose lives in `docs/protocol.md`;
+  the shared JSON-RPC/NDJSON transport library (`py-rpc-common`) nests inside
+  `backends/`, since backends are what actually run a server loop with it.
+  **Superseded (protocol 1.1):** a top-level `protocol/` directory now exists
+  after all — the protocol became schema-first (`protocol/schema/*.yaml` +
+  `protocol/methods.yaml`, with per-language stubs generated via
+  `protocol/codegen/`), consumed by Python backends, the C++ Qt front, and
+  (later) a Go backend rewrite. That's genuinely language-agnostic content
+  with no natural home under `backends/` anymore, unlike `py-rpc-common`
+  (still backend-Python-specific, still nests inside `backends/` as before).
+  See `protocol/README.md` and `docs/protocol-changelog.md`'s `1.1` entry.
+- **Two backends for v1**: `backends/yandex-music` (real, migrated from
+  today's code) and `backends/local-folder` (new: plays a local music
+  directory tree — each subfolder becomes a playlist, or the whole root is one
+  playlist if it only contains files directly). Both are `providesStream`
+  backends; the `selfPlayback` branch is instead covered by a synthetic test
+  fixture (see `docs/protocol.md` / testing strategy), not a shipped backend.
+- **Discovery via manifest files**: each backend drops a small JSON manifest
   into a well-known directory; the front scans that directory at startup
-  rather than hardcoding a source list in its own config.
-- **Download is a protocol capability**, not a source-specific side channel:
-  on a front-issued command, the source downloads the track to a
+  rather than hardcoding a backend list in its own config.
+- **Download is a protocol capability**, not a backend-specific side channel:
+  on a front-issued command, the backend downloads the track to a
   front-specified destination folder and returns the full saved path.
 
 ---
@@ -46,7 +61,7 @@ never a raw embedded newline once compactly serialized), so a length header
 buys nothing and costs every future source-author a header parser. NDJSON is
 `readline()` + `json.loads()` in literally any language.
 
-Hard rules (put verbatim in `protocol/SPEC.md`):
+Hard rules (put verbatim in `docs/protocol.md`):
 - UTF-8, no BOM, exactly one JSON *value* per line.
 - **No batch arrays.** Every line is exactly one Request, Response, or
   Notification object — keeps parsing trivial and unambiguous.
@@ -168,7 +183,9 @@ the front never sees credentials, keeping it fully source-agnostic.
 Namespaces: `catalog.*`, `playback.*`, `feedback.*`, `auth.*`, lifecycle
 `initialize` / `shutdown`.
 
-**Shared shapes** (defined once in `protocol/schema/`, referenced everywhere):
+**Shared shapes** (defined once — now in `protocol/schema/*.yaml`, see the
+protocol 1.1 note above; this section otherwise still describes the original
+per-field design accurately):
 ```
 Track:  {id, title, artists:[{id,name}], album:{id,title,coverUrl?}, durationMs,
          coverUrl?, liked?, explicit?}
@@ -277,135 +294,147 @@ captcha prompt requiring the front to collect input mid-flow beyond what
 
 ## 6. Repo layout & migration
 
+Only two top-level component folders: `fronts/` and `backends/`. Protocol
+prose lives in `docs/protocol.md` (this repo's `docs/` folder, not a separate
+top-level `protocol/`); the shared RPC transport library nests inside
+`backends/` since backends are what run a server loop with it.
+
 ```
 cloudmus/
-  protocol/
-    SPEC.md                      # everything in §1–§4 above, written out formally
-    CHANGELOG.md                 # protocolVersion history
-    schema/*.json                # JSON Schema per message shape (Track, Playlist, capabilities, ...)
-    examples/*.ndjson             # canned transcripts: handshake, play sequence, wave session,
+  docs/
+    architecture-plan.md          # this file
+    protocol.md                   # everything in §1–§4 above, written out formally (moved here, not
+                                   # a separate top-level protocol/ folder)
+
+  backends/
+    py-rpc-common/
+      rpc_common/transport.py     # NDJSON reader/writer over asyncio streams, both sides
+      rpc_common/jsonrpc.py       # envelope helpers, id generation
+      rpc_common/errors.py        # error code constants from §1
+      rpc_common/models.py        # Track/Playlist/PlaybackState/StreamDescriptor (shared dataclasses)
+      rpc_common/testing/         # conformance suite + fake-source/fake-front harnesses (§8),
+                                   # including a synthetic selfPlayback fixture (no real backend uses it)
+      schema/*.json                # JSON Schema per message shape (Track, Playlist, capabilities, ...)
+      examples/*.ndjson             # canned transcripts: handshake, play sequence, wave session,
                                    # device-code auth, download — used by the conformance suite (§8)
 
-  libs/py-rpc-common/
-    rpc_common/transport.py      # NDJSON reader/writer over asyncio streams, both sides
-    rpc_common/jsonrpc.py        # envelope helpers, id generation
-    rpc_common/errors.py         # error code constants from §1
-    rpc_common/models.py         # Track/Playlist/PlaybackState/StreamDescriptor (shared dataclasses)
-    rpc_common/testing/          # conformance suite + fake-source/fake-front harnesses (§8)
+    yandex-music/
+      manifest.json                 # {"id":"yandex-music","argv":[...],"protocolVersion":"1.0",...}
+      cloudmus_backend_yandex/
+        __main__.py                 # stdio server loop; installs the stdout-purity guard from §1
+        auth.py                     # from ym_player/auth.py — device flow now emits auth/prompt +
+                                     # auth/statusChanged instead of print()
+        client.py                   # from ym_player/client.py, essentially unchanged
+        catalog.py                  # catalog.listPlaylists/listTracks/listLiked, built on resolver.py's
+                                     # existing playlist/track fetching logic
+        radio.py                    # rotor/wave logic extracted from ym_player/player.py's start_wave/
+                                     # _fetch_wave_batch/_advance: implements catalog.startRadio +
+                                     # feedback.trackStarted/Finished/skip
+        playback.py                 # playback.play: get_download_info(get_direct_links=True) →
+                                     # StreamDescriptor via track/streamReady; no mpv import here at all
+        download.py                 # catalog.downloadTrack — thin wrapper around today's downloader.py
+        config.py                   # token path becomes ~/.config/cloudmus/backends/yandex-music/config.json
+      # capabilities: providesStream=true, selfPlayback=false,
+      #   browse.{playlists,likedTracks,radio}=true, browse.search=false (not built today),
+      #   feedback.{like,dislike,skip}=true, download=true, auth.required=true, auth.flow="deviceCode"
 
-  sources/yandex-music/
-    manifest.json                 # {"id":"yandex-music","argv":[...],"protocolVersion":"1.0",...}
-    cloudmus_source_yandex/
-      __main__.py                 # stdio server loop; installs the stdout-purity guard from §1
-      auth.py                     # from ym_player/auth.py — device flow now emits auth/prompt +
-                                   # auth/statusChanged instead of print()
-      client.py                   # from ym_player/client.py, essentially unchanged
-      catalog.py                  # catalog.listPlaylists/listTracks/listLiked, built on resolver.py's
-                                   # existing playlist/track fetching logic
-      radio.py                    # rotor/wave logic extracted from ym_player/player.py's start_wave/
-                                   # _fetch_wave_batch/_advance: implements catalog.startRadio +
-                                   # feedback.trackStarted/Finished/skip
-      playback.py                 # playback.play: get_download_info(get_direct_links=True) →
-                                   # StreamDescriptor via track/streamReady; no mpv import here at all
-      download.py                 # catalog.downloadTrack — thin wrapper around today's downloader.py
-      config.py                   # token path becomes ~/.config/cloudmus/sources/yandex-music/config.json
-    # capabilities: providesStream=true, selfPlayback=false,
-    #   browse.{playlists,likedTracks,radio}=true, browse.search=false (not built today),
-    #   feedback.{like,dislike,skip}=true, download=true, auth.required=true, auth.flow="deviceCode"
+    local-folder/
+      manifest.json
+      cloudmus_backend_local/
+        __main__.py, scanner.py, catalog.py, playback.py, config.py
+        # Plays a local music directory tree instead of a remote service: subdirectories of the
+        # configured root become individual playlists; if the root only contains audio files
+        # directly (no subfolders), the whole root is exposed as a single playlist. providesStream=true
+        # (StreamDescriptor is a file:// URL) — front's existing mpv playback path handles it unchanged.
+        # No auth, no download, no feedback/radio.
 
-  sources/mock-radio/
-    manifest.json
-    mock_radio/__main__.py, server.py
-    # Deliberately selfPlayback=true (not providesStream) — yandex-music already proves the
-    # providesStream path, so this one exercises the OTHER branch: it embeds its own tiny mpv
-    # instance over a hardcoded list of 2-3 internet radio stream URLs, pushes state/changed,
-    # and answers playback.pause/resume/setVolume by forwarding to its own player.
-    # No auth, no download, browse is just a flat "stations" list (no playlists/liked/radio).
-
-  front/tui/
+  fronts/tui/
     cloudmus_tui/
       __main__.py                 # `cloudmus` entrypoint
-      discovery.py                 # scans ~/.config/cloudmus/sources.d/*.json (manifest dir);
-                                   # dev-mode env var also allows repo-relative sources/*/manifest.json
-      rpc_client.py                 # per-source subprocess + NDJSON client, reader task, pending-id map (§5)
+      discovery.py                 # scans ~/.config/cloudmus/backends.d/*.json (manifest dir);
+                                   # dev-mode env var also allows repo-relative backends/*/manifest.json
+      rpc_client.py                 # per-backend subprocess + NDJSON client, reader task, pending-id map (§5)
       source_manager.py             # owns N rpc_client instances, capability aggregation, crash/restart
       playback_engine.py            # generalized ym_player/player.py: mpv queue/play/pause/next/prev/
-                                   # seek/volume/eof-watcher — used only for providesStream sources,
+                                   # seek/volume/eof-watcher — used only for providesStream backends,
                                    # driven by track/streamReady + requestId correlation (§4)
       app.py                        # generalized ym_player/tui.py: no longer imports yandex_music;
-                                   # sidebar aggregates catalog.listPlaylists across all sources
+                                   # sidebar aggregates catalog.listPlaylists across all backends
                                    # (tagged by sourceId), status bar mirrors playback_engine OR raw
-                                   # state/changed depending on the active source's capability
-
-  docs/ARCHITECTURE.md            # short human-readable overview + diagram, links to protocol/SPEC.md
+                                   # state/changed depending on the active backend's capability
 ```
 
 **What moves where, concretely (today's files → new home):**
 | Today | Becomes |
 |---|---|
-| `ym_player/config.py`, `client.py` | `sources/yandex-music/cloudmus_source_yandex/config.py`, `client.py` — same logic, new home |
+| `ym_player/config.py`, `client.py` | `backends/yandex-music/cloudmus_backend_yandex/config.py`, `client.py` — same logic, new home |
 | `ym_player/auth.py` | same file, `on_code` callback becomes `auth/prompt` notification emission instead of `print()` |
-| `ym_player/resolver.py` | folded into `sources/yandex-music/cloudmus_source_yandex/catalog.py` |
-| `ym_player/downloader.py` | `sources/yandex-music/cloudmus_source_yandex/download.py`, called by `catalog.downloadTrack` |
-| `ym_player/player.py` | split: mpv queue/eof-watcher logic → `front/tui/cloudmus_tui/playback_engine.py`; rotor/wave logic → `sources/yandex-music/cloudmus_source_yandex/radio.py` |
-| `ym_player/tui.py` | `front/tui/cloudmus_tui/app.py`, rewritten against `source_manager`/`rpc_client` instead of `yandex_music` |
-| `ym_player/cli.py` | `ym auth`/`ym wave` become each source's own standalone debug CLI mode (e.g. `python -m cloudmus_source_yandex --cli-wave`), reusing the same modules in-process without spawning RPC — keeps the "debug without the TUI" workflow from this session alive per-source |
+| `ym_player/resolver.py` | folded into `backends/yandex-music/cloudmus_backend_yandex/catalog.py` |
+| `ym_player/downloader.py` | `backends/yandex-music/cloudmus_backend_yandex/download.py`, called by `catalog.downloadTrack` |
+| `ym_player/player.py` | split: mpv queue/eof-watcher logic → `fronts/tui/cloudmus_tui/playback_engine.py`; rotor/wave logic → `backends/yandex-music/cloudmus_backend_yandex/radio.py` |
+| `ym_player/tui.py` | `fronts/tui/cloudmus_tui/app.py`, rewritten against `source_manager`/`rpc_client` instead of `yandex_music` |
+| `ym_player/cli.py` | `ym auth`/`ym wave` become each backend's own standalone debug CLI mode (e.g. `python -m cloudmus_backend_yandex --cli-wave`), reusing the same modules in-process without spawning RPC — keeps the "debug without the TUI" workflow from this session alive per-backend |
+| (none — new) | `backends/local-folder/*` built from scratch |
 
 **Deferred / explicitly not decided now** (small, non-blocking, flag if it
 matters before implementation):
-- Exact per-source data directory convention beyond the example above.
+- Exact per-backend data directory convention beyond the example above.
 - `catalog.resolveUrl` (paste a music.yandex.ru URL/ID directly) — not in
   v1 protocol; today's URL-parsing in `resolver.py` only needs to survive
-  inside the Yandex source's own debug CLI, not as a generic front feature,
+  inside the Yandex backend's own debug CLI, not as a generic front feature,
   unless you want it later.
-- oauthRedirect's local-loopback-listener ownership — no concrete source
+- oauthRedirect's local-loopback-listener ownership — no concrete backend
   needs it yet.
 
 ---
 
 ## 7. Testing & verification strategy
 
-- **Front-side, no live account**: a scripted `sources/test-fixture` source
-  (canned request→response mappings with configurable delay/reordering) to
+- **Front-side, no live account**: `rpc_common/testing/fixtures.py` provides
+  canned request→response mappings with configurable delay/reordering to
   unit-test `source_manager.py` / `playback_engine.py` — including a fixture
   that specifically reorders `track/streamReady` notifications relative to
   rapid `playback.play` calls, proving the `requestId`-discard logic (§4)
-  actually works.
-- **Source-side, no live front**: a "fake front" harness that replays
-  `protocol/examples/*.ndjson` into a source's stdin and asserts on stdout
-  (golden-file/transcript replay). For `yandex-music`, record real API
-  responses once via a cassette library (`vcr.py`/`responses`) so CI never
-  needs a live account.
-- **Conformance suite** (`libs/py-rpc-common/rpc_common/testing/conformance.py`):
-  runnable against *any* source — spawn it, `initialize`, validate the
-  result against `protocol/schema/`, check capability-flag internal
-  consistency (`providesStream`/`selfPlayback` not both true), then exercise
-  every method implied by a true capability flag and validate result shapes.
-  Run against both `yandex-music` and `mock-radio` in CI — this is the real
-  mechanism keeping future third-party sources honest.
+  actually works, and a synthetic `selfPlayback` fixture that exercises the
+  branch neither real v1 backend uses.
+- **Backend-side, no live front**: a "fake front" harness that replays
+  `backends/py-rpc-common/examples/*.ndjson` into a backend's stdin and
+  asserts on stdout (golden-file/transcript replay). For `yandex-music`,
+  record real API responses once via a cassette library (`vcr.py`/`responses`)
+  so CI never needs a live account. For `local-folder`, unit-test `scanner.py`
+  directly against a small fixture directory tree covering both the
+  "subfolders = playlists" and "flat files = single playlist" cases.
+- **Conformance suite** (`backends/py-rpc-common/rpc_common/testing/conformance.py`):
+  runnable against *any* backend — spawn it, `initialize`, validate the
+  result against `backends/py-rpc-common/schema/`, check capability-flag
+  internal consistency (`providesStream`/`selfPlayback` not both true), then
+  exercise every method implied by a true capability flag and validate result
+  shapes. Run against both `yandex-music` and `local-folder` in CI — this is
+  the real mechanism keeping future third-party backends honest.
 - **Manual smoke checklist** (run once the migration lands):
   1. No manifests present → front shows an empty/graceful state.
-  2. Both manifests present, relaunch → both sources spawn, sidebar shows both.
+  2. Both manifests present, relaunch → both backends spawn, sidebar shows both.
   3. Trigger Yandex auth → device code shown, completes, playlists populate.
   4. Play a Yandex track → `track/streamReady` → local mpv plays; pause/seek/volume all work locally.
   5. Start My Wave → auto-advance triggers `feedback.trackFinished` + `radio/tracksAdded`.
   6. Save current Yandex track (`s`) → `catalog.downloadTrack` → file appears at returned path.
-  7. Switch to Mock Radio → UI now mirrors `state/changed`; volume key sends `playback.setVolume` to the source instead of touching local mpv.
-  8. `kill -9` the Yandex subprocess mid-session → front marks it unavailable without crashing; Mock Radio keeps working.
-  9. Quit → both subprocesses exit cleanly, no orphans (`ps` check).
-  10. Pipe a source's raw stdout through a strict per-line `json.loads` validator to catch stdout-purity regressions early.
+  7. Point `local-folder` at a directory with subfolders → each subfolder appears as a playlist; play a track from it.
+  8. Point `local-folder` at a directory with only loose files → single playlist, all tracks listed.
+  9. `kill -9` the Yandex subprocess mid-session → front marks it unavailable without crashing; local-folder keeps working.
+  10. Quit → both subprocesses exit cleanly, no orphans (`ps` check).
+  11. Pipe a backend's raw stdout through a strict per-line `json.loads` validator to catch stdout-purity regressions early.
 
 ---
 
 ## Suggested implementation order
 
-1. `protocol/SPEC.md` + `protocol/schema/*.json` written out fully from §1–§4b.
-2. `libs/py-rpc-common` (transport, jsonrpc envelope, error constants, shared models, conformance harness).
-3. `sources/mock-radio` first (small, proves `selfPlayback` branch, no external API dependency) —
+1. `docs/protocol.md` written out fully from §1–§4b (moved here, no separate top-level `protocol/` folder).
+2. `backends/py-rpc-common` (transport, jsonrpc envelope, error constants, shared models, schema, conformance harness, fixtures).
+3. `backends/local-folder` first (small, proves the `providesStream` path end-to-end, no external API dependency) —
    validates the transport/lifecycle plumbing before touching real Yandex code.
-4. `sources/yandex-music`: migrate `client.py`/`auth.py` mostly as-is, rebuild `catalog.py`/`radio.py`/
+4. `backends/yandex-music`: migrate `client.py`/`auth.py` mostly as-is, rebuild `catalog.py`/`radio.py`/
    `playback.py`/`download.py` on top of the existing `yandex_music` calls already proven in this repo.
-5. `front/tui`: `rpc_client.py` + `source_manager.py` + `discovery.py`, then `playback_engine.py`
+5. `fronts/tui`: `rpc_client.py` + `source_manager.py` + `discovery.py`, then `playback_engine.py`
    (port of today's `player.py` mpv logic), then `app.py` (port of today's `tui.py`).
-6. Wire the conformance suite into both sources; run the manual smoke checklist end-to-end.
+6. Wire the conformance suite into both backends; run the manual smoke checklist end-to-end.
 7. Retire the old flat `ym_player/` package once the new tree is verified working.

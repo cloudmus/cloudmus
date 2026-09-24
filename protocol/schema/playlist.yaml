@@ -1,0 +1,14 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: playlist.yaml
+title: Playlist
+type: object
+required: [id, title, trackCount, kind]
+properties:
+  id: {type: string}
+  title: {type: string}
+  description: {type: string}       # optional
+  coverUrl: {type: string}          # optional
+  trackCount: {type: integer}
+  kind: {type: string, enum: [playlist, liked, radioStation]}
+  editable: {type: boolean}         # optional (1.3+); the user's own playlist, tracks can be added/removed
+additionalProperties: false

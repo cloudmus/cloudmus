@@ -1,0 +1,355 @@
+# cloudmus JSON-RPC methods & notifications — the machine-readable RPC
+# surface. `protocol/schema/*.yaml` describes data *types*; this file
+# describes the *methods* (front -> backend, request/response) and
+# *notifications* (backend -> front, fire-and-forget) built on top of them,
+# plus the application error-code ranges. This is the source `protocol/codegen`
+# reads to generate per-language stubs (see protocol/README.md).
+#
+# Normative prose for all of this still lives in docs/protocol.md — this file
+# is the structured transcription of docs/protocol.md §5-§9 kept in sync with
+# it; if they disagree, docs/protocol.md wins (update this file to match).
+#
+# Type nodes use the same small JSON-Schema-like vocabulary as
+# protocol/schema/*.yaml: {type: string|integer|number|boolean}, {type: array,
+# items: <node>}, {type: object, properties: {...}, required: [...]}, or
+# {$ref: "schema/<file>.yaml"} to reuse a named data type.
+
+protocolVersion: "1.1"
+
+methods:
+  # --- 7.1 Catalog / browse ---
+  catalog.listPlaylists:
+    # Purely documentation (see rpc_common/server.py — never enforced at
+    # the transport level): call this whenever ANY of browse.playlists /
+    # browse.likedTracks / browse.radio is true, not just browse.playlists
+    # — the result includes kind: liked/radioStation entries for those
+    # capabilities too. See docs/protocol.md §7.1.
+    requiresCapability: browse.playlists || browse.likedTracks || browse.radio
+    params: {type: object, properties: {}, required: []}
+    result:
+      type: object
+      required: [playlists]
+      properties:
+        playlists: {type: array, items: {$ref: "schema/playlist.yaml"}}
+    # Longer than the 5000ms default for other browse/auth calls: some
+    # backends fan this out into several chained upstream requests (e.g.
+    # youtube-music's ytmusicapi wrapper does three sequential calls —
+    # library playlists, liked songs, then a home-feed scan for the
+    # supermix id — inside one listPlaylists), which routinely exceeded a
+    # 5s budget and surfaced as a spurious "request timed out". See
+    # docs/protocol.md §7.1.
+    timeoutMs: 20000
+
+  catalog.listTracks:
+    requiresCapability: browse.playlists
+    params:
+      type: object
+      required: [playlistId]
+      properties:
+        playlistId: {type: string}
+        cursor: {type: string}
+    result:
+      type: object
+      required: [tracks]
+      properties:
+        tracks: {type: array, items: {$ref: "schema/track.yaml"}}
+        nextCursor: {type: string}
+    timeoutMs: 5000
+
+  catalog.listLiked:
+    requiresCapability: browse.likedTracks
+    params:
+      type: object
+      properties: {cursor: {type: string}}
+      required: []
+    result:
+      type: object
+      required: [tracks]
+      properties:
+        tracks: {type: array, items: {$ref: "schema/track.yaml"}}
+        nextCursor: {type: string}
+    timeoutMs: 5000
+
+  catalog.startRadio:
+    requiresCapability: browse.radio
+    params:
+      type: object
+      properties: {seed: {type: string}}
+      required: []
+    result:
+      type: object
+      required: [stationId, initialTracks]
+      properties:
+        stationId: {type: string}
+        initialTracks: {type: array, items: {$ref: "schema/track.yaml"}}
+    timeoutMs: 5000
+
+  # --- 7.2 / 7.3 Playback ---
+  playback.play:
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result:
+      type: object
+      required: [accepted]
+      properties: {accepted: {type: boolean}}
+    timeoutMs: 5000
+
+  playback.cancel:
+    params:
+      type: object
+      required: [requestId]
+      properties: {requestId: {type: integer}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  playback.pause:
+    requiresCapability: playback.controls.pause
+    params: {type: object, properties: {}, required: []}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  playback.resume:
+    requiresCapability: playback.controls.pause
+    params: {type: object, properties: {}, required: []}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  playback.next:
+    params: {type: object, properties: {}, required: []}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  playback.previous:
+    params: {type: object, properties: {}, required: []}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  playback.seek:
+    requiresCapability: playback.controls.seek
+    params:
+      type: object
+      required: [positionMs]
+      properties: {positionMs: {type: integer}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  playback.setVolume:
+    requiresCapability: playback.controls.volume
+    params:
+      type: object
+      required: [volume]
+      properties: {volume: {type: integer}}   # 0-100
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  # --- 7.4 Feedback ---
+  feedback.like:
+    requiresCapability: feedback.like
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  feedback.dislike:
+    requiresCapability: feedback.dislike
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  feedback.unlike:
+    requiresCapability: feedback.like
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  feedback.undislike:
+    requiresCapability: feedback.dislike
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  feedback.trackStarted:
+    requiresCapability: browse.radio
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  feedback.trackFinished:
+    requiresCapability: browse.radio
+    params:
+      type: object
+      required: [trackId, playedMs]
+      properties: {trackId: {type: string}, playedMs: {type: integer}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  feedback.skip:
+    requiresCapability: feedback.skip
+    params:
+      type: object
+      required: [trackId, playedMs]
+      properties: {trackId: {type: string}, playedMs: {type: integer}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  # --- 7.6 Editing playlists ---
+  catalog.getTrackPlaylists:
+    requiresCapability: browse.editPlaylists
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result:
+      type: object
+      required: [playlistIds]
+      properties: {playlistIds: {type: array, items: {type: string}}}
+    timeoutMs: 20000
+
+  catalog.addToPlaylist:
+    requiresCapability: browse.editPlaylists
+    params:
+      type: object
+      required: [playlistId, trackId]
+      properties: {playlistId: {type: string}, trackId: {type: string}}
+    result:
+      type: object
+      required: [trackCount]
+      properties: {trackCount: {type: integer}}
+    timeoutMs: 20000
+
+  catalog.removeFromPlaylist:
+    requiresCapability: browse.editPlaylists
+    params:
+      type: object
+      required: [playlistId, trackId]
+      properties: {playlistId: {type: string}, trackId: {type: string}}
+    result:
+      type: object
+      required: [trackCount]
+      properties: {trackCount: {type: integer}}
+    timeoutMs: 20000
+
+  # --- 7.5 Download ---
+  catalog.downloadTrack:
+    requiresCapability: download
+    params:
+      type: object
+      required: [trackId, destDir]
+      properties: {trackId: {type: string}, destDir: {type: string}}
+    result:
+      type: object
+      required: [path]
+      properties: {path: {type: string}}
+    timeoutMs: 60000
+
+  # --- 10. Auth ---
+  auth.getStatus:
+    params: {type: object, properties: {}, required: []}
+    result:
+      type: object
+      required: [status]
+      properties:
+        status: {type: string, enum: [unauthenticated, pending, authenticated, error]}
+        detail: {type: string}
+    timeoutMs: 5000
+
+  auth.start:
+    params: {type: object, properties: {}, required: []}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  auth.submit:
+    params:
+      type: object
+      required: [fields]
+      properties:
+        fields: {type: object, additionalProperties: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  auth.cancel:
+    params: {type: object, properties: {}, required: []}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  auth.logout:
+    params: {type: object, properties: {}, required: []}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+notifications:
+  # --- 8. Notifications (source -> front, unsolicited) ---
+  state/changed:
+    params: {$ref: "schema/playback_state.yaml"}
+
+  track/streamReady:
+    params:
+      type: object
+      required: [requestId, trackId, stream]
+      properties:
+        requestId: {type: integer}
+        trackId: {type: string}
+        stream: {$ref: "schema/stream_descriptor.yaml"}
+
+  radio/tracksAdded:
+    params:
+      type: object
+      required: [stationId, tracks]
+      properties:
+        stationId: {type: string}
+        tracks: {type: array, items: {$ref: "schema/track.yaml"}}
+        # true: `tracks` is the station's new upcoming sequence and replaces
+        # the not-yet-played tail of the front's queue instead of being
+        # appended to it (docs/protocol.md §7.1). Absent/false: append.
+        replaceUpcoming: {type: boolean}
+
+  auth/prompt:
+    # Flow-specific shape (deviceCode | usernamePassword | oauthRedirect, see
+    # docs/protocol.md §10) — deliberately left as a loose object rather than
+    # a strict oneOf, since the `flow` field is a runtime discriminator a
+    # generator would otherwise need union-type support for no real benefit
+    # at this protocol's size (3 shapes, one front only ever branches on
+    # `flow` at runtime anyway).
+    params: {type: object, required: [flow], properties: {flow: {type: string}}}
+
+  auth/statusChanged:
+    params:
+      type: object
+      required: [status]
+      properties:
+        status: {type: string, enum: [authenticated, error]}
+        message: {type: string}
+
+  error:
+    params:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: integer}
+        message: {type: string}
+        data: {type: object, additionalProperties: true}
+
+# --- 9. Error codes ---
+errors:
+  ranges:
+    - {min: 1000, max: 1099, name: auth, description: "not authenticated / expired / flow failed"}
+    - {min: 1100, max: 1199, name: capability, description: "method called without the declaring capability"}
+    - {min: 1200, max: 1299, name: upstream, description: "backend unreachable / rate-limited / timed out"}
+    - {min: 1300, max: 1399, name: resource, description: "track/playlist/station not found"}
+    - {min: 1400, max: 1499, name: state, description: "e.g. seek with nothing loaded"}

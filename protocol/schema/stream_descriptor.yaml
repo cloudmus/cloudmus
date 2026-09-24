@@ -1,0 +1,13 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: stream_descriptor.yaml
+title: StreamDescriptor
+type: object
+required: [kind, url, mimeType]
+properties:
+  kind: {type: string, enum: [url]}   # discriminator, reserved for future stream kinds
+  url: {type: string}
+  mimeType: {type: string}
+  headers:                            # optional, extra HTTP headers the front must send when fetching
+    type: object
+    additionalProperties: {type: string}
+additionalProperties: false

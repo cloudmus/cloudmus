@@ -5,4 +5,14 @@ __pycache__/
 downloads/
 *.mp3
 build/
+build-appimage/
 dist/
+
+# protocol/codegen output — regenerate with:
+#   python protocol/codegen/generate.py --lang python cpp
+# see protocol/README.md
+backends/py-rpc-common/rpc_common/generated/
+fronts/qt/generated/
+
+# Qt Creator's local project state (build kit, paths — machine-specific)
+fronts/qt/.qtcreator/

@@ -1,0 +1,7 @@
+{"jsonrpc":"2.0","id":4,"method":"catalog.listPlaylists","params":{}}
+{"jsonrpc":"2.0","id":4,"result":{"playlists":[{"id":"3","title":"Favorites","trackCount":42,"kind":"playlist"}]}}
+{"jsonrpc":"2.0","id":5,"method":"catalog.listTracks","params":{"playlistId":"3"}}
+{"jsonrpc":"2.0","id":5,"result":{"tracks":[{"id":"51672522","title":"Victory","artists":[{"id":"719143","name":"Aurolab"}],"durationMs":391200}]}}
+{"jsonrpc":"2.0","id":6,"method":"playback.play","params":{"trackId":"51672522"}}
+{"jsonrpc":"2.0","id":6,"result":{"accepted":true}}
+{"jsonrpc":"2.0","method":"track/streamReady","params":{"requestId":6,"trackId":"51672522","stream":{"kind":"url","url":"https://api.music.yandex.net/get-mp3/...","mimeType":"audio/mpeg"}}}
