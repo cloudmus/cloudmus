@@ -65,9 +65,12 @@ covers in `~/.cache/cloudmus/` — delete them too to remove everything.
 - **YouTube Music** — sign-in is done by pasting request headers copied
   from a logged-in browser session, see
   [Setting up browser-header auth](backends/youtube-music/README.md#setting-up-browser-header-auth).
-- **Local folder** — plays `~/Music`, each subfolder shown as a playlist.
-  To use another folder, put `{"musicDir": "/path/to/music"}` into
+- **Local folder** — plays your music folder (`xdg-user-dir MUSIC`, e.g.
+  `~/Music` or `~/Музыка`), each subfolder shown as a playlist. To use
+  another folder, put `{"musicDir": "/path/to/music"}` into
   `~/.config/cloudmus/backends/local-folder/config.json`.
+- **Downloads** go to the same music folder unless you pick another one in
+  Settings.
 
 ## What makes this different from a regular player
 

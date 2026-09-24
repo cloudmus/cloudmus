@@ -27,6 +27,7 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, QWidget* parent)
     closeToTrayCheck_->setFont(Theme::font(Theme::TextStyle::Body));
 
     downloadDirEdit_ = new QLineEdit(settings_.downloadDirectory(), this);
+    downloadDirEdit_->setPlaceholderText(Config::Settings::defaultDownloadDirectory());
     downloadDirEdit_->setFont(Theme::font(Theme::TextStyle::Body));
     auto* browseButton = new QPushButton(tr("Browse…"), this);
     browseButton->setProperty("variant", "secondary");

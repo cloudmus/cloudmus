@@ -40,7 +40,9 @@ public:
     bool closeMinimizesToTray() const;
     void setCloseMinimizesToTray(bool value);
 
+    static QString defaultDownloadDirectory();
     QString downloadDirectory() const;
+    // An empty path or the default one resets to the default.
     void setDownloadDirectory(const QString& path);
 
 private:

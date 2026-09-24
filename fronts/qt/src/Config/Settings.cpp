@@ -1,5 +1,6 @@
 #include "Settings.h"
 
+#include <QDir>
 #include <QStandardPaths>
 
 namespace Config {
@@ -70,15 +71,27 @@ void Settings::setCloseMinimizesToTray(bool value)
     settings_.setValue(QStringLiteral("window/closeMinimizesToTray"), value);
 }
 
+QString Settings::defaultDownloadDirectory()
+{
+    // The XDG music folder (`xdg-user-dir MUSIC`, e.g. ~/Музыка) — also the
+    // local-folder backend's default, so downloads show up there.
+    return QStandardPaths::writableLocation(QStandardPaths::MusicLocation);
+}
+
 QString Settings::downloadDirectory() const
 {
-    const QString fallback = QStandardPaths::writableLocation(QStandardPaths::MusicLocation);
-    return settings_.value(QStringLiteral("download/directory"), fallback).toString();
+    return settings_.value(QStringLiteral("download/directory"), defaultDownloadDirectory()).toString();
 }
 
 void Settings::setDownloadDirectory(const QString& path)
 {
-    settings_.setValue(QStringLiteral("download/directory"), path);
+    // Only a folder the user actually chose is stored: saving the default
+    // too would pin it, and it would stop following the XDG music folder.
+    const QString cleaned = QDir::cleanPath(path.trimmed());
+    if (path.trimmed().isEmpty() || cleaned == QDir::cleanPath(defaultDownloadDirectory()))
+        settings_.remove(QStringLiteral("download/directory"));
+    else
+        settings_.setValue(QStringLiteral("download/directory"), cleaned);
 }
 
 } // namespace Config
