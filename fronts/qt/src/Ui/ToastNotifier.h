@@ -1,19 +1,17 @@
 #pragma once
 
 #include <QList>
+#include <QPointer>
 #include <QWidget>
 
 namespace Ui {
 
-// Small, non-modal, auto-dismissing, stackable in-app toasts, anchored to a
-// corner of the parent widget (MainWindow). Distinct from
-// Integration::NotificationToast (the OS-level org.freedesktop.Notifications
-// popup for track-change + cover art) — this one is in-app, text-only, and
-// needs no D-Bus. Fed by RPC-level failures, backend `error` notifications,
-// playback resolve failures — see the plan's "Background operations: busy
-// state & error surfacing" — and, via showInfo(), context-menu actions
-// (like/dislike/download) that have no other visual confirmation the way
-// the toolbar's own button state already gives the currently-playing track.
+// In-app toasts, stacked at the anchor's bottom-right corner. Each one
+// slides in from the right while fading in, counts down its time on a
+// thin vertical bar at its right edge (paused while hovered, so it can be
+// read to the end), and slides back out fading when the time is up or its
+// × is clicked; the rest of the stack glides to its new places whenever
+// one comes or goes.
 class ToastNotifier : public QObject {
     Q_OBJECT
 
@@ -21,17 +19,20 @@ public:
     explicit ToastNotifier(QWidget* anchor);
 
     void showError(const QString& message);
-    // Same look as showError() today (the #toastLabel QSS rule has no
-    // error-specific styling) — this exists for call-site clarity
-    // ("succeeded" vs "failed"), not a new visual state.
     void showInfo(const QString& message);
 
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
-    void showToast(const QString& message);
-    void repositionToasts();
+    void showToast(const QString& message, bool error);
+    void dismiss(QWidget* toast);
+    // Moves every toast to its slot in the stack — animated, unless it's
+    // a toast just being placed for its entrance.
+    void layoutToasts(QWidget* entering = nullptr);
 
     QWidget* anchor_;
-    QList<QWidget*> activeToasts_;
+    QList<QPointer<QWidget>> toasts_; // bottom-most last
 };
 
 } // namespace Ui
