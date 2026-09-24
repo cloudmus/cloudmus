@@ -31,12 +31,14 @@
 #include "PlaybackHistory.h"
 #include "PlaylistSheet.h"
 #include "RpcMethods.h"
+#include "ScrollEdgeFade.h"
 #include "SettingsDialog.h"
 #include "SidebarModel.h"
 #include "SmoothScroller.h"
 #include "SourcePanel.h"
 #include "Spacing.h"
 #include "ToastNotifier.h"
+#include "Tokens.h"
 #include "TrackHoverCard.h"
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
@@ -239,6 +241,8 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     sidebarView_->setIndentation(Theme::Spacing::space5);
     sidebarView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(sidebarView_);
+    // Before OverlayScrollBar::attach — see ScrollEdgeFade's class doc.
+    ScrollEdgeFade::attach(sidebarView_, [] { return Theme::palette().surface100; });
     OverlayScrollBar::attach(sidebarView_);
     // Real mouse-move events over the viewport drive NavItemDelegate's hover
     // via eventFilter() below — needs mouse tracking on to get them without
@@ -296,6 +300,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListView_->setMouseTracking(true);
     trackListView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(trackListView_);
+    ScrollEdgeFade::attach(trackListView_, [] { return Theme::palette().surface0; });
     OverlayScrollBar::attach(trackListView_);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);

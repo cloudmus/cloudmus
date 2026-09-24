@@ -22,6 +22,7 @@
 #include "Metrics.h"
 #include "OverlayScrollBar.h"
 #include "Radius.h"
+#include "ScrollEdgeFade.h"
 #include "SmoothScroller.h"
 #include "SourcePanel.h"
 #include "Spacing.h"
@@ -264,6 +265,8 @@ PlaylistSheet::PlaylistSheet(CoverArtCache* coverCache, QWidget* parent)
     trackView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     trackView_->setContextMenuPolicy(Qt::CustomContextMenu);
     SmoothScroller::attach(trackView_);
+    // Before OverlayScrollBar::attach — see ScrollEdgeFade's class doc.
+    ScrollEdgeFade::attach(trackView_, [] { return Theme::palette().surface0; });
     OverlayScrollBar::attach(trackView_);
     const auto activate = [this](const QModelIndex& index) {
         if (index.isValid())

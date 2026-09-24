@@ -26,6 +26,7 @@
 #include "Models.h"
 #include "OverlayScrollBar.h"
 #include "Radius.h"
+#include "ScrollEdgeFade.h"
 #include "Spacing.h"
 #include "Tokens.h"
 #include "TrackListModel.h"
@@ -281,6 +282,8 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     // the column is transparent over the sheet's own background.
     column->setAutoFillBackground(false);
     scroll->viewport()->setAutoFillBackground(false);
+    // The sheet's own background shows through this transparent column.
+    ScrollEdgeFade::attach(scroll, [] { return Theme::palette().surface0; });
     OverlayScrollBar::attach(scroll);
 
     authCard_ = new QWidget(column);
