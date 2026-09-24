@@ -4,9 +4,8 @@
 # rationale (Debian 11 base for an old glibc floor, Qt6 via aqtinstall
 # since bullseye has no Qt6 packages, bundled Python runtime, etc.).
 #
-# Written to also work unmodified from a future GitHub Actions job on an
-# ubuntu-latest runner (Docker is preinstalled there) — no workflow YAML
-# yet, just this script, per the current scope.
+# Also run unmodified by .github/workflows/release.yml on an
+# ubuntu-latest runner (Docker is preinstalled there).
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 

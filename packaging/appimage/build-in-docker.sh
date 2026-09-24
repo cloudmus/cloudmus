@@ -9,6 +9,12 @@ DIST_DIR="${REPO_ROOT}/dist"
 APPDIR="${DIST_DIR}/AppDir"
 APPIMAGE_TOOLS_DIR="/opt/appimage-tools"
 
+# The bind-mounted repo is owned by the host user, not the container's
+# root, so git refuses to touch it ("dubious ownership") and
+# cmake/Version.cmake's `git describe` would silently fall back to the
+# bare base version instead of the release tag.
+git config --global --add safe.directory "${REPO_ROOT}"
+
 rm -rf "${APPDIR}"
 mkdir -p "${APPDIR}" "${DIST_DIR}"
 

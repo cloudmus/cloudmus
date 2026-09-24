@@ -1,6 +1,6 @@
 # Writes Version.h with CLOUDMUS_VERSION, taken from `git describe --tags`:
-# "0.2.0" on a release tag "v0.2.0", "0.2.0-5-g1a2b3c4" five commits after
-# it, with "-dirty" for uncommitted changes — so a version copied from the
+# "0.2.0" on a release tag "0.2.0" (or "v0.2.0"), "0.2.0-5-g1a2b3c4" five
+# commits after it, with "-dirty" for uncommitted changes — so a version copied from the
 # About dialog pins down the exact build. Without any tag yet it's the
 # base version from project() plus the commit ("0.1.0+g1a2b3c4[.dirty]"),
 # and just the base version when git isn't available (a source tarball).
@@ -14,7 +14,7 @@
 set(version "${BASE}")
 find_package(Git QUIET)
 if(GIT_FOUND)
-    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --dirty --match "v[0-9]*"
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --dirty --match "[0-9]*" --match "v[0-9]*"
         WORKING_DIRECTORY ${SRC} OUTPUT_VARIABLE described OUTPUT_STRIP_TRAILING_WHITESPACE
         RESULT_VARIABLE describeResult ERROR_QUIET)
     if(describeResult EQUAL 0 AND NOT described STREQUAL "")
