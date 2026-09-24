@@ -1,3 +1,9 @@
+# 0.1.1 (2026-09-24)
+
+- Local folder plays your system music folder (`xdg-user-dir MUSIC`, e.g. `~/Музыка`) instead of always `~/Music`; downloads go there too unless another folder is chosen in Settings
+- Fix the About dialog opening narrow and very tall on a screen with a different scale
+- Fix Yandex Music My Wave stopping at the end of a batch when tracks are played through without skipping
+
 # 0.1.0 (2026-09-24)
 
 - AppImage for Linux with the Qt app and all backends bundled; built on every release and attached to its GitHub release
