@@ -95,6 +95,7 @@ add_executable(cloudmus-qt
     src/Ui/TrackHoverCard.cpp
     src/Ui/TextLayout.cpp
     src/Ui/ScrollEdgeFade.cpp
+    src/Ui/MenuCheckRow.cpp
     src/Theme/Shadow.cpp
     src/Ui/AnimatedPresenter.cpp
     src/Ui/PlaylistSheet.cpp

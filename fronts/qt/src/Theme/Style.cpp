@@ -45,6 +45,70 @@ void paintMenuShadow(QPainter* painter, const QRect& panelRect)
     paintSoftShadow(painter, panelRect, kMenuShadowMargin, kMenuShadowOffsetY, kMenuShadowMaxAlpha, Radius::md);
 }
 
+// A menu itself, or a widget inside one (e.g. a QCheckBox row put into a
+// QMenu via QWidgetAction).
+bool inMenu(const QWidget* widget)
+{
+    for (const QWidget* w = widget; w != nullptr; w = w->parentWidget()) {
+        if (qobject_cast<const QMenu*>(w))
+            return true;
+    }
+    return false;
+}
+
+constexpr int kIndicatorSide = 16;
+
+// The design system's check box / radio button: a rounded square or a
+// circle, outlined at rest (stronger on hover), filled with the accent
+// and marked in on-accent when checked; dimmed when disabled.
+void paintIndicator(QPainter* painter, const QStyleOption* option, bool radio)
+{
+    const Palette& pal = palette();
+    const QRect bounds = option->rect;
+    const int side = qMin(kIndicatorSide, qMin(bounds.width(), bounds.height()));
+    const QRectF box(
+        bounds.x() + (bounds.width() - side) / 2.0, bounds.y() + (bounds.height() - side) / 2.0, side, side);
+    const bool on = option->state & QStyle::State_On;
+    const bool partial = option->state & QStyle::State_NoChange;
+    const bool hovered = option->state & QStyle::State_MouseOver;
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing);
+    if (!(option->state & QStyle::State_Enabled))
+        painter->setOpacity(0.45);
+
+    const qreal radius = radio ? side / 2.0 : Radius::sm;
+    const QRectF shape = box.adjusted(0.75, 0.75, -0.75, -0.75);
+    if (on || partial) {
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(hovered ? pal.accentHover : pal.accent);
+        painter->drawRoundedRect(shape, radius, radius);
+        painter->setBrush(Qt::NoBrush);
+        QPen mark(pal.onAccent, side / 8.0, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+        if (radio) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(pal.onAccent);
+            painter->drawEllipse(box.center(), side * 0.2, side * 0.2);
+        } else if (partial) {
+            painter->setPen(mark);
+            painter->drawLine(QPointF(box.left() + side * 0.28, box.center().y()),
+                QPointF(box.right() - side * 0.28, box.center().y()));
+        } else {
+            painter->setPen(mark);
+            QPainterPath check;
+            check.moveTo(box.left() + side * 0.26, box.top() + side * 0.52);
+            check.lineTo(box.left() + side * 0.43, box.top() + side * 0.69);
+            check.lineTo(box.left() + side * 0.75, box.top() + side * 0.33);
+            painter->drawPath(check);
+        }
+    } else {
+        painter->setPen(QPen(hovered ? pal.inkSecondary : pal.borderStrong, 1.5));
+        painter->setBrush(pal.surface200);
+        painter->drawRoundedRect(shape, radius, radius);
+    }
+    painter->restore();
+}
+
 // App-owned splitters opt in via setProperty("themed", true) — same
 // convention as themed dialogs/progress bars (see StyleSheet.cpp), so a
 // native dialog's own QSplitter (e.g. QFileDialog's) keeps Fusion's look.
@@ -108,6 +172,15 @@ void CloudMusStyle::drawPrimitive(
         return;
     }
 
+    // Check boxes / radio buttons in menus: QCheckBox/QRadioButton rows,
+    // and checkable menu items (Fusion draws those through the same
+    // primitives).
+    if ((element == PE_IndicatorCheckBox || element == PE_IndicatorRadioButton || element == PE_IndicatorMenuCheckMark)
+        && inMenu(widget)) {
+        paintIndicator(painter, option, element == PE_IndicatorRadioButton);
+        return;
+    }
+
     if (element == PE_FrameMenu) {
         // No-op: PE_PanelMenu above already painted fill + border in one
         // pass — Fusion's own frame would otherwise draw a second,
@@ -141,7 +214,9 @@ void CloudMusStyle::drawControl(
             painter->drawRoundedRect(QRectF(item->rect), Radius::sm, Radius::sm);
             QStyleOptionMenuItem unselected = *item;
             unselected.state &= ~State_Selected;
-            QProxyStyle::drawControl(element, &unselected, painter, widget);
+            drawMenuItemWithIndicator(&unselected, painter, widget);
+        } else if (item != nullptr) {
+            drawMenuItemWithIndicator(item, painter, widget);
         } else {
             QProxyStyle::drawControl(element, option, painter, widget);
         }
@@ -157,6 +232,28 @@ void CloudMusStyle::drawControl(
     }
 
     QProxyStyle::drawControl(element, option, painter, widget);
+}
+
+void CloudMusStyle::drawMenuItemWithIndicator(
+    const QStyleOptionMenuItem* item, QPainter* painter, const QWidget* widget) const
+{
+    // Fusion draws an exclusive (radio) item's mark itself — a plain dot,
+    // not through PE_IndicatorRadioButton — so have it draw the item
+    // unmarked and paint the radio indicator into the same check rect it
+    // uses (qfusionstyle.cpp's CE_MenuItem).
+    if (item->checkType != QStyleOptionMenuItem::Exclusive) {
+        QProxyStyle::drawControl(CE_MenuItem, item, painter, widget);
+        return;
+    }
+    QStyleOptionMenuItem unmarked = *item;
+    unmarked.checked = false;
+    QProxyStyle::drawControl(CE_MenuItem, &unmarked, painter, widget);
+    QStyleOption indicator = *item;
+    indicator.rect
+        = visualRect(item->direction, item->rect, QRect(item->rect.left() + 7, item->rect.center().y() - 6, 14, 14));
+    indicator.state &= ~(State_On | State_Off | State_MouseOver);
+    indicator.state |= item->checked ? State_On : State_Off;
+    paintIndicator(painter, &indicator, /*radio=*/true);
 }
 
 int CloudMusStyle::pixelMetric(PixelMetric metric, const QStyleOption* option, const QWidget* widget) const
@@ -181,6 +278,10 @@ int CloudMusStyle::pixelMetric(PixelMetric metric, const QStyleOption* option, c
     // 1px line paints while the whole 5px still grabs the mouse.
     if (metric == PM_SplitterWidth && isThemedSplitter(widget))
         return 1;
+    if ((metric == PM_IndicatorWidth || metric == PM_IndicatorHeight || metric == PM_ExclusiveIndicatorWidth
+            || metric == PM_ExclusiveIndicatorHeight)
+        && inMenu(widget))
+        return kIndicatorSide;
     if (metric == PM_SliderLength && widget && widget->inherits("Ui::ThemedSlider"))
         return Metrics::sliderHandleDiameter;
     return QProxyStyle::pixelMetric(metric, option, widget);

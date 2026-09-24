@@ -175,6 +175,7 @@ QString panelsBlock(const Palette& p)
     padding: %7px %8px;
 }
 QMenu { color: %5; }
+QMenu QCheckBox, QMenu QRadioButton { color: %5; spacing: %7px; }
 #transportSeparator { color: %2; }
 #secondaryLabel { color: %9; }
 #sectionLabel { color: %10; })")
@@ -267,8 +268,10 @@ QString trackListBlock(const Palette& p)
         .arg(hex(p.surface0));
 }
 
-// Covers QLineEdit/QCheckBox app-wide by widget TYPE (so any future one —
-// dialog or not — gets the design system's look for free), but the dialog
+// Covers QLineEdit app-wide by widget TYPE (so any future one — dialog or
+// not — gets the design system's look for free). QCheckBox is scoped to
+// themed dialogs: in menus its indicator is drawn by Theme::CloudMusStyle
+// instead, which a matching ::indicator rule here would override. The dialog
 // window background itself is scoped to `QDialog[themed="true"]`, NOT
 // a bare `QDialog` selector: QDialog is also the base class of QFileDialog
 // (and QColorDialog/QFontDialog/etc.), so a bare-type rule was bleeding
@@ -302,15 +305,15 @@ QLineEdit {
 }
 QLineEdit:focus { border: 1px solid %8; }
 QLineEdit[variant="filter"] { padding: %7px %7px; border-radius: %12px; }
-QCheckBox { spacing: %7px; color: %2; }
-QCheckBox::indicator {
+QDialog[themed="true"] QCheckBox { spacing: %7px; color: %2; }
+QDialog[themed="true"] QCheckBox::indicator {
     width: 16px; height: 16px;
     border-radius: %5px;
     border: 1px solid %10;
     background: %3;
 }
-QCheckBox::indicator:hover { border-color: %8; }
-QCheckBox::indicator:checked {
+QDialog[themed="true"] QCheckBox::indicator:hover { border-color: %8; }
+QDialog[themed="true"] QCheckBox::indicator:checked {
     background: %8;
     border-color: %8;
     image: url("%11");

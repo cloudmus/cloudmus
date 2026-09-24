@@ -2,6 +2,8 @@
 
 #include <QProxyStyle>
 
+class QStyleOptionMenuItem;
+
 namespace Theme {
 
 // Wraps Fusion (see main.cpp's comment on why Fusion, not a native style)
@@ -25,8 +27,9 @@ namespace Theme {
 //
 // Scope is intentionally narrow: only QMenu's panel/frame drawing and
 // polish, plus the slider click behavior hint (see styleHint()),
-// Ui::ThemedSlider's handle length and themed QSplitters' 1px handle
-// (see pixelMetric()/drawControl()), are overridden here. Everything
+// Ui::ThemedSlider's handle length, themed QSplitters' 1px handle
+// (see pixelMetric()/drawControl()) and check box / radio indicators
+// inside menus (drawPrimitive()), are overridden here. Everything
 // else falls through to Fusion unchanged.
 class CloudMusStyle : public QProxyStyle {
 public:
@@ -43,6 +46,10 @@ public:
     // first/last row.
     void drawControl(ControlElement element, const QStyleOption* option, QPainter* painter,
         const QWidget* widget = nullptr) const override;
+
+    // CE_MenuItem via Fusion, but with this style's radio indicator for
+    // exclusive (radio) items — see the .cpp.
+    void drawMenuItemWithIndicator(const QStyleOptionMenuItem* item, QPainter* painter, const QWidget* widget) const;
 
     int pixelMetric(
         PixelMetric metric, const QStyleOption* option = nullptr, const QWidget* widget = nullptr) const override;
