@@ -22,6 +22,12 @@ namespace Ui {
 namespace {
 void fillRoundedRect(QPainter* painter, const QRect& rect, const QColor& color, int radius)
 {
+    if (radius <= 0) {
+        // Plain axis-aligned fill — no antialiased path edges, which leave
+        // faint seams between adjacent full-width rows.
+        painter->fillRect(rect, color);
+        return;
+    }
     QPainterPath path;
     path.addRoundedRect(rect, radius, radius);
     painter->fillPath(path, color);
@@ -187,10 +193,15 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     // persistent multi-select browsing UX beyond single-click activation,
     // so the two concepts reading the same way is not a meaningful loss.
     const QRect rect = insetRow(option.rect);
+    // Rounded only when the row floats inside the view with margins around
+    // it (setRowInsets(), e.g. the sheet): there the fill reads as a card.
+    // A row spanning the view's full width (the main list) gets square
+    // corners — rounding them against the view's own edges looks chipped.
+    const int radius = (insetLeft_ > 0 || insetRight_ > 0) ? Theme::Radius::md : 0;
     if (selected || isCurrentTrack)
-        fillRoundedRect(painter, rect, pal.surface400, Theme::Radius::md);
+        fillRoundedRect(painter, rect, pal.surface400, radius);
     else if (hovered)
-        fillRoundedRect(painter, rect, pal.surface300, Theme::Radius::md);
+        fillRoundedRect(painter, rect, pal.surface300, radius);
 
     const int margin = (rect.height() - kThumbSize) / 2;
     const QRect thumb = thumbRect(rect);
