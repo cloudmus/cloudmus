@@ -5,6 +5,7 @@
 #include <QEasingCurve>
 #include <QPropertyAnimation>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QWheelEvent>
 
 namespace Ui {
@@ -42,12 +43,20 @@ bool SmoothScroller::eventFilter(QObject* watched, QEvent* event)
         // wheelScrollLines() math by hand, which would drift from whatever
         // this Qt version actually does. Then undo the instant jump and
         // animate to it instead.
+        //
+        // Signals blocked for the whole probe, not just the undo: the
+        // area follows valueChanged, and a QScrollArea would otherwise move
+        // its content to the jump target right away and stay there — the
+        // visible "jump ahead, snap back, then glide" — until the animation
+        // next changes the value.
         const int before = bar->value();
-        QCoreApplication::sendEvent(bar, wheelEvent);
-        const int stepDelta = bar->value() - before;
-        bar->blockSignals(true);
-        bar->setValue(before);
-        bar->blockSignals(false);
+        int stepDelta = 0;
+        {
+            const QSignalBlocker blocker(bar);
+            QCoreApplication::sendEvent(bar, wheelEvent);
+            stepDelta = bar->value() - before;
+            bar->setValue(before);
+        }
 
         const bool animating = animation_ && animation_->state() == QAbstractAnimation::Running;
         const int base = animating ? target_ : before;

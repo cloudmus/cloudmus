@@ -27,6 +27,7 @@
 #include "OverlayScrollBar.h"
 #include "Radius.h"
 #include "ScrollEdgeFade.h"
+#include "SmoothScroller.h"
 #include "Spacing.h"
 #include "Tokens.h"
 #include "TrackListModel.h"
@@ -282,6 +283,7 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     // the column is transparent over the sheet's own background.
     column->setAutoFillBackground(false);
     scroll->viewport()->setAutoFillBackground(false);
+    SmoothScroller::attach(scroll);
     // The sheet's own background shows through this transparent column.
     ScrollEdgeFade::attach(scroll, [] { return Theme::palette().surface0; });
     OverlayScrollBar::attach(scroll);
