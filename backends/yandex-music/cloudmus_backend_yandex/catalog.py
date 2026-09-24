@@ -137,7 +137,15 @@ def to_track(t: YTrack, *, liked: bool | None = None) -> Track:
 
 
 def to_playlist(p: YPlaylist) -> Playlist:
-    return Playlist(id=p.playlist_id, title=p.title or "(untitled)", trackCount=p.track_count or 0, kind="playlist")
+    # users_playlists_list() only lists the account's own playlists, so
+    # every one of them can be edited (docs/protocol.md §7.6).
+    return Playlist(
+        id=p.playlist_id,
+        title=p.title or "(untitled)",
+        trackCount=p.track_count or 0,
+        kind="playlist",
+        editable=True,
+    )
 
 
 def _wave_playlist() -> Playlist:
@@ -185,6 +193,7 @@ async def list_playlists(client: Client) -> dict:
         return real_playlists, len(likes.liked)
 
     real_playlists, liked_count = await asyncio.to_thread(fetch)
+    membership.invalidate()  # the front's refresh point — contents may have changed elsewhere
     playlists = [_wave_playlist(), _liked_playlist(liked_count)]
     playlists += [to_playlist(p) for p in real_playlists]
     return {"playlists": [p.to_dict() for p in playlists]}
@@ -211,3 +220,109 @@ async def list_liked(client: Client) -> dict:
     # unconditionally, rather than leaving it unset like to_track()'s
     # default (see its docstring).
     return {"tracks": [to_track(t, liked=True).to_dict() for t in tracks]}
+
+
+# --- editing playlists (docs/protocol.md §7.6) ---
+
+
+class PlaylistMembership:
+    """Which of the account's own playlists contain which tracks.
+
+    Answers catalog.getTrackPlaylists without fetching every playlist per
+    question: loaded in one users_playlists(kind=[...]) call on first use,
+    dropped on catalog.listPlaylists (the front's refresh point) and kept
+    in step with this backend's own add/remove calls.
+    """
+
+    def __init__(self) -> None:
+        self._tracks: dict[str, list[str]] | None = None  # playlist id -> bare track ids, in order
+
+    def invalidate(self) -> None:
+        self._tracks = None
+
+    def _ensure_loaded(self, client: Client) -> dict[str, list[str]]:
+        if self._tracks is None:
+            own = client.users_playlists_list() or []
+            kinds = [p.kind for p in own]
+            full = client.users_playlists(kinds) if kinds else []
+            if full is not None and not isinstance(full, list):
+                full = [full]
+            self._tracks = {
+                p.playlist_id: [_bare_id(short.id) for short in (p.tracks or [])] for p in (full or [])
+            }
+        return self._tracks
+
+    def playlists_with(self, client: Client, track_id: str) -> list[str]:
+        tid = _bare_id(track_id)
+        return [pid for pid, ids in self._ensure_loaded(client).items() if tid in ids]
+
+    def added(self, playlist_id: str, track_id: str) -> None:
+        if self._tracks is not None and playlist_id in self._tracks:
+            self._tracks[playlist_id].append(_bare_id(track_id))
+
+    def removed(self, playlist_id: str, track_id: str) -> None:
+        ids = (self._tracks or {}).get(playlist_id)
+        tid = _bare_id(track_id)
+        if ids is not None and tid in ids:
+            ids.remove(tid)
+
+
+membership = PlaylistMembership()
+
+
+async def get_track_playlists(client: Client, track_id: str) -> dict:
+    ids = await asyncio.to_thread(membership.playlists_with, client, track_id)
+    return {"playlistIds": ids}
+
+
+def _album_id_for(client: Client, track_id: str) -> str:
+    # Our Track.id is "<trackId>:<albumId>" when the album is known; the
+    # insert call needs the album explicitly.
+    bare, _, album = str(track_id).partition(":")
+    if album:
+        return album
+    tracks = client.tracks([bare]) or []
+    albums = tracks[0].albums if tracks else None
+    if not albums:
+        raise LookupError(track_id)
+    return str(albums[0].id)
+
+
+async def add_to_playlist(client: Client, playlist_id: str, track_id: str) -> dict:
+    def add() -> int:
+        playlist = _find_playlist(client, playlist_id)
+        if playlist is None:
+            raise LookupError(playlist_id)
+        result = client.users_playlists_insert_track(
+            playlist.kind,
+            _bare_id(track_id),
+            _album_id_for(client, track_id),
+            at=playlist.track_count or 0,  # append
+            revision=playlist.revision or 1,
+        )
+        return (result.track_count if result else (playlist.track_count or 0) + 1) or 0
+
+    count = await asyncio.to_thread(add)
+    membership.added(playlist_id, track_id)
+    return {"trackCount": count}
+
+
+async def remove_from_playlist(client: Client, playlist_id: str, track_id: str) -> dict:
+    def remove() -> int:
+        playlist = _find_playlist(client, playlist_id)
+        if playlist is None:
+            raise LookupError(playlist_id)
+        shorts = playlist.tracks or playlist.fetch_tracks() or []
+        tid = _bare_id(track_id)
+        index = next((i for i, short in enumerate(shorts) if _bare_id(short.id) == tid), None)
+        if index is None:
+            raise LookupError(track_id)
+        # Deletes the [index, index + 1) range at the playlist's current
+        # revision (the API rejects a stale one).
+        result = client.users_playlists_delete_track(playlist.kind, index, index + 1, revision=playlist.revision or 1)
+        return (result.track_count if result else (playlist.track_count or 1) - 1) or 0
+
+    count = await asyncio.to_thread(remove)
+    membership.removed(playlist_id, track_id)
+    return {"trackCount": count}
+

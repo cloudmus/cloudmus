@@ -58,7 +58,8 @@ def test_to_track_maps_like_status():
 def test_to_playlist_maps_fields():
     p = catalog.to_playlist({"playlistId": "PL1", "title": "My Playlist", "count": 42})
     d = p.to_dict()
-    assert d == {"id": "PL1", "title": "My Playlist", "trackCount": 42, "kind": "playlist"}
+    # No "owned" in the entry: not the user's own, so not editable.
+    assert d == {"id": "PL1", "title": "My Playlist", "trackCount": 42, "kind": "playlist", "editable": False}
 
 
 def test_to_playlist_falls_back_to_untitled():
@@ -168,3 +169,75 @@ async def test_list_playlists_omits_supermix_when_get_home_fails():
     client = _FailingHomeClient(home=None, library_playlists=[], liked_tracks=[])
     result = await catalog.list_playlists(client)  # must not raise
     assert all(p["kind"] != "radioStation" for p in result["playlists"])
+
+
+# --- editing playlists ---
+
+
+class _EditClient:
+    """Fake YTMusic: one owned and one saved playlist; edits recorded."""
+
+    def __init__(self):
+        self.contents = {
+            "PLmine": [{"videoId": "a", "setVideoId": "s-a"}, {"videoId": "b", "setVideoId": "s-b"}],
+            "PLsaved": [{"videoId": "b"}],
+        }
+        self.added = []
+        self.removed = []
+
+    def get_library_playlists(self, limit=25):
+        return [{"playlistId": "PLmine", "owned": True}, {"playlistId": "PLsaved", "owned": False}]
+
+    def get_playlist(self, playlist_id, limit=100):
+        tracks = self.contents[playlist_id]
+        return {"tracks": list(tracks), "trackCount": len(tracks)}
+
+    def add_playlist_items(self, playlist_id, video_ids, duplicates=False):
+        self.added.append((playlist_id, video_ids))
+        self.contents[playlist_id] = self.contents[playlist_id] + [{"videoId": v, "setVideoId": "s-" + v} for v in video_ids]
+        return {"status": "STATUS_SUCCEEDED"}
+
+    def remove_playlist_items(self, playlist_id, videos):
+        self.removed.append((playlist_id, videos))
+        return "STATUS_SUCCEEDED"
+
+
+@pytest.fixture(autouse=True)
+def _fresh_membership(monkeypatch):
+    monkeypatch.setattr(catalog, "membership", catalog.PlaylistMembership())
+
+
+def test_only_owned_playlists_are_editable():
+    assert catalog.to_playlist({"playlistId": "p", "title": "t", "owned": True}).editable is True
+    assert catalog.to_playlist({"playlistId": "p", "title": "t", "owned": False}).editable is False
+
+
+@pytest.mark.asyncio
+async def test_get_track_playlists_only_considers_owned_playlists():
+    client = _EditClient()
+    assert (await catalog.get_track_playlists(client, "b"))["playlistIds"] == ["PLmine"]
+    assert (await catalog.get_track_playlists(client, "z"))["playlistIds"] == []
+
+
+@pytest.mark.asyncio
+async def test_add_then_membership_includes_it():
+    client = _EditClient()
+    await catalog.get_track_playlists(client, "c")  # loads the cache
+    result = await catalog.add_to_playlist(client, "PLmine", "c")
+    assert client.added == [("PLmine", ["c"])]
+    assert result == {"trackCount": 3}
+    assert (await catalog.get_track_playlists(client, "c"))["playlistIds"] == ["PLmine"]
+
+
+@pytest.mark.asyncio
+async def test_remove_uses_the_entrys_set_video_id():
+    client = _EditClient()
+    result = await catalog.remove_from_playlist(client, "PLmine", "b")
+    assert client.removed == [("PLmine", [{"videoId": "b", "setVideoId": "s-b"}])]
+    assert result == {"trackCount": 1}
+
+
+@pytest.mark.asyncio
+async def test_remove_raises_for_a_video_not_in_the_playlist():
+    with pytest.raises(LookupError):
+        await catalog.remove_from_playlist(_EditClient(), "PLmine", "z")

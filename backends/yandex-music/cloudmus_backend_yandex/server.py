@@ -17,7 +17,7 @@ CAPABILITIES = {
         "selfPlayback": False,
         "controls": {"pause": False, "seek": False, "volume": False},
     },
-    "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False},
+    "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False, "editPlaylists": True},
     "feedback": {"like": True, "dislike": True, "skip": True},
     "download": True,
     "auth": {"required": True, "flow": "deviceCode"},
@@ -86,6 +86,31 @@ def build_server() -> BackendServer:
                 "Playlist not found",
                 errors.app_error_data(retryable=False, detail=f"playlistId={params['playlistId']}"),
             )
+
+    def not_found(what: str, detail: str) -> BackendError:
+        return BackendError(
+            errors.RESOURCE_NOT_FOUND, f"{what} not found", errors.app_error_data(retryable=False, detail=detail)
+        )
+
+    @server.method("catalog.getTrackPlaylists")
+    async def handle_get_track_playlists(params: dict, request_id: int) -> dict:
+        return await catalog.get_track_playlists(client_module.get_client(), params["trackId"])
+
+    @server.method("catalog.addToPlaylist")
+    async def handle_add_to_playlist(params: dict, request_id: int) -> dict:
+        try:
+            return await catalog.add_to_playlist(client_module.get_client(), params["playlistId"], params["trackId"])
+        except LookupError as e:
+            raise not_found("Playlist or track", f"{e}")
+
+    @server.method("catalog.removeFromPlaylist")
+    async def handle_remove_from_playlist(params: dict, request_id: int) -> dict:
+        try:
+            return await catalog.remove_from_playlist(
+                client_module.get_client(), params["playlistId"], params["trackId"]
+            )
+        except LookupError as e:
+            raise not_found("Track in playlist", f"{e}")
 
     @server.method("catalog.listLiked")
     async def handle_list_liked(params: dict, request_id: int) -> dict:

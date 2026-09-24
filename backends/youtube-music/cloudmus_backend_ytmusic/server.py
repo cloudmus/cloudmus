@@ -19,7 +19,7 @@ CAPABILITIES = {
         "selfPlayback": False,
         "controls": {"pause": False, "seek": False, "volume": False},
     },
-    "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False},
+    "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False, "editPlaylists": True},
     "feedback": {"like": True, "dislike": True, "skip": True},
     "download": True,
     # usernamePassword, not deviceCode: device-code OAuth login itself still
@@ -94,6 +94,27 @@ def build_server() -> BackendServer:
                 errors.RESOURCE_NOT_FOUND,
                 "Playlist not found",
                 errors.app_error_data(retryable=False, detail=f"playlistId={params['playlistId']}"),
+            )
+
+    @server.method("catalog.getTrackPlaylists")
+    async def handle_get_track_playlists(params: dict, request_id: int) -> dict:
+        return await catalog.get_track_playlists(client_module.get_client(), params["trackId"])
+
+    @server.method("catalog.addToPlaylist")
+    async def handle_add_to_playlist(params: dict, request_id: int) -> dict:
+        return await catalog.add_to_playlist(client_module.get_client(), params["playlistId"], params["trackId"])
+
+    @server.method("catalog.removeFromPlaylist")
+    async def handle_remove_from_playlist(params: dict, request_id: int) -> dict:
+        try:
+            return await catalog.remove_from_playlist(
+                client_module.get_client(), params["playlistId"], params["trackId"]
+            )
+        except LookupError as e:
+            raise BackendError(
+                errors.RESOURCE_NOT_FOUND,
+                "Track in playlist not found",
+                errors.app_error_data(retryable=False, detail=f"{e}"),
             )
 
     @server.method("catalog.listLiked")

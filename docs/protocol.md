@@ -193,6 +193,7 @@ defaults, since the front does not assume any implicit capability.
 | `browse.playlists` | bool | `catalog.listPlaylists` / `catalog.listTracks` supported. |
 | `browse.likedTracks` | bool | `catalog.listLiked` supported. |
 | `browse.radio` | bool | `catalog.startRadio` and `radio/tracksAdded` supported. |
+| `browse.editPlaylists` | bool | Optional (1.3+). `catalog.getTrackPlaylists` / `addToPlaylist` / `removeFromPlaylist` (§7.6) are supported on the source's `editable` playlists. |
 | `browse.search` | bool | `catalog.search` supported (reserved for future use; no method defined yet in v1 — see §13). |
 | `feedback.like` / `.dislike` / `.skip` | bool | Corresponding `feedback.*` methods (§7.4) are accepted. |
 | `download` | bool | `catalog.downloadTrack` (§7.5) is supported. |
@@ -234,7 +235,8 @@ expected to always emit the full shape above.
   "description": "...",           // optional
   "coverUrl": "https://...",      // optional
   "trackCount": 42,
-  "kind": "playlist"               // one of "playlist" | "liked" | "radioStation"
+  "kind": "playlist",              // one of "playlist" | "liked" | "radioStation"
+  "editable": true                 // optional (1.3+): the user's own playlist — tracks can be added/removed (§7.6)
 }
 ```
 `kind: "radioStation"` playlists (e.g. My Wave) have no fixed track
@@ -377,6 +379,24 @@ capability flag — a source that can like can un-like). Liking/disliking a
 track is exclusive: a successful `like` clears any prior dislike and vice
 versa (both shipped sources enforce this server-side), so a front should
 mirror that locally rather than showing both states lit up at once.
+
+### 7.6 Editing playlists
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `catalog.getTrackPlaylists` | `{"trackId": string}` | `{"playlistIds": [string, ...]}` | `browse.editPlaylists` |
+| `catalog.addToPlaylist` | `{"playlistId": string, "trackId": string}` | `{"trackCount": number}` | `browse.editPlaylists` |
+| `catalog.removeFromPlaylist` | `{"playlistId": string, "trackId": string}` | `{"trackCount": number}` | `browse.editPlaylists` |
+
+- Only playlists the source marked `editable: true` (the user's own) are
+  valid targets; `liked` and `radioStation` playlists never are (liking is
+  §7.4's job).
+- `getTrackPlaylists` answers "which of my editable playlists contain this
+  track" in one call, so a front can show membership checkboxes without
+  fetching every playlist itself; a source may cache playlist contents to
+  answer it, keeping the cache in step with its own add/remove calls.
+- `addToPlaylist` appends the track; `removeFromPlaylist` removes its first
+  occurrence. Both return the playlist's new `trackCount`.
 
 ### 7.5 Download
 

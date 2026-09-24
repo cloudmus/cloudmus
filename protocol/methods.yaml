@@ -208,6 +208,43 @@ methods:
     result: {type: object, properties: {}, required: []}
     timeoutMs: 5000
 
+  # --- 7.6 Editing playlists ---
+  catalog.getTrackPlaylists:
+    requiresCapability: browse.editPlaylists
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result:
+      type: object
+      required: [playlistIds]
+      properties: {playlistIds: {type: array, items: {type: string}}}
+    timeoutMs: 20000
+
+  catalog.addToPlaylist:
+    requiresCapability: browse.editPlaylists
+    params:
+      type: object
+      required: [playlistId, trackId]
+      properties: {playlistId: {type: string}, trackId: {type: string}}
+    result:
+      type: object
+      required: [trackCount]
+      properties: {trackCount: {type: integer}}
+    timeoutMs: 20000
+
+  catalog.removeFromPlaylist:
+    requiresCapability: browse.editPlaylists
+    params:
+      type: object
+      required: [playlistId, trackId]
+      properties: {playlistId: {type: string}, trackId: {type: string}}
+    result:
+      type: object
+      required: [trackCount]
+      properties: {trackCount: {type: integer}}
+    timeoutMs: 20000
+
   # --- 7.5 Download ---
   catalog.downloadTrack:
     requiresCapability: download

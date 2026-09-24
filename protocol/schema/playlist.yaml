@@ -10,4 +10,5 @@ properties:
   coverUrl: {type: string}          # optional
   trackCount: {type: integer}
   kind: {type: string, enum: [playlist, liked, radioStation]}
+  editable: {type: boolean}         # optional (1.3+); the user's own playlist, tracks can be added/removed
 additionalProperties: false

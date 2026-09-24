@@ -16,6 +16,10 @@ meaning.
   field, the counterpart of `liked` — omitted when the source doesn't know
   (or doesn't track) dislike state. A source that does know should set
   `liked`/`disliked` on every track it returns, not just in `listLiked`.
+- **Additive, backward-compatible**: playlist editing (§7.6) —
+  `Playlist.editable`, capability `browse.editPlaylists`, and the methods
+  `catalog.getTrackPlaylists`, `catalog.addToPlaylist`,
+  `catalog.removeFromPlaylist`. Sources/fronts without them are unaffected.
 - **Additive, backward-compatible**: `radio/tracksAdded` gains an optional
   `replaceUpcoming` flag (§7.1): the batch replaces the queue's unplayed
   tail instead of being appended. Absent means append, as before.
