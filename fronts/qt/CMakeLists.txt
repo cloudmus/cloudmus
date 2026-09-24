@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(cloudmus-qt CXX)
+project(cloudmus-qt VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -119,8 +119,20 @@ add_executable(cloudmus-qt
 
     resources/icons.qrc
     resources/fonts.qrc
+    resources/about.qrc
 )
 add_dependencies(cloudmus-qt protocol_codegen_cpp)
+
+# Version.h (CLOUDMUS_VERSION) — regenerated on every build so a dev
+# build's git commit stays current; see cmake/Version.cmake.
+set(VERSION_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_version)
+add_custom_target(cloudmus_version
+    COMMAND ${CMAKE_COMMAND} -DBASE=${PROJECT_VERSION} -DSRC=${CLOUDMUS_REPO_ROOT} -DOUT=${VERSION_DIR}/Version.h
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Version.cmake
+    BYPRODUCTS ${VERSION_DIR}/Version.h
+    COMMENT "Updating Version.h"
+)
+add_dependencies(cloudmus-qt cloudmus_version)
 
 # GCC needs this explicitly for C++20 coroutines (Rpc::Task<T>,
 # co_await/co_return in RpcClient/PlaybackController/etc.) on the GCC
@@ -138,6 +150,7 @@ target_compile_definitions(cloudmus-qt PRIVATE
 
 target_include_directories(cloudmus-qt PRIVATE
     ${GENERATED_DIR}
+    ${VERSION_DIR}
     src/Rpc
     src/Playback
     src/Ui

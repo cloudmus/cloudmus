@@ -31,5 +31,6 @@
         <file alias="history.svg">icons/symbols/history.svg</file>
         <file alias="arrow_back.svg">icons/symbols/arrow_back.svg</file>
         <file alias="search.svg">icons/symbols/search.svg</file>
+        <file alias="content_copy.svg">icons/symbols/content_copy.svg</file>
     </qresource>
 </RCC>

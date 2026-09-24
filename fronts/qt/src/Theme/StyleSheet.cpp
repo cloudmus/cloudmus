@@ -110,10 +110,21 @@ QPushButton[variant="secondary"] {
     border-radius: %3px;
     padding: %4px %5px;
 }
-QPushButton[variant="secondary"]:hover { background: %11; })")
-        .arg(hex(p.accent), hex(p.onAccent), QString::number(Radius::sm), QString::number(Spacing::space2),
-            QString::number(Spacing::space3), hex(p.accentHover), hex(p.accentPressed), hex(p.surface200), hex(p.ink))
-        .arg(hex(p.border), hex(p.surface300));
+QPushButton[variant="secondary"]:hover { background: %11; }
+QPushButton[variant="tab"] {
+    background: transparent;
+    color: %12;
+    border: 0px solid transparent;
+    border-bottom: 2px solid transparent;
+    padding: %4px 0px;
+}
+QPushButton[variant="tab"]:hover { color: %9; }
+QPushButton[variant="tab"]:checked { color: %9; border-bottom: 2px solid %1; })")
+        // Compact vertical padding (space1): dialog buttons were reading
+        // oversized next to the 13px text they carry.
+        .arg(hex(p.accent), hex(p.onAccent), QString::number(Radius::sm), QString::number(Spacing::space1),
+            QString::number(Spacing::space4), hex(p.accentHover), hex(p.accentPressed), hex(p.surface200), hex(p.ink))
+        .arg(hex(p.border), hex(p.surface300), hex(p.inkSecondary));
 }
 
 QString toolBarBlock(const Palette& p)
@@ -165,10 +176,11 @@ QString panelsBlock(const Palette& p)
 }
 QMenu { color: %5; }
 #transportSeparator { color: %2; }
-#secondaryLabel { color: %9; })")
+#secondaryLabel { color: %9; }
+#sectionLabel { color: %10; })")
         .arg(hex(p.surface200), hex(p.border), QString::number(Radius::md), hex(p.surface400), hex(p.ink),
             QString::number(Radius::sm), QString::number(Spacing::space2), QString::number(Spacing::space3))
-        .arg(hex(p.inkSecondary));
+        .arg(hex(p.inkSecondary), hex(p.inkTertiary));
 }
 
 // Scoped to [themed="true"] (both busyIndicator_ instances opt in via
