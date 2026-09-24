@@ -44,8 +44,14 @@ set(GENERATED_CPP_STAMP ${CMAKE_CURRENT_BINARY_DIR}/generated_cpp.stamp)
 
 file(GLOB_RECURSE PROTOCOL_SCHEMA_FILES ${CLOUDMUS_REPO_ROOT}/protocol/schema/*.yaml)
 
+# The generated sources are listed as outputs, not just the stamp: on a
+# fresh checkout they don't exist yet (gitignored), and CMake refuses to
+# configure with a missing source file unless it knows a rule produces it.
 add_custom_command(
     OUTPUT ${GENERATED_CPP_STAMP}
+           ${GENERATED_DIR}/Models.h
+           ${GENERATED_DIR}/RpcMethods.h
+           ${GENERATED_DIR}/RpcMethods.cpp
     COMMAND ${PYTHON3_EXECUTABLE} ${CLOUDMUS_REPO_ROOT}/protocol/codegen/generate.py --lang cpp
     COMMAND ${CMAKE_COMMAND} -E touch ${GENERATED_CPP_STAMP}
     WORKING_DIRECTORY ${CLOUDMUS_REPO_ROOT}
