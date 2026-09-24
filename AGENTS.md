@@ -150,3 +150,29 @@ Order the entries in three groups, in this order: new features first, then
 changes to existing behavior (including docs/process changes), then bug
 fixes last. Within each group, keep entries in newest-first order (their
 original relative order).
+
+## Releasing
+
+A release is an annotated `x.y.z` tag; pushing it makes
+`.github/workflows/release.yml` build the AppImage and publish the GitHub
+release, with the tag's message as its release notes. When asked to make a
+release:
+
+1. Pull fresh tags from GitHub: `git fetch --tags --force origin` (a tag
+   may have been moved or created there).
+2. Run `./update_changelog_from_git.sh` to add the commits since the last
+   release to `CHANGELOG.md` under a new `# X.X.X (<date>)` heading.
+3. Tidy up that section (see "Tidy up CHANGELOG" above).
+4. Pick the version from what the section contains: only bug fixes → a
+   patch release (`0.1.0` → `0.1.1`); anything new → a minor release
+   (`0.1.0` → `0.2.0`). Replace `X.X.X` in the heading with it.
+5. Commit the changelog with the version as the subject:
+   `Release <x.y.z>`.
+6. Create an annotated tag on that commit whose message is the version
+   followed by that release's changelog bullets, and push the commit and
+   the tag:
+
+   ```bash
+   git tag -a <x.y.z> -F <message-file>
+   git push origin HEAD <x.y.z>
+   ```

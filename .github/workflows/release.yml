@@ -1,7 +1,8 @@
 # Builds the AppImage on a release tag (x.y.z, e.g. 1.2.0) and attaches it
 # to that tag's GitHub release — creating the release if the tag was
 # pushed from git, or reusing it if it was created in the GitHub UI
-# (which also creates the tag and triggers this same push event).
+# (which also creates the tag and triggers this same push event). An
+# annotated tag's message becomes the release notes.
 name: Release
 
 on:
@@ -31,7 +32,23 @@ jobs:
         run: |
           asset="dist/CloudMus-${TAG}-x86_64.AppImage"
           cp dist/CloudMus-x86_64.AppImage "$asset"
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-              gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
+          # Release notes = the annotated tag's message minus its first
+          # line (the version), see AGENTS.md "Releasing". Re-fetched
+          # explicitly: checkout can leave the tag as a lightweight one.
+          # A lightweight tag (e.g. from the GitHub UI) has no notes to
+          # offer — then GitHub's generated ones, and an existing release's
+          # notes are left alone.
+          git fetch --force origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          notes=(--generate-notes)
+          if [ "$(git cat-file -t "$TAG")" = tag ]; then
+              git tag -l --format='%(contents)' "$TAG" | tail -n +2 > notes.md
+              notes=(--notes-file notes.md)
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+              if [ "${notes[0]}" = --notes-file ]; then
+                  gh release edit "$TAG" "${notes[@]}"
+              fi
+          else
+              gh release create "$TAG" --verify-tag --title "$TAG" "${notes[@]}"
           fi
           gh release upload "$TAG" "$asset" --clobber
