@@ -1,10 +1,12 @@
 #include "TrackRowDelegate.h"
 
+#include <QEasingCurve>
 #include <QFont>
 #include <QIcon>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QTimer>
 
 #include "CoverArtCache.h"
 #include "CoverPlaceholder.h"
@@ -53,10 +55,77 @@ void paintEqualizerGlyph(QPainter* painter, const QRect& rect, const QColor& col
 }
 } // namespace
 
+namespace {
+constexpr int kCoverFadeMs = 250;
+} // namespace
+
 TrackRowDelegate::TrackRowDelegate(CoverArtCache* coverCache, QObject* parent)
     : QStyledItemDelegate(parent)
     , coverCache_(coverCache)
 {
+    clock_.start();
+    fadeTimer_ = new QTimer(this);
+    fadeTimer_->setInterval(16);
+    connect(fadeTimer_, &QTimer::timeout, this, &TrackRowDelegate::tickFades);
+}
+
+void TrackRowDelegate::tickFades()
+{
+    const qint64 now = clock_.elapsed();
+    for (auto it = fadeStartMs_.begin(); it != fadeStartMs_.end();) {
+        // A frame past the end, so the final fully-opaque paint happens.
+        if (now - it.value() > kCoverFadeMs + 32)
+            it = fadeStartMs_.erase(it);
+        else
+            ++it;
+    }
+    for (const QPointer<QWidget>& view : std::as_const(fadingViews_)) {
+        if (view)
+            view->update();
+    }
+    if (fadeStartMs_.isEmpty()) {
+        fadeTimer_->stop();
+        fadingViews_.clear();
+    }
+}
+
+void TrackRowDelegate::paintThumb(
+    QPainter* painter, const QRect& thumb, const QString& coverUrl, const QString& stableId, const QWidget* view) const
+{
+    const QPixmap pixmap = coverUrl.isEmpty() ? QPixmap() : coverCache_->pixmap(coverUrl, thumb.size());
+    if (pixmap.isNull()) {
+        Theme::paintCoverPlaceholder(painter, thumb, stableId);
+        if (!coverUrl.isEmpty())
+            placeholderShown_.insert(coverUrl);
+        return;
+    }
+
+    // Arrived since this URL was last painted as a placeholder: start its
+    // fade-in. Covers already cached (scrolling back, reopening a list)
+    // never showed the placeholder and just appear.
+    if (placeholderShown_.remove(coverUrl)) {
+        fadeStartMs_.insert(coverUrl, clock_.elapsed());
+        if (!fadeTimer_->isActive())
+            fadeTimer_->start();
+    }
+    qreal opacity = 1.0;
+    if (auto it = fadeStartMs_.constFind(coverUrl); it != fadeStartMs_.constEnd()) {
+        const qreal t = qBound(0.0, qreal(clock_.elapsed() - it.value()) / kCoverFadeMs, 1.0);
+        opacity = QEasingCurve(QEasingCurve::OutCubic).valueForProgress(t);
+        if (opacity < 1.0) {
+            Theme::paintCoverPlaceholder(painter, thumb, stableId);
+            if (view != nullptr)
+                fadingViews_.insert(const_cast<QWidget*>(view), const_cast<QWidget*>(view));
+        }
+    }
+
+    painter->save();
+    QPainterPath clip;
+    clip.addRoundedRect(thumb, Theme::Radius::coverArtSm, Theme::Radius::coverArtSm);
+    painter->setClipPath(clip);
+    painter->setOpacity(painter->opacity() * opacity);
+    painter->drawPixmap(thumb, pixmap);
+    painter->restore();
 }
 
 void TrackRowDelegate::setCurrentlyPlaying(const QString& sourceId, const QString& trackId)
@@ -126,18 +195,8 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     const int margin = (rect.height() - kThumbSize) / 2;
     const QRect thumb = thumbRect(rect);
 
-    QPixmap thumbPixmap
-        = track.coverUrl ? coverCache_->pixmap(*track.coverUrl, QSize(kThumbSize, kThumbSize)) : QPixmap();
-    if (!thumbPixmap.isNull()) {
-        QPainterPath clip;
-        clip.addRoundedRect(thumb, Theme::Radius::coverArtSm, Theme::Radius::coverArtSm);
-        painter->setClipPath(clip);
-        painter->drawPixmap(thumb, thumbPixmap);
-        painter->setClipping(false);
-    } else {
-        const QString stableId = index.data(TrackListModel::SourceIdRole).toString() + track.id;
-        Theme::paintCoverPlaceholder(painter, thumb, stableId);
-    }
+    paintThumb(painter, thumb, track.coverUrl.value_or(QString()),
+        index.data(TrackListModel::SourceIdRole).toString() + track.id, option.widget);
 
     // Hover-only play button, drawn over the cover thumbnail (the
     // Spotify/YouTube Music convention) rather than as a separate widget —

@@ -1,6 +1,10 @@
 #pragma once
 
 #include <QDateTime>
+#include <QElapsedTimer>
+#include <QHash>
+#include <QPointer>
+#include <QSet>
 #include <QStyledItemDelegate>
 
 namespace Ui {
@@ -52,6 +56,18 @@ private:
     // (hit-testing a click against it) so they can never disagree.
     QRect thumbRect(const QRect& rowRect) const;
     QRect insetRow(const QRect& itemRect) const { return itemRect.adjusted(insetLeft_, 0, -insetRight_, 0); }
+
+    // Cover fade-in: a cover that arrives while its row is showing the
+    // placeholder fades in over it instead of popping. Keyed by cover URL;
+    // mutable since paint() is const. See paintThumb().
+    void paintThumb(QPainter* painter, const QRect& thumb, const QString& coverUrl, const QString& stableId,
+        const QWidget* view) const;
+    void tickFades();
+    mutable QSet<QString> placeholderShown_; // URLs painted as a placeholder, still loading
+    mutable QHash<QString, qint64> fadeStartMs_; // URL -> when its fade-in began
+    mutable QHash<QWidget*, QPointer<QWidget>> fadingViews_; // viewports to repaint while fading
+    QElapsedTimer clock_;
+    QTimer* fadeTimer_ = nullptr;
 
     CoverArtCache* coverCache_;
     QString currentSourceId_;
