@@ -6,6 +6,7 @@
 #include <QCursor>
 #include <QDesktopServices>
 #include <QEvent>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QListView>
 #include <QLoggingCategory>
@@ -1361,6 +1362,14 @@ void MainWindow::bringToFront(const QString& activationToken)
     // window requests activation.
     if (!activationToken.isEmpty())
         qputenv("XDG_ACTIVATION_TOKEN", activationToken.toUtf8());
+    // A window hidden to the tray is mapped anew, and the window manager
+    // places it like a new one (centered on the screen under the mouse),
+    // so put it back on its own screen and spot. X11 only: on Wayland a
+    // client can't position its windows — that takes the compositor's
+    // session restore (xdg-session-management), which Qt doesn't speak yet.
+    if (!trayHiddenGeometry_.isEmpty() && !isVisible() && QGuiApplication::platformName() == QLatin1String("xcb"))
+        restoreGeometry(trayHiddenGeometry_);
+    trayHiddenGeometry_.clear();
     setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
     show();
     raise();
@@ -1370,9 +1379,15 @@ void MainWindow::bringToFront(const QString& activationToken)
 void MainWindow::toggleShown()
 {
     if (isOnScreen())
-        hide();
+        hideToTray();
     else
         bringToFront();
+}
+
+void MainWindow::hideToTray()
+{
+    trayHiddenGeometry_ = saveGeometry();
+    hide();
 }
 
 bool MainWindow::sourceCanEditPlaylists(const QString& sourceId) const
@@ -1532,7 +1547,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
 {
     if (!reallyQuitting_ && settings_.closeMinimizesToTray()) {
         event->ignore();
-        hide();
+        hideToTray();
         return;
     }
     emit aboutToReallyQuit();

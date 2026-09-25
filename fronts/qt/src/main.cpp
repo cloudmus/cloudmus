@@ -129,6 +129,8 @@ int main(int argc, char** argv)
 
     Integration::MprisService mpris(&window, playback);
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &window, &Ui::MainWindow::quitForReal);
+    QObject::connect(
+        &mpris, &Integration::MprisService::raiseRequested, &window, [&window]() { window.bringToFront(); });
 
     Integration::NotificationToast notificationToast;
     // The notification carries the track's cover from the UI's own cache.

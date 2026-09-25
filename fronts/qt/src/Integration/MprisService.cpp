@@ -13,20 +13,12 @@ namespace Integration {
 
 MprisRootAdaptor::MprisRootAdaptor(QWidget* mainWindow)
     : QDBusAbstractAdaptor(mainWindow)
-    , mainWindow_(mainWindow)
 {
 }
 
 void MprisRootAdaptor::Quit() { emit quitRequested(); }
 
-void MprisRootAdaptor::Raise()
-{
-    // Back from minimized too (keeping it maximized if it was).
-    mainWindow_->setWindowState((mainWindow_->windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
-    mainWindow_->show();
-    mainWindow_->raise();
-    mainWindow_->activateWindow();
-}
+void MprisRootAdaptor::Raise() { emit raiseRequested(); }
 
 MprisPlayerAdaptor::MprisPlayerAdaptor(Playback::PlaybackController& playback, QObject* parent)
     : QDBusAbstractAdaptor(parent)
@@ -130,6 +122,7 @@ MprisService::MprisService(QWidget* mainWindow, Playback::PlaybackController& pl
     root_ = new MprisRootAdaptor(mainWindow);
     player_ = new MprisPlayerAdaptor(playback, mainWindow);
     connect(root_, &MprisRootAdaptor::quitRequested, this, &MprisService::quitRequested);
+    connect(root_, &MprisRootAdaptor::raiseRequested, this, &MprisService::raiseRequested);
 
     QDBusConnection bus = QDBusConnection::sessionBus();
     bus.registerObject(QStringLiteral("/org/mpris/MediaPlayer2"), mainWindow, QDBusConnection::ExportAdaptors);

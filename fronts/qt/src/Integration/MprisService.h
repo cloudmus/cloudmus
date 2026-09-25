@@ -48,9 +48,9 @@ signals:
     // shutdown()/terminate() first (see main.cpp's shutdownAllAndQuit) —
     // same reasoning as TrayIcon::quitRequested.
     void quitRequested();
-
-private:
-    QWidget* mainWindow_;
+    // Handled by Ui::MainWindow::bringToFront(), which also puts the
+    // window back where it was hidden from.
+    void raiseRequested();
 };
 
 class MprisPlayerAdaptor : public QDBusAbstractAdaptor {
@@ -106,6 +106,7 @@ public:
 
 signals:
     void quitRequested();
+    void raiseRequested();
 
 private:
     MprisRootAdaptor* root_;

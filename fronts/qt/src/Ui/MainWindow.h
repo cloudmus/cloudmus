@@ -323,6 +323,8 @@ private:
     Library::TrackStates* trackStates_ = nullptr;
     // Pushes trackStates_'s like/dislike for the playing track into nowPlayingBar_.
     void refreshNowPlayingFeedback();
+    // Into the tray, remembering where the window was for bringToFront().
+    void hideToTray();
 
     ActiveContext activeContext_;
     // The active playlist's tracks while nothing has been queued from it
@@ -334,6 +336,8 @@ private:
     Config::Settings::ActivePlaylistRef pendingRestore_;
 
     bool reallyQuitting_ = false;
+    // saveGeometry() taken by hideToTray(); empty while the window is shown.
+    QByteArray trayHiddenGeometry_;
 };
 
 } // namespace Ui
