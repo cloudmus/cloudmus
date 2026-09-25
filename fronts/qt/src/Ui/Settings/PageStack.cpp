@@ -1,11 +1,14 @@
 #include "Settings/PageStack.h"
 
 #include <QLabel>
+#include <QPainter>
 #include <QScrollBar>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QVariantAnimation>
 
 #include "OverlayScrollBar.h"
+#include "Radius.h"
 #include "ScrollEdgeFade.h"
 #include "Settings/Page.h"
 #include "SmoothScroller.h"
@@ -18,7 +21,64 @@ namespace Ui::Settings {
 namespace {
 constexpr int kColumnTopMargin = Theme::Spacing::space5;
 constexpr int kSectionMaxWidth = 640;
+constexpr int kFlashMs = 1400;
 } // namespace
+
+// The raised panel a section's settings sit in, one tone up from the
+// column (surface100 on surface0 — the dialog's chrome tone), so each
+// group reads as a unit under its heading. Self-painted with the current
+// palette at paint time, like the app's other custom widgets, including
+// the flash scrollToPage() asks for.
+class SectionCard : public QWidget {
+public:
+    using QWidget::QWidget;
+
+    void flash()
+    {
+        if (!animation_) {
+            animation_ = new QVariantAnimation(this);
+            animation_->setDuration(kFlashMs);
+            // Two soft pulses, easing out to nothing.
+            animation_->setKeyValueAt(0.0, 0.0);
+            animation_->setKeyValueAt(0.2, 1.0);
+            animation_->setKeyValueAt(0.45, 0.25);
+            animation_->setKeyValueAt(0.65, 1.0);
+            animation_->setKeyValueAt(1.0, 0.0);
+            connect(animation_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
+                highlight_ = value.toReal();
+                update();
+            });
+        }
+        animation_->stop();
+        animation_->start();
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        const Theme::Palette& pal = Theme::palette();
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        const QRectF box = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+        painter.setPen(QPen(pal.border, 1));
+        painter.setBrush(pal.surface100);
+        painter.drawRoundedRect(box, Theme::Radius::md, Theme::Radius::md);
+
+        if (highlight_ > 0) {
+            // Accent at well under full strength: a hint, not an alert.
+            QColor ring = pal.accent;
+            ring.setAlphaF(0.55 * highlight_);
+            painter.setPen(QPen(ring, 2));
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRoundedRect(QRectF(rect()).adjusted(1, 1, -1, -1), Theme::Radius::md, Theme::Radius::md);
+        }
+    }
+
+private:
+    QVariantAnimation* animation_ = nullptr;
+    qreal highlight_ = 0;
+};
 
 PageStack::PageStack(QWidget* parent)
     : QScrollArea(parent)
@@ -55,17 +115,25 @@ void PageStack::addPage(Page* page)
     section.page = page;
     section.frame = new QWidget(column_);
     section.frame->setMaximumWidth(kSectionMaxWidth);
-    section.frameLayout = new QVBoxLayout(section.frame);
-    section.frameLayout->setContentsMargins(0, 0, 0, 0);
-    section.frameLayout->setSpacing(Theme::Spacing::space3);
+    auto* frameLayout = new QVBoxLayout(section.frame);
+    frameLayout->setContentsMargins(0, 0, 0, 0);
+    frameLayout->setSpacing(Theme::Spacing::space2);
 
     auto* title = new QLabel(page->title(), section.frame);
     title->setFont(Theme::font(Theme::TextStyle::Title));
-    section.frameLayout->addWidget(title);
+    // Lined up with the card's content, not its border.
+    title->setContentsMargins(Theme::Spacing::space1, 0, 0, 0);
+    frameLayout->addWidget(title);
 
-    section.placeholder = new QWidget(section.frame);
+    section.card = new SectionCard(section.frame);
+    section.cardLayout = new QVBoxLayout(section.card);
+    section.cardLayout->setContentsMargins(
+        Theme::Spacing::space4, Theme::Spacing::space4, Theme::Spacing::space4, Theme::Spacing::space4);
+    frameLayout->addWidget(section.card);
+
+    section.placeholder = new QWidget(section.card);
     section.placeholder->setFixedHeight(page->estimatedHeight());
-    section.frameLayout->addWidget(section.placeholder);
+    section.cardLayout->addWidget(section.placeholder);
 
     // Before the trailing stretch.
     columnLayout_->insertWidget(columnLayout_->count() - 1, section.frame);
@@ -74,8 +142,8 @@ void PageStack::addPage(Page* page)
 
 void PageStack::materialize(Section& section)
 {
-    QWidget* body = section.page->createWidget(section.frame);
-    section.frameLayout->replaceWidget(section.placeholder, body);
+    QWidget* body = section.page->createWidget(section.card);
+    section.cardLayout->replaceWidget(section.placeholder, body);
     delete section.placeholder;
     section.placeholder = nullptr;
     // A child added to an already-visible parent is only shown by a queued
@@ -191,6 +259,8 @@ void PageStack::scrollToPage(int index, bool animated)
         adjusting_ = false;
         landedValue_ = jumpTarget_;
         materializeNearViewport();
+        if (animated)
+            flash(index);
         return;
     }
     jumping_ = true;
@@ -203,11 +273,20 @@ void PageStack::onGlideFinished()
         return;
     jumping_ = false;
     landedValue_ = verticalScrollBar()->value();
-    // Wheeled somewhere else mid-jump: that's the user's own position now.
+    // Wheeled somewhere else mid-jump: that's the user's own position now,
+    // with no group to point out.
     if (landedValue_ != jumpTarget_)
         pinned_ = -1;
+    else
+        flash(pinned_);
     materializeNearViewport();
     updateCurrentPage();
+}
+
+void PageStack::flash(int index)
+{
+    if (index >= 0 && index < int(sections_.size()))
+        sections_[index].card->flash();
 }
 
 void PageStack::onScrolled()

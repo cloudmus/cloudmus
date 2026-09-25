@@ -13,6 +13,7 @@ class SmoothScroller;
 namespace Ui::Settings {
 
 class Page;
+class SectionCard;
 
 // The Settings dialog's right-hand side: every page as one section of a
 // single vertically scrolling column, so settings can be browsed by just
@@ -35,7 +36,9 @@ public:
     void addPage(Page* page);
 
     // Glides the column so section `index`'s heading is at the top (or as
-    // close as the column's end allows), and keeps that section current
+    // close as the column's end allows), then — if animated — briefly
+    // flashes its card's border, so the eye finds the group the sidebar
+    // pointed at even when it didn't reach the top. Keeps that section current
     // until the user scrolls on their own — a short last section may never
     // reach the top, and the "which heading is at the top" rule would
     // otherwise report a different one than was just clicked.
@@ -53,8 +56,11 @@ protected:
 private:
     struct Section {
         Page* page = nullptr;
+        // The heading plus the card below it; positions and heights are
+        // the frame's.
         QWidget* frame = nullptr;
-        QVBoxLayout* frameLayout = nullptr;
+        SectionCard* card = nullptr;
+        QVBoxLayout* cardLayout = nullptr;
         // Non-null until the page's own widget replaces it.
         QWidget* placeholder = nullptr;
     };
@@ -69,6 +75,7 @@ private:
     int scrollTargetFor(int index) const;
     void onScrolled();
     void onGlideFinished();
+    void flash(int index);
     void updateCurrentPage();
     void setCurrentPage(int index);
 
