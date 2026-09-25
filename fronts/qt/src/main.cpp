@@ -190,6 +190,7 @@ int main(int argc, char** argv)
     QObject::connect(&window, &Ui::MainWindow::aboutToReallyQuit, &window,
         [&sourceManager]() { shutdownAllAndQuit(sourceManager).detach(); });
 
+    sourceManager.setDisabledIds(settings.disabledSources());
     sourceManager.startAll();
 
     Integration::Autostart::refresh();

@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QSettings>
 #include <QString>
+#include <QStringList>
 
 namespace Config {
 
@@ -47,6 +48,10 @@ public:
     // of opening the window.
     bool startHiddenAtLogin() const;
     void setStartHiddenAtLogin(bool value);
+
+    // Backend manifest ids the user switched off (Rpc::SourceManager).
+    QStringList disabledSources() const;
+    void setDisabledSources(const QStringList& ids);
 
     // Subfolders of the download folder a track is saved into — see
     // Library::downloadDirectoryFor().

@@ -2,7 +2,10 @@
 
 #include <QHash>
 #include <QObject>
+#include <QSet>
 #include <QString>
+
+#include <optional>
 
 #include "BackendManifest.h"
 #include "RpcClient.h"
@@ -18,9 +21,23 @@ class SourceManager : public QObject {
 public:
     explicit SourceManager(QObject* parent = nullptr);
 
-    // Spawns every discovered backend and starts its handshake. Safe to
+    // Every backend manifest found (discoverManifests(), scanned once),
+    // enabled or not.
+    const QList<BackendManifest>& manifests();
+
+    // Backends the user switched off: never spawned, and not restarted.
+    // Call before startAll().
+    void setDisabledIds(const QStringList& ids);
+    bool isEnabled(const QString& sourceId) const { return !disabledIds_.contains(sourceId); }
+
+    // Spawns every enabled backend and starts its handshake. Safe to
     // call once at startup.
     void startAll();
+
+    // Switches one backend on (spawned, with a fresh restart budget) or
+    // off (shut down per docs/protocol.md §4.2; client() no longer returns
+    // it) at runtime.
+    void setEnabled(const QString& sourceId, bool enabled);
 
     QList<RpcClient*> clients() const;
     RpcClient* client(const QString& sourceId) const;
@@ -28,6 +45,12 @@ public:
     void shutdownAll();
 
 signals:
+    // A backend is being spawned by startAll() or setEnabled(); its
+    // sourceReady()/sourceUnavailable() follows. Not emitted for crash
+    // restarts — to the UI, that's still the same running source.
+    void sourceStarting(const Rpc::BackendManifest& manifest);
+    // setEnabled(false) took a backend down.
+    void sourceStopped(const QString& sourceId);
     // Emitted once a client's initialize handshake completes successfully.
     void sourceReady(RpcClient* client);
     // Emitted when a source is unavailable and has exhausted its restart
@@ -41,6 +64,8 @@ private:
     static constexpr int kMaxRestartAttempts = 3;
     static constexpr int kRestartDelaysMs[3] = { 2000, 5000, 10000 };
 
+    std::optional<QList<BackendManifest>> manifests_;
+    QSet<QString> disabledIds_;
     QHash<QString, RpcClient*> clientsById_;
     QHash<QString, int> restartAttempts_;
 };

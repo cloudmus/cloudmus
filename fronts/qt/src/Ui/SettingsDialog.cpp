@@ -20,6 +20,7 @@
 #include "Settings/DownloadsPage.h"
 #include "Settings/GeneralPage.h"
 #include "Settings/PageStack.h"
+#include "Settings/SourcesPage.h"
 #include "SidebarModel.h"
 #include "SmoothScroller.h"
 #include "Spacing.h"
@@ -31,7 +32,8 @@ namespace {
 constexpr int kSidebarWidth = 200;
 } // namespace
 
-SettingsDialog::SettingsDialog(Config::Settings& settings, QWidget* parent, const QString& openAt)
+SettingsDialog::SettingsDialog(
+    Config::Settings& settings, Rpc::SourceManager& sourceManager, QWidget* parent, const QString& openAt)
     : QDialog(parent)
     , settings_(settings)
 {
@@ -70,6 +72,7 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, QWidget* parent, cons
     pageStack_ = new Settings::PageStack(this);
     addPage(new Settings::GeneralPage(settings_, this));
     addPage(new Settings::DownloadsPage(settings_, this));
+    addPage(new Settings::SourcesPage(settings_, sourceManager, this));
 
     // currentChanged, not clicked: arrow keys in the sidebar jump too.
     connect(

@@ -143,4 +143,17 @@ void Settings::setDownloadLayout(DownloadLayout layout)
     }
 }
 
+QStringList Settings::disabledSources() const
+{
+    return settings_.value(QStringLiteral("sources/disabled")).toStringList();
+}
+
+void Settings::setDisabledSources(const QStringList& ids)
+{
+    if (ids.isEmpty())
+        settings_.remove(QStringLiteral("sources/disabled"));
+    else
+        settings_.setValue(QStringLiteral("sources/disabled"), ids);
+}
+
 } // namespace Config

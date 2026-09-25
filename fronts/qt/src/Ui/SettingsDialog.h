@@ -13,6 +13,10 @@ namespace Config {
 class Settings;
 }
 
+namespace Rpc {
+class SourceManager;
+}
+
 namespace Ui {
 
 class NavItemDelegate;
@@ -34,7 +38,8 @@ class SettingsDialog : public QDialog {
 
 public:
     // `openAt`: a Settings::Page::id() to show first instead of the top.
-    explicit SettingsDialog(Config::Settings& settings, QWidget* parent = nullptr, const QString& openAt = { });
+    SettingsDialog(Config::Settings& settings, Rpc::SourceManager& sourceManager, QWidget* parent = nullptr,
+        const QString& openAt = { });
 
     void done(int result) override;
 

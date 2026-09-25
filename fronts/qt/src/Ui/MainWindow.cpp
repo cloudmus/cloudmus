@@ -238,7 +238,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     menuButton->setPopupMode(QToolButton::InstantPopup);
     auto* menu = new QMenu(menuButton);
     menu->addAction(tr("Settings…"), this, [this]() {
-        SettingsDialog dialog(settings_, this);
+        SettingsDialog dialog(settings_, sourceManager_, this);
         dialog.exec();
     });
     menu->addAction(tr("About CloudMus"), this, &MainWindow::showAboutDialog);
@@ -292,19 +292,6 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
     sidebarView_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(sidebarView_, &QTreeView::customContextMenuRequested, this, &MainWindow::onSidebarContextMenuRequested);
-
-    // Every discovered backend gets its header row up front, before its
-    // process has even been spawned (sourceManager_.startAll() runs after
-    // MainWindow is constructed — see main.cpp) — a backend that's slow to
-    // start or still authenticating must stay visible instead of only
-    // appearing once loadPlaylistsAsync() below first succeeds. Shown as
-    // loading until wireSource()'s loadPlaylistsAsync() call fills it in
-    // for real.
-    for (const auto& manifest : Rpc::discoverManifests()) {
-        sidebarModel_->setSourceIconPath(manifest.id, manifest.iconPath);
-        sidebarModel_->setSource(manifest.id, manifest.name, { });
-        sidebarModel_->setSourceLoading(manifest.id, manifest.name, true);
-    }
 
     heroPanel_ = new HeroPanel(coverArtCache_, this);
     // Always the tall full-height splitter pane below, regardless of
@@ -438,6 +425,17 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     centralLayout->addWidget(splitter, 1);
     setCentralWidget(central);
 
+    // Every backend gets its header row as soon as its process is spawned
+    // (sourceManager_.startAll() runs after MainWindow is constructed — see
+    // main.cpp), not once loadPlaylistsAsync() first succeeds — a backend
+    // that's slow to start or still authenticating must stay visible. Shown
+    // as loading until wireSource()'s loadPlaylistsAsync() fills it in.
+    connect(&sourceManager_, &Rpc::SourceManager::sourceStarting, this, [this](const Rpc::BackendManifest& manifest) {
+        sidebarModel_->setSourceIconPath(manifest.id, manifest.iconPath);
+        sidebarModel_->setSource(manifest.id, manifest.name, { });
+        sidebarModel_->setSourceLoading(manifest.id, manifest.name, true);
+    });
+    connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, &MainWindow::onSourceStopped);
     connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, &MainWindow::wireSource);
     connect(&sourceManager_, &Rpc::SourceManager::sourceUnavailable, this, &MainWindow::onSourceUnavailable);
 
@@ -588,6 +586,20 @@ void MainWindow::onSourceUnavailable(const QString& manifestId, const QString& n
     sidebarModel_->removeSource(manifestId);
     syncSidebarSelection();
     toastNotifier_->showError(tr("%1 is unavailable").arg(name));
+}
+
+void MainWindow::onSourceStopped(const QString& sourceId)
+{
+    sidebarModel_->removeSource(sourceId);
+    sourceAuthStates_.remove(sourceId);
+    if (sheet_->isPresented()
+        && (currentStatusPanelSourceId_ == sourceId
+            || (sheetContext_.isValid() && !sheetContext_.isHistory && sheetContext_.sourceId == sourceId)))
+        closeSheet();
+    // Nothing left to stream the rest of the track from.
+    if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId)
+        playback_.stop();
+    syncSidebarSelection();
 }
 
 Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)

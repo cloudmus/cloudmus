@@ -102,6 +102,7 @@ protected:
 private:
     void wireSource(Rpc::RpcClient* client);
     void onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail);
+    void onSourceStopped(const QString& sourceId);
     void onSidebarActivated(const QModelIndex& index);
     void onSidebarDoubleClicked(const QModelIndex& index);
     // Right-click on sidebarView_. A source header offers "Force Refresh
