@@ -53,6 +53,14 @@ public:
         animation_->start();
     }
 
+    void stopFlash()
+    {
+        if (animation_)
+            animation_->stop();
+        highlight_ = 0;
+        update();
+    }
+
 protected:
     void paintEvent(QPaintEvent*) override
     {
@@ -105,6 +113,14 @@ PageStack::PageStack(QWidget* parent)
     ScrollEdgeFade::attach(this, [] { return Theme::palette().surface0; });
     OverlayScrollBar::attach(this);
 
+    // Sections filling in asynchronously (a source's sign-in status) can
+    // shrink the column, and the scrollbar then clamps its value: that
+    // isn't the user scrolling away from a pinned section. Emitted before
+    // the clamped valueChanged, so onScrolled() sees them match.
+    connect(verticalScrollBar(), &QScrollBar::rangeChanged, this, [this](int min, int max) {
+        if (pinned_ >= 0)
+            landedValue_ = qBound(min, landedValue_, max);
+    });
     connect(verticalScrollBar(), &QScrollBar::valueChanged, this, &PageStack::onScrolled);
     connect(scroller_, &SmoothScroller::finished, this, &PageStack::onGlideFinished);
 }
@@ -285,8 +301,14 @@ void PageStack::onGlideFinished()
 
 void PageStack::flash(int index)
 {
-    if (index >= 0 && index < int(sections_.size()))
-        sections_[index].card->flash();
+    if (index < 0 || index >= int(sections_.size()))
+        return;
+    // One group pointed out at a time: a quick second click shouldn't
+    // leave the first one still pulsing.
+    if (flashing_ >= 0 && flashing_ != index)
+        sections_[flashing_].card->stopFlash();
+    flashing_ = index;
+    sections_[index].card->flash();
 }
 
 void PageStack::onScrolled()

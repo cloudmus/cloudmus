@@ -96,6 +96,8 @@ private:
     // Set while this class moves the scrollbar itself (anchoring), so its
     // own valueChanged doesn't count as the user scrolling.
     bool adjusting_ = false;
+    // The section flash() last pointed out; -1 before the first.
+    int flashing_ = -1;
     // scrollToPage() before the first show: geometry isn't real yet.
     int pendingPage_ = -1;
 };
