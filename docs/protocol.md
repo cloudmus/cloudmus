@@ -578,6 +578,20 @@ The front calls `auth.getStatus` right after `initialize` when
 `auth.required` is true. If not authenticated, it calls `auth.start` and
 waits for `auth/prompt` / `auth/statusChanged` notifications.
 
+Any `auth/prompt` may carry an optional `"message"` (1.5+): what the user
+has to do, in the source's own words — a front can't know that a
+`usernamePassword` field expects, say, headers copied from a browser. It
+may use a minimal HTML subset: `<a href="https://...">`, `<b>`, `<i>`,
+`<code>`, `<br>`. A front renders those (links open in the user's browser)
+and shows anything else as plain text; one that ignores `message` falls back
+to its own generic wording.
+
+```json
+{"flow": "usernamePassword",
+ "message": "Open <a href=\"https://music.youtube.com\">music.youtube.com</a> signed in, then paste its <b>Request Headers</b> below.",
+ "fields": [{"name": "headers", "secret": false, "multiline": true}]}
+```
+
 ### 10.1 `deviceCode` flow (e.g. Yandex OAuth device flow)
 ```
 --> auth.start {}

@@ -117,6 +117,13 @@ class BrowserAuthSession:
             "auth/prompt",
             {
                 "flow": "usernamePassword",
+                # docs/protocol.md §10: shown by the front above the field,
+                # which on its own can't tell what's expected in it.
+                "message": (
+                    'Open <a href="https://music.youtube.com">music.youtube.com</a> in your browser '
+                    "while signed in, open <b>DevTools → Network</b>, click any request to "
+                    "<code>music.youtube.com</code>, and paste its <b>Request Headers</b> below."
+                ),
                 "fields": [{"name": "headers", "secret": False, "multiline": True}],
             },
         )

@@ -5,6 +5,13 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.5 — `auth/prompt.message`
+
+- **Additive, backward-compatible**: `auth/prompt` gains an optional
+  `message` (§10) — the source's own instructions for the user, in a minimal
+  HTML subset (`<a href>`, `<b>`, `<i>`, `<code>`, `<br>`). Fronts render it
+  above the prompt; without it they keep their generic wording.
+
 ## Proxies through the environment (no version change)
 
 - Documented (§4.3): the front may spawn a source with `HTTP_PROXY` /

@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.4"
+protocolVersion: "1.5"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -345,7 +345,9 @@ notifications:
     # generator would otherwise need union-type support for no real benefit
     # at this protocol's size (3 shapes, one front only ever branches on
     # `flow` at runtime anyway).
-    params: {type: object, required: [flow], properties: {flow: {type: string}}}
+    # `message` (1.5+, optional, any flow): instructions for the user, in a
+    # minimal HTML subset (docs/protocol.md §10).
+    params: {type: object, required: [flow], properties: {flow: {type: string}, message: {type: string}}}
 
   auth/statusChanged:
     params:

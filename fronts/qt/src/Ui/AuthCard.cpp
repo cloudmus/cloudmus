@@ -15,6 +15,7 @@
 #include <QVBoxLayout>
 
 #include "Icons.h"
+#include "MiniHtml.h"
 #include "PasswordReveal.h"
 #include "Spacing.h"
 #include "Tokens.h"
@@ -181,16 +182,10 @@ void AuthCard::showPrompt(const QJsonObject& params)
                 break;
             }
         }
+        // What to put in the fields is the source's to say — the prompt's
+        // own message, below; a generic form can't know.
         messageLabel_->setTextFormat(Qt::PlainText);
-        // A generic "no source-specific UI" form (docs/protocol.md §10.2)
-        // can't know it's specifically a browser-headers paste, but a
-        // multiline field is a strong enough signal to justify a more
-        // useful instruction than a bare "Sign in" — the DevTools steps
-        // aren't otherwise discoverable from the form alone.
-        messageLabel_->setText(hasMultilineField
-                ? tr("Open music.youtube.com in your browser while signed in, open DevTools → Network tab, "
-                     "click any request to music.youtube.com, and paste its Request Headers below.")
-                : tr("Sign in"));
+        messageLabel_->setText(hasMultilineField ? tr("Sign in by pasting what's asked for below.") : tr("Sign in"));
         for (const QJsonValue& v : fields) {
             const QJsonObject field = v.toObject();
             const QString name = field.value(QStringLiteral("name")).toString();
@@ -227,6 +222,13 @@ void AuthCard::showPrompt(const QJsonObject& params)
     } else {
         messageLabel_->setTextFormat(Qt::PlainText);
         messageLabel_->setText(tr("Sign-in required"));
+    }
+    // The source's own instructions (docs/protocol.md §10), when it gives
+    // any, over the generic wording above.
+    const QString message = params.value(QStringLiteral("message")).toString();
+    if (!message.isEmpty()) {
+        messageLabel_->setTextFormat(Qt::RichText);
+        messageLabel_->setText(miniHtmlToRichText(message, Theme::palette().accent));
     }
 }
 
