@@ -14,6 +14,9 @@ public:
     QByteArray windowGeometry() const;
     void setWindowGeometry(const QByteArray& geometry);
 
+    QByteArray settingsDialogGeometry() const;
+    void setSettingsDialogGeometry(const QByteArray& geometry);
+
     int sidebarWidth() const;
     void setSidebarWidth(int width);
 

@@ -1,92 +1,187 @@
 #include "SettingsDialog.h"
 
-#include <QCheckBox>
+#include <algorithm>
+
+#include <QCursor>
 #include <QDialogButtonBox>
-#include <QFileDialog>
-#include <QFormLayout>
 #include <QHBoxLayout>
-#include <QIcon>
-#include <QLineEdit>
+#include <QListView>
+#include <QMouseEvent>
 #include <QPushButton>
-#include <QStyle>
+#include <QScrollBar>
+#include <QStandardItemModel>
 #include <QVBoxLayout>
 
-#include "Typography.h"
+#include "DialogButtons.h"
+#include "NavItemDelegate.h"
+#include "OverlayScrollBar.h"
+#include "ScrollEdgeFade.h"
+#include "Settings.h"
+#include "Settings/DownloadsPage.h"
+#include "Settings/GeneralPage.h"
+#include "Settings/PageStack.h"
+#include "SidebarModel.h"
+#include "SmoothScroller.h"
+#include "Spacing.h"
+#include "Tokens.h"
 
 namespace Ui {
 
-SettingsDialog::SettingsDialog(Config::Settings& settings, QWidget* parent)
+namespace {
+constexpr int kSidebarWidth = 200;
+} // namespace
+
+SettingsDialog::SettingsDialog(Config::Settings& settings, QWidget* parent, const QString& openAt)
     : QDialog(parent)
     , settings_(settings)
 {
     setWindowTitle(tr("Settings"));
     setProperty("themed", true); // see StyleSheet.cpp's dialogsBlock() for why
+    setMinimumSize(640, 420);
+    if (!restoreGeometry(settings_.settingsDialogGeometry()))
+        resize(820, 600);
 
-    closeToTrayCheck_ = new QCheckBox(tr("Closing the window minimizes to the tray instead of quitting"), this);
-    closeToTrayCheck_->setChecked(settings_.closeMinimizesToTray());
-    closeToTrayCheck_->setFont(Theme::font(Theme::TextStyle::Body));
-
-    downloadDirEdit_ = new QLineEdit(settings_.downloadDirectory(), this);
-    downloadDirEdit_->setPlaceholderText(Config::Settings::defaultDownloadDirectory());
-    downloadDirEdit_->setFont(Theme::font(Theme::TextStyle::Body));
-    auto* browseButton = new QPushButton(tr("Browse…"), this);
-    browseButton->setProperty("variant", "secondary");
-    browseButton->setFont(Theme::font(Theme::TextStyle::Button));
-    connect(browseButton, &QPushButton::clicked, this, [this]() {
-        // Not QFileDialog::getExistingDirectory(...): that convenience
-        // function constructs, execs, and destroys the dialog internally,
-        // giving no chance to call Theme::useSystemFont() on it — needed
-        // because QApplication::setFont()'s app-wide Manrope default has
-        // no subtree opt-out (see Typography.h), and this dialog should
-        // stay fully native-looking like any other system file picker.
-        QFileDialog dialog(this, tr("Download folder"), downloadDirEdit_->text());
-        dialog.setFileMode(QFileDialog::Directory);
-        dialog.setOption(QFileDialog::ShowDirsOnly);
-        Theme::useSystemFont(&dialog);
-        if (dialog.exec() == QDialog::Accepted && !dialog.selectedFiles().isEmpty())
-            downloadDirEdit_->setText(dialog.selectedFiles().constFirst());
+    // --- sidebar
+    sidebarModel_ = new QStandardItemModel(this);
+    sidebarView_ = new QListView(this);
+    sidebarView_->setObjectName(QStringLiteral("settingsSidebar")); // see StyleSheet.cpp's settingsBlock()
+    sidebarView_->setModel(sidebarModel_);
+    sidebarDelegate_ = new NavItemDelegate(sidebarView_);
+    sidebarView_->setItemDelegate(sidebarDelegate_);
+    sidebarView_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    sidebarView_->setSelectionMode(QAbstractItemView::SingleSelection);
+    sidebarView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    sidebarView_->setFixedWidth(kSidebarWidth);
+    SmoothScroller::attach(sidebarView_);
+    // Before OverlayScrollBar::attach — see ScrollEdgeFade's class doc.
+    ScrollEdgeFade::attach(sidebarView_, [] { return Theme::palette().surface100; });
+    OverlayScrollBar::attach(sidebarView_);
+    // Hover driven from real mouse moves and scrolling, as in MainWindow's
+    // sidebar — see NavItemDelegate's class doc for why not State_MouseOver.
+    sidebarView_->viewport()->setMouseTracking(true);
+    sidebarView_->viewport()->installEventFilter(this);
+    connect(sidebarView_->verticalScrollBar(), &QScrollBar::valueChanged, sidebarView_, [this]() {
+        const QPoint viewportPos = sidebarView_->viewport()->mapFromGlobal(QCursor::pos());
+        const bool inside = sidebarView_->viewport()->rect().contains(viewportPos);
+        updateSidebarHover(inside ? sidebarView_->indexAt(viewportPos) : QModelIndex());
     });
-    auto* downloadRow = new QHBoxLayout;
-    downloadRow->addWidget(downloadDirEdit_);
-    downloadRow->addWidget(browseButton);
 
-    auto* form = new QFormLayout;
-    form->addRow(tr("Download folder:"), downloadRow);
+    // --- pages
+    pageStack_ = new Settings::PageStack(this);
+    addPage(new Settings::GeneralPage(settings_, this));
+    addPage(new Settings::DownloadsPage(settings_, this));
 
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setProperty("variant", "primary");
-    buttons->button(QDialogButtonBox::Cancel)->setProperty("variant", "secondary");
-    for (QAbstractButton* button : buttons->buttons()) {
-        button->setFont(Theme::font(Theme::TextStyle::Button));
-        // Some platform themes (KDE's in particular) inject a standard
-        // checkmark/cross icon onto Ok/Cancel regardless of the active
-        // QStyle — clashes with the flat, icon-less button look everywhere
-        // else in the app.
-        button->setIcon(QIcon());
-        // QDialogButtonBox's own construction appears to polish its
-        // standard buttons before we get a chance to set "variant" above,
-        // so the [variant="..."] QSS rule never gets (re-)evaluated
-        // against it — Qt's documented fix for "a QSS-relevant dynamic
-        // property changed after the widget was polished."
-        button->style()->unpolish(button);
-        button->style()->polish(button);
-    }
+    // currentChanged, not clicked: arrow keys in the sidebar jump too.
+    connect(
+        sidebarView_->selectionModel(), &QItemSelectionModel::currentChanged, this, [this](const QModelIndex& current) {
+            if (!syncingSidebar_ && current.isValid())
+                pageStack_->scrollToPage(current.row());
+        });
+    // Also on a click of the row that's already current: its section may
+    // be only partly in view.
+    connect(sidebarView_, &QListView::clicked, this,
+        [this](const QModelIndex& index) { pageStack_->scrollToPage(index.row()); });
+    connect(pageStack_, &Settings::PageStack::currentPageChanged, this, [this](int index) {
+        syncingSidebar_ = true;
+        sidebarView_->setCurrentIndex(sidebarModel_->index(index, 0));
+        syncingSidebar_ = false;
+    });
+
+    // --- buttons
+    auto* buttons
+        = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Apply | QDialogButtonBox::Cancel, this);
+    styleDialogButton(buttons->button(QDialogButtonBox::Ok), "primary");
+    styleDialogButton(buttons->button(QDialogButtonBox::Apply), "secondary");
+    styleDialogButton(buttons->button(QDialogButtonBox::Cancel), "secondary");
+    applyButton_ = buttons->button(QDialogButtonBox::Apply);
+    connect(applyButton_, &QPushButton::clicked, this, &SettingsDialog::applyAll);
     connect(buttons, &QDialogButtonBox::accepted, this, [this]() {
-        save();
+        applyAll();
         accept();
     });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    updateApplyButton();
+
+    auto* body = new QHBoxLayout;
+    body->setContentsMargins(0, 0, 0, 0);
+    body->setSpacing(0);
+    body->addWidget(sidebarView_);
+    body->addWidget(pageStack_, 1);
+
+    auto* buttonRow = new QHBoxLayout;
+    buttonRow->setContentsMargins(
+        Theme::Spacing::space4, Theme::Spacing::space3, Theme::Spacing::space4, Theme::Spacing::space3);
+    buttonRow->addWidget(buttons);
 
     auto* root = new QVBoxLayout(this);
-    root->addWidget(closeToTrayCheck_);
-    root->addLayout(form);
-    root->addWidget(buttons);
+    root->setContentsMargins(0, 0, 0, 0);
+    root->setSpacing(0);
+    root->addLayout(body, 1);
+    root->addLayout(buttonRow);
+
+    int openIndex = 0;
+    for (int i = 0; i < int(pages_.size()); ++i) {
+        if (pages_[i]->id() == openAt)
+            openIndex = i;
+    }
+    pageStack_->scrollToPage(openIndex, false);
 }
 
-void SettingsDialog::save()
+void SettingsDialog::addPage(Settings::Page* page)
 {
-    settings_.setCloseMinimizesToTray(closeToTrayCheck_->isChecked());
-    settings_.setDownloadDirectory(downloadDirEdit_->text());
+    pages_.push_back(page);
+    pageStack_->addPage(page);
+
+    auto* item = new QStandardItem(page->title());
+    item->setData(int(SidebarModel::Kind::Playlist), SidebarModel::KindRole);
+    item->setData(page->iconName(), SidebarModel::ThemeIconRole);
+    sidebarModel_->appendRow(item);
+
+    connect(page, &Settings::Page::dirtyChanged, this, &SettingsDialog::updateApplyButton);
+}
+
+void SettingsDialog::applyAll()
+{
+    for (Settings::Page* page : pages_) {
+        if (page->isDirty())
+            page->apply();
+    }
+    updateApplyButton();
+}
+
+void SettingsDialog::updateApplyButton()
+{
+    const bool dirty = std::any_of(pages_.begin(), pages_.end(), [](const Settings::Page* p) { return p->isDirty(); });
+    applyButton_->setEnabled(dirty);
+}
+
+void SettingsDialog::done(int result)
+{
+    settings_.setSettingsDialogGeometry(saveGeometry());
+    QDialog::done(result);
+}
+
+bool SettingsDialog::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == sidebarView_->viewport()) {
+        if (event->type() == QEvent::MouseMove)
+            updateSidebarHover(sidebarView_->indexAt(static_cast<QMouseEvent*>(event)->pos()));
+        else if (event->type() == QEvent::Leave)
+            updateSidebarHover(QModelIndex());
+    }
+    return QDialog::eventFilter(watched, event);
+}
+
+void SettingsDialog::updateSidebarHover(const QModelIndex& index)
+{
+    const QModelIndex previous = sidebarDelegate_->hoveredIndex();
+    if (previous == index)
+        return;
+    sidebarDelegate_->setHoveredIndex(index);
+    if (previous.isValid())
+        sidebarView_->viewport()->update(sidebarView_->visualRect(previous));
+    if (index.isValid())
+        sidebarView_->viewport()->update(sidebarView_->visualRect(index));
 }
 
 } // namespace Ui

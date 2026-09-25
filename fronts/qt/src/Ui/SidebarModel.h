@@ -54,6 +54,10 @@ public:
         // True on the one row whose playlist is the active (playing) one —
         // NavItemDelegate marks it with a ▶ at the right edge.
         IsActiveRole,
+        // A Theme::icon() glyph name, tinted at paint time like the rest —
+        // for rows outside this model that reuse NavItemDelegate (the
+        // Settings dialog's sidebar).
+        ThemeIconRole,
     };
 
     explicit SidebarModel(QObject* parent = nullptr);

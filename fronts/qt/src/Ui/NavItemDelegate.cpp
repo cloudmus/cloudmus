@@ -83,6 +83,8 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         rowIcon = Theme::icon(QStringLiteral("history"), iconColor, kIconSide);
     else if (const QString path = index.data(SidebarModel::SourceIconPathRole).toString(); !path.isEmpty())
         rowIcon = Theme::iconFromFile(path, iconColor, kIconSide);
+    else if (const QString name = index.data(SidebarModel::ThemeIconRole).toString(); !name.isEmpty())
+        rowIcon = Theme::icon(name, iconColor, kIconSide);
     else
         rowIcon = index.data(Qt::DecorationRole).value<QIcon>();
 

@@ -111,6 +111,7 @@ QPushButton[variant="secondary"] {
     padding: %4px %5px;
 }
 QPushButton[variant="secondary"]:hover { background: %11; }
+QPushButton[variant="secondary"]:disabled { background: %8; color: %13; }
 QPushButton[variant="tab"] {
     background: transparent;
     color: %12;
@@ -124,7 +125,7 @@ QPushButton[variant="tab"]:checked { color: %9; border-bottom: 2px solid %1; })"
         // oversized next to the 13px text they carry.
         .arg(hex(p.accent), hex(p.onAccent), QString::number(Radius::sm), QString::number(Spacing::space1),
             QString::number(Spacing::space4), hex(p.accentHover), hex(p.accentPressed), hex(p.surface200), hex(p.ink))
-        .arg(hex(p.border), hex(p.surface300), hex(p.inkSecondary));
+        .arg(hex(p.border), hex(p.surface300), hex(p.inkSecondary), hex(p.inkTertiary));
 }
 
 QString toolBarBlock(const Palette& p)
@@ -323,6 +324,25 @@ QDialog[themed="true"] QCheckBox::indicator:checked {
         .arg(hex(p.borderStrong), checkIcon, QString::number(Radius::md));
 }
 
+// Ui::SettingsDialog: its sidebar sits on the dialog's own chrome tone
+// (surface100, like the main window's sidebar) and the scrolling column of
+// settings on the content tone (surface0, like the track list) — the same
+// split as the main window. Scoped by objectName for the same reason as
+// #sidebarView/#trackListView.
+QString settingsBlock(const Palette& p)
+{
+    return QStringLiteral(R"(QListView#settingsSidebar {
+    background: %1;
+    border: none;
+    outline: 0;
+    padding-top: %4px;
+    selection-background-color: %2;
+    selection-color: %3;
+}
+QScrollArea#settingsPages { background: %5; border: none; })")
+        .arg(hex(p.surface100), hex(p.surface400), hex(p.accent), QString::number(Spacing::space2), hex(p.surface0));
+}
+
 } // namespace
 
 QString buildStyleSheet(Mode mode)
@@ -333,7 +353,7 @@ QString buildStyleSheet(Mode mode)
     // hides the real QScrollBar entirely and paints its own floating
     // handle — a QSS rule for QScrollBar would never be reached.
     return buttonsBlock(p) + textButtonsBlock(p) + toolBarBlock(p) + panelsBlock(p) + progressBarBlock(p)
-        + sidebarTreeBlock(p) + trackListBlock(p) + dialogsBlock(p);
+        + sidebarTreeBlock(p) + trackListBlock(p) + dialogsBlock(p) + settingsBlock(p);
 }
 
 void applyGlobalStyleSheet(QApplication& app)

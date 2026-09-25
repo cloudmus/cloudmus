@@ -10,7 +10,6 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QStackedWidget>
-#include <QStyle>
 #include <QTextBlockFormat>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -19,6 +18,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "DialogButtons.h"
 #include "Icons.h"
 #include "OverlayScrollBar.h"
 #include "SmoothScroller.h"
@@ -203,19 +203,7 @@ AboutDialog::AboutDialog(QWidget* parent)
 
     // --- close
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
-    QPushButton* closeButton = buttons->button(QDialogButtonBox::Close);
-    closeButton->setProperty("variant", "primary");
-    closeButton->setFont(Theme::font(Theme::TextStyle::Button));
-    // See SettingsDialog.cpp's identical call for why: some platform
-    // themes inject a standard icon onto dialog buttons regardless of the
-    // active QStyle.
-    closeButton->setIcon(QIcon());
-    // See SettingsDialog.cpp's identical call for why: QDialogButtonBox
-    // appears to polish its standard buttons before "variant" is set
-    // above, so the QSS rule depending on it never gets re-evaluated
-    // without this.
-    closeButton->style()->unpolish(closeButton);
-    closeButton->style()->polish(closeButton);
+    styleDialogButton(buttons->button(QDialogButtonBox::Close), "primary");
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     auto* root = new QVBoxLayout(this);

@@ -12,11 +12,14 @@ namespace Ui {
 
 namespace {
 constexpr int kAnimationMs = 180;
+// Long enough to read as travel through the content, short enough not to
+// feel like waiting.
+constexpr int kJumpAnimationMs = 320;
 } // namespace
 
-void SmoothScroller::attach(QAbstractScrollArea* area)
+SmoothScroller* SmoothScroller::attach(QAbstractScrollArea* area)
 {
-    new SmoothScroller(area); // parented to area; destroyed along with it
+    return new SmoothScroller(area); // parented to area; destroyed along with it
 }
 
 SmoothScroller::SmoothScroller(QAbstractScrollArea* area)
@@ -58,22 +61,49 @@ bool SmoothScroller::eventFilter(QObject* watched, QEvent* event)
             bar->setValue(before);
         }
 
-        const bool animating = animation_ && animation_->state() == QAbstractAnimation::Running;
-        const int base = animating ? target_ : before;
-        target_ = qBound(bar->minimum(), base + stepDelta, bar->maximum());
-
-        if (!animation_) {
-            animation_ = new QPropertyAnimation(bar, "value", this);
-            animation_->setEasingCurve(QEasingCurve::OutCubic);
-        }
-        animation_->stop();
-        animation_->setDuration(kAnimationMs);
-        animation_->setStartValue(bar->value());
-        animation_->setEndValue(target_);
-        animation_->start();
+        const int base = isAnimating() ? target_ : before;
+        animateTo(base + stepDelta, kAnimationMs);
         return true;
     }
     return QObject::eventFilter(watched, event);
+}
+
+void SmoothScroller::scrollTo(int value) { animateTo(value, kJumpAnimationMs); }
+
+void SmoothScroller::shift(int delta)
+{
+    QScrollBar* bar = area_->verticalScrollBar();
+    if (!bar || delta == 0)
+        return;
+    const int expected = bar->value() + delta;
+    if (isAnimating()) {
+        target_ += delta;
+        animation_->setStartValue(animation_->startValue().toInt() + delta);
+        animation_->setEndValue(animation_->endValue().toInt() + delta);
+    }
+    // A running animation already re-applied its (now shifted)
+    // interpolated value on the setters above; only fill in what's left.
+    if (bar->value() != expected)
+        bar->setValue(expected);
+}
+
+bool SmoothScroller::isAnimating() const { return animation_ && animation_->state() == QAbstractAnimation::Running; }
+
+void SmoothScroller::animateTo(int target, int durationMs)
+{
+    QScrollBar* bar = area_->verticalScrollBar();
+    target_ = qBound(bar->minimum(), target, bar->maximum());
+
+    if (!animation_) {
+        animation_ = new QPropertyAnimation(bar, "value", this);
+        animation_->setEasingCurve(QEasingCurve::OutCubic);
+        connect(animation_, &QPropertyAnimation::finished, this, &SmoothScroller::finished);
+    }
+    animation_->stop();
+    animation_->setDuration(durationMs);
+    animation_->setStartValue(bar->value());
+    animation_->setEndValue(target_);
+    animation_->start();
 }
 
 } // namespace Ui

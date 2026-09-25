@@ -25,6 +25,16 @@ void Settings::setWindowGeometry(const QByteArray& geometry)
     settings_.setValue(QStringLiteral("window/geometry"), geometry);
 }
 
+QByteArray Settings::settingsDialogGeometry() const
+{
+    return settings_.value(QStringLiteral("settingsDialog/geometry")).toByteArray();
+}
+
+void Settings::setSettingsDialogGeometry(const QByteArray& geometry)
+{
+    settings_.setValue(QStringLiteral("settingsDialog/geometry"), geometry);
+}
+
 int Settings::sidebarWidth() const { return settings_.value(QStringLiteral("window/sidebarWidth"), 240).toInt(); }
 
 void Settings::setSidebarWidth(int width) { settings_.setValue(QStringLiteral("window/sidebarWidth"), width); }

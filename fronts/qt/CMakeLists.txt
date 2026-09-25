@@ -107,6 +107,11 @@ add_executable(cloudmus-qt
     src/Ui/PlaylistSheet.cpp
     src/Ui/ThemedToolTip.cpp
     src/Ui/SettingsDialog.cpp
+    src/Ui/DialogButtons.cpp
+    src/Ui/Settings/Page.h
+    src/Ui/Settings/PageStack.cpp
+    src/Ui/Settings/GeneralPage.cpp
+    src/Ui/Settings/DownloadsPage.cpp
     src/Ui/CoverArtCache.cpp
 
     src/Theme/Tokens.cpp
