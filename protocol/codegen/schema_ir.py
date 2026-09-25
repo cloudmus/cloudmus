@@ -132,6 +132,10 @@ class _Builder:
             return TypeIR(kind="object_ref", ref_name=type_name)
 
         node_type = node.get("type")
+        # No "type" at all: any JSON value (a setting's value/default, whose
+        # type depends on a sibling field) — JSON Schema's own meaning of {}.
+        if node_type is None:
+            return TypeIR(kind="any")
 
         if node_type == "string":
             return TypeIR(kind="string", enum=node.get("enum"))

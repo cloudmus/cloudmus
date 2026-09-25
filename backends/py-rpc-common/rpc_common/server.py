@@ -26,6 +26,10 @@ RequestHandler = Callable[[dict[str, Any], int], "Awaitable[dict[str, Any]] | di
 # truncated rather than let one line balloon to megabytes.
 _MAX_LOGGED_VALUE_CHARS = 2000
 
+# Methods whose params can carry a password or another secret: logged as
+# "<redacted>" instead (the result is still logged — neither returns one).
+_REDACTED_PARAMS_METHODS = {"auth.submit", "settings.update"}
+
 
 def _summarize(value: Any) -> str:
     text = json.dumps(value, ensure_ascii=False, default=str)
@@ -81,7 +85,7 @@ class BackendServer:
 
     def _handle_initialize(self, params: dict[str, Any], request_id: int) -> dict[str, Any]:
         return {
-            "protocolVersion": "1.2",
+            "protocolVersion": "1.4",
             "source": {
                 "id": self.source_id,
                 "name": self.source_name,
@@ -129,7 +133,8 @@ class BackendServer:
                 # handler forgot to map) visible directly in the log instead
                 # of only inferable from its symptom in the UI.
                 params = message.get("params", {})
-                logger.info("-> %s id=%s params=%s", method_name, request_id, _summarize(params))
+                logged_params = "<redacted>" if method_name in _REDACTED_PARAMS_METHODS else _summarize(params)
+                logger.info("-> %s id=%s params=%s", method_name, request_id, logged_params)
                 started = time.monotonic()
                 result = handler(params, request_id)
                 if asyncio.iscoroutine(result):

@@ -43,6 +43,62 @@ class ConformanceFailure(AssertionError):
     pass
 
 
+_SETTING_VALUE_TYPES = {
+    "boolean": bool,
+    "integer": int,
+    "string": str,
+    "secret": str,
+    "enum": str,
+    "path": str,
+}
+
+
+async def _check_settings(writer: Any, reader: Any, ids: Any, passed: list[str]) -> None:
+    describe_id = next(ids)
+    await writer.send(jsonrpc.make_request(describe_id, "settings.describe", {}))
+    response = await reader.__anext__()
+    if response.get("id") != describe_id or "result" not in response:
+        raise ConformanceFailure(f"settings.describe failed: {response!r}")
+    description = response["result"]
+    _validate("settings_description.yaml", description)
+    passed.append("settings.describe result matches schema")
+
+    group_ids = {g["id"] for g in description["groups"]}
+    keys: set[str] = set()
+    for f in description["fields"]:
+        where = f"setting {f['key']!r}"
+        if f["key"] in keys:
+            raise ConformanceFailure(f"{where} is listed twice")
+        keys.add(f["key"])
+        if "group" in f and f["group"] not in group_ids:
+            raise ConformanceFailure(f"{where} names unknown group {f['group']!r}")
+        expected = _SETTING_VALUE_TYPES[f["type"]]
+        for name in ("default", "value"):
+            v = f[name]
+            if not isinstance(v, expected) or (expected is int and isinstance(v, bool)):
+                raise ConformanceFailure(f"{where}: {name} {v!r} doesn't match type {f['type']}")
+        if f["type"] == "enum":
+            allowed = {o["value"] for o in f.get("options", [])}
+            if not allowed:
+                raise ConformanceFailure(f"{where}: an enum needs options")
+            if f["default"] not in allowed or f["value"] not in allowed:
+                raise ConformanceFailure(f"{where}: default/value not among its options")
+        if f["type"] == "secret" and (f["value"] != "" or "isSet" not in f):
+            raise ConformanceFailure(f"{where}: a secret must report value \"\" and isSet")
+    passed.append("settings fields are consistent with their types")
+
+    # Rejected without saving anything — this suite must not change the
+    # settings of whoever runs it.
+    update_id = next(ids)
+    await writer.send(
+        jsonrpc.make_request(update_id, "settings.update", {"values": {"conformance.noSuchKey": True}})
+    )
+    response = await reader.__anext__()
+    if response.get("id") != update_id or response.get("error", {}).get("code") != -32602:
+        raise ConformanceFailure(f"settings.update with an unknown key should fail with -32602: {response!r}")
+    passed.append("settings.update rejects an unknown key")
+
+
 async def run_conformance(argv: list[str]) -> list[str]:
     """Spawns the backend, drives it through the checks below, returns a list
     of human-readable descriptions of checks that passed. Raises
@@ -105,6 +161,9 @@ async def run_conformance(argv: list[str]) -> list[str]:
             passed.append("catalog.listPlaylists results match schema")
         elif caps["browse"]["playlists"]:
             passed.append("catalog.listPlaylists skipped (backend requires auth, not authenticated)")
+
+        if caps.get("settings"):
+            await _check_settings(writer, reader, ids, passed)
 
         shutdown_id = next(ids)
         await writer.send(jsonrpc.make_request(shutdown_id, "shutdown", {}))

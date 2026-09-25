@@ -163,6 +163,15 @@ QList<T> requiredArray(const QJsonObject& obj, const char* className, const char
 }
 
 template <typename T>
+std::optional<QList<T>> optionalArray(const QJsonObject& obj, const char* className, const char* fieldName)
+{
+    if (!obj.contains(fieldName) || obj.value(fieldName).isNull()) {
+        return std::nullopt;
+    }
+    return requiredArray<T>(obj, className, fieldName);
+}
+
+template <typename T>
 QMap<QString, T> requiredMap(const QJsonObject& obj, const char* className, const char* fieldName)
 {
     if (!obj.contains(fieldName)) {
@@ -226,6 +235,14 @@ void insertOptional(QJsonObject& obj, const char* key, const std::optional<T>& v
 {
     if (value.has_value()) {
         obj.insert(key, JsonField<T>::toJson(*value));
+    }
+}
+
+template <typename T>
+void insertOptionalArray(QJsonObject& obj, const char* key, const std::optional<QList<T>>& value)
+{
+    if (value.has_value()) {
+        obj.insert(key, toJsonArray(*value));
     }
 }
 

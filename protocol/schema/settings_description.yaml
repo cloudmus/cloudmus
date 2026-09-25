@@ -1,0 +1,61 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: settings_description.yaml
+title: SettingsDescription
+# A source's own settings, as settings.describe returns them (docs/protocol.md
+# §7.7): enough metadata for a front to build a form without knowing the
+# source. Values live with the source, not the front.
+type: object
+required: [groups, fields]
+properties:
+  groups:
+    # In display order. A field whose `group` is absent goes in an untitled
+    # group ahead of these.
+    type: array
+    items:
+      x-name: SettingsGroup
+      type: object
+      required: [id, title]
+      properties:
+        id: {type: string}
+        title: {type: string}
+        description: {type: string}
+      additionalProperties: false
+  fields:
+    # In display order within their group.
+    type: array
+    items:
+      x-name: SettingField
+      type: object
+      required: [key, label, type, default, value]
+      properties:
+        key: {type: string}
+        group: {type: string}
+        label: {type: string}
+        description: {type: string}
+        type: {type: string, enum: [boolean, integer, string, secret, enum, path]}
+        # JSON type per `type`: boolean -> boolean; integer -> integer;
+        # string/secret/enum/path -> string.
+        default: {}
+        # Current value. For a secret always "" — it never leaves the
+        # source; `isSet` says whether one is stored.
+        value: {}
+        isSet: {type: boolean}
+        min: {type: integer}                # integer
+        max: {type: integer}                # integer
+        options:                            # enum: the allowed values
+          type: array
+          items:
+            x-name: SettingOption
+            type: object
+            required: [value, label]
+            properties:
+              value: {type: string}
+              label: {type: string}
+            additionalProperties: false
+        pathKind: {type: string, enum: [directory, file]}  # path
+        placeholder: {type: string}         # string/secret/path
+        # The source only picks the new value up after a restart; the front
+        # restarts it after a successful settings.update touching this key.
+        restartRequired: {type: boolean}
+      additionalProperties: false
+additionalProperties: false

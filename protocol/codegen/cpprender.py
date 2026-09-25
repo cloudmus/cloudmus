@@ -68,9 +68,8 @@ def _from_json_call(t: TypeIR, class_name: str, wire_name: str, required: bool) 
         fn = f"Rpc::{prefix}EnumField"
         return f'{fn}(obj, "{class_name}", "{wire_name}", {{{allowed}}})'
     if t.kind == "array":
-        if not required:
-            raise ValueError(f"optional array field not supported by JsonValidation.h yet: {class_name}.{wire_name}")
-        return f'Rpc::requiredArray<{_cpp_type(t.item)}>(obj, "{class_name}", "{wire_name}")'
+        fn = f"Rpc::{prefix}Array"
+        return f'{fn}<{_cpp_type(t.item)}>(obj, "{class_name}", "{wire_name}")'
     if t.kind == "map":
         fn = f"Rpc::{prefix}Map"
         return f'{fn}<{_cpp_type(t.map_value)}>(obj, "{class_name}", "{wire_name}")'
@@ -90,7 +89,7 @@ def _to_json_line(t: TypeIR, member_expr: str, wire_name: str, required: bool) -
     if t.kind == "map":
         return f'Rpc::insertOptionalMap(out, "{wire_name}", {member_expr});'
     if t.kind == "array":
-        raise ValueError(f"optional array field not supported by JsonValidation.h yet ({wire_name})")
+        return f'Rpc::insertOptionalArray(out, "{wire_name}", {member_expr});'
     return f'Rpc::insertOptional(out, "{wire_name}", {member_expr});'
 
 

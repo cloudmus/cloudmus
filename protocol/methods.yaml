@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.1"
+protocolVersion: "1.4"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -257,6 +257,25 @@ methods:
       required: [path]
       properties: {path: {type: string}}
     timeoutMs: 60000
+
+  # --- 7.7 Settings ---
+  settings.describe:
+    requiresCapability: settings
+    params: {type: object, properties: {}, required: []}
+    result: {$ref: "schema/settings_description.yaml"}
+    timeoutMs: 5000
+
+  settings.update:
+    requiresCapability: settings
+    params:
+      type: object
+      required: [values]
+      properties:
+        # key -> new value, only the keys being changed; all-or-nothing
+        # (docs/protocol.md §7.7).
+        values: {type: object, additionalProperties: {}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
 
   # --- 10. Auth ---
   auth.getStatus:

@@ -197,6 +197,7 @@ defaults, since the front does not assume any implicit capability.
 | `browse.search` | bool | `catalog.search` supported (reserved for future use; no method defined yet in v1 — see §13). |
 | `feedback.like` / `.dislike` / `.skip` | bool | Corresponding `feedback.*` methods (§7.4) are accepted. |
 | `download` | bool | `catalog.downloadTrack` (§7.5) is supported. |
+| `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
 | `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
 
@@ -422,6 +423,71 @@ mirror that locally rather than showing both states lit up at once.
 - If a source's capability declares `"download": false`, the front must not
   call this method; a source receiving it anyway without the capability
   should reply with a capability error (code `1100`, see §9).
+
+### 7.7 Settings
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `settings.describe` | `{}` | `SettingsDescription` (below) | `settings` |
+| `settings.update` | `{"values": {key: value, ...}}` | `{}` | `settings` |
+
+A source's own options (stream quality, a library folder, API
+credentials, ...) are described by the source itself, so a front can
+build a settings form for any source without knowing it. The values live
+with the source — typically next to its auth token — not with the front;
+every front shares them.
+
+```jsonc
+{
+  "groups": [
+    {"id": "playback", "title": "Playback"}      // description optional
+  ],
+  "fields": [
+    {
+      "key": "streamQuality",
+      "group": "playback",                        // optional
+      "label": "Stream quality",
+      "description": "Applies from the next track.",  // optional
+      "type": "enum",
+      "default": "best",
+      "value": "high",
+      "options": [
+        {"value": "best", "label": "Best available"},
+        {"value": "high", "label": "Up to 192 kbps"}
+      ]
+    }
+  ]
+}
+```
+
+- `groups` are listed in display order; `fields` in display order within
+  their group. A field without `group` goes into an untitled group shown
+  before the titled ones.
+- `type` decides both the control and the JSON type of `default`/`value`:
+
+  | `type` | Value | Extra fields |
+  |---|---|---|
+  | `boolean` | boolean | — |
+  | `integer` | integer | `min`, `max` (optional) |
+  | `string` | string | `placeholder` (optional) |
+  | `secret` | string | `isSet`, `placeholder` (optional) |
+  | `enum` | string, one of `options[].value` | `options` (required) |
+  | `path` | string, an absolute path or `""` | `pathKind`: `"directory"` or `"file"`; `placeholder` (optional) |
+
+- A `secret`'s `value` is always `""`: it never leaves the source.
+  `isSet` says whether one is stored. A front sends a secret in
+  `settings.update` only when the user typed a new one; `""` clears it.
+- `restartRequired: true` marks a setting the source only picks up at its
+  next start. After a successful `settings.update` touching one, the front
+  restarts the source (`shutdown`, then spawn and `initialize` again).
+  Everything else takes effect as soon as `settings.update` returns.
+- `settings.update` carries only the keys being changed and is
+  all-or-nothing: the source validates every value first, and on any bad
+  one saves nothing and replies `-32602` (invalid params) with
+  `data: {"key": <the offending key>, "message": <for the user>}`, which a
+  front shows next to that field. An unknown key is an error too.
+- Labels, descriptions and option labels are for display, in English, like
+  `source.name`.
 
 ---
 

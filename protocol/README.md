@@ -68,10 +68,12 @@ still succeeds but prints a warning and leaves the output unformatted.
 
 ## What the generator does and doesn't do
 
-Supported schema constructs: `string`/`integer`/`number`/`boolean`, `array`,
-`object` with fixed `properties` (a named struct/dataclass), `$ref` to
-another schema file, string `enum`, and `additionalProperties`-based maps or
-free-form ("any") objects. This is deliberately not a general JSON-Schema
+Supported schema constructs: `string`/`integer`/`number`/`boolean`, `array`
+(required or optional), `object` with fixed `properties` (a named
+struct/dataclass), `$ref` to another schema file, string `enum`,
+`additionalProperties`-based maps or free-form ("any") objects, and `{}` —
+no `type` at all — for a value of any JSON type (a setting's
+`default`/`value`, whose type a sibling field decides). This is deliberately not a general JSON-Schema
 engine — it only supports what this protocol actually uses. Both language
 targets generate real validation code inline (required-field presence,
 per-field type/enum checks) rather than deferring to a runtime schema

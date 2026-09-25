@@ -5,6 +5,15 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.4 — source settings
+
+- **Additive, backward-compatible**: capability `settings` and the methods
+  `settings.describe` / `settings.update` (§7.7). A source describes its own
+  options — key, type (`boolean`/`integer`/`string`/`secret`/`enum`/`path`),
+  label, description, default, current value, group — and a front builds
+  the form from that alone. Values stay stored by the source. Sources and
+  fronts without the capability are unaffected.
+
 ## 1.3 — `feedback.unlike` / `feedback.undislike`
 
 - **Additive, backward-compatible**: two new methods, `feedback.unlike` and
