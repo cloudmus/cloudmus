@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -46,3 +47,27 @@ def test_explicit_music_dir_wins_over_xdg(home, monkeypatch):
     config_file.write_text('{"musicDir": "~/Songs"}')
     monkeypatch.setattr(config, "CONFIG_FILE", config_file)
     assert config.get_music_dir() == home / "Songs"
+
+
+def test_legacy_music_dir_moves_into_settings(home, monkeypatch):
+    config_file = home / "config.json"
+    config_file.write_text('{"musicDir": "~/Songs", "other": 1}')
+    monkeypatch.setattr(config, "CONFIG_FILE", config_file)
+    assert config.get_music_dir() == home / "Songs"
+    assert json.loads(config_file.read_text()) == {"other": 1, "settings": {"musicDir": "~/Songs"}}
+
+
+def test_music_dir_setting_round_trip(home, monkeypatch):
+    config_file = home / "config.json"
+    monkeypatch.setattr(config, "CONFIG_FILE", config_file)
+    songs = home / "Songs"
+    songs.mkdir()
+    config.settings_store().update({"musicDir": str(songs)})
+    assert config.get_music_dir() == songs
+    field = config.settings_store().describe()["fields"][0]
+    assert field["value"] == str(songs) and field["default"] == str(home / "Music")
+
+
+def test_env_var_wins_over_the_setting(home, monkeypatch):
+    monkeypatch.setenv("CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR", "/srv/other")
+    assert config.get_music_dir() == Path("/srv/other")

@@ -84,3 +84,34 @@ async def test_cancel_event_aborts_retry(monkeypatch):
     asyncio.create_task(cancel_soon())
     with pytest.raises(asyncio.CancelledError):
         await playback.resolve_stream_with_retry(client, "123", cancel_event)
+
+
+@pytest.mark.parametrize(
+    "level, expected",
+    [("best", "https://320"), ("high", "https://192"), ("low", "https://128")],
+)
+def test_quality_caps_the_bitrate(level, expected):
+    from cloudmus_backend_yandex import quality
+
+    infos = [
+        _FakeInfo("mp3", 128, "https://128"),
+        _FakeInfo("mp3", 320, "https://320"),
+        _FakeInfo("mp3", 192, "https://192"),
+        _FakeInfo("aac", 256, "https://aac"),
+    ]
+    assert quality.pick(infos, level).direct_link == expected
+
+
+def test_quality_falls_back_to_the_lowest_above_the_cap():
+    from cloudmus_backend_yandex import quality
+
+    infos = [_FakeInfo("mp3", 320, "https://320"), _FakeInfo("mp3", 192, "https://192")]
+    assert quality.pick(infos, "low").direct_link == "https://192"
+
+
+@pytest.mark.asyncio
+async def test_stream_uses_the_quality_level():
+    infos = [_FakeInfo("mp3", 128, "https://low"), _FakeInfo("mp3", 320, "https://high")]
+    client = _FakeClient([[_FakeTrack(infos)]])
+    stream = await playback.resolve_stream_with_retry(client, "123", asyncio.Event(), "low")
+    assert stream.url == "https://low"

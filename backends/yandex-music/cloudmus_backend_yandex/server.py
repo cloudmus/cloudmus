@@ -7,7 +7,7 @@ from rpc_common.generated.methods import emit_track_stream_ready
 from rpc_common.generated.models import StreamReadyParams
 from rpc_common.server import BackendError, BackendServer
 
-from . import catalog, client as client_module, download, playback
+from . import catalog, client as client_module, config, download, playback
 from .auth import DeviceAuthSession
 from .radio import RadioSession
 
@@ -32,6 +32,11 @@ def build_server() -> BackendServer:
         source_description="Yandex Music streaming service",
         capabilities=CAPABILITIES,
     )
+
+    # Read at use (each play/download), so a change applies from the next
+    # track without any on_change hook.
+    settings = config.settings_store()
+    settings.register(server)
 
     auth_session = DeviceAuthSession()
     radio_session: RadioSession | None = None
@@ -124,7 +129,10 @@ def build_server() -> BackendServer:
     async def handle_download_track(params: dict, request_id: int) -> dict:
         try:
             return await download.download_track(
-                client_module.get_client(), params["trackId"], params["destDir"]
+                client_module.get_client(),
+                params["trackId"],
+                params["destDir"],
+                settings.get("downloadQuality"),
             )
         except LookupError:
             raise BackendError(
@@ -143,7 +151,9 @@ def build_server() -> BackendServer:
 
         async def resolve() -> None:
             try:
-                stream = await playback.resolve_stream_with_retry(client, track_id, cancel_event)
+                stream = await playback.resolve_stream_with_retry(
+                    client, track_id, cancel_event, settings.get("streamQuality")
+                )
             except asyncio.CancelledError:
                 return
             except Exception as e:

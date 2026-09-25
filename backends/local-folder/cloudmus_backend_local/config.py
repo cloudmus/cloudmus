@@ -2,8 +2,12 @@ import json
 import os
 from pathlib import Path
 
+from rpc_common.settings import Field, Group, SettingsStore
+
 CONFIG_DIR = Path.home() / ".config" / "cloudmus" / "backends" / "local-folder"
 CONFIG_FILE = CONFIG_DIR / "config.json"
+
+MUSIC_DIR_ENV = "CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR"
 
 
 def _xdg_music_dir() -> Path | None:
@@ -31,26 +35,61 @@ def _xdg_music_dir() -> Path | None:
     return None
 
 
+def default_music_dir() -> Path:
+    """The XDG music folder (e.g. ~/Музыка on a Russian-locale desktop),
+    else ~/Music."""
+    return _xdg_music_dir() or Path.home() / "Music"
+
+
+def settings_store() -> SettingsStore:
+    """This backend's settings (docs/protocol.md §7.7), kept in
+    config.json's "settings" section. Built per call rather than once, so
+    the default follows the XDG music folder if it changes."""
+    return SettingsStore(
+        CONFIG_FILE,
+        groups=[Group("library", "Library")],
+        fields=[
+            Field.path(
+                "musicDir",
+                "Music folder",
+                default=str(default_music_dir()),
+                kind="directory",
+                group="library",
+                description=(
+                    "Scanned for music: each folder in it becomes a playlist. "
+                    f"The {MUSIC_DIR_ENV} environment variable, if set, overrides it."
+                ),
+            ),
+        ],
+    )
+
+
+def _migrate_legacy_music_dir() -> None:
+    """Before settings.*, "musicDir" sat at config.json's top level, edited
+    by hand. Moved into the "settings" section as is — not through
+    SettingsStore.update(), which would refuse a folder that happens to be
+    missing right now."""
+    try:
+        data = json.loads(CONFIG_FILE.read_text())
+    except (OSError, ValueError):
+        return
+    legacy = data.pop("musicDir", None)
+    if not legacy:
+        return
+    settings = data.setdefault("settings", {})
+    settings.setdefault("musicDir", legacy)
+    CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+
+
 def get_music_dir() -> Path:
     """Resolves the root directory to scan for music.
 
     Priority: CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR env var (dev/testing
-    convenience) > "musicDir" in config.json > the XDG music folder
-    (e.g. ~/Музыка on a Russian-locale desktop) > ~/Music.
+    convenience) > the "musicDir" setting > the XDG music folder > ~/Music.
     """
-    env_dir = os.environ.get("CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR")
+    env_dir = os.environ.get(MUSIC_DIR_ENV)
     if env_dir:
         return Path(env_dir).expanduser()
 
-    if CONFIG_FILE.exists():
-        data = json.loads(CONFIG_FILE.read_text())
-        music_dir = data.get("musicDir")
-        if music_dir:
-            return Path(music_dir).expanduser()
-
-    return _xdg_music_dir() or Path.home() / "Music"
-
-
-def set_music_dir(path: str) -> None:
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(json.dumps({"musicDir": path}, indent=2, ensure_ascii=False))
+    _migrate_legacy_music_dir()
+    return Path(settings_store().get("musicDir")).expanduser()

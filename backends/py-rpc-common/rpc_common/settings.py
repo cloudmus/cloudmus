@@ -88,8 +88,11 @@ class Field:
     def path(cls, key: str, label: str, default: str = "", kind: str = "directory", **kw: Any) -> "Field":
         return cls(key, "path", label, default, path_kind=kind, **kw)
 
-    def validate(self, value: Any) -> str | None:
-        """None if `value` is acceptable, else a message for the user."""
+    def validate(self, value: Any, check_path_exists: bool = True) -> str | None:
+        """None if `value` is acceptable, else a message for the user.
+        `check_path_exists=False` skips whether a path points at anything —
+        for reading back what was once accepted: a folder on a drive that
+        isn't mounted right now is still the user's choice."""
         if self.type == "boolean":
             return None if isinstance(value, bool) else "expected true or false"
         if self.type == "integer":
@@ -105,7 +108,7 @@ class Field:
             return "expected text"
         if self.type == "enum" and value not in {v for v, _ in self.options}:
             return f"must be one of: {', '.join(v for v, _ in self.options)}"
-        if self.type == "path" and value:
+        if self.type == "path" and value and check_path_exists:
             path = Path(value).expanduser()
             if self.path_kind == "directory" and not path.is_dir():
                 return "no such folder"
@@ -172,8 +175,8 @@ class SettingsStore:
         f = self._by_key[key]
         stored = self._stored()
         # A stored value that no longer validates (an option since removed,
-        # a folder since deleted) falls back to the default.
-        if key in stored and f.validate(stored[key]) is None:
+        # a hand-edited wrong type) falls back to the default.
+        if key in stored and f.validate(stored[key], check_path_exists=False) is None:
             return stored[key]
         return f.default
 

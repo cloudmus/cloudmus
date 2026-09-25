@@ -15,12 +15,14 @@ from yandex_music import Client
 
 from rpc_common.generated.models import StreamDescriptor
 
+from . import quality
+
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 5.0
 MAX_ATTEMPTS = 5
 
 
-def _resolve_stream_sync(client: Client, track_id: str) -> StreamDescriptor:
+def _resolve_stream_sync(client: Client, track_id: str, quality_level: str) -> StreamDescriptor:
     tracks = client.tracks([track_id])
     if not tracks:
         raise LookupError(f"track not found: {track_id}")
@@ -28,13 +30,13 @@ def _resolve_stream_sync(client: Client, track_id: str) -> StreamDescriptor:
     infos = track.get_download_info(get_direct_links=True)
     if not infos:
         raise RuntimeError(f"no download links available for track {track_id}")
-    mp3_infos = [i for i in infos if i.codec == "mp3"] or infos
-    best = max(mp3_infos, key=lambda i: i.bitrate_in_kbps)
-    return StreamDescriptor(kind="url", url=best.direct_link, mimeType="audio/mpeg")
+    info = quality.pick(infos, quality_level)
+    mime_type = "audio/mpeg" if info.codec == "mp3" else f"audio/{info.codec}"
+    return StreamDescriptor(kind="url", url=info.direct_link, mimeType=mime_type)
 
 
 async def resolve_stream_with_retry(
-    client: Client, track_id: str, cancel_event: asyncio.Event
+    client: Client, track_id: str, cancel_event: asyncio.Event, quality_level: str = quality.BEST
 ) -> StreamDescriptor:
     delay = RETRY_INITIAL_DELAY
     last_exc: Exception | None = None
@@ -42,7 +44,7 @@ async def resolve_stream_with_retry(
         if cancel_event.is_set():
             raise asyncio.CancelledError
         try:
-            return await asyncio.to_thread(_resolve_stream_sync, client, track_id)
+            return await asyncio.to_thread(_resolve_stream_sync, client, track_id, quality_level)
         except Exception as e:
             last_exc = e
             if attempt == MAX_ATTEMPTS:

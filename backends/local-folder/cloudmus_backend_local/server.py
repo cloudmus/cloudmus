@@ -31,6 +31,9 @@ def build_server() -> BackendServer:
         capabilities=CAPABILITIES,
     )
 
+    # Nothing to apply on change: every call reads the folder anew.
+    config.settings_store().register(server)
+
     @server.method("catalog.listPlaylists")
     def handle_list_playlists(params: dict, request_id: int) -> dict:
         return catalog.list_playlists(config.get_music_dir())
