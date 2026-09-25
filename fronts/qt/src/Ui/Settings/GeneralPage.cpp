@@ -60,15 +60,16 @@ bool GeneralPage::isDirty() const
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray());
 }
 
-void GeneralPage::apply()
+Rpc::Task<bool> GeneralPage::apply()
 {
     if (!launchAtLoginCheck_)
-        return;
+        co_return true;
     if (launchAtLoginCheck_->isChecked() != launchAtLogin_
         && Integration::Autostart::setEnabled(launchAtLoginCheck_->isChecked()))
         launchAtLogin_ = launchAtLoginCheck_->isChecked();
     settings_.setStartHiddenAtLogin(startHiddenCheck_->isChecked());
     settings_.setCloseMinimizesToTray(closeToTrayCheck_->isChecked());
+    co_return true;
 }
 
 } // namespace Ui::Settings

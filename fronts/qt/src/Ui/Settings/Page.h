@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QString>
 
+#include "Coro.h"
+
 class QWidget;
 
 namespace Ui::Settings {
@@ -43,7 +45,10 @@ public:
     virtual QWidget* createWidget(QWidget* parent) = 0;
 
     virtual bool isDirty() const = 0;
-    virtual void apply() = 0;
+    // Saves what's changed. Asynchronous, as a source's own settings are
+    // saved by the source; false when something was refused (the page
+    // shows why) — the dialog then stays open.
+    virtual Rpc::Task<bool> apply() = 0;
 
 signals:
     void dirtyChanged();

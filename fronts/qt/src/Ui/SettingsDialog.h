@@ -3,6 +3,8 @@
 #include <QDialog>
 #include <QModelIndex>
 
+#include "Coro.h"
+
 #include <vector>
 
 class QListView;
@@ -54,7 +56,9 @@ protected:
 
 private:
     void addPage(Settings::Page* page);
-    void applyAll();
+    // Applies every dirty page in turn; false if any refused.
+    Rpc::Task<bool> applyAllAsync();
+    Rpc::Task<void> acceptAsync();
     void updateApplyButton();
     void updateSidebarHover(const QModelIndex& index);
 
@@ -68,6 +72,8 @@ private:
     NavItemDelegate* sidebarDelegate_ = nullptr;
     Settings::PageStack* pageStack_ = nullptr;
     QPushButton* applyButton_ = nullptr;
+    QWidget* buttons_ = nullptr;
+    bool applying_ = false;
     ToastNotifier* toastNotifier_ = nullptr;
     // Set while the sidebar's selection follows the column's scrolling, so
     // that doesn't bounce back as a jump request.

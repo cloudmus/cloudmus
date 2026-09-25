@@ -22,7 +22,7 @@ public:
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;
-    void apply() override;
+    Rpc::Task<bool> apply() override;
 
 private:
     Config::Settings::DownloadLayout selectedLayout() const;

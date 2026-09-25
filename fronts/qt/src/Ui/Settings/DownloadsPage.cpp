@@ -136,12 +136,13 @@ bool DownloadsPage::isDirty() const
     return QDir::cleanPath(effective) != QDir::cleanPath(settings_.downloadDirectory());
 }
 
-void DownloadsPage::apply()
+Rpc::Task<bool> DownloadsPage::apply()
 {
     if (!downloadDirEdit_)
-        return;
+        co_return true;
     settings_.setDownloadDirectory(downloadDirEdit_->text());
     settings_.setDownloadLayout(selectedLayout());
+    co_return true;
 }
 
 } // namespace Ui::Settings

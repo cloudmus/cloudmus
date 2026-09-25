@@ -131,6 +131,14 @@ void SourceManager::watch(RpcClient* client)
     });
 }
 
+void SourceManager::restart(const QString& sourceId)
+{
+    if (!isEnabled(sourceId))
+        return;
+    setEnabled(sourceId, false);
+    setEnabled(sourceId, true);
+}
+
 QList<RpcClient*> SourceManager::clients() const { return clientsById_.values(); }
 
 RpcClient* SourceManager::client(const QString& sourceId) const { return clientsById_.value(sourceId, nullptr); }

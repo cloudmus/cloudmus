@@ -105,11 +105,9 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, Rpc::SourceManager& s
     styleDialogButton(buttons->button(QDialogButtonBox::Apply), "secondary");
     styleDialogButton(buttons->button(QDialogButtonBox::Cancel), "secondary");
     applyButton_ = buttons->button(QDialogButtonBox::Apply);
-    connect(applyButton_, &QPushButton::clicked, this, &SettingsDialog::applyAll);
-    connect(buttons, &QDialogButtonBox::accepted, this, [this]() {
-        applyAll();
-        accept();
-    });
+    buttons_ = buttons;
+    connect(applyButton_, &QPushButton::clicked, this, [this]() { applyAllAsync().detach(); });
+    connect(buttons, &QDialogButtonBox::accepted, this, [this]() { acceptAsync().detach(); });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     updateApplyButton();
 
@@ -166,13 +164,30 @@ void SettingsDialog::addPage(Settings::Page* page)
     connect(page, &Settings::Page::dirtyChanged, this, &SettingsDialog::updateApplyButton);
 }
 
-void SettingsDialog::applyAll()
+Rpc::Task<bool> SettingsDialog::applyAllAsync()
 {
+    if (applying_)
+        co_return false;
+    // done() refuses to close while this runs, so neither the dialog nor
+    // its pages go away under the awaits below.
+    applying_ = true;
+    buttons_->setEnabled(false);
+    bool ok = true;
     for (Settings::Page* page : pages_) {
-        if (page->isDirty())
-            page->apply();
+        if (page->isDirty() && !co_await page->apply())
+            ok = false;
     }
+    applying_ = false;
+    buttons_->setEnabled(true);
     updateApplyButton();
+    co_return ok;
+}
+
+Rpc::Task<void> SettingsDialog::acceptAsync()
+{
+    // Refused somewhere: stay open, the page shows what and why.
+    if (co_await applyAllAsync())
+        accept();
 }
 
 void SettingsDialog::updateApplyButton()
@@ -183,6 +198,8 @@ void SettingsDialog::updateApplyButton()
 
 void SettingsDialog::done(int result)
 {
+    if (applying_)
+        return;
     settings_.setSettingsDialogGeometry(saveGeometry());
     QDialog::done(result);
 }

@@ -383,7 +383,17 @@ QDialog[themed="true"] QComboBox QAbstractItemView::item {
 }
 QDialog[themed="true"] QComboBox QAbstractItemView::item:hover { background: %10; }
 QDialog[themed="true"] QComboBox QAbstractItemView::item:selected { background: %11; color: %8; }
-QDialog[themed="true"] QLabel[hint="true"] { color: %12; })")
+QDialog[themed="true"] QLabel[hint="true"] { color: %12; }
+QDialog[themed="true"] QLabel[error="true"] { color: %8; }
+QDialog[themed="true"] QAbstractSpinBox {
+    background: %1;
+    border: 1px solid %2;
+    border-radius: %3px;
+    padding: %4px %5px;
+    color: %6;
+}
+QDialog[themed="true"] QAbstractSpinBox:hover { border-color: %7; }
+QDialog[themed="true"] QAbstractSpinBox:focus { border-color: %8; })")
         .arg(hex(p.surface200), hex(p.border), QString::number(Radius::sm), QString::number(Spacing::space1),
             QString::number(Spacing::space2), hex(p.ink), hex(p.borderStrong), hex(p.accent), arrow)
         .arg(hex(p.surface300), hex(p.surface400), hex(p.inkSecondary));

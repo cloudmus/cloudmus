@@ -43,6 +43,13 @@ public:
     // starting, or up and running.
     bool isUnavailable(const QString& sourceId) const { return unavailableIds_.contains(sourceId); }
 
+    // Shuts a running backend down and spawns it again — for a setting it
+    // only reads at startup (docs/protocol.md §7.7's restartRequired).
+    void restart(const QString& sourceId);
+    // A backend's own settings just changed (settings.update succeeded):
+    // anything it lists may have too.
+    void notifySettingsChanged(const QString& sourceId) { emit settingsChanged(sourceId); }
+
     QList<RpcClient*> clients() const;
     RpcClient* client(const QString& sourceId) const;
 
@@ -55,6 +62,7 @@ signals:
     void sourceStarting(const Rpc::BackendManifest& manifest);
     // setEnabled(false) took a backend down.
     void sourceStopped(const QString& sourceId);
+    void settingsChanged(const QString& sourceId);
     // Emitted once a client's initialize handshake completes successfully.
     void sourceReady(RpcClient* client);
     // Emitted when a source is unavailable and has exhausted its restart

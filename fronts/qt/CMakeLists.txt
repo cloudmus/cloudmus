@@ -116,6 +116,7 @@ add_executable(cloudmus-qt
     src/Ui/Settings/GeneralPage.cpp
     src/Ui/Settings/DownloadsPage.cpp
     src/Ui/Settings/SourcePage.cpp
+    src/Ui/Settings/SettingsForm.cpp
     src/Ui/CoverArtCache.cpp
 
     src/Theme/Tokens.cpp

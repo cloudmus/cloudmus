@@ -10,6 +10,7 @@
 #include "AuthStates.h"
 #include "RpcMethods.h"
 #include "Settings.h"
+#include "Settings/SettingsForm.h"
 #include "SourceManager.h"
 #include "Spacing.h"
 #include "ToastNotifier.h"
@@ -98,6 +99,14 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     accountLayout->addLayout(statusRow);
     accountLayout->addWidget(authCard_);
 
+    settingsSection_ = new QWidget(widget);
+    settingsHint_ = makeHint(QString(), settingsSection_);
+    auto* settingsLayout = new QVBoxLayout(settingsSection_);
+    settingsLayout->setContentsMargins(0, Theme::Spacing::space3, 0, 0);
+    settingsLayout->setSpacing(Theme::Spacing::space2);
+    settingsLayout->addWidget(settingsHint_);
+    settingsSection_->hide();
+
     auto* layout = new QVBoxLayout(widget);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(Theme::Spacing::space2);
@@ -105,6 +114,7 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     layout->addWidget(enabledCheck_);
     layout->addWidget(offHint_);
     layout->addWidget(accountSection_);
+    layout->addWidget(settingsSection_);
 
     const auto refreshIfOurs = [this](const QString& sourceId) {
         if (sourceId == manifest_.id)
@@ -139,6 +149,13 @@ void SourcePage::refresh()
         offText = sourceManager_.isUnavailable(manifest_.id) ? tr("The source couldn't be started.") : tr("Starting…");
     offHint_->setText(offText);
     offHint_->setVisible(!offText.isEmpty());
+
+    const bool hasSettings = running && client->capabilities().value(QStringLiteral("settings")).toBool();
+    settingsSection_->setVisible(hasSettings);
+    if (hasSettings && settingsClient_ != client) {
+        settingsClient_ = client;
+        loadSettingsAsync().detach();
+    }
 
     const bool needsAuth = running
         && client->capabilities().value(QStringLiteral("auth")).toObject().value(QStringLiteral("required")).toBool();
@@ -294,15 +311,87 @@ Rpc::Task<void> SourcePage::cancelSignInAsync()
     authStates.setSignedOut(sourceId);
 }
 
-bool SourcePage::isDirty() const
+Rpc::Task<void> SourcePage::loadSettingsAsync()
 {
-    return enabledCheck_ && enabledCheck_->isChecked() != sourceManager_.isEnabled(manifest_.id);
+    Rpc::RpcClient* client = sourceManager_.client(manifest_.id);
+    if (client == nullptr)
+        co_return;
+    const QPointer<QWidget> alive = widget_;
+    delete settingsForm_;
+    settingsForm_ = nullptr;
+    settingsHint_->setText(tr("Loading settings…"));
+    settingsHint_->show();
+    emit dirtyChanged();
+
+    std::optional<SettingsDescription> description;
+    QString failure;
+    try {
+        description = co_await Rpc::settingsDescribe(*client);
+    } catch (const std::exception& e) {
+        failure = QString::fromStdString(e.what());
+    }
+    // Gone, or superseded by a newer process's describe.
+    if (!alive || settingsClient_ != client)
+        co_return;
+    if (!description) {
+        settingsHint_->setText(tr("Couldn't load the settings: %1").arg(failure));
+        co_return;
+    }
+    settingsHint_->hide();
+    settingsForm_ = new SettingsForm(*description, settingsSection_);
+    settingsSection_->layout()->addWidget(settingsForm_);
+    connect(settingsForm_, &SettingsForm::changed, this, &Page::dirtyChanged);
 }
 
-void SourcePage::apply()
+bool SourcePage::isDirty() const
+{
+    if (!enabledCheck_)
+        return false;
+    return enabledCheck_->isChecked() != sourceManager_.isEnabled(manifest_.id)
+        || (settingsForm_ != nullptr && settingsForm_->isDirty());
+}
+
+Rpc::Task<bool> SourcePage::apply()
 {
     if (!isDirty())
-        return;
+        co_return true;
+
+    // The source's own settings first — while it's still running, should
+    // "Enabled" be switching it off in the same Apply.
+    Rpc::RpcClient* client = sourceManager_.client(manifest_.id);
+    if (settingsForm_ != nullptr && settingsForm_->isDirty() && client != nullptr && client->available()) {
+        const QPointer<QWidget> alive = widget_;
+        const QMap<QString, QJsonValue> values = settingsForm_->changedValues();
+        settingsForm_->showError(QString(), QString());
+        QString failedKey;
+        QString failure;
+        try {
+            co_await Rpc::settingsUpdate(*client, UpdateParams { values });
+        } catch (const Rpc::RpcCallException& e) {
+            // docs/protocol.md §7.7: data.key/data.message name the field.
+            failedKey = e.error().data.value(QStringLiteral("key")).toString();
+            failure = e.error().data.value(QStringLiteral("message")).toString();
+            if (failure.isEmpty())
+                failure = e.error().message;
+        } catch (const std::exception& e) {
+            failure = QString::fromStdString(e.what());
+        }
+        if (!alive)
+            co_return false;
+        if (!failure.isEmpty()) {
+            settingsForm_->showError(failedKey, failure);
+            toasts_.showError(tr("%1: %2").arg(manifest_.name, failure));
+            co_return false;
+        }
+        settingsForm_->markApplied(values);
+        if (settingsForm_->needsRestart(values.keys()))
+            sourceManager_.restart(manifest_.id);
+        else
+            sourceManager_.notifySettingsChanged(manifest_.id);
+    }
+
+    if (enabledCheck_->isChecked() == sourceManager_.isEnabled(manifest_.id))
+        co_return true;
     const bool enabled = enabledCheck_->isChecked();
     // Keeps ids of backends that aren't installed right now: reinstalling
     // one shouldn't silently switch it back on.
@@ -313,6 +402,7 @@ void SourcePage::apply()
     settings_.setDisabledSources(disabled);
     sourceManager_.setEnabled(manifest_.id, enabled);
     refresh();
+    co_return true;
 }
 
 } // namespace Ui::Settings

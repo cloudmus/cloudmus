@@ -438,6 +438,10 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     });
     connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, &MainWindow::onSourceStopped);
     connect(authStates_, &Rpc::AuthStates::changed, this, &MainWindow::updateSourceAuthIndicator);
+    connect(&sourceManager_, &Rpc::SourceManager::settingsChanged, this, [this](const QString& sourceId) {
+        if (Rpc::RpcClient* client = sourceManager_.client(sourceId))
+            loadPlaylistsAsync(client).detach();
+    });
     // auth.logout (from the source's Settings page) leaves the playlists
     // listed until something reloads them; they're no longer the user's to see.
     connect(authStates_, &Rpc::AuthStates::signedOut, this, [this](const QString& sourceId) {

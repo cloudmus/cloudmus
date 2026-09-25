@@ -16,6 +16,7 @@ class Settings;
 
 namespace Rpc {
 class AuthStates;
+class RpcClient;
 class SourceManager;
 } // namespace Rpc
 
@@ -26,8 +27,11 @@ class ToastNotifier;
 
 namespace Ui::Settings {
 
+class SettingsForm;
+
 // One backend's settings: what every source has — whether it runs, and
-// (for one that needs it) its account: status, sign in, sign out. Signing
+// (for one that needs it) its account: status, sign in, sign out — then
+// whatever it describes itself (settings.describe, as a SettingsForm). Signing
 // in or out happens right away; only "Enabled" waits for Apply. Stays
 // current while shown: follows the source starting/stopping and its
 // sign-in state (Rpc::AuthStates) changing, from here or anywhere else.
@@ -48,7 +52,7 @@ public:
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;
-    void apply() override;
+    Rpc::Task<bool> apply() override;
 
 private:
     // Repaints everything from the source's current state; asks the
@@ -62,6 +66,9 @@ private:
     Rpc::Task<void> cancelSignInAsync();
     // The status line and its one action button.
     void showStatus(const QString& text, QPushButton* action);
+    // Builds the form from settings.describe, for the source's current
+    // process (once per process: a restarted one may describe itself anew).
+    Rpc::Task<void> loadSettingsAsync();
 
     Config::Settings& settings_;
     Rpc::SourceManager& sourceManager_;
@@ -80,6 +87,12 @@ private:
     QPushButton* signOutButton_ = nullptr;
     QPushButton* cancelButton_ = nullptr;
     AuthCard* authCard_ = nullptr;
+    // Holds settingsForm_, or a "Loading…"/error line in its place.
+    QWidget* settingsSection_ = nullptr;
+    QLabel* settingsHint_ = nullptr;
+    SettingsForm* settingsForm_ = nullptr;
+    // The process settingsForm_ was described by.
+    const Rpc::RpcClient* settingsClient_ = nullptr;
 };
 
 } // namespace Ui::Settings
