@@ -43,6 +43,11 @@ public:
     bool closeMinimizesToTray() const;
     void setCloseMinimizesToTray(bool value);
 
+    // Launched at login (Integration::Autostart): stay in the tray instead
+    // of opening the window.
+    bool startHiddenAtLogin() const;
+    void setStartHiddenAtLogin(bool value);
+
     static QString defaultDownloadDirectory();
     QString downloadDirectory() const;
     // An empty path or the default one resets to the default.

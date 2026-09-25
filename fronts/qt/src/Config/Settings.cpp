@@ -81,6 +81,16 @@ void Settings::setCloseMinimizesToTray(bool value)
     settings_.setValue(QStringLiteral("window/closeMinimizesToTray"), value);
 }
 
+bool Settings::startHiddenAtLogin() const
+{
+    return settings_.value(QStringLiteral("window/startHiddenAtLogin"), true).toBool();
+}
+
+void Settings::setStartHiddenAtLogin(bool value)
+{
+    settings_.setValue(QStringLiteral("window/startHiddenAtLogin"), value);
+}
+
 QString Settings::defaultDownloadDirectory()
 {
     // The XDG music folder (`xdg-user-dir MUSIC`, e.g. ~/Музыка) — also the

@@ -123,6 +123,7 @@ add_executable(cloudmus-qt
     src/Theme/Style.cpp
 
     src/Integration/TrayIcon.cpp
+    src/Integration/Autostart.cpp
     src/Integration/NotificationToast.cpp
     src/Integration/MprisService.cpp
     src/Integration/GlobalShortcuts.cpp

@@ -2,9 +2,12 @@
 #include <QIcon>
 #include <QSize>
 #include <QStyleFactory>
+#include <QSystemTrayIcon>
+#include <QTimer>
 
 #include <memory>
 
+#include "Autostart.h"
 #include "Coro.h"
 #include "CoverArtCache.h"
 #include "Fonts.h"
@@ -188,7 +191,37 @@ int main(int argc, char** argv)
         [&sourceManager]() { shutdownAllAndQuit(sourceManager).detach(); });
 
     sourceManager.startAll();
-    window.show();
+
+    Integration::Autostart::refresh();
+    const bool launchedAtLogin
+        = app.arguments().contains(QLatin1String(Integration::Autostart::kLaunchedAtLoginArgument));
+    if (launchedAtLogin && settings.startHiddenAtLogin()) {
+        // At login the panel hosting the tray may come up after us. Wait a
+        // while for it rather than showing the window right away — but
+        // never stay invisible with no tray icon to bring the window back.
+        auto* trayWait = new QTimer(&window);
+        trayWait->setInterval(500);
+        auto waited = std::make_shared<int>(0);
+        QObject::connect(trayWait, &QTimer::timeout, &window, [trayWait, waited, &window]() {
+            constexpr int kMaxWaitMs = 10000;
+            if (QSystemTrayIcon::isSystemTrayAvailable()) {
+                trayWait->deleteLater();
+                return;
+            }
+            *waited += trayWait->interval();
+            if (*waited >= kMaxWaitMs) {
+                qInfo() << "No system tray after" << kMaxWaitMs << "ms; showing the window";
+                trayWait->deleteLater();
+                window.show();
+            }
+        });
+        if (!QSystemTrayIcon::isSystemTrayAvailable())
+            trayWait->start();
+        else
+            trayWait->deleteLater();
+    } else {
+        window.show();
+    }
 
     return QApplication::exec();
 }
