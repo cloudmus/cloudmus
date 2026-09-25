@@ -8,6 +8,7 @@
 #include <QVariantAnimation>
 
 #include <functional>
+#include <optional>
 
 #include "Icons.h"
 #include "Radius.h"
@@ -26,6 +27,7 @@ constexpr int kEdgeMargin = 16; // from the anchor's bottom-right corner
 constexpr int kMaxWidth = 380;
 constexpr int kPadding = Theme::Spacing::space3;
 constexpr int kCloseSide = 20;
+constexpr int kStatusIconSide = 16;
 constexpr int kBarWidth = 3;
 constexpr int kShadowMargin = 10; // reserved around the card for its shadow
 constexpr int kAppearMs = 260;
@@ -39,10 +41,10 @@ constexpr qreal kSlideDistance = 48.0;
 // sits inside kShadowMargin of transparent room for its shadow.
 class Toast : public QWidget {
 public:
-    Toast(const QString& message, bool error, QWidget* parent)
+    Toast(const QString& message, ToastNotifier::Kind kind, QWidget* parent)
         : QWidget(parent)
         , message_(message)
-        , error_(error)
+        , kind_(kind)
     {
         setAttribute(Qt::WA_NoSystemBackground);
         setAttribute(Qt::WA_Hover);
@@ -131,9 +133,27 @@ protected:
         Theme::paintSoftShadow(&painter, card, kShadowMargin, 2, 48, Theme::Radius::md);
         QPainterPath shape;
         shape.addRoundedRect(QRectF(card).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::md, Theme::Radius::md);
-        painter.setPen(QPen(pal.border, 1));
-        painter.setBrush(pal.surface200);
+        // A status toast is tinted with its color — fill washed toward it,
+        // border in it — so it reads at a glance without its text.
+        const std::optional<QColor> status = statusColor();
+        QColor fill = pal.surfaceRaised;
+        QColor border = pal.borderStrong;
+        if (status) {
+            fill = mix(pal.surfaceRaised, *status, 0.14);
+            border = *status;
+            border.setAlphaF(0.6);
+        }
+        painter.setPen(QPen(border, 1));
+        painter.setBrush(fill);
         painter.drawPath(shape);
+
+        if (status) {
+            const QString glyph
+                = kind_ == ToastNotifier::Kind::Error ? QStringLiteral("warning") : QStringLiteral("check");
+            const QRect iconRect(card.left() + kPadding, card.top() + kPadding + (kCloseSide - kStatusIconSide) / 2,
+                kStatusIconSide, kStatusIconSide);
+            Theme::iconWithColor(glyph, *status, kStatusIconSide).paint(&painter, iconRect);
+        }
 
         // Message.
         painter.setFont(Theme::font(Theme::TextStyle::Body));
@@ -156,7 +176,7 @@ protected:
         painter.setBrush(pal.border);
         painter.drawRoundedRect(track, kBarWidth / 2.0, kBarWidth / 2.0);
         const qreal filled = track.height() * remaining_;
-        painter.setBrush(error_ ? pal.accent : pal.inkSecondary);
+        painter.setBrush(status.value_or(pal.inkSecondary));
         painter.drawRoundedRect(
             QRectF(track.left(), track.bottom() - filled, track.width(), filled), kBarWidth / 2.0, kBarWidth / 2.0);
     }
@@ -189,7 +209,26 @@ protected:
 
 private:
     QRect cardRect() const { return rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin); }
-    static int textLeft() { return kPadding; }
+    // Past the status icon, when there is one.
+    int textLeft() const { return kPadding + (statusColor() ? kStatusIconSide + Theme::Spacing::space2 : 0); }
+    std::optional<QColor> statusColor() const
+    {
+        switch (kind_) {
+            case ToastNotifier::Kind::Error:
+                return Theme::palette().danger;
+            case ToastNotifier::Kind::Success:
+                return Theme::palette().success;
+            case ToastNotifier::Kind::Info:
+                break;
+        }
+        return std::nullopt;
+    }
+    static QColor mix(const QColor& base, const QColor& tint, qreal amount)
+    {
+        return QColor::fromRgbF(base.redF() + (tint.redF() - base.redF()) * amount,
+            base.greenF() + (tint.greenF() - base.greenF()) * amount,
+            base.blueF() + (tint.blueF() - base.blueF()) * amount);
+    }
     QRect textRect() const
     {
         const QRect card = cardRect();
@@ -218,7 +257,7 @@ private:
     }
 
     QString message_;
-    bool error_;
+    ToastNotifier::Kind kind_;
     bool leaving_ = false;
     bool closeHovered_ = false;
     qreal remaining_ = 1.0;
@@ -236,13 +275,15 @@ ToastNotifier::ToastNotifier(QWidget* anchor)
     anchor_->installEventFilter(this); // keep the stack in its corner on resize
 }
 
-void ToastNotifier::showError(const QString& message) { showToast(message, /*error=*/true); }
+void ToastNotifier::showError(const QString& message) { showToast(message, Kind::Error); }
 
-void ToastNotifier::showInfo(const QString& message) { showToast(message, /*error=*/false); }
+void ToastNotifier::showSuccess(const QString& message) { showToast(message, Kind::Success); }
 
-void ToastNotifier::showToast(const QString& message, bool error)
+void ToastNotifier::showInfo(const QString& message) { showToast(message, Kind::Info); }
+
+void ToastNotifier::showToast(const QString& message, Kind kind)
 {
-    auto* toast = new Toast(message, error, anchor_);
+    auto* toast = new Toast(message, kind, anchor_);
     toast->layoutForWidth(qMin(kMaxWidth, anchor_->width() / 2) + 2 * kShadowMargin);
     toast->onExpired = [this, toast]() { dismiss(toast); };
     toast->onCloseClicked = [this, toast]() { dismiss(toast); };

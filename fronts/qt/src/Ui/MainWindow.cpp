@@ -368,7 +368,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
     connect(sourcePanel_, &SourcePanel::playlistActivated, this,
         [this](const QString& sourceId, const Playlist& playlist) { openInSheetAsync(sourceId, playlist).detach(); });
-    connect(sourcePanel_, &SourcePanel::codeCopied, this, [this]() { toastNotifier_->showInfo(tr("Code copied")); });
+    connect(sourcePanel_, &SourcePanel::codeCopied, this, [this]() { toastNotifier_->showSuccess(tr("Code copied")); });
     connect(sourcePanel_, &SourcePanel::settingsRequested, this,
         [this](const QString& sourceId) { showSettingsDialog(QStringLiteral("source:") + sourceId); });
     connect(sourcePanel_, &SourcePanel::refreshRequested, this, [this](const QString& sourceId) {
@@ -1303,7 +1303,7 @@ Rpc::Task<void> MainWindow::downloadTrackAsync(QString sourceId, Track track)
         DownloadTrackParams params { track.id, destDir };
         DownloadTrackResult result = co_await Rpc::catalogDownloadTrack(*client, params);
         Q_UNUSED(result);
-        toastNotifier_->showInfo(tr("Saved \"%1\"").arg(track.title));
+        toastNotifier_->showSuccess(tr("Saved \"%1\"").arg(track.title));
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcMainWindow) << "catalog.downloadTrack failed for" << track.id << ":" << message;

@@ -90,7 +90,7 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     connect(authCard_, &AuthCard::submitRequested, this,
         [this](const QJsonObject& fields) { submitAsync(fields).detach(); });
     connect(authCard_, &AuthCard::retryRequested, this, [this]() { signInAsync().detach(); });
-    connect(authCard_, &AuthCard::codeCopied, this, [this]() { toasts_.showInfo(tr("Code copied")); });
+    connect(authCard_, &AuthCard::codeCopied, this, [this]() { toasts_.showSuccess(tr("Code copied")); });
 
     auto* accountLayout = new QVBoxLayout(accountSection_);
     accountLayout->setContentsMargins(0, Theme::Spacing::space3, 0, 0);

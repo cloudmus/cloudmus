@@ -18,14 +18,25 @@ class ToastNotifier : public QObject {
 public:
     explicit ToastNotifier(QWidget* anchor);
 
+    // Something went wrong: red, with a warning mark.
     void showError(const QString& message);
+    // Something the user asked for is done (saved, copied, works): green,
+    // with a check mark.
+    void showSuccess(const QString& message);
+    // Plain news, neither good nor bad (a download started, a like).
     void showInfo(const QString& message);
+
+    enum class Kind {
+        Info,
+        Success,
+        Error
+    };
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    void showToast(const QString& message, bool error);
+    void showToast(const QString& message, Kind kind);
     void dismiss(QWidget* toast);
     // Moves every toast to its slot in the stack — animated, unless it's
     // a toast just being placed for its entrance.

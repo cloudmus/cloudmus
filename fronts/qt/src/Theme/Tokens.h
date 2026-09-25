@@ -28,6 +28,13 @@ struct Palette {
     QColor accentHover;
     QColor accentPressed;
     QColor onAccent;
+    // Floating over whatever is under it (toasts): a step above every
+    // surface it may land on, so it never blends into the page.
+    QColor surfaceRaised;
+    // Status colors, for what went well / wrong (toasts) — kept apart from
+    // accent, which is the brand color, not an alarm.
+    QColor success;
+    QColor danger;
 };
 
 // Reads QGuiApplication::styleHints()->colorScheme(); Unknown (no portal/

@@ -30,6 +30,9 @@ const Palette kLight {
     /* accentHover   */ QColor(0xA8, 0x33, 0x0F),
     /* accentPressed */ QColor(0x8E, 0x2A, 0x0C),
     /* onAccent      */ QColor(0xFF, 0xFF, 0xFF),
+    /* surfaceRaised */ QColor(0xFF, 0xFF, 0xFF),
+    /* success       */ QColor(0x2E, 0x8B, 0x57),
+    /* danger        */ QColor(0xC6, 0x32, 0x2B),
 };
 
 const Palette kDark {
@@ -47,6 +50,9 @@ const Palette kDark {
     /* accentHover   */ QColor(0xFF, 0x82, 0x64),
     /* accentPressed */ QColor(0xE8, 0x5A, 0x38),
     /* onAccent      */ QColor(0x1C, 0x10, 0x06),
+    /* surfaceRaised */ QColor(0x36, 0x2D, 0x27),
+    /* success       */ QColor(0x5C, 0xC2, 0x8A),
+    /* danger        */ QColor(0xFF, 0x5F, 0x5A),
 };
 // clang-format on
 
