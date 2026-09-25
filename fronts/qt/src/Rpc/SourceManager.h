@@ -5,6 +5,7 @@
 #include <QSet>
 #include <QString>
 
+#include <functional>
 #include <optional>
 
 #include "BackendManifest.h"
@@ -24,6 +25,13 @@ public:
     // Every backend manifest found (discoverManifests(), scanned once),
     // enabled or not.
     const QList<BackendManifest>& manifests();
+
+    // The environment each backend process gets (Net::backendEnvironment()
+    // — its proxy); the front's own environment without one.
+    void setEnvironmentProvider(std::function<QProcessEnvironment(const QString& sourceId)> provider)
+    {
+        environmentProvider_ = std::move(provider);
+    }
 
     // Backends the user switched off: never spawned, and not restarted.
     // Call before startAll().
@@ -77,6 +85,7 @@ private:
     static constexpr int kRestartDelaysMs[3] = { 2000, 5000, 10000 };
 
     std::optional<QList<BackendManifest>> manifests_;
+    std::function<QProcessEnvironment(const QString&)> environmentProvider_;
     QSet<QString> disabledIds_;
     QSet<QString> unavailableIds_;
     QHash<QString, RpcClient*> clientsById_;

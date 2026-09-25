@@ -4,9 +4,11 @@
 
 #include "BackendManifest.h"
 #include "Coro.h"
+#include "Settings.h"
 #include "Settings/Page.h"
 
 class QCheckBox;
+class QComboBox;
 class QLabel;
 class QPushButton;
 
@@ -28,6 +30,7 @@ class ToastNotifier;
 namespace Ui::Settings {
 
 class SettingsForm;
+struct RestartRequests;
 
 // One backend's settings: what every source has — whether it runs, and
 // (for one that needs it) its account: status, sign in, sign out — then
@@ -41,8 +44,14 @@ class SourcePage : public Page {
 public:
     // `toasts`: the Settings dialog's own, so what this page reports shows
     // in the window the user is looking at.
+    // `restarts`: where to leave "restart me" for once the whole Apply is
+    // done (a new connection only takes effect in a fresh process).
     SourcePage(Config::Settings& settings, Rpc::SourceManager& sourceManager, Rpc::AuthStates& authStates,
-        ToastNotifier& toasts, Rpc::BackendManifest manifest, QObject* parent = nullptr);
+        ToastNotifier& toasts, RestartRequests& restarts, Rpc::BackendManifest manifest, QObject* parent = nullptr);
+
+    // The proxies Connection offers — NetworkPage's list as edited, saved
+    // or not, so a proxy just added can be picked in the same go.
+    void setProxyChoices(const QList<Config::ProxyConfig>& proxies);
 
     QString id() const override { return QStringLiteral("source:") + manifest_.id; }
     QString title() const override { return manifest_.name; }
@@ -64,6 +73,11 @@ private:
     Rpc::Task<void> submitAsync(QJsonObject fields);
     Rpc::Task<void> signOutAsync();
     Rpc::Task<void> cancelSignInAsync();
+    // Refills connectionCombo_ from proxyChoices_, keeping the selection
+    // where it still exists.
+    void rebuildConnectionChoices();
+    QString selectedConnection() const;
+    void updateConnectionHint();
     // The status line and its one action button.
     void showStatus(const QString& text, QPushButton* action);
     // Builds the form from settings.describe, for the source's current
@@ -74,6 +88,7 @@ private:
     Rpc::SourceManager& sourceManager_;
     Rpc::AuthStates& authStates_;
     ToastNotifier& toasts_;
+    RestartRequests& restarts_;
     const Rpc::BackendManifest manifest_;
 
     // Null until createWidget(), and again once the dialog is gone —
@@ -81,6 +96,11 @@ private:
     QPointer<QWidget> widget_;
     QLabel* descriptionLabel_ = nullptr;
     QCheckBox* enabledCheck_ = nullptr;
+    QComboBox* connectionCombo_ = nullptr;
+    QLabel* connectionHint_ = nullptr;
+    QList<Config::ProxyConfig> proxyChoices_;
+    // The saved choice names a proxy no longer in proxyChoices_.
+    bool connectionOrphaned_ = false;
     QLabel* offHint_ = nullptr;
     QWidget* accountSection_ = nullptr;
     QLabel* statusLabel_ = nullptr;

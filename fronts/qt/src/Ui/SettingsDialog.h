@@ -4,6 +4,7 @@
 #include <QModelIndex>
 
 #include "Coro.h"
+#include "Settings/RestartRequests.h"
 
 #include <vector>
 
@@ -63,6 +64,8 @@ private:
     void updateSidebarHover(const QModelIndex& index);
 
     Config::Settings& settings_;
+    Rpc::SourceManager& sourceManager_;
+    Settings::RestartRequests restarts_;
     std::vector<Settings::Page*> pages_;
     // pages_[i]'s row in sidebarModel_.
     std::vector<int> sidebarRowForPage_;

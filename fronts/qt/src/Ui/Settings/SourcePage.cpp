@@ -1,15 +1,19 @@
 #include "Settings/SourcePage.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QSignalBlocker>
+#include <QStyledItemDelegate>
 #include <QVBoxLayout>
 
 #include "AuthCard.h"
 #include "AuthStates.h"
 #include "RpcMethods.h"
 #include "Settings.h"
+#include "Settings/RestartRequests.h"
 #include "Settings/SettingsForm.h"
 #include "SourceManager.h"
 #include "Spacing.h"
@@ -41,12 +45,14 @@ QPushButton* makeButton(const QString& text, QWidget* parent)
 } // namespace
 
 SourcePage::SourcePage(Config::Settings& settings, Rpc::SourceManager& sourceManager, Rpc::AuthStates& authStates,
-    ToastNotifier& toasts, Rpc::BackendManifest manifest, QObject* parent)
+    ToastNotifier& toasts, RestartRequests& restarts, Rpc::BackendManifest manifest, QObject* parent)
     : Page(parent)
     , settings_(settings)
     , sourceManager_(sourceManager)
     , authStates_(authStates)
     , toasts_(toasts)
+    , restarts_(restarts)
+    , proxyChoices_(settings.proxies())
     , manifest_(std::move(manifest))
 {
 }
@@ -66,6 +72,24 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     connect(enabledCheck_, &QCheckBox::toggled, this, &Page::dirtyChanged);
 
     offHint_ = makeHint(QString(), widget);
+
+    connectionCombo_ = new QComboBox(widget);
+    connectionCombo_->setFont(Theme::font(Theme::TextStyle::Body));
+    // See DownloadsPage: only a QStyledItemDelegate honors the ::item QSS.
+    connectionCombo_->setItemDelegate(new QStyledItemDelegate(connectionCombo_));
+    connectionHint_ = makeHint(QString(), widget);
+    rebuildConnectionChoices();
+    connect(connectionCombo_, &QComboBox::currentIndexChanged, this, [this]() {
+        connectionOrphaned_ = false;
+        updateConnectionHint();
+        emit dirtyChanged();
+    });
+    auto* connectionRow = new QHBoxLayout;
+    connectionRow->setSpacing(Theme::Spacing::space3);
+    auto* connectionLabel = new QLabel(tr("Connection:"), widget);
+    connectionLabel->setFont(Theme::font(Theme::TextStyle::Body));
+    connectionRow->addWidget(connectionLabel);
+    connectionRow->addWidget(connectionCombo_, 1);
 
     accountSection_ = new QWidget(widget);
     auto* accountTitle = new QLabel(tr("Account").toUpper(), accountSection_);
@@ -113,6 +137,8 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     layout->addWidget(descriptionLabel_);
     layout->addWidget(enabledCheck_);
     layout->addWidget(offHint_);
+    layout->addLayout(connectionRow);
+    layout->addWidget(connectionHint_);
     layout->addWidget(accountSection_);
     layout->addWidget(settingsSection_);
 
@@ -343,11 +369,57 @@ Rpc::Task<void> SourcePage::loadSettingsAsync()
     connect(settingsForm_, &SettingsForm::changed, this, &Page::dirtyChanged);
 }
 
+void SourcePage::setProxyChoices(const QList<Config::ProxyConfig>& proxies)
+{
+    proxyChoices_ = proxies;
+    if (connectionCombo_)
+        rebuildConnectionChoices();
+}
+
+void SourcePage::rebuildConnectionChoices()
+{
+    // What's selected now, or on first fill what's saved.
+    const QString saved = settings_.sourceConnection(manifest_.id);
+    const QString wanted = connectionCombo_->count() > 0 ? selectedConnection() : saved;
+
+    const QSignalBlocker blocker(connectionCombo_);
+    connectionCombo_->clear();
+    connectionCombo_->addItem(tr("System"), QLatin1String(Config::Settings::kSystemConnection));
+    connectionCombo_->addItem(tr("Direct"), QLatin1String(Config::Settings::kDirectConnection));
+    for (const Config::ProxyConfig& proxy : std::as_const(proxyChoices_))
+        connectionCombo_->addItem(proxy.name.isEmpty() ? proxy.host : proxy.name, proxy.id);
+    const int index = connectionCombo_->findData(wanted);
+    connectionCombo_->setCurrentIndex(qMax(0, index));
+
+    // Its proxy was removed (here, or since it was chosen): until that's
+    // applied, say what it falls back to.
+    // Sticks until the user picks something (a later refill no longer
+    // "wants" the saved id — the combo already fell back to System).
+    if (index < 0 && wanted == saved)
+        connectionOrphaned_ = true;
+    updateConnectionHint();
+    emit dirtyChanged();
+}
+
+void SourcePage::updateConnectionHint()
+{
+    QString text;
+    if (connectionOrphaned_)
+        text = tr("Its proxy was removed — it uses the system connection.");
+    else if (selectedConnection() == QLatin1String(Config::Settings::kSystemConnection))
+        text = tr("The system's proxy settings, if any (HTTP_PROXY and the like).");
+    connectionHint_->setText(text);
+    connectionHint_->setVisible(!text.isEmpty());
+}
+
+QString SourcePage::selectedConnection() const { return connectionCombo_->currentData().toString(); }
+
 bool SourcePage::isDirty() const
 {
     if (!enabledCheck_)
         return false;
     return enabledCheck_->isChecked() != sourceManager_.isEnabled(manifest_.id)
+        || selectedConnection() != settings_.sourceConnection(manifest_.id)
         || (settingsForm_ != nullptr && settingsForm_->isDirty());
 }
 
@@ -385,9 +457,17 @@ Rpc::Task<bool> SourcePage::apply()
         }
         settingsForm_->markApplied(values);
         if (settingsForm_->needsRestart(values.keys()))
-            sourceManager_.restart(manifest_.id);
+            restarts_.sourceIds.insert(manifest_.id);
         else
             sourceManager_.notifySettingsChanged(manifest_.id);
+    }
+
+    if (selectedConnection() != settings_.sourceConnection(manifest_.id)) {
+        settings_.setSourceConnection(manifest_.id, selectedConnection());
+        // Set at start — a fresh process picks it up. Switching the source
+        // on further down starts one anyway.
+        if (sourceManager_.isEnabled(manifest_.id))
+            restarts_.sourceIds.insert(manifest_.id);
     }
 
     if (enabledCheck_->isChecked() == sourceManager_.isEnabled(manifest_.id))

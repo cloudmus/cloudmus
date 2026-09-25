@@ -113,9 +113,9 @@ RpcClient::RpcClient(BackendManifest manifest, QObject* parent)
     });
 }
 
-Task<void> RpcClient::start()
+Task<void> RpcClient::start(QProcessEnvironment environment)
 {
-    transport_.start(manifest_.argv);
+    transport_.start(manifest_.argv, environment);
 
     const QJsonObject params {
         { QStringLiteral("protocolVersion"), QStringLiteral("1.4") },

@@ -19,6 +19,7 @@
 #include "Settings.h"
 #include "Settings/DownloadsPage.h"
 #include "Settings/GeneralPage.h"
+#include "Settings/NetworkPage.h"
 #include "Settings/PageStack.h"
 #include "Settings/SourcePage.h"
 #include "SidebarModel.h"
@@ -41,6 +42,7 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, Rpc::SourceManager& s
     Rpc::AuthStates& authStates, QWidget* parent, const QString& openAt)
     : QDialog(parent)
     , settings_(settings)
+    , sourceManager_(sourceManager)
 {
     setWindowTitle(tr("Settings"));
     setProperty("themed", true); // see StyleSheet.cpp's dialogsBlock() for why
@@ -79,8 +81,17 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, Rpc::SourceManager& s
     toastNotifier_ = new ToastNotifier(pageStack_);
     addPage(new Settings::GeneralPage(settings_, this));
     addPage(new Settings::DownloadsPage(settings_, this));
-    for (const Rpc::BackendManifest& manifest : sourceManager.manifests())
-        addPage(new Settings::SourcePage(settings_, sourceManager, authStates, *toastNotifier_, manifest, this));
+    // Ahead of the sources: applied first, so a proxy added and picked by
+    // a source in the same Apply exists by the time the source saves it.
+    auto* network = new Settings::NetworkPage(settings_, sourceManager, *toastNotifier_, restarts_, this);
+    addPage(network);
+    for (const Rpc::BackendManifest& manifest : sourceManager.manifests()) {
+        auto* page = new Settings::SourcePage(
+            settings_, sourceManager, authStates, *toastNotifier_, restarts_, manifest, this);
+        connect(network, &Settings::NetworkPage::draftChanged, page,
+            [page, network]() { page->setProxyChoices(network->draft()); });
+        addPage(page);
+    }
 
     // currentChanged, not clicked: arrow keys in the sidebar jump too.
     connect(
@@ -177,6 +188,10 @@ Rpc::Task<bool> SettingsDialog::applyAllAsync()
         if (page->isDirty() && !co_await page->apply())
             ok = false;
     }
+    // Once, for everything the pages changed about each source.
+    for (const QString& sourceId : std::as_const(restarts_.sourceIds))
+        sourceManager_.restart(sourceId);
+    restarts_.sourceIds.clear();
     applying_ = false;
     buttons_->setEnabled(true);
     updateApplyButton();

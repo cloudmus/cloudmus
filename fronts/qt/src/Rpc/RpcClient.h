@@ -47,7 +47,8 @@ class RpcClient : public QObject {
 public:
     explicit RpcClient(BackendManifest manifest, QObject* parent = nullptr);
 
-    Task<void> start();
+    // `environment`: the backend process's — see NdjsonTransport::start().
+    Task<void> start(QProcessEnvironment environment);
     Task<void> shutdown();
 
     // Low-level primitives generated call-wrapper functions (and start())
@@ -97,8 +98,8 @@ public:
     // Only registerPending() needs to be callable from outside (the
     // CallAwaiter in RpcClient.cpp) — kept public rather than friended
     // since it's a small, self-contained primitive.
-    void registerPending(int id, int timeoutMs, std::function<void(const QJsonObject&)> onResult,
-                         std::function<void(RpcError)> onError);
+    void registerPending(
+        int id, int timeoutMs, std::function<void(const QJsonObject&)> onResult, std::function<void(RpcError)> onError);
 
     bool available() const { return available_; }
     const QJsonObject& capabilities() const { return capabilities_; }

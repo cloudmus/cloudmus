@@ -1,11 +1,32 @@
 #pragma once
 
 #include <QByteArray>
+#include <QList>
 #include <QSettings>
 #include <QString>
 #include <QStringList>
 
 namespace Config {
+
+// A named proxy from the user's list; sources pick one by `id` (see
+// Settings::sourceConnection()).
+struct ProxyConfig {
+    enum class Type {
+        Http,
+        Socks5
+    };
+
+    // Stable across renames, so a source's choice survives them.
+    QString id;
+    QString name;
+    Type type = Type::Http;
+    QString host;
+    int port = 0;
+    QString username;
+    QString password;
+
+    bool operator==(const ProxyConfig&) const = default;
+};
 
 // QSettings-backed, ~/.config/cloudmus/fronts/qt/config.ini
 class Settings {
@@ -49,6 +70,20 @@ public:
     bool startHiddenAtLogin() const;
     void setStartHiddenAtLogin(bool value);
 
+    // The user's proxies, in their order. Stored with passwords in the
+    // clear, which is why the config file is kept private to the user
+    // (see the constructor).
+    QList<ProxyConfig> proxies() const;
+    void setProxies(const QList<ProxyConfig>& proxies);
+
+    // How a source connects: kSystemConnection (inherit the environment's
+    // proxy settings, if any — the default), kDirectConnection, or a
+    // ProxyConfig::id.
+    static constexpr auto kSystemConnection = "system";
+    static constexpr auto kDirectConnection = "direct";
+    QString sourceConnection(const QString& sourceId) const;
+    void setSourceConnection(const QString& sourceId, const QString& connection);
+
     // Backend manifest ids the user switched off (Rpc::SourceManager).
     QStringList disabledSources() const;
     void setDisabledSources(const QStringList& ids);
@@ -70,6 +105,8 @@ public:
     void setDownloadDirectory(const QString& path);
 
 private:
+    void restrictPermissions();
+
     QSettings settings_;
 };
 

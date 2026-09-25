@@ -79,6 +79,7 @@ add_executable(cloudmus-qt
     src/Playback/PlaybackController.cpp
 
     src/Config/Settings.cpp
+    src/Net/ProxyRouting.cpp
 
     src/History/PlaybackHistory.cpp
     src/Library/TrackStates.cpp
@@ -118,6 +119,7 @@ add_executable(cloudmus-qt
     src/Ui/Settings/DownloadsPage.cpp
     src/Ui/Settings/SourcePage.cpp
     src/Ui/Settings/SettingsForm.cpp
+    src/Ui/Settings/NetworkPage.cpp
     src/Ui/CoverArtCache.cpp
 
     src/Theme/Tokens.cpp
@@ -176,6 +178,7 @@ target_include_directories(cloudmus-qt PRIVATE
     src/Theme
     src/Integration
     src/Config
+    src/Net
     src/History
     src/Library
 )

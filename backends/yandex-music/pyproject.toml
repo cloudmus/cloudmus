@@ -7,6 +7,9 @@ dependencies = [
     "cloudmus-rpc-common",
     "yandex-music>=3.0.0",
     "mutagen>=1.47",
+    # SOCKS proxies for requests (ALL_PROXY=socks5h://..., set by the front
+    # per source — see docs/protocol.md §4.3).
+    "PySocks>=1.7",
 ]
 
 [project.optional-dependencies]

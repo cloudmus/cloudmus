@@ -1,6 +1,7 @@
 #include "Settings.h"
 
 #include <QDir>
+#include <QFile>
 #include <QStandardPaths>
 
 #include <utility>
@@ -27,6 +28,16 @@ QString configFilePath()
 Settings::Settings()
     : settings_(configFilePath(), QSettings::IniFormat)
 {
+    restrictPermissions();
+}
+
+void Settings::restrictPermissions()
+{
+    // Owner-only: the file holds proxy passwords. Re-applied on every
+    // start and after writing them, in case the file was just created or
+    // rewritten with the umask's permissions.
+    if (QFile::exists(settings_.fileName()))
+        QFile::setPermissions(settings_.fileName(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
 }
 
 QByteArray Settings::windowGeometry() const { return settings_.value(QStringLiteral("window/geometry")).toByteArray(); }
@@ -154,6 +165,66 @@ void Settings::setDisabledSources(const QStringList& ids)
         settings_.remove(QStringLiteral("sources/disabled"));
     else
         settings_.setValue(QStringLiteral("sources/disabled"), ids);
+}
+
+QList<ProxyConfig> Settings::proxies() const
+{
+    QList<ProxyConfig> result;
+    auto& settings = const_cast<QSettings&>(settings_); // beginReadArray() isn't const
+    const int count = settings.beginReadArray(QStringLiteral("proxies"));
+    for (int i = 0; i < count; ++i) {
+        settings.setArrayIndex(i);
+        ProxyConfig proxy;
+        proxy.id = settings.value(QStringLiteral("id")).toString();
+        proxy.name = settings.value(QStringLiteral("name")).toString();
+        proxy.type = settings.value(QStringLiteral("type")).toString() == QLatin1String("socks5")
+            ? ProxyConfig::Type::Socks5
+            : ProxyConfig::Type::Http;
+        proxy.host = settings.value(QStringLiteral("host")).toString();
+        proxy.port = settings.value(QStringLiteral("port")).toInt();
+        proxy.username = settings.value(QStringLiteral("username")).toString();
+        proxy.password = settings.value(QStringLiteral("password")).toString();
+        if (!proxy.id.isEmpty())
+            result.append(proxy);
+    }
+    settings.endArray();
+    return result;
+}
+
+void Settings::setProxies(const QList<ProxyConfig>& proxies)
+{
+    settings_.remove(QStringLiteral("proxies"));
+    settings_.beginWriteArray(QStringLiteral("proxies"), int(proxies.size()));
+    for (int i = 0; i < proxies.size(); ++i) {
+        const ProxyConfig& proxy = proxies[i];
+        settings_.setArrayIndex(i);
+        settings_.setValue(QStringLiteral("id"), proxy.id);
+        settings_.setValue(QStringLiteral("name"), proxy.name);
+        settings_.setValue(QStringLiteral("type"),
+            proxy.type == ProxyConfig::Type::Socks5 ? QStringLiteral("socks5") : QStringLiteral("http"));
+        settings_.setValue(QStringLiteral("host"), proxy.host);
+        settings_.setValue(QStringLiteral("port"), proxy.port);
+        settings_.setValue(QStringLiteral("username"), proxy.username);
+        settings_.setValue(QStringLiteral("password"), proxy.password);
+    }
+    settings_.endArray();
+    settings_.sync();
+    restrictPermissions();
+}
+
+QString Settings::sourceConnection(const QString& sourceId) const
+{
+    return settings_.value(QStringLiteral("sources/%1/connection").arg(sourceId), QLatin1String(kSystemConnection))
+        .toString();
+}
+
+void Settings::setSourceConnection(const QString& sourceId, const QString& connection)
+{
+    const QString key = QStringLiteral("sources/%1/connection").arg(sourceId);
+    if (connection == QLatin1String(kSystemConnection))
+        settings_.remove(key);
+    else
+        settings_.setValue(key, connection);
 }
 
 } // namespace Config

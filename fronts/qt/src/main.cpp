@@ -17,6 +17,7 @@
 #include "MprisService.h"
 #include "NotificationToast.h"
 #include "PlaybackController.h"
+#include "ProxyRouting.h"
 #include "RpcClient.h"
 #include "Settings.h"
 #include "SourceManager.h"
@@ -191,6 +192,11 @@ int main(int argc, char** argv)
         [&sourceManager]() { shutdownAllAndQuit(sourceManager).detach(); });
 
     sourceManager.setDisabledIds(settings.disabledSources());
+    // Each backend reaches the network the way its Settings page says:
+    // through a proxy, directly, or as the environment has it.
+    sourceManager.setEnvironmentProvider([&settings](const QString& sourceId) {
+        return Net::backendEnvironment(Net::connectionFor(settings, sourceId));
+    });
     sourceManager.startAll();
 
     Integration::Autostart::refresh();

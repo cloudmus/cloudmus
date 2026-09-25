@@ -5,6 +5,7 @@
 #include <QList>
 #include <QObject>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QStringList>
 
 namespace Rpc {
@@ -21,7 +22,9 @@ public:
 
     explicit NdjsonTransport(QObject* parent = nullptr);
 
-    void start(const QStringList& argv);
+    // `environment`: the backend's (e.g. with a proxy set — see
+    // Net::backendEnvironment()).
+    void start(const QStringList& argv, const QProcessEnvironment& environment);
     void writeMessage(const QJsonObject& message);
 
     // Graceful shutdown: close stdin (backend's read loop sees EOF), then

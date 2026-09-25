@@ -8,6 +8,9 @@ dependencies = [
     "ytmusicapi>=1.8,<2",
     "yt-dlp>=2024.1",
     "mutagen>=1.47",
+    # SOCKS proxies for requests (ALL_PROXY=socks5h://..., set by the front
+    # per source — see docs/protocol.md §4.3).
+    "PySocks>=1.7",
 ]
 
 [project.optional-dependencies]

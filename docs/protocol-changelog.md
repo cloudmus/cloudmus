@@ -5,6 +5,14 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## Proxies through the environment (no version change)
+
+- Documented (§4.3): the front may spawn a source with `HTTP_PROXY` /
+  `HTTPS_PROXY` / `ALL_PROXY` (`http://` or `socks5h://`) and `NO_PROXY` set
+  for a user-chosen per-source proxy, and the source must route all its
+  traffic through them. No message changes; sources built on `requests` /
+  `yt-dlp` already comply once they can speak SOCKS (`PySocks`).
+
 ## 1.4 — source settings
 
 - **Additive, backward-compatible**: capability `settings` and the methods

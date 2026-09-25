@@ -15,7 +15,7 @@ NdjsonTransport::NdjsonTransport(QObject* parent)
     connect(&process_, &QProcess::readyReadStandardOutput, this, &NdjsonTransport::onReadyReadStdout);
     connect(&process_, &QProcess::readyReadStandardError, this, &NdjsonTransport::onReadyReadStderr);
     connect(&process_, &QProcess::finished, this,
-            [this](int exitCode, QProcess::ExitStatus status) { emit finished(exitCode, status); });
+        [this](int exitCode, QProcess::ExitStatus status) { emit finished(exitCode, status); });
     connect(&process_, &QProcess::errorOccurred, this, &NdjsonTransport::errorOccurred);
     // QProcess::start() is asynchronous: writeMessage() can be (and is,
     // for the very first `initialize` request — see RpcClient::start())
@@ -30,13 +30,14 @@ NdjsonTransport::NdjsonTransport(QObject* parent)
     });
 }
 
-void NdjsonTransport::start(const QStringList& argv)
+void NdjsonTransport::start(const QStringList& argv, const QProcessEnvironment& environment)
 {
     if (argv.isEmpty())
         return;
     qCDebug(lcTransport) << "spawning" << argv;
     process_.setProgram(argv.first());
     process_.setArguments(argv.mid(1));
+    process_.setProcessEnvironment(environment);
     process_.start();
 }
 

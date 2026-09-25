@@ -339,8 +339,10 @@ QString settingsBlock(const Palette& p)
     selection-background-color: %2;
     selection-color: %3;
 }
-QScrollArea#settingsPages { background: %5; border: none; })")
-        .arg(hex(p.surface100), hex(p.surface400), hex(p.accent), QString::number(Spacing::space2), hex(p.surface0));
+QScrollArea#settingsPages { background: %5; border: none; }
+QFrame#settingsSubCard { border: 1px solid %6; border-radius: %7px; })")
+        .arg(hex(p.surface100), hex(p.surface400), hex(p.accent), QString::number(Spacing::space2), hex(p.surface0),
+            hex(p.border), QString::number(Radius::md));
 }
 
 // Drop-down lists and number fields in themed dialogs, in the same

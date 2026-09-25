@@ -13,13 +13,13 @@ Q_LOGGING_CATEGORY(lcSourceManager, "cloudmus.rpc.sourcemanager")
 // SourceManager signals. A free coroutine (not a SourceManager method) so
 // it can be detach()ed cleanly from startOne() without SourceManager itself
 // needing to be a coroutine.
-Task<void> runStart(SourceManager& manager, RpcClient* client)
+Task<void> runStart(SourceManager& manager, RpcClient* client, QProcessEnvironment environment)
 {
     // Switched off (SourceManager::setEnabled) while still handshaking:
     // its shutdown() was a no-op then, as nothing was up yet.
     const auto superseded = [&manager, client]() { return manager.client(client->manifest().id) != client; };
     try {
-        co_await client->start();
+        co_await client->start(std::move(environment));
         if (superseded()) {
             co_await client->shutdown();
             co_return;
@@ -101,7 +101,11 @@ void SourceManager::startOne(const BackendManifest& manifest)
     auto* client = new RpcClient(manifest, this);
     clientsById_.insert(manifest.id, client);
     watch(client);
-    runStart(*this, client).detach();
+    // Asked anew for every spawn, restarts included: the source's proxy may
+    // have changed since the last one.
+    const QProcessEnvironment environment
+        = environmentProvider_ ? environmentProvider_(manifest.id) : QProcessEnvironment::systemEnvironment();
+    runStart(*this, client, environment).detach();
 }
 
 void SourceManager::watch(RpcClient* client)

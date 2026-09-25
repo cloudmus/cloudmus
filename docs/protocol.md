@@ -158,6 +158,30 @@ hasn't exited within a short grace period after that, the front sends
 `SIGTERM`, then `SIGKILL` as a last resort. There is no separate "exit"
 notification — EOF on stdin is the signal.
 
+### 4.3 Proxies (process environment)
+
+Some services are only reachable through a proxy, chosen per source by the
+user. The front passes it in the environment it spawns the source with —
+nothing on the wire changes:
+
+| Variable (also lowercase) | Value |
+|---|---|
+| `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY` | `http://[user:pass@]host:port` or `socks5h://[user:pass@]host:port` |
+| `NO_PROXY` | `localhost,127.0.0.1,::1` |
+
+- A source must send **all** of its own network traffic through them
+  (Python's `requests` and `yt-dlp` do so by default; `requests` needs
+  `PySocks` for `socks5h://`). With `socks5h`, host names are resolved by the
+  proxy too.
+- For a source set to connect directly, the front removes these variables
+  (inherited from its own environment) instead; left alone, they are the
+  system's.
+- The front fetches what a source hands it — stream URLs, cover art —
+  through the same proxy: a service may only honor a stream URL from the
+  address that asked for it.
+- A different proxy takes effect by restarting the source (§4.2, then a new
+  process and `initialize`).
+
 ---
 
 ## 5. Capabilities
