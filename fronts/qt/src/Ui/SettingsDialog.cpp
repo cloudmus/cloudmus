@@ -20,20 +20,25 @@
 #include "Settings/DownloadsPage.h"
 #include "Settings/GeneralPage.h"
 #include "Settings/PageStack.h"
-#include "Settings/SourcesPage.h"
+#include "Settings/SourcePage.h"
 #include "SidebarModel.h"
 #include "SmoothScroller.h"
+#include "SourceManager.h"
 #include "Spacing.h"
+#include "ToastNotifier.h"
 #include "Tokens.h"
 
 namespace Ui {
 
 namespace {
 constexpr int kSidebarWidth = 200;
+// A sidebar row's index into pages_ — rows and pages differ once section
+// headings are in (see addPage()). Past SidebarModel's own roles.
+constexpr int kPageIndexRole = Qt::UserRole + 100;
 } // namespace
 
-SettingsDialog::SettingsDialog(
-    Config::Settings& settings, Rpc::SourceManager& sourceManager, QWidget* parent, const QString& openAt)
+SettingsDialog::SettingsDialog(Config::Settings& settings, Rpc::SourceManager& sourceManager,
+    Rpc::AuthStates& authStates, QWidget* parent, const QString& openAt)
     : QDialog(parent)
     , settings_(settings)
 {
@@ -70,23 +75,26 @@ SettingsDialog::SettingsDialog(
 
     // --- pages
     pageStack_ = new Settings::PageStack(this);
+    // Over the settings column, clear of the Ok/Apply/Cancel row.
+    toastNotifier_ = new ToastNotifier(pageStack_);
     addPage(new Settings::GeneralPage(settings_, this));
     addPage(new Settings::DownloadsPage(settings_, this));
-    addPage(new Settings::SourcesPage(settings_, sourceManager, this));
+    for (const Rpc::BackendManifest& manifest : sourceManager.manifests())
+        addPage(new Settings::SourcePage(settings_, sourceManager, authStates, *toastNotifier_, manifest, this));
 
     // currentChanged, not clicked: arrow keys in the sidebar jump too.
     connect(
         sidebarView_->selectionModel(), &QItemSelectionModel::currentChanged, this, [this](const QModelIndex& current) {
             if (!syncingSidebar_ && current.isValid())
-                pageStack_->scrollToPage(current.row());
+                pageStack_->scrollToPage(current.data(kPageIndexRole).toInt());
         });
     // Also on a click of the row that's already current: its section may
     // be only partly in view.
     connect(sidebarView_, &QListView::clicked, this,
-        [this](const QModelIndex& index) { pageStack_->scrollToPage(index.row()); });
+        [this](const QModelIndex& index) { pageStack_->scrollToPage(index.data(kPageIndexRole).toInt()); });
     connect(pageStack_, &Settings::PageStack::currentPageChanged, this, [this](int index) {
         syncingSidebar_ = true;
-        sidebarView_->setCurrentIndex(sidebarModel_->index(index, 0));
+        sidebarView_->setCurrentIndex(sidebarModel_->index(sidebarRowForPage_[index], 0));
         syncingSidebar_ = false;
     });
 
@@ -132,13 +140,28 @@ SettingsDialog::SettingsDialog(
 
 void SettingsDialog::addPage(Settings::Page* page)
 {
-    pages_.push_back(page);
-    pageStack_->addPage(page);
+    // A heading row ahead of the first page of each section. Not a page
+    // itself: no page index, and neither selectable nor focusable, so
+    // clicks and arrow keys pass over it.
+    const QString section = page->sidebarSection();
+    if (!section.isEmpty() && section != lastSidebarSection_) {
+        auto* heading = new QStandardItem(section.toUpper());
+        heading->setData(int(SidebarModel::Kind::PlaylistsHeader), SidebarModel::KindRole);
+        heading->setFlags(Qt::NoItemFlags);
+        sidebarModel_->appendRow(heading);
+    }
+    lastSidebarSection_ = section;
 
+    sidebarRowForPage_.push_back(sidebarModel_->rowCount());
     auto* item = new QStandardItem(page->title());
     item->setData(int(SidebarModel::Kind::Playlist), SidebarModel::KindRole);
     item->setData(page->iconName(), SidebarModel::ThemeIconRole);
+    item->setData(page->iconPath(), SidebarModel::SourceIconPathRole);
+    item->setData(int(pages_.size()), kPageIndexRole);
     sidebarModel_->appendRow(item);
+
+    pages_.push_back(page);
+    pageStack_->addPage(page);
 
     connect(page, &Settings::Page::dirtyChanged, this, &SettingsDialog::updateApplyButton);
 }

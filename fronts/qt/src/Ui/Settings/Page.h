@@ -28,6 +28,12 @@ public:
     virtual QString title() const = 0;
     // A Theme::icon() glyph name for the sidebar row; empty for none.
     virtual QString iconName() const { return { }; }
+    // Or a monochrome SVG file (a backend manifest's icon), tinted the same
+    // way; wins over iconName().
+    virtual QString iconPath() const { return { }; }
+    // Pages sharing a non-empty section are listed in the sidebar under a
+    // heading of that name (e.g. "Sources"), after the pages without one.
+    virtual QString sidebarSection() const { return { }; }
     // Stand-in height of the section until createWidget() runs — the
     // closer to the real one, the less the column's length (and the
     // scrollbar) changes as sections materialize.

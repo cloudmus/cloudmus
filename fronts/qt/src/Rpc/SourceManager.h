@@ -39,6 +39,10 @@ public:
     // it) at runtime.
     void setEnabled(const QString& sourceId, bool enabled);
 
+    // Its last start ended in sourceUnavailable() — rather than still
+    // starting, or up and running.
+    bool isUnavailable(const QString& sourceId) const { return unavailableIds_.contains(sourceId); }
+
     QList<RpcClient*> clients() const;
     RpcClient* client(const QString& sourceId) const;
 
@@ -66,6 +70,7 @@ private:
 
     std::optional<QList<BackendManifest>> manifests_;
     QSet<QString> disabledIds_;
+    QSet<QString> unavailableIds_;
     QHash<QString, RpcClient*> clientsById_;
     QHash<QString, int> restartAttempts_;
 };

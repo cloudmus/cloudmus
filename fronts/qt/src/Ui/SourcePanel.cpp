@@ -20,6 +20,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include "AuthCard.h"
 #include "CoverArtCache.h"
 #include "GeneratedCoverArt.h"
 #include "Icons.h"
@@ -41,7 +42,6 @@ constexpr int kCardMaxWidth = 520;
 constexpr int kColumnMaxWidth = 640;
 constexpr int kPlaylistRowHeight = 44;
 constexpr int kPlaylistThumb = 32;
-constexpr int kMultilineFieldMinHeight = 140;
 
 // Small self-painted pieces — painted with the current Theme::palette()
 // at paint time (no QSS), like the rest of the app's custom widgets.
@@ -288,99 +288,12 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     ScrollEdgeFade::attach(scroll, [] { return Theme::palette().surface0; });
     OverlayScrollBar::attach(scroll);
 
-    authCard_ = new QWidget(column);
-    authCard_->setObjectName(QStringLiteral("sourceAuthCard"));
-    // Styled by Theme::StyleSheet's global #sourceAuthCard rule now (surface-200/
-    // border/radius-md, regenerated on every theme change) — not a local
-    // setStyleSheet() call, which used the palette(...) QSS functions to
-    // follow the native theme; this app now owns a fixed palette instead.
+    authCard_ = new AuthCard(AuthCard::Look::Card, column);
     authCard_->setMaximumWidth(kCardMaxWidth);
-
-    auto* iconLabel = new QLabel(authCard_);
-    iconLabel->setPixmap(
-        Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, kIconSize).pixmap(kIconSize, kIconSize));
-
-    messageLabel_ = new QLabel(authCard_);
-    messageLabel_->setWordWrap(true);
-    // Selectable + link-clickable for the deviceCode case; harmless for
-    // plain error text (still just lets the user select/copy it).
-    messageLabel_->setTextInteractionFlags(Qt::TextBrowserInteraction | Qt::TextSelectableByMouse);
-    messageLabel_->setOpenExternalLinks(true);
-
-    auto* headerRow = new QHBoxLayout;
-    headerRow->addWidget(iconLabel);
-    headerRow->addWidget(messageLabel_, 1);
-
-    codeLabel_ = new QLabel(authCard_);
-    QFont codeFont(QStringLiteral("monospace"));
-    codeFont.setBold(true);
-    codeFont.setPointSize(codeFont.pointSize() + 3);
-    codeLabel_->setFont(codeFont);
-    codeLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    codeLabel_->hide();
-
-    copyCodeButton_ = new QPushButton(tr("Copy code"), authCard_);
-    copyCodeButton_->setProperty("variant", "secondary");
-    copyCodeButton_->setFont(Theme::font(Theme::TextStyle::Button));
-    connect(copyCodeButton_, &QPushButton::clicked, this,
-        [this]() { QGuiApplication::clipboard()->setText(codeLabel_->text()); });
-    copyCodeButton_->hide();
-
-    formLayout_ = new QHBoxLayout;
-    multilineFieldsLayout_ = new QVBoxLayout;
-
-    submitButton_ = new QPushButton(tr("Submit"), authCard_);
-    submitButton_->setProperty("variant", "primary");
-    submitButton_->setFont(Theme::font(Theme::TextStyle::Button));
-    connect(submitButton_, &QPushButton::clicked, this, [this]() {
-        QJsonObject fields;
-        for (auto it = fieldEdits_.constBegin(); it != fieldEdits_.constEnd(); ++it) {
-            fields.insert(it.key(), it.value()->text());
-        }
-        for (auto it = multilineFieldEdits_.constBegin(); it != multilineFieldEdits_.constEnd(); ++it) {
-            fields.insert(it.key(), it.value()->toPlainText());
-        }
-        emit submitRequested(currentSourceId_, fields);
-    });
-    submitButton_->hide();
-
-    openBrowserButton_ = new QPushButton(tr("Open Browser"), authCard_);
-    openBrowserButton_->setProperty("variant", "secondary");
-    openBrowserButton_->setFont(Theme::font(Theme::TextStyle::Button));
-    connect(openBrowserButton_, &QPushButton::clicked, this,
-        [this]() { QDesktopServices::openUrl(QUrl(pendingOAuthUrl_)); });
-    openBrowserButton_->hide();
-
-    retryButton_ = new QPushButton(tr("Retry"), authCard_);
-    retryButton_->setProperty("variant", "secondary");
-    retryButton_->setFont(Theme::font(Theme::TextStyle::Button));
-    connect(retryButton_, &QPushButton::clicked, this, [this]() { emit retryRequested(currentSourceId_); });
-    retryButton_->hide();
-
-    busyIndicator_ = new QProgressBar(authCard_);
-    busyIndicator_->setProperty("themed", true); // see StyleSheet.cpp's progressBarBlock()
-    busyIndicator_->setRange(0, 0); // indeterminate
-    busyIndicator_->setFixedWidth(80);
-    busyIndicator_->setMaximumHeight(6);
-    busyIndicator_->hide();
-
-    auto* buttonRow = new QHBoxLayout;
-    buttonRow->addWidget(copyCodeButton_);
-    buttonRow->addLayout(formLayout_);
-    buttonRow->addWidget(submitButton_);
-    buttonRow->addWidget(openBrowserButton_);
-    buttonRow->addWidget(retryButton_);
-    buttonRow->addWidget(busyIndicator_);
-    buttonRow->addStretch(1);
-
-    auto* cardLayout = new QVBoxLayout(authCard_);
-    cardLayout->setContentsMargins(
-        Theme::Spacing::space6, Theme::Spacing::space6, Theme::Spacing::space6, Theme::Spacing::space6);
-    cardLayout->setSpacing(10);
-    cardLayout->addLayout(headerRow);
-    cardLayout->addWidget(codeLabel_);
-    cardLayout->addLayout(multilineFieldsLayout_);
-    cardLayout->addLayout(buttonRow);
+    connect(authCard_, &AuthCard::submitRequested, this,
+        [this](const QJsonObject& fields) { emit submitRequested(currentSourceId_, fields); });
+    connect(authCard_, &AuthCard::retryRequested, this, [this]() { emit retryRequested(currentSourceId_); });
+    connect(authCard_, &AuthCard::codeCopied, this, &SourcePanel::codeCopied);
     authCard_->hide();
 
     auto* status = new HintLine(column, QStringLiteral("check"));
@@ -424,6 +337,14 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
     content->addWidget(new SectionTitle(tr("Status"), column));
     content->addWidget(statusRow_);
     content->addWidget(authCard_);
+    // Sign-in/out and the source's own options live in Settings; this is
+    // the way there from the source itself.
+    auto* settingsButton = new QPushButton(tr("Settings…"), column);
+    settingsButton->setProperty("variant", "secondary");
+    settingsButton->setFont(Theme::font(Theme::TextStyle::Button));
+    connect(settingsButton, &QPushButton::clicked, this, [this]() { emit settingsRequested(currentSourceId_); });
+    content->addSpacing(Theme::Spacing::space2);
+    content->addWidget(settingsButton, 0, Qt::AlignLeft);
     content->addSpacing(Theme::Spacing::space4);
     content->addWidget(new SectionTitle(tr("Features"), column));
     content->addWidget(chipsRow);
@@ -453,21 +374,6 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
 
     connect(&Theme::notifier(), &Theme::Notifier::changed, this, [column]() { column->update(); });
     hide();
-}
-
-void SourcePanel::clearFormFields()
-{
-    qDeleteAll(fieldEdits_);
-    fieldEdits_.clear();
-    qDeleteAll(multilineFieldEdits_);
-    multilineFieldEdits_.clear();
-    QLayoutItem* item = nullptr;
-    while ((item = formLayout_->takeAt(0)) != nullptr) {
-        delete item;
-    }
-    while ((item = multilineFieldsLayout_->takeAt(0)) != nullptr) {
-        delete item;
-    }
 }
 
 void SourcePanel::setSource(const QString& sourceId, const QJsonObject& capabilities)
@@ -527,119 +433,39 @@ void SourcePanel::refreshPlaylistsSection()
     refreshButton_->setVisible(!signInPending);
 }
 
-void SourcePanel::resetAuthChrome()
+void SourcePanel::showAuthCard()
 {
-    clearFormFields();
-    codeLabel_->hide();
-    codeLabel_->clear();
-    copyCodeButton_->hide();
-    submitButton_->hide();
-    openBrowserButton_->hide();
-    retryButton_->hide();
-    setAuthActionBusy(false);
+    authCard_->show();
+    statusRow_->hide();
+    refreshPlaylistsSection();
 }
 
 void SourcePanel::showPrompt(const QJsonObject& params)
 {
-    resetAuthChrome();
-
-    const QString flow = params.value(QStringLiteral("flow")).toString();
-    if (flow == QStringLiteral("deviceCode")) {
-        const QString url = params.value(QStringLiteral("url")).toString();
-        const QString code = params.value(QStringLiteral("code")).toString();
-        messageLabel_->setTextFormat(Qt::RichText);
-        messageLabel_->setText(
-            tr("Open <a href=\"%1\">%2</a> and enter the code below").arg(url.toHtmlEscaped(), url.toHtmlEscaped()));
-        codeLabel_->setText(code);
-        codeLabel_->show();
-        copyCodeButton_->show();
-    } else if (flow == QStringLiteral("usernamePassword")) {
-        const QJsonArray fields = params.value(QStringLiteral("fields")).toArray();
-        bool hasMultilineField = false;
-        for (const QJsonValue& v : fields) {
-            if (v.toObject().value(QStringLiteral("multiline")).toBool()) {
-                hasMultilineField = true;
-                break;
-            }
-        }
-        messageLabel_->setTextFormat(Qt::PlainText);
-        // A generic "no source-specific UI" form (docs/protocol.md §10.2)
-        // can't know it's specifically a browser-headers paste, but a
-        // multiline field is a strong enough signal to justify a more
-        // useful instruction than a bare "Sign in" — the DevTools steps
-        // aren't otherwise discoverable from the form alone.
-        messageLabel_->setText(hasMultilineField
-                ? tr("Open music.youtube.com in your browser while signed in, open DevTools → Network tab, "
-                     "click any request to music.youtube.com, and paste its Request Headers below.")
-                : tr("Sign in"));
-        for (const QJsonValue& v : fields) {
-            const QJsonObject field = v.toObject();
-            const QString name = field.value(QStringLiteral("name")).toString();
-            if (field.value(QStringLiteral("multiline")).toBool()) {
-                // A pasted-blob field (e.g. raw browser request headers) —
-                // a QLineEdit would technically still round-trip the text
-                // correctly (Qt doesn't strip embedded newlines from a
-                // paste, only their on-screen rendering), but squished onto
-                // one visible line the user has no way to actually read or
-                // verify what they pasted before submitting something this
-                // sensitive.
-                auto* edit = new QPlainTextEdit(authCard_);
-                edit->setPlaceholderText(tr("Paste here"));
-                edit->setMinimumHeight(kMultilineFieldMinHeight);
-                multilineFieldsLayout_->addWidget(edit);
-                multilineFieldEdits_.insert(name, edit);
-            } else {
-                auto* edit = new QLineEdit(authCard_);
-                if (field.value(QStringLiteral("secret")).toBool()) {
-                    edit->setEchoMode(QLineEdit::Password);
-                }
-                edit->setPlaceholderText(name);
-                formLayout_->addWidget(edit);
-                fieldEdits_.insert(name, edit);
-            }
-        }
-        submitButton_->show();
-    } else if (flow == QStringLiteral("oauthRedirect")) {
-        pendingOAuthUrl_ = params.value(QStringLiteral("url")).toString();
-        QDesktopServices::openUrl(QUrl(pendingOAuthUrl_));
-        messageLabel_->setTextFormat(Qt::PlainText);
-        messageLabel_->setText(tr("Continue in your browser"));
-        openBrowserButton_->show();
-    } else {
-        messageLabel_->setTextFormat(Qt::PlainText);
-        messageLabel_->setText(tr("Sign-in required"));
-    }
-    authCard_->show();
-    statusRow_->hide();
-    refreshPlaylistsSection();
+    authCard_->showPrompt(params);
+    showAuthCard();
 }
 
 void SourcePanel::showError(const QString& message)
 {
-    resetAuthChrome();
-    // PlainText, not the default AutoText: an arbitrary backend-supplied
-    // error message shouldn't be interpreted as markup.
-    messageLabel_->setTextFormat(Qt::PlainText);
-    messageLabel_->setText(message);
-    retryButton_->show();
-    authCard_->show();
-    statusRow_->hide();
-    refreshPlaylistsSection();
+    authCard_->showError(message);
+    showAuthCard();
+}
+
+void SourcePanel::showSignInNeeded()
+{
+    authCard_->showSignInNeeded();
+    showAuthCard();
 }
 
 void SourcePanel::clearAuthSection()
 {
-    resetAuthChrome();
+    authCard_->setBusy(false);
     authCard_->hide();
     statusRow_->show();
     refreshPlaylistsSection();
 }
 
-void SourcePanel::setAuthActionBusy(bool busy)
-{
-    submitButton_->setEnabled(!busy);
-    retryButton_->setEnabled(!busy);
-    busyIndicator_->setVisible(busy);
-}
+void SourcePanel::setAuthActionBusy(bool busy) { authCard_->setBusy(busy); }
 
 } // namespace Ui

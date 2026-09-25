@@ -14,12 +14,14 @@ class Settings;
 }
 
 namespace Rpc {
+class AuthStates;
 class SourceManager;
-}
+} // namespace Rpc
 
 namespace Ui {
 
 class NavItemDelegate;
+class ToastNotifier;
 
 namespace Settings {
 class Page;
@@ -38,10 +40,14 @@ class SettingsDialog : public QDialog {
 
 public:
     // `openAt`: a Settings::Page::id() to show first instead of the top.
-    SettingsDialog(Config::Settings& settings, Rpc::SourceManager& sourceManager, QWidget* parent = nullptr,
-        const QString& openAt = { });
+    SettingsDialog(Config::Settings& settings, Rpc::SourceManager& sourceManager, Rpc::AuthStates& authStates,
+        QWidget* parent = nullptr, const QString& openAt = { });
 
     void done(int result) override;
+
+    // The dialog's own toasts, for whatever happens while it's open — a
+    // modal dialog would otherwise hide the main window's behind it.
+    ToastNotifier* toastNotifier() const { return toastNotifier_; }
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -54,11 +60,15 @@ private:
 
     Config::Settings& settings_;
     std::vector<Settings::Page*> pages_;
+    // pages_[i]'s row in sidebarModel_.
+    std::vector<int> sidebarRowForPage_;
+    QString lastSidebarSection_;
     QListView* sidebarView_ = nullptr;
     QStandardItemModel* sidebarModel_ = nullptr;
     NavItemDelegate* sidebarDelegate_ = nullptr;
     Settings::PageStack* pageStack_ = nullptr;
     QPushButton* applyButton_ = nullptr;
+    ToastNotifier* toastNotifier_ = nullptr;
     // Set while the sidebar's selection follows the column's scrolling, so
     // that doesn't bounce back as a jump request.
     bool syncingSidebar_ = false;

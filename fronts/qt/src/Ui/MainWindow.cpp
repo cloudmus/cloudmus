@@ -84,6 +84,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     , playback_(playback)
     , settings_(settings)
 {
+    authStates_ = new Rpc::AuthStates(this);
     setWindowTitle(QStringLiteral("CloudMus"));
     resize(960, 640);
     restoreGeometry(settings_.windowGeometry());
@@ -237,10 +238,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     menuButton->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
     menuButton->setPopupMode(QToolButton::InstantPopup);
     auto* menu = new QMenu(menuButton);
-    menu->addAction(tr("Settings…"), this, [this]() {
-        SettingsDialog dialog(settings_, sourceManager_, this);
-        dialog.exec();
-    });
+    menu->addAction(tr("Settings…"), this, [this]() { showSettingsDialog(); });
     menu->addAction(tr("About CloudMus"), this, &MainWindow::showAboutDialog);
     menu->addSeparator();
     menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
@@ -370,6 +368,9 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
     connect(sourcePanel_, &SourcePanel::playlistActivated, this,
         [this](const QString& sourceId, const Playlist& playlist) { openInSheetAsync(sourceId, playlist).detach(); });
+    connect(sourcePanel_, &SourcePanel::codeCopied, this, [this]() { toastNotifier_->showInfo(tr("Code copied")); });
+    connect(sourcePanel_, &SourcePanel::settingsRequested, this,
+        [this](const QString& sourceId) { showSettingsDialog(QStringLiteral("source:") + sourceId); });
     connect(sourcePanel_, &SourcePanel::refreshRequested, this, [this](const QString& sourceId) {
         if (Rpc::RpcClient* client = sourceManager_.client(sourceId))
             loadPlaylistsAsync(client).detach();
@@ -436,6 +437,18 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         sidebarModel_->setSourceLoading(manifest.id, manifest.name, true);
     });
     connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, &MainWindow::onSourceStopped);
+    connect(authStates_, &Rpc::AuthStates::changed, this, &MainWindow::updateSourceAuthIndicator);
+    // auth.logout (from the source's Settings page) leaves the playlists
+    // listed until something reloads them; they're no longer the user's to see.
+    connect(authStates_, &Rpc::AuthStates::signedOut, this, [this](const QString& sourceId) {
+        if (Rpc::RpcClient* client = sourceManager_.client(sourceId)) {
+            sidebarModel_->setSource(sourceId, client->sourceName(), { });
+            updateSourceAuthIndicator(sourceId);
+            if (currentStatusPanelSourceId_ == sourceId)
+                sourcePanel_->setPlaylists({ }, false);
+            syncSidebarSelection();
+        }
+    });
     connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, &MainWindow::wireSource);
     connect(&sourceManager_, &Rpc::SourceManager::sourceUnavailable, this, &MainWindow::onSourceUnavailable);
 
@@ -462,28 +475,19 @@ void MainWindow::wireSource(Rpc::RpcClient* client)
         playback_.handleTracksAdded(client->sourceId(), p);
     };
     client->notifications.onError = [this](const ErrorParams& e) { toastNotifier_->showError(e.message); };
-    client->onAuthPromptRaw = [this, client](const QJsonObject& params) {
-        SourceAuthState& state = sourceAuthStates_[client->sourceId()];
-        state.hasProblem = true;
-        state.prompt = params;
-        state.errorMessage.clear();
-        updateSourceAuthIndicator(client->sourceId());
-    };
+    // Into authStates_, whose changed() repaints every view of it — see
+    // updateSourceAuthIndicator().
+    client->onAuthPromptRaw
+        = [this, client](const QJsonObject& params) { authStates_->setPrompt(client->sourceId(), params); };
     client->notifications.onAuthStatusChanged = [this, client](const StatusChangedParams& status) {
-        SourceAuthState& state = sourceAuthStates_[client->sourceId()];
         if (status.status == QStringLiteral("authenticated")) {
-            state.hasProblem = false;
-            state.prompt = QJsonObject();
-            state.errorMessage.clear();
-            updateSourceAuthIndicator(client->sourceId());
+            authStates_->setAuthenticated(client->sourceId());
             loadPlaylistsAsync(client).detach();
         } else {
-            state.hasProblem = true;
-            state.prompt = QJsonObject(); // an error supersedes any earlier prompt
-            state.errorMessage = status.message.value_or(QString());
-            qCWarning(lcMainWindow) << "auth error for" << client->sourceId() << ":" << state.errorMessage;
-            toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), state.errorMessage));
-            updateSourceAuthIndicator(client->sourceId());
+            const QString message = status.message.value_or(QString());
+            qCWarning(lcMainWindow) << "auth error for" << client->sourceId() << ":" << message;
+            toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+            authStates_->setError(client->sourceId(), message);
         }
     };
 
@@ -542,7 +546,7 @@ void MainWindow::updateSourceAuthIndicator(const QString& sourceId)
 {
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
-    const SourceAuthState state = sourceAuthStates_.value(sourceId);
+    const Rpc::AuthStates::State state = authStates_->state(sourceId);
     sidebarModel_->setSourceAuthProblem(sourceId, sourceName, state.hasProblem);
 
     if (currentStatusPanelSourceId_ == sourceId)
@@ -562,18 +566,22 @@ void MainWindow::showSourceStatusPanel(const QString& sourceId)
     sourcePanel_->setSource(sourceId, capabilities);
     sourcePanel_->setPlaylists(sidebarModel_->playlistsFor(sourceId), sidebarModel_->isSourceLoading(sourceId));
 
-    refreshAuthSection(sourceId, sourceAuthStates_.value(sourceId));
+    refreshAuthSection(sourceId, authStates_->state(sourceId));
     // Last: presenting snapshots the sheet, so fill it first.
     sheet_->present();
 }
 
-void MainWindow::refreshAuthSection(const QString& sourceId, const SourceAuthState& state)
+void MainWindow::refreshAuthSection(const QString& sourceId, const Rpc::AuthStates::State& state)
 {
     Q_UNUSED(sourceId);
     if (!state.prompt.isEmpty()) {
         sourcePanel_->showPrompt(state.prompt);
     } else if (!state.errorMessage.isEmpty()) {
         sourcePanel_->showError(state.errorMessage);
+    } else if (state.hasProblem) {
+        // Signed out on purpose: nothing's gone wrong, it just waits for a
+        // sign-in to be asked for.
+        sourcePanel_->showSignInNeeded();
     } else {
         // Authenticated, or auth not required at all — nothing to act on.
         sourcePanel_->clearAuthSection();
@@ -591,7 +599,7 @@ void MainWindow::onSourceUnavailable(const QString& manifestId, const QString& n
 void MainWindow::onSourceStopped(const QString& sourceId)
 {
     sidebarModel_->removeSource(sourceId);
-    sourceAuthStates_.remove(sourceId);
+    authStates_->remove(sourceId);
     if (sheet_->isPresented()
         && (currentStatusPanelSourceId_ == sourceId
             || (sheetContext_.isValid() && !sheetContext_.isHistory && sheetContext_.sourceId == sourceId)))
@@ -1557,6 +1565,19 @@ void MainWindow::applyPlaylistEdit(
 }
 
 void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }
+
+void MainWindow::showSettingsDialog(const QString& openAt)
+{
+    SettingsDialog dialog(settings_, sourceManager_, *authStates_, this, openAt);
+    // While it's up, this window's toasts (an auth error from wireSource(),
+    // a download finishing) go to the dialog instead: this window is
+    // behind it, where they'd go unseen. Restored before the dialog, and
+    // its notifier with it, is destroyed.
+    ToastNotifier* const ownToasts = toastNotifier_;
+    toastNotifier_ = dialog.toastNotifier();
+    dialog.exec();
+    toastNotifier_ = ownToasts;
+}
 
 void MainWindow::quitForReal()
 {

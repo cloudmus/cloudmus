@@ -73,6 +73,7 @@ add_executable(cloudmus-qt
     src/Rpc/BackendManifest.cpp
     src/Rpc/RpcClient.cpp
     src/Rpc/SourceManager.cpp
+    src/Rpc/AuthStates.cpp
 
     src/Playback/AudioPlayer.cpp
     src/Playback/PlaybackController.cpp
@@ -94,6 +95,7 @@ add_executable(cloudmus-qt
     src/Ui/EmptyStatePlaceholder.cpp
     src/Ui/GeneratedCoverArt.cpp
     src/Ui/SourcePanel.cpp
+    src/Ui/AuthCard.cpp
     src/Ui/ToastNotifier.cpp
     src/Ui/SmoothScroller.cpp
     src/Ui/OverlayScrollBar.cpp
@@ -113,7 +115,7 @@ add_executable(cloudmus-qt
     src/Ui/Settings/PageStack.cpp
     src/Ui/Settings/GeneralPage.cpp
     src/Ui/Settings/DownloadsPage.cpp
-    src/Ui/Settings/SourcesPage.cpp
+    src/Ui/Settings/SourcePage.cpp
     src/Ui/CoverArtCache.cpp
 
     src/Theme/Tokens.cpp

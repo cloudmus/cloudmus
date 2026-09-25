@@ -41,6 +41,8 @@ Task<void> runStart(SourceManager& manager, RpcClient* client)
 SourceManager::SourceManager(QObject* parent)
     : QObject(parent)
 {
+    connect(this, &SourceManager::sourceUnavailable, this,
+        [this](const QString& manifestId) { unavailableIds_.insert(manifestId); });
 }
 
 const QList<BackendManifest>& SourceManager::manifests()
@@ -95,6 +97,7 @@ void SourceManager::setEnabled(const QString& sourceId, bool enabled)
 void SourceManager::startOne(const BackendManifest& manifest)
 {
     qCDebug(lcSourceManager) << "starting" << manifest.id << manifest.argv;
+    unavailableIds_.remove(manifest.id);
     auto* client = new RpcClient(manifest, this);
     clientsById_.insert(manifest.id, client);
     watch(client);

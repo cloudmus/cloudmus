@@ -7,6 +7,7 @@
 
 #include <functional>
 
+#include "AuthStates.h"
 #include "Coro.h"
 #include "PlaybackController.h"
 #include "Settings.h"
@@ -148,6 +149,8 @@ private:
     // HeroPanel's Play button: (re)starts the active playlist.
     void playActive();
     void showAboutDialog();
+    // `openAt`: a Settings::Page::id() to open the dialog on.
+    void showSettingsDialog(const QString& openAt = { });
 
     // --- active playlist (what the main area shows and the queue came from)
     struct ActiveContext {
@@ -241,19 +244,11 @@ private:
     // same stillCurrent()-guard shape as likeToggledAsync().
     Rpc::Task<void> downloadCurrentTrackAsync();
 
-    // Per-source auth status, cached here since nothing on RpcClient itself
-    // persists it (onAuthPromptRaw/notifications.onAuthStatusChanged are
-    // fire-and-forget pushes — see wireSource()). Feeds both the sidebar's
-    // warning icon (SidebarModel::setSourceAuthProblem, always applied,
-    // regardless of whether the panel is currently open for that source)
-    // and sourcePanel_'s auth section (only when it's the currently-selected
-    // source).
-    struct SourceAuthState {
-        bool hasProblem = false; // capabilities.auth.required && not authenticated
-        QJsonObject prompt; // last auth/prompt payload; empty if none yet
-        QString errorMessage; // last auth/statusChanged error message; empty if none
-    };
-    QHash<QString, SourceAuthState> sourceAuthStates_;
+    // Per-source sign-in state, shared with the Settings dialog's source
+    // pages — see Rpc::AuthStates. Feeds both the sidebar's warning icon
+    // (always) and sourcePanel_'s auth section (when it's showing that
+    // source), via updateSourceAuthIndicator() on its changed().
+    Rpc::AuthStates* authStates_ = nullptr;
     // sourceId sourcePanel_ is currently showing, or empty if it's hidden /
     // a normal playlist is showing instead.
     QString currentStatusPanelSourceId_;
@@ -272,7 +267,7 @@ private:
     // error+Retry / hidden) from the given state — never touches the
     // hero/capabilities, which setSource() already established once and
     // don't change afterward.
-    void refreshAuthSection(const QString& sourceId, const SourceAuthState& state);
+    void refreshAuthSection(const QString& sourceId, const Rpc::AuthStates::State& state);
 
     Rpc::SourceManager& sourceManager_;
     Playback::PlaybackController& playback_;

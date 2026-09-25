@@ -18,6 +18,7 @@ class QProgressBar;
 
 namespace Ui {
 
+class AuthCard;
 class CoverArtCache;
 
 // A backend's page, shown in PlaylistSheet (which supplies the header:
@@ -55,6 +56,8 @@ public:
     void showPrompt(const QJsonObject& params);
     // Renders a plain error message plus a Retry button.
     void showError(const QString& message);
+    // Signed out on purpose: a "Sign in" button, no error.
+    void showSignInNeeded();
     // Hides the auth section entirely — nothing to act on (authenticated,
     // or auth not required at all).
     void clearAuthSection();
@@ -69,13 +72,14 @@ signals:
     void retryRequested(QString sourceId);
     void playlistActivated(QString sourceId, Playlist playlist);
     void refreshRequested(QString sourceId);
+    // "Settings…": the source's page in the Settings dialog.
+    void settingsRequested(QString sourceId);
+    // The sign-in card's "Copy code" was clicked.
+    void codeCopied();
 
 private:
-    void clearFormFields();
-    // Hides every flow-specific auth-section widget from whatever the
-    // previous showPrompt()/showError() call left visible — shared by both
-    // entry points (and clearAuthSection(), which just stops there).
-    void resetAuthChrome();
+    // Shows authCard_ in place of the "Connected" line.
+    void showAuthCard();
     void refreshPlaylistsSection();
 
     QString currentSourceId_;
@@ -88,25 +92,7 @@ private:
     QList<Playlist> playlists_;
     bool playlistsLoading_ = false;
 
-    QWidget* authCard_ = nullptr;
-    QLabel* messageLabel_ = nullptr;
-    QLabel* codeLabel_ = nullptr;
-    QPushButton* copyCodeButton_ = nullptr;
-    QHBoxLayout* formLayout_ = nullptr;
-    // Fields whose auth/prompt descriptor sets multiline:true (e.g. a
-    // pasted-headers blob) — too long/unwieldy for the single-line fields'
-    // QLineEdit-in-formLayout_ row, so they get a full-width QPlainTextEdit
-    // of their own here instead. See showPrompt()'s usernamePassword branch.
-    QVBoxLayout* multilineFieldsLayout_ = nullptr;
-    QPushButton* submitButton_ = nullptr;
-    QPushButton* openBrowserButton_ = nullptr;
-    QPushButton* retryButton_ = nullptr;
-    QProgressBar* busyIndicator_ = nullptr;
-    QHash<QString, QLineEdit*> fieldEdits_;
-    QHash<QString, QPlainTextEdit*> multilineFieldEdits_;
-    // oauthRedirect's URL, kept so the manual "Open Browser" button can
-    // re-open it if the automatic open-on-prompt was missed/blocked.
-    QString pendingOAuthUrl_;
+    AuthCard* authCard_ = nullptr;
 };
 
 } // namespace Ui
