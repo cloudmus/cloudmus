@@ -15,6 +15,7 @@
 #include <QVBoxLayout>
 
 #include "Icons.h"
+#include "PasswordReveal.h"
 #include "Spacing.h"
 #include "Tokens.h"
 #include "Typography.h"
@@ -209,7 +210,7 @@ void AuthCard::showPrompt(const QJsonObject& params)
             } else {
                 auto* edit = new QLineEdit(this);
                 if (field.value(QStringLiteral("secret")).toBool()) {
-                    edit->setEchoMode(QLineEdit::Password);
+                    addPasswordReveal(edit);
                 }
                 edit->setPlaceholderText(name);
                 formLayout_->addWidget(edit);

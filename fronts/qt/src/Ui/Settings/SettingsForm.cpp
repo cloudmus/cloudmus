@@ -14,6 +14,7 @@
 
 #include <limits>
 
+#include "PasswordReveal.h"
 #include "Spacing.h"
 #include "Typography.h"
 
@@ -147,7 +148,7 @@ QWidget* SettingsForm::makeEditor(Row& row, QWidget* parent)
 
     if (type == QStringLiteral("secret")) {
         // Never shown, never sent back unless replaced: the source keeps it.
-        edit->setEchoMode(QLineEdit::Password);
+        addPasswordReveal(edit);
         if (field.isSet.value_or(false))
             edit->setPlaceholderText(tr("Saved — type to replace"));
         row.read = [edit]() { return QJsonValue(edit->text()); };

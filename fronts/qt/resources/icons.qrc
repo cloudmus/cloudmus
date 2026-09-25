@@ -22,6 +22,7 @@
         <file alias="music_note.svg">icons/symbols/music_note.svg</file>
         <file alias="chevron_right.svg">icons/symbols/chevron_right.svg</file>
         <file alias="expand_more.svg">icons/symbols/expand_more.svg</file>
+        <file alias="expand_less.svg">icons/symbols/expand_less.svg</file>
         <file alias="check.svg">icons/symbols/check.svg</file>
         <file alias="favorite.svg">icons/symbols/favorite.svg</file>
         <file alias="favorite_border.svg">icons/symbols/favorite_border.svg</file>

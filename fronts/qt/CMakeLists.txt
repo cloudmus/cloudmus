@@ -111,6 +111,7 @@ add_executable(cloudmus-qt
     src/Ui/ThemedToolTip.cpp
     src/Ui/SettingsDialog.cpp
     src/Ui/DialogButtons.cpp
+    src/Ui/PasswordReveal.cpp
     src/Ui/Settings/Page.h
     src/Ui/Settings/PageStack.cpp
     src/Ui/Settings/GeneralPage.cpp

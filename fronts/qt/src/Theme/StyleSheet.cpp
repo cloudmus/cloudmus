@@ -343,14 +343,18 @@ QScrollArea#settingsPages { background: %5; border: none; })")
         .arg(hex(p.surface100), hex(p.surface400), hex(p.accent), QString::number(Spacing::space2), hex(p.surface0));
 }
 
-// Drop-down lists in themed dialogs, in the same raised-field look as
-// QLineEdit (dialogsBlock()). combobox-popup: 0 opens the list below the
-// field like a menu, instead of Fusion's list centered over the current
-// item. The ::item rules only take effect with a QStyledItemDelegate set
-// on the combo — its default delegate ignores QSS.
+// Drop-down lists and number fields in themed dialogs, in the same
+// raised-field look as QLineEdit (dialogsBlock()); a number field's
+// stepper is two flat chevrons stacked at its right edge.
+// combobox-popup: 0 opens the list below the field like a menu, instead
+// of Fusion's list centered over the current item. The ::item rules only
+// take effect with a QStyledItemDelegate set on the combo — its default
+// delegate ignores QSS.
 QString comboBoxBlock(const Palette& p)
 {
     const QString arrow = iconAssetPath(QStringLiteral("expand_more"), IconColor::InkSecondary, 16);
+    const QString stepUp = iconAssetPath(QStringLiteral("expand_less"), IconColor::InkSecondary, 12);
+    const QString stepDown = iconAssetPath(QStringLiteral("expand_more"), IconColor::InkSecondary, 12);
 
     return QStringLiteral(R"(QDialog[themed="true"] QComboBox {
     background: %1;
@@ -390,13 +394,38 @@ QDialog[themed="true"] QAbstractSpinBox {
     border: 1px solid %2;
     border-radius: %3px;
     padding: %4px %5px;
+    padding-right: 24px;
     color: %6;
 }
 QDialog[themed="true"] QAbstractSpinBox:hover { border-color: %7; }
-QDialog[themed="true"] QAbstractSpinBox:focus { border-color: %8; })")
+QDialog[themed="true"] QAbstractSpinBox:focus { border-color: %8; }
+QDialog[themed="true"] QAbstractSpinBox::up-button, QDialog[themed="true"] QAbstractSpinBox::down-button {
+    subcontrol-origin: border;
+    width: 20px;
+    margin-right: 1px;
+    border: none;
+    background: transparent;
+}
+QDialog[themed="true"] QAbstractSpinBox::up-button {
+    subcontrol-position: top right;
+    margin-top: 1px;
+    border-top-right-radius: %3px;
+}
+QDialog[themed="true"] QAbstractSpinBox::down-button {
+    subcontrol-position: bottom right;
+    margin-bottom: 1px;
+    border-bottom-right-radius: %3px;
+}
+QDialog[themed="true"] QAbstractSpinBox::up-button:hover, QDialog[themed="true"] QAbstractSpinBox::down-button:hover {
+    background: %10;
+}
+QDialog[themed="true"] QAbstractSpinBox::up-button:pressed,
+QDialog[themed="true"] QAbstractSpinBox::down-button:pressed { background: %11; }
+QDialog[themed="true"] QAbstractSpinBox::up-arrow { image: url("%13"); width: 12px; height: 12px; }
+QDialog[themed="true"] QAbstractSpinBox::down-arrow { image: url("%14"); width: 12px; height: 12px; })")
         .arg(hex(p.surface200), hex(p.border), QString::number(Radius::sm), QString::number(Spacing::space1),
             QString::number(Spacing::space2), hex(p.ink), hex(p.borderStrong), hex(p.accent), arrow)
-        .arg(hex(p.surface300), hex(p.surface400), hex(p.inkSecondary));
+        .arg(hex(p.surface300), hex(p.surface400), hex(p.inkSecondary), stepUp, stepDown);
 }
 
 } // namespace
