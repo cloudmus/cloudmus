@@ -7,10 +7,13 @@
 #include <QLoggingCategory>
 #include <QMetaObject>
 #include <QNetworkAccessManager>
+#include <QNetworkProxy>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 
 #include <mpv/client.h>
+
+#include "StreamRelay.h"
 
 namespace Playback {
 
@@ -185,12 +188,31 @@ void AudioPlayer::handleEvent(const mpv_event& event)
     }
 }
 
-void AudioPlayer::play(const QString& url, const QString& title)
+void AudioPlayer::play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route)
 {
     // Set before loadfile, not after, so the incoming file picks it up
     // immediately instead of racing mpv's own URL-derived fallback title.
     const QByteArray titleUtf8 = title.toUtf8();
     mpv_set_property_string(mpv_, "force-media-title", titleUtf8.constData());
+
+    if (pendingRedirectResolve_) {
+        pendingRedirectResolve_->disconnect(this);
+        pendingRedirectResolve_->abort();
+        pendingRedirectResolve_->deleteLater();
+        pendingRedirectResolve_ = nullptr;
+    }
+
+    // A source with its own connection: mpv plays from the relay, which
+    // fetches through that proxy (or explicitly directly — mpv itself
+    // would take http_proxy from the environment), follows redirects with
+    // Qt's network stack like the preflight below does, and resumes a
+    // stream that breaks off.
+    if (route) {
+        if (relay_ == nullptr)
+            relay_ = new StreamRelay(this);
+        loadUrl(relay_->urlFor(QUrl(url), *route).toString());
+        return;
+    }
 
     // A HEAD preflight through Qt's own network stack — which follows
     // HTTP redirects (including 308) automatically by default — to
@@ -207,15 +229,9 @@ void AudioPlayer::play(const QString& url, const QString& title)
     // the same unresolved URL straight back for a direct-file link like
     // this one, rather than actually resolving the redirect itself).
     //
-    // A fresh play() call aborts any reply still in flight from an
-    // already-superseded track first, so a stale resolution can never
-    // race ahead of a newer one and load the wrong file.
-    if (pendingRedirectResolve_) {
-        pendingRedirectResolve_->disconnect(this);
-        pendingRedirectResolve_->abort();
-        pendingRedirectResolve_->deleteLater();
-        pendingRedirectResolve_ = nullptr;
-    }
+    // A fresh play() call aborted any reply still in flight from an
+    // already-superseded track above, so a stale resolution can never race
+    // ahead of a newer one and load the wrong file.
 
     QNetworkReply* reply = networkManager_->head(QNetworkRequest(QUrl(url)));
     pendingRedirectResolve_ = reply;

@@ -65,6 +65,18 @@ QProcessEnvironment backendEnvironment(const Connection& connection)
     return env;
 }
 
+void bypassProxyForLoopback()
+{
+    for (const char* name : { "no_proxy", "NO_PROXY" }) {
+        QByteArray value = qgetenv(name);
+        for (const QByteArray host : { QByteArray("localhost"), QByteArray("127.0.0.1"), QByteArray("::1") }) {
+            if (!value.split(',').contains(host))
+                value += (value.isEmpty() ? "" : ",") + host;
+        }
+        qputenv(name, value);
+    }
+}
+
 QNetworkProxy networkProxy(const Config::ProxyConfig& proxy)
 {
     const auto type

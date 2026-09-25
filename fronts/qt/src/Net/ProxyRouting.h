@@ -41,6 +41,12 @@ QString proxyUrl(const Config::ProxyConfig& proxy);
 // letter cases, as tools disagree on which one they read.
 QProcessEnvironment backendEnvironment(const Connection& connection);
 
+// Adds loopback to this process's own no_proxy/NO_PROXY. mpv's ffmpeg
+// takes http_proxy from the environment, and would otherwise send its
+// requests for the local Playback::StreamRelay out to a system proxy that
+// can't reach it. Call once, before anything networks.
+void bypassProxyForLoopback();
+
 // For QNetworkAccessManager requests made for the source. System asks
 // Qt's view of the system configuration for `url`.
 QNetworkProxy networkProxy(const Connection& connection, const QUrl& url);

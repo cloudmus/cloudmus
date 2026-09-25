@@ -1,8 +1,12 @@
 #pragma once
 
+#include <QNetworkProxy>
 #include <QObject>
 #include <QString>
 #include <QVector>
+
+#include <functional>
+#include <optional>
 
 #include "Coro.h"
 #include "Models.h"
@@ -35,6 +39,12 @@ class PlaybackController : public QObject {
 public:
     explicit PlaybackController(Rpc::SourceManager& sourceManager, QObject* parent = nullptr);
     ~PlaybackController() override;
+
+    // How a source's stream URLs are fetched — see AudioPlayer::play()'s
+    // `route` (none: as the system has it). Asked at each play, so a
+    // changed connection applies from the next track.
+    using StreamRouteProvider = std::function<std::optional<QNetworkProxy>(const QString& sourceId)>;
+    void setStreamRouteProvider(StreamRouteProvider provider) { streamRouteProvider_ = std::move(provider); }
 
     void loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex);
     // Same, for a queue whose entries can come from different sources
@@ -104,6 +114,7 @@ private:
 
     Rpc::SourceManager& sourceManager_;
     AudioPlayer* audioPlayer_ = nullptr;
+    StreamRouteProvider streamRouteProvider_;
 
     QVector<QueueEntry> queue_;
     int index_ = -1;

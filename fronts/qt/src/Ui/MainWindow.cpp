@@ -106,6 +106,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     for (const History::HistoryEntry& e : playbackHistory_->entries()) {
         trackStates_->setLastPlayed(e.sourceId, e.track.id, e.playedAt);
         trackStates_->observe(e.sourceId, e.track, /*onlyIfUnknown=*/true);
+        coverArtCache_->assignSource(e.sourceId, { e.track });
     }
     connect(
         trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
@@ -476,6 +477,7 @@ void MainWindow::wireSource(Rpc::RpcClient* client)
         = [this, client](const StreamReadyParams& p) { playback_.handleStreamReady(client->sourceId(), p); };
     client->notifications.onRadioTracksAdded = [this, client](const TracksAddedParams& p) {
         trackStates_->observe(client->sourceId(), p.tracks);
+        coverArtCache_->assignSource(client->sourceId(), p.tracks);
         playback_.handleTracksAdded(client->sourceId(), p);
     };
     client->notifications.onError = [this](const ErrorParams& e) { toastNotifier_->showError(e.message); };
@@ -664,6 +666,8 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
             qCWarning(lcMainWindow) << "catalog.listPlaylists failed for" << client->sourceId() << ":" << e.what();
         }
     }
+    for (const Playlist& playlist : playlists)
+        coverArtCache_->assignSource(client->sourceId(), playlist.coverUrl.value_or(QString()));
     sidebarModel_->setSource(client->sourceId(), client->sourceName(), playlists);
     // setSource() just recreated this source's header row from scratch,
     // dropping any warning/loading/error icon it had — reapply from the
@@ -834,6 +838,7 @@ Rpc::Task<QVector<Playback::QueueEntry>> MainWindow::fetchTracksAsync(QString so
         tracks = (co_await Rpc::catalogListTracks(*client, params)).tracks;
     }
     trackStates_->observe(sourceId, tracks);
+    coverArtCache_->assignSource(sourceId, tracks);
     entries.reserve(tracks.size());
     for (const Track& track : tracks)
         entries.append(Playback::QueueEntry { sourceId, track });
@@ -1040,6 +1045,7 @@ Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed, Acti
         StartRadioParams params { seed };
         StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
         trackStates_->observe(sourceId, result.initialTracks);
+        coverArtCache_->assignSource(sourceId, result.initialTracks);
         // Before startRadio(), so the queue it emits lands in the main
         // list under the right playlist.
         setActiveContext(context);

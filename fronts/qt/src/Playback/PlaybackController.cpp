@@ -238,7 +238,8 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
     // Loading indicator / playTimeoutTimer_ stay active until
     // AudioPlayer::started() or failed() — play() is asynchronous now (see
     // AudioPlayer.h), it may still be downloading the stream.
-    audioPlayer_->play(params.stream.url, title);
+    audioPlayer_->play(params.stream.url, title,
+        streamRouteProvider_ ? streamRouteProvider_(queue_[index_].sourceId) : std::nullopt);
 }
 
 void PlaybackController::advance(int delta, bool wasSkip)

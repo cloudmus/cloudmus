@@ -51,6 +51,8 @@ Rpc::Task<void> shutdownAllAndQuit(Rpc::SourceManager& sourceManager)
 
 int main(int argc, char** argv)
 {
+    // Before libmpv or any network access reads the environment.
+    Net::bypassProxyForLoopback();
     QApplication app(argc, argv);
     // Fusion, not whatever native style the desktop provides (Breeze under
     // KDE): Breeze's own QCommonStyle-derived painting largely ignores QSS
@@ -196,6 +198,17 @@ int main(int argc, char** argv)
     // through a proxy, directly, or as the environment has it.
     sourceManager.setEnvironmentProvider([&settings](const QString& sourceId) {
         return Net::backendEnvironment(Net::connectionFor(settings, sourceId));
+    });
+    // ...and so do the stream URLs and covers it hands out, which the
+    // front fetches.
+    window.coverArtCache()->setProxyProvider([&settings](const QString& sourceId, const QUrl& url) {
+        return Net::networkProxy(Net::connectionFor(settings, sourceId), url);
+    });
+    playback.setStreamRouteProvider([&settings](const QString& sourceId) -> std::optional<QNetworkProxy> {
+        const Net::Connection connection = Net::connectionFor(settings, sourceId);
+        if (connection.mode == Net::Connection::Mode::System)
+            return std::nullopt;
+        return Net::networkProxy(connection, QUrl());
     });
     sourceManager.startAll();
 

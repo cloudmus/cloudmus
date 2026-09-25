@@ -1,7 +1,10 @@
 #pragma once
 
+#include <QNetworkProxy>
 #include <QObject>
 #include <QString>
+
+#include <optional>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -10,6 +13,8 @@ struct mpv_handle;
 struct mpv_event;
 
 namespace Playback {
+
+class StreamRelay;
 
 // Thin wrapper around libmpv — see docs/adr or the AudioPlayer.cpp comment
 // for why this replaced Qt Multimedia's QMediaPlayer: on hybrid Intel/AMD +
@@ -27,7 +32,10 @@ public:
     explicit AudioPlayer(QObject* parent = nullptr);
     ~AudioPlayer() override;
 
-    void play(const QString& url, const QString& title);
+    // `route`: fetch the stream through this proxy (NoProxy: explicitly
+    // directly), via StreamRelay; none — as the system has it, straight
+    // from mpv.
+    void play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route = std::nullopt);
     void pause();
     void resume();
     void stop();
@@ -67,6 +75,8 @@ private:
     // aborts and replaces this rather than letting a stale reply from an
     // already-superseded track race the new one.
     QNetworkReply* pendingRedirectResolve_ = nullptr;
+    // Created on first use: only a source with its own connection needs it.
+    StreamRelay* relay_ = nullptr;
 };
 
 } // namespace Playback

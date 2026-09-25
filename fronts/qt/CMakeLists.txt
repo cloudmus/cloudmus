@@ -76,6 +76,7 @@ add_executable(cloudmus-qt
     src/Rpc/AuthStates.cpp
 
     src/Playback/AudioPlayer.cpp
+    src/Playback/StreamRelay.cpp
     src/Playback/PlaybackController.cpp
 
     src/Config/Settings.cpp
