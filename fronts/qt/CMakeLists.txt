@@ -81,6 +81,7 @@ add_executable(cloudmus-qt
 
     src/History/PlaybackHistory.cpp
     src/Library/TrackStates.cpp
+    src/Library/DownloadPaths.cpp
 
     src/Ui/MainWindow.cpp
     src/Ui/AboutDialog.cpp

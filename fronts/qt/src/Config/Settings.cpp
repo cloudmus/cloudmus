@@ -3,9 +3,20 @@
 #include <QDir>
 #include <QStandardPaths>
 
+#include <utility>
+
 namespace Config {
 
 namespace {
+// Stored by name, not by enum value, so reordering the enum can't
+// reinterpret an existing config.
+constexpr std::pair<Settings::DownloadLayout, const char*> kDownloadLayoutNames[] = {
+    { Settings::DownloadLayout::Flat, "flat" },
+    { Settings::DownloadLayout::BySource, "source" },
+    { Settings::DownloadLayout::ByArtist, "artist" },
+    { Settings::DownloadLayout::ByArtistAlbum, "artistAlbum" },
+};
+
 QString configFilePath()
 {
     const QString configHome = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
@@ -112,6 +123,24 @@ void Settings::setDownloadDirectory(const QString& path)
         settings_.remove(QStringLiteral("download/directory"));
     else
         settings_.setValue(QStringLiteral("download/directory"), cleaned);
+}
+
+Settings::DownloadLayout Settings::downloadLayout() const
+{
+    const QString name = settings_.value(QStringLiteral("download/layout")).toString();
+    for (const auto& [layout, layoutName] : kDownloadLayoutNames) {
+        if (name == QLatin1String(layoutName))
+            return layout;
+    }
+    return DownloadLayout::Flat;
+}
+
+void Settings::setDownloadLayout(DownloadLayout layout)
+{
+    for (const auto& [candidate, name] : kDownloadLayoutNames) {
+        if (candidate == layout)
+            settings_.setValue(QStringLiteral("download/layout"), QString::fromLatin1(name));
+    }
 }
 
 } // namespace Config

@@ -343,6 +343,52 @@ QScrollArea#settingsPages { background: %5; border: none; })")
         .arg(hex(p.surface100), hex(p.surface400), hex(p.accent), QString::number(Spacing::space2), hex(p.surface0));
 }
 
+// Drop-down lists in themed dialogs, in the same raised-field look as
+// QLineEdit (dialogsBlock()). combobox-popup: 0 opens the list below the
+// field like a menu, instead of Fusion's list centered over the current
+// item. The ::item rules only take effect with a QStyledItemDelegate set
+// on the combo — its default delegate ignores QSS.
+QString comboBoxBlock(const Palette& p)
+{
+    const QString arrow = iconAssetPath(QStringLiteral("expand_more"), IconColor::InkSecondary, 16);
+
+    return QStringLiteral(R"(QDialog[themed="true"] QComboBox {
+    background: %1;
+    border: 1px solid %2;
+    border-radius: %3px;
+    padding: %4px %5px;
+    color: %6;
+    combobox-popup: 0;
+}
+QDialog[themed="true"] QComboBox:hover { border-color: %7; }
+QDialog[themed="true"] QComboBox:focus, QDialog[themed="true"] QComboBox:on { border-color: %8; }
+QDialog[themed="true"] QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 24px;
+    border: none;
+}
+QDialog[themed="true"] QComboBox::down-arrow { image: url("%9"); width: 16px; height: 16px; }
+QDialog[themed="true"] QComboBox QAbstractItemView {
+    background: %1;
+    border: 1px solid %2;
+    color: %6;
+    outline: 0;
+    padding: %4px;
+}
+QDialog[themed="true"] QComboBox QAbstractItemView::item {
+    min-height: 28px;
+    padding: 0px %5px;
+    border-radius: %3px;
+}
+QDialog[themed="true"] QComboBox QAbstractItemView::item:hover { background: %10; }
+QDialog[themed="true"] QComboBox QAbstractItemView::item:selected { background: %11; color: %8; }
+QDialog[themed="true"] QLabel[hint="true"] { color: %12; })")
+        .arg(hex(p.surface200), hex(p.border), QString::number(Radius::sm), QString::number(Spacing::space1),
+            QString::number(Spacing::space2), hex(p.ink), hex(p.borderStrong), hex(p.accent), arrow)
+        .arg(hex(p.surface300), hex(p.surface400), hex(p.inkSecondary));
+}
+
 } // namespace
 
 QString buildStyleSheet(Mode mode)
@@ -353,7 +399,7 @@ QString buildStyleSheet(Mode mode)
     // hides the real QScrollBar entirely and paints its own floating
     // handle — a QSS rule for QScrollBar would never be reached.
     return buttonsBlock(p) + textButtonsBlock(p) + toolBarBlock(p) + panelsBlock(p) + progressBarBlock(p)
-        + sidebarTreeBlock(p) + trackListBlock(p) + dialogsBlock(p) + settingsBlock(p);
+        + sidebarTreeBlock(p) + trackListBlock(p) + dialogsBlock(p) + settingsBlock(p) + comboBoxBlock(p);
 }
 
 void applyGlobalStyleSheet(QApplication& app)

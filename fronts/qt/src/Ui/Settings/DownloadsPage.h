@@ -1,12 +1,11 @@
 #pragma once
 
+#include "Settings.h"
 #include "Settings/Page.h"
 
+class QComboBox;
+class QLabel;
 class QLineEdit;
-
-namespace Config {
-class Settings;
-}
 
 namespace Ui::Settings {
 
@@ -19,15 +18,20 @@ public:
     QString id() const override { return QStringLiteral("downloads"); }
     QString title() const override;
     QString iconName() const override { return QStringLiteral("file_download"); }
-    int estimatedHeight() const override { return 60; }
+    int estimatedHeight() const override { return 110; }
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;
     void apply() override;
 
 private:
+    Config::Settings::DownloadLayout selectedLayout() const;
+    void updateExample();
+
     Config::Settings& settings_;
     QLineEdit* downloadDirEdit_ = nullptr;
+    QComboBox* layoutCombo_ = nullptr;
+    QLabel* exampleLabel_ = nullptr;
 };
 
 } // namespace Ui::Settings

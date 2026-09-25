@@ -48,6 +48,17 @@ public:
     bool startHiddenAtLogin() const;
     void setStartHiddenAtLogin(bool value);
 
+    // Subfolders of the download folder a track is saved into — see
+    // Library::downloadDirectoryFor().
+    enum class DownloadLayout {
+        Flat,
+        BySource, // <source name>/
+        ByArtist, // <artist>/
+        ByArtistAlbum, // <artist>/<album>/
+    };
+    DownloadLayout downloadLayout() const;
+    void setDownloadLayout(DownloadLayout layout);
+
     static QString defaultDownloadDirectory();
     QString downloadDirectory() const;
     // An empty path or the default one resets to the default.

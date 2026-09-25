@@ -5,6 +5,7 @@
 #include <QCloseEvent>
 #include <QCursor>
 #include <QDesktopServices>
+#include <QDir>
 #include <QEvent>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -29,6 +30,7 @@
 
 #include "AboutDialog.h"
 #include "CoverArtCache.h"
+#include "DownloadPaths.h"
 #include "EmptyStatePlaceholder.h"
 #include "HeroPanel.h"
 #include "Icons.h"
@@ -1265,9 +1267,16 @@ Rpc::Task<void> MainWindow::downloadTrackAsync(QString sourceId, Track track)
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr || !client->available())
         co_return;
+    const QString destDir = Library::downloadDirectoryFor(
+        settings_.downloadDirectory(), settings_.downloadLayout(), client->sourceName(), track);
+    // docs/protocol.md §7.5: destDir must already exist.
+    if (!QDir().mkpath(destDir)) {
+        toastNotifier_->showError(tr("Can't create the folder %1").arg(destDir));
+        co_return;
+    }
     toastNotifier_->showInfo(tr("Downloading \"%1\"…").arg(track.title));
     try {
-        DownloadTrackParams params { track.id, settings_.downloadDirectory() };
+        DownloadTrackParams params { track.id, destDir };
         DownloadTrackResult result = co_await Rpc::catalogDownloadTrack(*client, params);
         Q_UNUSED(result);
         toastNotifier_->showInfo(tr("Saved \"%1\"").arg(track.title));
