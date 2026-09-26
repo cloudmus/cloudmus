@@ -1,9 +1,12 @@
 #include "FakeBackend.h"
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStandardPaths>
 
 #include <cstdio>
 #include <iostream>
@@ -67,6 +70,24 @@ QStringList fakeBackendArgv()
     return { QCoreApplication::applicationFilePath(), QString::fromLatin1(kFakeBackendArgument) };
 }
 
+void installFakeBackendManifest()
+{
+    qunsetenv("CLOUDMUS_DEV_BACKENDS");
+    QDir dir(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+        + QStringLiteral("/cloudmus/backends.d"));
+    dir.removeRecursively();
+    dir.mkpath(QStringLiteral("."));
+    const QJsonObject manifest {
+        { QStringLiteral("id"), QStringLiteral("fake") },
+        { QStringLiteral("name"), QStringLiteral("Fake Source") },
+        { QStringLiteral("argv"), QJsonArray::fromStringList(fakeBackendArgv()) },
+        { QStringLiteral("protocolVersion"), QStringLiteral("1.6") },
+    };
+    QFile file(dir.filePath(QStringLiteral("fake.json")));
+    file.open(QIODevice::WriteOnly);
+    file.write(QJsonDocument(manifest).toJson());
+}
+
 int runFakeBackend()
 {
     std::string line;
@@ -94,6 +115,10 @@ int runFakeBackend()
                     QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("p1") },
                         { QStringLiteral("title"), QStringLiteral("First") }, { QStringLiteral("trackCount"), 2 },
                         { QStringLiteral("kind"), QStringLiteral("playlist") } } } } });
+        } else if (method == QStringLiteral("auth.getStatus")) {
+            reply(id, { { QStringLiteral("status"), QStringLiteral("authenticated") } });
+        } else if (method == QStringLiteral("auth.submit")) {
+            replyError(id, 1002, QStringLiteral("wrong password"));
         } else if (method == QStringLiteral("shutdown")) {
             reply(id, { });
             return 0;

@@ -8,6 +8,7 @@
 #include "PlaybackHistory.h"
 #include "Settings.h"
 #include "SourceManager.h"
+#include "SourceSession.h"
 #include "TrackStates.h"
 
 namespace App {
@@ -30,6 +31,7 @@ public:
     History::PlaybackHistory& playbackHistory() { return playbackHistory_; }
     Library::TrackStates& trackStates() { return trackStates_; }
     Covers::CoverArtCache& coverArtCache() { return coverArtCache_; }
+    SourceSession& sourceSession() { return sourceSession_; }
 
 private:
     // Declaration order is construction order: playback_ needs
@@ -41,6 +43,7 @@ private:
     History::PlaybackHistory playbackHistory_;
     Library::TrackStates trackStates_;
     Covers::CoverArtCache coverArtCache_;
+    SourceSession sourceSession_;
 };
 
 } // namespace App

@@ -14,6 +14,11 @@ inline constexpr char kFakeBackendArgument[] = "--fake-backend";
 // The argv for a Rpc::BackendManifest that starts the fake backend.
 QStringList fakeBackendArgv();
 
+// Installs the fake backend as the only backend Rpc::discoverManifests()
+// finds — into the test-mode config location (QStandardPaths test mode is
+// on for the whole run, see main.cpp), with dev-mode discovery off.
+void installFakeBackendManifest();
+
 // The fake backend's main loop: reads requests until stdin closes or a
 // `shutdown` request, and returns the process's exit code.
 int runFakeBackend();

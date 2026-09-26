@@ -89,6 +89,7 @@ add_library(cloudmus-core STATIC
     src/Covers/CoverArtCache.cpp
 
     src/App/Core.cpp
+    src/App/SourceSession.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 )
@@ -221,6 +222,7 @@ add_executable(cloudmus-qt-tests
     tests/main.cpp
     tests/FakeBackend.cpp
     tests/RpcClientTest.cpp
+    tests/SourceSessionTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

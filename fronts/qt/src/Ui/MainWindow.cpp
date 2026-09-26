@@ -95,6 +95,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , sourceManager_(core.sourceManager())
     , playback_(core.playback())
     , settings_(core.settings())
+    , sourceSession_(core.sourceSession())
     , coverArtCache_(&core.coverArtCache())
     , playbackHistory_(&core.playbackHistory())
     , trackStates_(&core.trackStates())
@@ -489,7 +490,8 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // (sourceManager_.startAll() runs after MainWindow is constructed — see
     // main.cpp), not once loadPlaylistsAsync() first succeeds — a backend
     // that's slow to start or still authenticating must stay visible. Shown
-    // as loading until wireSource()'s loadPlaylistsAsync() fills it in.
+    // as loading until loadPlaylistsAsync() (on SourceSession::sourceReady)
+    // fills it in.
     connect(&sourceManager_, &Rpc::SourceManager::sourceStarting, this, [this](const Rpc::BackendManifest& manifest) {
         sidebarModel_->setSourceIconPath(manifest.id, manifest.iconPath);
         sidebarModel_->setFavorites(manifest.id, settings_.favorites(manifest.id));
@@ -513,7 +515,14 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
             syncSidebarSelection();
         }
     });
-    connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, &MainWindow::wireSource);
+    // App::SourceSession has wired the source up by now (it runs first):
+    // all that's left for the window is listing what it offers.
+    connect(&sourceSession_, &App::SourceSession::sourceReady, this,
+        [this](Rpc::RpcClient* client) { loadPlaylistsAsync(client).detach(); });
+    connect(&sourceSession_, &App::SourceSession::signedIn, this,
+        [this](Rpc::RpcClient* client) { loadPlaylistsAsync(client).detach(); });
+    connect(&sourceSession_, &App::SourceSession::errorOccurred, this,
+        [this](const QString& message) { toastNotifier_->showError(message); });
     connect(&sourceManager_, &Rpc::SourceManager::sourceUnavailable, this, &MainWindow::onSourceUnavailable);
 
     // Restore the last active playlist (without playing it). History is
@@ -534,76 +543,13 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
 
 MainWindow::~MainWindow() { settings_.setWindowGeometry(saveGeometry()); }
 
-void MainWindow::wireSource(Rpc::RpcClient* client)
-{
-    client->notifications.onTrackStreamReady
-        = [this, client](const StreamReadyParams& p) { playback_.handleStreamReady(client->sourceId(), p); };
-    client->notifications.onRadioTracksAdded = [this, client](const TracksAddedParams& p) {
-        trackStates_->observe(client->sourceId(), p.tracks);
-        coverArtCache_->assignSource(client->sourceId(), p.tracks);
-        playback_.handleTracksAdded(client->sourceId(), p);
-    };
-    client->notifications.onError = [this](const ErrorParams& e) { toastNotifier_->showError(e.message); };
-    // Into authStates_, whose changed() repaints every view of it — see
-    // updateSourceAuthIndicator().
-    client->onAuthPromptRaw
-        = [this, client](const QJsonObject& params) { authStates_->setPrompt(client->sourceId(), params); };
-    client->notifications.onAuthStatusChanged = [this, client](const StatusChangedParams& status) {
-        if (status.status == QStringLiteral("authenticated")) {
-            authStates_->setAuthenticated(client->sourceId());
-            loadPlaylistsAsync(client).detach();
-        } else {
-            const QString message = status.message.value_or(QString());
-            qCWarning(lcMainWindow) << "auth error for" << client->sourceId() << ":" << message;
-            toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
-            authStates_->setError(client->sourceId(), message);
-        }
-    };
-
-    const QJsonObject auth = client->capabilities().value(QStringLiteral("auth")).toObject();
-    if (auth.value(QStringLiteral("required")).toBool()) {
-        ensureAuthenticatedAsync(client).detach();
-    }
-    loadPlaylistsAsync(client).detach();
-}
-
-Rpc::Task<void> MainWindow::ensureAuthenticatedAsync(Rpc::RpcClient* client)
-{
-    try {
-        GetStatusResult status = co_await Rpc::authGetStatus(*client);
-        if (status.status != QStringLiteral("authenticated")) {
-            // auth.start is idempotent on the backend side (a session
-            // already in flight just no-ops) — safe to call unconditionally
-            // for unauthenticated/pending/error status alike, same as the
-            // TUI's `if status["status"] != "authenticated": auth.start`.
-            co_await Rpc::authStart(*client);
-        }
-    } catch (const std::exception& e) {
-        // std::exception, not Rpc::RpcCallException: also catches
-        // Rpc::ProtocolParseError (a well-formed JSON-RPC response whose
-        // *content* doesn't match the protocol schema — e.g. a field typed
-        // wrong) — same std::runtime_error base, e.what() carries the same
-        // message either way (RpcCallException's constructor sets it from
-        // error.message directly). A failure here is auth.getStatus/
-        // auth.start itself erroring, distinct from the backend's own auth
-        // flow later failing asynchronously via auth/statusChanged (handled
-        // in wireSource's onAuthStatusChanged). Both must be visible: this
-        // used to only catch RpcCallException and silently swallow anything
-        // else, which is exactly how a Retry click could look like it did
-        // nothing.
-        const QString message = QString::fromStdString(e.what());
-        qCWarning(lcMainWindow) << "auth.getStatus/auth.start failed for" << client->sourceId() << ":" << message;
-        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
-    }
-}
-
 Rpc::Task<void> MainWindow::retryAuthAsync(QString sourceId)
 {
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
         co_return;
     sourcePanel_->setAuthActionBusy(true);
-    co_await ensureAuthenticatedAsync(client);
+    co_await sourceSession_.signIn(sourceId);
     // Guard: the user may have switched to a different source's panel (or
     // closed this one) while the round-trip was in flight — don't touch a
     // busy indicator that isn't even showing for sourceId anymore.
@@ -725,7 +671,7 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
             // way so that case is at least diagnosable without re-running
             // the backend by hand. The sidebar itself simply won't show
             // playlists for this source until it retries (e.g. after auth
-            // completes, see wireSource's onAuthStatusChanged).
+            // completes, see SourceSession::signedIn).
             qCWarning(lcMainWindow) << "catalog.listPlaylists failed for" << client->sourceId() << ":" << e.what();
         }
     }
@@ -735,7 +681,7 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
     // setSource() just recreated this source's header row from scratch,
     // dropping any warning/loading/error icon it had — reapply from the
     // cached state. Needed because this coroutine and the auth.start flow
-    // kicked off alongside it in wireSource() race: an auth/prompt can
+    // kicked off alongside it in App::SourceSession race: an auth/prompt can
     // arrive and set the icon before this RPC round-trip finishes, in which
     // case this call would otherwise silently wipe it back off.
     updateSourceAuthIndicator(client->sourceId());
@@ -1367,18 +1313,9 @@ Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields
     if (client == nullptr)
         co_return;
     sourcePanel_->setAuthActionBusy(true);
-    try {
-        SubmitParams params;
-        for (auto it = fields.constBegin(); it != fields.constEnd(); ++it) {
-            params.fields.insert(it.key(), it.value().toString());
-        }
-        co_await Rpc::authSubmit(*client, params);
-    } catch (const std::exception& e) {
-        const QString message = QString::fromStdString(e.what());
-        qCWarning(lcMainWindow) << "auth.submit failed for" << sourceId << ":" << message;
-        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
-        sourcePanel_->showError(message);
-    }
+    const QString error = co_await sourceSession_.submitSignIn(sourceId, fields);
+    if (!error.isEmpty())
+        sourcePanel_->showError(error);
     sourcePanel_->setAuthActionBusy(false);
 }
 
@@ -1761,7 +1698,7 @@ void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }
 void MainWindow::showSettingsDialog(const QString& openAt)
 {
     SettingsDialog dialog(settings_, sourceManager_, *authStates_, this, openAt);
-    // While it's up, this window's toasts (an auth error from wireSource(),
+    // While it's up, this window's toasts (an auth error from App::SourceSession,
     // a download finishing) go to the dialog instead: this window is
     // behind it, where they'd go unseen. Restored before the dialog, and
     // its notifier with it, is destroyed.

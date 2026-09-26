@@ -108,7 +108,6 @@ private:
     // Theme::glassChanged(): the window's translucency follows.
     void applyGlass();
 
-    void wireSource(Rpc::RpcClient* client);
     void onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail);
     void onSourceStopped(const QString& sourceId);
     void onSidebarActivated(const QModelIndex& index);
@@ -213,13 +212,6 @@ private:
     void activateFromSheet(int row);
     void playAllFromSheet();
 
-    // Mirrors the TUI's on_mount auth check (fronts/tui/cloudmus_tui/app.py):
-    // ask auth.getStatus, and if the backend isn't already authenticated,
-    // call auth.start so it begins its flow and starts pushing auth/prompt /
-    // auth/statusChanged notifications. Without this, a never-authenticated
-    // backend just sits idle — SourcePanel has full rendering support for
-    // all three flows but nothing ever asks the backend to start one.
-    Rpc::Task<void> ensureAuthenticatedAsync(Rpc::RpcClient* client);
     Rpc::Task<void> loadPlaylistsAsync(Rpc::RpcClient* client);
     // By value, not const&: these coroutines resume asynchronously (after an
     // RPC round-trip) and use their params again after that resume — a
@@ -231,7 +223,7 @@ private:
     // Starts a radio station and, once it's running, makes `context` active.
     Rpc::Task<void> startRadioAsync(QString sourceId, QString seed, ActiveContext context);
     Rpc::Task<void> submitAuthAsync(QString sourceId, QJsonObject fields);
-    // The Retry button's handler: wraps ensureAuthenticatedAsync with
+    // The Retry button's handler: wraps App::SourceSession::signIn() with
     // sourcePanel_'s busy state (disables Retry/Submit + shows a spinner
     // for the duration) so a click can't be repeated mid-flight and the
     // user sees something actually happened.
@@ -291,6 +283,7 @@ private:
     Rpc::SourceManager& sourceManager_;
     Playback::PlaybackController& playback_;
     Config::Settings& settings_;
+    App::SourceSession& sourceSession_;
 
     void repositionTrackListBusyIndicator();
     // Shows/hides trackListPane_ and, together with it, collapses/restores

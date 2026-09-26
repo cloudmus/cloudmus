@@ -7,6 +7,7 @@ namespace App {
 Core::Core(QObject* parent)
     : QObject(parent)
     , playback_(sourceManager_)
+    , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_)
 {
     // History's saved snapshots: when each track was last played, plus
     // whatever like state it was recorded with — only where nothing
