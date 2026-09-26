@@ -94,40 +94,61 @@ def test_available_tracks_filters_unavailable_and_missing_video_id():
     assert [s["videoId"] for s in result] == ["a"]
 
 
-def test_find_supermix_id_matches_exact_title_across_shelves():
-    # Confirmed live against a real account: "My Supermix" appears under
-    # more than one shelf (e.g. both "Listen again" and "Mixed for you"),
-    # always with the same playlistId — matching on the item's own title
-    # rather than the (less stable) shelf title.
+SUPERMIX = "RDTMAK5uy_supermix"
+MIX1 = "RDTMAK5uy_mix1"
+DISCOVER = "RDTMAK5uy_discover"
+
+
+def _mix(title, playlist_id, description="A, B, C"):
+    return {
+        "title": title,
+        "playlistId": playlist_id,
+        "description": description,
+        "thumbnails": [{"url": f"https://img/{playlist_id}-200"}, {"url": f"https://img/{playlist_id}-600"}],
+    }
+
+
+def test_find_mixes_collects_every_personal_mix_across_shelves_once():
+    # Confirmed live: the mixes are spread over several shelves, and the
+    # same mix can appear on more than one of them.
     home = [
-        {"title": "Listen again", "contents": [{"title": "Some Song", "playlistId": "RDAMVMxyz"}]},
-        {
-            "title": "Mixed for you",
-            "contents": [
-                {"title": "My Supermix", "playlistId": "RDTMsupermix123"},
-                {"title": "My Mix 1", "playlistId": "RDTMmix1"},
-            ],
-        },
+        {"title": "Listen again", "contents": [_mix("My Supermix", SUPERMIX), {"title": "Song", "playlistId": "RDAMVMxyz"}]},
+        {"title": "Mixed for you", "contents": [_mix("My Mix 1", MIX1), _mix("My Supermix", SUPERMIX)]},
+        {"title": "Fresh finds, old favorites", "contents": [_mix("Discover Mix", DISCOVER)]},
     ]
-    assert catalog._find_supermix_id(home) == "RDTMsupermix123"
+    assert [m["playlistId"] for m in catalog._find_mixes(home)] == [SUPERMIX, MIX1, DISCOVER]
 
 
-def test_find_supermix_id_absent_returns_none():
-    home = [{"title": "Listen again", "contents": [{"title": "Some Song", "playlistId": "RDAMVMxyz"}]}]
-    assert catalog._find_supermix_id(home) is None
+def test_find_mixes_skips_editorial_playlists_radios_and_non_playlists():
+    home = [
+        {
+            "title": "Party music",
+            "contents": [
+                {"title": "'80s Pop", "playlistId": "RDCLAK5uy_k1Wu8Q"},
+                {"title": "Electronic Mix", "playlistId": "RDATgi"},
+                {"title": "Some Artist", "browseId": "UCxyz"},
+                None,
+            ],
+        }
+    ]
+    assert catalog._find_mixes(home) == []
 
 
-def test_find_supermix_id_ignores_items_with_no_playlist_id():
-    # e.g. an artist or album result card, which get_home() also returns
-    # mixed into the same shelves (has "browseId", not "playlistId").
-    home = [{"title": "Mixed for you", "contents": [{"title": "My Supermix", "browseId": "UCxyz"}]}]
-    assert catalog._find_supermix_id(home) is None
+def test_mix_playlist_shape():
+    d = catalog._mix_playlist(_mix("My Mix 1", MIX1, "ABBA, a-ha")).to_dict()
+    assert d == {
+        "id": MIX1,
+        "title": "My Mix 1",
+        "description": "ABBA, a-ha",
+        "coverUrl": f"https://img/{MIX1}-600",
+        "trackCount": 0,
+        "kind": "radioStation",
+    }
 
 
-def test_supermix_playlist_shape():
-    p = catalog._supermix_playlist("RDTMsupermix123")
-    d = p.to_dict()
-    assert d == {"id": "RDTMsupermix123", "title": "My Supermix", "trackCount": 0, "kind": "radioStation"}
+def test_only_supermix_is_featured():
+    assert catalog._mix_playlist(_mix("My Supermix", SUPERMIX)).featured is True
+    assert catalog._mix_playlist(_mix("My Mix 1", MIX1)).featured is None
 
 
 class _FakeClient:
@@ -147,21 +168,39 @@ class _FakeClient:
 
 
 @pytest.mark.asyncio
-async def test_list_playlists_includes_supermix_when_present():
+async def test_list_playlists_includes_every_mix_after_liked():
     client = _FakeClient(
-        home=[{"title": "Mixed for you", "contents": [{"title": "My Supermix", "playlistId": "RDTMsupermix123"}]}],
+        home=[{"title": "Mixed for you", "contents": [_mix("My Mix 1", MIX1), _mix("My Supermix", SUPERMIX)]}],
         library_playlists=[{"playlistId": "PL1", "title": "My Playlist", "count": 1}],
         liked_tracks=[],
     )
     result = await catalog.list_playlists(client)
-    kinds_by_id = {p["id"]: p["kind"] for p in result["playlists"]}
-    assert kinds_by_id["RDTMsupermix123"] == "radioStation"
-    assert kinds_by_id[catalog.LIKED_PLAYLIST_ID] == "liked"
-    assert kinds_by_id["PL1"] == "playlist"
+    assert [(p["id"], p["kind"]) for p in result["playlists"]] == [
+        (catalog.LIKED_PLAYLIST_ID, "liked"),
+        (MIX1, "radioStation"),
+        (SUPERMIX, "radioStation"),
+        ("PL1", "playlist"),
+    ]
 
 
 @pytest.mark.asyncio
-async def test_list_playlists_omits_supermix_when_get_home_fails():
+async def test_list_playlists_liked_takes_youtubes_liked_music_cover_and_replaces_it():
+    client = _FakeClient(
+        home=[],
+        library_playlists=[
+            {"playlistId": "LM", "title": "Liked Music", "thumbnails": [{"url": "https://img/liked-576.png"}]},
+            {"playlistId": "PL1", "title": "My Playlist", "count": 1},
+        ],
+        liked_tracks=[],
+    )
+    playlists = (await catalog.list_playlists(client))["playlists"]
+    assert [p["id"] for p in playlists] == [catalog.LIKED_PLAYLIST_ID, "PL1"]
+    assert playlists[0]["coverUrl"] == "https://img/liked-576.png"
+    assert playlists[0]["featured"] is True
+
+
+@pytest.mark.asyncio
+async def test_list_playlists_omits_mixes_when_get_home_fails():
     class _FailingHomeClient(_FakeClient):
         def get_home(self, limit=3):
             raise RuntimeError("network blip")
