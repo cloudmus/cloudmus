@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Callable, TypeVar
 
 from yandex_music import Client, Playlist as YPlaylist, Track as YTrack
 
 from rpc_common.generated.models import Album, Artist, Playlist, Track
 
 COVER_SIZE = "400x400"
+
+T = TypeVar("T")
 
 logger = logging.getLogger(__name__)
 
@@ -79,13 +82,14 @@ likes = LikeCache()
 # copy). Also doubles as this synthesized playlist's id (§ list_playlists).
 WAVE_STATION_ID = "user:onyourwave"
 
-# yandex_music's rotor_stations_list() enumerates genre/mood stations but
-# never includes the personal wave station, so there is no per-account
-# icon/description available for it via the API — use a static description
-# and leave coverUrl unset, so the front generates its own cover from the
-# title instead (see fronts/qt/src/Ui/GeneratedCoverArt.h).
+# rotor_stations_list() never includes the personal wave station, so there
+# is no description for it via the API — a static one. Its picture comes
+# from rotor_stations_dashboard(), which does list it (see _stations()).
 WAVE_DESCRIPTION = "Персональная станция на основе ваших вкусов и истории прослушиваний"
 LIKED_PLAYLIST_ID = "__liked__"
+# The account's "Мне нравится" as a regular playlist — only its cover is
+# used; its tracks come from users_likes_tracks() (see list_liked()).
+LIKES_PLAYLIST_KIND = 3
 
 
 def _cover_url(cover_uri: str | None) -> str | None:
@@ -136,32 +140,100 @@ def to_track(t: YTrack, *, liked: bool | None = None) -> Track:
     )
 
 
-def to_playlist(p: YPlaylist) -> Playlist:
+def _playlist_cover(p: YPlaylist) -> str | None:
+    # A playlist's own picture (a personal playlist's generated art, an
+    # uploaded image) when it has one, else the first album of its mosaic
+    # — og_image is that same first album.
+    cover = getattr(p, "cover", None)
+    uri = getattr(cover, "uri", None) or getattr(p, "og_image", None)
+    if not uri:
+        items = getattr(cover, "items_uri", None) or []
+        uri = items[0] if items else None
+    return _cover_url(uri)
+
+
+def to_playlist(p: YPlaylist, *, editable: bool = True, featured: bool | None = None) -> Playlist:
     # users_playlists_list() only lists the account's own playlists, so
-    # every one of them can be edited (docs/protocol.md §7.6).
+    # every one of them can be edited (docs/protocol.md §7.6) — unlike a
+    # personal playlist, which belongs to a Yandex system user.
     return Playlist(
         id=p.playlist_id,
         title=p.title or "(untitled)",
+        description=getattr(p, "description", None) or None,
+        coverUrl=_playlist_cover(p),
         trackCount=p.track_count or 0,
         kind="playlist",
-        editable=True,
+        editable=editable,
+        featured=featured,
     )
 
 
-def _wave_playlist() -> Playlist:
+# The personal playlist shown at the top level by default (Playlist.featured);
+# the others ("Премьера", "Дежавю", "Тайник", ...) wait to be picked as
+# favorites. A GeneratedPlaylist.type, stable across UI languages.
+FEATURED_PERSONAL_PLAYLIST = "playlistOfTheDay"
+
+
+def _personal_playlists(feed: object) -> list[Playlist]:
+    # Their ids are the usual "<owner uid>:<kind>", so listTracks finds
+    # them through _find_playlist() like any other playlist.
+    playlists = []
+    for generated in getattr(feed, "generated_playlists", None) or []:
+        data = generated.data
+        if data is None or not generated.ready:
+            continue
+        featured = True if generated.type == FEATURED_PERSONAL_PLAYLIST else None
+        playlists.append(to_playlist(data, editable=False, featured=featured))
+    return playlists
+
+
+def _stations(dashboard: object) -> list[Playlist]:
+    # The account's recommended stations ("Электроника", "Рок", ...),
+    # addressed "<type>:<tag>" like My Wave — a seed radio.py's
+    # _resolve_station() already passes through as is. My Wave is among
+    # them — list_playlists() takes just its picture for _wave_playlist().
+    stations = []
+    for result in getattr(dashboard, "stations", None) or []:
+        station = result.station
+        if station is None or station.id is None:
+            continue
+        station_id = f"{station.id.type}:{station.id.tag}"
+        image = station.full_image_url or (station.icon.image_url if station.icon else None)
+        stations.append(
+            Playlist(
+                id=station_id,
+                title=station.name or station_id,
+                coverUrl=_cover_url(image),
+                trackCount=0,
+                kind="radioStation",
+            )
+        )
+    return stations
+
+
+def _wave_playlist(cover_url: str | None = None) -> Playlist:
     return Playlist(
         id=WAVE_STATION_ID,
         title="Моя волна",
         description=WAVE_DESCRIPTION,
+        coverUrl=cover_url,
         # Continuous, not a fixed-length list — see docs/protocol.md's
         # kind: radioStation note; 0 signals "not applicable" here.
         trackCount=0,
         kind="radioStation",
+        featured=True,
     )
 
 
-def _liked_playlist(track_count: int) -> Playlist:
-    return Playlist(id=LIKED_PLAYLIST_ID, title="Мне нравится", trackCount=track_count, kind="liked")
+def _liked_playlist(track_count: int, cover_url: str | None = None) -> Playlist:
+    return Playlist(
+        id=LIKED_PLAYLIST_ID,
+        title="Мне нравится",
+        coverUrl=cover_url,
+        trackCount=track_count,
+        kind="liked",
+        featured=True,
+    )
 
 
 def playlist_tracks(playlist: YPlaylist) -> list[YTrack]:
@@ -181,20 +253,37 @@ def _find_playlist(client: Client, playlist_id: str) -> YPlaylist | None:
     return client.users_playlists(int(uid_str))
 
 
+def _best_effort(what: str, fetch: Callable[[], T], default: T) -> T:
+    # The personal playlists, stations and covers are extras — not worth failing
+    # the whole list over the way a failed users_playlists_list() is.
+    try:
+        return fetch()
+    except Exception as e:
+        logger.debug("fetching %s failed: %s", what, e)
+        return default
+
+
 async def list_playlists(client: Client) -> dict:
     # My Wave and Liked Tracks are surfaced here as regular Playlist entries
     # (kind: radioStation / liked) rather than the front synthesizing them
     # from capability flags — see docs/protocol.md's Playlist.kind note.
     # This backend's capabilities always have browse.radio/likedTracks true,
     # so both are unconditional.
-    def fetch() -> tuple[list[YPlaylist], int]:
+    def fetch() -> tuple[list[YPlaylist], int, str | None, list[Playlist], list[Playlist]]:
         real_playlists = client.users_playlists_list() or []
         likes.load(client)  # also refreshes every later track's liked/disliked
-        return real_playlists, len(likes.liked)
+        liked_cover = _best_effort(
+            "liked cover", lambda: _playlist_cover(client.users_playlists(LIKES_PLAYLIST_KIND)), None
+        )
+        stations = _best_effort("stations", lambda: _stations(client.rotor_stations_dashboard()), [])
+        personal = _best_effort("personal playlists", lambda: _personal_playlists(client.feed()), [])
+        return real_playlists, len(likes.liked), liked_cover, stations, personal
 
-    real_playlists, liked_count = await asyncio.to_thread(fetch)
+    real_playlists, liked_count, liked_cover, stations, personal = await asyncio.to_thread(fetch)
     membership.invalidate()  # the front's refresh point — contents may have changed elsewhere
-    playlists = [_wave_playlist(), _liked_playlist(liked_count)]
+    wave_cover = next((s.coverUrl for s in stations if s.id == WAVE_STATION_ID), None)
+    stations = [s for s in stations if s.id != WAVE_STATION_ID]
+    playlists = [_wave_playlist(wave_cover), _liked_playlist(liked_count, liked_cover), *stations, *personal]
     playlists += [to_playlist(p) for p in real_playlists]
     return {"playlists": [p.to_dict() for p in playlists]}
 

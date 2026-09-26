@@ -105,6 +105,106 @@ def test_to_playlist_falls_back_to_untitled():
     assert p.title == "(untitled)"
 
 
+def test_to_playlist_cover_prefers_the_playlists_own_picture():
+    cover = SimpleNamespace(uri="img/own/%%", items_uri=["img/first-album/%%"])
+    p = SimpleNamespace(playlist_id="1:3", title="T", track_count=1, cover=cover, og_image="img/og/%%")
+    assert catalog.to_playlist(p).coverUrl == "https://img/own/400x400"
+
+
+def test_to_playlist_cover_falls_back_to_the_mosaics_first_album():
+    cover = SimpleNamespace(uri=None, items_uri=["img/first-album/%%"])
+    p = SimpleNamespace(playlist_id="1:3", title="T", track_count=1, cover=cover, og_image="")
+    assert catalog.to_playlist(p).coverUrl == "https://img/first-album/400x400"
+
+
+def _generated(type_, title, playlist_id, ready=True):
+    data = SimpleNamespace(playlist_id=playlist_id, title=title, track_count=20, description="Для вас")
+    return SimpleNamespace(type=type_, ready=ready, data=data)
+
+
+def test_personal_playlists_are_read_only_and_only_the_daily_one_is_featured():
+    feed = SimpleNamespace(generated_playlists=[
+        _generated("playlistOfTheDay", "Плейлист дня", "503:26"),
+        _generated("neverHeard", "Дежавю", "692:29"),
+        _generated("missedLikes", "Тайник", "460:10", ready=False),
+    ])
+    playlists = catalog._personal_playlists(feed)
+    assert [(p.id, p.featured, p.editable) for p in playlists] == [("503:26", True, False), ("692:29", None, False)]
+
+
+def _station(type_, tag, name, full_image_url="img/full/%%"):
+    station = SimpleNamespace(id=SimpleNamespace(type=type_, tag=tag), name=name,
+                              full_image_url=full_image_url, icon=None)
+    return SimpleNamespace(station=station)
+
+
+def test_stations_carry_their_image():
+    dashboard = SimpleNamespace(stations=[_station("genre", "pop", "Поп")])
+    stations = catalog._stations(dashboard)
+    assert [s.to_dict() for s in stations] == [{
+        "id": "genre:pop",
+        "title": "Поп",
+        "coverUrl": "https://img/full/400x400",
+        "trackCount": 0,
+        "kind": "radioStation",
+    }]
+
+
+class _ListClient:
+    def users_playlists_list(self):
+        return [SimpleNamespace(playlist_id="1:3", title="Mine", track_count=1)]
+
+    def users_likes_tracks(self):
+        return SimpleNamespace(tracks_ids=["1:2"])
+
+    def users_dislikes_tracks(self):
+        return SimpleNamespace(tracks_ids=[])
+
+    def rotor_stations_dashboard(self):
+        return SimpleNamespace(stations=[
+            _station("user", "onyourwave", "Моя волна", full_image_url="img/wave/%%"),
+            _station("genre", "pop", "Поп"),
+        ])
+
+    def users_playlists(self, kind, user_id=None):
+        assert kind == catalog.LIKES_PLAYLIST_KIND
+        return SimpleNamespace(cover=SimpleNamespace(uri="img/likes/%%", items_uri=None), og_image=None)
+
+    def feed(self):
+        return SimpleNamespace(generated_playlists=[_generated("playlistOfTheDay", "Плейлист дня", "503:26")])
+
+
+@pytest.mark.asyncio
+async def test_list_playlists_orders_wave_liked_stations_personal_then_own():
+    playlists = (await catalog.list_playlists(_ListClient()))["playlists"]
+    assert [p["id"] for p in playlists] == [catalog.WAVE_STATION_ID, catalog.LIKED_PLAYLIST_ID, "genre:pop", "503:26", "1:3"]
+    assert [p["id"] for p in playlists if p.get("featured")] == [catalog.WAVE_STATION_ID, catalog.LIKED_PLAYLIST_ID, "503:26"]
+
+
+@pytest.mark.asyncio
+async def test_list_playlists_wave_and_liked_get_yandexs_own_covers():
+    playlists = (await catalog.list_playlists(_ListClient()))["playlists"]
+    assert playlists[0]["coverUrl"] == "https://img/wave/400x400"
+    assert playlists[1]["coverUrl"] == "https://img/likes/400x400"
+
+
+@pytest.mark.asyncio
+async def test_list_playlists_survives_failing_stations_and_feed():
+    class _Failing(_ListClient):
+        def rotor_stations_dashboard(self):
+            raise RuntimeError("blip")
+
+        def feed(self):
+            raise RuntimeError("blip")
+
+        def users_playlists(self, kind, user_id=None):
+            raise RuntimeError("blip")
+
+    playlists = (await catalog.list_playlists(_Failing()))["playlists"]
+    assert [p["id"] for p in playlists] == [catalog.WAVE_STATION_ID, catalog.LIKED_PLAYLIST_ID, "1:3"]
+    assert "coverUrl" not in playlists[0] and "coverUrl" not in playlists[1]
+
+
 # --- editing playlists ---
 
 
