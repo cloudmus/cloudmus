@@ -1,6 +1,6 @@
 # MVVM refactoring plan (Qt front)
 
-Status: stages 0–7 done. Update this file as stages land.
+Status: stages 0–8 done. Update this file as stages land.
 
 ## Where we are
 
@@ -122,7 +122,14 @@ the same.
    `App::fetchTracks()` are shared with the sheet. The main list's
    `TrackListModel` stays in the window for now — it renders
    `ActivePlaylist::entries()`. Tests: playing, restoring, an edit.
-8. **`ViewModel::Browse`, `ViewModel::SourcePage`.**
+8. **`ViewModel::Browse`, `ViewModel::SourcePage`.** What's open in the
+   sheet (a playlist, History, a source's page, or nothing) with its rows,
+   playing from it, keeping it in step (edits, History, a source going
+   away), and the sidebar's selection — remembered, and restored at
+   startup. `SourcePage` signs in from a source's page, busy while it
+   does. The window renders the sheet from `Browse`'s state. Tests:
+   opening, playing a row, an edit, the restore, a source going away, a
+   rejected sign-in.
 9. **Recreatable window.** `main()` holds `App::Core` and the window in
    `std::unique_ptr`s; `MainWindow::bind(viewModels)`; a recreated window
    picks up the current state at once, not only from later signals. Glass

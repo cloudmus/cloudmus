@@ -4,6 +4,7 @@
 
 #include "ActivePlaylist.h"
 #include "AuthStates.h"
+#include "Browse.h"
 #include "CoverArtCache.h"
 #include "Messages.h"
 #include "NowPlaying.h"
@@ -12,6 +13,7 @@
 #include "PlaylistEditing.h"
 #include "Settings.h"
 #include "SourceManager.h"
+#include "SourcePage.h"
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TrackStates.h"
@@ -42,6 +44,8 @@ public:
     PlaylistEditing& playlistEditing() { return playlistEditing_; }
     ViewModel::Sources& sources() { return sources_; }
     ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
+    ViewModel::Browse& browse() { return browse_; }
+    ViewModel::SourcePage& sourcePage() { return sourcePage_; }
 
 private:
     // Declaration order is construction order: playback_ needs
@@ -59,6 +63,10 @@ private:
     PlaylistEditing playlistEditing_;
     ViewModel::Sources sources_;
     ViewModel::ActivePlaylist activePlaylist_;
+    // After activePlaylist_: it restores its page once the active
+    // playlist has restored itself.
+    ViewModel::Browse browse_;
+    ViewModel::SourcePage sourcePage_;
 };
 
 } // namespace App

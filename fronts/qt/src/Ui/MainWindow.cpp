@@ -102,6 +102,8 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , playlistEditing_(core.playlistEditing())
     , sources_(core.sources())
     , activePlaylist_(core.activePlaylist())
+    , browse_(core.browse())
+    , sourcePage_(core.sourcePage())
     , coverArtCache_(&core.coverArtCache())
     , playbackHistory_(&core.playbackHistory())
     , trackStates_(&core.trackStates())
@@ -127,12 +129,6 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // the hamburger menu. No cover art here — HeroPanel (below) shows
     // whatever's playing instead, so it isn't duplicated. ---
     nowPlayingBar_ = new NowPlayingBar(this);
-
-    connect(playbackHistory_, &History::PlaybackHistory::changed, this, [this]() {
-        // Refresh in place — a track just started playing.
-        if (sheetContext_.isHistory && sheet_->isPresented())
-            fillHistorySheet();
-    });
 
     auto* toolbar = new QToolBar(this);
     toolbar->setObjectName(QStringLiteral("transportToolBar")); // see StyleSheet.cpp's toolBarBlock()
@@ -297,12 +293,9 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     TrackHoverCard::attach(sheet_->trackView(), coverArtCache_, sourceName);
     trackListContainer->installEventFilter(this);
     sourcePanel_ = sheet_->sourcePanel();
-    connect(sourcePanel_, &SourcePanel::submitRequested, this,
-        [this](const QString& sourceId, const QJsonObject& fields) { submitAuthAsync(sourceId, fields).detach(); });
-    connect(sourcePanel_, &SourcePanel::retryRequested, this,
-        [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
-    connect(sourcePanel_, &SourcePanel::playlistActivated, this,
-        [this](const QString& sourceId, const Playlist& playlist) { openInSheetAsync(sourceId, playlist).detach(); });
+    connect(sourcePanel_, &SourcePanel::submitRequested, &sourcePage_, &ViewModel::SourcePage::submit);
+    connect(sourcePanel_, &SourcePanel::retryRequested, &sourcePage_, &ViewModel::SourcePage::signIn);
+    connect(sourcePanel_, &SourcePanel::playlistActivated, &browse_, &ViewModel::Browse::openPlaylist);
     connect(sourcePanel_, &SourcePanel::favoriteToggled, this, &MainWindow::toggleFavorite);
     sourcePanel_->setFavoriteCheck([this](const QString& sourceId, const QString& playlistId) {
         return sources_.isFavorite(sourceId, playlistId);
@@ -311,20 +304,15 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     connect(sourcePanel_, &SourcePanel::settingsRequested, this,
         [this](const QString& sourceId) { showSettingsDialog(QStringLiteral("source:") + sourceId); });
     connect(sourcePanel_, &SourcePanel::refreshRequested, &sources_, &ViewModel::Sources::refresh);
-    connect(sheet_, &PlaylistSheet::trackActivated, this, &MainWindow::activateFromSheet);
-    connect(sheet_, &PlaylistSheet::playAllClicked, this, &MainWindow::playAllFromSheet);
-    connect(sheet_, &PlaylistSheet::closeRequested, this, &MainWindow::closeSheet);
+    connect(sheet_, &PlaylistSheet::trackActivated, &browse_, &ViewModel::Browse::playRow);
+    connect(sheet_, &PlaylistSheet::playAllClicked, &browse_, &ViewModel::Browse::playAll);
+    connect(sheet_, &PlaylistSheet::closeRequested, &browse_, &ViewModel::Browse::close);
     connect(sheet_, &PlaylistSheet::trackContextMenuRequested, this, [this](int row, const QPoint& globalPos) {
         TrackListModel* model = sheet_->trackModel();
-        showTrackMenu(
-            model->sourceIdAt(row), model->trackAt(row), globalPos, [this, row]() { activateFromSheet(row); });
+        showTrackMenu(model->sourceIdAt(row), model->trackAt(row), globalPos, [this, row]() { browse_.playRow(row); });
     });
-    connect(sheet_, &PlaylistSheet::dismissed, this, [this]() {
-        pendingSelection_.clear();
-        sheetContext_ = ActiveContext();
-        currentStatusPanelSourceId_.clear();
-        syncSidebarSelection();
-    });
+    // Dismissed however it was (Escape, a click outside): nothing's open.
+    connect(sheet_, &PlaylistSheet::dismissed, &browse_, &ViewModel::Browse::close);
 
     // Not part of trackListPaneLayout: a layout-managed progress bar would
     // shrink the list by its own height whenever it's shown/hidden,
@@ -384,20 +372,13 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // ViewModel::Sources follows the sources and what they list; the window
     // keeps its own views of them in step.
     connect(&sources_, &ViewModel::Sources::sourceChanged, this, &MainWindow::onSourceChanged);
-    connect(&sources_, &ViewModel::Sources::playlistsLoaded, this, &MainWindow::onPlaylistsLoaded);
-    connect(&sources_, &ViewModel::Sources::sourceRemoved, this, &MainWindow::onSourceRemoved);
+    connect(&sources_, &ViewModel::Sources::playlistsLoaded, this, &MainWindow::syncSidebarSelection);
+    connect(&sources_, &ViewModel::Sources::sourceRemoved, this, &MainWindow::syncSidebarSelection);
     connect(authStates_, &Rpc::AuthStates::changed, this, &MainWindow::updateSourceAuthIndicator);
-
-    // The page that was open in the sidebar last run comes back once its
-    // source has listed its playlists (the active playlist does too — see
-    // ViewModel::ActivePlaylist).
-    pendingSelection_ = settings_.sidebarSelection();
-    if (pendingSelection_ == QStringLiteral("history"))
-        QTimer::singleShot(0, this, [this]() { restoreSelection(QString(), { }); });
 
     bindNowPlaying();
     bindActivePlaylist();
-    connect(&playlistEditing_, &App::PlaylistEditing::playlistEdited, this, &MainWindow::applyPlaylistEdit);
+    bindBrowse();
 }
 
 void MainWindow::bindNowPlaying()
@@ -481,7 +462,6 @@ void MainWindow::bindActivePlaylist()
     connect(&activePlaylist_, &ActivePlaylist::startingRadioChanged, heroPanel_, &HeroPanel::setPlayBusy);
     // Playing something from the sheet (or the sidebar) brings the main
     // area back to front.
-    connect(&activePlaylist_, &ActivePlaylist::activated, this, &MainWindow::closeSheet);
 
     // Whatever it has already — e.g. the playlist restored at startup.
     refreshMainList();
@@ -491,34 +471,82 @@ void MainWindow::bindActivePlaylist()
     syncSidebarSelection();
 }
 
-MainWindow::~MainWindow() { settings_.setWindowGeometry(saveGeometry()); }
-
-Rpc::Task<void> MainWindow::retryAuthAsync(QString sourceId)
+void MainWindow::bindBrowse()
 {
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr)
-        co_return;
-    sourcePanel_->setAuthActionBusy(true);
-    co_await sourceSession_.signIn(sourceId);
-    // Guard: the user may have switched to a different source's panel (or
-    // closed this one) while the round-trip was in flight — don't touch a
-    // busy indicator that isn't even showing for sourceId anymore.
-    if (currentStatusPanelSourceId_ == sourceId)
-        sourcePanel_->setAuthActionBusy(false);
+    using ViewModel::Browse;
+    connect(&browse_, &Browse::pageChanged, this, &MainWindow::showBrowsePage);
+    connect(&browse_, &Browse::rowsChanged, this, &MainWindow::showBrowseRows);
+    connect(&browse_, &Browse::loadingChanged, this, [this](bool loading) {
+        sheet_->setBusy(loading);
+        showBrowseRows(); // the count in the header: the playlist's, then the list's
+    });
+    connect(&sourcePage_, &ViewModel::SourcePage::busyChanged, this, [this](const QString& sourceId, bool busy) {
+        if (browse_.page() == Browse::Page::Source && browse_.sourceId() == sourceId)
+            sourcePanel_->setAuthActionBusy(busy);
+    });
+    connect(&sourcePage_, &ViewModel::SourcePage::submitFailed, this,
+        [this](const QString& sourceId, const QString& error) {
+            if (browse_.page() == Browse::Page::Source && browse_.sourceId() == sourceId)
+                sourcePanel_->showError(error);
+        });
+    // Whatever is open already — e.g. History, restored at startup.
+    showBrowsePage();
 }
+
+void MainWindow::showBrowsePage()
+{
+    switch (browse_.page()) {
+        case ViewModel::Browse::Page::None:
+            if (sheet_->isPresented())
+                sheet_->dismiss();
+            break;
+        case ViewModel::Browse::Page::Source:
+            showSourcePage(browse_.sourceId());
+            break;
+        case ViewModel::Browse::Page::Playlist: {
+            const ActiveContext& context = browse_.context();
+            sheet_->trackModel()->clear();
+            if (context.isRadio()) {
+                sheet_->showRadio(radioPromo(context.playlist));
+            } else if (context.isHistory) {
+                sheet_->showTracks(tr("History"), QString(), QString(), QStringLiteral("history"), /*canPlayAll=*/true);
+            } else {
+                sheet_->showTracks(context.playlist.title, trackCountText(context.playlist.trackCount),
+                    context.playlist.coverUrl.value_or(QString()), context.playlist.title, /*canPlayAll=*/true);
+            }
+            sheet_->setBusy(browse_.isLoading());
+            showBrowseRows();
+            sheet_->present();
+            break;
+        }
+    }
+    syncSidebarSelection();
+}
+
+void MainWindow::showBrowseRows()
+{
+    if (browse_.page() != ViewModel::Browse::Page::Playlist || browse_.context().isRadio())
+        return;
+    QList<TrackListModel::MixedSourceEntry> rows;
+    rows.reserve(browse_.rows().size());
+    for (const ViewModel::Browse::Row& row : browse_.rows())
+        rows.append({ row.sourceId, row.track, row.playedAt });
+    sheet_->trackModel()->setMixedSourceTracks(rows);
+    // Until the tracks are in, the count the playlist itself reports.
+    sheet_->setSubtitle(trackCountText(browse_.isLoading() ? browse_.context().playlist.trackCount : int(rows.size())));
+}
+
+MainWindow::~MainWindow() { settings_.setWindowGeometry(saveGeometry()); }
 
 void MainWindow::updateSourceAuthIndicator(const QString& sourceId)
 {
     // The sidebar's icon is ViewModel::Sources' — just the page here.
-    if (currentStatusPanelSourceId_ == sourceId)
+    if (browse_.page() == ViewModel::Browse::Page::Source && browse_.sourceId() == sourceId)
         refreshAuthSection(sourceId, authStates_->state(sourceId));
 }
 
-void MainWindow::showSourceStatusPanel(const QString& sourceId)
+void MainWindow::showSourcePage(const QString& sourceId)
 {
-    sheetContext_ = ActiveContext();
-    currentStatusPanelSourceId_ = sourceId;
-
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
     const QString description = client != nullptr ? client->sourceDescription() : QString();
@@ -528,6 +556,7 @@ void MainWindow::showSourceStatusPanel(const QString& sourceId)
     sourcePanel_->setPlaylists(sources_.playlists(sourceId), sources_.isLoading(sourceId));
 
     refreshAuthSection(sourceId, authStates_->state(sourceId));
+    sourcePanel_->setAuthActionBusy(sourcePage_.isBusy(sourceId));
     // Last: presenting snapshots the sheet, so fill it first.
     sheet_->present();
 }
@@ -553,43 +582,24 @@ void MainWindow::onSourceChanged(const QString& sourceId)
 {
     // Rows rebuilt: their selection went with them.
     syncSidebarSelection();
-    if (currentStatusPanelSourceId_ == sourceId)
+    if (browse_.page() == ViewModel::Browse::Page::Source && browse_.sourceId() == sourceId)
         sourcePanel_->setPlaylists(sources_.playlists(sourceId), sources_.isLoading(sourceId));
     // Which ones are favorites can change with the list (Playlist.featured).
     sourcePanel_->favoritesChanged();
 }
 
-void MainWindow::onSourceRemoved(const QString& sourceId)
-{
-    if (sheet_->isPresented()
-        && (currentStatusPanelSourceId_ == sourceId
-            || (sheetContext_.isValid() && !sheetContext_.isHistory && sheetContext_.sourceId == sourceId)))
-        closeSheet();
-    syncSidebarSelection();
-}
-
-void MainWindow::onPlaylistsLoaded(const QString& sourceId, const QList<Playlist>& playlists)
-{
-    restoreSelection(sourceId, playlists);
-    syncSidebarSelection();
-}
-
 void MainWindow::onSidebarActivated(const QModelIndex& index)
 {
-    pendingSelection_.clear(); // the user picked something else meanwhile
     const auto kind = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
     if (kind == ViewModel::SidebarModel::Kind::History) {
-        if (activePlaylist_.context().isHistory)
-            closeSheet();
-        else
-            openHistoryInSheet();
+        browse_.openHistory();
         return;
     }
     if (kind == ViewModel::SidebarModel::Kind::SourceHeader) {
         // Unconditional — every source gets a panel (name/description/
         // capabilities), not just ones with an auth problem. See
         // SourcePanel's class doc.
-        showSourceStatusPanel(index.data(ViewModel::SidebarModel::SourceIdRole).toString());
+        browse_.openSource(index.data(ViewModel::SidebarModel::SourceIdRole).toString());
         return;
     }
     if (kind != ViewModel::SidebarModel::Kind::Wave && kind != ViewModel::SidebarModel::Kind::Liked
@@ -597,18 +607,11 @@ void MainWindow::onSidebarActivated(const QModelIndex& index)
         return;
     const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
     const Playlist playlist = index.data(ViewModel::SidebarModel::PlaylistDataRole).value<Playlist>();
-    // The active playlist is what the main area already shows — clicking
-    // it just gets the sheet out of the way.
-    if (activePlaylist_.context().sameAs(ActiveContext { sourceId, playlist })) {
-        closeSheet();
-        return;
-    }
-    openInSheetAsync(sourceId, playlist).detach();
+    browse_.openPlaylist(sourceId, playlist);
 }
 
 void MainWindow::onSidebarDoubleClicked(const QModelIndex& index)
 {
-    pendingSelection_.clear();
     const auto kind = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
     if (kind == ViewModel::SidebarModel::Kind::History) {
         activePlaylist_.activate(activePlaylist_.historyContext(), { }, 0); // activate() fills History's queue itself
@@ -680,7 +683,7 @@ void MainWindow::toggleFavorite(const QString& sourceId, const QString& playlist
             .arg(sourceName),
         tr("Open %1").arg(sourceName), this);
     if (dialog.exec() == QDialog::Accepted)
-        showSourceStatusPanel(sourceId);
+        browse_.openSource(sourceId);
 }
 
 void MainWindow::refreshMainList()
@@ -723,79 +726,32 @@ void MainWindow::refreshHero()
 
 void MainWindow::syncSidebarSelection()
 {
+    // The sidebar selects what's on screen: the sheet's page while it's
+    // open, the active playlist otherwise.
+    const auto playlistIndex = [this](const ActiveContext& context) {
+        return sidebarModel_->indexForPlaylist(context.isHistory ? QString() : context.sourceId,
+            context.isHistory ? QStringLiteral("history") : context.playlist.id);
+    };
     QModelIndex target;
-    if (sheet_->isPresented()) {
-        if (sheetContext_.isValid())
-            target = sidebarModel_->indexForPlaylist(sheetContext_.isHistory ? QString() : sheetContext_.sourceId,
-                sheetContext_.isHistory ? QStringLiteral("history") : sheetContext_.playlist.id);
-        else if (!currentStatusPanelSourceId_.isEmpty())
-            // A source page: its header row. Not left as is — setSource()
-            // recreates that row on every reload, and the view would
-            // otherwise leave the selection on whatever row slid into its place.
-            target = sidebarModel_->indexForSource(currentStatusPanelSourceId_);
-    } else if (activePlaylist_.context().isValid()) {
-        target = sidebarModel_->indexForPlaylist(
-            activePlaylist_.context().isHistory ? QString() : activePlaylist_.context().sourceId,
-            activePlaylist_.context().isHistory ? QStringLiteral("history") : activePlaylist_.context().playlist.id);
+    switch (browse_.page()) {
+        case ViewModel::Browse::Page::Playlist:
+            target = playlistIndex(browse_.context());
+            break;
+        case ViewModel::Browse::Page::Source:
+            // Its header row. Not left as is — setSource() recreates that
+            // row on every reload, and the view would otherwise leave the
+            // selection on whatever row slid into its place.
+            target = sidebarModel_->indexForSource(browse_.sourceId());
+            break;
+        case ViewModel::Browse::Page::None:
+            if (activePlaylist_.context().isValid())
+                target = playlistIndex(activePlaylist_.context());
+            break;
     }
     if (target.isValid())
         sidebarView_->setCurrentIndex(target);
     else
         sidebarView_->clearSelection();
-
-    // Remembered for the next start — but not while the last run's is
-    // still waiting for its source to load: what's selected until then
-    // (nothing, or the restored active playlist) isn't the user's choice.
-    if (pendingSelection_.isEmpty())
-        settings_.setSidebarSelection(selectionKey());
-}
-
-QString MainWindow::selectionKey() const
-{
-    const ActiveContext& context = sheet_->isPresented() ? sheetContext_ : activePlaylist_.context();
-    if (sheet_->isPresented() && !context.isValid())
-        return currentStatusPanelSourceId_.isEmpty() ? QString()
-                                                     : QStringLiteral("source:") + currentStatusPanelSourceId_;
-    if (!context.isValid())
-        return QString();
-    if (context.isHistory)
-        return QStringLiteral("history");
-    return QStringLiteral("playlist:%1:%2").arg(context.sourceId, context.playlist.id);
-}
-
-void MainWindow::restoreSelection(const QString& sourceId, const QList<Playlist>& playlists)
-{
-    const QString key = pendingSelection_;
-    if (key.isEmpty())
-        return;
-    if (key == QStringLiteral("history")) {
-        if (!sourceId.isEmpty())
-            return;
-        pendingSelection_.clear();
-        if (!activePlaylist_.context().isHistory)
-            openHistoryInSheet();
-        return;
-    }
-    if (key == QStringLiteral("source:") + sourceId) {
-        pendingSelection_.clear();
-        showSourceStatusPanel(sourceId);
-        return;
-    }
-    const QString prefix = QStringLiteral("playlist:%1:").arg(sourceId);
-    if (!key.startsWith(prefix))
-        return;
-    pendingSelection_.clear();
-    const QString playlistId = key.mid(prefix.size());
-    for (const Playlist& playlist : playlists) {
-        if (playlist.id != playlistId)
-            continue;
-        // The active playlist is already in the main area — selecting it
-        // is all there is to do, and syncSidebarSelection() does that.
-        if (!activePlaylist_.context().sameAs(ActiveContext { sourceId, playlist }))
-            openInSheetAsync(sourceId, playlist).detach();
-        break;
-    }
-    syncSidebarSelection();
 }
 
 void MainWindow::restoreExpansion(const QModelIndex& parent, int first, int last)
@@ -814,86 +770,6 @@ void MainWindow::restoreExpansion(const QModelIndex& parent, int first, int last
     else
         for (int row = first; row <= last; ++row)
             apply(sidebarModel_->index(row, 0, parent));
-}
-
-Rpc::Task<void> MainWindow::openInSheetAsync(QString sourceId, Playlist playlist)
-{
-    currentStatusPanelSourceId_.clear();
-    sheetContext_ = ActiveContext { sourceId, playlist };
-    const QString coverUrl = playlist.coverUrl.value_or(QString());
-    if (sheetContext_.isRadio()) {
-        sheet_->trackModel()->clear();
-        sheet_->showRadio(radioPromo(playlist));
-        sheet_->present();
-        co_return;
-    }
-    sheet_->trackModel()->clear();
-    sheet_->showTracks(playlist.title, trackCountText(playlist.trackCount), coverUrl, playlist.title,
-        /*canPlayAll=*/true);
-    sheet_->present();
-
-    sheet_->setBusy(true);
-    try {
-        const QVector<Playback::QueueEntry> entries
-            = co_await App::fetchTracks(sourceManager_, *trackStates_, *coverArtCache_, sourceId, playlist);
-        // The user may have opened something else while this was loading.
-        if (!sheetContext_.sameAs(ActiveContext { sourceId, playlist }))
-            co_return;
-        QList<TrackListModel::MixedSourceEntry> rows;
-        rows.reserve(entries.size());
-        for (const Playback::QueueEntry& entry : entries)
-            rows.append({ entry.sourceId, entry.track, QDateTime() });
-        sheet_->trackModel()->setMixedSourceTracks(rows);
-        sheet_->setSubtitle(trackCountText(int(rows.size())));
-    } catch (const std::exception& e) {
-        qCWarning(lcMainWindow) << "loading tracks failed for" << sourceId << ":" << e.what();
-        messages_.error(QString::fromStdString(e.what()));
-    }
-    if (sheetContext_.sameAs(ActiveContext { sourceId, playlist }))
-        sheet_->setBusy(false);
-}
-
-void MainWindow::openHistoryInSheet()
-{
-    currentStatusPanelSourceId_.clear();
-    sheetContext_ = activePlaylist_.historyContext();
-    sheet_->showTracks(tr("History"), QString(), QString(), QStringLiteral("history"), /*canPlayAll=*/true);
-    sheet_->setBusy(false);
-    fillHistorySheet();
-    sheet_->present();
-}
-
-void MainWindow::fillHistorySheet()
-{
-    QList<TrackListModel::MixedSourceEntry> entries;
-    entries.reserve(playbackHistory_->entries().size());
-    for (const History::HistoryEntry& e : playbackHistory_->entries())
-        entries.append({ e.sourceId, e.track, e.playedAt });
-    sheet_->trackModel()->setMixedSourceTracks(entries);
-    sheet_->setSubtitle(trackCountText(int(entries.size())));
-}
-
-void MainWindow::closeSheet() { sheet_->dismiss(); }
-
-void MainWindow::activateFromSheet(int row)
-{
-    TrackListModel* model = sheet_->trackModel();
-    if (row < 0 || row >= model->rowCount())
-        return;
-    QVector<Playback::QueueEntry> entries;
-    entries.reserve(model->rowCount());
-    for (int i = 0; i < model->rowCount(); ++i)
-        entries.append(Playback::QueueEntry { model->sourceIdAt(i), model->trackAt(i) });
-    activePlaylist_.activate(sheetContext_, entries, row);
-}
-
-void MainWindow::playAllFromSheet()
-{
-    if (sheetContext_.isRadio()) {
-        activePlaylist_.activate(sheetContext_, { }, 0);
-        return;
-    }
-    activateFromSheet(0);
 }
 
 void MainWindow::onTrackDoubleClicked(const QModelIndex& index)
@@ -1013,18 +889,6 @@ void MainWindow::showTrackMenu(
     menu->popup(globalPos);
 }
 
-Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields)
-{
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr)
-        co_return;
-    sourcePanel_->setAuthActionBusy(true);
-    const QString error = co_await sourceSession_.submitSignIn(sourceId, fields);
-    if (!error.isEmpty())
-        sourcePanel_->showError(error);
-    sourcePanel_->setAuthActionBusy(false);
-}
-
 bool MainWindow::isOnScreen() const
 {
     return isVisible() && !isMinimized() && (windowHandle() == nullptr || windowHandle()->isExposed());
@@ -1127,22 +991,6 @@ Rpc::Task<void> MainWindow::setTrackInPlaylistAsync(
             box->setChecked(!add); // back to how it really is
         }
         box->setEnabled(true);
-    }
-}
-
-void MainWindow::applyPlaylistEdit(
-    const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount)
-{
-    const auto isThatPlaylist = [&](const ActiveContext& context) {
-        return !context.isHistory && context.sourceId == sourceId && context.playlist.id == playlistId;
-    };
-    if (isThatPlaylist(sheetContext_)) {
-        sheetContext_.playlist.trackCount = trackCount;
-        if (added)
-            sheet_->trackModel()->appendEntry(sourceId, track);
-        else
-            sheet_->trackModel()->removeFirst(sourceId, track.id);
-        sheet_->setSubtitle(trackCountText(trackCount));
     }
 }
 

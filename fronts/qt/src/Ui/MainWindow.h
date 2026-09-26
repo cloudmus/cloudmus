@@ -96,11 +96,9 @@ private:
     // to nowPlaying_, and shows its current state right away.
     void bindNowPlaying();
 
-    // ViewModel::Sources' signals: the sidebar selection, the source's
-    // page, and the startup restores follow.
+    // ViewModel::Sources rebuilt a source's rows: the sidebar selection
+    // and the source's page follow.
     void onSourceChanged(const QString& sourceId);
-    void onSourceRemoved(const QString& sourceId);
-    void onPlaylistsLoaded(const QString& sourceId, const QList<Playlist>& playlists);
     void onSidebarActivated(const QModelIndex& index);
     void onSidebarDoubleClicked(const QModelIndex& index);
     // Right-click on sidebarView_. A source header offers "Force Refresh
@@ -135,12 +133,6 @@ private:
     // runs and unchecked back on failure.
     Rpc::Task<void> setTrackInPlaylistAsync(
         QString sourceId, Track track, Playlist playlist, bool add, QPointer<QCheckBox> box);
-    // Keeps what's on screen in step after a successful add/remove — from
-    // here or the tray (App::PlaylistEditing::playlistEdited): the
-    // sidebar's count, the sheet's list and header if it shows that
-    // playlist, the active playlist's not-yet-queued tracks.
-    void applyPlaylistEdit(
-        const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
     // The toolbar button's menu for the playing track.
     void showPlaylistsMenu(QPoint anchor);
 
@@ -159,39 +151,21 @@ private:
     // Hero shows the playing track (trackChanged) or, with nothing
     // playing, the active playlist's promo card.
     void refreshHero();
-    // Sidebar selection follows what is on screen: the sheet's playlist
-    // while it's open, the active one otherwise.
+    // Sidebar selection follows what is on screen: the sheet's page while
+    // it's open, the active playlist otherwise.
     void syncSidebarSelection();
     // Expands the rows just inserted (and their children), except the ones
     // the user collapsed — see ViewModel::Sources::isCollapsed().
     void restoreExpansion(const QModelIndex& parent, int first, int last);
-    // Names what syncSidebarSelection() selects — "history",
-    // "source:<id>" or "playlist:<sourceId>:<playlistId>" — or empty.
-    QString selectionKey() const;
-    // Opens the page the sidebar had selected when the app last quit, once
-    // `sourceId` has listed its playlists (empty: History, available at once).
-    void restoreSelection(const QString& sourceId, const QList<Playlist>& playlists);
 
-    // --- the sheet (anything that isn't the active playlist)
-    Rpc::Task<void> openInSheetAsync(QString sourceId, Playlist playlist);
-    void openHistoryInSheet();
-    void fillHistorySheet();
-    void closeSheet();
-    void activateFromSheet(int row);
-    void playAllFromSheet();
-
-    // By value, not const&: these coroutines resume asynchronously (after an
-    // RPC round-trip) and use their params again after that resume — a
-    // reference to a caller's temporary/local (as with detach()ed calls
-    // from onSidebarActivated) would dangle by the time execution gets back
-    // there. See the equivalent comment on RpcClient::call() for the full
-    // explanation of this coroutine-lifetime pitfall.
-    Rpc::Task<void> submitAuthAsync(QString sourceId, QJsonObject fields);
-    // The Retry button's handler: wraps App::SourceSession::signIn() with
-    // sourcePanel_'s busy state (disables Retry/Submit + shows a spinner
-    // for the duration) so a click can't be repeated mid-flight and the
-    // user sees something actually happened.
-    Rpc::Task<void> retryAuthAsync(QString sourceId);
+    // --- the sheet: ViewModel::Browse (what's open) and
+    // ViewModel::SourcePage (signing in from a source's page)
+    // Hooks the sheet up to them, and shows what's open right away.
+    void bindBrowse();
+    // Shows browse_'s page in the sheet — or dismisses it.
+    void showBrowsePage();
+    // The open playlist's rows and their count.
+    void showBrowseRows();
 
     // Per-source sign-in state, shared with the Settings dialog's source
     // pages — see Rpc::AuthStates. Feeds both the sidebar's warning icon
@@ -199,20 +173,15 @@ private:
     // source), via updateSourceAuthIndicator() on its changed(). Owned by
     // App::Core, like the other services below.
     Rpc::AuthStates* authStates_ = nullptr;
-    // sourceId sourcePanel_ is currently showing, or empty if it's hidden /
-    // a normal playlist is showing instead.
-    QString currentStatusPanelSourceId_;
 
-    // Updates the sidebar icon for sourceId from sourceAuthStates_, and — if
-    // sourcePanel_ is currently showing exactly this source — its auth
-    // section too, so a prompt/status update arriving while the panel is
-    // already open refreshes it live instead of needing a re-click.
+    // If sourcePanel_ is showing exactly this source, refreshes its auth
+    // section, so a prompt/status update arriving while the page is open
+    // shows live instead of needing a re-click.
     void updateSourceAuthIndicator(const QString& sourceId);
-    // Entry point from onSidebarActivated: opens sourcePanel_ for this
-    // source in the sheet (every source gets this, not just ones with an
-    // auth problem — see SourcePanel's class doc).
-    void showSourceStatusPanel(const QString& sourceId);
-    // Shared by showSourceStatusPanel() and updateSourceAuthIndicator()'s
+    // The sheet's page for a source (every source gets one, not just ones
+    // with an auth problem — see SourcePanel's class doc).
+    void showSourcePage(const QString& sourceId);
+    // Shared by showSourcePage() and updateSourceAuthIndicator()'s
     // live-refresh path: paints just sourcePanel_'s auth section (prompt /
     // error+Retry / hidden) from the given state — never touches the
     // hero/capabilities, which setSource() already established once and
@@ -234,6 +203,9 @@ private:
     ViewModel::Sources& sources_;
     // What the main area has active.
     ViewModel::ActivePlaylist& activePlaylist_;
+    // What's open in the sheet, and signing in from a source's page.
+    ViewModel::Browse& browse_;
+    ViewModel::SourcePage& sourcePage_;
 
     void repositionTrackListBusyIndicator();
     // Shows/hides trackListPane_ and, together with it, collapses/restores
@@ -281,12 +253,6 @@ private:
     Library::TrackStates* trackStates_ = nullptr;
     // Into the tray, remembering where the window was for bringToFront().
     void hideToTray();
-
-    // What the sheet shows (invalid while it shows a source page or is closed).
-    ActiveContext sheetContext_;
-    // Settings::sidebarSelection() from the last run, until restored or
-    // replaced by a new selection.
-    QString pendingSelection_;
 
     bool reallyQuitting_ = false;
     // saveGeometry() taken by hideToTray(); empty while the window is shown.

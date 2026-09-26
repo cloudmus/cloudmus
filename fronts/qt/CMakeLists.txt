@@ -98,6 +98,8 @@ add_library(cloudmus-core STATIC
     src/ViewModel/SidebarModel.cpp
     src/ViewModel/Sources.cpp
     src/ViewModel/ActivePlaylist.cpp
+    src/ViewModel/Browse.cpp
+    src/ViewModel/SourcePage.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 )
@@ -235,6 +237,7 @@ add_executable(cloudmus-qt-tests
     tests/PlaylistEditingTest.cpp
     tests/SourcesTest.cpp
     tests/ActivePlaylistTest.cpp
+    tests/BrowseTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
