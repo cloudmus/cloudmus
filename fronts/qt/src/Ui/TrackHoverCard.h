@@ -2,17 +2,18 @@
 
 #include <QObject>
 #include <QPersistentModelIndex>
+#include <QPoint>
+#include <QTimer>
 
 #include <functional>
 
 class QAbstractItemView;
-class QPoint;
 
 namespace Ui {
 
 class CoverArtCache;
 
-// Hover card for track lists: after the usual tooltip delay over a row,
+// Hover card for track lists: once the cursor rests on a row for a moment,
 // a floating card shows the track's large cover and everything known
 // about it — title, artists, album, duration, source, like/dislike,
 // explicit, when it was last played. Reads the row through
@@ -45,6 +46,10 @@ private:
     CoverArtCache* coverCache_;
     SourceNameFn sourceName_;
     QPersistentModelIndex shownIndex_;
+    // The row the cursor is resting on and where, until restTimer_ fires.
+    QTimer restTimer_;
+    QPersistentModelIndex restIndex_;
+    QPoint restGlobalPos_;
     // Concrete popup type lives in the .cpp (see ThemedToolTip's).
     QWidget* popup_ = nullptr;
 };

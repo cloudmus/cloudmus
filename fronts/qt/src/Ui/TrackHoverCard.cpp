@@ -1,14 +1,14 @@
 #include "TrackHoverCard.h"
 
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QGuiApplication>
-#include <QHelpEvent>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QPropertyAnimation>
 #include <QScreen>
 #include <QScrollBar>
+#include <QVariantAnimation>
 
 #include "CoverArtCache.h"
 #include "CoverPlaceholder.h"
@@ -27,6 +27,9 @@ namespace Ui {
 namespace {
 
 constexpr int kAnimationMs = 150;
+// How long the cursor has to rest on a row before its card shows — long
+// enough that just moving across the list doesn't flash cards at every row.
+constexpr int kRestMs = 1500;
 constexpr int kPadding = Theme::Spacing::space3;
 constexpr int kCoverSide = 256;
 constexpr int kContentWidth = kCoverSide + 2 * kPadding;
@@ -68,19 +71,28 @@ QString coverUrlOf(const Track& track)
 class CardPopup : public QWidget {
 public:
     explicit CardPopup(CoverArtCache* coverCache)
-        : QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint)
+        : QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput)
         , coverCache_(coverCache)
     {
         setAttribute(Qt::WA_TranslucentBackground);
         setAttribute(Qt::WA_ShowWithoutActivating);
         setAttribute(Qt::WA_TransparentForMouseEvents);
 
-        opacityAnim_ = new QPropertyAnimation(this, "windowOpacity", this);
+        // Fades by painting with opacity, not by windowOpacity: Wayland has
+        // no window opacity (Qt logs "This plugin does not support setting
+        // window opacity" on every animation step and just doesn't fade).
+        opacityAnim_ = new QVariantAnimation(this);
+        connect(opacityAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
+            opacity_ = value.toReal();
+            update();
+        });
         opacityAnim_->setDuration(kAnimationMs);
         opacityAnim_->setEasingCurve(QEasingCurve::OutCubic);
-        connect(opacityAnim_, &QPropertyAnimation::finished, this, [this]() {
-            if (opacityAnim_->endValue().toReal() <= 0.0)
+        connect(opacityAnim_, &QVariantAnimation::finished, this, [this]() {
+            if (opacityAnim_->endValue().toReal() <= 0.0) {
                 hide();
+                opacity_ = 0.0; // the next show fades in from nothing
+            }
         });
         connect(coverCache_, &CoverArtCache::pixmapReady, this, [this](const QString& url) {
             if (isVisible() && url == coverUrl_)
@@ -116,6 +128,7 @@ protected:
         painter.setCompositionMode(QPainter::CompositionMode_Source);
         painter.fillRect(rect(), Qt::transparent);
         painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        painter.setOpacity(opacity_);
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
@@ -259,7 +272,7 @@ private:
     void animateOpacityTo(qreal target)
     {
         opacityAnim_->stop();
-        opacityAnim_->setStartValue(windowOpacity());
+        opacityAnim_->setStartValue(opacity_);
         opacityAnim_->setEndValue(target);
         opacityAnim_->start();
     }
@@ -287,7 +300,8 @@ private:
     CardData data_;
     QString coverUrl_;
     QList<QPair<QString, QString>> rows_;
-    QPropertyAnimation* opacityAnim_;
+    QVariantAnimation* opacityAnim_;
+    qreal opacity_ = 0.0;
 };
 
 } // namespace
@@ -304,7 +318,20 @@ TrackHoverCard::TrackHoverCard(QAbstractItemView* view, CoverArtCache* coverCach
     , sourceName_(std::move(sourceName))
 {
     view_->viewport()->installEventFilter(this);
+    restTimer_.setSingleShot(true);
+    restTimer_.setInterval(kRestMs);
+    connect(&restTimer_, &QTimer::timeout, this, [this]() {
+        if (restIndex_.isValid())
+            showFor(restIndex_, restGlobalPos_);
+    });
     connect(view_->verticalScrollBar(), &QScrollBar::valueChanged, this, &TrackHoverCard::hideCard);
+    // The card lets clicks through to whatever is under it — possibly
+    // another app, which then takes over without the list ever seeing the
+    // cursor leave.
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state != Qt::ApplicationActive)
+            hideCard();
+    });
 }
 
 TrackHoverCard::~TrackHoverCard() { delete popup_; }
@@ -314,21 +341,26 @@ bool TrackHoverCard::eventFilter(QObject* watched, QEvent* event)
     if (watched != view_->viewport())
         return false;
     switch (event->type()) {
-        case QEvent::ToolTip: {
-            // The viewport's own tooltip slot — consumed so no plain
-            // tooltip shows as well.
-            const auto* help = static_cast<QHelpEvent*>(event);
-            const QModelIndex index = view_->indexAt(help->pos());
-            if (index.isValid())
-                showFor(index, help->globalPos());
-            else
-                hideCard();
+        case QEvent::ToolTip:
+            // Consumed so no plain tooltip shows as well. Not what shows the
+            // card: Qt's tooltip delay comes from the platform and drops to
+            // nearly nothing once a tooltip has shown — restTimer_ instead.
             return true;
-        }
-        case QEvent::MouseMove:
-            if (shownIndex_.isValid() && view_->indexAt(static_cast<QMouseEvent*>(event)->pos()) != shownIndex_)
+        case QEvent::MouseMove: {
+            const auto* move = static_cast<QMouseEvent*>(event);
+            const QModelIndex index = view_->indexAt(move->position().toPoint());
+            if (shownIndex_.isValid() && index != shownIndex_)
                 hideCard();
+            // Any move restarts the wait — the card follows a resting cursor.
+            if (index.isValid() && index != shownIndex_) {
+                restIndex_ = index;
+                restGlobalPos_ = move->globalPosition().toPoint();
+                restTimer_.start();
+            } else if (!index.isValid()) {
+                restTimer_.stop();
+            }
             break;
+        }
         case QEvent::Leave:
         case QEvent::MouseButtonPress:
         case QEvent::Wheel:
@@ -365,6 +397,7 @@ void TrackHoverCard::showFor(const QModelIndex& index, const QPoint& globalPos)
 
 void TrackHoverCard::hideCard()
 {
+    restTimer_.stop();
     shownIndex_ = QPersistentModelIndex();
     if (popup_ != nullptr)
         static_cast<CardPopup*>(popup_)->fadeOut();

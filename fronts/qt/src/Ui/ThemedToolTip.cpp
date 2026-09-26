@@ -7,8 +7,8 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QPropertyAnimation>
 #include <QScreen>
+#include <QVariantAnimation>
 #include <QWidget>
 
 #include "Radius.h"
@@ -48,23 +48,32 @@ void paintShadow(QPainter* painter, const QRect& contentRect)
 class ThemedToolTipPopup : public QWidget {
 public:
     ThemedToolTipPopup()
-        : QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint)
+        : QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput)
     {
         setAttribute(Qt::WA_TranslucentBackground); // real transparency outside the rounded shape
         setAttribute(Qt::WA_ShowWithoutActivating);
         setAttribute(Qt::WA_TransparentForMouseEvents); // never intercepts clicks
         setFont(Theme::font(Theme::TextStyle::Caption));
 
-        opacityAnim_ = new QPropertyAnimation(this, "windowOpacity", this);
+        // Fades by painting with opacity, not by windowOpacity: Wayland has
+        // no window opacity (Qt logs "This plugin does not support setting
+        // window opacity" on every animation step and just doesn't fade).
+        opacityAnim_ = new QVariantAnimation(this);
+        connect(opacityAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
+            opacity_ = value.toReal();
+            update();
+        });
         opacityAnim_->setDuration(kAnimationMs);
         opacityAnim_->setEasingCurve(QEasingCurve::OutCubic);
-        connect(opacityAnim_, &QPropertyAnimation::finished, this, [this]() {
+        connect(opacityAnim_, &QVariantAnimation::finished, this, [this]() {
             // Only actually hide after a *fade-out* — the same animation
             // object is reused for fading in, and its finished() fires
             // then too; without this check the popup would hide itself
             // immediately after every fade-in.
-            if (opacityAnim_->endValue().toReal() <= 0.0)
+            if (opacityAnim_->endValue().toReal() <= 0.0) {
                 hide();
+                opacity_ = 0.0; // the next show fades in from nothing
+            }
         });
     }
 
@@ -102,6 +111,7 @@ protected:
         painter.setCompositionMode(QPainter::CompositionMode_Source);
         painter.fillRect(rect(), Qt::transparent);
         painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        painter.setOpacity(opacity_);
         painter.setRenderHint(QPainter::Antialiasing);
 
         const QRect contentRect = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
@@ -125,7 +135,7 @@ private:
     void animateOpacityTo(qreal target)
     {
         opacityAnim_->stop();
-        opacityAnim_->setStartValue(windowOpacity());
+        opacityAnim_->setStartValue(opacity_);
         opacityAnim_->setEndValue(target);
         opacityAnim_->start();
     }
@@ -158,7 +168,8 @@ private:
     }
 
     QString text_;
-    QPropertyAnimation* opacityAnim_;
+    QVariantAnimation* opacityAnim_;
+    qreal opacity_ = 0.0;
 };
 
 ThemedToolTip::ThemedToolTip(QObject* parent)
@@ -168,6 +179,12 @@ ThemedToolTip::ThemedToolTip(QObject* parent)
     safetyTimer_.setSingleShot(true);
     safetyTimer_.setInterval(kMaxVisibleMs);
     connect(&safetyTimer_, &QTimer::timeout, this, &ThemedToolTip::hidePopup);
+    // Clicks go through the popup to whatever is under it — possibly
+    // another app, which then takes over without a Leave reaching us.
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state != Qt::ApplicationActive)
+            hidePopup();
+    });
 }
 
 bool ThemedToolTip::eventFilter(QObject* watched, QEvent* event)
