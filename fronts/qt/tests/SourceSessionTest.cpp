@@ -4,6 +4,7 @@
 #include "AuthStates.h"
 #include "CoverArtCache.h"
 #include "FakeBackend.h"
+#include "Messages.h"
 #include "PlaybackController.h"
 #include "RpcClient.h"
 #include "RpcMethods.h"
@@ -25,7 +26,7 @@ private slots:
         sourceManager_ = std::make_unique<Rpc::SourceManager>();
         playback_ = std::make_unique<Playback::PlaybackController>(*sourceManager_);
         session_ = std::make_unique<App::SourceSession>(
-            *sourceManager_, *playback_, authStates_, trackStates_, coverArtCache_);
+            *sourceManager_, *playback_, authStates_, trackStates_, coverArtCache_, messages_);
         QSignalSpy ready(session_.get(), &App::SourceSession::sourceReady);
         sourceManager_->startAll();
         QVERIFY(ready.wait(10000));
@@ -42,33 +43,34 @@ private slots:
 
     void aSourcesErrorNotificationIsReported()
     {
-        QSignalSpy errors(session_.get(), &App::SourceSession::errorOccurred);
+        QSignalSpy errors(&messages_, &ViewModel::Messages::posted);
         await(Rpc::catalogListPlaylists(*sourceManager_->client(QStringLiteral("fake"))));
         QCOMPARE(errors.count(), 1);
-        QCOMPARE(errors.first().first().toString(), QStringLiteral("heads up"));
+        QCOMPARE(errors.first().at(1).toString(), QStringLiteral("heads up"));
     }
 
     void signingInAnAuthenticatedSourceReportsNothing()
     {
-        QSignalSpy errors(session_.get(), &App::SourceSession::errorOccurred);
+        QSignalSpy errors(&messages_, &ViewModel::Messages::posted);
         await(session_->signIn(QStringLiteral("fake")));
         QCOMPARE(errors.count(), 0);
     }
 
     void aRejectedSubmitReturnsAndReportsWhy()
     {
-        QSignalSpy errors(session_.get(), &App::SourceSession::errorOccurred);
+        QSignalSpy errors(&messages_, &ViewModel::Messages::posted);
         const QString error = await(
             session_->submitSignIn(QStringLiteral("fake"), { { QStringLiteral("password"), QStringLiteral("nope") } }));
         QCOMPARE(error, QStringLiteral("wrong password"));
         QCOMPARE(errors.count(), 1);
-        QCOMPARE(errors.first().first().toString(), QStringLiteral("Fake Source: wrong password"));
+        QCOMPARE(errors.first().at(1).toString(), QStringLiteral("Fake Source: wrong password"));
     }
 
 private:
     Rpc::AuthStates authStates_;
     Library::TrackStates trackStates_;
     Covers::CoverArtCache coverArtCache_;
+    ViewModel::Messages messages_;
     std::unique_ptr<Rpc::SourceManager> sourceManager_;
     std::unique_ptr<Playback::PlaybackController> playback_;
     std::unique_ptr<App::SourceSession> session_;

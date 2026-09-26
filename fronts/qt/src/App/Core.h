@@ -4,6 +4,7 @@
 
 #include "AuthStates.h"
 #include "CoverArtCache.h"
+#include "Messages.h"
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
 #include "Settings.h"
@@ -32,6 +33,7 @@ public:
     Library::TrackStates& trackStates() { return trackStates_; }
     Covers::CoverArtCache& coverArtCache() { return coverArtCache_; }
     SourceSession& sourceSession() { return sourceSession_; }
+    ViewModel::Messages& messages() { return messages_; }
 
 private:
     // Declaration order is construction order: playback_ needs
@@ -43,6 +45,7 @@ private:
     History::PlaybackHistory playbackHistory_;
     Library::TrackStates trackStates_;
     Covers::CoverArtCache coverArtCache_;
+    ViewModel::Messages messages_;
     SourceSession sourceSession_;
 };
 

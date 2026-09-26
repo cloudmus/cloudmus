@@ -1,6 +1,6 @@
 # MVVM refactoring plan (Qt front)
 
-Status: stages 0–2 done. Update this file as stages land.
+Status: stages 0–3 done. Update this file as stages land.
 
 ## Where we are
 

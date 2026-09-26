@@ -4,6 +4,7 @@
 
 #include "AuthStates.h"
 #include "CoverArtCache.h"
+#include "Messages.h"
 #include "PlaybackController.h"
 #include "RpcClient.h"
 #include "RpcMethods.h"
@@ -18,13 +19,14 @@ Q_LOGGING_CATEGORY(lcSourceSession, "cloudmus.app.sourcesession")
 
 SourceSession::SourceSession(Rpc::SourceManager& sourceManager, Playback::PlaybackController& playback,
     Rpc::AuthStates& authStates, Library::TrackStates& trackStates, Covers::CoverArtCache& coverArtCache,
-    QObject* parent)
+    ViewModel::Messages& messages, QObject* parent)
     : QObject(parent)
     , sourceManager_(sourceManager)
     , playback_(playback)
     , authStates_(authStates)
     , trackStates_(trackStates)
     , coverArtCache_(coverArtCache)
+    , messages_(messages)
 {
     connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, &SourceSession::wire);
 }
@@ -38,7 +40,7 @@ void SourceSession::wire(Rpc::RpcClient* client)
         coverArtCache_.assignSource(client->sourceId(), p.tracks);
         playback_.handleTracksAdded(client->sourceId(), p);
     };
-    client->notifications.onError = [this](const ErrorParams& e) { emit errorOccurred(e.message); };
+    client->notifications.onError = [this](const ErrorParams& e) { messages_.error(e.message); };
     // Into authStates_, whose changed() repaints every view of it.
     client->onAuthPromptRaw
         = [this, client](const QJsonObject& params) { authStates_.setPrompt(client->sourceId(), params); };
@@ -49,7 +51,7 @@ void SourceSession::wire(Rpc::RpcClient* client)
         } else {
             const QString message = status.message.value_or(QString());
             qCWarning(lcSourceSession) << "auth error for" << client->sourceId() << ":" << message;
-            emit errorOccurred(tr("%1: %2").arg(client->sourceName(), message));
+            messages_.error(tr("%1: %2").arg(client->sourceName(), message));
             authStates_.setError(client->sourceId(), message);
         }
     };
@@ -91,7 +93,7 @@ Rpc::Task<void> SourceSession::signIn(Rpc::RpcClient* client)
         // exactly how a Retry click could look like it did nothing.
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcSourceSession) << "auth.getStatus/auth.start failed for" << client->sourceId() << ":" << message;
-        emit errorOccurred(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
     }
 }
 
@@ -108,7 +110,7 @@ Rpc::Task<QString> SourceSession::submitSignIn(QString sourceId, QJsonObject fie
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcSourceSession) << "auth.submit failed for" << sourceId << ":" << message;
-        emit errorOccurred(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
         co_return message;
     }
     co_return QString();

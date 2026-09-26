@@ -91,6 +91,8 @@ add_library(cloudmus-core STATIC
     src/App/Core.cpp
     src/App/SourceSession.cpp
 
+    src/ViewModel/Messages.cpp
+
     ${GENERATED_DIR}/RpcMethods.cpp
 )
 add_dependencies(cloudmus-core protocol_codegen_cpp)
@@ -119,6 +121,7 @@ target_include_directories(cloudmus-core PUBLIC
     src/Library
     src/Covers
     src/App
+    src/ViewModel
 )
 
 target_link_libraries(cloudmus-core PUBLIC

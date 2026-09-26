@@ -284,6 +284,9 @@ private:
     Playback::PlaybackController& playback_;
     Config::Settings& settings_;
     App::SourceSession& sourceSession_;
+    // What to tell the user goes here; posted() shows it as a toast on
+    // toastNotifier_ (redirected while the Settings dialog is up).
+    ViewModel::Messages& messages_;
 
     void repositionTrackListBusyIndicator();
     // Shows/hides trackListPane_ and, together with it, collapses/restores

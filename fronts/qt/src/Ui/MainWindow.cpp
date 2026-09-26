@@ -96,6 +96,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , playback_(core.playback())
     , settings_(core.settings())
     , sourceSession_(core.sourceSession())
+    , messages_(core.messages())
     , coverArtCache_(&core.coverArtCache())
     , playbackHistory_(&core.playbackHistory())
     , trackStates_(&core.trackStates())
@@ -423,7 +424,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     sourcePanel_->setFavoriteCheck([this](const QString& sourceId, const QString& playlistId) {
         return sidebarModel_->isFavorite(sourceId, playlistId);
     });
-    connect(sourcePanel_, &SourcePanel::codeCopied, this, [this]() { toastNotifier_->showSuccess(tr("Code copied")); });
+    connect(sourcePanel_, &SourcePanel::codeCopied, this, [this]() { messages_.success(tr("Code copied")); });
     connect(sourcePanel_, &SourcePanel::settingsRequested, this,
         [this](const QString& sourceId) { showSettingsDialog(QStringLiteral("source:") + sourceId); });
     connect(sourcePanel_, &SourcePanel::refreshRequested, this, [this](const QString& sourceId) {
@@ -476,8 +477,22 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
         [this, splitter]() { settings_.setSidebarWidth(splitter->sizes().first()); });
 
     toastNotifier_ = new ToastNotifier(this);
-    connect(&playback_, &Playback::PlaybackController::errorOccurred, this,
-        [this](const QString& message) { toastNotifier_->showError(message); });
+    // Whatever the core has to tell the user shows as a toast — on
+    // whichever notifier is current (the Settings dialog's while it's up).
+    connect(
+        &messages_, &ViewModel::Messages::posted, this, [this](ViewModel::Messages::Kind kind, const QString& text) {
+            switch (kind) {
+                case ViewModel::Messages::Kind::Info:
+                    toastNotifier_->showInfo(text);
+                    break;
+                case ViewModel::Messages::Kind::Success:
+                    toastNotifier_->showSuccess(text);
+                    break;
+                case ViewModel::Messages::Kind::Error:
+                    toastNotifier_->showError(text);
+                    break;
+            }
+        });
 
     auto* central = new QWidget(this);
     auto* centralLayout = new QVBoxLayout(central);
@@ -521,8 +536,6 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
         [this](Rpc::RpcClient* client) { loadPlaylistsAsync(client).detach(); });
     connect(&sourceSession_, &App::SourceSession::signedIn, this,
         [this](Rpc::RpcClient* client) { loadPlaylistsAsync(client).detach(); });
-    connect(&sourceSession_, &App::SourceSession::errorOccurred, this,
-        [this](const QString& message) { toastNotifier_->showError(message); });
     connect(&sourceManager_, &Rpc::SourceManager::sourceUnavailable, this, &MainWindow::onSourceUnavailable);
 
     // Restore the last active playlist (without playing it). History is
@@ -608,7 +621,7 @@ void MainWindow::onSourceUnavailable(const QString& manifestId, const QString& n
     Q_UNUSED(stderrTail);
     sidebarModel_->removeSource(manifestId);
     syncSidebarSelection();
-    toastNotifier_->showError(tr("%1 is unavailable").arg(name));
+    messages_.error(tr("%1 is unavailable").arg(name));
 }
 
 void MainWindow::onSourceStopped(const QString& sourceId)
@@ -688,7 +701,7 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
     sidebarModel_->setSourceLoading(client->sourceId(), client->sourceName(), false);
     sidebarModel_->setSourceFetchError(client->sourceId(), client->sourceName(), fetchTimedOut);
     if (fetchTimedOut) {
-        toastNotifier_->showError(tr("%1: timed out loading playlists").arg(client->sourceName()));
+        messages_.error(tr("%1: timed out loading playlists").arg(client->sourceName()));
     }
 
     // Startup restore of the last active playlist, once its source has
@@ -913,7 +926,7 @@ Rpc::Task<void> MainWindow::activateAndPlayAsync(QString sourceId, Playlist play
         activate(context, entries, 0);
     } catch (const std::exception& e) {
         qCWarning(lcMainWindow) << "loading tracks failed for" << sourceId << ":" << e.what();
-        toastNotifier_->showError(QString::fromStdString(e.what()));
+        messages_.error(QString::fromStdString(e.what()));
     }
 }
 
@@ -1114,7 +1127,7 @@ Rpc::Task<void> MainWindow::openInSheetAsync(QString sourceId, Playlist playlist
         sheet_->setSubtitle(trackCountText(int(rows.size())));
     } catch (const std::exception& e) {
         qCWarning(lcMainWindow) << "loading tracks failed for" << sourceId << ":" << e.what();
-        toastNotifier_->showError(QString::fromStdString(e.what()));
+        messages_.error(QString::fromStdString(e.what()));
     }
     if (sheetContext_.sameAs(ActiveContext { sourceId, playlist }))
         sheet_->setBusy(false);
@@ -1180,7 +1193,7 @@ Rpc::Task<void> MainWindow::startRadioAsync(QString sourceId, QString seed, Acti
         playback_.startRadio(sourceId, result.stationId, result.initialTracks);
     } catch (const std::exception& e) {
         qCWarning(lcMainWindow) << "starting radio failed for" << sourceId << ":" << e.what();
-        toastNotifier_->showError(QString::fromStdString(e.what()));
+        messages_.error(QString::fromStdString(e.what()));
     }
     heroPanel_->setPlayBusy(false);
 }
@@ -1354,11 +1367,11 @@ Rpc::Task<void> MainWindow::likeToggledAsync(QString sourceId, QString trackId, 
                 nowPlayingBar_->setDislikeState(dislikeSupported, false);
         }
         if (announceSuccess)
-            toastNotifier_->showInfo(liked ? tr("Added to Liked") : tr("Removed from Liked"));
+            messages_.info(liked ? tr("Added to Liked") : tr("Removed from Liked"));
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcMainWindow) << "feedback.like/unlike failed for" << trackId << ":" << message;
-        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
         if (stillCurrent())
             nowPlayingBar_->setLikeState(likeSupported, !liked);
     }
@@ -1401,11 +1414,11 @@ Rpc::Task<void> MainWindow::dislikeToggledAsync(QString sourceId, QString trackI
             }
         }
         if (announceSuccess)
-            toastNotifier_->showInfo(disliked ? tr("Disliked") : tr("Removed dislike"));
+            messages_.info(disliked ? tr("Disliked") : tr("Removed dislike"));
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcMainWindow) << "feedback.dislike/undislike failed for" << trackId << ":" << message;
-        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
         if (stillCurrent())
             nowPlayingBar_->setDislikeState(dislikeSupported, !disliked);
     }
@@ -1420,19 +1433,19 @@ Rpc::Task<void> MainWindow::downloadTrackAsync(QString sourceId, Track track)
         settings_.downloadDirectory(), settings_.downloadLayout(), client->sourceName(), track);
     // docs/protocol.md §7.5: destDir must already exist.
     if (!QDir().mkpath(destDir)) {
-        toastNotifier_->showError(tr("Can't create the folder %1").arg(destDir));
+        messages_.error(tr("Can't create the folder %1").arg(destDir));
         co_return;
     }
-    toastNotifier_->showInfo(tr("Downloading \"%1\"…").arg(track.title));
+    messages_.info(tr("Downloading \"%1\"…").arg(track.title));
     try {
         DownloadTrackParams params { track.id, destDir };
         DownloadTrackResult result = co_await Rpc::catalogDownloadTrack(*client, params);
         Q_UNUSED(result);
-        toastNotifier_->showSuccess(tr("Saved \"%1\"").arg(track.title));
+        messages_.success(tr("Saved \"%1\"").arg(track.title));
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcMainWindow) << "catalog.downloadTrack failed for" << track.id << ":" << message;
-        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
     }
 }
 
@@ -1643,12 +1656,11 @@ Rpc::Task<void> MainWindow::setTrackInPlaylistAsync(
                 = (co_await Rpc::catalogRemoveFromPlaylist(*client, RemoveFromPlaylistParams { playlist.id, track.id }))
                       .trackCount;
         applyPlaylistEdit(sourceId, track, playlist.id, add, trackCount);
-        toastNotifier_->showInfo(
-            add ? tr("Added to \"%1\"").arg(playlist.title) : tr("Removed from \"%1\"").arg(playlist.title));
+        messages_.info(add ? tr("Added to \"%1\"").arg(playlist.title) : tr("Removed from \"%1\"").arg(playlist.title));
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcMainWindow) << "playlist edit failed for" << playlist.id << ":" << message;
-        toastNotifier_->showError(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
         if (box) {
             const QSignalBlocker blocker(box);
             box->setChecked(!add); // back to how it really is
