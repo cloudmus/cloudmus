@@ -82,6 +82,20 @@ void Settings::setLastActivePlaylist(const ActivePlaylistRef& ref)
     settings_.setValue(QStringLiteral("playback/activePlaylistKind"), ref.kind);
 }
 
+QStringList Settings::sidebarCollapsed() const
+{
+    return settings_.value(QStringLiteral("sidebar/collapsed")).toStringList();
+}
+
+void Settings::setSidebarCollapsed(const QStringList& keys)
+{
+    settings_.setValue(QStringLiteral("sidebar/collapsed"), keys);
+}
+
+QString Settings::sidebarSelection() const { return settings_.value(QStringLiteral("sidebar/selection")).toString(); }
+
+void Settings::setSidebarSelection(const QString& key) { settings_.setValue(QStringLiteral("sidebar/selection"), key); }
+
 int Settings::volume() const { return settings_.value(QStringLiteral("playback/volume"), 100).toInt(); }
 
 void Settings::setVolume(int volume0To100) { settings_.setValue(QStringLiteral("playback/volume"), volume0To100); }

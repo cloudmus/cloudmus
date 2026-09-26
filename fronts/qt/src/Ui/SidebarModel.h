@@ -140,6 +140,11 @@ public:
     // A source's header row, or an invalid index.
     QModelIndex indexForSource(const QString& sourceId) const;
 
+    // A stable name for an expandable row — a source's header or its
+    // "Playlists" group — that survives setSource() rebuilding the rows
+    // and a restart; empty for other rows. For remembering what's collapsed.
+    static QString nodeKey(const QModelIndex& index);
+
     // Inserts the top-level "History" row once, ahead of every source root
     // (idempotent — a no-op if already present).
     void ensureHistoryItem();

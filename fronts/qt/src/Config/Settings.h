@@ -49,6 +49,15 @@ public:
     int heroPanelWidth() const;
     void setHeroPanelWidth(int width);
 
+    // The sidebar's collapsed rows, by Ui::SidebarModel::nodeKey() — every
+    // other row starts expanded.
+    QStringList sidebarCollapsed() const;
+    void setSidebarCollapsed(const QStringList& keys);
+    // What the sidebar last had selected (MainWindow::selectionKey()), to
+    // open again at startup; empty for nothing.
+    QString sidebarSelection() const;
+    void setSidebarSelection(const QString& key);
+
     int volume() const;
     void setVolume(int volume0To100);
 

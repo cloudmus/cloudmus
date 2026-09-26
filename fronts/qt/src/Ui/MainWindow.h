@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QMainWindow>
 #include <QPointer>
+#include <QSet>
 
 #include <functional>
 
@@ -188,6 +189,15 @@ private:
     // Sidebar selection follows what is on screen: the sheet's playlist
     // while it's open, the active one otherwise.
     void syncSidebarSelection();
+    // Expands the rows just inserted (and their children), except the ones
+    // the user collapsed — see collapsedNodes_.
+    void restoreExpansion(const QModelIndex& parent, int first, int last);
+    // Names what syncSidebarSelection() selects — "history",
+    // "source:<id>" or "playlist:<sourceId>:<playlistId>" — or empty.
+    QString selectionKey() const;
+    // Opens the page the sidebar had selected when the app last quit, once
+    // `sourceId` has listed its playlists (empty: History, available at once).
+    void restoreSelection(const QString& sourceId, const QList<Playlist>& playlists);
 
     // --- the sheet (anything that isn't the active playlist)
     Rpc::Task<void> openInSheetAsync(QString sourceId, Playlist playlist);
@@ -332,6 +342,10 @@ private:
     ActiveContext sheetContext_;
     // Saved active playlist waiting for its source's playlists to load.
     Config::Settings::ActivePlaylistRef pendingRestore_;
+    // Settings::sidebarSelection() from the last run, until restored or
+    // replaced by a new selection.
+    QString pendingSelection_;
+    QSet<QString> collapsedNodes_;
 
     bool reallyQuitting_ = false;
     // saveGeometry() taken by hideToTray(); empty while the window is shown.

@@ -27,6 +27,7 @@
 #include <QWindow>
 
 #include <algorithm>
+#include <functional>
 #include <optional>
 
 #include "AboutDialog.h"
@@ -308,7 +309,26 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         const bool inside = sidebarView_->viewport()->rect().contains(viewportPos);
         updateSidebarHover(inside ? sidebarView_->indexAt(viewportPos) : QModelIndex());
     });
-    connect(sidebarModel_, &QStandardItemModel::rowsInserted, sidebarView_, &QTreeView::expandAll);
+    // Rows are expanded as they come in — setSource() rebuilds a source's
+    // rows on every refresh — except the ones the user collapsed, which
+    // stay collapsed across refreshes and restarts.
+    const QStringList collapsed = settings_.sidebarCollapsed();
+    collapsedNodes_ = QSet<QString>(collapsed.cbegin(), collapsed.cend());
+    connect(sidebarModel_, &QStandardItemModel::rowsInserted, this, &MainWindow::restoreExpansion);
+    const auto rememberExpansion = [this](const QModelIndex& index, bool expanded) {
+        const QString key = SidebarModel::nodeKey(index);
+        if (key.isEmpty() || collapsedNodes_.contains(key) == !expanded)
+            return;
+        if (expanded)
+            collapsedNodes_.remove(key);
+        else
+            collapsedNodes_.insert(key);
+        settings_.setSidebarCollapsed(QStringList(collapsedNodes_.cbegin(), collapsedNodes_.cend()));
+    };
+    connect(sidebarView_, &QTreeView::expanded, this,
+        [rememberExpansion](const QModelIndex& index) { rememberExpansion(index, true); });
+    connect(sidebarView_, &QTreeView::collapsed, this,
+        [rememberExpansion](const QModelIndex& index) { rememberExpansion(index, false); });
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
     sidebarView_->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -417,6 +437,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
             model->sourceIdAt(row), model->trackAt(row), globalPos, [this, row]() { activateFromSheet(row); });
     });
     connect(sheet_, &PlaylistSheet::dismissed, this, [this]() {
+        pendingSelection_.clear();
         sheetContext_ = ActiveContext();
         currentStatusPanelSourceId_.clear();
         syncSidebarSelection();
@@ -504,6 +525,10 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     } else if (!saved.sourceId.isEmpty() && !saved.playlistId.isEmpty()) {
         pendingRestore_ = saved;
     }
+    // And the page that was open in the sidebar, the same way.
+    pendingSelection_ = settings_.sidebarSelection();
+    if (pendingSelection_ == QStringLiteral("history"))
+        QTimer::singleShot(0, this, [this]() { restoreSelection(QString(), { }); });
 }
 
 MainWindow::~MainWindow() { settings_.setWindowGeometry(saveGeometry()); }
@@ -731,6 +756,7 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
         }
         pendingRestore_ = Config::Settings::ActivePlaylistRef();
     }
+    restoreSelection(client->sourceId(), playlists);
     // setSource() rebuilt this source's rows, dropping their selection.
     syncSidebarSelection();
     if (currentStatusPanelSourceId_ == client->sourceId())
@@ -741,6 +767,7 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)
 {
+    pendingSelection_.clear(); // the user picked something else meanwhile
     const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
     if (kind == SidebarModel::Kind::History) {
         if (activeContext_.isHistory)
@@ -771,6 +798,7 @@ void MainWindow::onSidebarActivated(const QModelIndex& index)
 
 void MainWindow::onSidebarDoubleClicked(const QModelIndex& index)
 {
+    pendingSelection_.clear();
     const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
     if (kind == SidebarModel::Kind::History) {
         activate(historyContext(), { }, 0); // activate() fills History's queue itself
@@ -1022,6 +1050,78 @@ void MainWindow::syncSidebarSelection()
         sidebarView_->setCurrentIndex(target);
     else
         sidebarView_->clearSelection();
+
+    // Remembered for the next start — but not while the last run's is
+    // still waiting for its source to load: what's selected until then
+    // (nothing, or the restored active playlist) isn't the user's choice.
+    if (pendingSelection_.isEmpty())
+        settings_.setSidebarSelection(selectionKey());
+}
+
+QString MainWindow::selectionKey() const
+{
+    const ActiveContext& context = sheet_->isPresented() ? sheetContext_ : activeContext_;
+    if (sheet_->isPresented() && !context.isValid())
+        return currentStatusPanelSourceId_.isEmpty() ? QString()
+                                                     : QStringLiteral("source:") + currentStatusPanelSourceId_;
+    if (!context.isValid())
+        return QString();
+    if (context.isHistory)
+        return QStringLiteral("history");
+    return QStringLiteral("playlist:%1:%2").arg(context.sourceId, context.playlist.id);
+}
+
+void MainWindow::restoreSelection(const QString& sourceId, const QList<Playlist>& playlists)
+{
+    const QString key = pendingSelection_;
+    if (key.isEmpty())
+        return;
+    if (key == QStringLiteral("history")) {
+        if (!sourceId.isEmpty())
+            return;
+        pendingSelection_.clear();
+        if (!activeContext_.isHistory)
+            openHistoryInSheet();
+        return;
+    }
+    if (key == QStringLiteral("source:") + sourceId) {
+        pendingSelection_.clear();
+        showSourceStatusPanel(sourceId);
+        return;
+    }
+    const QString prefix = QStringLiteral("playlist:%1:").arg(sourceId);
+    if (!key.startsWith(prefix))
+        return;
+    pendingSelection_.clear();
+    const QString playlistId = key.mid(prefix.size());
+    for (const Playlist& playlist : playlists) {
+        if (playlist.id != playlistId)
+            continue;
+        // The active playlist is already in the main area — selecting it
+        // is all there is to do, and syncSidebarSelection() does that.
+        if (!activeContext_.sameAs(ActiveContext { sourceId, playlist }))
+            openInSheetAsync(sourceId, playlist).detach();
+        break;
+    }
+    syncSidebarSelection();
+}
+
+void MainWindow::restoreExpansion(const QModelIndex& parent, int first, int last)
+{
+    const std::function<void(const QModelIndex&)> apply = [&](const QModelIndex& index) {
+        const QString key = SidebarModel::nodeKey(index);
+        if (!key.isEmpty())
+            sidebarView_->setExpanded(index, !collapsedNodes_.contains(key));
+        for (int row = 0; row < sidebarModel_->rowCount(index); ++row)
+            apply(sidebarModel_->index(row, 0, index));
+    };
+    // The parent too: a row can get its first children only now, and a
+    // view won't keep a childless row expanded.
+    if (parent.isValid())
+        apply(parent);
+    else
+        for (int row = first; row <= last; ++row)
+            apply(sidebarModel_->index(row, 0, parent));
 }
 
 void MainWindow::playActive()

@@ -136,6 +136,19 @@ void SidebarModel::populate(QStandardItem* root, const QString& sourceId)
     }
 }
 
+QString SidebarModel::nodeKey(const QModelIndex& index)
+{
+    const QString sourceId = index.data(SourceIdRole).toString();
+    switch (static_cast<Kind>(index.data(KindRole).toInt())) {
+        case Kind::SourceHeader:
+            return QStringLiteral("source:") + sourceId;
+        case Kind::PlaylistsHeader:
+            return QStringLiteral("playlists:") + sourceId;
+        default:
+            return QString();
+    }
+}
+
 void SidebarModel::ensureHistoryItem()
 {
     for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
