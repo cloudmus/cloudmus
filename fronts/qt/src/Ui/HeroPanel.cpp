@@ -36,6 +36,9 @@ constexpr qreal kSubtitleFontScale = 1.0;
 // Fraction of the panel's shorter dimension the real-cover overlay
 // renders at (see overlayTargetSide()). Same history: 0.5 → ×1.5 → ×(1/1.2).
 constexpr qreal kCoverFraction = 0.75 / 1.2;
+// Below this the cover is left out rather than shown as a postage stamp —
+// the title and subtitle get the room instead (see overlayTargetSide()).
+constexpr int kMinCoverSide = 64;
 
 // New cover grows in from 150%, a leaving one shrinks away to 50% —
 // both fading. The exit is shorter and accelerates (InCubic) so the old
@@ -237,8 +240,8 @@ bool HeroPanel::hasHeightForWidth() const { return true; }
 int HeroPanel::heightForWidth(int w) const
 {
     const int availWidth = qMax(0, w - 2 * kStandardMargin);
-    const bool hasCover = !currentCoverUrl_.isEmpty();
-    const int coverSide = hasCover ? overlayTargetSide() : 0;
+    const int coverSide = currentCoverUrl_.isEmpty() ? 0 : overlayTargetSide();
+    const bool hasCover = coverSide > 0;
     const bool showButton = isPromo_ && playButtonVisible_;
 
     const int titleHeight = TextLayout::wrappedHeight(titleFont_, titleText_, availWidth, kTitleMaxLines);
@@ -261,13 +264,40 @@ int HeroPanel::heightForWidth(int w) const
     return total + 2 * kStandardMargin;
 }
 
-int HeroPanel::overlayTargetSide() const { return qMax(1, qRound(kCoverFraction * qMin(width(), height()))); }
+int HeroPanel::textBlockHeight(int availWidth) const
+{
+    const int titleHeight = TextLayout::wrappedHeight(titleFont_, titleText_, availWidth, kTitleMaxLines);
+    const int subtitleHeight = TextLayout::wrappedHeight(subtitleFont_, subtitleText_, availWidth, kSubtitleMaxLines);
+    int total = 0;
+    if (titleHeight > 0)
+        total += titleHeight + kItemSpacing;
+    if (subtitleHeight > 0)
+        total += subtitleHeight + kItemSpacing;
+    if (isPromo_ && playButtonVisible_)
+        total += playButton_->size().height();
+    return total;
+}
+
+int HeroPanel::overlayTargetSide() const
+{
+    // The usual share of the panel, but never so much that the text below
+    // it gets pushed out of a short panel: the cover shrinks to what's
+    // left, and goes once that's too little to be worth showing.
+    const int preferred = qRound(kCoverFraction * qMin(width(), height()));
+    const int room = height() - 2 * kStandardMargin - textBlockHeight(width() - 2 * kStandardMargin) - kItemSpacing;
+    const int side = qMin(preferred, room);
+    return side >= kMinCoverSide ? side : 0;
+}
 
 void HeroPanel::refreshCoverOverlay()
 {
     if (currentCoverUrl_.isEmpty())
         return;
     const int side = overlayTargetSide();
+    if (side <= 0) {
+        relayout(); // no room for it — relayout() leaves it out
+        return;
+    }
     // May return a null placeholder while the fetch is in flight —
     // pixmapReady's handler (constructor) calls this again once it lands,
     // so the new cover's entrance starts when there's actually something
@@ -301,8 +331,8 @@ void HeroPanel::regenerateSizedLayers()
 void HeroPanel::relayout()
 {
     const QRect avail = rect().adjusted(kStandardMargin, kStandardMargin, -kStandardMargin, -kStandardMargin);
-    const bool hasCover = !currentCoverUrl_.isEmpty();
-    const int coverSide = hasCover ? overlayTargetSide() : 0;
+    const int coverSide = currentCoverUrl_.isEmpty() ? 0 : overlayTargetSide();
+    const bool hasCover = coverSide > 0;
     const bool showButton = isPromo_ && playButtonVisible_;
 
     const int titleHeight = TextLayout::wrappedHeight(titleFont_, titleText_, avail.width(), kTitleMaxLines);

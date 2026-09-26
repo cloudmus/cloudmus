@@ -110,7 +110,11 @@ private:
     void applyContent(const Content& content);
     void regenerateSizedLayers();
     void refreshCoverOverlay();
+    // The cover's side: 0 when the panel is too short to fit it above the
+    // text (then it's left out).
     int overlayTargetSide() const;
+    // Title + subtitle + play button, with their spacing, at a text width.
+    int textBlockHeight(int availWidth) const;
     // Recomputes coverRect_/titleRect_/subtitleRect_ and playButton_'s
     // geometry from the current content + this widget's current size.
     // Shared measurement math with heightForWidth() (see the .cpp) so the

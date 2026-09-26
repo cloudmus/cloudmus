@@ -7,10 +7,10 @@ class QWidget;
 
 namespace Ui {
 
-// A macOS/GNOME-style overlay vertical scrollbar for any QAbstractScrollArea
-// (QTreeView, QListView, QScrollArea, ...): the real QScrollBar is hidden
-// entirely (Qt::ScrollBarAlwaysOff — it still works programmatically, it's
-// just never shown or given layout space), and a small floating widget is
+// macOS/GNOME-style overlay scrollbars, vertical and horizontal, for any
+// QAbstractScrollArea (QTreeView, QListView, QScrollArea, ...): the real
+// QScrollBars are hidden entirely (Qt::ScrollBarAlwaysOff — they still work
+// programmatically, they're just never shown or given layout space), and a small floating widget is
 // painted directly on top of the viewport instead. Three animated states:
 // hidden (0 width, the default — reserves no layout space, ever), narrow +
 // translucent while the cursor is anywhere over the view, and thicker +
@@ -35,7 +35,8 @@ private:
     // (hides the real scrollbar, constructs the handle), so its concrete
     // type stays opaque here.
     QAbstractScrollArea* area_;
-    QWidget* handle_ = nullptr;
+    QWidget* verticalHandle_ = nullptr;
+    QWidget* horizontalHandle_ = nullptr;
 };
 
 } // namespace Ui

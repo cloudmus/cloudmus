@@ -68,6 +68,12 @@ namespace {
 // console even if the toast was missed.
 Q_LOGGING_CATEGORY(lcMainWindow, "cloudmus.ui.mainwindow")
 
+// The narrowest the splitter panes go — below these the sidebar's rows,
+// the hero panel and the track rows start to overlap and clip.
+constexpr int kSidebarMinWidth = 134;
+constexpr int kHeroMinWidth = 260;
+constexpr int kTrackListMinWidth = 214;
+
 // A station as a HeroPanel promotes it (the sheet's radio page, and the
 // main screen before it starts): one without a description of its own
 // (YouTube's "My Supermix") says what it is, instead of a bare title.
@@ -356,6 +362,12 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     contentSplitter_->setProperty("themed", true); // 1px line handle — see Theme::CloudMusStyle
     contentSplitter_->addWidget(heroPanel_);
     contentSplitter_->addWidget(trackListPane_);
+    // Neither pane can be dragged shut or squeezed so far that the track
+    // rows' and the hero's layouts break (setTrackListVisible() hides the
+    // list outright instead).
+    contentSplitter_->setChildrenCollapsible(false);
+    heroPanel_->setMinimumWidth(kHeroMinWidth);
+    trackListPane_->setMinimumWidth(kTrackListMinWidth);
     contentSplitter_->setSizes({ settings_.heroPanelWidth(), 290 });
     connect(contentSplitter_, &QSplitter::splitterMoved, this,
         [this]() { settings_.setHeroPanelWidth(contentSplitter_->sizes().first()); });
@@ -432,6 +444,10 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     splitter->setProperty("themed", true);
     splitter->addWidget(sidebarView_);
     splitter->addWidget(trackListContainer);
+    // Same for the sidebar: never dragged shut, never narrower than its
+    // rows' icon + title + status icon need.
+    splitter->setChildrenCollapsible(false);
+    sidebarView_->setMinimumWidth(kSidebarMinWidth);
     splitter->setSizes({ settings_.sidebarWidth(), 720 });
     connect(splitter, &QSplitter::splitterMoved, this,
         [this, splitter]() { settings_.setSidebarWidth(splitter->sizes().first()); });

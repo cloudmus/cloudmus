@@ -21,16 +21,19 @@ constexpr qreal kNarrowOpacity = 0.55;
 constexpr qreal kWideOpacity = 0.9;
 constexpr int kFlashTimeoutMs = 900;
 constexpr qreal kMinHandleLength = 24.0;
-constexpr int kMargin = 2; // gap between the handle and the viewport's right edge
+constexpr int kMargin = 2; // gap between the handle and the viewport's edge
 
 // Floating handle painted directly on a viewport, entirely replacing the
-// real (hidden) QScrollBar's visuals — see OverlayScrollBar's class doc
+// real (hidden) QScrollBar's visuals — one per orientation: a strip along
+// the viewport's right edge for the vertical bar, along its bottom edge
+// for the horizontal one. All geometry below is worked out along the
+// scrolling axis ("length") and across it ("thickness"), then mapped. — see OverlayScrollBar's class doc
 // for the three-state design this implements. Not Q_OBJECT: it only ever
 // connects *to* other objects' signals via lambdas, never declares its
 // own, so no moc processing is needed.
 class Handle : public QWidget {
 public:
-    explicit Handle(QAbstractScrollArea* area)
+    Handle(QAbstractScrollArea* area, Qt::Orientation orientation)
         // Parented to `area` itself, NOT area->viewport(): QAbstractItemView
         // scrolls its viewport via QWidget::scroll(dx, dy) for efficiency
         // (a fast blit + repaint of just the newly-exposed strip, rather
@@ -44,7 +47,8 @@ public:
         // area's own coordinate space.
         : QWidget(area)
         , area_(area)
-        , bar_(area->verticalScrollBar())
+        , orientation_(orientation)
+        , bar_(orientation == Qt::Vertical ? area->verticalScrollBar() : area->horizontalScrollBar())
     {
         setAttribute(Qt::WA_NoSystemBackground, true);
         setMouseTracking(true);
@@ -110,8 +114,14 @@ public:
         // needed even though this widget is no longer parented to the
         // viewport itself.
         const QRect vp = area_->viewport()->geometry();
-        const int x = vp.x() + vp.width() - qRound(kWideWidth) - kMargin;
-        setGeometry(x, vp.y(), qRound(kWideWidth), vp.height());
+        const int thickness = qRound(kWideWidth);
+        if (vertical()) {
+            setGeometry(vp.x() + vp.width() - thickness - kMargin, vp.y(), thickness, vp.height());
+        } else {
+            // Short of the vertical strip's corner, so the two never overlap.
+            setGeometry(vp.x(), vp.y() + vp.height() - thickness - kMargin, qMax(0, vp.width() - thickness - kMargin),
+                thickness);
+        }
         updateHandleRect();
     }
 
@@ -154,7 +164,7 @@ protected:
             QColor track = pal.ink;
             track.setAlphaF(0.12);
             painter.setBrush(track);
-            painter.drawRoundedRect(QRectF(width() - width_, 0, width_, height()), width_ / 2.0, width_ / 2.0);
+            painter.drawRoundedRect(toWidget(0, trackLength()), width_ / 2.0, width_ / 2.0);
         }
 
         QColor handleColor = engaged ? pal.inkSecondary : pal.borderStrong;
@@ -182,7 +192,7 @@ protected:
         if (event->button() != Qt::LeftButton || !handleRect_.contains(event->position()))
             return;
         dragging_ = true;
-        dragStartY_ = event->position().y();
+        dragStartPos_ = along(event->position());
         dragStartValue_ = bar_->value();
         refreshState();
     }
@@ -194,9 +204,10 @@ protected:
         const int range = bar_->maximum() - bar_->minimum();
         if (range <= 0)
             return;
-        const qreal scrollableTrack = qMax<qreal>(1.0, height() - handleRect_.height());
-        const qreal deltaY = event->position().y() - dragStartY_;
-        const int newValue = dragStartValue_ + qRound(deltaY * range / scrollableTrack);
+        const qreal handleLength = vertical() ? handleRect_.height() : handleRect_.width();
+        const qreal scrollableTrack = qMax<qreal>(1.0, trackLength() - handleLength);
+        const qreal delta = along(event->position()) - dragStartPos_;
+        const int newValue = dragStartValue_ + qRound(delta * range / scrollableTrack);
         bar_->setValue(qBound(bar_->minimum(), newValue, bar_->maximum()));
     }
 
@@ -209,7 +220,11 @@ protected:
     }
 
 private:
-    enum class State { Hidden, Narrow, Wide };
+    enum class State {
+        Hidden,
+        Narrow,
+        Wide
+    };
 
     void setViewHovered(bool hovered)
     {
@@ -236,19 +251,32 @@ private:
             setState(State::Hidden);
     }
 
+    bool vertical() const { return orientation_ == Qt::Vertical; }
+    qreal trackLength() const { return vertical() ? height() : width(); }
+    qreal along(const QPointF& pos) const { return vertical() ? pos.y() : pos.x(); }
+
+    // A span [start, start + length) of the track, at the current
+    // thickness, hugging the viewport's edge (right, or bottom).
+    QRectF toWidget(qreal start, qreal length) const
+    {
+        if (vertical())
+            return QRectF(width() - width_, start, width_, length);
+        return QRectF(start, height() - width_, length, width_);
+    }
+
     void updateHandleRect()
     {
-        const qreal trackHeight = height();
+        const qreal track = trackLength();
         const int range = bar_->maximum() - bar_->minimum();
-        qreal handleHeight = trackHeight;
+        qreal handleLength = track;
         if (range > 0) {
-            const int pageStep = bar_->pageStep() > 0 ? bar_->pageStep() : qRound(trackHeight);
-            handleHeight = qMax(kMinHandleLength, trackHeight * pageStep / (range + pageStep));
+            const int pageStep = bar_->pageStep() > 0 ? bar_->pageStep() : qRound(track);
+            handleLength = qMax(kMinHandleLength, track * pageStep / (range + pageStep));
         }
-        qreal y = 0;
+        qreal start = 0;
         if (range > 0)
-            y = (trackHeight - handleHeight) * (bar_->value() - bar_->minimum()) / range;
-        handleRect_ = QRectF(width() - width_, y, width_, handleHeight);
+            start = (track - handleLength) * (bar_->value() - bar_->minimum()) / range;
+        handleRect_ = toWidget(start, handleLength);
         update();
     }
 
@@ -288,6 +316,7 @@ private:
     }
 
     QAbstractScrollArea* area_;
+    Qt::Orientation orientation_;
     QScrollBar* bar_;
     QVariantAnimation* widthAnim_;
     QVariantAnimation* opacityAnim_;
@@ -298,7 +327,7 @@ private:
     bool viewHovered_ = false;
     bool handleHovered_ = false;
     bool dragging_ = false;
-    qreal dragStartY_ = 0;
+    qreal dragStartPos_ = 0;
     int dragStartValue_ = 0;
     QRectF handleRect_;
 };
@@ -320,7 +349,9 @@ OverlayScrollBar::OverlayScrollBar(QAbstractScrollArea* area)
     // this class replaces with its own floating, non-layout-participating
     // handle.
     area->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    handle_ = new Handle(area);
+    area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    verticalHandle_ = new Handle(area, Qt::Vertical);
+    horizontalHandle_ = new Handle(area, Qt::Horizontal);
 }
 
 } // namespace Ui
