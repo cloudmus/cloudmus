@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network DBus Svg)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network DBus Svg Test)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
@@ -65,10 +65,10 @@ add_custom_command(
 )
 add_custom_target(protocol_codegen_cpp DEPENDS ${GENERATED_CPP_STAMP})
 
-add_executable(cloudmus-qt
-    src/main.cpp
-    src/Logging.cpp
-
+# --- cloudmus-core: everything below the view — backends, playback, state,
+# settings — with no Qt Widgets, so the linker keeps widget code out of it
+# (see docs/mvvm-plan.md). Linked by the app and by the tests.
+add_library(cloudmus-core STATIC
     src/Rpc/NdjsonTransport.cpp
     src/Rpc/BackendManifest.cpp
     src/Rpc/RpcClient.cpp
@@ -85,6 +85,45 @@ add_executable(cloudmus-qt
     src/History/PlaybackHistory.cpp
     src/Library/TrackStates.cpp
     src/Library/DownloadPaths.cpp
+
+    ${GENERATED_DIR}/RpcMethods.cpp
+)
+add_dependencies(cloudmus-core protocol_codegen_cpp)
+
+# GCC needs this explicitly for C++20 coroutines (Rpc::Task<T>,
+# co_await/co_return in RpcClient/PlaybackController/etc.) on the GCC
+# versions older, still-widely-deployed distros ship (e.g. GCC 10 on
+# Debian 11, used for the AppImage build — see packaging/appimage/) — a
+# no-op on toolchains where coroutines are already enabled unconditionally
+# under -std=c++20. PUBLIC: every user of Rpc::Task needs it too.
+target_compile_options(cloudmus-core PUBLIC
+    $<$<CXX_COMPILER_ID:GNU>:-fcoroutines>
+)
+
+target_compile_definitions(cloudmus-core PRIVATE
+    CLOUDMUS_DEV_REPO_ROOT="${CLOUDMUS_REPO_ROOT}"
+)
+
+target_include_directories(cloudmus-core PUBLIC
+    ${GENERATED_DIR}
+    src/Rpc
+    src/Playback
+    src/Config
+    src/Net
+    src/History
+    src/Library
+)
+
+target_link_libraries(cloudmus-core PUBLIC
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Network
+    PkgConfig::MPV
+)
+
+add_executable(cloudmus-qt
+    src/main.cpp
+    src/Logging.cpp
 
     src/Ui/MainWindow.cpp
     src/Ui/AboutDialog.cpp
@@ -112,6 +151,7 @@ add_executable(cloudmus-qt
     src/Theme/Shadow.cpp
     src/Ui/AnimatedPresenter.cpp
     src/Ui/PlaylistSheet.cpp
+    src/Ui/CoverArtCache.cpp
     src/Ui/ThemedToolTip.cpp
     src/Ui/SettingsDialog.cpp
     src/Ui/DialogButtons.cpp
@@ -123,7 +163,6 @@ add_executable(cloudmus-qt
     src/Ui/Settings/SourcePage.cpp
     src/Ui/Settings/SettingsForm.cpp
     src/Ui/Settings/NetworkPage.cpp
-    src/Ui/CoverArtCache.cpp
 
     src/Theme/Tokens.cpp
     src/Theme/Typography.cpp
@@ -139,8 +178,6 @@ add_executable(cloudmus-qt
     src/Integration/MprisService.cpp
     src/Integration/GlobalShortcuts.cpp
     src/Integration/WindowGlass.cpp
-
-    ${GENERATED_DIR}/RpcMethods.cpp
 
     resources/icons.qrc
     resources/fonts.qrc
@@ -159,39 +196,27 @@ add_custom_target(cloudmus_version
 )
 add_dependencies(cloudmus-qt cloudmus_version)
 
-# GCC needs this explicitly for C++20 coroutines (Rpc::Task<T>,
-# co_await/co_return in RpcClient/PlaybackController/etc.) on the GCC
-# versions older, still-widely-deployed distros ship (e.g. GCC 10 on
-# Debian 11, used for the AppImage build — see packaging/appimage/) — a
-# no-op on toolchains where coroutines are already enabled unconditionally
-# under -std=c++20.
-target_compile_options(cloudmus-qt PRIVATE
-    $<$<CXX_COMPILER_ID:GNU>:-fcoroutines>
-)
-
-target_compile_definitions(cloudmus-qt PRIVATE
-    CLOUDMUS_DEV_REPO_ROOT="${CLOUDMUS_REPO_ROOT}"
-)
-
 target_include_directories(cloudmus-qt PRIVATE
-    ${GENERATED_DIR}
     ${VERSION_DIR}
-    src/Rpc
-    src/Playback
     src/Ui
     src/Theme
     src/Integration
-    src/Config
-    src/Net
-    src/History
-    src/Library
 )
 
 target_link_libraries(cloudmus-qt PRIVATE
-    Qt6::Core
+    cloudmus-core
     Qt6::Widgets
-    Qt6::Network
     Qt6::DBus
     Qt6::Svg
-    PkgConfig::MPV
 )
+
+# --- tests (QtTest): `ctest --test-dir build`, or run build/bin/cloudmus-qt-tests.
+enable_testing()
+add_executable(cloudmus-qt-tests
+    tests/main.cpp
+    tests/FakeBackend.cpp
+    tests/RpcClientTest.cpp
+)
+target_include_directories(cloudmus-qt-tests PRIVATE tests)
+target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
+add_test(NAME cloudmus-qt-tests COMMAND cloudmus-qt-tests)
