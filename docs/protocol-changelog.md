@@ -5,6 +5,17 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.6 — several stations per source, `Playlist.featured`
+
+- **Clarified**: `catalog.listPlaylists` may return more than one
+  `kind: "radioStation"` entry (§7.1) — e.g. YouTube Music's personal mixes
+  or Yandex Music's recommended stations next to My Wave. Each one starts
+  with `catalog.startRadio` using its `id` as `seed`, as before.
+- **Additive, backward-compatible**: `Playlist` gains an optional `featured`
+  (§6) — the source's suggestion for what a front shows at the source's top
+  level until the user chooses their own favorites. Without it a front
+  features every `liked`/`radioStation` entry, as it effectively did before.
+
 ## 1.5 — `auth/prompt.message`
 
 - **Additive, backward-compatible**: `auth/prompt` gains an optional

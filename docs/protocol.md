@@ -261,7 +261,8 @@ expected to always emit the full shape above.
   "coverUrl": "https://...",      // optional
   "trackCount": 42,
   "kind": "playlist",              // one of "playlist" | "liked" | "radioStation"
-  "editable": true                 // optional (1.3+): the user's own playlist — tracks can be added/removed (§7.6)
+  "editable": true,                // optional (1.3+): the user's own playlist — tracks can be added/removed (§7.6)
+  "featured": true                 // optional (1.6+): worth showing at the source's top level by default
 }
 ```
 `kind: "radioStation"` playlists (e.g. My Wave) have no fixed track
@@ -273,6 +274,14 @@ fetched via `catalog.listLiked`, not `catalog.listTracks` — their `id` is
 not a valid `playlistId`. Any `kind` may carry `description`/`coverUrl`;
 a front is expected to show them uniformly (e.g. a cover/description
 banner) regardless of kind.
+
+`featured` (1.6+) is the source's suggestion for which entries a front
+shows up front — e.g. My Wave, Liked Tracks, a daily personal playlist —
+when it has more to offer than fits comfortably (a dozen personal mixes,
+recommended stations). It is only a default: which entries a front puts at
+the top level is the user's choice (favorites), kept by the front. A front
+talking to a source that marks nothing `featured` (e.g. one older than 1.6)
+treats every `liked` and `radioStation` entry as featured.
 
 ### PlaybackState
 ```jsonc
@@ -316,8 +325,9 @@ value in v1.
 
 `catalog.listPlaylists` is the single source of truth for everything a
 front shows as a "playlist" under a source, including the source's built-in
-special playlists: a source advertising `browse.radio` includes one
-`kind: "radioStation"` entry (e.g. Yandex Music's My Wave), and a source
+special playlists: a source advertising `browse.radio` includes one or
+more `kind: "radioStation"` entries (e.g. Yandex Music's My Wave and its
+recommended stations, YouTube Music's personal mixes), and a source
 advertising `browse.likedTracks` includes one `kind: "liked"` entry, both
 alongside any real `kind: "playlist"` entries. A front therefore calls
 `catalog.listPlaylists` whenever any of the three `browse.*` capabilities
@@ -326,7 +336,8 @@ above is true, not only `browse.playlists`.
 - Recommended client-side timeout: **20 seconds** (longer than the ~5s
   default for other browse/auth calls — some backends fan this out into
   several chained upstream requests, e.g. youtube-music's ytmusicapi
-  wrapper does three sequential calls per `listPlaylists`).
+  wrapper does three sequential calls per `listPlaylists`, the last one a
+  scan of the home feed for the account's personal mixes).
 
 `cursor` is an **opaque string** — the front only ever passes back exactly
 what it last received in `nextCursor`; it has no structure a front is

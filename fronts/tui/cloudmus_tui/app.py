@@ -107,19 +107,19 @@ class PlayerApp(App):
         source_name = client.source_info["name"] if client.source_info else source_id
         sidebar = self.query_one("#sidebar", ListView)
 
-        if caps["browse"]["radio"]:
-            await sidebar.append(SourceItem(f"My Wave  ({source_name})", "wave", source_id))
-        if caps["browse"]["likedTracks"]:
-            await sidebar.append(SourceItem(f"Liked Tracks  ({source_name})", "likes", source_id))
-        if caps["browse"]["playlists"]:
+        # listPlaylists carries the source's stations (My Wave, personal
+        # mixes, ...) and its liked entry too — docs/protocol.md §7.1.
+        if caps["browse"]["playlists"] or caps["browse"]["likedTracks"] or caps["browse"]["radio"]:
             try:
                 result = await client.request("catalog.listPlaylists", {})
             except Exception as e:
                 self.notify(f"Failed to load playlists from {source_name}: {e}", severity="error", timeout=6)
                 return
+            item_kinds = {"radioStation": "wave", "liked": "likes"}
             for playlist in result["playlists"]:
                 label = f"{playlist['title']}  ({source_name})"
-                await sidebar.append(SourceItem(label, "playlist", source_id, payload=playlist))
+                kind = item_kinds.get(playlist["kind"], "playlist")
+                await sidebar.append(SourceItem(label, kind, source_id, payload=playlist))
 
     # --- notifications from backends ---
 
@@ -211,7 +211,7 @@ class PlayerApp(App):
         if item.kind == "wave":
             self.notify("Starting radio...", timeout=3)
             try:
-                result = await client.request("catalog.startRadio", {})
+                result = await client.request("catalog.startRadio", {"seed": item.payload["id"]})
             except Exception as e:
                 self.notify(f"Failed to start radio: {e}", severity="error", timeout=6)
                 return
@@ -219,7 +219,7 @@ class PlayerApp(App):
             self.playback_engine.start_radio(item.source_id, result["stationId"], result["initialTracks"])
             return
 
-        label = "Liked Tracks" if item.kind == "likes" else (item.payload or {}).get("title", "playlist")
+        label = (item.payload or {}).get("title", "playlist")
         self.notify(f"Loading “{label}”...", timeout=3)
         try:
             if item.kind == "likes":
