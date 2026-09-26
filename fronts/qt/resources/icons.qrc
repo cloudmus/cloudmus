@@ -26,6 +26,8 @@
         <file alias="check.svg">icons/symbols/check.svg</file>
         <file alias="favorite.svg">icons/symbols/favorite.svg</file>
         <file alias="favorite_border.svg">icons/symbols/favorite_border.svg</file>
+        <file alias="star.svg">icons/symbols/star.svg</file>
+        <file alias="star_border.svg">icons/symbols/star_border.svg</file>
         <file alias="heart_broken.svg">icons/symbols/heart_broken.svg</file>
         <file alias="playlist_play.svg">icons/symbols/playlist_play.svg</file>
         <file alias="playlist_add.svg">icons/symbols/playlist_add.svg</file>

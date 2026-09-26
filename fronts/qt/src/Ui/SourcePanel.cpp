@@ -42,6 +42,7 @@ constexpr int kCardMaxWidth = 520;
 constexpr int kColumnMaxWidth = 640;
 constexpr int kPlaylistRowHeight = 44;
 constexpr int kPlaylistThumb = 32;
+constexpr int kStarSide = 18;
 
 // Small self-painted pieces — painted with the current Theme::palette()
 // at paint time (no QSS), like the rest of the app's custom widgets.
@@ -150,7 +151,9 @@ private:
 };
 
 // The source's playlists as clickable rows: cover thumbnail, title and a
-// "N tracks" / "Radio" caption; hover highlight like the track lists.
+// "N tracks" / "Radio" caption; hover highlight like the track lists. A
+// star at the right edge — filled on favorites, an outline on the hovered
+// row otherwise — toggles whether the sidebar lists it.
 class PlaylistRows : public QWidget {
 public:
     PlaylistRows(CoverArtCache* coverCache, QWidget* parent)
@@ -171,6 +174,8 @@ public:
     }
 
     std::function<void(const Playlist&)> onActivated;
+    std::function<void(const Playlist&)> onFavoriteToggled;
+    std::function<bool(const Playlist&)> isFavorite;
 
 protected:
     void paintEvent(QPaintEvent*) override
@@ -205,8 +210,21 @@ protected:
             painter.drawPixmap(thumb, cover);
             painter.restore();
 
+            const bool favorite = isFavorite && isFavorite(p);
+            if (favorite || i == hovered_) {
+                const QRect star = starRect(row);
+                const QRect glyph(
+                    star.center().x() - kStarSide / 2 + 1, star.center().y() - kStarSide / 2 + 1, kStarSide, kStarSide);
+                const bool starHovered = i == hovered_ && starHovered_;
+                Theme::icon(favorite ? QStringLiteral("star") : QStringLiteral("star_border"),
+                    favorite ? Theme::IconColor::Accent
+                             : (starHovered ? Theme::IconColor::Ink : Theme::IconColor::InkTertiary),
+                    kStarSide)
+                    .paint(&painter, glyph);
+            }
+
             const int textLeft = thumb.right() + 1 + Theme::Spacing::space3;
-            const int textWidth = row.right() - textLeft - pad;
+            const int textWidth = starRect(row).left() - textLeft - Theme::Spacing::space2;
             const int blockTop = row.top() + (row.height() - titleMetrics.height() - captionMetrics.height()) / 2;
             painter.setFont(titleFont);
             painter.setPen(pal.ink);
@@ -219,16 +237,49 @@ protected:
         }
     }
 
-    void mouseMoveEvent(QMouseEvent* event) override { setHovered(rowAt(event->position().toPoint())); }
-    void leaveEvent(QEvent*) override { setHovered(-1); }
+    void mouseMoveEvent(QMouseEvent* event) override
+    {
+        const QPoint pos = event->position().toPoint();
+        const int row = rowAt(pos);
+        const bool onStar = row >= 0 && starRect(rowRect(row)).contains(pos);
+        if (onStar != starHovered_) {
+            starHovered_ = onStar;
+            setToolTip(onStar ? (isFavorite && isFavorite(playlists_[row]) ? QObject::tr("Remove from sidebar")
+                                                                           : QObject::tr("Add to sidebar"))
+                              : QString());
+            update();
+        }
+        setHovered(row);
+    }
+    void leaveEvent(QEvent*) override
+    {
+        starHovered_ = false;
+        setHovered(-1);
+    }
     void mouseReleaseEvent(QMouseEvent* event) override
     {
-        const int row = rowAt(event->position().toPoint());
-        if (event->button() == Qt::LeftButton && row >= 0 && onActivated)
+        const QPoint pos = event->position().toPoint();
+        const int row = rowAt(pos);
+        if (event->button() != Qt::LeftButton || row < 0)
+            return;
+        if (starRect(rowRect(row)).contains(pos)) {
+            if (onFavoriteToggled)
+                onFavoriteToggled(playlists_[row]);
+        } else if (onActivated) {
             onActivated(playlists_[row]);
+        }
     }
 
 private:
+    QRect rowRect(int row) const { return QRect(0, row * kPlaylistRowHeight, width(), kPlaylistRowHeight); }
+
+    // A square hit area at the row's right edge, as tall as the thumbnail.
+    static QRect starRect(const QRect& row)
+    {
+        const int pad = (kPlaylistRowHeight - kPlaylistThumb) / 2;
+        return QRect(row.right() + 1 - pad - kPlaylistThumb, row.top() + pad, kPlaylistThumb, kPlaylistThumb);
+    }
+
     int rowAt(const QPoint& pos) const
     {
         const int row = pos.y() / kPlaylistRowHeight;
@@ -264,6 +315,7 @@ private:
     QList<Playlist> playlists_;
     QHash<QString, QPixmap> generated_;
     int hovered_ = -1;
+    bool starHovered_ = false;
 };
 } // namespace
 
@@ -328,6 +380,8 @@ SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
 
     auto* rows = new PlaylistRows(coverCache, column);
     rows->onActivated = [this](const Playlist& p) { emit playlistActivated(currentSourceId_, p); };
+    rows->onFavoriteToggled = [this](const Playlist& p) { emit favoriteToggled(currentSourceId_, p.id); };
+    rows->isFavorite = [this](const Playlist& p) { return favoriteCheck_ && favoriteCheck_(currentSourceId_, p.id); };
     playlistRows_ = rows;
     playlistsHint_ = new HintLine(column);
 
@@ -413,6 +467,14 @@ void SourcePanel::setPlaylists(const QList<Playlist>& playlists, bool loading)
     playlistsLoading_ = loading;
     refreshPlaylistsSection();
 }
+
+void SourcePanel::setFavoriteCheck(std::function<bool(const QString&, const QString&)> check)
+{
+    favoriteCheck_ = std::move(check);
+    playlistRows_->update();
+}
+
+void SourcePanel::favoritesChanged() { playlistRows_->update(); }
 
 void SourcePanel::refreshPlaylistsSection()
 {

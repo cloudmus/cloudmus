@@ -111,6 +111,8 @@ private:
     // offers "Play" (same as double-click — see onSidebarDoubleClicked).
     // Any other row (PlaylistsHeader/History) gets no menu.
     void onSidebarContextMenuRequested(const QPoint& pos);
+    // Puts a playlist in the source's sidebar favorites or takes it out.
+    void toggleFavorite(const QString& sourceId, const QString& playlistId);
     // The main track list mirrors the active playlist: the playback queue
     // once anything was queued, or activeTracks_ before that — see
     // refreshMainList(). A double-click jumps within it.

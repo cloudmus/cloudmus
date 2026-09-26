@@ -167,6 +167,26 @@ void Settings::setDisabledSources(const QStringList& ids)
         settings_.setValue(QStringLiteral("sources/disabled"), ids);
 }
 
+std::optional<QStringList> Settings::favorites(const QString& sourceId) const
+{
+    const QString key = QStringLiteral("favorites/") + sourceId;
+    if (!settings_.contains(key))
+        return std::nullopt;
+    return settings_.value(key).toStringList();
+}
+
+void Settings::setFavorites(const QString& sourceId, const QStringList& playlistIds)
+{
+    settings_.setValue(QStringLiteral("favorites/") + sourceId, playlistIds);
+}
+
+bool Settings::hiddenFavoriteHintShown() const
+{
+    return settings_.value(QStringLiteral("hints/hiddenFavorite")).toBool();
+}
+
+void Settings::setHiddenFavoriteHintShown() { settings_.setValue(QStringLiteral("hints/hiddenFavorite"), true); }
+
 QList<ProxyConfig> Settings::proxies() const
 {
     QList<ProxyConfig> result;

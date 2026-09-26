@@ -3,6 +3,9 @@
 #include <QHash>
 #include <QStandardItemModel>
 #include <QString>
+#include <QStringList>
+
+#include <optional>
 
 #include "Models.h"
 
@@ -10,9 +13,11 @@ namespace Ui {
 
 // Two-level tree, source -> category, populated per-source from
 // catalog.listPlaylists (which includes kind: radioStation/liked entries
-// for My Wave/Liked Tracks, not just real playlists — see
-// docs/protocol.md §7.1) — same model fronts/tui/cloudmus_tui/app.py's
-// sidebar already uses. Built on QStandardItemModel rather than a fully
+// for My Wave/Liked Tracks/personal mixes, not just real playlists — see
+// docs/protocol.md §7.1). Only the source's favorites sit directly under
+// its root, plus a "Playlists" group for its other kind: playlist entries;
+// other stations stay off the sidebar and are reached from the source's
+// page — a source can have a dozen of them. Built on QStandardItemModel rather than a fully
 // custom QAbstractItemModel: the data is small and simple enough that
 // hand-rolling one wouldn't earn its keep.
 class SidebarModel : public QStandardItemModel {
@@ -69,6 +74,19 @@ public:
     void setSource(const QString& sourceId, const QString& sourceName, const QList<Playlist>& playlists);
     void removeSource(const QString& sourceId);
 
+    // The ids the user put at the source's top level (Config::Settings::
+    // favorites()), or nullopt for the source's own suggestion — see
+    // favoritesFor(). Rebuilds the source's rows if it's listed already.
+    void setFavorites(const QString& sourceId, const std::optional<QStringList>& favorites);
+    // The favorites in effect, in order: the user's own list if they made
+    // one, else every Playlist.featured entry, else — from a source that
+    // marks none — every liked/radioStation entry (docs/protocol.md §6).
+    QStringList favoritesFor(const QString& sourceId) const;
+    bool isFavorite(const QString& sourceId, const QString& playlistId) const
+    {
+        return favoritesFor(sourceId).contains(playlistId);
+    }
+
     // Toggles the warning icon on a source's header row in place, without
     // touching its playlist children — unlike setSource(), safe to call
     // from an auth notification handler that races with a concurrent
@@ -99,8 +117,9 @@ public:
     // re-applies the path to every row it creates.
     void setSourceIconPath(const QString& sourceId, const QString& iconPath);
 
-    // A source's playlists (Wave/Liked/regular, sidebar order), its icon
-    // path and whether its playlists are being (re)loaded — for its page.
+    // All of a source's playlists (Wave/Liked/regular, the order it listed
+    // them in — including ones the sidebar doesn't show), its icon path
+    // and whether its playlists are being (re)loaded — for its page.
     QList<Playlist> playlistsFor(const QString& sourceId) const;
     // Just the ones the source marked editable (the user's own playlists,
     // docs/protocol.md §7.6).
@@ -127,11 +146,14 @@ public:
 
 private:
     QStandardItem* findOrCreateSourceRoot(const QString& sourceId, const QString& sourceName);
+    void populate(QStandardItem* root, const QString& sourceId);
 
     bool isActive(const QStandardItem* item) const;
     void refreshActiveMarks(QStandardItem* parent);
 
     QHash<QString, QString> sourceIconPaths_;
+    QHash<QString, QList<Playlist>> playlists_;
+    QHash<QString, QStringList> favorites_; // only sources with the user's own list
     QString activeSourceId_;
     QString activePlaylistId_;
 };

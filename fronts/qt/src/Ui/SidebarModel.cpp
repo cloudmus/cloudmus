@@ -2,6 +2,7 @@
 
 #include <QVariant>
 
+#include <algorithm>
 #include <functional>
 
 namespace Ui {
@@ -47,36 +48,53 @@ QStandardItem* SidebarModel::findOrCreateSourceRoot(const QString& sourceId, con
 void SidebarModel::setSource(const QString& sourceId, const QString& sourceName, const QList<Playlist>& playlists)
 {
     removeSource(sourceId);
-    QStandardItem* root = findOrCreateSourceRoot(sourceId, sourceName);
+    playlists_.insert(sourceId, playlists);
+    populate(findOrCreateSourceRoot(sourceId, sourceName), sourceId);
+}
 
-    // kind: radioStation/liked entries sit directly under the source root
-    // (matching where the old hardcoded "My Wave"/"Liked Tracks" items
-    // used to go); kind: playlist entries are grouped under a lazily
-    // created "Playlists" sub-header, same as before.
-    QStandardItem* playlistsHeader = nullptr;
+void SidebarModel::setFavorites(const QString& sourceId, const std::optional<QStringList>& favorites)
+{
+    if (favorites.has_value())
+        favorites_.insert(sourceId, *favorites);
+    else
+        favorites_.remove(sourceId);
+    QStandardItem* root = itemFromIndex(indexForSource(sourceId));
+    if (root == nullptr)
+        return;
+    root->removeRows(0, root->rowCount());
+    populate(root, sourceId);
+}
+
+QStringList SidebarModel::favoritesFor(const QString& sourceId) const
+{
+    const QList<Playlist> playlists = playlists_.value(sourceId);
+    const auto userList = favorites_.constFind(sourceId);
+    if (userList != favorites_.cend())
+        return *userList;
+    const bool anyFeatured = std::any_of(
+        playlists.cbegin(), playlists.cend(), [](const Playlist& p) { return p.featured.value_or(false); });
+    QStringList out;
     for (const Playlist& p : playlists) {
+        const bool featured = anyFeatured
+            ? p.featured.value_or(false)
+            : p.kind == QStringLiteral("liked") || p.kind == QStringLiteral("radioStation");
+        if (featured)
+            out.append(p.id);
+    }
+    return out;
+}
+
+void SidebarModel::populate(QStandardItem* root, const QString& sourceId)
+{
+    const QList<Playlist> playlists = playlists_.value(sourceId);
+    const QStringList favorites = favoritesFor(sourceId);
+
+    const auto appendItem = [&](QStandardItem* parent, const Playlist& p) {
         Kind kind = Kind::Playlist;
         if (p.kind == QStringLiteral("radioStation"))
             kind = Kind::Wave;
         else if (p.kind == QStringLiteral("liked"))
             kind = Kind::Liked;
-
-        QStandardItem* parent = root;
-        if (kind == Kind::Playlist) {
-            if (playlistsHeader == nullptr) {
-                // .toUpper() here, not a paint-time transform — see the
-                // design system's label-upper convention (SourcePanel/
-                // findOrCreateSourceRoot's sourceName.toUpper() above does
-                // the same).
-                playlistsHeader = new QStandardItem(tr("Playlists").toUpper());
-                playlistsHeader->setData(static_cast<int>(Kind::PlaylistsHeader), KindRole);
-                playlistsHeader->setData(sourceId, SourceIdRole);
-                playlistsHeader->setSelectable(false);
-                root->appendRow(playlistsHeader);
-            }
-            parent = playlistsHeader;
-        }
-
         auto* item = new QStandardItem(p.title);
         item->setData(static_cast<int>(kind), KindRole);
         item->setData(sourceId, SourceIdRole);
@@ -84,6 +102,37 @@ void SidebarModel::setSource(const QString& sourceId, const QString& sourceName,
         item->setData(QVariant::fromValue(p), PlaylistDataRole);
         item->setData(isActive(item), IsActiveRole);
         parent->appendRow(item);
+    };
+
+    // Favorites sit directly under the source root, in the user's order;
+    // ids the source no longer lists are just skipped, not forgotten — a
+    // mix can drop off YouTube's home feed for a day.
+    for (const QString& id : favorites) {
+        const auto it
+            = std::find_if(playlists.cbegin(), playlists.cend(), [&](const Playlist& p) { return p.id == id; });
+        if (it != playlists.cend())
+            appendItem(root, *it);
+    }
+
+    // The rest of the kind: playlist entries are grouped under a lazily
+    // created "Playlists" sub-header. Other stations (and Liked, if it's
+    // not a favorite) stay off the sidebar — they're on the source's page.
+    QStandardItem* playlistsHeader = nullptr;
+    for (const Playlist& p : playlists) {
+        if (p.kind != QStringLiteral("playlist") || favorites.contains(p.id))
+            continue;
+        if (playlistsHeader == nullptr) {
+            // .toUpper() here, not a paint-time transform — see the
+            // design system's label-upper convention (SourcePanel/
+            // findOrCreateSourceRoot's sourceName.toUpper() above does
+            // the same).
+            playlistsHeader = new QStandardItem(tr("Playlists").toUpper());
+            playlistsHeader->setData(static_cast<int>(Kind::PlaylistsHeader), KindRole);
+            playlistsHeader->setData(sourceId, SourceIdRole);
+            playlistsHeader->setSelectable(false);
+            root->appendRow(playlistsHeader);
+        }
+        appendItem(playlistsHeader, p);
     }
 }
 
@@ -101,6 +150,7 @@ void SidebarModel::ensureHistoryItem()
 
 void SidebarModel::removeSource(const QString& sourceId)
 {
+    playlists_.remove(sourceId);
     for (int row = invisibleRootItem()->rowCount() - 1; row >= 0; --row) {
         QStandardItem* item = invisibleRootItem()->child(row);
         if (item->data(SourceIdRole).toString() == sourceId) {
@@ -137,26 +187,7 @@ void SidebarModel::setSourceIconPath(const QString& sourceId, const QString& ico
     }
 }
 
-QList<Playlist> SidebarModel::playlistsFor(const QString& sourceId) const
-{
-    QList<Playlist> out;
-    const std::function<void(const QStandardItem*)> collect = [&](const QStandardItem* parent) {
-        for (int row = 0; row < parent->rowCount(); ++row) {
-            const QStandardItem* item = parent->child(row);
-            const auto kind = static_cast<Kind>(item->data(KindRole).toInt());
-            if (kind == Kind::Wave || kind == Kind::Liked || kind == Kind::Playlist)
-                out.append(item->data(PlaylistDataRole).value<Playlist>());
-            collect(item);
-        }
-    };
-    for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
-        const QStandardItem* root = invisibleRootItem()->child(row);
-        if (root->data(SourceIdRole).toString() == sourceId
-            && static_cast<Kind>(root->data(KindRole).toInt()) == Kind::SourceHeader)
-            collect(root);
-    }
-    return out;
-}
+QList<Playlist> SidebarModel::playlistsFor(const QString& sourceId) const { return playlists_.value(sourceId); }
 
 QModelIndex SidebarModel::indexForSource(const QString& sourceId) const
 {
@@ -181,6 +212,13 @@ QList<Playlist> SidebarModel::editablePlaylistsFor(const QString& sourceId) cons
 
 void SidebarModel::setPlaylistTrackCount(const QString& sourceId, const QString& playlistId, int trackCount)
 {
+    const auto cached = playlists_.find(sourceId);
+    if (cached != playlists_.end()) {
+        for (Playlist& playlist : *cached) {
+            if (playlist.id == playlistId)
+                playlist.trackCount = trackCount;
+        }
+    }
     QStandardItem* item = itemFromIndex(indexForPlaylist(sourceId, playlistId));
     if (item == nullptr)
         return;

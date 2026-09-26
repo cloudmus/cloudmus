@@ -6,6 +6,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <optional>
+
 namespace Config {
 
 // A named proxy from the user's list; sources pick one by `id` (see
@@ -87,6 +89,16 @@ public:
     // Backend manifest ids the user switched off (Rpc::SourceManager).
     QStringList disabledSources() const;
     void setDisabledSources(const QStringList& ids);
+
+    // The playlist ids the user put at a source's top level in the sidebar,
+    // in order — nullopt until they first change it, when the source's own
+    // Playlist.featured suggestion applies instead (Ui::SidebarModel).
+    std::optional<QStringList> favorites(const QString& sourceId) const;
+    void setFavorites(const QString& sourceId, const QStringList& playlistIds);
+    // Whether the user was told, once, where a station taken out of the
+    // favorites went (MainWindow::toggleFavorite()).
+    bool hiddenFavoriteHintShown() const;
+    void setHiddenFavoriteHintShown();
 
     // Subfolders of the download folder a track is saved into — see
     // Library::downloadDirectoryFor().

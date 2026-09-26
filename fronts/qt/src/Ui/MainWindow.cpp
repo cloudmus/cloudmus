@@ -26,6 +26,7 @@
 #include <QWidgetAction>
 #include <QWindow>
 
+#include <algorithm>
 #include <optional>
 
 #include "AboutDialog.h"
@@ -34,6 +35,7 @@
 #include "EmptyStatePlaceholder.h"
 #include "HeroPanel.h"
 #include "Icons.h"
+#include "InfoDialog.h"
 #include "MenuCheckRow.h"
 #include "Metrics.h"
 #include "NavItemDelegate.h"
@@ -369,6 +371,10 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
         [this](const QString& sourceId) { retryAuthAsync(sourceId).detach(); });
     connect(sourcePanel_, &SourcePanel::playlistActivated, this,
         [this](const QString& sourceId, const Playlist& playlist) { openInSheetAsync(sourceId, playlist).detach(); });
+    connect(sourcePanel_, &SourcePanel::favoriteToggled, this, &MainWindow::toggleFavorite);
+    sourcePanel_->setFavoriteCheck([this](const QString& sourceId, const QString& playlistId) {
+        return sidebarModel_->isFavorite(sourceId, playlistId);
+    });
     connect(sourcePanel_, &SourcePanel::codeCopied, this, [this]() { toastNotifier_->showSuccess(tr("Code copied")); });
     connect(sourcePanel_, &SourcePanel::settingsRequested, this,
         [this](const QString& sourceId) { showSettingsDialog(QStringLiteral("source:") + sourceId); });
@@ -434,6 +440,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     // as loading until wireSource()'s loadPlaylistsAsync() fills it in.
     connect(&sourceManager_, &Rpc::SourceManager::sourceStarting, this, [this](const Rpc::BackendManifest& manifest) {
         sidebarModel_->setSourceIconPath(manifest.id, manifest.iconPath);
+        sidebarModel_->setFavorites(manifest.id, settings_.favorites(manifest.id));
         sidebarModel_->setSource(manifest.id, manifest.name, { });
         sidebarModel_->setSourceLoading(manifest.id, manifest.name, true);
     });
@@ -698,6 +705,8 @@ Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
     syncSidebarSelection();
     if (currentStatusPanelSourceId_ == client->sourceId())
         sourcePanel_->setPlaylists(playlists, /*loading=*/false);
+    // Which ones are favorites can change with the list (Playlist.featured).
+    sourcePanel_->favoritesChanged();
 }
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)
@@ -770,12 +779,54 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
                 const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
                 activateAndPlayAsync(sourceId, playlist).detach();
             });
+        const QString playlistId = index.data(SidebarModel::PlaylistIdRole).toString();
+        const bool favorite = sidebarModel_->isFavorite(sourceId, playlistId);
+        menu->addAction(
+            Theme::icon(favorite ? QStringLiteral("star_border") : QStringLiteral("star"), Theme::IconColor::Ink, 16),
+            favorite ? tr("Remove from Favorites") : tr("Add to Favorites"), this,
+            [this, sourceId, playlistId]() { toggleFavorite(sourceId, playlistId); });
     } else {
         menu->deleteLater();
         return;
     }
 
     menu->popup(sidebarView_->viewport()->mapToGlobal(pos));
+}
+
+void MainWindow::toggleFavorite(const QString& sourceId, const QString& playlistId)
+{
+    // The first change turns the source's own suggestion into the user's
+    // list, so it no longer follows Playlist.featured.
+    QStringList favorites = sidebarModel_->favoritesFor(sourceId);
+    const bool removed = favorites.removeOne(playlistId);
+    if (!removed)
+        favorites.append(playlistId);
+    settings_.setFavorites(sourceId, favorites);
+    sidebarModel_->setFavorites(sourceId, favorites);
+    // The rows were rebuilt, dropping their selection.
+    syncSidebarSelection();
+    sourcePanel_->favoritesChanged();
+
+    // A station (or Liked) taken out of the favorites leaves the sidebar
+    // altogether — say once where it went, or it looks gone for good.
+    if (!removed || settings_.hiddenFavoriteHintShown())
+        return;
+    const QList<Playlist> playlists = sidebarModel_->playlistsFor(sourceId);
+    const auto it
+        = std::find_if(playlists.cbegin(), playlists.cend(), [&](const Playlist& p) { return p.id == playlistId; });
+    if (it == playlists.cend() || it->kind == QStringLiteral("playlist"))
+        return;
+    settings_.setHiddenFavoriteHintShown();
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
+    InfoDialog dialog(tr("Removed from Favorites"), tr("“%1” is no longer in the sidebar").arg(it->title),
+        tr("Only favorites are shown in the sidebar, apart from a source's regular playlists. Everything "
+           "else — stations, mixes, liked tracks — is listed on the source's page: click “%1” in the sidebar, "
+           "and use the star next to an entry to bring it back.")
+            .arg(sourceName),
+        tr("Open %1").arg(sourceName), this);
+    if (dialog.exec() == QDialog::Accepted)
+        showSourceStatusPanel(sourceId);
 }
 
 MainWindow::ActiveContext MainWindow::historyContext() const

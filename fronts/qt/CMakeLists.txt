@@ -88,6 +88,7 @@ add_executable(cloudmus-qt
 
     src/Ui/MainWindow.cpp
     src/Ui/AboutDialog.cpp
+    src/Ui/InfoDialog.cpp
     src/Ui/SidebarModel.cpp
     src/Ui/NavItemDelegate.cpp
     src/Ui/TrackListModel.cpp
