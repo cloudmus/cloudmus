@@ -28,6 +28,9 @@
         <file alias="favorite_border.svg">icons/symbols/favorite_border.svg</file>
         <file alias="star.svg">icons/symbols/star.svg</file>
         <file alias="star_border.svg">icons/symbols/star_border.svg</file>
+        <file alias="shuffle.svg">icons/symbols/shuffle.svg</file>
+        <file alias="repeat.svg">icons/symbols/repeat.svg</file>
+        <file alias="repeat_one.svg">icons/symbols/repeat_one.svg</file>
         <file alias="heart_broken.svg">icons/symbols/heart_broken.svg</file>
         <file alias="playlist_play.svg">icons/symbols/playlist_play.svg</file>
         <file alias="playlist_add.svg">icons/symbols/playlist_add.svg</file>

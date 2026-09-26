@@ -1,8 +1,10 @@
 #include "PlaybackController.h"
 
+#include <QRandomGenerator>
 #include <QSet>
-
 #include <QTimer>
+
+#include <algorithm>
 
 #include "AudioPlayer.h"
 #include "RpcMethods.h"
@@ -57,9 +59,11 @@ void PlaybackController::loadQueue(const QString& sourceId, const QList<Track>& 
 
 void PlaybackController::loadQueue(const QVector<QueueEntry>& entries, int startIndex)
 {
-    waveMode_ = false;
+    setWaveMode(false);
     awaitingRadioTracks_ = false;
     queue_ = entries;
+    if (shuffleActive())
+        reshuffle(startIndex);
     emit queueAvailabilityChanged(hasQueue());
     emit queueChanged();
     playIndex(startIndex);
@@ -79,7 +83,7 @@ void PlaybackController::playAt(int index)
 void PlaybackController::startRadio(
     const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks)
 {
-    waveMode_ = true;
+    setWaveMode(true);
     awaitingRadioTracks_ = false;
     waveSourceId_ = sourceId;
     waveStationId_ = stationId;
@@ -98,6 +102,14 @@ void PlaybackController::enqueueNext(const QString& sourceId, const Track& track
     const bool wasEmpty = !hasQueue();
     const int insertPos = hasCurrentTrack() ? index_ + 1 : 0;
     queue_.insert(insertPos, QueueEntry { sourceId, track, /*userQueued=*/true });
+    if (shuffleActive()) {
+        // "Play Next" means next in play order too.
+        for (int& i : order_) {
+            if (i >= insertPos)
+                ++i;
+        }
+        order_.insert(order_.indexOf(index_) + 1, insertPos);
+    }
     if (wasEmpty)
         emit queueAvailabilityChanged(true);
     emit queueChanged();
@@ -110,6 +122,8 @@ void PlaybackController::enqueueAtEnd(const QString& sourceId, const Track& trac
     const bool wasEmpty = !hasQueue();
     const bool shouldPlayImmediately = !hasCurrentTrack();
     queue_.append(QueueEntry { sourceId, track, /*userQueued=*/true });
+    if (shuffleActive())
+        order_.append(queue_.size() - 1);
     if (wasEmpty)
         emit queueAvailabilityChanged(true);
     emit queueChanged();
@@ -238,8 +252,8 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
     // Loading indicator / playTimeoutTimer_ stay active until
     // AudioPlayer::started() or failed() — play() is asynchronous now (see
     // AudioPlayer.h), it may still be downloading the stream.
-    audioPlayer_->play(params.stream.url, title,
-        streamRouteProvider_ ? streamRouteProvider_(queue_[index_].sourceId) : std::nullopt);
+    audioPlayer_->play(
+        params.stream.url, title, streamRouteProvider_ ? streamRouteProvider_(queue_[index_].sourceId) : std::nullopt);
 }
 
 void PlaybackController::advance(int delta, bool wasSkip)
@@ -247,29 +261,111 @@ void PlaybackController::advance(int delta, bool wasSkip)
     if (queue_.isEmpty())
         return;
     sendFeedbackFinishedOrSkip(wasSkip);
-    int nextIndex = index_ + delta;
-    if (nextIndex < 0)
-        nextIndex = 0;
-    if (nextIndex >= queue_.size()) {
-        if (waveMode_) {
-            // The feedback just sent makes the station push more tracks;
-            // handleTracksAdded() picks playback up from there.
-            awaitingRadioTracks_ = true;
-            emit loadingChanged(true);
-            // Don't spin forever if the station has nothing more to send.
-            const int generation = ++radioWaitGeneration_;
-            QTimer::singleShot(15000, this, [this, generation]() {
-                if (!awaitingRadioTracks_ || generation != radioWaitGeneration_)
-                    return;
-                awaitingRadioTracks_ = false;
-                emit loadingChanged(false);
-                emit errorOccurred(QStringLiteral("The station sent no more tracks"));
-            });
-            return;
-        }
-        nextIndex = queue_.size() - 1;
+    if (!wasSkip && effectiveRepeatMode() == RepeatMode::One && hasCurrentTrack()) {
+        playIndex(index_);
+        return;
     }
-    playIndex(nextIndex);
+    const int nextIndex = stepFrom(delta);
+    if (nextIndex >= 0) {
+        playIndex(nextIndex);
+        return;
+    }
+    if (delta < 0) {
+        // Before the first track: start the current one over.
+        playIndex(hasCurrentTrack() ? index_ : 0);
+        return;
+    }
+    if (waveMode_) {
+        // The feedback just sent makes the station push more tracks;
+        // handleTracksAdded() picks playback up from there.
+        awaitingRadioTracks_ = true;
+        emit loadingChanged(true);
+        // Don't spin forever if the station has nothing more to send.
+        const int generation = ++radioWaitGeneration_;
+        QTimer::singleShot(15000, this, [this, generation]() {
+            if (!awaitingRadioTracks_ || generation != radioWaitGeneration_)
+                return;
+            awaitingRadioTracks_ = false;
+            emit loadingChanged(false);
+            emit errorOccurred(QStringLiteral("The station sent no more tracks"));
+        });
+        return;
+    }
+    // The end of the list: a finished last track stops playback; Next
+    // there has nowhere to go.
+    if (!wasSkip)
+        stop();
+}
+
+int PlaybackController::stepFrom(int delta)
+{
+    const int count = int(queue_.size());
+    if (count == 0)
+        return -1;
+    const bool wrap = effectiveRepeatMode() == RepeatMode::All;
+    if (shuffleActive() && order_.size() == count) {
+        const int pos = hasCurrentTrack() ? int(order_.indexOf(index_)) : -1;
+        const int nextPos = pos + delta;
+        if (nextPos >= 0 && nextPos < count)
+            return order_[nextPos];
+        if (!wrap)
+            return -1;
+        if (nextPos >= count) {
+            // Another round, in a new order.
+            reshuffle(-1);
+            if (count > 1 && order_.first() == index_)
+                std::swap(order_[0], order_[count - 1]);
+            return order_.first();
+        }
+        return order_.last();
+    }
+    const int nextIndex = (hasCurrentTrack() ? index_ : -1) + delta;
+    if (nextIndex >= 0 && nextIndex < count)
+        return nextIndex;
+    if (!wrap)
+        return -1;
+    return nextIndex < 0 ? count - 1 : 0;
+}
+
+void PlaybackController::reshuffle(int first)
+{
+    order_.clear();
+    for (int i = 0; i < queue_.size(); ++i) {
+        if (i != first)
+            order_.append(i);
+    }
+    std::shuffle(order_.begin(), order_.end(), *QRandomGenerator::global());
+    if (first >= 0 && first < queue_.size())
+        order_.prepend(first);
+}
+
+void PlaybackController::setShuffle(bool on)
+{
+    if (shuffle_ == on)
+        return;
+    shuffle_ = on;
+    if (shuffleActive())
+        reshuffle(index_); // the rest of the list shuffled after what's playing
+    else
+        order_.clear();
+    emit playModeChanged();
+}
+
+void PlaybackController::setRepeatMode(RepeatMode mode)
+{
+    if (repeatMode_ == mode)
+        return;
+    repeatMode_ = mode;
+    emit playModeChanged();
+}
+
+void PlaybackController::setWaveMode(bool on)
+{
+    order_.clear(); // rebuilt by loadQueue() once the new queue is in
+    if (waveMode_ == on)
+        return;
+    waveMode_ = on;
+    emit playModeChanged();
 }
 
 void PlaybackController::sendFeedbackFinishedOrSkip(bool wasSkip)

@@ -124,6 +124,14 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     playPauseButton_ = new IconHoverButton(QStringLiteral("play_arrow"), IconHoverButton::Scheme::Accent, this);
     nextButton_ = new IconHoverButton(QStringLiteral("skip_next"), IconHoverButton::Scheme::Neutral, this);
     stopButton_ = new IconHoverButton(QStringLiteral("stop"), IconHoverButton::Scheme::Neutral, this);
+    // Play modes — checked (accent glyph) while on, like like/dislike.
+    // Repeat has three states in one button; its glyph tells the list
+    // (repeat) from the track (repeat_one).
+    shuffleButton_ = new IconHoverButton(QStringLiteral("shuffle"), IconHoverButton::Scheme::Neutral, this);
+    shuffleButton_->setCheckable(true);
+    repeatButton_ = new IconHoverButton(QStringLiteral("repeat"), IconHoverButton::Scheme::Neutral, this);
+    repeatButton_->setCheckable(true);
+    setPlayModes(false, Playback::RepeatMode::Off, false);
     // Opens the current track's page on its source platform (e.g. a
     // Yandex Music/YouTube Music track URL) — see setTrackWebUrl().
     // open_in_new (the standard "external link" box-with-arrow glyph) — a
@@ -149,6 +157,18 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
     connect(nextButton_, &QPushButton::clicked, this, &NowPlayingBar::nextClicked);
     connect(stopButton_, &QPushButton::clicked, this, &NowPlayingBar::stopClicked);
+    connect(shuffleButton_, &QPushButton::clicked, this, &NowPlayingBar::shuffleClicked);
+    connect(repeatButton_, &QPushButton::clicked, this, [this]() {
+        using Playback::RepeatMode;
+        RepeatMode next = RepeatMode::Off;
+        if (repeat_ == RepeatMode::Off)
+            next = radio_ ? RepeatMode::One : RepeatMode::All;
+        else if (repeat_ == RepeatMode::All)
+            next = RepeatMode::One;
+        // Qt already flipped the checked state; setPlayModes() (called
+        // back with what took effect) sets the real one.
+        emit repeatClicked(next);
+    });
     connect(openTrackPageButton_, &QPushButton::clicked, this, [this]() {
         if (!currentWebUrl_.isEmpty())
             QDesktopServices::openUrl(QUrl(currentWebUrl_));
@@ -176,38 +196,41 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     dislikeButton_->setEnabled(false);
     downloadButton_->setEnabled(false);
     playlistsButton_->setEnabled(false);
-    // Top row of the controls column below — transport buttons, then
+    // Top row of the controls column below — the buttons in groups, then
     // whatever setTrailingWidget() appends (MainWindow's hamburger menu
-    // button) pinned to the right by the stretch.
+    // button) pinned to the right by the stretch:
+    //   transport | play modes | rating | the track's other actions
     buttonsRow_ = new QHBoxLayout;
+    const auto addSeparator = [this]() {
+        // A vertical line, not just spacing, so each group reads as its own.
+        auto* separator = new QFrame(this);
+        separator->setObjectName(QStringLiteral("transportSeparator"));
+        separator->setFrameShape(QFrame::VLine);
+        // Plain, not Sunken: a sunken/raised bevel is drawn from palette
+        // light/dark roles regardless of QSS `color`, which would silently
+        // ignore Theme::StyleSheet's #transportSeparator rule and keep
+        // whatever 3D bevel the native style draws — this design system's
+        // flat depth model (tone + hairline border, no bevels/shadows)
+        // needs a plain line that actually takes that color.
+        separator->setFrameShadow(QFrame::Plain);
+        buttonsRow_->addSpacing(6);
+        buttonsRow_->addWidget(separator);
+        buttonsRow_->addSpacing(6);
+    };
     buttonsRow_->addWidget(previousButton_);
     buttonsRow_->addWidget(playPauseButton_);
     buttonsRow_->addWidget(nextButton_);
     buttonsRow_->addWidget(stopButton_);
-
-    // A vertical separator, not just spacing, so openTrackPageButton_/
-    // likeButton_/dislikeButton_ visually read as their own group — "act on
-    // the current track" actions, distinct from the transport controls to
-    // their left.
-    auto* transportSeparator = new QFrame(this);
-    transportSeparator->setObjectName(QStringLiteral("transportSeparator"));
-    transportSeparator->setFrameShape(QFrame::VLine);
-    // Plain, not Sunken: a sunken/raised bevel is drawn from palette
-    // light/dark roles regardless of QSS `color`, which would silently
-    // ignore Theme::StyleSheet's #transportSeparator rule and keep
-    // whatever 3D bevel the native style draws — this design system's flat
-    // depth model (tone + hairline border, no bevels/shadows) needs a
-    // plain line that actually takes that color.
-    transportSeparator->setFrameShadow(QFrame::Plain);
-    buttonsRow_->addSpacing(6);
-    buttonsRow_->addWidget(transportSeparator);
-    buttonsRow_->addSpacing(6);
-
-    buttonsRow_->addWidget(openTrackPageButton_);
+    addSeparator();
+    buttonsRow_->addWidget(shuffleButton_);
+    buttonsRow_->addWidget(repeatButton_);
+    addSeparator();
     buttonsRow_->addWidget(likeButton_);
     buttonsRow_->addWidget(dislikeButton_);
-    buttonsRow_->addWidget(downloadButton_);
+    addSeparator();
     buttonsRow_->addWidget(playlistsButton_);
+    buttonsRow_->addWidget(downloadButton_);
+    buttonsRow_->addWidget(openTrackPageButton_);
     buttonsRow_->addStretch(1);
 
     elapsedLabel_ = new QLabel(QStringLiteral("0:00"), this);
@@ -291,6 +314,24 @@ void NowPlayingBar::setQueueAvailable(bool available)
 {
     previousButton_->setEnabled(available);
     nextButton_->setEnabled(available);
+}
+
+void NowPlayingBar::setPlayModes(bool shuffle, Playback::RepeatMode repeat, bool radio)
+{
+    using Playback::RepeatMode;
+    repeat_ = repeat;
+    radio_ = radio;
+    shuffleButton_->setEnabled(!radio);
+    shuffleButton_->setChecked(shuffle && !radio);
+    shuffleButton_->setToolTip(radio ? tr("Shuffle isn't available for radio")
+            : shuffle                ? tr("Shuffle: on")
+                                     : tr("Shuffle: off"));
+    repeatButton_->setChecked(repeat != RepeatMode::Off);
+    static_cast<IconHoverButton*>(repeatButton_)
+        ->setIconName(repeat == RepeatMode::One ? QStringLiteral("repeat_one") : QStringLiteral("repeat"));
+    repeatButton_->setToolTip(repeat == RepeatMode::All ? tr("Repeat: list")
+            : repeat == RepeatMode::One                 ? tr("Repeat: track")
+                                                        : tr("Repeat: off"));
 }
 
 void NowPlayingBar::setTrackWebUrl(const QString& url)

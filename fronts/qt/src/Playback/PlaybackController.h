@@ -10,6 +10,7 @@
 
 #include "Coro.h"
 #include "Models.h"
+#include "PlayMode.h"
 #include "RpcClient.h"
 #include "SourceManager.h"
 
@@ -78,6 +79,22 @@ public:
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
 
+    // Play modes, kept as the user set them; a radio overrides what it
+    // can't do (its queue grows as it plays, so there's no whole list to
+    // shuffle or start over) — see shuffleActive()/effectiveRepeatMode().
+    // Shuffle picks a random play order over the queue without reordering
+    // it, so the track list keeps its order.
+    void setShuffle(bool on);
+    void setRepeatMode(RepeatMode mode);
+    bool shuffle() const { return shuffle_; }
+    RepeatMode repeatMode() const { return repeatMode_; }
+    bool isRadio() const { return waveMode_; }
+    bool shuffleActive() const { return shuffle_ && !waveMode_; }
+    RepeatMode effectiveRepeatMode() const
+    {
+        return waveMode_ && repeatMode_ == RepeatMode::All ? RepeatMode::Off : repeatMode_;
+    }
+
     bool isPlaying() const { return playing_; }
     bool hasCurrentTrack() const { return index_ >= 0 && index_ < queue_.size(); }
     bool hasQueue() const { return !queue_.isEmpty(); }
@@ -105,11 +122,22 @@ signals:
     // Emitted whenever queue() changes content — replaced, inserted into,
     // or extended by a radio's tracksAdded. The main track list mirrors it.
     void queueChanged();
+    // Shuffle/repeat changed, or a radio started or ended (which changes
+    // what's available — see isRadio()).
+    void playModeChanged();
 
 private:
     void playIndex(int index);
     Rpc::Task<void> playIndexAsync(int index);
     void advance(int delta, bool wasSkip);
+    // The queue index `delta` steps from the current one in play order
+    // (shuffled or not), wrapping around under RepeatMode::All; -1 past
+    // either end otherwise.
+    int stepFrom(int delta);
+    // A new random play order: `first` (if a valid index) leads, the rest
+    // follow in random order.
+    void reshuffle(int first);
+    void setWaveMode(bool on);
     void sendFeedbackFinishedOrSkip(bool wasSkip);
 
     Rpc::SourceManager& sourceManager_;
@@ -131,6 +159,12 @@ private:
     QString latestRequestSourceId_;
     QTimer* playTimeoutTimer_ = nullptr;
     qint64 lastKnownPositionMs_ = 0;
+
+    bool shuffle_ = false;
+    RepeatMode repeatMode_ = RepeatMode::Off;
+    // Queue indices in shuffled play order — maintained only while
+    // shuffleActive().
+    QVector<int> order_;
 
     bool waveMode_ = false;
     QString waveSourceId_;

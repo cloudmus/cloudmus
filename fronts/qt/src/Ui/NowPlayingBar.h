@@ -2,6 +2,8 @@
 
 #include <QWidget>
 
+#include "PlayMode.h"
+
 class QHBoxLayout;
 class QLabel;
 class QPushButton;
@@ -41,6 +43,11 @@ public:
     // Previous/next only make sense with something loaded to navigate —
     // enables/disables both together.
     void setQueueAvailable(bool available);
+    // Shuffle and repeat as they're in effect (PlaybackController::
+    // shuffleActive()/effectiveRepeatMode()). `radio`: the queue is a
+    // radio's — shuffle is then unavailable, and repeat only toggles
+    // between off and the current track.
+    void setPlayModes(bool shuffle, Playback::RepeatMode repeat, bool radio);
     // Enables the "open track page" button iff url is non-empty (a track
     // without a webUrl, or no current track at all — pass an empty
     // string either way), and is what that button opens on click. Handled
@@ -97,6 +104,11 @@ signals:
     void nextClicked();
     void previousClicked();
     void stopClicked();
+    // The user's requested state — see likeClicked() for why clicked(bool).
+    void shuffleClicked(bool on);
+    // The next repeat mode in the button's cycle: off → list → track → off,
+    // skipping the list for a radio.
+    void repeatClicked(Playback::RepeatMode mode);
     void seekRequested(qint64 positionMs);
     void volumeChanged(int volume0To100);
     // Carries the user's requested new state — QPushButton::clicked(bool
@@ -120,6 +132,8 @@ private:
     QPushButton* playPauseButton_ = nullptr;
     QPushButton* nextButton_ = nullptr;
     QPushButton* stopButton_ = nullptr;
+    QPushButton* shuffleButton_ = nullptr;
+    QPushButton* repeatButton_ = nullptr;
     QPushButton* openTrackPageButton_ = nullptr;
     QPushButton* likeButton_ = nullptr;
     QPushButton* dislikeButton_ = nullptr;
@@ -137,6 +151,8 @@ private:
     bool userIsDraggingSeek_ = false;
     qint64 lastDurationMs_ = 0;
     QString currentWebUrl_;
+    Playback::RepeatMode repeat_ = Playback::RepeatMode::Off;
+    bool radio_ = false;
 
     // Last known non-busy state, restored by setLikeBusy(false)/
     // setDislikeBusy(false) rather than recomputed — a busy transition

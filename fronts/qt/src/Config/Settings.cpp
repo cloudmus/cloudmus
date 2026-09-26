@@ -86,6 +86,26 @@ int Settings::volume() const { return settings_.value(QStringLiteral("playback/v
 
 void Settings::setVolume(int volume0To100) { settings_.setValue(QStringLiteral("playback/volume"), volume0To100); }
 
+bool Settings::shuffle() const { return settings_.value(QStringLiteral("playback/shuffle")).toBool(); }
+
+void Settings::setShuffle(bool on) { settings_.setValue(QStringLiteral("playback/shuffle"), on); }
+
+Playback::RepeatMode Settings::repeatMode() const
+{
+    const QString value = settings_.value(QStringLiteral("playback/repeat")).toString();
+    if (value == QStringLiteral("all"))
+        return Playback::RepeatMode::All;
+    if (value == QStringLiteral("one"))
+        return Playback::RepeatMode::One;
+    return Playback::RepeatMode::Off;
+}
+
+void Settings::setRepeatMode(Playback::RepeatMode mode)
+{
+    const char* value = mode == Playback::RepeatMode::All ? "all" : mode == Playback::RepeatMode::One ? "one" : "off";
+    settings_.setValue(QStringLiteral("playback/repeat"), QString::fromLatin1(value));
+}
+
 QString Settings::lastSourceId() const { return settings_.value(QStringLiteral("playback/lastSourceId")).toString(); }
 
 void Settings::setLastSourceId(const QString& sourceId)

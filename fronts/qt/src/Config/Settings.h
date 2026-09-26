@@ -8,6 +8,8 @@
 
 #include <optional>
 
+#include "PlayMode.h"
+
 namespace Config {
 
 // A named proxy from the user's list; sources pick one by `id` (see
@@ -49,6 +51,12 @@ public:
 
     int volume() const;
     void setVolume(int volume0To100);
+
+    // The play modes as the user last set them (Playback::PlaybackController).
+    bool shuffle() const;
+    void setShuffle(bool on);
+    Playback::RepeatMode repeatMode() const;
+    void setRepeatMode(Playback::RepeatMode mode);
 
     // The playlist the main area last showed as active (see MainWindow's
     // ActiveContext) — restored on startup without starting playback.
