@@ -111,8 +111,8 @@ private:
     // Puts a playlist in the source's sidebar favorites or takes it out.
     void toggleFavorite(const QString& sourceId, const QString& playlistId);
     // The main track list mirrors the active playlist: the playback queue
-    // once anything was queued, or activeTracks_ before that — see
-    // refreshMainList(). A double-click jumps within it.
+    // once anything was queued, or its tracks before that — see
+    // refreshMainList(). A double-click plays that row.
     void onTrackDoubleClicked(const QModelIndex& index);
     void onTrackContextMenuRequested(const QPoint& pos);
     // Shared track context menu for the main list and the sheet: Play
@@ -144,39 +144,17 @@ private:
     // The toolbar button's menu for the playing track.
     void showPlaylistsMenu(QPoint anchor);
 
-    // HeroPanel's Play button: (re)starts the active playlist.
-    void playActive();
     void showAboutDialog();
     // `openAt`: a Settings::Page::id() to open the dialog on.
     void showSettingsDialog(const QString& openAt = { });
 
-    // --- active playlist (what the main area shows and the queue came from)
-    struct ActiveContext {
-        QString sourceId; // empty for History
-        Playlist playlist;
-        bool isHistory = false;
-        // False for ad-hoc contexts (a radio started from a track) that
-        // can't be restored at startup — they aren't saved to settings.
-        bool persistent = true;
-        bool isValid() const { return isHistory || !playlist.id.isEmpty(); }
-        bool isRadio() const { return playlist.kind == QStringLiteral("radioStation"); }
-        bool sameAs(const ActiveContext& other) const
-        {
-            return isHistory == other.isHistory && sourceId == other.sourceId && playlist.id == other.playlist.id;
-        }
-    };
-    ActiveContext historyContext() const;
-    // Makes `context` active without touching playback: sidebar marker,
-    // settings, hero promo (when nothing plays), main list.
-    void setActiveContext(const ActiveContext& context);
-    // Makes `context` active and plays `entries` from startIndex; closes the sheet.
-    void activate(const ActiveContext& context, const QVector<Playback::QueueEntry>& entries, int startIndex);
-    // Fetches a playlist's tracks (Liked/regular; not radio) — throws on RPC failure.
-    Rpc::Task<QVector<Playback::QueueEntry>> fetchTracksAsync(QString sourceId, Playlist playlist);
-    // Sidebar double-click / context-menu Play: fetch, then activate().
-    Rpc::Task<void> activateAndPlayAsync(QString sourceId, Playlist playlist);
-    // Startup restore: fills activeTracks_ for the restored context.
-    Rpc::Task<void> loadActiveTracksAsync(ActiveContext context);
+    // --- active playlist: ViewModel::ActivePlaylist; the sheet's open
+    // playlist is one of these too.
+    using ActiveContext = ViewModel::PlaylistContext;
+    // Hooks the main list, the hero's playlist mode and the busy states up
+    // to activePlaylist_, and shows what it has right away.
+    void bindActivePlaylist();
+    // The main list shows ActivePlaylist::entries().
     void refreshMainList();
     // Hero shows the playing track (trackChanged) or, with nothing
     // playing, the active playlist's promo card.
@@ -208,9 +186,6 @@ private:
     // from onSidebarActivated) would dangle by the time execution gets back
     // there. See the equivalent comment on RpcClient::call() for the full
     // explanation of this coroutine-lifetime pitfall.
-    //
-    // Starts a radio station and, once it's running, makes `context` active.
-    Rpc::Task<void> startRadioAsync(QString sourceId, QString seed, ActiveContext context);
     Rpc::Task<void> submitAuthAsync(QString sourceId, QJsonObject fields);
     // The Retry button's handler: wraps App::SourceSession::signIn() with
     // sourcePanel_'s busy state (disables Retry/Submit + shows a spinner
@@ -257,6 +232,8 @@ private:
     App::PlaylistEditing& playlistEditing_;
     // The sources and their playlists; owns sidebarModel_.
     ViewModel::Sources& sources_;
+    // What the main area has active.
+    ViewModel::ActivePlaylist& activePlaylist_;
 
     void repositionTrackListBusyIndicator();
     // Shows/hides trackListPane_ and, together with it, collapses/restores
@@ -305,14 +282,8 @@ private:
     // Into the tray, remembering where the window was for bringToFront().
     void hideToTray();
 
-    ActiveContext activeContext_;
-    // The active playlist's tracks while nothing has been queued from it
-    // yet (restored at startup) — see refreshMainList().
-    QVector<Playback::QueueEntry> activeTracks_;
     // What the sheet shows (invalid while it shows a source page or is closed).
     ActiveContext sheetContext_;
-    // Saved active playlist waiting for its source's playlists to load.
-    Config::Settings::ActivePlaylistRef pendingRestore_;
     // Settings::sidebarSelection() from the last run, until restored or
     // replaced by a new selection.
     QString pendingSelection_;

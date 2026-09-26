@@ -1,6 +1,6 @@
 # MVVM refactoring plan (Qt front)
 
-Status: stages 0–6 done. Update this file as stages land.
+Status: stages 0–7 done. Update this file as stages land.
 
 ## Where we are
 
@@ -115,8 +115,13 @@ the same.
    page) move with stages 7–8 instead — they belong to the active
    playlist and the sheet. Tests: loading, a refresh keeps favorites,
    signing out, collapsed rows.
-7. **`ViewModel::ActivePlaylist`.** Main list, radio, restoring the active
-   playlist.
+7. **`ViewModel::ActivePlaylist`.** The active playlist and its tracks,
+   playing it, starting radio, restoring it at startup, the sidebar's
+   active mark, keeping it in step with playlist edits.
+   `ViewModel::PlaylistContext` (the window's former `ActiveContext`) and
+   `App::fetchTracks()` are shared with the sheet. The main list's
+   `TrackListModel` stays in the window for now — it renders
+   `ActivePlaylist::entries()`. Tests: playing, restoring, an edit.
 8. **`ViewModel::Browse`, `ViewModel::SourcePage`.**
 9. **Recreatable window.** `main()` holds `App::Core` and the window in
    `std::unique_ptr`s; `MainWindow::bind(viewModels)`; a recreated window

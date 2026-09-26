@@ -2,6 +2,7 @@
 
 #include <QObject>
 
+#include "ActivePlaylist.h"
 #include "AuthStates.h"
 #include "CoverArtCache.h"
 #include "Messages.h"
@@ -40,6 +41,7 @@ public:
     ViewModel::NowPlaying& nowPlaying() { return nowPlaying_; }
     PlaylistEditing& playlistEditing() { return playlistEditing_; }
     ViewModel::Sources& sources() { return sources_; }
+    ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
 
 private:
     // Declaration order is construction order: playback_ needs
@@ -56,6 +58,7 @@ private:
     ViewModel::NowPlaying nowPlaying_;
     PlaylistEditing playlistEditing_;
     ViewModel::Sources sources_;
+    ViewModel::ActivePlaylist activePlaylist_;
 };
 
 } // namespace App

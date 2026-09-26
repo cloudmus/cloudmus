@@ -123,6 +123,15 @@ int runFakeBackend()
                             { QStringLiteral("title"), QStringLiteral("Saved") }, { QStringLiteral("trackCount"), 5 },
                             { QStringLiteral("kind"), QStringLiteral("playlist") } },
                     } } });
+        } else if (method == QStringLiteral("catalog.listTracks")) {
+            const auto track = [](const QString& trackId) {
+                return QJsonObject { { QStringLiteral("id"), trackId },
+                    { QStringLiteral("title"), QStringLiteral("Track %1").arg(trackId) },
+                    { QStringLiteral("artists"), QJsonArray { } }, { QStringLiteral("durationMs"), 180000 } };
+            };
+            reply(id,
+                { { QStringLiteral("tracks"),
+                    QJsonArray { track(QStringLiteral("t1")), track(QStringLiteral("t2")) } } });
         } else if (method == QStringLiteral("catalog.getTrackPlaylists")) {
             reply(id, { { QStringLiteral("playlistIds"), QJsonArray { QStringLiteral("p1") } } });
         } else if (method == QStringLiteral("catalog.addToPlaylist")) {
