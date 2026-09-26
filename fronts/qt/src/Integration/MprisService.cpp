@@ -26,6 +26,8 @@ MprisPlayerAdaptor::MprisPlayerAdaptor(Playback::PlaybackController& playback, Q
 {
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, &MprisPlayerAdaptor::onTrackChanged);
     connect(&playback_, &Playback::PlaybackController::playingChanged, this, &MprisPlayerAdaptor::onPlayingChanged);
+    connect(&playback_, &Playback::PlaybackController::playModeChanged, this,
+        [this]() { emitPropertiesChanged({ QStringLiteral("Shuffle"), QStringLiteral("LoopStatus") }); });
 }
 
 QString MprisPlayerAdaptor::playbackStatus() const
@@ -44,6 +46,33 @@ void MprisPlayerAdaptor::setVolume(double v)
 {
     volume_ = v;
     playback_.setVolume(static_cast<int>(v * 100));
+}
+
+bool MprisPlayerAdaptor::shuffle() const { return playback_.shuffleActive(); }
+
+void MprisPlayerAdaptor::setShuffle(bool on) { playback_.setShuffle(on); }
+
+QString MprisPlayerAdaptor::loopStatus() const
+{
+    switch (playback_.effectiveRepeatMode()) {
+        case Playback::RepeatMode::All:
+            return QStringLiteral("Playlist");
+        case Playback::RepeatMode::One:
+            return QStringLiteral("Track");
+        case Playback::RepeatMode::Off:
+            break;
+    }
+    return QStringLiteral("None");
+}
+
+void MprisPlayerAdaptor::setLoopStatus(const QString& status)
+{
+    if (status == QStringLiteral("Playlist"))
+        playback_.setRepeatMode(Playback::RepeatMode::All);
+    else if (status == QStringLiteral("Track"))
+        playback_.setRepeatMode(Playback::RepeatMode::One);
+    else if (status == QStringLiteral("None"))
+        playback_.setRepeatMode(Playback::RepeatMode::Off);
 }
 
 void MprisPlayerAdaptor::Next() { playback_.next(); }
@@ -110,8 +139,7 @@ void MprisPlayerAdaptor::emitPropertiesChanged(const QStringList& properties)
         changed.insert(name, property(name.toUtf8().constData()));
     }
     QDBusMessage signal = QDBusMessage::createSignal(QStringLiteral("/org/mpris/MediaPlayer2"),
-                                                     QStringLiteral("org.freedesktop.DBus.Properties"),
-                                                     QStringLiteral("PropertiesChanged"));
+        QStringLiteral("org.freedesktop.DBus.Properties"), QStringLiteral("PropertiesChanged"));
     signal << QStringLiteral("org.mpris.MediaPlayer2.Player") << changed << QStringList();
     QDBusConnection::sessionBus().send(signal);
 }

@@ -135,24 +135,20 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     connect(nowPlayingBar_, &NowPlayingBar::previousClicked, &playback_, &Playback::PlaybackController::previous);
     connect(nowPlayingBar_, &NowPlayingBar::stopClicked, &playback_, &Playback::PlaybackController::stop);
     connect(nowPlayingBar_, &NowPlayingBar::seekRequested, &playback_, &Playback::PlaybackController::seek);
-    // Play modes: the controller keeps what the user chose, the bar shows
-    // what's in effect for the current queue (a radio can't shuffle or
-    // repeat its whole list).
-    const auto showPlayModes = [this]() {
-        nowPlayingBar_->setPlayModes(playback_.shuffleActive(), playback_.effectiveRepeatMode(), playback_.isRadio());
-    };
+    // Play modes: the controller keeps what the user chose — from here or
+    // over MPRIS — and the bar shows what's in effect for the current
+    // queue (a radio can't shuffle or repeat its whole list).
     playback_.setShuffle(settings_.shuffle());
     playback_.setRepeatMode(settings_.repeatMode());
-    showPlayModes();
-    connect(&playback_, &Playback::PlaybackController::playModeChanged, this, showPlayModes);
-    connect(nowPlayingBar_, &NowPlayingBar::shuffleClicked, this, [this](bool on) {
-        playback_.setShuffle(on);
-        settings_.setShuffle(on);
-    });
-    connect(nowPlayingBar_, &NowPlayingBar::repeatClicked, this, [this](Playback::RepeatMode mode) {
-        playback_.setRepeatMode(mode);
-        settings_.setRepeatMode(mode);
-    });
+    const auto playModesChanged = [this]() {
+        nowPlayingBar_->setPlayModes(playback_.shuffleActive(), playback_.effectiveRepeatMode(), playback_.isRadio());
+        settings_.setShuffle(playback_.shuffle());
+        settings_.setRepeatMode(playback_.repeatMode());
+    };
+    playModesChanged();
+    connect(&playback_, &Playback::PlaybackController::playModeChanged, this, playModesChanged);
+    connect(nowPlayingBar_, &NowPlayingBar::shuffleClicked, &playback_, &Playback::PlaybackController::setShuffle);
+    connect(nowPlayingBar_, &NowPlayingBar::repeatClicked, &playback_, &Playback::PlaybackController::setRepeatMode);
     connect(nowPlayingBar_, &NowPlayingBar::volumeChanged, this, [this](int v) {
         playback_.setVolume(v);
         settings_.setVolume(v);

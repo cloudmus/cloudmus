@@ -60,6 +60,10 @@ class MprisPlayerAdaptor : public QDBusAbstractAdaptor {
     Q_PROPERTY(QVariantMap Metadata READ metadata)
     Q_PROPERTY(double Volume READ volume WRITE setVolume)
     Q_PROPERTY(qlonglong Position READ position)
+    // What's in effect: a radio can't shuffle or repeat its whole list
+    // (PlaybackController::shuffleActive()/effectiveRepeatMode()).
+    Q_PROPERTY(bool Shuffle READ shuffle WRITE setShuffle)
+    Q_PROPERTY(QString LoopStatus READ loopStatus WRITE setLoopStatus)
     Q_PROPERTY(bool CanGoNext READ canTrue CONSTANT)
     Q_PROPERTY(bool CanGoPrevious READ canTrue CONSTANT)
     Q_PROPERTY(bool CanPlay READ canTrue CONSTANT)
@@ -75,6 +79,10 @@ public:
     double volume() const { return volume_; }
     void setVolume(double v);
     qlonglong position() const;
+    bool shuffle() const;
+    void setShuffle(bool on);
+    QString loopStatus() const;
+    void setLoopStatus(const QString& status);
     bool canTrue() const { return true; }
 
 public slots:
