@@ -139,11 +139,22 @@ target_link_libraries(cloudmus-core PUBLIC
     PkgConfig::MPV
 )
 
-add_executable(cloudmus-qt
-    src/main.cpp
-    src/Logging.cpp
+# Version.h (CLOUDMUS_VERSION) — regenerated on every build so a dev
+# build's git commit stays current; see cmake/Version.cmake.
+set(VERSION_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_version)
+add_custom_target(cloudmus_version
+    COMMAND ${CMAKE_COMMAND} -DBASE=${PROJECT_VERSION} -DSRC=${CLOUDMUS_REPO_ROOT} -DOUT=${VERSION_DIR}/Version.h
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Version.cmake
+    BYPRODUCTS ${VERSION_DIR}/Version.h
+    COMMENT "Updating Version.h"
+)
 
+# --- cloudmus-ui: the widgets and the desktop integrations on top of the
+# core — everything of the app but main() and its resources, so the window
+# tests can link it too.
+add_library(cloudmus-ui STATIC
     src/Ui/MainWindow.cpp
+    src/Ui/WindowHost.cpp
     src/Ui/AboutDialog.cpp
     src/Ui/InfoDialog.cpp
     src/Ui/NavItemDelegate.cpp
@@ -195,36 +206,33 @@ add_executable(cloudmus-qt
     src/Integration/GlobalShortcuts.cpp
     src/Integration/WindowGlass.cpp
 
-    resources/icons.qrc
-    resources/fonts.qrc
-    resources/about.qrc
 )
-add_dependencies(cloudmus-qt protocol_codegen_cpp)
+add_dependencies(cloudmus-ui cloudmus_version)
 
-# Version.h (CLOUDMUS_VERSION) — regenerated on every build so a dev
-# build's git commit stays current; see cmake/Version.cmake.
-set(VERSION_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_version)
-add_custom_target(cloudmus_version
-    COMMAND ${CMAKE_COMMAND} -DBASE=${PROJECT_VERSION} -DSRC=${CLOUDMUS_REPO_ROOT} -DOUT=${VERSION_DIR}/Version.h
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Version.cmake
-    BYPRODUCTS ${VERSION_DIR}/Version.h
-    COMMENT "Updating Version.h"
-)
-add_dependencies(cloudmus-qt cloudmus_version)
-
-target_include_directories(cloudmus-qt PRIVATE
+target_include_directories(cloudmus-ui PUBLIC
     ${VERSION_DIR}
     src/Ui
     src/Theme
     src/Integration
 )
 
-target_link_libraries(cloudmus-qt PRIVATE
+target_link_libraries(cloudmus-ui PUBLIC
     cloudmus-core
     Qt6::Widgets
     Qt6::DBus
     Qt6::Svg
 )
+
+add_executable(cloudmus-qt
+    src/main.cpp
+    src/Logging.cpp
+
+    resources/icons.qrc
+    resources/fonts.qrc
+    resources/about.qrc
+)
+add_dependencies(cloudmus-qt cloudmus_version)
+target_link_libraries(cloudmus-qt PRIVATE cloudmus-ui)
 
 # --- tests (QtTest): `ctest --test-dir build`, or run build/bin/cloudmus-qt-tests.
 enable_testing()
@@ -242,3 +250,14 @@ add_executable(cloudmus-qt-tests
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
 add_test(NAME cloudmus-qt-tests COMMAND cloudmus-qt-tests)
+
+# The window's own tests — widgets, run without a screen (offscreen).
+add_executable(cloudmus-qt-ui-tests
+    tests/ui/main.cpp
+    tests/ui/WindowHostTest.cpp
+    tests/FakeBackend.cpp
+)
+target_include_directories(cloudmus-qt-ui-tests PRIVATE tests)
+target_link_libraries(cloudmus-qt-ui-tests PRIVATE cloudmus-ui Qt6::Test)
+add_test(NAME cloudmus-qt-ui-tests COMMAND cloudmus-qt-ui-tests)
+set_tests_properties(cloudmus-qt-ui-tests PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)

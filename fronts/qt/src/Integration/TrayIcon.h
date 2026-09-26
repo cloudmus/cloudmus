@@ -8,7 +8,7 @@ class QAction;
 class QMenu;
 
 namespace Ui {
-class MainWindow;
+class WindowHost;
 }
 namespace ViewModel {
 class NowPlaying;
@@ -22,14 +22,14 @@ namespace Integration {
 // QSystemTrayIcon + context menu (Prev/Play-Pause/Next/Stop, the playing
 // track's Like/Dislike/Playlists, Show-Hide, Quit), all following
 // ViewModel::NowPlaying. Left-click toggles the main window's visibility —
-// see MainWindow::toggleShown(). The tray's own tooltip
+// see Ui::WindowHost::toggleShown(). The tray's own tooltip
 // is plain-text only on Linux (no image parameter in Qt's API) — cover art
 // is delivered separately via NotificationToast, see that class.
 class TrayIcon : public QObject {
     Q_OBJECT
 
 public:
-    TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
+    TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
         QObject* parent = nullptr);
 
 signals:
@@ -54,7 +54,7 @@ private:
     // exported over D-Bus, where widget rows don't exist.
     void fillPlaylistsMenu();
 
-    Ui::MainWindow* mainWindow_;
+    Ui::WindowHost& windowHost_;
     ViewModel::NowPlaying& nowPlaying_;
     App::PlaylistEditing& playlistEditing_;
     QSystemTrayIcon* trayIcon_ = nullptr;

@@ -10,16 +10,16 @@
 #include <QWidget>
 
 #include "Icons.h"
-#include "MainWindow.h"
 #include "NowPlaying.h"
 #include "PlaylistEditing.h"
+#include "WindowHost.h"
 
 namespace Integration {
 
-TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
+TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
     QObject* parent)
     : QObject(parent)
-    , mainWindow_(mainWindow)
+    , windowHost_(windowHost)
     , nowPlaying_(nowPlaying)
     , playlistEditing_(playlistEditing)
 {
@@ -60,7 +60,7 @@ TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying
     // Refilled on every open: membership may have changed since (in the
     // app, or on the service itself).
     connect(playlistsMenu_, &QMenu::aboutToShow, this, &TrayIcon::fillPlaylistsMenu);
-    connect(showHideAction_, &QAction::triggered, mainWindow_, &Ui::MainWindow::toggleShown);
+    connect(showHideAction_, &QAction::triggered, &windowHost_, &Ui::WindowHost::toggleShown);
     connect(quitAction, &QAction::triggered, this, &TrayIcon::quitRequested);
 
     connect(&nowPlaying_, &NowPlaying::feedbackChanged, this, &TrayIcon::refreshFeedbackActions);
@@ -78,7 +78,7 @@ TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying
 
     connect(trayIcon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger)
-            mainWindow_->toggleShown();
+            windowHost_.toggleShown();
     });
 
     trayIcon_->show();
@@ -153,7 +153,7 @@ void TrayIcon::fillPlaylistsMenu()
 
 void TrayIcon::refreshShowHideAction()
 {
-    const bool onScreen = mainWindow_->isOnScreen();
+    const bool onScreen = windowHost_.isOnScreen();
     showHideAction_->setText(onScreen ? tr("Hide") : tr("Show"));
     showHideAction_->setIcon(Theme::icon(
         onScreen ? QStringLiteral("visibility_off") : QStringLiteral("visibility"), Theme::IconColor::Ink, 16));

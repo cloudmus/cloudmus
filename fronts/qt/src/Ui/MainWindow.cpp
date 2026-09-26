@@ -110,10 +110,10 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
 {
     setWindowTitle(QStringLiteral("CloudMus"));
     // Before the native window exists — it's created with an alpha channel
-    // or not at all. paintEvent() paints the glass tint; showEvent() asks
+    // or not at all (switching glass takes a new window, see
+    // Ui::WindowHost). paintEvent() paints the glass tint; showEvent() asks
     // for the blur behind it.
     setAttribute(Qt::WA_TranslucentBackground, Theme::glassEnabled());
-    connect(&Theme::notifier(), &Theme::Notifier::glassChanged, this, &MainWindow::applyGlass);
     resize(960, 640);
     restoreGeometry(settings_.windowGeometry());
     // QMainWindow's default behavior: right-clicking a toolbar/dock area
@@ -206,6 +206,9 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // stay collapsed across refreshes and restarts (ViewModel::Sources
     // keeps which).
     connect(sidebarModel_, &QStandardItemModel::rowsInserted, this, &MainWindow::restoreExpansion);
+    // Rows already there (a window created while the app runs) too.
+    if (sidebarModel_->rowCount() > 0)
+        restoreExpansion(QModelIndex(), 0, sidebarModel_->rowCount() - 1);
     connect(sidebarView_, &QTreeView::expanded, this,
         [this](const QModelIndex& index) { sources_.setCollapsed(ViewModel::SidebarModel::nodeKey(index), false); });
     connect(sidebarView_, &QTreeView::collapsed, this,
@@ -1008,8 +1011,8 @@ void MainWindow::showSettingsDialog(const QString& openAt)
     dialog.exec();
     toastNotifier_ = ownToasts;
     // A glass change from the General page, applied only now: switching
-    // it recreates this window's native window (applyGlass()), not
-    // something to do under a modal dialog parented to it.
+    // it replaces this window (Ui::WindowHost::recreate()), not something
+    // to do under a modal dialog parented to it.
     Theme::setGlassEnabled(Theme::glassWanted(settings_.glassBackground()) && Integration::WindowGlass::available());
 }
 
@@ -1017,21 +1020,6 @@ void MainWindow::quitForReal()
 {
     reallyQuitting_ = true;
     close();
-}
-
-void MainWindow::applyGlass()
-{
-    // Switched from Settings: recreate just the native window, now with an
-    // alpha channel or without — every widget, and playback, carry on.
-    // setWindowFlags() is what makes Qt drop and recreate it; it also
-    // hides the window, so its place and state are put back after.
-    const bool wasVisible = isVisible();
-    const QByteArray geometry = saveGeometry();
-    setAttribute(Qt::WA_TranslucentBackground, Theme::glassEnabled());
-    setWindowFlags(windowFlags());
-    restoreGeometry(geometry);
-    if (wasVisible)
-        show(); // showEvent() asks for the blur again, if glass is on
 }
 
 void MainWindow::paintEvent(QPaintEvent* event)

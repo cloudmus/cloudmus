@@ -1,6 +1,6 @@
 # MVVM refactoring plan (Qt front)
 
-Status: stages 0–8 done. Update this file as stages land.
+Status: all stages (0–9) done.
 
 ## Where we are
 
@@ -130,11 +130,14 @@ the same.
    does. The window renders the sheet from `Browse`'s state. Tests:
    opening, playing a row, an edit, the restore, a source going away, a
    rejected sign-in.
-9. **Recreatable window.** `main()` holds `App::Core` and the window in
-   `std::unique_ptr`s; `MainWindow::bind(viewModels)`; a recreated window
-   picks up the current state at once, not only from later signals. Glass
-   could then switch by recreating the window instead of the
-   `setWindowFlags()` trick (optional).
+9. **Recreatable window.** `Ui::WindowHost` owns the window and replaces
+   it on request (deferred to the event loop); the tray, MPRIS (now its
+   own D-Bus object) and notifications go through it. A new window binds
+   to the view models and shows their current state at once. Glass now
+   switches by recreating the window instead of the `setWindowFlags()`
+   trick. The widget code builds into `cloudmus-ui`, so
+   `cloudmus-qt-ui-tests` (offscreen) can check a recreated window shows
+   what the old one did.
 
 Stages 4 and 6–7 are the largest (that's where most of `MainWindow`'s code
 is); 0–3 are small and pay off right away.

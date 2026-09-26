@@ -31,6 +31,7 @@
 #include "Typography.h"
 #include "Version.h"
 #include "WindowGlass.h"
+#include "WindowHost.h"
 
 namespace {
 
@@ -121,15 +122,15 @@ int main(int argc, char** argv)
     // Non-square covers fitted over their own blur (needs Qt Widgets,
     // which the core library doesn't link).
     core.coverArtCache().setFitter(&Ui::fitCover);
-    Ui::MainWindow window(core);
+    Ui::WindowHost windowHost(core);
 
-    Integration::TrayIcon tray(&window, core.nowPlaying(), core.playlistEditing());
-    QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &window, &Ui::MainWindow::quitForReal);
+    Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing());
+    QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &windowHost, &Ui::WindowHost::quit);
 
-    Integration::MprisService mpris(&window, playback);
-    QObject::connect(&mpris, &Integration::MprisService::quitRequested, &window, &Ui::MainWindow::quitForReal);
-    QObject::connect(
-        &mpris, &Integration::MprisService::raiseRequested, &window, [&window]() { window.bringToFront(); });
+    Integration::MprisService mpris(playback);
+    QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
+    QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,
+        [&windowHost]() { windowHost.bringToFront(); });
 
     Integration::NotificationToast notificationToast;
     // The notification carries the track's cover from the UI's own cache.
@@ -160,8 +161,8 @@ int main(int argc, char** argv)
         });
     // Clicking the notification brings the player window up — out of the
     // tray, from minimized, or from behind other windows.
-    QObject::connect(&notificationToast, &Integration::NotificationToast::activated, &window,
-        [&window](const QString& activationToken) { window.bringToFront(activationToken); });
+    QObject::connect(&notificationToast, &Integration::NotificationToast::activated, &windowHost,
+        [&windowHost](const QString& activationToken) { windowHost.bringToFront(activationToken); });
     QObject::connect(coverCache, &Covers::CoverArtCache::pixmapReady, &notificationToast,
         [&notificationToast, coverCache, pendingCover, notificationCoverSize](const QString& url) {
             if (pendingCover->url.isEmpty() || url != pendingCover->url)
@@ -183,7 +184,7 @@ int main(int argc, char** argv)
     QObject::connect(
         &globalShortcuts, &Integration::GlobalShortcuts::stopTriggered, &playback, &Playback::PlaybackController::stop);
 
-    QObject::connect(&window, &Ui::MainWindow::aboutToReallyQuit, &window,
+    QObject::connect(&windowHost, &Ui::WindowHost::aboutToReallyQuit, &windowHost,
         [&sourceManager]() { shutdownAllAndQuit(sourceManager).detach(); });
 
     sourceManager.startAll();
@@ -195,10 +196,10 @@ int main(int argc, char** argv)
         // At login the panel hosting the tray may come up after us. Wait a
         // while for it rather than showing the window right away — but
         // never stay invisible with no tray icon to bring the window back.
-        auto* trayWait = new QTimer(&window);
+        auto* trayWait = new QTimer(&windowHost);
         trayWait->setInterval(500);
         auto waited = std::make_shared<int>(0);
-        QObject::connect(trayWait, &QTimer::timeout, &window, [trayWait, waited, &window]() {
+        QObject::connect(trayWait, &QTimer::timeout, &windowHost, [trayWait, waited, &windowHost]() {
             constexpr int kMaxWaitMs = 10000;
             if (QSystemTrayIcon::isSystemTrayAvailable()) {
                 trayWait->deleteLater();
@@ -208,7 +209,7 @@ int main(int argc, char** argv)
             if (*waited >= kMaxWaitMs) {
                 qInfo() << "No system tray after" << kMaxWaitMs << "ms; showing the window";
                 trayWait->deleteLater();
-                window.show();
+                windowHost.show();
             }
         });
         if (!QSystemTrayIcon::isSystemTrayAvailable())
@@ -216,7 +217,7 @@ int main(int argc, char** argv)
         else
             trayWait->deleteLater();
     } else {
-        window.show();
+        windowHost.show();
     }
 
     return QApplication::exec();

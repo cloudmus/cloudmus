@@ -5,14 +5,13 @@
 #include <QDBusMessage>
 #include <QDBusObjectPath>
 #include <QRegularExpression>
-#include <QWidget>
 
 #include "PlaybackController.h"
 
 namespace Integration {
 
-MprisRootAdaptor::MprisRootAdaptor(QWidget* mainWindow)
-    : QDBusAbstractAdaptor(mainWindow)
+MprisRootAdaptor::MprisRootAdaptor(QObject* host)
+    : QDBusAbstractAdaptor(host)
 {
 }
 
@@ -144,16 +143,19 @@ void MprisPlayerAdaptor::emitPropertiesChanged(const QStringList& properties)
     QDBusConnection::sessionBus().send(signal);
 }
 
-MprisService::MprisService(QWidget* mainWindow, Playback::PlaybackController& playback, QObject* parent)
+MprisService::MprisService(Playback::PlaybackController& playback, QObject* parent)
     : QObject(parent)
 {
-    root_ = new MprisRootAdaptor(mainWindow);
-    player_ = new MprisPlayerAdaptor(playback, mainWindow);
+    // Its own object on the bus, not the main window: that one can be
+    // replaced (Ui::WindowHost) while this stays registered.
+    auto* host = new QObject(this);
+    root_ = new MprisRootAdaptor(host);
+    player_ = new MprisPlayerAdaptor(playback, host);
     connect(root_, &MprisRootAdaptor::quitRequested, this, &MprisService::quitRequested);
     connect(root_, &MprisRootAdaptor::raiseRequested, this, &MprisService::raiseRequested);
 
     QDBusConnection bus = QDBusConnection::sessionBus();
-    bus.registerObject(QStringLiteral("/org/mpris/MediaPlayer2"), mainWindow, QDBusConnection::ExportAdaptors);
+    bus.registerObject(QStringLiteral("/org/mpris/MediaPlayer2"), host, QDBusConnection::ExportAdaptors);
     bus.registerService(QStringLiteral("org.mpris.MediaPlayer2.cloudmus"));
 }
 

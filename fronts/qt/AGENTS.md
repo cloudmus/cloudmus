@@ -12,9 +12,10 @@ cmake --build fronts/qt/build
 CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
 ```
 
-- Tests (QtTest): `ctest --test-dir fronts/qt/build` (or run
-  `fronts/qt/build/bin/cloudmus-qt-tests`). They start the test binary
-  itself as a fake backend (`tests/FakeBackend.h`) — no Python needed.
+- Tests (QtTest): `ctest --test-dir fronts/qt/build` — the core's
+  (`cloudmus-qt-tests`) and the window's (`cloudmus-qt-ui-tests`, run
+  offscreen). They start the test binary itself as a fake backend
+  (`tests/FakeBackend.h`) — no Python needed.
 - CMake regenerates the C++ protocol stubs (`fronts/qt/generated/`) itself;
   no separate `generate.py --lang cpp` step is needed for this build.
 - `CLOUDMUS_QT_DEBUG=1` enables the debug log.
@@ -71,10 +72,12 @@ if that changes).
 
 ## Architecture: core library and MVVM
 
-The front is moving to MVVM — see `docs/mvvm-plan.md` for the plan and
-which stages have landed. Everything below the view (backends, playback,
-settings, state, and — as the plan progresses — view models) builds into
-the `cloudmus-core` static library, which does **not** link Qt Widgets:
-code there must not include widget headers. `App::Core` (`src/App/`)
-owns those services for the whole run; the window only uses them. New
-logic goes into core (a service or view model), not into `MainWindow`.
+The front is MVVM — see `docs/mvvm-plan.md` for how it got there.
+Everything below the view (backends, playback, settings, state, and the
+view models in `src/ViewModel/`) builds into the `cloudmus-core` static
+library, which does **not** link Qt Widgets: code there must not include
+widget headers. `App::Core` (`src/App/`) owns the services and view
+models for the whole run; the widgets (`cloudmus-ui`) only show their
+state and forward user actions to them, and `Ui::WindowHost` can replace
+the main window at any time without losing anything. New logic goes into
+core (a service or view model) with a test, not into `MainWindow`.

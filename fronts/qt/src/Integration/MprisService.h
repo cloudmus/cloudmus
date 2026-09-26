@@ -28,7 +28,7 @@ class MprisRootAdaptor : public QDBusAbstractAdaptor {
     Q_PROPERTY(QStringList SupportedMimeTypes READ supportedMimeTypes CONSTANT)
 
 public:
-    explicit MprisRootAdaptor(QWidget* mainWindow);
+    explicit MprisRootAdaptor(QObject* host);
 
     bool canQuit() const { return true; }
     bool canRaise() const { return true; }
@@ -110,7 +110,7 @@ class MprisService : public QObject {
     Q_OBJECT
 
 public:
-    MprisService(QWidget* mainWindow, Playback::PlaybackController& playback, QObject* parent = nullptr);
+    explicit MprisService(Playback::PlaybackController& playback, QObject* parent = nullptr);
 
 signals:
     void quitRequested();

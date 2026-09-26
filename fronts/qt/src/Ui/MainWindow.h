@@ -90,8 +90,6 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    // Theme::glassChanged(): the window's translucency follows.
-    void applyGlass();
     // Hooks the toolbar, the hero panel and the playing-row highlight up
     // to nowPlaying_, and shows its current state right away.
     void bindNowPlaying();
