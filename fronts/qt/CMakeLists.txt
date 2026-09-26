@@ -90,6 +90,7 @@ add_library(cloudmus-core STATIC
 
     src/App/Core.cpp
     src/App/SourceSession.cpp
+    src/App/PlaylistEditing.cpp
 
     src/ViewModel/Messages.cpp
     src/ViewModel/NowPlaying.cpp
@@ -228,6 +229,7 @@ add_executable(cloudmus-qt-tests
     tests/RpcClientTest.cpp
     tests/SourceSessionTest.cpp
     tests/NowPlayingTest.cpp
+    tests/PlaylistEditingTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

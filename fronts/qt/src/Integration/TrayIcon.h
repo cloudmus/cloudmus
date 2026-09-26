@@ -13,6 +13,9 @@ class MainWindow;
 namespace ViewModel {
 class NowPlaying;
 }
+namespace App {
+class PlaylistEditing;
+}
 
 namespace Integration {
 
@@ -26,7 +29,8 @@ class TrayIcon : public QObject {
     Q_OBJECT
 
 public:
-    TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying, QObject* parent = nullptr);
+    TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
+        QObject* parent = nullptr);
 
 signals:
     void quitRequested();
@@ -46,9 +50,13 @@ private:
     // a click would do.
     void refreshTrack();
     void refreshPlaying();
+    // The playing track's playlists as checkable actions — a tray menu is
+    // exported over D-Bus, where widget rows don't exist.
+    void fillPlaylistsMenu();
 
     Ui::MainWindow* mainWindow_;
     ViewModel::NowPlaying& nowPlaying_;
+    App::PlaylistEditing& playlistEditing_;
     QSystemTrayIcon* trayIcon_ = nullptr;
     QAction* playPauseAction_ = nullptr;
     QAction* feedbackSeparator_ = nullptr;

@@ -46,7 +46,7 @@ private slots:
         await(client.start(QProcessEnvironment::systemEnvironment()));
 
         const ListPlaylistsResult result = await(Rpc::catalogListPlaylists(client));
-        QCOMPARE(result.playlists.size(), 1);
+        QCOMPARE(result.playlists.size(), 2);
         QCOMPARE(result.playlists.first().id, QStringLiteral("p1"));
         QCOMPARE(result.playlists.first().trackCount, 2);
         QCOMPARE(notified, QStringLiteral("heads up"));

@@ -11,6 +11,7 @@ namespace Tests {
 QObject* makeRpcClientTest();
 QObject* makeSourceSessionTest();
 QObject* makeNowPlayingTest();
+QObject* makePlaylistEditingTest();
 }
 
 int main(int argc, char** argv)
@@ -26,7 +27,8 @@ int main(int argc, char** argv)
     // Anything a test saves goes to throwaway locations, not the user's.
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
-    for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest }) {
+    for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
+             Tests::makePlaylistEditingTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

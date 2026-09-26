@@ -8,6 +8,7 @@
 #include "NowPlaying.h"
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
+#include "PlaylistEditing.h"
 #include "Settings.h"
 #include "SourceManager.h"
 #include "SourceSession.h"
@@ -36,6 +37,7 @@ public:
     SourceSession& sourceSession() { return sourceSession_; }
     ViewModel::Messages& messages() { return messages_; }
     ViewModel::NowPlaying& nowPlaying() { return nowPlaying_; }
+    PlaylistEditing& playlistEditing() { return playlistEditing_; }
 
 private:
     // Declaration order is construction order: playback_ needs
@@ -50,6 +52,7 @@ private:
     ViewModel::Messages messages_;
     SourceSession sourceSession_;
     ViewModel::NowPlaying nowPlaying_;
+    PlaylistEditing playlistEditing_;
 };
 
 } // namespace App

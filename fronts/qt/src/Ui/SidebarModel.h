@@ -121,9 +121,6 @@ public:
     // them in — including ones the sidebar doesn't show), its icon path
     // and whether its playlists are being (re)loaded — for its page.
     QList<Playlist> playlistsFor(const QString& sourceId) const;
-    // Just the ones the source marked editable (the user's own playlists,
-    // docs/protocol.md §7.6).
-    QList<Playlist> editablePlaylistsFor(const QString& sourceId) const;
     // Updates a playlist row's stored trackCount after an add/remove.
     void setPlaylistTrackCount(const QString& sourceId, const QString& playlistId, int trackCount);
     QString sourceIconPath(const QString& sourceId) const { return sourceIconPaths_.value(sourceId); }

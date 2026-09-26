@@ -1,6 +1,6 @@
 # MVVM refactoring plan (Qt front)
 
-Status: stages 0–4 done. Update this file as stages land.
+Status: stages 0–5 done. Update this file as stages land.
 
 ## Where we are
 
@@ -104,7 +104,10 @@ the same.
    `Playback::PlaybackController`, already in core. Tests: like with
    rollback on failure, busy state, track change.
 5. **`App::PlaylistEditing`.** The "Add to playlist" menus from the list,
-   the sheet, the toolbar and the tray.
+   the sheet, the toolbar and the tray; the tray builds its menu itself,
+   no longer through the window. It learns each source's editable
+   playlists from `setPlaylists()` — fed by the window's playlist loading
+   for now, by `ViewModel::Library` from stage 6.
 6. **`ViewModel::Library`.** Playlists, favorites, collapsed rows, selection
    restore. Tests: a refresh keeps favorites; restore waits for its source.
 7. **`ViewModel::ActivePlaylist`.** Main list, radio, restoring the active

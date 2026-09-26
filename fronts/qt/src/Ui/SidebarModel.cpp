@@ -213,16 +213,6 @@ QModelIndex SidebarModel::indexForSource(const QString& sourceId) const
     return QModelIndex();
 }
 
-QList<Playlist> SidebarModel::editablePlaylistsFor(const QString& sourceId) const
-{
-    QList<Playlist> out;
-    for (const Playlist& playlist : playlistsFor(sourceId)) {
-        if (playlist.editable.value_or(false))
-            out.append(playlist);
-    }
-    return out;
-}
-
 void SidebarModel::setPlaylistTrackCount(const QString& sourceId, const QString& playlistId, int trackCount)
 {
     const auto cached = playlists_.find(sourceId);

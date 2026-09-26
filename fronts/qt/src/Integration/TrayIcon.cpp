@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QIcon>
 #include <QMenu>
+#include <QPointer>
 #include <QStyleHints>
 #include <QSystemTrayIcon>
 #include <QWidget>
@@ -11,13 +12,16 @@
 #include "Icons.h"
 #include "MainWindow.h"
 #include "NowPlaying.h"
+#include "PlaylistEditing.h"
 
 namespace Integration {
 
-TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying, QObject* parent)
+TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
+    QObject* parent)
     : QObject(parent)
     , mainWindow_(mainWindow)
     , nowPlaying_(nowPlaying)
+    , playlistEditing_(playlistEditing)
 {
     trayIcon_ = new QSystemTrayIcon(this);
     updateTrayIcon();
@@ -55,8 +59,7 @@ TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying
         [this]() { nowPlaying_.setDisliked(!nowPlaying_.feedback().disliked); });
     // Refilled on every open: membership may have changed since (in the
     // app, or on the service itself).
-    connect(playlistsMenu_, &QMenu::aboutToShow, this,
-        [this]() { mainWindow_->fillNowPlayingPlaylistsMenu(playlistsMenu_); });
+    connect(playlistsMenu_, &QMenu::aboutToShow, this, &TrayIcon::fillPlaylistsMenu);
     connect(showHideAction_, &QAction::triggered, mainWindow_, &Ui::MainWindow::toggleShown);
     connect(quitAction, &QAction::triggered, this, &TrayIcon::quitRequested);
 
@@ -118,6 +121,34 @@ void TrayIcon::refreshFeedbackActions()
         QStringLiteral("heart_broken"), feedback.disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16));
     playlistsMenu_->menuAction()->setVisible(feedback.playlistsSupported);
     feedbackSeparator_->setVisible(feedback.likeSupported || feedback.dislikeSupported || feedback.playlistsSupported);
+}
+
+void TrayIcon::fillPlaylistsMenu()
+{
+    playlistsMenu_->clear();
+    if (!nowPlaying_.hasTrack())
+        return;
+    playlistsMenu_->addAction(tr("Loading…"))->setEnabled(false);
+    // Copies: the track may change while membership loads.
+    [](TrayIcon* self, QPointer<QMenu> menu, QString sourceId, Track track) -> Rpc::Task<void> {
+        const auto membership = co_await self->playlistEditing_.membership(sourceId, track.id);
+        if (!menu)
+            co_return;
+        menu->clear();
+        if (!membership || membership->playlists.isEmpty()) {
+            menu->addAction(membership ? tr("No playlists") : tr("Couldn't load playlists"))->setEnabled(false);
+            co_return;
+        }
+        for (const Playlist& playlist : membership->playlists) {
+            QAction* action = menu->addAction(playlist.title);
+            action->setCheckable(true);
+            action->setChecked(membership->containing.contains(playlist.id));
+            QObject::connect(action, &QAction::toggled, self, [self, sourceId, track, playlist](bool checked) {
+                self->playlistEditing_.setTrackInPlaylist(sourceId, track, playlist, checked).detach();
+            });
+        }
+    }(this, playlistsMenu_, nowPlaying_.sourceId(), nowPlaying_.track())
+                                                                                   .detach();
 }
 
 void TrayIcon::refreshShowHideAction()

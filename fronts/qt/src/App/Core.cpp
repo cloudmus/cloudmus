@@ -9,6 +9,7 @@ Core::Core(QObject* parent)
     , playback_(sourceManager_)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
     , nowPlaying_(playback_, sourceManager_, trackStates_, playbackHistory_, settings_, messages_)
+    , playlistEditing_(sourceManager_, messages_)
 {
     // Every track that starts playing goes into History, and its "last
     // played" with it.

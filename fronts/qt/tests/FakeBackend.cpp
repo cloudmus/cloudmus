@@ -53,7 +53,8 @@ QJsonObject capabilities()
                         { QStringLiteral("volume"), false } } } } },
         { QStringLiteral("browse"),
             QJsonObject { { QStringLiteral("playlists"), true }, { QStringLiteral("likedTracks"), false },
-                { QStringLiteral("radio"), false }, { QStringLiteral("search"), false } } },
+                { QStringLiteral("radio"), false }, { QStringLiteral("search"), false },
+                { QStringLiteral("editPlaylists"), true } } },
         { QStringLiteral("feedback"),
             QJsonObject { { QStringLiteral("like"), true }, { QStringLiteral("dislike"), true },
                 { QStringLiteral("skip"), false } } },
@@ -112,9 +113,28 @@ int runFakeBackend()
                 { { QStringLiteral("code"), 1200 }, { QStringLiteral("message"), QStringLiteral("heads up") } });
             reply(id,
                 { { QStringLiteral("playlists"),
-                    QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("p1") },
-                        { QStringLiteral("title"), QStringLiteral("First") }, { QStringLiteral("trackCount"), 2 },
-                        { QStringLiteral("kind"), QStringLiteral("playlist") } } } } });
+                    QJsonArray {
+                        QJsonObject { { QStringLiteral("id"), QStringLiteral("p1") },
+                            { QStringLiteral("title"), QStringLiteral("First") }, { QStringLiteral("trackCount"), 2 },
+                            { QStringLiteral("kind"), QStringLiteral("playlist") },
+                            { QStringLiteral("editable"), true } },
+                        // Saved from someone else — not the user's to edit.
+                        QJsonObject { { QStringLiteral("id"), QStringLiteral("p2") },
+                            { QStringLiteral("title"), QStringLiteral("Saved") }, { QStringLiteral("trackCount"), 5 },
+                            { QStringLiteral("kind"), QStringLiteral("playlist") } },
+                    } } });
+        } else if (method == QStringLiteral("catalog.getTrackPlaylists")) {
+            reply(id, { { QStringLiteral("playlistIds"), QJsonArray { QStringLiteral("p1") } } });
+        } else if (method == QStringLiteral("catalog.addToPlaylist")) {
+            reply(id, { { QStringLiteral("trackCount"), 3 } });
+        } else if (method == QStringLiteral("catalog.removeFromPlaylist")) {
+            // A track id of "fail" can't be removed.
+            const QString trackId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
+            if (trackId == QStringLiteral("fail"))
+                replyError(id, 1300, QStringLiteral("not in the playlist"));
+            else
+                reply(id, { { QStringLiteral("trackCount"), 1 } });
         } else if (method == QStringLiteral("playback.play")) {
             // Accepted, but no stream follows: the track counts as current
             // (what the tests look at) without anything actually playing.

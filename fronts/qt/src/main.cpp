@@ -123,7 +123,7 @@ int main(int argc, char** argv)
     core.coverArtCache().setFitter(&Ui::fitCover);
     Ui::MainWindow window(core);
 
-    Integration::TrayIcon tray(&window, core.nowPlaying());
+    Integration::TrayIcon tray(&window, core.nowPlaying(), core.playlistEditing());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &window, &Ui::MainWindow::quitForReal);
 
     Integration::MprisService mpris(&window, playback);

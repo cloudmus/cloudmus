@@ -77,12 +77,6 @@ public:
     // a minimized one is brought back instead.
     void toggleShown();
 
-    // --- the playing track's playlists, for the tray
-    // Fills `menu` with the playlists checklist for the playing track —
-    // as checkable actions (a tray menu is exported over D-Bus, where
-    // widget rows don't exist).
-    void fillNowPlayingPlaylistsMenu(QMenu* menu);
-
 signals:
     void aboutToReallyQuit();
 
@@ -122,28 +116,27 @@ private:
     // the track has a webUrl.
     void showTrackMenu(
         const QString& sourceId, const Track& track, const QPoint& globalPos, std::function<void()> play);
-    // --- editing playlists (docs/protocol.md §7.6)
+    // --- editing playlists (docs/protocol.md §7.6), through
+    // App::PlaylistEditing
     // Fills `menu` with the user's editable playlists on the track's
     // source, each a checkbox — checked when the track is in it; toggling
     // adds/removes it. Shows "Loading…" until membership arrives; with
     // `reopenAt`, re-pops the menu there once filled (it grew, and has to
     // stay on screen). Used by the toolbar button and the context menu.
-    // `checkActions`: plain checkable actions instead of check box rows
-    // (the tray's menu, which lives outside the app).
-    Rpc::Task<void> fillPlaylistsMenuAsync(QPointer<QMenu> menu, QString sourceId, Track track,
-        std::optional<QPoint> reopenAt = std::nullopt, bool checkActions = false);
-    // `box` (if any) is disabled while the request runs and unchecked
-    // back on failure.
+    Rpc::Task<void> fillPlaylistsMenuAsync(
+        QPointer<QMenu> menu, QString sourceId, Track track, std::optional<QPoint> reopenAt = std::nullopt);
+    // A playlist's check box toggled: `box` is disabled while the request
+    // runs and unchecked back on failure.
     Rpc::Task<void> setTrackInPlaylistAsync(
-        QString sourceId, Track track, Playlist playlist, bool add, QPointer<QCheckBox> box = nullptr);
-    // Keeps what's on screen in step after a successful add/remove: the
-    // sheet's list and header if it shows that playlist, the active
-    // playlist's not-yet-queued tracks.
+        QString sourceId, Track track, Playlist playlist, bool add, QPointer<QCheckBox> box);
+    // Keeps what's on screen in step after a successful add/remove — from
+    // here or the tray (App::PlaylistEditing::playlistEdited): the
+    // sidebar's count, the sheet's list and header if it shows that
+    // playlist, the active playlist's not-yet-queued tracks.
     void applyPlaylistEdit(
         const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
     // The toolbar button's menu for the playing track.
     void showPlaylistsMenu(QPoint anchor);
-    bool sourceCanEditPlaylists(const QString& sourceId) const;
 
     // HeroPanel's Play button: (re)starts the active playlist.
     void playActive();
@@ -256,6 +249,7 @@ private:
     // What's playing — the toolbar, the hero panel and the playing-row
     // highlight follow it (bindNowPlaying()).
     ViewModel::NowPlaying& nowPlaying_;
+    App::PlaylistEditing& playlistEditing_;
 
     void repositionTrackListBusyIndicator();
     // Shows/hides trackListPane_ and, together with it, collapses/restores
