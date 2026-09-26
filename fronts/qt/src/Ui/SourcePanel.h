@@ -54,7 +54,7 @@ public:
     // `loading`: a fetch is in flight — shown instead of "No playlists"
     // while the list is still empty.
     void setPlaylists(const QList<Playlist>& playlists, bool loading);
-    // Whether a playlist is a sidebar favorite (SidebarModel::isFavorite()),
+    // Whether a playlist is a sidebar favorite (ViewModel::SidebarModel::isFavorite()),
     // asked at paint time; call favoritesChanged() when the answer changes.
     void setFavoriteCheck(std::function<bool(const QString& sourceId, const QString& playlistId)> check);
     void favoritesChanged();

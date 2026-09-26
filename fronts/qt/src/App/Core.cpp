@@ -10,7 +10,13 @@ Core::Core(QObject* parent)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
     , nowPlaying_(playback_, sourceManager_, trackStates_, playbackHistory_, settings_, messages_)
     , playlistEditing_(sourceManager_, messages_)
+    , sources_(sourceManager_, sourceSession_, authStates_, playlistEditing_, coverArtCache_, settings_, messages_)
 {
+    // A source that stops leaves nothing to stream the rest of its track from.
+    connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, [this](const QString& sourceId) {
+        if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId)
+            playback_.stop();
+    });
     // Every track that starts playing goes into History, and its "last
     // played" with it.
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,

@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <functional>
 
-namespace Ui {
+namespace ViewModel {
 
 SidebarModel::SidebarModel(QObject* parent)
     : QStandardItemModel(parent)
@@ -292,4 +292,4 @@ QModelIndex SidebarModel::indexForPlaylist(const QString& sourceId, const QStrin
     return find(invisibleRootItem());
 }
 
-} // namespace Ui
+} // namespace ViewModel

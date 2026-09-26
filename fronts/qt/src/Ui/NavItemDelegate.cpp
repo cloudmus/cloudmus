@@ -14,14 +14,14 @@ namespace Ui {
 
 void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
-    const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
+    const auto kind = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
     const Theme::Palette& pal = Theme::palette();
     const QRect rect = option.rect;
 
     painter->save();
 
-    if (kind == SidebarModel::Kind::PlaylistsHeader) {
-        // Non-selectable group separator (SidebarModel::setSelectable(false))
+    if (kind == ViewModel::SidebarModel::Kind::PlaylistsHeader) {
+        // Non-selectable group separator (ViewModel::SidebarModel::setSelectable(false))
         // — no hover/selection background regardless of option.state.
         painter->setRenderHint(QPainter::Antialiasing);
         painter->setFont(Theme::font(Theme::TextStyle::LabelUpper));
@@ -79,11 +79,11 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     constexpr int kIconSide = 16;
     const Theme::IconColor iconColor = selected ? Theme::IconColor::Accent : Theme::IconColor::InkSecondary;
     QIcon rowIcon;
-    if (kind == SidebarModel::Kind::History)
+    if (kind == ViewModel::SidebarModel::Kind::History)
         rowIcon = Theme::icon(QStringLiteral("history"), iconColor, kIconSide);
-    else if (const QString path = index.data(SidebarModel::SourceIconPathRole).toString(); !path.isEmpty())
+    else if (const QString path = index.data(ViewModel::SidebarModel::SourceIconPathRole).toString(); !path.isEmpty())
         rowIcon = Theme::iconFromFile(path, iconColor, kIconSide);
-    else if (const QString name = index.data(SidebarModel::ThemeIconRole).toString(); !name.isEmpty())
+    else if (const QString name = index.data(ViewModel::SidebarModel::ThemeIconRole).toString(); !name.isEmpty())
         rowIcon = Theme::icon(name, iconColor, kIconSide);
     else
         rowIcon = index.data(Qt::DecorationRole).value<QIcon>();
@@ -101,18 +101,18 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     int textRight = rect.right() - Theme::Spacing::space2;
     // The active (playing) playlist's marker shares that same right-edge
     // slot — a playlist row never has a status icon.
-    if (index.data(SidebarModel::IsActiveRole).toBool()) {
+    if (index.data(ViewModel::SidebarModel::IsActiveRole).toBool()) {
         const int markerLeft = fullRowRect.right() - Theme::Spacing::space2 - kIconSide + 1;
         Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Accent, kIconSide)
             .paint(painter, QRect(markerLeft, rect.center().y() - kIconSide / 2, kIconSide, kIconSide));
         textRight = qMin(textRight, markerLeft - Theme::Spacing::space2 - 1);
     }
-    if (kind == SidebarModel::Kind::SourceHeader) {
+    if (kind == ViewModel::SidebarModel::Kind::SourceHeader) {
         QIcon statusIcon;
-        if (index.data(SidebarModel::HasAuthProblemRole).toBool()
-            || index.data(SidebarModel::HasFetchErrorRole).toBool())
+        if (index.data(ViewModel::SidebarModel::HasAuthProblemRole).toBool()
+            || index.data(ViewModel::SidebarModel::HasFetchErrorRole).toBool())
             statusIcon = Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, kIconSide);
-        else if (index.data(SidebarModel::IsLoadingRole).toBool())
+        else if (index.data(ViewModel::SidebarModel::IsLoadingRole).toBool())
             statusIcon = Theme::icon(QStringLiteral("refresh"), Theme::IconColor::InkSecondary, kIconSide);
         if (!statusIcon.isNull()) {
             const int statusLeft = fullRowRect.right() - Theme::Spacing::space2 - kIconSide + 1;
@@ -137,8 +137,8 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
 
 QSize NavItemDelegate::sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const
 {
-    const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
-    const int height = kind == SidebarModel::Kind::PlaylistsHeader ? 24 : 32;
+    const auto kind = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
+    const int height = kind == ViewModel::SidebarModel::Kind::PlaylistsHeader ? 24 : 32;
     return QSize(option.rect.width(), height);
 }
 

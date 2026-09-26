@@ -94,6 +94,8 @@ add_library(cloudmus-core STATIC
 
     src/ViewModel/Messages.cpp
     src/ViewModel/NowPlaying.cpp
+    src/ViewModel/SidebarModel.cpp
+    src/ViewModel/Sources.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 )
@@ -140,7 +142,6 @@ add_executable(cloudmus-qt
     src/Ui/MainWindow.cpp
     src/Ui/AboutDialog.cpp
     src/Ui/InfoDialog.cpp
-    src/Ui/SidebarModel.cpp
     src/Ui/NavItemDelegate.cpp
     src/Ui/TrackListModel.cpp
     src/Ui/TrackRowDelegate.cpp
@@ -230,6 +231,7 @@ add_executable(cloudmus-qt-tests
     tests/SourceSessionTest.cpp
     tests/NowPlayingTest.cpp
     tests/PlaylistEditingTest.cpp
+    tests/SourcesTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

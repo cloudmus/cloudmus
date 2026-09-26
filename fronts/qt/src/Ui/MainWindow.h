@@ -36,9 +36,12 @@ namespace Covers {
 class CoverArtCache;
 }
 
+namespace ViewModel {
+class SidebarModel;
+}
+
 namespace Ui {
 
-class SidebarModel;
 class NavItemDelegate;
 class TrackListModel;
 class TrackRowDelegate;
@@ -93,12 +96,15 @@ private:
     // to nowPlaying_, and shows its current state right away.
     void bindNowPlaying();
 
-    void onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail);
-    void onSourceStopped(const QString& sourceId);
+    // ViewModel::Sources' signals: the sidebar selection, the source's
+    // page, and the startup restores follow.
+    void onSourceChanged(const QString& sourceId);
+    void onSourceRemoved(const QString& sourceId);
+    void onPlaylistsLoaded(const QString& sourceId, const QList<Playlist>& playlists);
     void onSidebarActivated(const QModelIndex& index);
     void onSidebarDoubleClicked(const QModelIndex& index);
     // Right-click on sidebarView_. A source header offers "Force Refresh
-    // Playlists" (re-runs loadPlaylistsAsync); a Wave/Liked/Playlist row
+    // Playlists" (ViewModel::Sources::refresh()); a Wave/Liked/Playlist row
     // offers "Play" (same as double-click — see onSidebarDoubleClicked).
     // Any other row (PlaylistsHeader/History) gets no menu.
     void onSidebarContextMenuRequested(const QPoint& pos);
@@ -179,7 +185,7 @@ private:
     // while it's open, the active one otherwise.
     void syncSidebarSelection();
     // Expands the rows just inserted (and their children), except the ones
-    // the user collapsed — see collapsedNodes_.
+    // the user collapsed — see ViewModel::Sources::isCollapsed().
     void restoreExpansion(const QModelIndex& parent, int first, int last);
     // Names what syncSidebarSelection() selects — "history",
     // "source:<id>" or "playlist:<sourceId>:<playlistId>" — or empty.
@@ -196,7 +202,6 @@ private:
     void activateFromSheet(int row);
     void playAllFromSheet();
 
-    Rpc::Task<void> loadPlaylistsAsync(Rpc::RpcClient* client);
     // By value, not const&: these coroutines resume asynchronously (after an
     // RPC round-trip) and use their params again after that resume — a
     // reference to a caller's temporary/local (as with detach()ed calls
@@ -250,6 +255,8 @@ private:
     // highlight follow it (bindNowPlaying()).
     ViewModel::NowPlaying& nowPlaying_;
     App::PlaylistEditing& playlistEditing_;
+    // The sources and their playlists; owns sidebarModel_.
+    ViewModel::Sources& sources_;
 
     void repositionTrackListBusyIndicator();
     // Shows/hides trackListPane_ and, together with it, collapses/restores
@@ -266,7 +273,7 @@ private:
     // class doc). A no-op if `index` is already the current hovered one.
     void updateSidebarHover(const QModelIndex& index);
 
-    SidebarModel* sidebarModel_ = nullptr;
+    ViewModel::SidebarModel* sidebarModel_ = nullptr;
     QTreeView* sidebarView_ = nullptr;
     NavItemDelegate* sidebarDelegate_ = nullptr;
     HeroPanel* heroPanel_ = nullptr;
@@ -309,7 +316,6 @@ private:
     // Settings::sidebarSelection() from the last run, until restored or
     // replaced by a new selection.
     QString pendingSelection_;
-    QSet<QString> collapsedNodes_;
 
     bool reallyQuitting_ = false;
     // saveGeometry() taken by hideToTray(); empty while the window is shown.

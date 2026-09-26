@@ -1,6 +1,6 @@
 # MVVM refactoring plan (Qt front)
 
-Status: stages 0–5 done. Update this file as stages land.
+Status: stages 0–6 done. Update this file as stages land.
 
 ## Where we are
 
@@ -42,7 +42,7 @@ main()
  └─ App::Core (lives for the whole run)
      ├─ services: SourceManager, PlaybackController, AuthStates, PlaybackHistory,
      │            TrackStates, CoverArtCache, Settings, SourceSession (notification dispatch)
-     └─ view models: Library, NowPlaying, ActivePlaylist, Browse, SourcePage, Messages
+     └─ view models: Sources, NowPlaying, ActivePlaylist, Browse, SourcePage, Messages
  └─ Ui::MainWindow (recreatable) ── binds to the view models
  └─ Tray, MPRIS, notifications ── bind to the view models, not the window
 ```
@@ -66,17 +66,17 @@ Rules:
 | View model | Taken from MainWindow | Bound by |
 |---|---|---|
 | **App::SourceSession** (service) | `wireSource`, `ensureAuthenticatedAsync`, `submitAuth`/`retryAuth`, forwarding `streamReady`/`tracksAdded` to playback and caches | everything |
-| **Library** | `loadPlaylistsAsync`, per-source playlist cache, loading/error flags, favorites, collapsed rows, `pendingRestore_`/`pendingSelection_`, owns `SidebarModel` | sidebar, source page |
+| **Sources** | `loadPlaylistsAsync`, per-source playlist cache, loading/error flags, favorites, collapsed rows, owns `SidebarModel` (named so rather than "Library", which is already a namespace) | sidebar, source page |
 | **NowPlaying** | current track, playing/loading, position, play modes, like/dislike (support, state, busy), download, web URL, `refreshNowPlayingFeedback`, `likeToggledAsync`/`dislikeToggledAsync`, `downloadCurrentTrackAsync` | NowPlayingBar, hero, **tray, MPRIS, notifications** |
-| **ActivePlaylist** | `activeContext_`, `activeTracks_`, `activate`, `activateAndPlayAsync`, `loadActiveTracksAsync`, `startRadioAsync`, `playActive`, owns the main list's `TrackListModel` | main list, hero in playlist mode |
-| **Browse** (sheet) | `sheetContext_`, `openInSheetAsync`, `openHistoryInSheet`, `fillHistorySheet`, `activateFromSheet`, `playAllFromSheet` | `PlaylistSheet`, `SourcePanel` |
+| **ActivePlaylist** | `activeContext_`, `activeTracks_`, `activate`, `activateAndPlayAsync`, `loadActiveTracksAsync`, `startRadioAsync`, `playActive`, restoring the active playlist (`pendingRestore_`), owns the main list's `TrackListModel` | main list, hero in playlist mode |
+| **Browse** (sheet) | `sheetContext_`, `openInSheetAsync`, `openHistoryInSheet`, `fillHistorySheet`, `activateFromSheet`, `playAllFromSheet`, restoring the open page (`pendingSelection_`) | `PlaylistSheet`, `SourcePanel` |
 | **SourcePage** | a source's auth section state (`refreshAuthSection`), capabilities, `currentStatusPanelSourceId_` | `SourcePanel`, sidebar indicators |
 | **PlaylistEditing** (service) | `fillPlaylistsMenuAsync`, `setTrackInPlaylistAsync`, `applyPlaylistEdit`, `sourceCanEditPlaylists` | context menus, tray |
 | **Messages** | everything now going to `toastNotifier_->showError/showSuccess` | the window's and the Settings dialog's `ToastNotifier` |
 
 What stays in `MainWindow`: building widgets, splitters, geometry, hiding to
 the tray, glass, building menus (their content comes from view models),
-sidebar selection from `Library.selectionKey`, delegates and hover.
+sidebar selection, delegates and hover.
 
 ## Stages
 
@@ -107,9 +107,14 @@ the same.
    the sheet, the toolbar and the tray; the tray builds its menu itself,
    no longer through the window. It learns each source's editable
    playlists from `setPlaylists()` — fed by the window's playlist loading
-   for now, by `ViewModel::Library` from stage 6.
-6. **`ViewModel::Library`.** Playlists, favorites, collapsed rows, selection
-   restore. Tests: a refresh keeps favorites; restore waits for its source.
+   for now, by `ViewModel::Sources` from stage 6.
+6. **`ViewModel::Sources`.** The sources' lifecycle in the sidebar,
+   listing their playlists, sign-in icons, favorites, collapsed rows;
+   `SidebarModel` moves into core with it and feeds
+   `App::PlaylistEditing`. The startup restores (active playlist, open
+   page) move with stages 7–8 instead — they belong to the active
+   playlist and the sheet. Tests: loading, a refresh keeps favorites,
+   signing out, collapsed rows.
 7. **`ViewModel::ActivePlaylist`.** Main list, radio, restoring the active
    playlist.
 8. **`ViewModel::Browse`, `ViewModel::SourcePage`.**

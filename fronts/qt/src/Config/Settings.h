@@ -49,7 +49,7 @@ public:
     int heroPanelWidth() const;
     void setHeroPanelWidth(int width);
 
-    // The sidebar's collapsed rows, by Ui::SidebarModel::nodeKey() — every
+    // The sidebar's collapsed rows, by ViewModel::SidebarModel::nodeKey() — every
     // other row starts expanded.
     QStringList sidebarCollapsed() const;
     void setSidebarCollapsed(const QStringList& keys);
@@ -116,7 +116,7 @@ public:
 
     // The playlist ids the user put at a source's top level in the sidebar,
     // in order — nullopt until they first change it, when the source's own
-    // Playlist.featured suggestion applies instead (Ui::SidebarModel).
+    // Playlist.featured suggestion applies instead (ViewModel::SidebarModel).
     std::optional<QStringList> favorites(const QString& sourceId) const;
     void setFavorites(const QString& sourceId, const QStringList& playlistIds);
     // Whether the user was told, once, where a station taken out of the

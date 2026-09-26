@@ -99,6 +99,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , messages_(core.messages())
     , nowPlaying_(core.nowPlaying())
     , playlistEditing_(core.playlistEditing())
+    , sources_(core.sources())
     , coverArtCache_(&core.coverArtCache())
     , playbackHistory_(&core.playbackHistory())
     , trackStates_(&core.trackStates())
@@ -165,8 +166,8 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     addToolBar(Qt::BottomToolBarArea, toolbar);
 
     // --- sidebar + track list ---
-    sidebarModel_ = new SidebarModel(this);
-    sidebarModel_->ensureHistoryItem();
+    // Owned by ViewModel::Sources, which keeps it filled.
+    sidebarModel_ = &sources_.model();
     sidebarView_ = new QTreeView(this);
     sidebarView_->setObjectName(QStringLiteral("sidebarView")); // see StyleSheet.cpp's sidebarTreeBlock()
     sidebarView_->setModel(sidebarModel_);
@@ -206,24 +207,13 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     });
     // Rows are expanded as they come in — setSource() rebuilds a source's
     // rows on every refresh — except the ones the user collapsed, which
-    // stay collapsed across refreshes and restarts.
-    const QStringList collapsed = settings_.sidebarCollapsed();
-    collapsedNodes_ = QSet<QString>(collapsed.cbegin(), collapsed.cend());
+    // stay collapsed across refreshes and restarts (ViewModel::Sources
+    // keeps which).
     connect(sidebarModel_, &QStandardItemModel::rowsInserted, this, &MainWindow::restoreExpansion);
-    const auto rememberExpansion = [this](const QModelIndex& index, bool expanded) {
-        const QString key = SidebarModel::nodeKey(index);
-        if (key.isEmpty() || collapsedNodes_.contains(key) == !expanded)
-            return;
-        if (expanded)
-            collapsedNodes_.remove(key);
-        else
-            collapsedNodes_.insert(key);
-        settings_.setSidebarCollapsed(QStringList(collapsedNodes_.cbegin(), collapsedNodes_.cend()));
-    };
     connect(sidebarView_, &QTreeView::expanded, this,
-        [rememberExpansion](const QModelIndex& index) { rememberExpansion(index, true); });
+        [this](const QModelIndex& index) { sources_.setCollapsed(ViewModel::SidebarModel::nodeKey(index), false); });
     connect(sidebarView_, &QTreeView::collapsed, this,
-        [rememberExpansion](const QModelIndex& index) { rememberExpansion(index, false); });
+        [this](const QModelIndex& index) { sources_.setCollapsed(ViewModel::SidebarModel::nodeKey(index), true); });
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
     sidebarView_->setContextMenuPolicy(Qt::CustomContextMenu);
@@ -315,15 +305,12 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
         [this](const QString& sourceId, const Playlist& playlist) { openInSheetAsync(sourceId, playlist).detach(); });
     connect(sourcePanel_, &SourcePanel::favoriteToggled, this, &MainWindow::toggleFavorite);
     sourcePanel_->setFavoriteCheck([this](const QString& sourceId, const QString& playlistId) {
-        return sidebarModel_->isFavorite(sourceId, playlistId);
+        return sources_.isFavorite(sourceId, playlistId);
     });
     connect(sourcePanel_, &SourcePanel::codeCopied, this, [this]() { messages_.success(tr("Code copied")); });
     connect(sourcePanel_, &SourcePanel::settingsRequested, this,
         [this](const QString& sourceId) { showSettingsDialog(QStringLiteral("source:") + sourceId); });
-    connect(sourcePanel_, &SourcePanel::refreshRequested, this, [this](const QString& sourceId) {
-        if (Rpc::RpcClient* client = sourceManager_.client(sourceId))
-            loadPlaylistsAsync(client).detach();
-    });
+    connect(sourcePanel_, &SourcePanel::refreshRequested, &sources_, &ViewModel::Sources::refresh);
     connect(sheet_, &PlaylistSheet::trackActivated, this, &MainWindow::activateFromSheet);
     connect(sheet_, &PlaylistSheet::playAllClicked, this, &MainWindow::playAllFromSheet);
     connect(sheet_, &PlaylistSheet::closeRequested, this, &MainWindow::closeSheet);
@@ -394,47 +381,16 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     centralLayout->addWidget(splitter, 1);
     setCentralWidget(central);
 
-    // Every backend gets its header row as soon as its process is spawned
-    // (sourceManager_.startAll() runs after MainWindow is constructed — see
-    // main.cpp), not once loadPlaylistsAsync() first succeeds — a backend
-    // that's slow to start or still authenticating must stay visible. Shown
-    // as loading until loadPlaylistsAsync() (on SourceSession::sourceReady)
-    // fills it in.
-    connect(&sourceManager_, &Rpc::SourceManager::sourceStarting, this, [this](const Rpc::BackendManifest& manifest) {
-        sidebarModel_->setSourceIconPath(manifest.id, manifest.iconPath);
-        sidebarModel_->setFavorites(manifest.id, settings_.favorites(manifest.id));
-        sidebarModel_->setSource(manifest.id, manifest.name, { });
-        sidebarModel_->setSourceLoading(manifest.id, manifest.name, true);
-    });
-    connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, &MainWindow::onSourceStopped);
+    // ViewModel::Sources follows the sources and what they list; the window
+    // keeps its own views of them in step.
+    connect(&sources_, &ViewModel::Sources::sourceChanged, this, &MainWindow::onSourceChanged);
+    connect(&sources_, &ViewModel::Sources::playlistsLoaded, this, &MainWindow::onPlaylistsLoaded);
+    connect(&sources_, &ViewModel::Sources::sourceRemoved, this, &MainWindow::onSourceRemoved);
     connect(authStates_, &Rpc::AuthStates::changed, this, &MainWindow::updateSourceAuthIndicator);
-    connect(&sourceManager_, &Rpc::SourceManager::settingsChanged, this, [this](const QString& sourceId) {
-        if (Rpc::RpcClient* client = sourceManager_.client(sourceId))
-            loadPlaylistsAsync(client).detach();
-    });
-    // auth.logout (from the source's Settings page) leaves the playlists
-    // listed until something reloads them; they're no longer the user's to see.
-    connect(authStates_, &Rpc::AuthStates::signedOut, this, [this](const QString& sourceId) {
-        if (Rpc::RpcClient* client = sourceManager_.client(sourceId)) {
-            sidebarModel_->setSource(sourceId, client->sourceName(), { });
-            playlistEditing_.setPlaylists(sourceId, { });
-            updateSourceAuthIndicator(sourceId);
-            if (currentStatusPanelSourceId_ == sourceId)
-                sourcePanel_->setPlaylists({ }, false);
-            syncSidebarSelection();
-        }
-    });
-    // App::SourceSession has wired the source up by now (it runs first):
-    // all that's left for the window is listing what it offers.
-    connect(&sourceSession_, &App::SourceSession::sourceReady, this,
-        [this](Rpc::RpcClient* client) { loadPlaylistsAsync(client).detach(); });
-    connect(&sourceSession_, &App::SourceSession::signedIn, this,
-        [this](Rpc::RpcClient* client) { loadPlaylistsAsync(client).detach(); });
-    connect(&sourceManager_, &Rpc::SourceManager::sourceUnavailable, this, &MainWindow::onSourceUnavailable);
 
     // Restore the last active playlist (without playing it). History is
     // local, so it's restored right away; a backend playlist has to wait
-    // for that backend's playlists — see loadPlaylistsAsync().
+    // for that backend's playlists — see onPlaylistsLoaded().
     const Config::Settings::ActivePlaylistRef saved = settings_.lastActivePlaylist();
     if (saved.kind == QStringLiteral("history")) {
         setActiveContext(historyContext());
@@ -538,13 +494,9 @@ Rpc::Task<void> MainWindow::retryAuthAsync(QString sourceId)
 
 void MainWindow::updateSourceAuthIndicator(const QString& sourceId)
 {
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
-    const Rpc::AuthStates::State state = authStates_->state(sourceId);
-    sidebarModel_->setSourceAuthProblem(sourceId, sourceName, state.hasProblem);
-
+    // The sidebar's icon is ViewModel::Sources' — just the page here.
     if (currentStatusPanelSourceId_ == sourceId)
-        refreshAuthSection(sourceId, state);
+        refreshAuthSection(sourceId, authStates_->state(sourceId));
 }
 
 void MainWindow::showSourceStatusPanel(const QString& sourceId)
@@ -556,9 +508,9 @@ void MainWindow::showSourceStatusPanel(const QString& sourceId)
     const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
     const QString description = client != nullptr ? client->sourceDescription() : QString();
     const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
-    sheet_->showSource(sourceName, description, sidebarModel_->sourceIconPath(sourceId));
+    sheet_->showSource(sourceName, description, sources_.iconPath(sourceId));
     sourcePanel_->setSource(sourceId, capabilities);
-    sourcePanel_->setPlaylists(sidebarModel_->playlistsFor(sourceId), sidebarModel_->isSourceLoading(sourceId));
+    sourcePanel_->setPlaylists(sources_.playlists(sourceId), sources_.isLoading(sourceId));
 
     refreshAuthSection(sourceId, authStates_->state(sourceId));
     // Last: presenting snapshots the sheet, so fill it first.
@@ -582,138 +534,66 @@ void MainWindow::refreshAuthSection(const QString& sourceId, const Rpc::AuthStat
     }
 }
 
-void MainWindow::onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail)
+void MainWindow::onSourceChanged(const QString& sourceId)
 {
-    Q_UNUSED(stderrTail);
-    sidebarModel_->removeSource(manifestId);
+    // Rows rebuilt: their selection went with them.
     syncSidebarSelection();
-    messages_.error(tr("%1 is unavailable").arg(name));
+    if (currentStatusPanelSourceId_ == sourceId)
+        sourcePanel_->setPlaylists(sources_.playlists(sourceId), sources_.isLoading(sourceId));
+    // Which ones are favorites can change with the list (Playlist.featured).
+    sourcePanel_->favoritesChanged();
 }
 
-void MainWindow::onSourceStopped(const QString& sourceId)
+void MainWindow::onSourceRemoved(const QString& sourceId)
 {
-    sidebarModel_->removeSource(sourceId);
-    authStates_->remove(sourceId);
     if (sheet_->isPresented()
         && (currentStatusPanelSourceId_ == sourceId
             || (sheetContext_.isValid() && !sheetContext_.isHistory && sheetContext_.sourceId == sourceId)))
         closeSheet();
-    // Nothing left to stream the rest of the track from.
-    if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId)
-        playback_.stop();
     syncSidebarSelection();
 }
 
-Rpc::Task<void> MainWindow::loadPlaylistsAsync(Rpc::RpcClient* client)
+void MainWindow::onPlaylistsLoaded(const QString& sourceId, const QList<Playlist>& playlists)
 {
-    sidebarModel_->setSourceLoading(client->sourceId(), client->sourceName(), true);
-    if (currentStatusPanelSourceId_ == client->sourceId())
-        sourcePanel_->setPlaylists(sidebarModel_->playlistsFor(client->sourceId()), /*loading=*/true);
-    const QJsonObject browse = client->capabilities().value(QStringLiteral("browse")).toObject();
-    const bool shouldFetch = browse.value(QStringLiteral("playlists")).toBool()
-        || browse.value(QStringLiteral("likedTracks")).toBool() || browse.value(QStringLiteral("radio")).toBool();
-    QList<Playlist> playlists;
-    // Set when the fetch failed with a client-side timeout (RpcClient's own
-    // local deadline, error code -1 — see RpcClient::registerPending) while
-    // otherwise looking fine — worth surfacing, unlike the routine
-    // "not-yet-authenticated" rejection below, which always fails fast with
-    // a proper error object rather than by timing out, so it can never hit
-    // this branch.
-    bool fetchTimedOut = false;
-    if (shouldFetch) {
-        try {
-            ListPlaylistsResult result = co_await Rpc::catalogListPlaylists(*client);
-            playlists = result.playlists;
-        } catch (const Rpc::RpcCallException& e) {
-            fetchTimedOut = e.error().code == -1;
-            qCWarning(lcMainWindow) << "catalog.listPlaylists failed for" << client->sourceId() << ":" << e.what();
-        } catch (const std::exception& e) {
-            // std::exception, not Rpc::RpcCallException — critically also
-            // catches Rpc::ProtocolParseError (a well-formed response whose
-            // *content* violates the protocol schema, e.g. a field of the
-            // wrong JSON type). That distinction is exactly what caused a
-            // real bug: a backend returning Playlist.trackCount as a JSON
-            // string for some entries threw ProtocolParseError, which this
-            // catch didn't match, so the exception propagated straight out
-            // of this .detach()'d coroutine (silently discarded — see
-            // Coro.h's promise_type::unhandled_exception) and skipped the
-            // sidebarModel_->setSource() call below entirely — the source
-            // never appeared as a sidebar row at all, not just missing its
-            // playlists.
-            //
-            // No toast here — this runs automatically (not from a button)
-            // and RpcCallException specifically fires routinely for every
-            // not-yet-authenticated source at startup, which isn't worth
-            // interrupting the user for. But any failure here can also mean
-            // a real upstream problem for a source that IS authenticated,
-            // which used to be entirely invisible — console log it either
-            // way so that case is at least diagnosable without re-running
-            // the backend by hand. The sidebar itself simply won't show
-            // playlists for this source until it retries (e.g. after auth
-            // completes, see SourceSession::signedIn).
-            qCWarning(lcMainWindow) << "catalog.listPlaylists failed for" << client->sourceId() << ":" << e.what();
-        }
-    }
-    for (const Playlist& playlist : playlists)
-        coverArtCache_->assignSource(client->sourceId(), playlist.coverUrl.value_or(QString()));
-    sidebarModel_->setSource(client->sourceId(), client->sourceName(), playlists);
-    playlistEditing_.setPlaylists(client->sourceId(), playlists);
-    // setSource() just recreated this source's header row from scratch,
-    // dropping any warning/loading/error icon it had — reapply from the
-    // cached state. Needed because this coroutine and the auth.start flow
-    // kicked off alongside it in App::SourceSession race: an auth/prompt can
-    // arrive and set the icon before this RPC round-trip finishes, in which
-    // case this call would otherwise silently wipe it back off.
-    updateSourceAuthIndicator(client->sourceId());
-    sidebarModel_->setSourceLoading(client->sourceId(), client->sourceName(), false);
-    sidebarModel_->setSourceFetchError(client->sourceId(), client->sourceName(), fetchTimedOut);
-    if (fetchTimedOut) {
-        messages_.error(tr("%1: timed out loading playlists").arg(client->sourceName()));
-    }
-
     // Startup restore of the last active playlist, once its source has
     // listed it — unless something else became active in the meantime.
-    if (!activeContext_.isValid() && pendingRestore_.sourceId == client->sourceId()) {
+    if (!activeContext_.isValid() && pendingRestore_.sourceId == sourceId) {
         for (const Playlist& playlist : playlists) {
             if (playlist.id != pendingRestore_.playlistId)
                 continue;
-            setActiveContext(ActiveContext { client->sourceId(), playlist });
+            setActiveContext(ActiveContext { sourceId, playlist });
             loadActiveTracksAsync(activeContext_).detach();
             break;
         }
         pendingRestore_ = Config::Settings::ActivePlaylistRef();
     }
-    restoreSelection(client->sourceId(), playlists);
-    // setSource() rebuilt this source's rows, dropping their selection.
+    restoreSelection(sourceId, playlists);
     syncSidebarSelection();
-    if (currentStatusPanelSourceId_ == client->sourceId())
-        sourcePanel_->setPlaylists(playlists, /*loading=*/false);
-    // Which ones are favorites can change with the list (Playlist.featured).
-    sourcePanel_->favoritesChanged();
 }
 
 void MainWindow::onSidebarActivated(const QModelIndex& index)
 {
     pendingSelection_.clear(); // the user picked something else meanwhile
-    const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
-    if (kind == SidebarModel::Kind::History) {
+    const auto kind = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
+    if (kind == ViewModel::SidebarModel::Kind::History) {
         if (activeContext_.isHistory)
             closeSheet();
         else
             openHistoryInSheet();
         return;
     }
-    if (kind == SidebarModel::Kind::SourceHeader) {
+    if (kind == ViewModel::SidebarModel::Kind::SourceHeader) {
         // Unconditional — every source gets a panel (name/description/
         // capabilities), not just ones with an auth problem. See
         // SourcePanel's class doc.
-        showSourceStatusPanel(index.data(SidebarModel::SourceIdRole).toString());
+        showSourceStatusPanel(index.data(ViewModel::SidebarModel::SourceIdRole).toString());
         return;
     }
-    if (kind != SidebarModel::Kind::Wave && kind != SidebarModel::Kind::Liked && kind != SidebarModel::Kind::Playlist)
+    if (kind != ViewModel::SidebarModel::Kind::Wave && kind != ViewModel::SidebarModel::Kind::Liked
+        && kind != ViewModel::SidebarModel::Kind::Playlist)
         return;
-    const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
-    const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
+    const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
+    const Playlist playlist = index.data(ViewModel::SidebarModel::PlaylistDataRole).value<Playlist>();
     // The active playlist is what the main area already shows — clicking
     // it just gets the sheet out of the way.
     if (activeContext_.sameAs(ActiveContext { sourceId, playlist })) {
@@ -726,15 +606,16 @@ void MainWindow::onSidebarActivated(const QModelIndex& index)
 void MainWindow::onSidebarDoubleClicked(const QModelIndex& index)
 {
     pendingSelection_.clear();
-    const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
-    if (kind == SidebarModel::Kind::History) {
+    const auto kind = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
+    if (kind == ViewModel::SidebarModel::Kind::History) {
         activate(historyContext(), { }, 0); // activate() fills History's queue itself
         return;
     }
-    if (kind != SidebarModel::Kind::Wave && kind != SidebarModel::Kind::Liked && kind != SidebarModel::Kind::Playlist)
+    if (kind != ViewModel::SidebarModel::Kind::Wave && kind != ViewModel::SidebarModel::Kind::Liked
+        && kind != ViewModel::SidebarModel::Kind::Playlist)
         return;
-    const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
-    const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
+    const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
+    const Playlist playlist = index.data(ViewModel::SidebarModel::PlaylistDataRole).value<Playlist>();
     activateAndPlayAsync(sourceId, playlist).detach();
 }
 
@@ -743,29 +624,25 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
     const QModelIndex index = sidebarView_->indexAt(pos);
     if (!index.isValid())
         return;
-    const auto kind = static_cast<SidebarModel::Kind>(index.data(SidebarModel::KindRole).toInt());
-    const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
+    const auto kind = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
+    const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
 
     auto* menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
-    if (kind == SidebarModel::Kind::SourceHeader) {
+    if (kind == ViewModel::SidebarModel::Kind::SourceHeader) {
         menu->addAction(Theme::icon(QStringLiteral("refresh"), Theme::IconColor::Ink, 16),
-            tr("Force Refresh Playlists"), this, [this, sourceId]() {
-                Rpc::RpcClient* client = sourceManager_.client(sourceId);
-                if (client != nullptr)
-                    loadPlaylistsAsync(client).detach();
-            });
-    } else if (kind == SidebarModel::Kind::Wave || kind == SidebarModel::Kind::Liked
-        || kind == SidebarModel::Kind::Playlist) {
+            tr("Force Refresh Playlists"), this, [this, sourceId]() { sources_.refresh(sourceId); });
+    } else if (kind == ViewModel::SidebarModel::Kind::Wave || kind == ViewModel::SidebarModel::Kind::Liked
+        || kind == ViewModel::SidebarModel::Kind::Playlist) {
         menu->addAction(
             Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), this, [this, index]() {
-                const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
-                const Playlist playlist = index.data(SidebarModel::PlaylistDataRole).value<Playlist>();
+                const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
+                const Playlist playlist = index.data(ViewModel::SidebarModel::PlaylistDataRole).value<Playlist>();
                 activateAndPlayAsync(sourceId, playlist).detach();
             });
-        const QString playlistId = index.data(SidebarModel::PlaylistIdRole).toString();
-        const bool favorite = sidebarModel_->isFavorite(sourceId, playlistId);
+        const QString playlistId = index.data(ViewModel::SidebarModel::PlaylistIdRole).toString();
+        const bool favorite = sources_.isFavorite(sourceId, playlistId);
         menu->addAction(
             Theme::icon(favorite ? QStringLiteral("star_border") : QStringLiteral("star"), Theme::IconColor::Ink, 16),
             favorite ? tr("Remove from Favorites") : tr("Add to Favorites"), this,
@@ -780,26 +657,15 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
 
 void MainWindow::toggleFavorite(const QString& sourceId, const QString& playlistId)
 {
-    // The first change turns the source's own suggestion into the user's
-    // list, so it no longer follows Playlist.featured.
-    QStringList favorites = sidebarModel_->favoritesFor(sourceId);
-    const bool removed = favorites.removeOne(playlistId);
-    if (!removed)
-        favorites.append(playlistId);
-    settings_.setFavorites(sourceId, favorites);
-    sidebarModel_->setFavorites(sourceId, favorites);
-    // The rows were rebuilt, dropping their selection.
-    syncSidebarSelection();
-    sourcePanel_->favoritesChanged();
-
     // A station (or Liked) taken out of the favorites leaves the sidebar
     // altogether — say once where it went, or it looks gone for good.
-    if (!removed || settings_.hiddenFavoriteHintShown())
+    const bool hidden = sources_.toggleFavorite(sourceId, playlistId);
+    if (!hidden || settings_.hiddenFavoriteHintShown())
         return;
-    const QList<Playlist> playlists = sidebarModel_->playlistsFor(sourceId);
+    const QList<Playlist> playlists = sources_.playlists(sourceId);
     const auto it
         = std::find_if(playlists.cbegin(), playlists.cend(), [&](const Playlist& p) { return p.id == playlistId; });
-    if (it == playlists.cend() || it->kind == QStringLiteral("playlist"))
+    if (it == playlists.cend())
         return;
     settings_.setHiddenFavoriteHintShown();
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
@@ -1036,9 +902,9 @@ void MainWindow::restoreSelection(const QString& sourceId, const QList<Playlist>
 void MainWindow::restoreExpansion(const QModelIndex& parent, int first, int last)
 {
     const std::function<void(const QModelIndex&)> apply = [&](const QModelIndex& index) {
-        const QString key = SidebarModel::nodeKey(index);
+        const QString key = ViewModel::SidebarModel::nodeKey(index);
         if (!key.isEmpty())
-            sidebarView_->setExpanded(index, !collapsedNodes_.contains(key));
+            sidebarView_->setExpanded(index, !sources_.isCollapsed(key));
         for (int row = 0; row < sidebarModel_->rowCount(index); ++row)
             apply(sidebarModel_->index(row, 0, index));
     };
@@ -1407,8 +1273,6 @@ Rpc::Task<void> MainWindow::setTrackInPlaylistAsync(
 void MainWindow::applyPlaylistEdit(
     const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount)
 {
-    sidebarModel_->setPlaylistTrackCount(sourceId, playlistId, trackCount);
-
     const auto isThatPlaylist = [&](const ActiveContext& context) {
         return !context.isHistory && context.sourceId == sourceId && context.playlist.id == playlistId;
     };

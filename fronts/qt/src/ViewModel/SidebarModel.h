@@ -9,7 +9,7 @@
 
 #include "Models.h"
 
-namespace Ui {
+namespace ViewModel {
 
 // Two-level tree, source -> category, populated per-source from
 // catalog.listPlaylists (which includes kind: radioStation/liked entries
@@ -160,4 +160,4 @@ private:
     QString activePlaylistId_;
 };
 
-} // namespace Ui
+} // namespace ViewModel

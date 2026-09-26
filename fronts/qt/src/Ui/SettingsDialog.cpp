@@ -34,7 +34,7 @@ namespace Ui {
 namespace {
 constexpr int kSidebarWidth = 200;
 // A sidebar row's index into pages_ — rows and pages differ once section
-// headings are in (see addPage()). Past SidebarModel's own roles.
+// headings are in (see addPage()). Past ViewModel::SidebarModel's own roles.
 constexpr int kPageIndexRole = Qt::UserRole + 100;
 } // namespace
 
@@ -155,7 +155,7 @@ void SettingsDialog::addPage(Settings::Page* page)
     const QString section = page->sidebarSection();
     if (!section.isEmpty() && section != lastSidebarSection_) {
         auto* heading = new QStandardItem(section.toUpper());
-        heading->setData(int(SidebarModel::Kind::PlaylistsHeader), SidebarModel::KindRole);
+        heading->setData(int(ViewModel::SidebarModel::Kind::PlaylistsHeader), ViewModel::SidebarModel::KindRole);
         heading->setFlags(Qt::NoItemFlags);
         sidebarModel_->appendRow(heading);
     }
@@ -163,9 +163,9 @@ void SettingsDialog::addPage(Settings::Page* page)
 
     sidebarRowForPage_.push_back(sidebarModel_->rowCount());
     auto* item = new QStandardItem(page->title());
-    item->setData(int(SidebarModel::Kind::Playlist), SidebarModel::KindRole);
-    item->setData(page->iconName(), SidebarModel::ThemeIconRole);
-    item->setData(page->iconPath(), SidebarModel::SourceIconPathRole);
+    item->setData(int(ViewModel::SidebarModel::Kind::Playlist), ViewModel::SidebarModel::KindRole);
+    item->setData(page->iconName(), ViewModel::SidebarModel::ThemeIconRole);
+    item->setData(page->iconPath(), ViewModel::SidebarModel::SourceIconPathRole);
     item->setData(int(pages_.size()), kPageIndexRole);
     sidebarModel_->appendRow(item);
 

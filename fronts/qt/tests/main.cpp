@@ -12,6 +12,7 @@ QObject* makeRpcClientTest();
 QObject* makeSourceSessionTest();
 QObject* makeNowPlayingTest();
 QObject* makePlaylistEditingTest();
+QObject* makeSourcesTest();
 }
 
 int main(int argc, char** argv)
@@ -28,7 +29,7 @@ int main(int argc, char** argv)
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
     for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
-             Tests::makePlaylistEditingTest }) {
+             Tests::makePlaylistEditingTest, Tests::makeSourcesTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

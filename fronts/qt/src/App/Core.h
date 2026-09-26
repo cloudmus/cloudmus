@@ -12,6 +12,7 @@
 #include "Settings.h"
 #include "SourceManager.h"
 #include "SourceSession.h"
+#include "Sources.h"
 #include "TrackStates.h"
 
 namespace App {
@@ -38,6 +39,7 @@ public:
     ViewModel::Messages& messages() { return messages_; }
     ViewModel::NowPlaying& nowPlaying() { return nowPlaying_; }
     PlaylistEditing& playlistEditing() { return playlistEditing_; }
+    ViewModel::Sources& sources() { return sources_; }
 
 private:
     // Declaration order is construction order: playback_ needs
@@ -53,6 +55,7 @@ private:
     SourceSession sourceSession_;
     ViewModel::NowPlaying nowPlaying_;
     PlaylistEditing playlistEditing_;
+    ViewModel::Sources sources_;
 };
 
 } // namespace App

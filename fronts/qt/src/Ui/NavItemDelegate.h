@@ -8,11 +8,11 @@ namespace Ui {
 // Paints the sidebar tree's rows per the CloudMus design system's NavItem
 // spec: hover/selected backgrounds and accent-colored selected text, plus
 // the non-interactive "Playlists" section header in label-upper style. A
-// custom delegate — rather than QSS ::item rules — because SidebarModel's
+// custom delegate — rather than QSS ::item rules — because ViewModel::SidebarModel's
 // "Playlists" header needs different treatment (no hover, no selection
 // background at all) from every other row in the same QTreeView, which
 // plain ::item/::item:selected selectors can't distinguish (see
-// SidebarModel::Kind).
+// ViewModel::SidebarModel::Kind).
 //
 // Hover is tracked here ourselves (setHoveredIndex()), not read from
 // option.state's State_MouseOver: Qt's item views only recompute "which
