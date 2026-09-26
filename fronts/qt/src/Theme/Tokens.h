@@ -3,6 +3,8 @@
 #include <QColor>
 #include <QObject>
 
+#include <optional>
+
 namespace Theme {
 
 enum class Mode {
@@ -46,6 +48,30 @@ Mode currentMode();
 const Palette& palette(Mode mode);
 inline const Palette& palette() { return palette(currentMode()); }
 
+// Glass: the window's chrome (sidebar, track list, toolbar) and its
+// popups (menus, tooltips, the track card) painted partly transparent over
+// a blur of what's behind the window (Integration::WindowGlass). Set at
+// startup, before any window exists, and again from Settings — a change
+// emits Notifier::glassChanged() (and changed(), so everything repaints).
+void setGlassEnabled(bool enabled);
+bool glassEnabled();
+// Whether glass is on when the user hasn't chosen: only in a dark scheme —
+// a light one's pale tint over a blurred desktop reads washed out.
+bool glassByDefault();
+// Whether the user wants glass: their choice (Config::Settings::
+// glassBackground()), or glassByDefault() if they never made one.
+inline bool glassWanted(std::optional<bool> userChoice) { return userChoice.value_or(glassByDefault()); }
+// How much of our own color covers the blur by default: enough that text
+// stays readable over any wallpaper, little enough that it reads as glass.
+// `color` as a glass surface: tinted with it, partly see-through — or
+// `color` itself, opaque, when glass is off. `opacity`: how much of the
+// color covers the blur.
+constexpr qreal kGlassOpacity = 0.8;
+// The window's chrome — sidebar, toolbar — shaded more, closer to the
+// opaque color it stands in for.
+constexpr qreal kChromeGlassOpacity = 0.85;
+QColor glass(const QColor& color, qreal opacity = kGlassOpacity);
+
 // Fires once, app-wide, whenever the desktop's light/dark scheme changes —
 // every theme-driven consumer (the generated stylesheet, the icon tint
 // cache, custom-painted delegates) connects to this single signal instead
@@ -58,6 +84,10 @@ public:
 
 signals:
     void changed();
+    // setGlassEnabled() switched glass on or off — a top-level window has
+    // to recreate its native window for the change (translucency is fixed
+    // when that's created).
+    void glassChanged();
 
 private:
     Notifier();

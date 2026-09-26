@@ -13,6 +13,8 @@
 #include <QLoggingCategory>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPaintEvent>
+#include <QPainter>
 #include <QProgressBar>
 #include <QScrollBar>
 #include <QSignalBlocker>
@@ -58,6 +60,7 @@
 #include "TrackRowDelegate.h"
 #include "TrackStates.h"
 #include "Typography.h"
+#include "WindowGlass.h"
 
 namespace Ui {
 
@@ -95,6 +98,11 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
 {
     authStates_ = new Rpc::AuthStates(this);
     setWindowTitle(QStringLiteral("CloudMus"));
+    // Before the native window exists — it's created with an alpha channel
+    // or not at all. paintEvent() paints the glass tint; showEvent() asks
+    // for the blur behind it.
+    setAttribute(Qt::WA_TranslucentBackground, Theme::glassEnabled());
+    connect(&Theme::notifier(), &Theme::Notifier::glassChanged, this, &MainWindow::applyGlass);
     resize(960, 640);
     restoreGeometry(settings_.windowGeometry());
     // QMainWindow's default behavior: right-clicking a toolbar/dock area
@@ -291,7 +299,8 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     sidebarView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(sidebarView_);
     // Before OverlayScrollBar::attach — see ScrollEdgeFade's class doc.
-    ScrollEdgeFade::attach(sidebarView_, [] { return Theme::palette().surface100; });
+    ScrollEdgeFade::attach(
+        sidebarView_, [] { return Theme::glass(Theme::palette().surface100, Theme::kChromeGlassOpacity); });
     OverlayScrollBar::attach(sidebarView_);
     // Real mouse-move events over the viewport drive NavItemDelegate's hover
     // via eventFilter() below — needs mouse tracking on to get them without
@@ -355,7 +364,7 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListView_->setMouseTracking(true);
     trackListView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(trackListView_);
-    ScrollEdgeFade::attach(trackListView_, [] { return Theme::palette().surface0; });
+    ScrollEdgeFade::attach(trackListView_, [] { return Theme::glass(Theme::palette().surface0); });
     OverlayScrollBar::attach(trackListView_);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
@@ -1768,12 +1777,52 @@ void MainWindow::showSettingsDialog(const QString& openAt)
     toastNotifier_ = dialog.toastNotifier();
     dialog.exec();
     toastNotifier_ = ownToasts;
+    // A glass change from the General page, applied only now: switching
+    // it recreates this window's native window (applyGlass()), not
+    // something to do under a modal dialog parented to it.
+    Theme::setGlassEnabled(Theme::glassWanted(settings_.glassBackground()) && Integration::WindowGlass::available());
 }
 
 void MainWindow::quitForReal()
 {
     reallyQuitting_ = true;
     close();
+}
+
+void MainWindow::applyGlass()
+{
+    // Switched from Settings: recreate just the native window, now with an
+    // alpha channel or without — every widget, and playback, carry on.
+    // setWindowFlags() is what makes Qt drop and recreate it; it also
+    // hides the window, so its place and state are put back after.
+    const bool wasVisible = isVisible();
+    const QByteArray geometry = saveGeometry();
+    setAttribute(Qt::WA_TranslucentBackground, Theme::glassEnabled());
+    setWindowFlags(windowFlags());
+    restoreGeometry(geometry);
+    if (wasVisible)
+        show(); // showEvent() asks for the blur again, if glass is on
+}
+
+void MainWindow::paintEvent(QPaintEvent* event)
+{
+    // The glass tint behind all the chrome — painted here rather than as a
+    // stylesheet background, which Qt skips on a translucent window.
+    if (Theme::glassEnabled()) {
+        QPainter painter(this);
+        painter.setCompositionMode(QPainter::CompositionMode_Source);
+        painter.fillRect(event->rect(), Theme::glass(Theme::palette().surface100, Theme::kChromeGlassOpacity));
+    }
+    QMainWindow::paintEvent(event);
+}
+
+void MainWindow::showEvent(QShowEvent* event)
+{
+    QMainWindow::showEvent(event);
+    // On every show, not once: hiding to the tray can take the native
+    // surface — and the blur set on it — away with it.
+    if (Theme::glassEnabled())
+        Integration::WindowGlass::enableBlurBehind(this);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)

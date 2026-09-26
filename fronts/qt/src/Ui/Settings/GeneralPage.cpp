@@ -2,12 +2,15 @@
 
 #include <QCheckBox>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QVBoxLayout>
 
 #include "Autostart.h"
 #include "Settings.h"
 #include "Spacing.h"
+#include "Tokens.h"
 #include "Typography.h"
+#include "WindowGlass.h"
 
 namespace Ui::Settings {
 
@@ -38,6 +41,17 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     closeToTrayCheck_ = makeCheck(
         tr("Closing the window minimizes to the tray instead of quitting"), settings_.closeMinimizesToTray());
 
+    glassCheck_ = makeCheck(tr("Glass background: blur what's behind the window"), glassWanted());
+    // Only where the window system can blur (KDE Plasma so far); elsewhere
+    // the window stays opaque whatever this says.
+    const bool glassAvailable = Integration::WindowGlass::available();
+    glassCheck_->setEnabled(glassAvailable);
+    auto* glassHint = new QLabel(tr("Not supported by this desktop."), widget);
+    glassHint->setProperty("hint", true);
+    glassHint->setFont(Theme::font(Theme::TextStyle::BodySecondary));
+    glassHint->setWordWrap(true);
+    glassHint->setVisible(!glassAvailable);
+
     // "Start hidden" only applies to a login launch — indented under it.
     auto* startHiddenRow = new QHBoxLayout;
     startHiddenRow->setContentsMargins(Theme::Spacing::space5, 0, 0, 0);
@@ -49,15 +63,21 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addWidget(launchAtLoginCheck_);
     layout->addLayout(startHiddenRow);
     layout->addWidget(closeToTrayCheck_);
+    layout->addSpacing(Theme::Spacing::space3);
+    layout->addWidget(glassCheck_);
+    layout->addWidget(glassHint);
     return widget;
 }
+
+bool GeneralPage::glassWanted() const { return Theme::glassWanted(settings_.glassBackground()); }
 
 bool GeneralPage::isDirty() const
 {
     return launchAtLoginCheck_
         && (launchAtLoginCheck_->isChecked() != launchAtLogin_
             || startHiddenCheck_->isChecked() != settings_.startHiddenAtLogin()
-            || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray());
+            || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
+            || glassCheck_->isChecked() != glassWanted());
 }
 
 Rpc::Task<bool> GeneralPage::apply()
@@ -69,6 +89,12 @@ Rpc::Task<bool> GeneralPage::apply()
         launchAtLogin_ = launchAtLoginCheck_->isChecked();
     settings_.setStartHiddenAtLogin(startHiddenCheck_->isChecked());
     settings_.setCloseMinimizesToTray(closeToTrayCheck_->isChecked());
+    // Stored only once the user goes against the default, so an untouched
+    // setting keeps following the desktop's light/dark scheme.
+    if (glassCheck_->isChecked() != glassWanted())
+        settings_.setGlassBackground(glassCheck_->isChecked());
+    // Switched once the Settings window closes — see
+    // Ui::MainWindow::showSettingsDialog().
     co_return true;
 }
 

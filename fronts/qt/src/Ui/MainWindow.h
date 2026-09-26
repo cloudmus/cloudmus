@@ -99,9 +99,14 @@ signals:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    void showEvent(QShowEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    // Theme::glassChanged(): the window's translucency follows.
+    void applyGlass();
+
     void wireSource(Rpc::RpcClient* client);
     void onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail);
     void onSourceStopped(const QString& sourceId);

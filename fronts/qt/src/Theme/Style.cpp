@@ -7,6 +7,7 @@
 #include <QScreen>
 #include <QSplitter>
 #include <QStyleOption>
+#include <QTimer>
 #include <QWindow>
 
 #include "Metrics.h"
@@ -15,6 +16,7 @@
 #include "Spacing.h"
 #include "Tokens.h"
 #include "Typography.h"
+#include "WindowGlass.h"
 
 namespace Theme {
 
@@ -44,7 +46,10 @@ QRect menuPanelRect(const QRect& widgetRect)
 
 void paintMenuShadow(QPainter* painter, const QRect& panelRect)
 {
-    paintSoftShadow(painter, panelRect, kMenuShadowMargin, kMenuShadowOffsetY, kMenuShadowMaxAlpha, Radius::md);
+    // Stronger over glass: the panel no longer stands out by being
+    // opaque, so the shadow has to carry its edge.
+    const int maxAlpha = glassEnabled() ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha;
+    paintSoftShadow(painter, panelRect, kMenuShadowMargin, kMenuShadowOffsetY, maxAlpha, Radius::md);
 }
 
 // Places a submenu (window already sized, not yet mapped) beside the
@@ -218,7 +223,7 @@ void CloudMusStyle::drawPrimitive(
 
         const Palette& pal = palette();
         painter->setPen(QPen(pal.border, 1));
-        painter->setBrush(pal.surface200);
+        painter->setBrush(glass(pal.surface200));
         painter->drawPath(roundedPath(QRectF(panelRect).adjusted(0.5, 0.5, -0.5, -0.5), Radius::md));
         painter->restore();
         return;
@@ -349,6 +354,21 @@ int CloudMusStyle::styleHint(
 
 bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)
 {
+    // With glass, the blur goes only behind the rounded panel, not the
+    // shadow margin around it — the mask follows the menu's size. Set once
+    // the menu is actually on screen: QEvent::Show comes before its surface
+    // exists, and a mask set then doesn't reach the compositor — the whole
+    // window got blurred, drowning the shadow.
+    if (glassEnabled() && (event->type() == QEvent::Show || event->type() == QEvent::Resize)) {
+        if (auto* menu = qobject_cast<QMenu*>(watched)) {
+            QTimer::singleShot(0, menu, [menu]() {
+                if (menu->isVisible()) {
+                    Integration::WindowGlass::enableBlurBehind(
+                        menu, Integration::WindowGlass::roundedRegion(menuPanelRect(menu->rect()), Radius::md));
+                }
+            });
+        }
+    }
     if (event->type() == QEvent::Show) {
         // QShowEvent is sent synchronously inside QWidget::setVisible(true),
         // before Qt actually maps the platform window — shifting geometry

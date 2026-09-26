@@ -81,6 +81,13 @@ public:
     QString lastSourceId() const;
     void setLastSourceId(const QString& sourceId);
 
+    // Glass (Theme::glassEnabled()) as the user chose it, or nullopt if
+    // they never did — Theme::glassByDefault() decides then. It's still
+    // only on where the window system can blur (Integration::WindowGlass).
+    // Read once at startup.
+    std::optional<bool> glassBackground() const;
+    void setGlassBackground(bool on);
+
     bool closeMinimizesToTray() const;
     void setCloseMinimizesToTray(bool value);
 

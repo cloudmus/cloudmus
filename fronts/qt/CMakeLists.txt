@@ -138,6 +138,7 @@ add_executable(cloudmus-qt
     src/Integration/NotificationToast.cpp
     src/Integration/MprisService.cpp
     src/Integration/GlobalShortcuts.cpp
+    src/Integration/WindowGlass.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 

@@ -56,7 +56,35 @@ const Palette kDark {
 };
 // clang-format on
 
+bool glassEnabled_ = false;
+
 } // namespace
+
+void setGlassEnabled(bool enabled)
+{
+    if (glassEnabled_ == enabled)
+        return;
+    glassEnabled_ = enabled;
+    emit notifier().glassChanged();
+    emit notifier().changed();
+}
+
+bool glassEnabled() { return glassEnabled_; }
+
+bool glassByDefault() { return currentMode() == Mode::Dark; }
+
+QColor glass(const QColor& color, qreal opacity)
+{
+    if (!glassEnabled_)
+        return color;
+    // A light tint over a blurred desktop reads milky and low-contrast — in
+    // a light scheme the tint covers half of what would still show through.
+    if (currentMode() == Mode::Light)
+        opacity += (1.0 - opacity) / 2;
+    QColor tinted = color;
+    tinted.setAlphaF(opacity);
+    return tinted;
+}
 
 Mode currentMode()
 {

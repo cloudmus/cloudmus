@@ -41,6 +41,20 @@ namespace {
 
 QString hex(const QColor& c) { return c.name(QColor::HexRgb); }
 
+// hex(), or rgba() for a partly transparent color (Theme::glass()).
+QString css(const QColor& c)
+{
+    if (c.alpha() == 255)
+        return hex(c);
+    return QStringLiteral("rgba(%1, %2, %3, %4)").arg(c.red()).arg(c.green()).arg(c.blue()).arg(c.alphaF(), 0, 'f', 3);
+}
+
+// With glass on, the main window itself paints the glass tint behind
+// everything (Ui::MainWindow::paintEvent()); the chrome in it — sidebar, toolbar —
+// is then transparent over it instead of painting its own, so the tint
+// isn't stacked twice.
+QString chromeBackground(const QColor& c) { return glassEnabled() ? QStringLiteral("transparent") : hex(c); }
+
 QString buttonsBlock(const Palette& p)
 {
     // QToolButton too (MainWindow's hamburger menu button) — same Icon
@@ -147,7 +161,7 @@ QString toolBarBlock(const Palette& p)
 }
 QToolBar#transportToolBar::separator { background: transparent; width: 0px; height: 0px; }
 QToolBar#transportToolBar::handle { width: 0px; height: 0px; })")
-        .arg(hex(p.surface100), hex(p.border));
+        .arg(chromeBackground(p.surface100), hex(p.border));
 }
 
 QString panelsBlock(const Palette& p)
@@ -247,7 +261,7 @@ QTreeView#sidebarView::branch:selected:closed:has-children {
 QTreeView#sidebarView::branch:selected:open:has-children {
     image: url("%5"); width: 12px; height: 12px;
 })")
-        .arg(hex(p.surface100), chevronClosed, chevronOpen, chevronClosedSelected, chevronOpenSelected)
+        .arg(chromeBackground(p.surface100), chevronClosed, chevronOpen, chevronClosedSelected, chevronOpenSelected)
         .arg(hex(p.surface400), hex(p.accent));
 }
 
@@ -265,8 +279,14 @@ QTreeView#sidebarView::branch:selected:open:has-children {
 // sidebar is a QListView).
 QString trackListBlock(const Palette& p)
 {
+    // With glass: a light layer of the content tone over the window's
+    // chrome-toned glass, so the list still reads a step darker without
+    // shading it as much as the chrome.
+    QColor background = p.surface0;
+    if (glassEnabled())
+        background.setAlphaF(0.3);
     return QStringLiteral(R"(QListView#trackListView { background: %1; border: none; outline: 0; })")
-        .arg(hex(p.surface0));
+        .arg(css(background));
 }
 
 // Covers QLineEdit app-wide by widget TYPE (so any future one — dialog or

@@ -57,7 +57,7 @@ protected:
         const QColor color = background_();
         const auto withAlpha = [&](qreal a) {
             QColor c = color;
-            c.setAlphaF(a * opacity_);
+            c.setAlphaF(color.alphaF() * a * opacity_); // a glass color is see-through already
             return c;
         };
         QLinearGradient gradient(0, atTop_ ? 0 : height(), 0, atTop_ ? height() : 0);

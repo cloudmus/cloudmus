@@ -16,6 +16,7 @@
 #include "Spacing.h"
 #include "Tokens.h"
 #include "Typography.h"
+#include "WindowGlass.h"
 
 namespace Ui {
 
@@ -91,6 +92,12 @@ public:
         animateOpacityTo(1.0);
         show();
         raise();
+        // Just the rounded panel, not the shadow margin around it.
+        if (Theme::glassEnabled()) {
+            const QRect content = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
+            Integration::WindowGlass::enableBlurBehind(
+                this, Integration::WindowGlass::roundedRegion(content, Theme::Radius::sm));
+        }
     }
 
     void fadeOutAndHide()
@@ -124,7 +131,7 @@ protected:
         // against its edge.
         path.addRoundedRect(QRectF(contentRect).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::sm, Theme::Radius::sm);
         painter.setPen(QPen(pal.border, 1));
-        painter.setBrush(pal.surface400);
+        painter.setBrush(Theme::glass(pal.surface400));
         painter.drawPath(path);
 
         painter.setPen(pal.ink);

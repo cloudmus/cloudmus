@@ -19,17 +19,21 @@ public:
     QString id() const override { return QStringLiteral("general"); }
     QString title() const override;
     QString iconName() const override { return QStringLiteral("tune"); }
-    int estimatedHeight() const override { return 100; }
+    int estimatedHeight() const override { return 170; }
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;
     Rpc::Task<bool> apply() override;
 
 private:
+    // The glass setting in effect: the user's choice, or the default.
+    bool glassWanted() const;
+
     Config::Settings& settings_;
     QCheckBox* launchAtLoginCheck_ = nullptr;
     QCheckBox* startHiddenCheck_ = nullptr;
     QCheckBox* closeToTrayCheck_ = nullptr;
+    QCheckBox* glassCheck_ = nullptr;
     // What launchAtLoginCheck_ started from / was last applied as — the
     // autostart entry lives outside Config::Settings, so isDirty() would
     // otherwise re-read the file every time it's asked.

@@ -21,6 +21,7 @@
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
 #include "Typography.h"
+#include "WindowGlass.h"
 
 namespace Ui {
 
@@ -112,6 +113,12 @@ public:
         animateOpacityTo(1.0);
         show();
         raise();
+        // Just the rounded panel, not the shadow margin around it.
+        if (Theme::glassEnabled()) {
+            const QRect content = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
+            Integration::WindowGlass::enableBlurBehind(
+                this, Integration::WindowGlass::roundedRegion(content, Theme::Radius::md));
+        }
     }
 
     void fadeOut()
@@ -138,7 +145,7 @@ protected:
         QPainterPath panel;
         panel.addRoundedRect(QRectF(content).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::md, Theme::Radius::md);
         painter.setPen(QPen(pal.border, 1));
-        painter.setBrush(pal.surface200);
+        painter.setBrush(Theme::glass(pal.surface200));
         painter.drawPath(panel);
 
         // Cover

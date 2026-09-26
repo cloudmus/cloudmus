@@ -127,6 +127,16 @@ void Settings::setLastSourceId(const QString& sourceId)
     settings_.setValue(QStringLiteral("playback/lastSourceId"), sourceId);
 }
 
+std::optional<bool> Settings::glassBackground() const
+{
+    const QString key = QStringLiteral("window/glass");
+    if (!settings_.contains(key))
+        return std::nullopt;
+    return settings_.value(key).toBool();
+}
+
+void Settings::setGlassBackground(bool on) { settings_.setValue(QStringLiteral("window/glass"), on); }
+
 bool Settings::closeMinimizesToTray() const
 {
     return settings_.value(QStringLiteral("window/closeMinimizesToTray"), true).toBool();
