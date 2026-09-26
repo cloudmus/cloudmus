@@ -8,9 +8,11 @@
 #include <memory>
 
 #include "Autostart.h"
+#include "Core.h"
 #include "Coro.h"
 #include "CoverArtCache.h"
 #include "Fonts.h"
+#include "GeneratedCoverArt.h"
 #include "GlobalShortcuts.h"
 #include "Logging.h"
 #include "MainWindow.h"
@@ -89,10 +91,14 @@ int main(int argc, char** argv)
     // silently falls back to whatever generic font Qt/the platform picks,
     // never matching the design system.
     QApplication::setFont(Theme::font(Theme::TextStyle::Body));
+    App::Core core;
+    Config::Settings& settings = core.settings();
+    Rpc::SourceManager& sourceManager = core.sourceManager();
+    Playback::PlaybackController& playback = core.playback();
+
     // Before the stylesheet and any window: both are built for glass or
     // not, and a window can't gain an alpha channel once created.
-    Theme::setGlassEnabled(
-        Theme::glassWanted(Config::Settings().glassBackground()) && Integration::WindowGlass::available());
+    Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground()) && Integration::WindowGlass::available());
     Theme::applyGlobalStyleSheet(app);
     new Ui::ThemedToolTip(&app); // global service, not tied to any specific widget — see its own class doc
     // A bare-SVG QIcon lets Qt's SVG engine render sharply at whatever
@@ -112,11 +118,10 @@ int main(int argc, char** argv)
     QApplication::setWindowIcon(appIcon);
     QApplication::setQuitOnLastWindowClosed(false); // closing to tray must not exit the app
 
-    Config::Settings settings;
-    Rpc::SourceManager sourceManager;
-    Playback::PlaybackController playback(sourceManager);
-
-    Ui::MainWindow window(sourceManager, playback, settings);
+    // Non-square covers fitted over their own blur (needs Qt Widgets,
+    // which the core library doesn't link).
+    core.coverArtCache().setFitter(&Ui::fitCover);
+    Ui::MainWindow window(core);
 
     Integration::TrayIcon tray(&window);
     QObject::connect(
@@ -155,7 +160,7 @@ int main(int argc, char** argv)
     };
     auto pendingCover = std::make_shared<PendingCover>();
     const QSize notificationCoverSize(256, 256);
-    Ui::CoverArtCache* coverCache = window.coverArtCache();
+    Covers::CoverArtCache* coverCache = &core.coverArtCache();
     QObject::connect(&playback, &Playback::PlaybackController::trackChanged, &notificationToast,
         [&notificationToast, coverCache, pendingCover, notificationCoverSize](const Track& track, const QString&) {
             QString artists;
@@ -175,7 +180,7 @@ int main(int argc, char** argv)
     // tray, from minimized, or from behind other windows.
     QObject::connect(&notificationToast, &Integration::NotificationToast::activated, &window,
         [&window](const QString& activationToken) { window.bringToFront(activationToken); });
-    QObject::connect(coverCache, &Ui::CoverArtCache::pixmapReady, &notificationToast,
+    QObject::connect(coverCache, &Covers::CoverArtCache::pixmapReady, &notificationToast,
         [&notificationToast, coverCache, pendingCover, notificationCoverSize](const QString& url) {
             if (pendingCover->url.isEmpty() || url != pendingCover->url)
                 return;
@@ -199,23 +204,6 @@ int main(int argc, char** argv)
     QObject::connect(&window, &Ui::MainWindow::aboutToReallyQuit, &window,
         [&sourceManager]() { shutdownAllAndQuit(sourceManager).detach(); });
 
-    sourceManager.setDisabledIds(settings.disabledSources());
-    // Each backend reaches the network the way its Settings page says:
-    // through a proxy, directly, or as the environment has it.
-    sourceManager.setEnvironmentProvider([&settings](const QString& sourceId) {
-        return Net::backendEnvironment(Net::connectionFor(settings, sourceId));
-    });
-    // ...and so do the stream URLs and covers it hands out, which the
-    // front fetches.
-    window.coverArtCache()->setProxyProvider([&settings](const QString& sourceId, const QUrl& url) {
-        return Net::networkProxy(Net::connectionFor(settings, sourceId), url);
-    });
-    playback.setStreamRouteProvider([&settings](const QString& sourceId) -> std::optional<QNetworkProxy> {
-        const Net::Connection connection = Net::connectionFor(settings, sourceId);
-        if (connection.mode == Net::Connection::Mode::System)
-            return std::nullopt;
-        return Net::networkProxy(connection, QUrl());
-    });
     sourceManager.startAll();
 
     Integration::Autostart::refresh();

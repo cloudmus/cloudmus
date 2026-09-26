@@ -1,7 +1,5 @@
 #include "CoverArtCache.h"
 
-#include "GeneratedCoverArt.h"
-
 #include <QImage>
 #include <QNetworkDiskCache>
 #include <QNetworkProxyFactory>
@@ -10,7 +8,7 @@
 #include <QStandardPaths>
 #include <QUrl>
 
-namespace Ui {
+namespace Covers {
 
 namespace {
 constexpr int kMaxRedirects = 5;
@@ -119,11 +117,14 @@ void CoverArtCache::fetch(const QString& url, QSize targetSize, const QUrl& requ
             return;
         // Decode-and-downscale immediately so the in-memory cache never
         // holds a full-resolution image — and to exactly targetSize, with
-        // a non-square cover fitted over its own blur rather than
-        // stretched by whoever draws it into a square (see fitCover()).
-        memoryCache_.insert(key, new QPixmap(fitCover(full, targetSize)));
+        // a non-square cover fitted rather than stretched by whoever draws
+        // it into a square (see setFitter()).
+        const QPixmap fitted = fitter_
+            ? fitter_(full, targetSize)
+            : QPixmap::fromImage(full.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        memoryCache_.insert(key, new QPixmap(fitted));
         emit pixmapReady(url);
     });
 }
 
-} // namespace Ui
+} // namespace Covers

@@ -13,9 +13,11 @@ class QResizeEvent;
 class QPaintEvent;
 class QTimer;
 
-namespace Ui {
-
+namespace Covers {
 class CoverArtCache;
+}
+
+namespace Ui {
 
 // The central "hero" panel: a tall left-hand pane (in MainWindow, beside
 // the track list) that also doubles as a short banner (in SourcePanel).
@@ -45,7 +47,7 @@ class HeroPanel : public QWidget {
     Q_OBJECT
 
 public:
-    explicit HeroPanel(CoverArtCache* coverCache, QWidget* parent = nullptr);
+    explicit HeroPanel(Covers::CoverArtCache* coverCache, QWidget* parent = nullptr);
 
     void setPlaylist(const Playlist& playlist);
     void setNowPlaying(const Track& track);
@@ -124,7 +126,7 @@ private:
     // already shows exactly that text. Geometry is filled in by relayout().
     static void setTextLayer(LayerTransition<TextLayer>& layer, const QString& text);
 
-    CoverArtCache* coverCache_;
+    Covers::CoverArtCache* coverCache_;
 
     QPushButton* playButton_ = nullptr; // the only real child widget — see the class doc
 

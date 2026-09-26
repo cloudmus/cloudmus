@@ -62,7 +62,7 @@ const QColor kWhiteText = QColor(255, 255, 255);
 const QColor kWhiteSubtext = QColor(255, 255, 255, 220);
 } // namespace
 
-HeroPanel::HeroPanel(CoverArtCache* coverCache, QWidget* parent)
+HeroPanel::HeroPanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
     , coverCache_(coverCache)
     , backgroundLayer_(this, kBackgroundEnter, kBackgroundExit)
@@ -107,8 +107,8 @@ HeroPanel::HeroPanel(CoverArtCache* coverCache, QWidget* parent)
     connect(regenerateTimer_, &QTimer::timeout, this, &HeroPanel::regenerateSizedLayers);
 
     // pixmap() below may return a null placeholder while the cover fetches
-    // in the background (see CoverArtCache) — repaint once it's ready.
-    connect(coverCache_, &CoverArtCache::pixmapReady, this, [this](const QString& url) {
+    // in the background (see Covers::CoverArtCache) — repaint once it's ready.
+    connect(coverCache_, &Covers::CoverArtCache::pixmapReady, this, [this](const QString& url) {
         if (url != currentCoverUrl_)
             return;
         refreshCoverOverlay();

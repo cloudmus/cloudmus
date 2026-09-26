@@ -71,7 +71,7 @@ QString coverUrlOf(const Track& track)
 // mouse input, fades in and out.
 class CardPopup : public QWidget {
 public:
-    explicit CardPopup(CoverArtCache* coverCache)
+    explicit CardPopup(Covers::CoverArtCache* coverCache)
         : QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput)
         , coverCache_(coverCache)
     {
@@ -95,7 +95,7 @@ public:
                 opacity_ = 0.0; // the next show fades in from nothing
             }
         });
-        connect(coverCache_, &CoverArtCache::pixmapReady, this, [this](const QString& url) {
+        connect(coverCache_, &Covers::CoverArtCache::pixmapReady, this, [this](const QString& url) {
             if (isVisible() && url == coverUrl_)
                 update();
         });
@@ -303,7 +303,7 @@ private:
         setGeometry(QRect(content.topLeft() - QPoint(kShadowMargin, kShadowMargin), size()));
     }
 
-    CoverArtCache* coverCache_;
+    Covers::CoverArtCache* coverCache_;
     CardData data_;
     QString coverUrl_;
     QList<QPair<QString, QString>> rows_;
@@ -313,12 +313,12 @@ private:
 
 } // namespace
 
-void TrackHoverCard::attach(QAbstractItemView* view, CoverArtCache* coverCache, SourceNameFn sourceName)
+void TrackHoverCard::attach(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName)
 {
     new TrackHoverCard(view, coverCache, std::move(sourceName));
 }
 
-TrackHoverCard::TrackHoverCard(QAbstractItemView* view, CoverArtCache* coverCache, SourceNameFn sourceName)
+TrackHoverCard::TrackHoverCard(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName)
     : QObject(view)
     , view_(view)
     , coverCache_(coverCache)

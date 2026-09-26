@@ -86,6 +86,10 @@ add_library(cloudmus-core STATIC
     src/Library/TrackStates.cpp
     src/Library/DownloadPaths.cpp
 
+    src/Covers/CoverArtCache.cpp
+
+    src/App/Core.cpp
+
     ${GENERATED_DIR}/RpcMethods.cpp
 )
 add_dependencies(cloudmus-core protocol_codegen_cpp)
@@ -112,6 +116,8 @@ target_include_directories(cloudmus-core PUBLIC
     src/Net
     src/History
     src/Library
+    src/Covers
+    src/App
 )
 
 target_link_libraries(cloudmus-core PUBLIC
@@ -151,7 +157,6 @@ add_executable(cloudmus-qt
     src/Theme/Shadow.cpp
     src/Ui/AnimatedPresenter.cpp
     src/Ui/PlaylistSheet.cpp
-    src/Ui/CoverArtCache.cpp
     src/Ui/ThemedToolTip.cpp
     src/Ui/SettingsDialog.cpp
     src/Ui/DialogButtons.cpp

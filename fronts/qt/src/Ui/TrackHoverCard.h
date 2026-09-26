@@ -9,9 +9,11 @@
 
 class QAbstractItemView;
 
-namespace Ui {
-
+namespace Covers {
 class CoverArtCache;
+}
+
+namespace Ui {
 
 // Hover card for track lists: once the cursor rests on a row for a moment,
 // a floating card shows the track's large cover and everything known
@@ -29,7 +31,7 @@ public:
     // Maps a sourceId to its display name ("Yandex Music").
     using SourceNameFn = std::function<QString(const QString& sourceId)>;
 
-    static void attach(QAbstractItemView* view, CoverArtCache* coverCache, SourceNameFn sourceName);
+    static void attach(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName);
     // The card is a parentless top-level window — deleted with this.
     ~TrackHoverCard() override;
 
@@ -37,13 +39,13 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    TrackHoverCard(QAbstractItemView* view, CoverArtCache* coverCache, SourceNameFn sourceName);
+    TrackHoverCard(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName);
 
     void showFor(const QModelIndex& index, const QPoint& globalPos);
     void hideCard();
 
     QAbstractItemView* view_;
-    CoverArtCache* coverCache_;
+    Covers::CoverArtCache* coverCache_;
     SourceNameFn sourceName_;
     QPersistentModelIndex shownIndex_;
     // The row the cursor is resting on and where, until restTimer_ fires.

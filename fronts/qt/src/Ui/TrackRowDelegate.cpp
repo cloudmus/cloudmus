@@ -65,7 +65,7 @@ namespace {
 constexpr int kCoverFadeMs = 250;
 } // namespace
 
-TrackRowDelegate::TrackRowDelegate(CoverArtCache* coverCache, QObject* parent)
+TrackRowDelegate::TrackRowDelegate(Covers::CoverArtCache* coverCache, QObject* parent)
     : QStyledItemDelegate(parent)
     , coverCache_(coverCache)
 {

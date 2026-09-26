@@ -156,13 +156,13 @@ private:
 // row otherwise — toggles whether the sidebar lists it.
 class PlaylistRows : public QWidget {
 public:
-    PlaylistRows(CoverArtCache* coverCache, QWidget* parent)
+    PlaylistRows(Covers::CoverArtCache* coverCache, QWidget* parent)
         : QWidget(parent)
         , coverCache_(coverCache)
     {
         setMouseTracking(true);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        connect(coverCache_, &CoverArtCache::pixmapReady, this, qOverload<>(&QWidget::update));
+        connect(coverCache_, &Covers::CoverArtCache::pixmapReady, this, qOverload<>(&QWidget::update));
     }
 
     void setPlaylists(const QList<Playlist>& playlists)
@@ -311,7 +311,7 @@ private:
         return it.value();
     }
 
-    CoverArtCache* coverCache_;
+    Covers::CoverArtCache* coverCache_;
     QList<Playlist> playlists_;
     QHash<QString, QPixmap> generated_;
     int hovered_ = -1;
@@ -319,7 +319,7 @@ private:
 };
 } // namespace
 
-SourcePanel::SourcePanel(CoverArtCache* coverCache, QWidget* parent)
+SourcePanel::SourcePanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
 {
     // Everything lives in one scrollable, top-aligned column — the auth

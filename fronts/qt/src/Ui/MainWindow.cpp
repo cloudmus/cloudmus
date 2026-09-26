@@ -89,14 +89,16 @@ Playlist radioPromo(Playlist station)
 }
 } // namespace
 
-MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackController& playback,
-    Config::Settings& settings, QWidget* parent)
+MainWindow::MainWindow(App::Core& core, QWidget* parent)
     : QMainWindow(parent)
-    , sourceManager_(sourceManager)
-    , playback_(playback)
-    , settings_(settings)
+    , authStates_(&core.authStates())
+    , sourceManager_(core.sourceManager())
+    , playback_(core.playback())
+    , settings_(core.settings())
+    , coverArtCache_(&core.coverArtCache())
+    , playbackHistory_(&core.playbackHistory())
+    , trackStates_(&core.trackStates())
 {
-    authStates_ = new Rpc::AuthStates(this);
     setWindowTitle(QStringLiteral("CloudMus"));
     // Before the native window exists — it's created with an alpha channel
     // or not at all. paintEvent() paints the glass tint; showEvent() asks
@@ -114,17 +116,6 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     // is Qt's own documented fix (QMainWindow::setContextMenuPolicy docs).
     setContextMenuPolicy(Qt::NoContextMenu);
 
-    coverArtCache_ = new CoverArtCache(this);
-    playbackHistory_ = new History::PlaybackHistory(this);
-    trackStates_ = new Library::TrackStates(this);
-    // History's saved snapshots: when each track was last played, plus
-    // whatever like state it was recorded with — only where nothing
-    // fresher is known (a source's own report always wins, see observe()).
-    for (const History::HistoryEntry& e : playbackHistory_->entries()) {
-        trackStates_->setLastPlayed(e.sourceId, e.track.id, e.playedAt);
-        trackStates_->observe(e.sourceId, e.track, /*onlyIfUnknown=*/true);
-        coverArtCache_->assignSource(e.sourceId, { e.track });
-    }
     connect(
         trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
             if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
@@ -354,7 +345,8 @@ MainWindow::MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackCont
     trackListModel_ = new TrackListModel(this);
     trackListModel_->setTrackStates(trackStates_);
     trackRowDelegate_ = new TrackRowDelegate(coverArtCache_, this);
-    connect(coverArtCache_, &CoverArtCache::pixmapReady, this, [this]() { trackListView_->viewport()->update(); });
+    connect(
+        coverArtCache_, &Covers::CoverArtCache::pixmapReady, this, [this]() { trackListView_->viewport()->update(); });
     trackListView_ = new QListView(this);
     trackListView_->setObjectName(QStringLiteral("trackListView")); // see StyleSheet.cpp's trackListBlock()
     trackListView_->setModel(trackListModel_);

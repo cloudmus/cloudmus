@@ -2,6 +2,7 @@
 
 #include <QCache>
 #include <QHash>
+#include <QImage>
 #include <QNetworkAccessManager>
 #include <QNetworkProxy>
 #include <QObject>
@@ -15,7 +16,7 @@
 
 #include "Models.h"
 
-namespace Ui {
+namespace Covers {
 
 // Async cover-art fetch + decode-and-downscale-immediately + small
 // in-memory LRU, backed by a QNetworkDiskCache so repeat plays don't
@@ -39,6 +40,13 @@ public:
     // go as the system has it.
     using ProxyProvider = std::function<QNetworkProxy(const QString& sourceId, const QUrl& url)>;
     void setProxyProvider(ProxyProvider provider) { proxyProvider_ = std::move(provider); }
+
+    // Turns a decoded cover into the cached pixmap of exactly `target`
+    // size. The app sets Ui::fitCover() — a non-square cover fitted over
+    // its own blur — which needs Qt Widgets, kept out of this library;
+    // without one, a cover is just scaled to fit.
+    using Fitter = std::function<QPixmap(const QImage& source, const QSize& target)>;
+    void setFitter(Fitter fitter) { fitter_ = std::move(fitter); }
     void assignSource(const QString& sourceId, const QString& url);
     // Every cover a track carries (its own, its album's).
     void assignSource(const QString& sourceId, const QList<Track>& tracks);
@@ -60,6 +68,7 @@ private:
     QSet<QString> inFlight_;
     QHash<QString, QString> sourceForUrl_;
     ProxyProvider proxyProvider_;
+    Fitter fitter_;
 };
 
-} // namespace Ui
+} // namespace Covers

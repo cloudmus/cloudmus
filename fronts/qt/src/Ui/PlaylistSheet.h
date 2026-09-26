@@ -12,10 +12,13 @@ class QShortcut;
 class QStackedWidget;
 class QToolButton;
 
+namespace Covers {
+class CoverArtCache;
+}
+
 namespace Ui {
 
 class AnimatedPresenter;
-class CoverArtCache;
 class HeroPanel;
 class SourcePanel;
 class TrackListModel;
@@ -35,7 +38,7 @@ class PlaylistSheet : public QWidget {
     Q_OBJECT
 
 public:
-    PlaylistSheet(CoverArtCache* coverCache, QWidget* parent);
+    PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent);
 
     // Track list page (a playlist, Liked, History). `coverUrl` may be
     // empty, in which case a cover is generated from `coverSeed`.

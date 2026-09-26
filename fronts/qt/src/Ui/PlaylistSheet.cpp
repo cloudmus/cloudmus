@@ -52,13 +52,13 @@ const TransitionEffect kSheetExit { 220, QEasingCurve::InCubic, { 0.0, 1.0, QPoi
 // re-styling here.
 class PlaylistSheet::HeaderInfo : public QWidget {
 public:
-    HeaderInfo(CoverArtCache* coverCache, QWidget* parent)
+    HeaderInfo(Covers::CoverArtCache* coverCache, QWidget* parent)
         : QWidget(parent)
         , coverCache_(coverCache)
     {
         setMinimumHeight(kCoverSide);
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-        connect(coverCache_, &CoverArtCache::pixmapReady, this, [this](const QString& url) {
+        connect(coverCache_, &Covers::CoverArtCache::pixmapReady, this, [this](const QString& url) {
             if (url == coverUrl_)
                 update();
         });
@@ -141,7 +141,7 @@ protected:
     }
 
 private:
-    CoverArtCache* coverCache_;
+    Covers::CoverArtCache* coverCache_;
     QString title_;
     QString subtitle_;
     QString coverUrl_;
@@ -186,7 +186,7 @@ private:
     QString needle_;
 };
 
-PlaylistSheet::PlaylistSheet(CoverArtCache* coverCache, QWidget* parent)
+PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
 {
     setAutoFillBackground(false);
@@ -240,7 +240,7 @@ PlaylistSheet::PlaylistSheet(CoverArtCache* coverCache, QWidget* parent)
     // under the Play button — which also keeps it clear of the overlay
     // scrollbar floating at the view's right edge.
     trackDelegate_->setRowInsets(Theme::Spacing::space2, Theme::Spacing::space1);
-    connect(coverCache, &CoverArtCache::pixmapReady, this, [this]() { trackView_->viewport()->update(); });
+    connect(coverCache, &Covers::CoverArtCache::pixmapReady, this, [this]() { trackView_->viewport()->update(); });
     trackView_ = new QListView(this);
     trackView_->setObjectName(QStringLiteral("trackListView")); // same look as the main list — StyleSheet.cpp
     trackView_->setModel(filterProxy_);

@@ -7,9 +7,11 @@
 #include <QSet>
 #include <QStyledItemDelegate>
 
-namespace Ui {
-
+namespace Covers {
 class CoverArtCache;
+}
+
+namespace Ui {
 
 // Compact, one-line row: small inline cover thumbnail + title/artist
 // stacked + duration right-aligned — see the plan's UI/UX design (chosen
@@ -20,7 +22,7 @@ class TrackRowDelegate : public QStyledItemDelegate {
     Q_OBJECT
 
 public:
-    explicit TrackRowDelegate(CoverArtCache* coverCache, QObject* parent = nullptr);
+    explicit TrackRowDelegate(Covers::CoverArtCache* coverCache, QObject* parent = nullptr);
 
     // Marks (sourceId, trackId) as the row to render as "currently
     // playing" — an accent-colored, bold title. Pass empty strings to
@@ -69,7 +71,7 @@ private:
     QElapsedTimer clock_;
     QTimer* fadeTimer_ = nullptr;
 
-    CoverArtCache* coverCache_;
+    Covers::CoverArtCache* coverCache_;
     QString currentSourceId_;
     QString currentTrackId_;
     int insetLeft_ = 0;

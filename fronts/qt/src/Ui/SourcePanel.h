@@ -18,10 +18,13 @@ class QHBoxLayout;
 class QVBoxLayout;
 class QProgressBar;
 
+namespace Covers {
+class CoverArtCache;
+}
+
 namespace Ui {
 
 class AuthCard;
-class CoverArtCache;
 
 // A backend's page, shown in PlaylistSheet (which supplies the header:
 // back button, icon, name, description — see PlaylistSheet::showSource()).
@@ -41,7 +44,7 @@ class SourcePanel : public QWidget {
     Q_OBJECT
 
 public:
-    explicit SourcePanel(CoverArtCache* coverCache, QWidget* parent = nullptr);
+    explicit SourcePanel(Covers::CoverArtCache* coverCache, QWidget* parent = nullptr);
 
     // Call once per source selection: renders the capability chips. Does
     // not touch the auth section — call showPrompt()/showError()/

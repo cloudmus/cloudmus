@@ -9,6 +9,7 @@
 #include <functional>
 
 #include "AuthStates.h"
+#include "Core.h"
 #include "Coro.h"
 #include "PlaybackController.h"
 #include "Settings.h"
@@ -31,6 +32,10 @@ namespace Library {
 class TrackStates;
 }
 
+namespace Covers {
+class CoverArtCache;
+}
+
 namespace Ui {
 
 class SidebarModel;
@@ -40,7 +45,6 @@ class TrackRowDelegate;
 class NowPlayingBar;
 class SourcePanel;
 class ToastNotifier;
-class CoverArtCache;
 class HeroPanel;
 class EmptyStatePlaceholder;
 class PlaylistSheet;
@@ -51,13 +55,10 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    MainWindow(Rpc::SourceManager& sourceManager, Playback::PlaybackController& playback, Config::Settings& settings,
-        QWidget* parent = nullptr);
+    // `core`: everything the window shows and acts on — it outlives the
+    // window (see App::Core).
+    explicit MainWindow(App::Core& core, QWidget* parent = nullptr);
     ~MainWindow() override;
-
-    // Shared with integrations that show the current track's cover (the
-    // desktop notification).
-    CoverArtCache* coverArtCache() const { return coverArtCache_; }
 
     // Called by the tray's Quit action — bypasses close-to-tray.
     void quitForReal();
@@ -264,7 +265,8 @@ private:
     // Per-source sign-in state, shared with the Settings dialog's source
     // pages — see Rpc::AuthStates. Feeds both the sidebar's warning icon
     // (always) and sourcePanel_'s auth section (when it's showing that
-    // source), via updateSourceAuthIndicator() on its changed().
+    // source), via updateSourceAuthIndicator() on its changed(). Owned by
+    // App::Core, like the other services below.
     Rpc::AuthStates* authStates_ = nullptr;
     // sourceId sourcePanel_ is currently showing, or empty if it's hidden /
     // a normal playlist is showing instead.
@@ -319,7 +321,7 @@ private:
     // trackListContainer as a whole (see the .cpp).
     QWidget* trackListPane_ = nullptr;
     QProgressBar* trackListBusyIndicator_ = nullptr;
-    CoverArtCache* coverArtCache_ = nullptr;
+    Covers::CoverArtCache* coverArtCache_ = nullptr;
     TrackRowDelegate* trackRowDelegate_ = nullptr;
     NowPlayingBar* nowPlayingBar_ = nullptr;
     // Lives inside sheet_ (its source page).
