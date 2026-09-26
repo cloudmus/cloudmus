@@ -26,13 +26,13 @@ constexpr int kStandardMargin = Theme::Spacing::space4;
 constexpr int kItemSpacing = Theme::Spacing::space2;
 
 // Applied as a multiplier of the base app font's point size, not a fixed
-// +Npt bump. 2.0 was the first pass; ×(1/1.2) is the follow-up "a bit
-// smaller" adjustment on top of that. Title only — the subtitle
+// +Npt bump. 2.0 was the first pass, then ×(1/1.2) and ×0.87 as "a bit
+// smaller" follow-ups (22px Display → 32px). Title only — the subtitle
 // (description/artist name) uses kSubtitleFontScale instead, reported too
 // large at this same scale (a source's description in SourcePanel's
-// banner in particular).
-constexpr qreal kFontScale = 2.0 / 1.2;
-constexpr qreal kSubtitleFontScale = 1.0;
+// banner in particular), then a touch too small at 1.0 (12px → 13px).
+constexpr qreal kFontScale = 2.0 / 1.2 * 0.87;
+constexpr qreal kSubtitleFontScale = 1.1;
 // Fraction of the panel's shorter dimension the real-cover overlay
 // renders at (see overlayTargetSide()). Same history: 0.5 → ×1.5 → ×(1/1.2).
 constexpr qreal kCoverFraction = 0.75 / 1.2;
