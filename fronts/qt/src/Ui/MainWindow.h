@@ -77,17 +77,7 @@ public:
     // a minimized one is brought back instead.
     void toggleShown();
 
-    // --- the playing track's like/dislike and playlists, for the tray
-    struct NowPlayingFeedback {
-        bool likeSupported = false;
-        bool liked = false;
-        bool dislikeSupported = false;
-        bool disliked = false;
-        bool playlistsSupported = false;
-    };
-    NowPlayingFeedback nowPlayingFeedback() const;
-    void setNowPlayingLiked(bool liked);
-    void setNowPlayingDisliked(bool disliked);
+    // --- the playing track's playlists, for the tray
     // Fills `menu` with the playlists checklist for the playing track —
     // as checkable actions (a tray menu is exported over D-Bus, where
     // widget rows don't exist).
@@ -95,8 +85,6 @@ public:
 
 signals:
     void aboutToReallyQuit();
-    // Anything nowPlayingFeedback() reports may have changed.
-    void nowPlayingFeedbackChanged();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -107,6 +95,9 @@ protected:
 private:
     // Theme::glassChanged(): the window's translucency follows.
     void applyGlass();
+    // Hooks the toolbar, the hero panel and the playing-row highlight up
+    // to nowPlaying_, and shows its current state right away.
+    void bindNowPlaying();
 
     void onSourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail);
     void onSourceStopped(const QString& sourceId);
@@ -228,31 +219,6 @@ private:
     // for the duration) so a click can't be repeated mid-flight and the
     // user sees something actually happened.
     Rpc::Task<void> retryAuthAsync(QString sourceId);
-    // Like/dislike for an arbitrary track (the toolbar's like/dislike
-    // clicks pass playback_.currentSourceId()/currentTrack().id; the track
-    // list's context menu passes whatever row was right-clicked — this
-    // doesn't have to be the currently-playing track). `liked`/`disliked`
-    // is the requested new state (see NowPlayingBar::likeClicked/
-    // dislikeClicked's doc comment for the toolbar case). On success the
-    // new state goes into trackStates_, which every view reads from.
-    // NowPlayingBar's busy/checked state and rollback-on-failure only
-    // apply when the acted-on track is still the one it's currently
-    // showing (see the stillCurrent() guard in the .cpp) — a context-menu
-    // click on some other row leaves the toolbar alone. `announceSuccess`
-    // shows a toast on success: the toolbar's own button already gives
-    // visual confirmation for its own clicks (announceSuccess=false,
-    // default), but a context-menu click has no other feedback
-    // (announceSuccess=true).
-    Rpc::Task<void> likeToggledAsync(QString sourceId, QString trackId, bool liked, bool announceSuccess = false);
-    Rpc::Task<void> dislikeToggledAsync(QString sourceId, QString trackId, bool disliked, bool announceSuccess = false);
-    // catalog.downloadTrack into settings_.downloadDirectory() — the track
-    // list context menu's "Save to Downloads" (only offered when the
-    // track's source declares the `download` capability).
-    Rpc::Task<void> downloadTrackAsync(QString sourceId, Track track);
-    // Toolbar's Save-to-Downloads button: wraps downloadTrackAsync() for
-    // the currently-playing track with NowPlayingBar's busy indicator,
-    // same stillCurrent()-guard shape as likeToggledAsync().
-    Rpc::Task<void> downloadCurrentTrackAsync();
 
     // Per-source sign-in state, shared with the Settings dialog's source
     // pages — see Rpc::AuthStates. Feeds both the sidebar's warning icon
@@ -287,6 +253,9 @@ private:
     // What to tell the user goes here; posted() shows it as a toast on
     // toastNotifier_ (redirected while the Settings dialog is up).
     ViewModel::Messages& messages_;
+    // What's playing — the toolbar, the hero panel and the playing-row
+    // highlight follow it (bindNowPlaying()).
+    ViewModel::NowPlaying& nowPlaying_;
 
     void repositionTrackListBusyIndicator();
     // Shows/hides trackListPane_ and, together with it, collapses/restores
@@ -332,8 +301,6 @@ private:
     // Like/dislike/last-played per track, shared by every view — see
     // Library::TrackStates.
     Library::TrackStates* trackStates_ = nullptr;
-    // Pushes trackStates_'s like/dislike for the playing track into nowPlayingBar_.
-    void refreshNowPlayingFeedback();
     // Into the tray, remembering where the window was for bringToFront().
     void hideToTray();
 

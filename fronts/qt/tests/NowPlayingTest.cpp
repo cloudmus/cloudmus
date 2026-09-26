@@ -1,0 +1,118 @@
+#include <QSignalSpy>
+#include <QTest>
+
+#include "FakeBackend.h"
+#include "Messages.h"
+#include "NowPlaying.h"
+#include "PlaybackController.h"
+#include "PlaybackHistory.h"
+#include "RpcClient.h"
+#include "Settings.h"
+#include "SourceManager.h"
+#include "TestSupport.h"
+#include "TrackStates.h"
+
+namespace Tests {
+
+namespace {
+Track track(const QString& id)
+{
+    Track t;
+    t.id = id;
+    t.title = QStringLiteral("Track %1").arg(id);
+    return t;
+}
+} // namespace
+
+class NowPlayingTest : public QObject {
+    Q_OBJECT
+
+private slots:
+    void initTestCase() { installFakeBackendManifest(); }
+
+    void init()
+    {
+        sourceManager_ = std::make_unique<Rpc::SourceManager>();
+        playback_ = std::make_unique<Playback::PlaybackController>(*sourceManager_);
+        trackStates_ = std::make_unique<Library::TrackStates>();
+        nowPlaying_ = std::make_unique<ViewModel::NowPlaying>(
+            *playback_, *sourceManager_, *trackStates_, history_, settings_, messages_);
+        QSignalSpy ready(sourceManager_.get(), &Rpc::SourceManager::sourceReady);
+        sourceManager_->startAll();
+        QVERIFY(ready.wait(10000));
+    }
+
+    void cleanup()
+    {
+        for (Rpc::RpcClient* client : sourceManager_->clients())
+            await(client->shutdown());
+        nowPlaying_.reset();
+        playback_.reset();
+        sourceManager_.reset();
+        trackStates_.reset();
+    }
+
+    void aTrackStartingShowsWithItsSourcesActions()
+    {
+        play({ track(QStringLiteral("t1")) });
+        QCOMPARE(nowPlaying_->track().id, QStringLiteral("t1"));
+        const auto feedback = nowPlaying_->feedback();
+        QVERIFY(feedback.likeSupported);
+        QVERIFY(feedback.dislikeSupported);
+        QVERIFY(!feedback.downloadSupported);
+        QVERIFY(!feedback.liked);
+    }
+
+    void aLikeShowsAsLikedAndBusyUntilTheSourceAnswers()
+    {
+        play({ track(QStringLiteral("t1")) });
+        nowPlaying_->setLiked(true);
+        QVERIFY(nowPlaying_->feedback().likeBusy);
+        QVERIFY(nowPlaying_->feedback().liked); // the state asked for, while busy
+        QTRY_VERIFY(!nowPlaying_->feedback().likeBusy);
+        QVERIFY(nowPlaying_->feedback().liked);
+        QCOMPARE(trackStates_->state(QStringLiteral("fake"), QStringLiteral("t1")).liked, std::optional<bool>(true));
+    }
+
+    void aFailedLikeRollsBackAndSaysWhy()
+    {
+        QSignalSpy messages(&messages_, &ViewModel::Messages::posted);
+        play({ track(QStringLiteral("fail")) });
+        nowPlaying_->setLiked(true);
+        QTRY_VERIFY(!nowPlaying_->feedback().likeBusy);
+        QVERIFY(!nowPlaying_->feedback().liked);
+        QCOMPARE(messages.count(), 1);
+        QCOMPARE(messages.first().at(1).toString(), QStringLiteral("Fake Source: service down"));
+    }
+
+    void aDislikeMovesOnToTheNextTrack()
+    {
+        play({ track(QStringLiteral("t1")), track(QStringLiteral("t2")) });
+        nowPlaying_->setDisliked(true);
+        QTRY_COMPARE(nowPlaying_->hasTrack() ? nowPlaying_->track().id : QString(), QStringLiteral("t2"));
+        QCOMPARE(trackStates_->state(QStringLiteral("fake"), QStringLiteral("t1")).disliked, std::optional<bool>(true));
+    }
+
+private:
+    void play(const QList<Track>& tracks)
+    {
+        QSignalSpy changed(nowPlaying_.get(), &ViewModel::NowPlaying::trackChanged);
+        playback_->loadQueue(QStringLiteral("fake"), tracks, 0);
+        QVERIFY(changed.wait(10000));
+        QVERIFY(nowPlaying_->hasTrack());
+    }
+
+    Config::Settings settings_;
+    History::PlaybackHistory history_;
+    ViewModel::Messages messages_;
+    std::unique_ptr<Rpc::SourceManager> sourceManager_;
+    std::unique_ptr<Playback::PlaybackController> playback_;
+    std::unique_ptr<Library::TrackStates> trackStates_;
+    std::unique_ptr<ViewModel::NowPlaying> nowPlaying_;
+};
+
+QObject* makeNowPlayingTest() { return new NowPlayingTest; }
+
+} // namespace Tests
+
+#include "NowPlayingTest.moc"

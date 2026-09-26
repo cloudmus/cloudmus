@@ -97,6 +97,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , settings_(core.settings())
     , sourceSession_(core.sourceSession())
     , messages_(core.messages())
+    , nowPlaying_(core.nowPlaying())
     , coverArtCache_(&core.coverArtCache())
     , playbackHistory_(&core.playbackHistory())
     , trackStates_(&core.trackStates())
@@ -118,127 +119,18 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // is Qt's own documented fix (QMainWindow::setContextMenuPolicy docs).
     setContextMenuPolicy(Qt::NoContextMenu);
 
-    connect(
-        trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
-            if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
-                && playback_.currentTrack().id == trackId)
-                refreshNowPlayingFeedback();
-        });
-    connect(trackStates_, &Library::TrackStates::bulkChanged, this, &MainWindow::refreshNowPlayingFeedback);
-
     // --- now-playing controls, merged into the bottom toolbar alongside
     // the hamburger menu. No cover art here — HeroPanel (below) shows
     // whatever's playing instead, so it isn't duplicated. ---
     nowPlayingBar_ = new NowPlayingBar(this);
-    // setVolume() alone only moves the slider — it's built on a
-    // QSignalBlocker specifically so restoring the persisted position at
-    // startup doesn't loop back through volumeChanged (see its .cpp). That
-    // means it never actually reaches AudioPlayer, which otherwise starts
-    // at mpv's own default (max) until the user first drags the slider —
-    // apply the persisted value to playback_ explicitly here too.
-    nowPlayingBar_->setVolume(settings_.volume());
-    playback_.setVolume(settings_.volume());
-    connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, &playback_, &Playback::PlaybackController::togglePause);
-    connect(nowPlayingBar_, &NowPlayingBar::nextClicked, &playback_, &Playback::PlaybackController::next);
-    connect(nowPlayingBar_, &NowPlayingBar::previousClicked, &playback_, &Playback::PlaybackController::previous);
-    connect(nowPlayingBar_, &NowPlayingBar::stopClicked, &playback_, &Playback::PlaybackController::stop);
-    connect(nowPlayingBar_, &NowPlayingBar::seekRequested, &playback_, &Playback::PlaybackController::seek);
-    // Play modes: the controller keeps what the user chose — from here or
-    // over MPRIS — and the bar shows what's in effect for the current
-    // queue (a radio can't shuffle or repeat its whole list).
-    playback_.setShuffle(settings_.shuffle());
-    playback_.setRepeatMode(settings_.repeatMode());
-    const auto playModesChanged = [this]() {
-        nowPlayingBar_->setPlayModes(playback_.shuffleActive(), playback_.effectiveRepeatMode(), playback_.isRadio());
-        settings_.setShuffle(playback_.shuffle());
-        settings_.setRepeatMode(playback_.repeatMode());
-    };
-    playModesChanged();
-    connect(&playback_, &Playback::PlaybackController::playModeChanged, this, playModesChanged);
-    connect(nowPlayingBar_, &NowPlayingBar::shuffleClicked, &playback_, &Playback::PlaybackController::setShuffle);
-    connect(nowPlayingBar_, &NowPlayingBar::repeatClicked, &playback_, &Playback::PlaybackController::setRepeatMode);
-    connect(nowPlayingBar_, &NowPlayingBar::volumeChanged, this, [this](int v) {
-        playback_.setVolume(v);
-        settings_.setVolume(v);
-    });
-    connect(nowPlayingBar_, &NowPlayingBar::likeClicked, this, [this](bool liked) {
-        if (!playback_.hasCurrentTrack())
-            return;
-        likeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, liked).detach();
-    });
-    connect(nowPlayingBar_, &NowPlayingBar::dislikeClicked, this, [this](bool disliked) {
-        if (!playback_.hasCurrentTrack())
-            return;
-        dislikeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, disliked).detach();
-    });
-    connect(nowPlayingBar_, &NowPlayingBar::downloadClicked, this, [this]() { downloadCurrentTrackAsync().detach(); });
-    connect(nowPlayingBar_, &NowPlayingBar::playlistsClicked, this, &MainWindow::showPlaylistsMenu);
 
-    // The single declarative source of truth for every control's enabled
-    // state and value — see NowPlayingBar::setTrackAvailable()'s doc
-    // comment. Also where Stop's "reset to undefined" becomes visible:
-    // once hasCurrentTrack() goes false, heroPanel_ reverts to promoting
-    // the browsed playlist/cover art and the track list's
-    // currently-playing row clears, instead of leaving the last-played
-    // track's info on screen.
-    connect(&playback_, &Playback::PlaybackController::currentTrackAvailabilityChanged, this, [this](bool available) {
-        nowPlayingBar_->setTrackAvailable(available);
-        if (!available) {
-            nowPlayingBar_->setTrackWebUrl(QString());
-            nowPlayingBar_->setLikeState(false, false);
-            nowPlayingBar_->setDislikeState(false, false);
-            nowPlayingBar_->setDownloadState(false);
-            nowPlayingBar_->setPlaylistsState(false);
-            emit nowPlayingFeedbackChanged();
-            refreshHero();
-            trackRowDelegate_->setCurrentlyPlaying(QString(), QString());
-            trackListView_->viewport()->update();
-            sheet_->trackDelegate()->setCurrentlyPlaying(QString(), QString());
-            sheet_->updateRows();
-        }
-    });
     connect(&playback_, &Playback::PlaybackController::queueChanged, this, &MainWindow::refreshMainList);
-    connect(&playback_, &Playback::PlaybackController::queueAvailabilityChanged, this,
-        [this](bool available) { nowPlayingBar_->setQueueAvailable(available); });
 
-    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
-        [this](const Track& track, const QString& sourceId) {
-            playbackHistory_->record(sourceId, track);
-            trackStates_->setLastPlayed(sourceId, track.id, QDateTime::currentDateTimeUtc());
-        });
-    connect(&playback_, &Playback::PlaybackController::trackChanged, this, [this](const Track& track, const QString&) {
-        nowPlayingBar_->setTrackWebUrl(track.webUrl.value_or(QString()));
-    });
-    connect(
-        &playback_, &Playback::PlaybackController::trackChanged, this, [this](const Track&, const QString& sourceId) {
-            const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-            const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
-            refreshNowPlayingFeedback();
-            nowPlayingBar_->setDownloadState(capabilities.value(QStringLiteral("download")).toBool());
-            nowPlayingBar_->setPlaylistsState(sourceCanEditPlaylists(sourceId));
-            emit nowPlayingFeedbackChanged();
-        });
-    // HeroPanel shows what's playing instead of the active playlist's
-    // promo card whenever playback_.hasCurrentTrack() — see refreshHero(),
-    // and the currentTrackAvailabilityChanged handler above for how Stop
-    // reverts it.
-    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
-        [this](const Track& track, const QString&) { heroPanel_->setNowPlaying(track); });
-    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
-        [this](const Track& track, const QString& sourceId) {
-            trackRowDelegate_->setCurrentlyPlaying(sourceId, track.id);
-            trackListView_->viewport()->update();
-            sheet_->trackDelegate()->setCurrentlyPlaying(sourceId, track.id);
-            sheet_->updateRows();
-        });
     connect(playbackHistory_, &History::PlaybackHistory::changed, this, [this]() {
         // Refresh in place — a track just started playing.
         if (sheetContext_.isHistory && sheet_->isPresented())
             fillHistorySheet();
     });
-    connect(&playback_, &Playback::PlaybackController::playingChanged, nowPlayingBar_, &NowPlayingBar::setPlaying);
-    connect(&playback_, &Playback::PlaybackController::loadingChanged, nowPlayingBar_, &NowPlayingBar::setLoading);
-    connect(&playback_, &Playback::PlaybackController::positionChanged, nowPlayingBar_, &NowPlayingBar::setPosition);
 
     auto* toolbar = new QToolBar(this);
     toolbar->setObjectName(QStringLiteral("transportToolBar")); // see StyleSheet.cpp's toolBarBlock()
@@ -552,6 +444,77 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     pendingSelection_ = settings_.sidebarSelection();
     if (pendingSelection_ == QStringLiteral("history"))
         QTimer::singleShot(0, this, [this]() { restoreSelection(QString(), { }); });
+
+    bindNowPlaying();
+}
+
+void MainWindow::bindNowPlaying()
+{
+    // What the user does with the toolbar goes to the view model...
+    using ViewModel::NowPlaying;
+    connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, &nowPlaying_, &NowPlaying::togglePause);
+    connect(nowPlayingBar_, &NowPlayingBar::nextClicked, &nowPlaying_, &NowPlaying::next);
+    connect(nowPlayingBar_, &NowPlayingBar::previousClicked, &nowPlaying_, &NowPlaying::previous);
+    connect(nowPlayingBar_, &NowPlayingBar::stopClicked, &nowPlaying_, &NowPlaying::stop);
+    connect(nowPlayingBar_, &NowPlayingBar::seekRequested, &nowPlaying_, &NowPlaying::seek);
+    connect(nowPlayingBar_, &NowPlayingBar::volumeChanged, &nowPlaying_, &NowPlaying::setVolume);
+    connect(nowPlayingBar_, &NowPlayingBar::shuffleClicked, &nowPlaying_, &NowPlaying::setShuffle);
+    connect(nowPlayingBar_, &NowPlayingBar::repeatClicked, &nowPlaying_, &NowPlaying::setRepeatMode);
+    connect(nowPlayingBar_, &NowPlayingBar::likeClicked, &nowPlaying_, &NowPlaying::setLiked);
+    connect(nowPlayingBar_, &NowPlayingBar::dislikeClicked, &nowPlaying_, &NowPlaying::setDisliked);
+    connect(nowPlayingBar_, &NowPlayingBar::downloadClicked, &nowPlaying_, &NowPlaying::download);
+    connect(nowPlayingBar_, &NowPlayingBar::playlistsClicked, this, &MainWindow::showPlaylistsMenu);
+
+    // ...and what it says is shown: the toolbar, the hero panel (the
+    // playing track; once playback stops, the active playlist again) and
+    // the playing row in both track lists.
+    const auto showTrack = [this]() {
+        const bool hasTrack = nowPlaying_.hasTrack();
+        nowPlayingBar_->setTrackAvailable(hasTrack);
+        nowPlayingBar_->setTrackWebUrl(nowPlaying_.webUrl());
+        if (hasTrack)
+            heroPanel_->setNowPlaying(nowPlaying_.track());
+        else
+            refreshHero();
+        const QString sourceId = nowPlaying_.sourceId();
+        const QString trackId = hasTrack ? nowPlaying_.track().id : QString();
+        trackRowDelegate_->setCurrentlyPlaying(sourceId, trackId);
+        trackListView_->viewport()->update();
+        sheet_->trackDelegate()->setCurrentlyPlaying(sourceId, trackId);
+        sheet_->updateRows();
+    };
+    const auto showFeedback = [this]() {
+        const NowPlaying::Feedback feedback = nowPlaying_.feedback();
+        // set…State() clears busy — busy goes on after it.
+        nowPlayingBar_->setLikeState(feedback.likeSupported, feedback.liked);
+        nowPlayingBar_->setLikeBusy(feedback.likeBusy);
+        nowPlayingBar_->setDislikeState(feedback.dislikeSupported, feedback.disliked);
+        nowPlayingBar_->setDislikeBusy(feedback.dislikeBusy);
+        nowPlayingBar_->setDownloadState(feedback.downloadSupported);
+        nowPlayingBar_->setDownloadBusy(feedback.downloadBusy);
+        nowPlayingBar_->setPlaylistsState(feedback.playlistsSupported);
+    };
+    const auto showPlayModes = [this]() {
+        nowPlayingBar_->setPlayModes(nowPlaying_.shuffle(), nowPlaying_.repeatMode(), nowPlaying_.isRadio());
+    };
+    connect(&nowPlaying_, &NowPlaying::trackChanged, this, showTrack);
+    connect(&nowPlaying_, &NowPlaying::feedbackChanged, this, showFeedback);
+    connect(&nowPlaying_, &NowPlaying::playModesChanged, this, showPlayModes);
+    connect(&nowPlaying_, &NowPlaying::playingChanged, nowPlayingBar_, &NowPlayingBar::setPlaying);
+    connect(&nowPlaying_, &NowPlaying::loadingChanged, nowPlayingBar_, &NowPlayingBar::setLoading);
+    connect(&nowPlaying_, &NowPlaying::positionChanged, nowPlayingBar_, &NowPlayingBar::setPosition);
+    connect(&nowPlaying_, &NowPlaying::queueAvailabilityChanged, nowPlayingBar_, &NowPlayingBar::setQueueAvailable);
+
+    // Whatever state it's in already — a window created while something
+    // plays shows it at once, not from the next change on.
+    nowPlayingBar_->setVolume(nowPlaying_.volume());
+    nowPlayingBar_->setPlaying(nowPlaying_.playing());
+    if (nowPlaying_.loading())
+        nowPlayingBar_->setLoading(true);
+    nowPlayingBar_->setQueueAvailable(nowPlaying_.queueAvailable());
+    showTrack();
+    showFeedback();
+    showPlayModes();
 }
 
 MainWindow::~MainWindow() { settings_.setWindowGeometry(saveGeometry()); }
@@ -1267,7 +1230,7 @@ void MainWindow::showTrackMenu(
                                         : Theme::icon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16),
                     liked ? tr("Unlike") : tr("Like"));
             connect(likeAction, &QAction::triggered, this, [this, sourceId, id = track.id, liked]() {
-                likeToggledAsync(sourceId, id, !liked, /*announceSuccess=*/true).detach();
+                nowPlaying_.setTrackLiked(sourceId, id, !liked, /*announce=*/true).detach();
             });
         }
         if (dislikeSupported) {
@@ -1277,7 +1240,7 @@ void MainWindow::showTrackMenu(
                                       disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16),
                     disliked ? tr("Remove Dislike") : tr("Dislike"));
             connect(dislikeAction, &QAction::triggered, this, [this, sourceId, id = track.id, disliked]() {
-                dislikeToggledAsync(sourceId, id, !disliked, /*announceSuccess=*/true).detach();
+                nowPlaying_.setTrackDisliked(sourceId, id, !disliked, /*announce=*/true).detach();
             });
         }
     }
@@ -1313,7 +1276,7 @@ void MainWindow::showTrackMenu(
         if (downloadSupported) {
             menu->addAction(Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, 16),
                 tr("Save to Downloads"), this,
-                [this, sourceId, track]() { downloadTrackAsync(sourceId, track).detach(); });
+                [this, sourceId, track]() { nowPlaying_.downloadTrack(sourceId, track).detach(); });
         }
     }
 
@@ -1330,186 +1293,6 @@ Rpc::Task<void> MainWindow::submitAuthAsync(QString sourceId, QJsonObject fields
     if (!error.isEmpty())
         sourcePanel_->showError(error);
     sourcePanel_->setAuthActionBusy(false);
-}
-
-Rpc::Task<void> MainWindow::likeToggledAsync(QString sourceId, QString trackId, bool liked, bool announceSuccess)
-{
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr || !client->available())
-        co_return;
-    const QJsonObject feedback = client->capabilities().value(QStringLiteral("feedback")).toObject();
-    const bool likeSupported = feedback.value(QStringLiteral("like")).toBool();
-    const bool dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
-    // The track (or the whole queue) may have changed by the time the
-    // co_await below resumes — only touch nowPlayingBar_ if it's still
-    // showing the track this click was for; the caches below are patched
-    // unconditionally, since they matter regardless of what's on screen.
-    auto stillCurrent = [this, sourceId, trackId]() {
-        return playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
-            && playback_.currentTrack().id == trackId;
-    };
-
-    if (stillCurrent())
-        nowPlayingBar_->setLikeBusy(true);
-    try {
-        if (liked)
-            co_await Rpc::feedbackLike(*client, LikeParams { trackId });
-        else
-            co_await Rpc::feedbackUnlike(*client, UnlikeParams { trackId });
-        trackStates_->setLiked(sourceId, trackId, liked);
-        playbackHistory_->markTrackLiked(sourceId, trackId, liked); // keeps the saved snapshot fresh
-        if (stillCurrent()) {
-            nowPlayingBar_->setLikeState(likeSupported, liked);
-            // Both backends cross-clear the opposite rating server-side on
-            // a successful like (see docs/protocol.md §7.4) — mirror that
-            // locally so the UI never shows both lit up at once.
-            if (liked)
-                nowPlayingBar_->setDislikeState(dislikeSupported, false);
-        }
-        if (announceSuccess)
-            messages_.info(liked ? tr("Added to Liked") : tr("Removed from Liked"));
-    } catch (const std::exception& e) {
-        const QString message = QString::fromStdString(e.what());
-        qCWarning(lcMainWindow) << "feedback.like/unlike failed for" << trackId << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
-        if (stillCurrent())
-            nowPlayingBar_->setLikeState(likeSupported, !liked);
-    }
-}
-
-Rpc::Task<void> MainWindow::dislikeToggledAsync(QString sourceId, QString trackId, bool disliked, bool announceSuccess)
-{
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr || !client->available())
-        co_return;
-    const QJsonObject feedback = client->capabilities().value(QStringLiteral("feedback")).toObject();
-    const bool likeSupported = feedback.value(QStringLiteral("like")).toBool();
-    const bool dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
-    auto stillCurrent = [this, sourceId, trackId]() {
-        return playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
-            && playback_.currentTrack().id == trackId;
-    };
-
-    if (stillCurrent())
-        nowPlayingBar_->setDislikeBusy(true);
-    try {
-        if (disliked)
-            co_await Rpc::feedbackDislike(*client, DislikeParams { trackId });
-        else
-            co_await Rpc::feedbackUndislike(*client, UndislikeParams { trackId });
-        // Unconditional, unlike the NowPlayingBar update below (see
-        // likeToggledAsync's stillCurrent() doc comment). setDisliked()
-        // also cross-clears Like — docs/protocol.md §7.4.
-        trackStates_->setDisliked(sourceId, trackId, disliked);
-        if (disliked)
-            playbackHistory_->markTrackLiked(sourceId, trackId, false);
-        if (stillCurrent()) {
-            nowPlayingBar_->setDislikeState(dislikeSupported, disliked);
-            if (disliked) {
-                nowPlayingBar_->setLikeState(likeSupported, false);
-                // No point listening to a track just disliked — move on,
-                // like the services' own players do. next() also sends the
-                // skip feedback a radio uses to adapt its upcoming tracks.
-                playback_.next();
-            }
-        }
-        if (announceSuccess)
-            messages_.info(disliked ? tr("Disliked") : tr("Removed dislike"));
-    } catch (const std::exception& e) {
-        const QString message = QString::fromStdString(e.what());
-        qCWarning(lcMainWindow) << "feedback.dislike/undislike failed for" << trackId << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
-        if (stillCurrent())
-            nowPlayingBar_->setDislikeState(dislikeSupported, !disliked);
-    }
-}
-
-Rpc::Task<void> MainWindow::downloadTrackAsync(QString sourceId, Track track)
-{
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr || !client->available())
-        co_return;
-    const QString destDir = Library::downloadDirectoryFor(
-        settings_.downloadDirectory(), settings_.downloadLayout(), client->sourceName(), track);
-    // docs/protocol.md §7.5: destDir must already exist.
-    if (!QDir().mkpath(destDir)) {
-        messages_.error(tr("Can't create the folder %1").arg(destDir));
-        co_return;
-    }
-    messages_.info(tr("Downloading \"%1\"…").arg(track.title));
-    try {
-        DownloadTrackParams params { track.id, destDir };
-        DownloadTrackResult result = co_await Rpc::catalogDownloadTrack(*client, params);
-        Q_UNUSED(result);
-        messages_.success(tr("Saved \"%1\"").arg(track.title));
-    } catch (const std::exception& e) {
-        const QString message = QString::fromStdString(e.what());
-        qCWarning(lcMainWindow) << "catalog.downloadTrack failed for" << track.id << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
-    }
-}
-
-Rpc::Task<void> MainWindow::downloadCurrentTrackAsync()
-{
-    if (!playback_.hasCurrentTrack())
-        co_return;
-    const QString sourceId = playback_.currentSourceId();
-    const QString trackId = playback_.currentTrack().id;
-    const Track track = playback_.currentTrack();
-    auto stillCurrent = [this, sourceId, trackId]() {
-        return playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
-            && playback_.currentTrack().id == trackId;
-    };
-
-    if (stillCurrent())
-        nowPlayingBar_->setDownloadBusy(true);
-    co_await downloadTrackAsync(sourceId, track); // toasts + the RPC call itself
-    if (stillCurrent())
-        nowPlayingBar_->setDownloadBusy(false);
-}
-
-void MainWindow::refreshNowPlayingFeedback()
-{
-    if (!playback_.hasCurrentTrack())
-        return;
-    const QString sourceId = playback_.currentSourceId();
-    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    const QJsonObject feedback
-        = client != nullptr ? client->capabilities().value(QStringLiteral("feedback")).toObject() : QJsonObject();
-    const Library::TrackState state = trackStates_->state(sourceId, playback_.currentTrack().id);
-    nowPlayingBar_->setLikeState(feedback.value(QStringLiteral("like")).toBool(), state.liked.value_or(false));
-    nowPlayingBar_->setDislikeState(feedback.value(QStringLiteral("dislike")).toBool(), state.disliked.value_or(false));
-    emit nowPlayingFeedbackChanged();
-}
-
-MainWindow::NowPlayingFeedback MainWindow::nowPlayingFeedback() const
-{
-    NowPlayingFeedback result;
-    if (!playback_.hasCurrentTrack())
-        return result;
-    const QString sourceId = playback_.currentSourceId();
-    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    const QJsonObject feedback
-        = client != nullptr ? client->capabilities().value(QStringLiteral("feedback")).toObject() : QJsonObject();
-    const Library::TrackState state = trackStates_->state(sourceId, playback_.currentTrack().id);
-    result.likeSupported = feedback.value(QStringLiteral("like")).toBool();
-    result.liked = state.liked.value_or(false);
-    result.dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
-    result.disliked = state.disliked.value_or(false);
-    result.playlistsSupported = sourceCanEditPlaylists(sourceId);
-    return result;
-}
-
-void MainWindow::setNowPlayingLiked(bool liked)
-{
-    if (playback_.hasCurrentTrack())
-        likeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, liked).detach();
-}
-
-void MainWindow::setNowPlayingDisliked(bool disliked)
-{
-    if (playback_.hasCurrentTrack())
-        dislikeToggledAsync(playback_.currentSourceId(), playback_.currentTrack().id, disliked).detach();
 }
 
 void MainWindow::fillNowPlayingPlaylistsMenu(QMenu* menu)

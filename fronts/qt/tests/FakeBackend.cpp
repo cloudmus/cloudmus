@@ -55,7 +55,7 @@ QJsonObject capabilities()
             QJsonObject { { QStringLiteral("playlists"), true }, { QStringLiteral("likedTracks"), false },
                 { QStringLiteral("radio"), false }, { QStringLiteral("search"), false } } },
         { QStringLiteral("feedback"),
-            QJsonObject { { QStringLiteral("like"), false }, { QStringLiteral("dislike"), false },
+            QJsonObject { { QStringLiteral("like"), true }, { QStringLiteral("dislike"), true },
                 { QStringLiteral("skip"), false } } },
         { QStringLiteral("download"), false },
         { QStringLiteral("auth"),
@@ -115,6 +115,18 @@ int runFakeBackend()
                     QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("p1") },
                         { QStringLiteral("title"), QStringLiteral("First") }, { QStringLiteral("trackCount"), 2 },
                         { QStringLiteral("kind"), QStringLiteral("playlist") } } } } });
+        } else if (method == QStringLiteral("playback.play")) {
+            // Accepted, but no stream follows: the track counts as current
+            // (what the tests look at) without anything actually playing.
+            reply(id, { { QStringLiteral("accepted"), true } });
+        } else if (method.startsWith(QStringLiteral("feedback."))) {
+            // A track id of "fail" makes any feedback call fail.
+            const QString trackId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
+            if (trackId == QStringLiteral("fail"))
+                replyError(id, 1200, QStringLiteral("service down"));
+            else
+                reply(id, { });
         } else if (method == QStringLiteral("auth.getStatus")) {
             reply(id, { { QStringLiteral("status"), QStringLiteral("authenticated") } });
         } else if (method == QStringLiteral("auth.submit")) {

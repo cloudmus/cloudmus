@@ -5,6 +5,7 @@
 #include "AuthStates.h"
 #include "CoverArtCache.h"
 #include "Messages.h"
+#include "NowPlaying.h"
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
 #include "Settings.h"
@@ -34,6 +35,7 @@ public:
     Covers::CoverArtCache& coverArtCache() { return coverArtCache_; }
     SourceSession& sourceSession() { return sourceSession_; }
     ViewModel::Messages& messages() { return messages_; }
+    ViewModel::NowPlaying& nowPlaying() { return nowPlaying_; }
 
 private:
     // Declaration order is construction order: playback_ needs
@@ -47,6 +49,7 @@ private:
     Covers::CoverArtCache coverArtCache_;
     ViewModel::Messages messages_;
     SourceSession sourceSession_;
+    ViewModel::NowPlaying nowPlaying_;
 };
 
 } // namespace App

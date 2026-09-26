@@ -8,7 +8,15 @@ Core::Core(QObject* parent)
     : QObject(parent)
     , playback_(sourceManager_)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
+    , nowPlaying_(playback_, sourceManager_, trackStates_, playbackHistory_, settings_, messages_)
 {
+    // Every track that starts playing goes into History, and its "last
+    // played" with it.
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this,
+        [this](const Track& track, const QString& sourceId) {
+            playbackHistory_.record(sourceId, track);
+            trackStates_.setLastPlayed(sourceId, track.id, QDateTime::currentDateTimeUtc());
+        });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
 
     // History's saved snapshots: when each track was last played, plus

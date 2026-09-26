@@ -10,28 +10,25 @@ class QMenu;
 namespace Ui {
 class MainWindow;
 }
+namespace ViewModel {
+class NowPlaying;
+}
 
 namespace Integration {
 
 // QSystemTrayIcon + context menu (Prev/Play-Pause/Next/Stop, the playing
-// track's Like/Dislike/Playlists, Show-Hide, Quit). Left-click toggles the
-// main window's visibility — see MainWindow::toggleShown(). The tray's own tooltip
+// track's Like/Dislike/Playlists, Show-Hide, Quit), all following
+// ViewModel::NowPlaying. Left-click toggles the main window's visibility —
+// see MainWindow::toggleShown(). The tray's own tooltip
 // is plain-text only on Linux (no image parameter in Qt's API) — cover art
 // is delivered separately via NotificationToast, see that class.
 class TrayIcon : public QObject {
     Q_OBJECT
 
 public:
-    TrayIcon(Ui::MainWindow* mainWindow, QObject* parent = nullptr);
-
-    void setNowPlayingTooltip(const QString& title, const QString& artist);
-    void setPlaying(bool playing);
+    TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying, QObject* parent = nullptr);
 
 signals:
-    void previousRequested();
-    void playPauseRequested();
-    void nextRequested();
-    void stopRequested();
     void quitRequested();
 
 private:
@@ -45,8 +42,13 @@ private:
     void refreshFeedbackActions();
     // "Hide" while the window is on screen, "Show" otherwise.
     void refreshShowHideAction();
+    // The tooltip names the playing track; the play/pause action says what
+    // a click would do.
+    void refreshTrack();
+    void refreshPlaying();
 
     Ui::MainWindow* mainWindow_;
+    ViewModel::NowPlaying& nowPlaying_;
     QSystemTrayIcon* trayIcon_ = nullptr;
     QAction* playPauseAction_ = nullptr;
     QAction* feedbackSeparator_ = nullptr;

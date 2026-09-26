@@ -1,6 +1,6 @@
 # MVVM refactoring plan (Qt front)
 
-Status: stages 0–3 done. Update this file as stages land.
+Status: stages 0–4 done. Update this file as stages land.
 
 ## Where we are
 
@@ -97,9 +97,12 @@ the same.
    playback and sign-in no longer depend on the window.
 3. **`ViewModel::Messages`.** Replaces direct toast calls.
 4. **`ViewModel::NowPlaying`.** NowPlayingBar, the hero's now-playing mode,
-   **tray and MPRIS** move onto it; `MainWindow::nowPlayingFeedback()`,
-   `setNowPlayingLiked()`, `fillNowPlayingPlaylistsMenu()` go away. Tests:
-   like with rollback on failure, busy state, track change.
+   the playing-row highlight and the **tray** move onto it;
+   `MainWindow::nowPlayingFeedback()`, `setNowPlayingLiked()` go away
+   (`fillNowPlayingPlaylistsMenu()` goes with stage 5). Recording History
+   moves into `App::Core`. MPRIS keeps talking to
+   `Playback::PlaybackController`, already in core. Tests: like with
+   rollback on failure, busy state, track change.
 5. **`App::PlaylistEditing`.** The "Add to playlist" menus from the list,
    the sheet, the toolbar and the tray.
 6. **`ViewModel::Library`.** Playlists, favorites, collapsed rows, selection

@@ -10,12 +10,14 @@
 
 #include "Icons.h"
 #include "MainWindow.h"
+#include "NowPlaying.h"
 
 namespace Integration {
 
-TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, QObject* parent)
+TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, ViewModel::NowPlaying& nowPlaying, QObject* parent)
     : QObject(parent)
     , mainWindow_(mainWindow)
+    , nowPlaying_(nowPlaying)
 {
     trayIcon_ = new QSystemTrayIcon(this);
     updateTrayIcon();
@@ -43,14 +45,14 @@ TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, QObject* parent)
     menu->addSeparator();
     auto* quitAction = menu->addAction(tr("Quit"));
 
-    connect(previousAction, &QAction::triggered, this, &TrayIcon::previousRequested);
-    connect(playPauseAction_, &QAction::triggered, this, &TrayIcon::playPauseRequested);
-    connect(nextAction, &QAction::triggered, this, &TrayIcon::nextRequested);
-    connect(stopAction, &QAction::triggered, this, &TrayIcon::stopRequested);
-    connect(likeAction_, &QAction::triggered, this,
-        [this]() { mainWindow_->setNowPlayingLiked(!mainWindow_->nowPlayingFeedback().liked); });
+    using ViewModel::NowPlaying;
+    connect(previousAction, &QAction::triggered, &nowPlaying_, &NowPlaying::previous);
+    connect(playPauseAction_, &QAction::triggered, &nowPlaying_, &NowPlaying::togglePause);
+    connect(nextAction, &QAction::triggered, &nowPlaying_, &NowPlaying::next);
+    connect(stopAction, &QAction::triggered, &nowPlaying_, &NowPlaying::stop);
+    connect(likeAction_, &QAction::triggered, this, [this]() { nowPlaying_.setLiked(!nowPlaying_.feedback().liked); });
     connect(dislikeAction_, &QAction::triggered, this,
-        [this]() { mainWindow_->setNowPlayingDisliked(!mainWindow_->nowPlayingFeedback().disliked); });
+        [this]() { nowPlaying_.setDisliked(!nowPlaying_.feedback().disliked); });
     // Refilled on every open: membership may have changed since (in the
     // app, or on the service itself).
     connect(playlistsMenu_, &QMenu::aboutToShow, this,
@@ -58,8 +60,12 @@ TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, QObject* parent)
     connect(showHideAction_, &QAction::triggered, mainWindow_, &Ui::MainWindow::toggleShown);
     connect(quitAction, &QAction::triggered, this, &TrayIcon::quitRequested);
 
-    connect(mainWindow_, &Ui::MainWindow::nowPlayingFeedbackChanged, this, &TrayIcon::refreshFeedbackActions);
+    connect(&nowPlaying_, &NowPlaying::feedbackChanged, this, &TrayIcon::refreshFeedbackActions);
+    connect(&nowPlaying_, &NowPlaying::trackChanged, this, &TrayIcon::refreshTrack);
+    connect(&nowPlaying_, &NowPlaying::playingChanged, this, &TrayIcon::refreshPlaying);
     refreshFeedbackActions();
+    refreshTrack();
+    refreshPlaying();
     // The window's state can change without the tray (minimized from its
     // title bar, closed to the tray) — relabel just before showing.
     connect(menu, &QMenu::aboutToShow, this, &TrayIcon::refreshShowHideAction);
@@ -75,13 +81,24 @@ TrayIcon::TrayIcon(Ui::MainWindow* mainWindow, QObject* parent)
     trayIcon_->show();
 }
 
-void TrayIcon::setNowPlayingTooltip(const QString& title, const QString& artist)
+void TrayIcon::refreshTrack()
 {
-    trayIcon_->setToolTip(artist.isEmpty() ? title : QStringLiteral("%1 — %2").arg(title, artist));
+    // Kept while nothing plays, like before — it names the last track.
+    if (!nowPlaying_.hasTrack())
+        return;
+    const Track& track = nowPlaying_.track();
+    QString artists;
+    for (int i = 0; i < track.artists.size(); ++i) {
+        if (i > 0)
+            artists += QStringLiteral(", ");
+        artists += track.artists[i].name;
+    }
+    trayIcon_->setToolTip(artists.isEmpty() ? track.title : QStringLiteral("%1 — %2").arg(track.title, artists));
 }
 
-void TrayIcon::setPlaying(bool playing)
+void TrayIcon::refreshPlaying()
 {
+    const bool playing = nowPlaying_.playing();
     playPauseAction_->setText(playing ? tr("Pause") : tr("Play"));
     playPauseAction_->setIcon(
         Theme::icon(playing ? QStringLiteral("pause") : QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16));
@@ -89,7 +106,7 @@ void TrayIcon::setPlaying(bool playing)
 
 void TrayIcon::refreshFeedbackActions()
 {
-    const Ui::MainWindow::NowPlayingFeedback feedback = mainWindow_->nowPlayingFeedback();
+    const ViewModel::NowPlaying::Feedback feedback = nowPlaying_.feedback();
     // Same look as the track context menu's: state by the icon, not a check.
     likeAction_->setVisible(feedback.likeSupported);
     likeAction_->setText(feedback.liked ? tr("Unlike") : tr("Like"));

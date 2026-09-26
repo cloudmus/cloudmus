@@ -92,6 +92,7 @@ add_library(cloudmus-core STATIC
     src/App/SourceSession.cpp
 
     src/ViewModel/Messages.cpp
+    src/ViewModel/NowPlaying.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 )
@@ -226,6 +227,7 @@ add_executable(cloudmus-qt-tests
     tests/FakeBackend.cpp
     tests/RpcClientTest.cpp
     tests/SourceSessionTest.cpp
+    tests/NowPlayingTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

@@ -123,26 +123,8 @@ int main(int argc, char** argv)
     core.coverArtCache().setFitter(&Ui::fitCover);
     Ui::MainWindow window(core);
 
-    Integration::TrayIcon tray(&window);
-    QObject::connect(
-        &tray, &Integration::TrayIcon::previousRequested, &playback, &Playback::PlaybackController::previous);
-    QObject::connect(
-        &tray, &Integration::TrayIcon::playPauseRequested, &playback, &Playback::PlaybackController::togglePause);
-    QObject::connect(&tray, &Integration::TrayIcon::nextRequested, &playback, &Playback::PlaybackController::next);
-    QObject::connect(&tray, &Integration::TrayIcon::stopRequested, &playback, &Playback::PlaybackController::stop);
+    Integration::TrayIcon tray(&window, core.nowPlaying());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &window, &Ui::MainWindow::quitForReal);
-    QObject::connect(
-        &playback, &Playback::PlaybackController::trackChanged, &tray, [&tray](const Track& track, const QString&) {
-            QString artists;
-            for (int i = 0; i < track.artists.size(); ++i) {
-                if (i > 0)
-                    artists += QStringLiteral(", ");
-                artists += track.artists[i].name;
-            }
-            tray.setNowPlayingTooltip(track.title, artists);
-        });
-    QObject::connect(
-        &playback, &Playback::PlaybackController::playingChanged, &tray, &Integration::TrayIcon::setPlaying);
 
     Integration::MprisService mpris(&window, playback);
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &window, &Ui::MainWindow::quitForReal);
