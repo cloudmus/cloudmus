@@ -11,6 +11,8 @@ class QSlider;
 
 namespace Ui {
 
+class ThemedSlider;
+
 // Lives in the bottom toolbar, merged with the hamburger menu button:
 // transport buttons, seek bar, volume. No track title/artist/cover here —
 // HeroPanel already shows what's playing in the central panel, so it
@@ -32,6 +34,8 @@ public:
     void setPlaying(bool playing);
     void setLoading(bool loading);
     void setPosition(qint64 positionMs, qint64 durationMs);
+    // Shown on the seek slider behind the played part; -1 hides it.
+    void setBuffered(qint64 bufferedMs);
     void setVolume(int volume0To100);
 
     // Stop and seek require a current track. Without one, reset the seek
@@ -140,7 +144,7 @@ private:
     QPushButton* dislikeButton_ = nullptr;
     QPushButton* downloadButton_ = nullptr;
     QPushButton* playlistsButton_ = nullptr;
-    QSlider* seekSlider_ = nullptr;
+    ThemedSlider* seekSlider_ = nullptr;
     QLabel* elapsedLabel_ = nullptr;
     QLabel* durationLabel_ = nullptr;
     QSlider* volumeSlider_ = nullptr;

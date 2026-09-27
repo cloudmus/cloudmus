@@ -109,6 +109,7 @@ signals:
     void trackChanged(const Track& track, const QString& sourceId);
     void playingChanged(bool playing);
     void positionChanged(qint64 positionMs, qint64 durationMs);
+    void bufferedChanged(qint64 bufferedMs); // -1: not cached (a local file)
     void seeked(qint64 positionMs);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
     void errorOccurred(QString message);

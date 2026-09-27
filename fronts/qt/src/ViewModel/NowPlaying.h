@@ -112,6 +112,7 @@ signals:
     void playingChanged(bool playing);
     void loadingChanged(bool loading);
     void positionChanged(qint64 positionMs, qint64 durationMs);
+    void bufferedChanged(qint64 bufferedMs); // -1: not cached (a local file)
     void queueAvailabilityChanged(bool available);
     void playModesChanged();
     void volumeChanged(int volume0To100);

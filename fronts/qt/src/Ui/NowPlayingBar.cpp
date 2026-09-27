@@ -371,6 +371,7 @@ void NowPlayingBar::setTrackAvailable(bool available)
         lastDurationMs_ = 0;
         seekSlider_->setRange(0, 0);
         seekSlider_->setValue(0);
+        seekSlider_->setBufferedValue(-1);
         elapsedLabel_->setText(QStringLiteral("0:00"));
         durationLabel_->setText(QStringLiteral("0:00"));
     }
@@ -519,6 +520,11 @@ void NowPlayingBar::setPosition(qint64 positionMs, qint64 durationMs)
     if (!userIsDraggingSeek_) {
         seekSlider_->setValue(static_cast<int>(positionMs));
     }
+}
+
+void NowPlayingBar::setBuffered(qint64 bufferedMs)
+{
+    seekSlider_->setBufferedValue(bufferedMs < 0 ? -1 : static_cast<int>(bufferedMs));
 }
 
 void NowPlayingBar::setVolume(int volume0To100)

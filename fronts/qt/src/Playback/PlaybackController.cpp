@@ -45,6 +45,7 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
         lastKnownPositionMs_ = posMs;
         emit positionChanged(posMs, durMs);
     });
+    connect(audioPlayer_, &AudioPlayer::bufferedChanged, this, &PlaybackController::bufferedChanged);
     connect(audioPlayer_, &AudioPlayer::prepared, this, [this]() { preparedReady_ = true; });
 
     playTimeoutTimer_ = new QTimer(this);

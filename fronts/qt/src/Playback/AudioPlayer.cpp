@@ -99,6 +99,9 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
 
     mpv_observe_property(mpv_, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(mpv_, 0, "duration", MPV_FORMAT_DOUBLE);
+    // How far into the track the demuxer cache reaches; unavailable (NONE)
+    // without a cache, e.g. for a local file.
+    mpv_observe_property(mpv_, 0, "demuxer-cache-time", MPV_FORMAT_DOUBLE);
     mpv_set_wakeup_callback(mpv_, &AudioPlayer::mpvWakeup, this);
 
     // mpv's own internal log (network/demuxer/protocol errors — much more
@@ -186,6 +189,18 @@ void AudioPlayer::handleEvent(const mpv_event& event)
 
         case MPV_EVENT_PROPERTY_CHANGE: {
             const auto* prop = static_cast<mpv_event_property*>(event.data);
+            if (std::strcmp(prop->name, "demuxer-cache-time") == 0) {
+                const qint64 ms = prop->format == MPV_FORMAT_DOUBLE
+                    ? static_cast<qint64>(*static_cast<double*>(prop->data) * 1000.0)
+                    : -1;
+                // It moves with every packet read; a quarter second is finer
+                // than a slider pixel anyway.
+                if ((ms < 0) != (lastBufferedMs_ < 0) || qAbs(ms - lastBufferedMs_) >= 250) {
+                    lastBufferedMs_ = ms;
+                    emit bufferedChanged(ms);
+                }
+                break;
+            }
             if (prop->format != MPV_FORMAT_DOUBLE)
                 break;
             const qint64 ms = static_cast<qint64>(*static_cast<double*>(prop->data) * 1000.0);

@@ -233,6 +233,14 @@ QSize ThemedSlider::sizeHint() const { return { QSlider::sizeHint().width(), kHe
 
 QSize ThemedSlider::minimumSizeHint() const { return { QSlider::minimumSizeHint().width(), kHeight }; }
 
+void ThemedSlider::setBufferedValue(int value)
+{
+    if (bufferedValue_ == value)
+        return;
+    bufferedValue_ = value;
+    update();
+}
+
 void ThemedSlider::paintEvent(QPaintEvent*)
 {
     QStyleOptionSlider opt;
@@ -262,6 +270,15 @@ void ThemedSlider::paintEvent(QPaintEvent*)
 
     if (!isEnabled())
         return;
+
+    if (bufferedValue_ > minimum() && maximum() > minimum()) {
+        const qreal fraction = qMin(1.0, qreal(bufferedValue_ - minimum()) / (maximum() - minimum()));
+        QColor buffered = fill;
+        buffered.setAlphaF(0.35);
+        painter.setBrush(buffered);
+        painter.drawRoundedRect(
+            QRectF(grooveF.left(), grooveF.top(), grooveF.width() * fraction, kGrooveHeight), radius, radius);
+    }
 
     const qreal handleX = handleCenter().x();
     if (handleX > grooveF.left()) {

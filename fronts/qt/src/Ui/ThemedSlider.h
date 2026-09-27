@@ -49,6 +49,11 @@ public:
     using BubbleFormatter = std::function<QString(int value)>;
     void setValueBubble(BubbleFormatter format);
 
+    // Marks the range up to `value` as available (e.g. how much of a
+    // stream is downloaded), painted between the empty groove and the
+    // fill. Negative: nothing marked.
+    void setBufferedValue(int value);
+
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
@@ -71,6 +76,8 @@ private:
     // 0 = at rest, 1 = hovered/dragged; animated between the two.
     qreal engagedProgress_ = 0.0;
     QVariantAnimation* engagedAnim_ = nullptr;
+
+    int bufferedValue_ = -1;
 
     BubbleFormatter bubbleFormat_;
     // A child of window(), not of this slider: it floats above the slider,

@@ -57,6 +57,7 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
         emit loadingChanged(loading);
     });
     connect(&playback_, &Playback::PlaybackController::positionChanged, this, &NowPlaying::positionChanged);
+    connect(&playback_, &Playback::PlaybackController::bufferedChanged, this, &NowPlaying::bufferedChanged);
     connect(&playback_, &Playback::PlaybackController::queueAvailabilityChanged, this,
         &NowPlaying::queueAvailabilityChanged);
     // However they were changed — here, or over MPRIS — play modes are

@@ -58,6 +58,9 @@ signals:
     // Natural end of the current track (not a manual stop/track change).
     void endOfFile();
     void positionChanged(qint64 positionMs, qint64 durationMs);
+    // How far into the track the audio is already downloaded; -1 when
+    // mpv doesn't cache this stream (a local file).
+    void bufferedChanged(qint64 bufferedMs);
     void prepared();
 
 private:
@@ -75,6 +78,7 @@ private:
     mpv_handle* mpv_ = nullptr;
     qint64 lastPositionMs_ = 0;
     qint64 lastDurationMs_ = 0;
+    qint64 lastBufferedMs_ = -1;
 
     // Owned by this (parented), not mpv_ — see AudioPlayer.cpp's play()
     // for why a redirect-resolution preflight through Qt's own network

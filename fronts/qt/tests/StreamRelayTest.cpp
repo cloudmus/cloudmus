@@ -12,6 +12,7 @@
 #include <QTest>
 
 #include "AudioPlayer.h"
+#include "ProxyRouting.h"
 #include "StreamRelay.h"
 
 namespace Tests {
@@ -20,6 +21,10 @@ class StreamRelayTest : public QObject {
     Q_OBJECT
 
 private slots:
+    // As main() does: mpv must reach the local relay even with an
+    // http_proxy in the environment.
+    void initTestCase() { Net::bypassProxyForLoopback(); }
+
     void oneMpvAdvancesToAnEnqueuedLocalTrack()
     {
         QTemporaryDir directory;
@@ -95,6 +100,47 @@ private slots:
         player.prepare(
             QStringLiteral("http://127.0.0.1:%1/next").arg(upstream.serverPort()), QStringLiteral("Next"), direct);
         QVERIFY(prepared.wait(5000));
+    }
+
+    void aNetworkStreamReportsHowMuchIsBuffered()
+    {
+        constexpr quint32 samples = 8000 * 5; // 5 s at 8 kHz
+        QByteArray wave;
+        QDataStream stream(&wave, QIODevice::WriteOnly);
+        stream.setByteOrder(QDataStream::LittleEndian);
+        stream.writeRawData("RIFF", 4);
+        stream << quint32(36 + samples * 2);
+        stream.writeRawData("WAVEfmt ", 8);
+        stream << quint32(16) << quint16(1) << quint16(1) << quint32(8000) << quint32(16000) << quint16(2)
+               << quint16(16);
+        stream.writeRawData("data", 4);
+        stream << quint32(samples * 2);
+        wave += QByteArray(samples * 2, '\0');
+
+        QTcpServer upstream;
+        QVERIFY(upstream.listen(QHostAddress::LocalHost));
+        connect(&upstream, &QTcpServer::newConnection, &upstream, [&]() {
+            while (QTcpSocket* socket = upstream.nextPendingConnection()) {
+                connect(socket, &QTcpSocket::readyRead, socket, [socket, &wave, request = QByteArray()]() mutable {
+                    request += socket->readAll();
+                    if (!request.contains("\r\n\r\n"))
+                        return;
+                    socket->write("HTTP/1.1 200 OK\r\nContent-Type: audio/wav\r\nContent-Length: "
+                        + QByteArray::number(wave.size()) + "\r\nConnection: close\r\n\r\n");
+                    socket->write(wave);
+                    socket->disconnectFromHost();
+                });
+            }
+        });
+
+        Playback::AudioPlayer player(nullptr, "null");
+        QList<qint64> buffered;
+        connect(
+            &player, &Playback::AudioPlayer::bufferedChanged, &player, [&buffered](qint64 ms) { buffered.append(ms); });
+        player.play(QStringLiteral("http://127.0.0.1:%1/track.wav").arg(upstream.serverPort()), QStringLiteral("Track"),
+            QNetworkProxy(QNetworkProxy::NoProxy));
+        QTRY_VERIFY(!buffered.isEmpty() && buffered.last() > 1000);
+        player.stop();
     }
 
     void stoppingDuringRedirectPreflightCannotStartTheOldTrack()
