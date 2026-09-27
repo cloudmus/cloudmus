@@ -35,7 +35,8 @@ struct ProxyConfig {
 // QSettings-backed, ~/.config/cloudmus/fronts/qt/config.ini
 class Settings {
 public:
-    Settings();
+    explicit Settings(const QString& filePath = { });
+    QString filePath() const { return settings_.fileName(); }
 
     QByteArray windowGeometry() const;
     void setWindowGeometry(const QByteArray& geometry);
@@ -77,6 +78,9 @@ public:
     };
     ActivePlaylistRef lastActivePlaylist() const;
     void setLastActivePlaylist(const ActivePlaylistRef& ref);
+    QString lastActiveTrackId() const;
+    int lastActiveTrackIndex() const;
+    void setLastActiveTrack(const QString& trackId, int index);
 
     QString lastSourceId() const;
     void setLastSourceId(const QString& sourceId);

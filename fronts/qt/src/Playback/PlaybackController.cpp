@@ -418,8 +418,8 @@ void PlaybackController::stop()
     startingIndex_ = -1;
     if (awaitingRadioTracks_) {
         awaitingRadioTracks_ = false;
-        emit loadingChanged(false);
     }
+    emit loadingChanged(false);
     const bool hadCurrentTrack = hasCurrentTrack();
     index_ = -1; // the current track becomes undefined — see hasCurrentTrack()
     lastKnownPositionMs_ = 0;

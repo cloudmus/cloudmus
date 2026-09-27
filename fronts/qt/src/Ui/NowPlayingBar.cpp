@@ -184,6 +184,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
 
     previousButton_ = new IconHoverButton(QStringLiteral("skip_previous"), IconHoverButton::Scheme::Neutral, this);
     playPauseButton_ = new IconHoverButton(QStringLiteral("play_arrow"), IconHoverButton::Scheme::Accent, this);
+    playPauseButton_->setObjectName(QStringLiteral("playPauseButton"));
     nextButton_ = new IconHoverButton(QStringLiteral("skip_next"), IconHoverButton::Scheme::Neutral, this);
     stopButton_ = new IconHoverButton(QStringLiteral("stop"), IconHoverButton::Scheme::Neutral, this);
     // Play modes — checked (accent glyph) while on, like like/dislike.
@@ -206,6 +207,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // it (see setLikeState()/setDislikeState() and MainWindow's
     // likeToggledAsync()/dislikeToggledAsync()).
     likeButton_ = new IconHoverButton(QStringLiteral("favorite_border"), IconHoverButton::Scheme::Neutral, this);
+    likeButton_->setObjectName(QStringLiteral("likeButton"));
     likeButton_->setCheckable(true);
     likeButton_->setToolTip(tr("Like"));
     dislikeButton_ = new IconHoverButton(QStringLiteral("heart_broken"), IconHoverButton::Scheme::Neutral, this);
@@ -361,7 +363,8 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
 
 void NowPlayingBar::setTrackAvailable(bool available)
 {
-    playPauseButton_->setEnabled(available);
+    trackAvailable_ = available;
+    updatePlayAvailability();
     stopButton_->setEnabled(available);
     seekSlider_->setEnabled(available);
     if (!available) {
@@ -371,6 +374,17 @@ void NowPlayingBar::setTrackAvailable(bool available)
         elapsedLabel_->setText(QStringLiteral("0:00"));
         durationLabel_->setText(QStringLiteral("0:00"));
     }
+}
+
+void NowPlayingBar::setPlaylistAvailable(bool available)
+{
+    playlistAvailable_ = available;
+    updatePlayAvailability();
+}
+
+void NowPlayingBar::updatePlayAvailability()
+{
+    playPauseButton_->setEnabled(!loading_ && (trackAvailable_ || playlistAvailable_));
 }
 
 void NowPlayingBar::setQueueAvailable(bool available)
@@ -481,7 +495,8 @@ void NowPlayingBar::setPlaying(bool playing)
 
 void NowPlayingBar::setLoading(bool loading)
 {
-    playPauseButton_->setEnabled(!loading);
+    loading_ = loading;
+    updatePlayAvailability();
     static_cast<IconHoverButton*>(playPauseButton_)
         ->setIconName(
             loading ? QStringLiteral("refresh") : (playing_ ? QStringLiteral("pause") : QStringLiteral("play_arrow")));

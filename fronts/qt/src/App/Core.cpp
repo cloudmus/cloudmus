@@ -38,6 +38,14 @@ Core::Core(QObject* parent)
             analytics_.recordPlaylistChange(sourceId, added);
         });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
+    const auto syncPreview = [this]() {
+        const std::optional<Playback::QueueEntry> entry = activePlaylist_.savedEntry();
+        nowPlaying_.setPreviewTrack(entry ? entry->sourceId : QString(), entry ? entry->track.id : QString());
+    };
+    connect(&activePlaylist_, &ViewModel::ActivePlaylist::contextChanged, this, syncPreview);
+    connect(&activePlaylist_, &ViewModel::ActivePlaylist::entriesChanged, this, syncPreview);
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this, syncPreview);
+    syncPreview();
 
     // History's saved snapshots: when each track was last played, plus
     // whatever like state it was recorded with — only where nothing

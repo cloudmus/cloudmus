@@ -54,6 +54,8 @@ public:
 
     // --- the track
     bool hasTrack() const;
+    // The saved track shown before playback starts.
+    void setPreviewTrack(const QString& sourceId, const QString& trackId);
     // Only meaningful while hasTrack().
     const Track& track() const;
     QString sourceId() const;
@@ -117,6 +119,7 @@ signals:
 
 private:
     bool isCurrent(const QString& sourceId, const QString& trackId) const;
+    bool isShownTrack(const QString& sourceId, const QString& trackId) const;
     QJsonObject capabilities(const QString& sourceId) const;
     void resetBusy();
 
@@ -133,6 +136,8 @@ private:
     // In-flight requests for the current track, with the state asked for.
     std::optional<bool> pendingLiked_;
     std::optional<bool> pendingDisliked_;
+    QString previewSourceId_;
+    QString previewTrackId_;
 };
 
 } // namespace ViewModel

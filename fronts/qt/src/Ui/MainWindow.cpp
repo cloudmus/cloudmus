@@ -397,7 +397,12 @@ void MainWindow::bindNowPlaying()
 {
     // What the user does with the toolbar goes to the view model...
     using ViewModel::NowPlaying;
-    connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, &nowPlaying_, &NowPlaying::togglePause);
+    connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, this, [this]() {
+        if (nowPlaying_.hasTrack())
+            nowPlaying_.togglePause();
+        else
+            activePlaylist_.play();
+    });
     connect(nowPlayingBar_, &NowPlayingBar::nextClicked, &nowPlaying_, &NowPlaying::next);
     connect(nowPlayingBar_, &NowPlayingBar::previousClicked, &nowPlaying_, &NowPlaying::previous);
     connect(nowPlayingBar_, &NowPlayingBar::stopClicked, &nowPlaying_, &NowPlaying::stop);
@@ -497,13 +502,21 @@ void MainWindow::bindActivePlaylist()
         syncSidebarSelection();
     });
     connect(&activePlaylist_, &ActivePlaylist::entriesChanged, this, &MainWindow::refreshMainList);
+    connect(&activePlaylist_, &ActivePlaylist::entriesChanged, this, &MainWindow::refreshHero);
+    connect(&activePlaylist_, &ActivePlaylist::entriesChanged, this,
+        [this]() { nowPlayingBar_->setPlaylistAvailable(!activePlaylist_.entries().isEmpty()); });
     connect(&activePlaylist_, &ActivePlaylist::loadingChanged, trackListBusyIndicator_, &QWidget::setVisible);
+    connect(&activePlaylist_, &ActivePlaylist::loadingChanged, this, [this](bool loading) {
+        if (loading && !playback_.hasQueue() && !settings_.lastActiveTrackId().isEmpty())
+            restoreTrackPositionPending_ = true;
+    });
     connect(&activePlaylist_, &ActivePlaylist::startingRadioChanged, heroPanel_, &HeroPanel::setPlayBusy);
     // Playing something from the sheet (or the sidebar) brings the main
     // area back to front.
 
     // Whatever it has already — e.g. the playlist restored at startup.
     refreshMainList();
+    nowPlayingBar_->setPlaylistAvailable(!activePlaylist_.entries().isEmpty());
     if (playback_.hasCurrentTrack()) {
         const QModelIndex index = trackListModel_->index(playback_.currentIndex());
         if (index.isValid())
@@ -788,6 +801,23 @@ void MainWindow::refreshMainList()
     const bool showList = !(rows.isEmpty() && active.isRadio());
     if (showList != trackListPane_->isVisibleTo(contentSplitter_))
         setTrackListVisible(showList);
+    if (restoreTrackPositionPending_ && isVisible())
+        QTimer::singleShot(0, this, &MainWindow::restoreSavedTrackPosition);
+}
+
+void MainWindow::restoreSavedTrackPosition()
+{
+    if (!restoreTrackPositionPending_ || !isVisible() || trackListView_->viewport()->height() == 0)
+        return;
+    if (playback_.hasCurrentTrack() || settings_.lastActiveTrackId().isEmpty()) {
+        restoreTrackPositionPending_ = false;
+        return;
+    }
+    const QModelIndex index = trackListModel_->index(activePlaylist_.resumeIndex());
+    if (!index.isValid())
+        return; // Cached tracks may still be loading from the source.
+    trackListView_->scrollTo(index, QAbstractItemView::EnsureVisible);
+    restoreTrackPositionPending_ = false;
 }
 
 void MainWindow::refreshHero()
@@ -799,7 +829,10 @@ void MainWindow::refreshHero()
         heroPanel_->clearNowPlaying();
         return;
     }
-    heroPanel_->setPlaylist(active.isRadio() ? radioPromo(active.playlist) : active.playlist);
+    if (const std::optional<Playback::QueueEntry> savedEntry = activePlaylist_.savedEntry())
+        heroPanel_->setResumeTrack(savedEntry->track);
+    else
+        heroPanel_->setPlaylist(active.isRadio() ? radioPromo(active.playlist) : active.playlist);
     heroPanel_->setPlayButtonVisible(true);
 }
 
@@ -1115,6 +1148,8 @@ void MainWindow::paintEvent(QPaintEvent* event)
 void MainWindow::showEvent(QShowEvent* event)
 {
     QMainWindow::showEvent(event);
+    if (restoreTrackPositionPending_)
+        QTimer::singleShot(0, this, &MainWindow::restoreSavedTrackPosition);
     // On every show, not once: hiding to the tray can take the native
     // surface — and the blur set on it — away with it.
     if (Theme::glassEnabled())

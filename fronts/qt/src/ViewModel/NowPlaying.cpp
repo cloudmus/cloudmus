@@ -68,15 +68,31 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
     });
     connect(
         &trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
-            if (isCurrent(sourceId, trackId))
+            if (isShownTrack(sourceId, trackId))
                 emit feedbackChanged();
         });
     connect(&trackStates_, &Library::TrackStates::bulkChanged, this, &NowPlaying::feedbackChanged);
     // Whether the playing track is being saved.
     connect(&downloads_, &Downloads::changed, this, &NowPlaying::feedbackChanged);
+    connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, [this](Rpc::RpcClient* client) {
+        if (client->sourceId() == previewSourceId_)
+            emit feedbackChanged();
+    });
 }
 
 bool NowPlaying::hasTrack() const { return playback_.hasCurrentTrack(); }
+
+void NowPlaying::setPreviewTrack(const QString& sourceId, const QString& trackId)
+{
+    if (previewSourceId_ == sourceId && previewTrackId_ == trackId)
+        return;
+    previewSourceId_ = sourceId;
+    previewTrackId_ = trackId;
+    if (!hasTrack()) {
+        resetBusy();
+        emit feedbackChanged();
+    }
+}
 
 const Track& NowPlaying::track() const { return playback_.currentTrack(); }
 
@@ -121,22 +137,24 @@ void NowPlaying::setRepeatMode(Playback::RepeatMode mode) { playback_.setRepeatM
 NowPlaying::Feedback NowPlaying::feedback() const
 {
     Feedback result;
-    if (!hasTrack())
+    const bool current = hasTrack();
+    const QString source = current ? playback_.currentSourceId() : previewSourceId_;
+    const QString trackId = current ? track().id : previewTrackId_;
+    if (source.isEmpty() || trackId.isEmpty())
         return result;
-    const QString source = playback_.currentSourceId();
     const QJsonObject caps = capabilities(source);
     const QJsonObject feedback = caps.value(QStringLiteral("feedback")).toObject();
-    const Library::TrackState state = trackStates_.state(source, track().id);
+    const Library::TrackState state = trackStates_.state(source, trackId);
     result.likeSupported = feedback.value(QStringLiteral("like")).toBool();
     result.liked = pendingLiked_.value_or(state.liked.value_or(false));
     result.likeBusy = pendingLiked_.has_value();
     result.dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
     result.disliked = pendingDisliked_.value_or(state.disliked.value_or(false));
     result.dislikeBusy = pendingDisliked_.has_value();
-    result.downloadSupported = downloads_.isEnabled() && caps.value(QStringLiteral("download")).toBool();
-    result.downloadBusy = downloads_.isDownloading(source, track().id);
+    result.downloadSupported = current && downloads_.isEnabled() && caps.value(QStringLiteral("download")).toBool();
+    result.downloadBusy = current && downloads_.isDownloading(source, trackId);
     result.playlistsSupported
-        = caps.value(QStringLiteral("browse")).toObject().value(QStringLiteral("editPlaylists")).toBool();
+        = current && caps.value(QStringLiteral("browse")).toObject().value(QStringLiteral("editPlaylists")).toBool();
     return result;
 }
 
@@ -144,12 +162,16 @@ void NowPlaying::setLiked(bool liked)
 {
     if (hasTrack())
         setTrackLiked(playback_.currentSourceId(), track().id, liked, /*announce=*/false).detach();
+    else if (!previewTrackId_.isEmpty())
+        setTrackLiked(previewSourceId_, previewTrackId_, liked, /*announce=*/false).detach();
 }
 
 void NowPlaying::setDisliked(bool disliked)
 {
     if (hasTrack())
         setTrackDisliked(playback_.currentSourceId(), track().id, disliked, /*announce=*/false).detach();
+    else if (!previewTrackId_.isEmpty())
+        setTrackDisliked(previewSourceId_, previewTrackId_, disliked, /*announce=*/false).detach();
 }
 
 void NowPlaying::download()
@@ -163,10 +185,10 @@ Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, boo
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr || !client->available())
         co_return;
-    // Busy shows only on the current track — the queue may move on while
+    // Busy shows only on the track displayed — the queue may move on while
     // the call runs; what the call changes (trackStates_, history) is
     // updated regardless.
-    if (isCurrent(sourceId, trackId)) {
+    if (isShownTrack(sourceId, trackId)) {
         pendingLiked_ = liked;
         emit feedbackChanged();
     }
@@ -175,7 +197,7 @@ Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, boo
             co_await Rpc::feedbackLike(*client, LikeParams { trackId });
         else
             co_await Rpc::feedbackUnlike(*client, UnlikeParams { trackId });
-        if (isCurrent(sourceId, trackId))
+        if (isShownTrack(sourceId, trackId))
             pendingLiked_.reset();
         // Cross-clears the dislike too (docs/protocol.md §7.4).
         trackStates_.setLiked(sourceId, trackId, liked);
@@ -187,7 +209,7 @@ Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, boo
         qCWarning(lcNowPlaying) << "feedback.like/unlike failed for" << trackId << ":" << message;
         messages_.error(tr("%1: %2").arg(client->sourceName(), message));
         // Back to what trackStates_ still says.
-        if (isCurrent(sourceId, trackId)) {
+        if (isShownTrack(sourceId, trackId)) {
             pendingLiked_.reset();
             emit feedbackChanged();
         }
@@ -199,7 +221,7 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr || !client->available())
         co_return;
-    if (isCurrent(sourceId, trackId)) {
+    if (isShownTrack(sourceId, trackId)) {
         pendingDisliked_ = disliked;
         emit feedbackChanged();
     }
@@ -209,7 +231,7 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
         else
             co_await Rpc::feedbackUndislike(*client, UndislikeParams { trackId });
         const bool wasCurrent = isCurrent(sourceId, trackId);
-        if (wasCurrent)
+        if (isShownTrack(sourceId, trackId))
             pendingDisliked_.reset();
         // Cross-clears the like too (docs/protocol.md §7.4).
         trackStates_.setDisliked(sourceId, trackId, disliked);
@@ -226,7 +248,7 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcNowPlaying) << "feedback.dislike/undislike failed for" << trackId << ":" << message;
         messages_.error(tr("%1: %2").arg(client->sourceName(), message));
-        if (isCurrent(sourceId, trackId)) {
+        if (isShownTrack(sourceId, trackId)) {
             pendingDisliked_.reset();
             emit feedbackChanged();
         }
@@ -236,6 +258,11 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
 bool NowPlaying::isCurrent(const QString& sourceId, const QString& trackId) const
 {
     return hasTrack() && playback_.currentSourceId() == sourceId && track().id == trackId;
+}
+
+bool NowPlaying::isShownTrack(const QString& sourceId, const QString& trackId) const
+{
+    return isCurrent(sourceId, trackId) || (!hasTrack() && previewSourceId_ == sourceId && previewTrackId_ == trackId);
 }
 
 QJsonObject NowPlaying::capabilities(const QString& sourceId) const

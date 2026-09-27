@@ -273,6 +273,8 @@ building/testing. See `protocol/README.md` for details.
 | `~/.config/cloudmus/backends.d/*.json` | Backend manifests (production) |
 | `~/.config/cloudmus/backends/<id>/` | Per-backend data (tokens, settings) |
 | `~/.config/cloudmus/fronts/qt/config.ini` | Qt front settings |
+| `~/.config/cloudmus/fronts/qt/active-playlist.json` | Cached tracks from the active Qt playlist |
+| `~/.config/cloudmus/fronts/tui/session.json` | TUI playlist, cached tracks, and last played song |
 | `~/.config/cloudmus/fronts/qt/debug.log` | Qt front debug log (with `CLOUDMUS_QT_DEBUG=1`) |
 
 ### Environment variables

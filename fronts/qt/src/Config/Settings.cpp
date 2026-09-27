@@ -29,8 +29,8 @@ QString configFilePath()
 }
 } // namespace
 
-Settings::Settings()
-    : settings_(configFilePath(), QSettings::IniFormat)
+Settings::Settings(const QString& filePath)
+    : settings_(filePath.isEmpty() ? configFilePath() : filePath, QSettings::IniFormat)
 {
     restrictPermissions();
 }
@@ -81,9 +81,30 @@ Settings::ActivePlaylistRef Settings::lastActivePlaylist() const
 
 void Settings::setLastActivePlaylist(const ActivePlaylistRef& ref)
 {
+    const ActivePlaylistRef previous = lastActivePlaylist();
+    if (previous.sourceId != ref.sourceId || previous.playlistId != ref.playlistId || previous.kind != ref.kind) {
+        settings_.remove(QStringLiteral("playback/activeTrackId"));
+        settings_.remove(QStringLiteral("playback/activeTrackIndex"));
+    }
     settings_.setValue(QStringLiteral("playback/activeSourceId"), ref.sourceId);
     settings_.setValue(QStringLiteral("playback/activePlaylistId"), ref.playlistId);
     settings_.setValue(QStringLiteral("playback/activePlaylistKind"), ref.kind);
+}
+
+QString Settings::lastActiveTrackId() const
+{
+    return settings_.value(QStringLiteral("playback/activeTrackId")).toString();
+}
+
+int Settings::lastActiveTrackIndex() const
+{
+    return settings_.value(QStringLiteral("playback/activeTrackIndex"), -1).toInt();
+}
+
+void Settings::setLastActiveTrack(const QString& trackId, int index)
+{
+    settings_.setValue(QStringLiteral("playback/activeTrackId"), trackId);
+    settings_.setValue(QStringLiteral("playback/activeTrackIndex"), index);
 }
 
 QStringList Settings::sidebarCollapsed() const

@@ -48,6 +48,10 @@ public:
     // What the main list shows: the queue once there is one, else the
     // active playlist's tracks.
     QVector<Playback::QueueEntry> entries() const;
+    // The saved song's row in freshly fetched playlist tracks, or the first row.
+    int resumeIndex() const;
+    // The saved song, when it is still present in the restored playlist.
+    std::optional<Playback::QueueEntry> savedEntry() const;
     // Its tracks are being fetched (the list's busy bar).
     bool isLoading() const { return loading_; }
     // A radio is starting (the hero's Play button spins).
@@ -61,7 +65,8 @@ public:
     // Fetches the playlist's tracks, then activate()s it.
     Rpc::Task<void> activateAndPlay(QString sourceId, Playlist playlist);
     // Starts a radio from `seed` and, once it runs, makes `context` active.
-    Rpc::Task<void> startRadio(QString sourceId, QString seed, PlaylistContext context);
+    Rpc::Task<void> startRadio(
+        QString sourceId, QString seed, PlaylistContext context, std::optional<Track> resumeTrack = std::nullopt);
     // The hero's Play: (re)starts the active playlist.
     void play();
     // A row of the main list played.
@@ -77,9 +82,12 @@ signals:
 
 private:
     Rpc::Task<void> loadTracks(PlaylistContext context);
+    Rpc::Task<void> refreshRadioLikes(QString sourceId, QString playlistId);
     void restoreFrom(const QString& sourceId, const QList<Playlist>& playlists);
     void applyPlaylistEdit(
         const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
+    void loadCachedTracks();
+    void saveCachedTracks() const;
 
     Playback::PlaybackController& playback_;
     Rpc::SourceManager& sourceManager_;
@@ -96,6 +104,8 @@ private:
     bool startingRadio_ = false;
     // The active playlist saved last run, until its source lists it.
     Config::Settings::ActivePlaylistRef pendingRestore_;
+    quint64 likesRefreshGeneration_ = 0;
+    quint64 feedbackRevision_ = 0;
 };
 
 } // namespace ViewModel

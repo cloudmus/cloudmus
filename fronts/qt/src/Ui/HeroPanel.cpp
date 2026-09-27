@@ -124,7 +124,11 @@ void HeroPanel::setPlaylist(const Playlist& playlist)
         playlist.coverUrl.value_or(QString()), playlist.title, /*isPromo=*/true });
 }
 
-void HeroPanel::setNowPlaying(const Track& track)
+void HeroPanel::setNowPlaying(const Track& track) { setTrack(track, false); }
+
+void HeroPanel::setResumeTrack(const Track& track) { setTrack(track, true); }
+
+void HeroPanel::setTrack(const Track& track, bool showPlayButton)
 {
     QString artistNames;
     for (int i = 0; i < track.artists.size(); ++i) {
@@ -140,7 +144,7 @@ void HeroPanel::setNowPlaying(const Track& track)
     const QString bgSeed
         = (track.album.has_value() && !track.album->title.isEmpty()) ? track.album->title : track.title;
 
-    applyContent(Content { track.title, artistNames, coverUrl, bgSeed, /*isPromo=*/false });
+    applyContent(Content { track.title, artistNames, coverUrl, bgSeed, /*isPromo=*/showPlayButton });
 }
 
 void HeroPanel::clearNowPlaying()
@@ -150,6 +154,7 @@ void HeroPanel::clearNowPlaying()
     currentCoverUrl_.clear();
     titleText_.clear();
     subtitleText_.clear();
+    setAccessibleName(QString());
     coverLayer_.hide();
     titleLayer_.hide();
     subtitleLayer_.hide();
@@ -174,6 +179,7 @@ void HeroPanel::applyContent(const Content& content)
     isPromo_ = content.isPromo;
     titleText_ = content.title;
     subtitleText_ = content.subtitle;
+    setAccessibleName(titleText_);
     setTextLayer(titleLayer_, titleText_);
     setTextLayer(subtitleLayer_, subtitleText_);
 

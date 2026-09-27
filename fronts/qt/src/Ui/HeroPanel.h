@@ -21,14 +21,12 @@ namespace Ui {
 
 // The central "hero" panel: a tall left-hand pane (in MainWindow, beside
 // the track list) that also doubles as a short banner (in SourcePanel).
-// Renders one of two content variants:
+// Renders playlist and track content:
 //  - Promo (setPlaylist()): the currently-browsed playlist's cover/title/
 //    description, plus a Play button.
-//  - Now playing (setNowPlaying()): the globally currently-playing track's
-//    cover/artist/title, no Play button. MainWindow shows this instead of
-//    the promo content once anything has ever started playing this
-//    session, regardless of which playlist is currently browsed — see
-//    MainWindow's PlaybackController::hasCurrentTrack() wiring.
+//  - Saved track (setResumeTrack()): its cover/artist/title with a Play button.
+//  - Now playing (setNowPlaying()): the playing track's cover/artist/title,
+//    without a Play button.
 //
 // Background, vignette, cover image, and title/subtitle are all drawn
 // directly in paintEvent() — not child QLabel widgets in a QLayout.
@@ -51,6 +49,8 @@ public:
 
     void setPlaylist(const Playlist& playlist);
     void setNowPlaying(const Track& track);
+    // A saved track before playback starts: its artwork with a Play button.
+    void setResumeTrack(const Track& track);
     // Reverts to the empty state (background + vignette only, no title/
     // cover/button) — the state this widget starts in. No MainWindow call
     // site under the recommended hasCurrentTrack()-based mode switch (see
@@ -110,6 +110,7 @@ private:
         int maxLines; // wrapped, the last line elided — see TextLayout
     };
     void applyContent(const Content& content);
+    void setTrack(const Track& track, bool showPlayButton);
     void regenerateSizedLayers();
     void refreshCoverOverlay();
     // The cover's side: 0 when the panel is too short to fit it above the

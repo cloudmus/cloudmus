@@ -51,6 +51,7 @@ void TrackStates::setLiked(const QString& sourceId, const QString& trackId, bool
     if (liked)
         s.disliked = false;
     emit changed(sourceId, trackId);
+    emit feedbackChanged(sourceId, trackId);
 }
 
 void TrackStates::setDisliked(const QString& sourceId, const QString& trackId, bool disliked)
@@ -60,6 +61,7 @@ void TrackStates::setDisliked(const QString& sourceId, const QString& trackId, b
     if (disliked)
         s.liked = false;
     emit changed(sourceId, trackId);
+    emit feedbackChanged(sourceId, trackId);
 }
 
 void TrackStates::setLastPlayed(const QString& sourceId, const QString& trackId, const QDateTime& playedAtUtc)

@@ -52,7 +52,7 @@ QJsonObject capabilities()
                     QJsonObject { { QStringLiteral("pause"), false }, { QStringLiteral("seek"), false },
                         { QStringLiteral("volume"), false } } } } },
         { QStringLiteral("browse"),
-            QJsonObject { { QStringLiteral("playlists"), true }, { QStringLiteral("likedTracks"), false },
+            QJsonObject { { QStringLiteral("playlists"), true }, { QStringLiteral("likedTracks"), true },
                 { QStringLiteral("radio"), false }, { QStringLiteral("search"), false },
                 { QStringLiteral("editPlaylists"), true } } },
         { QStringLiteral("feedback"),
@@ -137,6 +137,25 @@ int runFakeBackend()
             reply(id,
                 { { QStringLiteral("tracks"),
                     QJsonArray { track(QStringLiteral("t1")), track(QStringLiteral("t2")) } } });
+        } else if (method == QStringLiteral("catalog.listLiked")) {
+            reply(id,
+                { { QStringLiteral("tracks"),
+                    QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("old-2") },
+                        { QStringLiteral("title"), QStringLiteral("Old track 2") },
+                        { QStringLiteral("artists"), QJsonArray { } }, { QStringLiteral("durationMs"), 180000 },
+                        { QStringLiteral("liked"), true } } } } });
+        } else if (method == QStringLiteral("catalog.startRadio")) {
+            reply(id,
+                { { QStringLiteral("stationId"), QStringLiteral("station") },
+                    { QStringLiteral("initialTracks"),
+                        QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("old-2") },
+                                         { QStringLiteral("title"), QStringLiteral("Stale old track") },
+                                         { QStringLiteral("artists"), QJsonArray { } },
+                                         { QStringLiteral("durationMs"), 180000 }, { QStringLiteral("liked"), false } },
+                            QJsonObject { { QStringLiteral("id"), QStringLiteral("fresh") },
+                                { QStringLiteral("title"), QStringLiteral("Fresh track") },
+                                { QStringLiteral("artists"), QJsonArray { } },
+                                { QStringLiteral("durationMs"), 180000 } } } } });
         } else if (method == QStringLiteral("catalog.getTrackPlaylists")) {
             reply(id, { { QStringLiteral("playlistIds"), QJsonArray { QStringLiteral("p1") } } });
         } else if (method == QStringLiteral("catalog.addToPlaylist")) {

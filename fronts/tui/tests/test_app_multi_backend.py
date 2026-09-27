@@ -35,7 +35,7 @@ async def test_both_backends_spawn_and_sidebar_shows_both(tmp_path):
     (tmp_path / "AlbumA").mkdir()
     (tmp_path / "AlbumA" / "track1.mp3").write_bytes(b"")
 
-    app = PlayerApp(manifests=_manifests(tmp_path))
+    app = PlayerApp(manifests=_manifests(tmp_path), session_path=tmp_path / "session.json")
     async with app.run_test() as pilot:
         for _ in range(30):
             if len(app.source_manager.clients) == 2:
@@ -65,7 +65,7 @@ async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path):
     (tmp_path / "AlbumA").mkdir()
     (tmp_path / "AlbumA" / "track1.mp3").write_bytes(b"")
 
-    app = PlayerApp(manifests=_manifests(tmp_path))
+    app = PlayerApp(manifests=_manifests(tmp_path), session_path=tmp_path / "session.json")
     async with app.run_test() as pilot:
         for _ in range(30):
             if len(app.source_manager.clients) == 2:
@@ -123,7 +123,7 @@ async def test_repeatedly_crashing_backend_marked_unavailable(tmp_path, monkeypa
         ),
     ]
 
-    app = PlayerApp(manifests=manifests)
+    app = PlayerApp(manifests=manifests, session_path=tmp_path / "session.json")
     notifications = []
     orig_notify = app._on_backend_notification
 
@@ -156,7 +156,7 @@ async def test_quit_leaves_no_orphaned_backend_processes(tmp_path):
     (tmp_path / "AlbumA").mkdir()
     (tmp_path / "AlbumA" / "track1.mp3").write_bytes(b"")
 
-    app = PlayerApp(manifests=_manifests(tmp_path))
+    app = PlayerApp(manifests=_manifests(tmp_path), session_path=tmp_path / "session.json")
     pids = []
     async with app.run_test() as pilot:
         for _ in range(30):

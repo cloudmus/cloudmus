@@ -16,6 +16,7 @@ from textual.containers import Horizontal
 from textual.widgets import Footer, Header, Label, ListItem, ListView, Static
 
 from .playback_engine import PlaybackEngine, QueueEntry
+from . import session
 from .source_manager import BACKEND_UNAVAILABLE, SourceManager
 
 logger = logging.getLogger(__name__)
@@ -63,13 +64,20 @@ class PlayerApp(App):
         Binding("q", "quit", "quit"),
     ]
 
-    def __init__(self, manifests=None):
+    def __init__(self, manifests=None, session_path: Path | None = None):
         super().__init__()
         self._manifests = manifests
+        self._session_path = session_path or session.default_path()
+        self._saved_session = session.load(self._session_path)
+        self._restoring = False
         self.source_manager = SourceManager(self._on_backend_notification)
         self.playback_engine: Optional[PlaybackEngine] = None
         self._current_source_id: Optional[str] = None
+        self._current_playlist_id: Optional[str] = None
+        self._current_playlist_title = "playlist"
+        self._current_kind = "playlist"
         self._current_tracks: list[dict[str, Any]] = []
+        self._resume_index = 0
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -88,6 +96,8 @@ class PlayerApp(App):
             on_track_change=self._on_track_change,
             on_error=self._on_error,
         )
+        if self._saved_session is not None and self._saved_session.tracks:
+            await self._show_cached_session(self._saved_session)
         for source_id, client in list(self.source_manager.clients.items()):
             if client.capabilities and client.capabilities["auth"]["required"]:
                 status = await client.request("auth.getStatus", {})
@@ -95,6 +105,7 @@ class PlayerApp(App):
                     await client.request("auth.start", {})
                     continue
             await self._populate_sidebar_for_source(source_id)
+        await self._restore_session()
         self._refresh_now_playing()
 
     # --- sidebar population ---
@@ -120,6 +131,70 @@ class PlayerApp(App):
                 label = f"{playlist['title']}  ({source_name})"
                 kind = item_kinds.get(playlist["kind"], "playlist")
                 await sidebar.append(SourceItem(label, kind, source_id, payload=playlist))
+            await self._restore_session()
+
+    async def _restore_session(self) -> None:
+        saved = self._saved_session
+        if saved is None or self._restoring:
+            return
+        sidebar = self.query_one("#sidebar", ListView)
+        for index, item in enumerate(sidebar.children):
+            if item.source_id != saved.source_id or (item.payload or {}).get("id") != saved.playlist_id:
+                continue
+            sidebar.index = index
+            self._restoring = True
+            try:
+                if item.kind == "wave" or await self._load_source(item, restoring=saved):
+                    self._saved_session = None
+            finally:
+                self._restoring = False
+            return
+
+    @staticmethod
+    def _saved_track_index(saved: session.Session, tracks: list[dict[str, Any]]) -> int:
+        if saved.track_id is None:
+            return 0
+        index = saved.track_index
+        if index is not None and index < len(tracks) and tracks[index]["id"] == saved.track_id:
+            return index
+        return next((i for i, track in enumerate(tracks) if track["id"] == saved.track_id), 0)
+
+    async def _show_cached_session(self, saved: session.Session) -> None:
+        self._current_source_id = saved.source_id
+        self._current_playlist_id = saved.playlist_id
+        self._current_playlist_title = saved.playlist_title
+        self._current_kind = saved.kind
+        self._current_tracks = saved.tracks or []
+        self._resume_index = self._saved_track_index(saved, self._current_tracks)
+        tracks_view = self.query_one("#tracks", ListView)
+        for i, track in enumerate(self._current_tracks):
+            await tracks_view.append(TrackItem(i, track))
+        tracks_view.index = self._resume_index
+        self.call_after_refresh(self._scroll_to_saved_track)
+
+    def _scroll_to_saved_track(self) -> None:
+        tracks_view = self.query_one("#tracks", ListView)
+        if 0 <= self._resume_index < len(tracks_view.children):
+            tracks_view.scroll_to_widget(tracks_view.children[self._resume_index], animate=False)
+
+    def _save_session(self, track_id: str | None = None, track_index: int | None = None) -> None:
+        if self._current_source_id is None or self._current_playlist_id is None:
+            return
+        try:
+            session.save(
+                self._session_path,
+                session.Session(
+                    self._current_source_id,
+                    self._current_playlist_id,
+                    track_id,
+                    track_index,
+                    self._current_playlist_title,
+                    self._current_kind,
+                    self._current_tracks,
+                ),
+            )
+        except OSError as error:
+            logger.warning("could not save TUI session: %s", error)
 
     # --- notifications from backends ---
 
@@ -130,6 +205,15 @@ class PlayerApp(App):
         elif method == "radio/tracksAdded":
             assert self.playback_engine is not None
             self.playback_engine.on_tracks_added(source_id, params["stationId"], params["tracks"])
+            if (self._current_kind == "wave" and self._current_source_id == source_id
+                    and self.playback_engine.wave and self.playback_engine.wave_station_id == params["stationId"]):
+                self._current_tracks = [entry.track for entry in self.playback_engine.queue]
+                if self._current_tracks:
+                    self._resume_index = min(self._resume_index, len(self._current_tracks) - 1)
+                    self._save_session(self._current_tracks[self._resume_index]["id"], self._resume_index)
+                else:
+                    self._save_session()
+                self.run_worker(self._show_radio_tracks())
         elif method == "auth/prompt":
             self._show_auth_prompt(source_id, params)
         elif method == "auth/statusChanged":
@@ -174,18 +258,24 @@ class PlayerApp(App):
         if (entry.source_id == self._current_source_id
                 and 0 <= index < len(self._current_tracks)
                 and self._current_tracks[index] is entry.track):
-            tracks_view = self.query_one("#tracks", ListView)
-            tracks_view.scroll_to_widget(tracks_view.children[index], animate=False)
+            self._resume_index = index
+            self._save_session(entry.track["id"], index)
+            tracks_view = next(iter(self.query("#tracks")), None)
+            if tracks_view is not None and index < len(tracks_view.children):
+                tracks_view.scroll_to_widget(tracks_view.children[index], animate=False)
 
     def _on_error(self, message: str) -> None:
         self.notify(message, severity="error", timeout=6)
 
     def _refresh_now_playing(self) -> None:
-        bar = self.query_one("#now-playing", Static)
-        if self.playback_engine is None:
+        bar = next(iter(self.query("#now-playing")), None)
+        if bar is None or self.playback_engine is None:
             return
         entry = self.playback_engine.current()
         if entry is None:
+            if self._current_tracks and self._resume_index < len(self._current_tracks):
+                bar.update(f"Ready: {_track_label(self._current_tracks[self._resume_index])}  (Space to play)")
+                return
             bar.update("Queue finished" if self.playback_engine.queue else "Nothing is playing")
             return
         pos, dur = self.playback_engine.position()
@@ -199,33 +289,64 @@ class PlayerApp(App):
 
     # --- user interaction ---
 
+    async def _show_radio_tracks(self) -> None:
+        tracks_view = self.query_one("#tracks", ListView)
+        await tracks_view.clear()
+        for index, track in enumerate(self._current_tracks):
+            await tracks_view.append(TrackItem(index, track))
+        if self._current_tracks:
+            tracks_view.index = min(self._resume_index, len(self._current_tracks) - 1)
+
+    async def _start_radio(self, source_id: str, playlist_id: str, title: str,
+                           resume_track: dict[str, Any] | None = None) -> bool:
+        client = self.source_manager.clients.get(source_id)
+        if client is None:
+            self.notify(f"{source_id} is unavailable", severity="error", timeout=5)
+            return False
+        self.notify("Starting radio...", timeout=3)
+        try:
+            result = await client.request("catalog.startRadio", {"seed": playlist_id})
+        except Exception as error:
+            self.notify(f"Failed to start radio: {error}", severity="error", timeout=6)
+            return False
+        tracks = result["initialTracks"]
+        if resume_track is not None:
+            tracks = [resume_track, *(track for track in tracks if track["id"] != resume_track["id"])]
+        self._current_source_id = source_id
+        self._current_playlist_id = playlist_id
+        self._current_playlist_title = title
+        self._current_kind = "wave"
+        self._current_tracks = tracks
+        self._resume_index = 0
+        self._saved_session = None
+        self._save_session()
+        await self._show_radio_tracks()
+        assert self.playback_engine is not None
+        self.playback_engine.start_radio(source_id, result["stationId"], tracks)
+        return True
+
     async def on_list_view_selected(self, event: ListView.Selected) -> None:
         if event.list_view.id == "sidebar":
             await self._load_source(event.item)
         elif event.list_view.id == "tracks":
             start_index = event.item.track_index
             assert self.playback_engine is not None
-            self.notify("Starting...", timeout=2)
-            self.playback_engine.load_queue(self._current_source_id, self._current_tracks, start_index)
+            if self._current_kind == "wave":
+                await self._start_radio(self._current_source_id, self._current_playlist_id,
+                                        self._current_playlist_title, self._current_tracks[start_index])
+            else:
+                self.notify("Starting...", timeout=2)
+                self.playback_engine.load_queue(self._current_source_id, self._current_tracks, start_index)
 
-    async def _load_source(self, item: SourceItem) -> None:
+    async def _load_source(self, item: SourceItem, restoring: session.Session | None = None) -> bool:
         tracks_view = self.query_one("#tracks", ListView)
-        await tracks_view.clear()
         client = self.source_manager.clients.get(item.source_id)
         if client is None:
             self.notify(f"{item.source_id} is unavailable", severity="error", timeout=5)
-            return
+            return False
 
         if item.kind == "wave":
-            self.notify("Starting radio...", timeout=3)
-            try:
-                result = await client.request("catalog.startRadio", {"seed": item.payload["id"]})
-            except Exception as e:
-                self.notify(f"Failed to start radio: {e}", severity="error", timeout=6)
-                return
-            assert self.playback_engine is not None
-            self.playback_engine.start_radio(item.source_id, result["stationId"], result["initialTracks"])
-            return
+            return await self._start_radio(item.source_id, item.payload["id"], item.payload["title"])
 
         label = (item.payload or {}).get("title", "playlist")
         self.notify(f"Loading “{label}”...", timeout=3)
@@ -236,24 +357,46 @@ class PlayerApp(App):
                 result = await client.request("catalog.listTracks", {"playlistId": item.payload["id"]})
         except Exception as e:
             self.notify(f"Failed to load “{label}”: {e}", severity="error", timeout=6)
-            return
+            return False
 
+        await tracks_view.clear()
         self._current_source_id = item.source_id
+        self._current_playlist_id = item.payload["id"]
+        self._current_playlist_title = label
+        self._current_kind = item.kind
         self._current_tracks = result["tracks"]
+        self._resume_index = self._saved_track_index(restoring, self._current_tracks) if restoring else 0
+        if restoring is None:
+            self._saved_session = None
+            self._save_session()
+        else:
+            restored_id = (
+                self._current_tracks[self._resume_index]["id"]
+                if self._current_tracks and restoring.track_id else None
+            )
+            self._save_session(restored_id, self._resume_index if restored_id else None)
         for i, track in enumerate(self._current_tracks):
             await tracks_view.append(TrackItem(i, track))
 
         if self._current_tracks:
-            tracks_view.index = 0
-            tracks_view.focus()
-            self.notify(f"“{label}”: {len(self._current_tracks)} tracks", timeout=2)
+            tracks_view.index = self._resume_index
+            if restoring is not None:
+                self.call_after_refresh(self._scroll_to_saved_track)
+            if restoring is None:
+                tracks_view.focus()
+                self.notify(f"“{label}”: {len(self._current_tracks)} tracks", timeout=2)
         else:
             self.notify(f"“{label}” is empty", timeout=3)
+        return True
 
     def action_toggle_pause(self) -> None:
         assert self.playback_engine is not None
         if self.playback_engine.current() is None and self._current_tracks:
-            self.playback_engine.load_queue(self._current_source_id, self._current_tracks, 0)
+            if self._current_kind == "wave":
+                self.run_worker(self._start_radio(self._current_source_id, self._current_playlist_id,
+                                                  self._current_playlist_title, self._current_tracks[self._resume_index]))
+            else:
+                self.playback_engine.load_queue(self._current_source_id, self._current_tracks, self._resume_index)
         else:
             self.playback_engine.toggle_pause()
             self._refresh_now_playing()

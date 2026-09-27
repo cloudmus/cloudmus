@@ -151,6 +151,7 @@ private:
     void bindActivePlaylist();
     // The main list shows ActivePlaylist::entries().
     void refreshMainList();
+    void restoreSavedTrackPosition();
     // Hero shows the playing track (trackChanged) or, with nothing
     // playing, the active playlist's promo card.
     void refreshHero();
@@ -261,6 +262,7 @@ private:
     void hideToTray();
 
     bool reallyQuitting_ = false;
+    bool restoreTrackPositionPending_ = true;
     // saveGeometry() taken by hideToTray(); empty while the window is shown.
     QByteArray trayHiddenGeometry_;
 };

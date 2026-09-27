@@ -88,6 +88,21 @@ private slots:
         QCOMPARE(trackStates_->state(QStringLiteral("fake"), QStringLiteral("t1")).liked, std::optional<bool>(true));
     }
 
+    void aSavedTrackKeepsItsLikeBeforeAndAfterPlaybackStarts()
+    {
+        Track saved = track(QStringLiteral("t1"));
+        saved.liked = true;
+        trackStates_->observe(QStringLiteral("fake"), saved);
+        nowPlaying_->setPreviewTrack(QStringLiteral("fake"), saved.id);
+        QVERIFY(!nowPlaying_->hasTrack());
+        QVERIFY(nowPlaying_->feedback().likeSupported);
+        QVERIFY(nowPlaying_->feedback().liked);
+
+        play({ saved });
+        QVERIFY(nowPlaying_->feedback().liked);
+        QCOMPARE(trackStates_->state(QStringLiteral("fake"), saved.id).liked, std::optional<bool>(true));
+    }
+
     void aFailedLikeRollsBackAndSaysWhy()
     {
         QSignalSpy messages(&messages_, &ViewModel::Messages::posted);

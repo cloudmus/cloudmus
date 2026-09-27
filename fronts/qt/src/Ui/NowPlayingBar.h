@@ -34,12 +34,10 @@ public:
     void setPosition(qint64 positionMs, qint64 durationMs);
     void setVolume(int volume0To100);
 
-    // Play/pause, stop, and the seek slider all only make sense with a
-    // current track loaded — enables/disables the three together, and
-    // when false, resets the seek slider (and its elapsed/duration
-    // labels) back to 0 rather than leaving a stale position on screen
-    // for a track that no longer exists.
+    // Stop and seek require a current track. Without one, reset the seek
+    // position and labels; Play can still start an available playlist.
     void setTrackAvailable(bool available);
+    void setPlaylistAvailable(bool available);
     // Previous/next only make sense with something loaded to navigate —
     // enables/disables both together.
     void setQueueAvailable(bool available);
@@ -59,14 +57,13 @@ public:
     // Like/dislike are real toggles (feedback.like/.dislike and their
     // .unlike/.undislike counterparts — see protocol/methods.yaml 1.3).
     // setLikeState()/setDislikeState() are the authoritative "here's the
-    // real state" setter — called from MainWindow::trackChanged (seeded
-    // from Track::liked; dislike has no persisted protocol field, so it
-    // always starts false on a new track) and again once a click's RPC
+    // real state" setter — called from the shared track state for the
+    // current or saved track, and again once a click's RPC
     // call resolves (success: the new state; failure: rolled back to the
     // old one). Always clears busy.
     //
-    // capabilitySupported false or no current track means "don't even
-    // offer this" (enabled = false) regardless of liked/disliked.
+    // capabilitySupported false means the action is unavailable, regardless
+    // of the displayed liked/disliked state.
     void setLikeState(bool capabilitySupported, bool liked);
     void setDislikeState(bool capabilitySupported, bool disliked);
     // While a like/dislike RPC call is in flight: disables the button and
@@ -126,6 +123,7 @@ signals:
     void playlistsClicked(QPoint anchor);
 
 private:
+    void updatePlayAvailability();
     void updatePlayPauseIcon();
     void refreshLikeButton();
     void refreshDislikeButton();
@@ -151,6 +149,9 @@ private:
     QHBoxLayout* buttonsRow_ = nullptr;
 
     bool playing_ = false;
+    bool trackAvailable_ = false;
+    bool playlistAvailable_ = false;
+    bool loading_ = false;
     bool userIsDraggingSeek_ = false;
     qint64 lastDurationMs_ = 0;
     QString currentWebUrl_;

@@ -54,6 +54,8 @@ public:
 signals:
     // One track's state changed.
     void changed(const QString& sourceId, const QString& trackId);
+    // A successful user like/dislike action should also update cached playlists.
+    void feedbackChanged(const QString& sourceId, const QString& trackId);
     // Many may have (a whole list observed) — views just refresh everything.
     void bulkChanged();
 

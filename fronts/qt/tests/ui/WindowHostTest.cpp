@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QListView>
 #include <QPointer>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QSlider>
@@ -16,6 +17,7 @@
 #include "Core.h"
 #include "DownloadsPanel.h"
 #include "FakeBackend.h"
+#include "HeroPanel.h"
 #include "MainWindow.h"
 #include "MprisService.h"
 #include "PlaylistSheet.h"
@@ -152,6 +154,86 @@ private slots:
         core.playback().playAt(3);
         QTRY_COMPARE(core.playback().currentIndex(), 3);
         QCOMPARE(rowRect(3).top(), viewport.top());
+
+        for (Rpc::RpcClient* client : core.sourceManager().clients())
+            await(client->shutdown());
+    }
+
+    void savedTrackScrollsIntoViewWhenWindowOpens()
+    {
+        App::Core core;
+        Playlist playlist;
+        playlist.id = QStringLiteral("saved-scroll");
+        playlist.title = QStringLiteral("Saved playlist");
+        playlist.kind = QStringLiteral("playlist");
+        QVector<Playback::QueueEntry> entries;
+        for (int i = 0; i < 40; ++i) {
+            Track track;
+            track.id = QStringLiteral("saved-%1").arg(i);
+            track.title = QStringLiteral("Saved track %1").arg(i);
+            if (i == 35) {
+                track.liked = true;
+                core.trackStates().observe(QStringLiteral("fake"), track);
+            }
+            entries.append({ QStringLiteral("fake"), track });
+        }
+        core.activePlaylist().activate({ QStringLiteral("fake"), playlist }, entries, 35);
+        core.settings().setLastActiveTrack(QStringLiteral("saved-35"), 35);
+        core.activePlaylist().setContext({ QStringLiteral("fake"), playlist });
+
+        Ui::WindowHost host(core);
+        host.show();
+        auto* list = host.window()->findChild<QListView*>(QStringLiteral("trackListView"));
+        QVERIFY(list != nullptr);
+        QTRY_COMPARE(list->model()->rowCount(), 40);
+        const QModelIndex saved = list->model()->index(35, 0);
+        QTRY_VERIFY(list->viewport()->rect().contains(list->visualRect(saved)));
+        QVERIFY(!core.playback().hasCurrentTrack());
+        auto* hero = host.window()->findChild<Ui::HeroPanel*>();
+        QVERIFY(hero != nullptr);
+        QCOMPARE(hero->accessibleName(), QStringLiteral("Saved track 35"));
+        auto* play = hero->findChild<QPushButton*>(QStringLiteral("heroPlayButton"));
+        QVERIFY(play != nullptr);
+        QVERIFY(play->isVisible());
+        auto* like = host.window()->findChild<QPushButton*>(QStringLiteral("likeButton"));
+        QVERIFY(like != nullptr);
+        QVERIFY(like->isChecked());
+        Track refreshed = entries[35].track;
+        refreshed.liked = false;
+        core.trackStates().observe(QStringLiteral("fake"), refreshed);
+        QVERIFY(!like->isChecked());
+        refreshed.liked = true;
+        core.trackStates().observe(QStringLiteral("fake"), refreshed);
+        QVERIFY(like->isChecked());
+    }
+
+    void playButtonStartsAnAvailablePlaylist()
+    {
+        App::Core core;
+        Ui::WindowHost host(core);
+        host.show();
+        QSignalSpy ready(&core.sourceManager(), &Rpc::SourceManager::sourceReady);
+        core.sourceManager().startAll();
+        QVERIFY(ready.wait(10000));
+
+        Track track;
+        track.id = QStringLiteral("t1");
+        track.title = QStringLiteral("Track 1");
+        Playlist playlist;
+        playlist.id = QStringLiteral("p1");
+        playlist.title = QStringLiteral("First");
+        playlist.kind = QStringLiteral("playlist");
+        core.activePlaylist().setContext({ QStringLiteral("fake"), playlist });
+        core.playback().loadQueue(QStringLiteral("fake"), { track }, 0);
+        QTRY_VERIFY(core.playback().hasCurrentTrack());
+        core.playback().stop();
+        QVERIFY(!core.playback().hasCurrentTrack());
+
+        auto* play = host.window()->findChild<QPushButton*>(QStringLiteral("playPauseButton"));
+        QVERIFY(play != nullptr);
+        QVERIFY(play->isEnabled());
+        QTest::mouseClick(play, Qt::LeftButton);
+        QTRY_VERIFY(core.playback().hasCurrentTrack());
 
         for (Rpc::RpcClient* client : core.sourceManager().clients())
             await(client->shutdown());
