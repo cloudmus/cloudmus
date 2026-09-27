@@ -25,11 +25,9 @@ jobs:
       - name: Build AppImage
         env:
           CLOUDMUS_GA4_MEASUREMENT_ID: ${{ secrets.CLOUDMUS_GA4_MEASUREMENT_ID }}
-          CLOUDMUS_GA4_API_SECRET: ${{ secrets.CLOUDMUS_GA4_API_SECRET }}
         # A release must contain working analytics, not silently omit it.
         run: |
           test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"
-          test -n "$CLOUDMUS_GA4_API_SECRET"
           ./build-appimage.sh
 
       - name: Publish to the GitHub release

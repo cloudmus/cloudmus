@@ -148,12 +148,8 @@ public:
     void setAnalyticsEnabled(bool on);
     // Random installation identifier, kept when analytics is switched off.
     QString analyticsClientId();
-    QString analyticsCountryId() const;
-    QString analyticsCity() const;
-    QString analyticsRegionId() const;
-    QString analyticsContinentId() const;
-    void setAnalyticsLocation(
-        const QString& countryId, const QString& city, const QString& regionId, const QString& continentId);
+    // Numbers this run's analytics session: 1 for the installation's first.
+    int nextAnalyticsSession();
 
 private:
     void restrictPermissions();

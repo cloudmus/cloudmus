@@ -27,7 +27,7 @@ done
 # These values become part of the public AppImage, so Docker receives them
 # only for the build run, never as image build arguments.
 ga4_run_envs=()
-for var in CLOUDMUS_GA4_MEASUREMENT_ID CLOUDMUS_GA4_API_SECRET; do
+for var in CLOUDMUS_GA4_MEASUREMENT_ID; do
     if [ -n "${!var:-}" ]; then
         ga4_run_envs+=(-e "$var")
     fi

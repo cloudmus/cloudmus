@@ -90,8 +90,6 @@ add_library(cloudmus-core STATIC
 
     src/App/Core.cpp
     src/App/Analytics.cpp
-    src/App/Geo.cpp
-    src/App/GeoNetworkSignature.cpp
     src/App/SourceSession.cpp
     src/App/PlaylistEditing.cpp
     src/App/TrackFetch.cpp
@@ -147,19 +145,12 @@ target_link_libraries(cloudmus-core PUBLIC
 # build's git commit stays current; see cmake/Version.cmake.
 set(VERSION_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_version)
 
-# Read GA4 values from the environment; the generated header stays in the
-# build directory and the values do not enter compiler command lines.
+# Read the GA4 measurement ID from the environment; the generated header
+# stays in the build directory and the value does not enter compiler
+# command lines.
 set(CLOUDMUS_GA4_MEASUREMENT_ID "$ENV{CLOUDMUS_GA4_MEASUREMENT_ID}")
-set(CLOUDMUS_GA4_API_SECRET "$ENV{CLOUDMUS_GA4_API_SECRET}")
-if((CLOUDMUS_GA4_MEASUREMENT_ID AND NOT CLOUDMUS_GA4_API_SECRET)
-    OR (CLOUDMUS_GA4_API_SECRET AND NOT CLOUDMUS_GA4_MEASUREMENT_ID))
-    message(FATAL_ERROR "Both CLOUDMUS_GA4_MEASUREMENT_ID and CLOUDMUS_GA4_API_SECRET are required")
-endif()
 if(CLOUDMUS_GA4_MEASUREMENT_ID AND NOT CLOUDMUS_GA4_MEASUREMENT_ID MATCHES "^G-[A-Z0-9]+$")
     message(FATAL_ERROR "Invalid GA4 Measurement ID")
-endif()
-if(CLOUDMUS_GA4_API_SECRET AND NOT CLOUDMUS_GA4_API_SECRET MATCHES "^[A-Za-z0-9_-]+$")
-    message(FATAL_ERROR "Invalid GA4 API secret")
 endif()
 configure_file(cmake/GA4Config.h.in ${VERSION_DIR}/GA4Config.h @ONLY)
 add_custom_target(cloudmus_version

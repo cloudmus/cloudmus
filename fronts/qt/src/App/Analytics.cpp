@@ -2,16 +2,12 @@
 
 #include <QDateTime>
 #include <QGuiApplication>
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QLocale>
 #include <QLoggingCategory>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QScreen>
 #include <QSysInfo>
-#include <QTimer>
-#include <QUrlQuery>
 
 #include <utility>
 
@@ -21,6 +17,10 @@ namespace App {
 
 namespace {
 Q_LOGGING_CATEGORY(lcAnalytics, "cloudmus.app.analytics")
+
+// Up to this many events go in one request, as one line each.
+constexpr int kMaxBatch = 20;
+constexpr int kMaxQueued = 50;
 }
 
 QString languageForAnalytics(const QStringList& uiLanguages)
@@ -37,61 +37,40 @@ QString languageForAnalytics(const QStringList& uiLanguages)
         return { }; // no two-letter code for this language
     if (locale.territory() != QLocale::AnyTerritory)
         language += QLatin1Char('-') + QLocale::territoryToCode(locale.territory());
-    return language;
+    // Lowercase, like the web tag's navigator.language, so both land in
+    // one bucket.
+    return language.toLower();
 }
 
 Analytics::Analytics(Config::Settings& settings, QObject* parent, QNetworkAccessManager* network)
     : QObject(parent)
     , settings_(settings)
     , network_(network != nullptr ? network : &ownedNetwork_)
-    , geoLocator_(*network_, this)
     , clientId_(settings.analyticsClientId())
     , sessionId_(QString::number(QDateTime::currentSecsSinceEpoch()))
 {
-    GeoLocation cached { settings.analyticsCountryId(), settings.analyticsCity(), settings.analyticsRegionId(),
-        settings.analyticsContinentId() };
-    if (cached.isValid())
-        geoLocation_ = cached;
-    geoWaitTimer_.setSingleShot(true);
-    connect(&geoWaitTimer_, &QTimer::timeout, this, [this]() {
-        geoWaitExpired_ = true;
-        qCDebug(lcAnalytics) << "geolocation wait expired; sending with cached data if available";
-        send();
-    });
-    connect(&geoLocator_, &GeoLocator::resolved, this, &Analytics::onGeoResolved);
     flushTimer_.setSingleShot(true);
     connect(&flushTimer_, &QTimer::timeout, this, [this]() { finishFlushIfIdle(true); });
 }
 
-void Analytics::configure(QString measurementId, QString apiSecret, QString appVersion, QUrl endpoint)
+void Analytics::configure(QString measurementId, QString appVersion, QUrl endpoint)
 {
     measurementId_ = std::move(measurementId);
-    apiSecret_ = std::move(apiSecret);
     appVersion_ = std::move(appVersion);
     endpoint_ = std::move(endpoint);
-    qCDebug(lcAnalytics) << "initialized:"
-                         << (measurementId_.isEmpty() || apiSecret_.isEmpty() ? "credentials missing" : "configured")
+    qCDebug(lcAnalytics) << "initialized:" << (measurementId_.isEmpty() ? "measurement ID missing" : "configured")
                          << "measurement ID" << measurementId_ << "collection enabled" << settings_.analyticsEnabled()
                          << "endpoint"
-                         << endpoint_.toDisplayString(QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo);
-    if (settings_.analyticsEnabled() && !measurementId_.isEmpty() && !apiSecret_.isEmpty() && endpoint_.isValid())
-        geoLocator_.start();
-    else
-        geoLocator_.stop();
+                         << endpoint_.toDisplayString(QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo)
+                         << "user agent" << userAgent();
 }
 
 void Analytics::setEnabled(bool enabled)
 {
     settings_.setAnalyticsEnabled(enabled);
     qCDebug(lcAnalytics) << "collection" << (enabled ? "enabled" : "disabled");
-    if (enabled) {
-        if (!measurementId_.isEmpty() && !apiSecret_.isEmpty() && endpoint_.isValid())
-            geoLocator_.start();
+    if (enabled)
         return;
-    }
-    geoWaitTimer_.stop();
-    geoWaitExpired_ = false;
-    geoLocator_.stop();
     qCDebug(lcAnalytics) << "discarding" << pending_.size() << "queued events"
                          << (inFlight_ ? "and aborting the current request" : "");
     pending_.clear();
@@ -110,10 +89,6 @@ void Analytics::flush(int timeoutMs, std::function<void()> done)
     }
     qCDebug(lcAnalytics) << "flushing" << pending_.size() << "queued events"
                          << (inFlight_ ? "after the current request" : "");
-    // A lookup still running now would outlast the exit; send with the
-    // cached location instead.
-    geoWaitExpired_ = true;
-    geoWaitTimer_.stop();
     flushTimer_.start(timeoutMs);
     send();
 }
@@ -128,35 +103,20 @@ void Analytics::finishFlushIfIdle(bool timedOut)
     std::exchange(flushDone_, nullptr)();
 }
 
-QJsonObject Analytics::device() const
+QByteArray Analytics::userAgent() const
 {
-    QJsonObject device { { QStringLiteral("category"), QStringLiteral("desktop") } };
-    const QString language = languageForAnalytics(QLocale::system().uiLanguages());
-    if (!language.isEmpty())
-        device.insert(QStringLiteral("language"), language);
-    // Names as GA4 shows them for web traffic, so both land in one bucket.
+    // Browser-shaped, so GA4 can tell the OS from it, but naming the app
+    // rather than posing as a browser.
+    QString platform;
     const QString kernel = QSysInfo::kernelType();
-    if (kernel == QLatin1String("linux")) {
-        device.insert(QStringLiteral("operating_system"), QStringLiteral("Linux"));
-    } else if (kernel == QLatin1String("winnt")) {
-        device.insert(QStringLiteral("operating_system"), QStringLiteral("Windows"));
-        device.insert(QStringLiteral("operating_system_version"), QSysInfo::productVersion());
-    } else if (kernel == QLatin1String("darwin")) {
-        device.insert(QStringLiteral("operating_system"), QStringLiteral("Macintosh"));
-        device.insert(QStringLiteral("operating_system_version"), QSysInfo::productVersion());
-    }
-    // The app stands in for the browser so GA4's browser reports split by
-    // player version rather than showing "(not set)".
-    device.insert(QStringLiteral("browser"), QStringLiteral("CloudMus"));
-    device.insert(QStringLiteral("browser_version"), appVersion_);
-    // Logical pixels, as a browser reports screen.width x screen.height.
-    if (const QScreen* screen = QGuiApplication::primaryScreen()) {
-        const QSize size = screen->size();
-        if (!size.isEmpty())
-            device.insert(
-                QStringLiteral("screen_resolution"), QStringLiteral("%1x%2").arg(size.width()).arg(size.height()));
-    }
-    return device;
+    if (kernel == QLatin1String("winnt"))
+        platform = QStringLiteral("Windows NT %1; Win64; x64").arg(QSysInfo::kernelVersion().section(u'.', 0, 1));
+    else if (kernel == QLatin1String("darwin"))
+        platform = QStringLiteral("Macintosh; Intel Mac OS X %1")
+                       .arg(QSysInfo::productVersion().replace(QLatin1Char('.'), QLatin1Char('_')));
+    else
+        platform = QStringLiteral("X11; Linux %1").arg(QSysInfo::currentCpuArchitecture());
+    return QStringLiteral("Mozilla/5.0 (%1) CloudMus/%2").arg(platform, appVersion_).toUtf8();
 }
 
 QString Analytics::sourceCategory(const QString& sourceId)
@@ -187,7 +147,7 @@ void Analytics::recordDownload(const QString& sourceId, bool playlist, int saved
     record(QStringLiteral("download_completed"),
         { { QStringLiteral("source"), sourceCategory(sourceId) },
             { QStringLiteral("kind"), playlist ? QStringLiteral("playlist") : QStringLiteral("track") },
-            { QStringLiteral("saved_count"), savedCount } });
+            { QStringLiteral("saved_count"), QString::number(savedCount), true } });
 }
 
 void Analytics::recordPlaylistChange(const QString& sourceId, bool added)
@@ -197,22 +157,26 @@ void Analytics::recordPlaylistChange(const QString& sourceId, bool added)
             { QStringLiteral("action"), added ? QStringLiteral("add") : QStringLiteral("remove") } });
 }
 
-void Analytics::record(const QString& name, QJsonObject params)
+void Analytics::record(const QString& name, const QList<Param>& params)
 {
     if (!settings_.analyticsEnabled()) {
         qCDebug(lcAnalytics) << "not sending" << name << "because collection is disabled";
         return;
     }
-    if (measurementId_.isEmpty() || apiSecret_.isEmpty() || !endpoint_.isValid()) {
+    if (measurementId_.isEmpty() || !endpoint_.isValid()) {
         qCDebug(lcAnalytics) << "not sending" << name << "because GA4 is not configured";
         return;
     }
-    if (pending_.size() >= 50)
+    if (pending_.size() >= kMaxQueued)
         pending_.removeFirst();
-    params.insert(QStringLiteral("session_id"), sessionId_);
-    params.insert(QStringLiteral("engagement_time_msec"), 1);
-    params.insert(QStringLiteral("app_version"), appVersion_);
-    pending_.append({ { QStringLiteral("name"), name }, { QStringLiteral("params"), params } });
+    QUrlQuery event;
+    event.addQueryItem(QStringLiteral("en"), name);
+    event.addQueryItem(QStringLiteral("_et"), QStringLiteral("1"));
+    // ep. marks a text parameter, epn. a number.
+    for (const Param& param : params)
+        event.addQueryItem((param.numeric ? QStringLiteral("epn.") : QStringLiteral("ep.")) + param.name, param.value);
+    event.addQueryItem(QStringLiteral("ep.app_version"), appVersion_);
+    pending_.append(event);
     scheduleSend();
 }
 
@@ -227,57 +191,88 @@ void Analytics::scheduleSend()
     });
 }
 
+QUrlQuery Analytics::sharedParams()
+{
+    // The web tag's request fields: v protocol version, tid property, cid
+    // client, sid/sct this session and how many so far, seg session
+    // engaged, _s hit number in the session, ul/sr language and screen,
+    // dl/dt the "page", npa no ad personalization.
+    if (sessionNumber_ == 0)
+        sessionNumber_ = settings_.nextAnalyticsSession();
+    ++hitNumber_;
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("v"), QStringLiteral("2"));
+    query.addQueryItem(QStringLiteral("tid"), measurementId_);
+    query.addQueryItem(QStringLiteral("cid"), clientId_);
+    query.addQueryItem(QStringLiteral("sid"), sessionId_);
+    query.addQueryItem(QStringLiteral("sct"), QString::number(sessionNumber_));
+    query.addQueryItem(QStringLiteral("seg"), QStringLiteral("1"));
+    query.addQueryItem(QStringLiteral("_s"), QString::number(hitNumber_));
+    // The first hit of a session makes GA4 log session_start, and of the
+    // installation's first session also first_visit.
+    if (hitNumber_ == 1) {
+        query.addQueryItem(QStringLiteral("_ss"), QStringLiteral("1"));
+        query.addQueryItem(QStringLiteral("_nsi"), QStringLiteral("1"));
+        if (sessionNumber_ == 1)
+            query.addQueryItem(QStringLiteral("_fv"), QStringLiteral("1"));
+    }
+    const QString language = languageForAnalytics(QLocale::system().uiLanguages());
+    if (!language.isEmpty())
+        query.addQueryItem(QStringLiteral("ul"), language);
+    // Logical pixels, as a browser reports screen.width x screen.height.
+    if (const QScreen* screen = QGuiApplication::primaryScreen()) {
+        const QSize size = screen->size();
+        if (!size.isEmpty())
+            query.addQueryItem(QStringLiteral("sr"), QStringLiteral("%1x%2").arg(size.width()).arg(size.height()));
+    }
+    query.addQueryItem(QStringLiteral("dl"), QStringLiteral("https://github.com/cloudmus/cloudmus"));
+    query.addQueryItem(QStringLiteral("dt"), QStringLiteral("CloudMus"));
+    query.addQueryItem(QStringLiteral("npa"), QStringLiteral("1"));
+    if (debugView_)
+        query.addQueryItem(QStringLiteral("_dbg"), QStringLiteral("1"));
+    return query;
+}
+
 void Analytics::send()
 {
     if (!settings_.analyticsEnabled() || inFlight_ || pending_.isEmpty())
         return;
-    if (geoLocator_.resolving() && !geoWaitExpired_) {
-        if (!geoWaitTimer_.isActive())
-            geoWaitTimer_.start(8000);
-        return;
-    }
-    QJsonArray events;
-    while (!pending_.isEmpty() && events.size() < 25)
+    QList<QUrlQuery> events;
+    while (!pending_.isEmpty() && events.size() < kMaxBatch)
         events.append(pending_.takeFirst());
+
+    // Like the web tag: a lone event goes in the URL; several go in the
+    // body, one per line, with the shared fields in the URL.
+    QUrlQuery query = sharedParams();
+    QByteArray body;
+    if (events.size() == 1) {
+        for (const auto& [key, value] : events.first().queryItems(QUrl::FullyDecoded))
+            query.addQueryItem(key, value);
+    } else {
+        QByteArrayList lines;
+        for (const QUrlQuery& event : events)
+            lines.append(event.query(QUrl::FullyEncoded).toUtf8());
+        body = lines.join("\r\n");
+    }
     QUrl url = endpoint_;
-    QUrlQuery query;
-    query.addQueryItem(QStringLiteral("measurement_id"), measurementId_);
-    query.addQueryItem(QStringLiteral("api_secret"), apiSecret_);
     url.setQuery(query);
     QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("text/plain;charset=UTF-8"));
+    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
     request.setTransferTimeout(5000);
-    QJsonObject body { { QStringLiteral("client_id"), clientId_ }, { QStringLiteral("events"), events },
-        { QStringLiteral("consent"),
-            QJsonObject { { QStringLiteral("ad_user_data"), QStringLiteral("DENIED") },
-                { QStringLiteral("ad_personalization"), QStringLiteral("DENIED") } } } };
-    if (geoLocation_) {
-        QJsonObject location { { QStringLiteral("country_id"), geoLocation_->countryId } };
-        if (!geoLocation_->city.isEmpty())
-            location.insert(QStringLiteral("city"), geoLocation_->city);
-        if (!geoLocation_->regionId.isEmpty())
-            location.insert(QStringLiteral("region_id"), geoLocation_->regionId);
-        if (!geoLocation_->continentId.isEmpty())
-            location.insert(QStringLiteral("continent_id"), geoLocation_->continentId);
-        body.insert(QStringLiteral("user_location"), location);
-    }
-    const QJsonObject device = this->device();
-    body.insert(QStringLiteral("device"), device);
-    qCDebug(lcAnalytics) << "sending with geolocation" << (geoLocation_ ? "available" : "unavailable") << "language"
-                         << device.value(QStringLiteral("language")).toString();
-    QJsonObject logBody = body;
-    logBody.insert(QStringLiteral("client_id"), QStringLiteral("<redacted>"));
+
+    QUrlQuery logQuery = query;
+    logQuery.removeQueryItem(QStringLiteral("cid"));
+    logQuery.addQueryItem(QStringLiteral("cid"), QStringLiteral("<redacted>"));
     const quint64 requestId = nextRequestId_++;
     qCDebug(lcAnalytics).noquote() << "request" << requestId << "POST"
                                    << endpoint_.toDisplayString(
                                           QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo)
-                                   << "measurement ID" << measurementId_ << "body"
-                                   << QJsonDocument(logBody).toJson(QJsonDocument::Compact);
-    const QByteArray payload = QJsonDocument(body).toJson(QJsonDocument::Compact);
-    QNetworkReply* reply = network_->post(request, payload);
-    if (validateRequests_)
-        validate(payload, requestId);
+                                   << "query" << logQuery.query(QUrl::FullyDecoded) << "body"
+                                   << QString::fromUtf8(QByteArray::fromPercentEncoding(body))
+                                          .replace(QStringLiteral("\r\n"), QStringLiteral(" | "));
+    QNetworkReply* reply = network_->post(request, body);
     inFlight_ = reply;
     connect(reply, &QNetworkReply::finished, this, [this, reply, requestId]() {
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -287,7 +282,6 @@ void Analytics::send()
             qCDebug(lcAnalytics) << "request" << requestId << "delivered, HTTP" << status;
         } else {
             QString error = reply->errorString();
-            error.replace(apiSecret_, QStringLiteral("<redacted>"));
             error.replace(clientId_, QStringLiteral("<redacted>"));
             qCDebug(lcAnalytics) << "request" << requestId << "failed, HTTP" << status << "network error"
                                  << int(reply->error()) << error;
@@ -298,58 +292,6 @@ void Analytics::send()
         scheduleSend();
         finishFlushIfIdle();
     });
-}
-
-void Analytics::validate(const QByteArray& body, quint64 requestId)
-{
-    // The validation server only checks event names and parameters: it
-    // accepts any user_location or device values without complaint.
-    QUrl url = endpoint_;
-    url.setPath(QStringLiteral("/debug") + endpoint_.path());
-    QUrlQuery query;
-    query.addQueryItem(QStringLiteral("measurement_id"), measurementId_);
-    query.addQueryItem(QStringLiteral("api_secret"), apiSecret_);
-    query.addQueryItem(QStringLiteral("validation_behavior"), QStringLiteral("ENFORCE_RECOMMENDATIONS"));
-    url.setQuery(query);
-    QNetworkRequest request(url);
-    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
-    request.setTransferTimeout(5000);
-    qCDebug(lcAnalytics).noquote() << "request" << requestId << "also POST"
-                                   << url.toDisplayString(
-                                          QUrl::RemoveQuery | QUrl::RemoveFragment | QUrl::RemoveUserInfo)
-                                   << "for validation";
-    QNetworkReply* reply = network_->post(request, body);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, requestId]() {
-        reply->deleteLater();
-        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        const QJsonArray messages
-            = QJsonDocument::fromJson(reply->readAll()).object().value(QStringLiteral("validationMessages")).toArray();
-        if (reply->error() != QNetworkReply::NoError || status < 200 || status >= 300) {
-            qCDebug(lcAnalytics) << "request" << requestId << "validation failed, HTTP" << status << "network error"
-                                 << int(reply->error());
-        } else if (messages.isEmpty()) {
-            qCDebug(lcAnalytics) << "request" << requestId << "passed validation";
-        } else {
-            qCDebug(lcAnalytics).noquote() << "request" << requestId << "validation messages"
-                                           << QJsonDocument(messages).toJson(QJsonDocument::Compact);
-        }
-    });
-}
-
-void Analytics::onGeoResolved(std::optional<GeoLocation> location)
-{
-    geoWaitTimer_.stop();
-    geoWaitExpired_ = false;
-    if (location) {
-        geoLocation_ = *location;
-        settings_.setAnalyticsLocation(location->countryId, location->city, location->regionId, location->continentId);
-        qCDebug(lcAnalytics) << "using fresh geolocation" << location->countryId << location->regionId
-                             << location->continentId << location->city;
-    } else {
-        qCDebug(lcAnalytics) << "using" << (geoLocation_ ? "cached geolocation" : "no geolocation");
-    }
-    scheduleSend();
 }
 
 } // namespace App

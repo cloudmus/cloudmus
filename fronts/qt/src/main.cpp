@@ -95,9 +95,8 @@ int main(int argc, char** argv)
     // never matching the design system.
     QApplication::setFont(Theme::font(Theme::TextStyle::Body));
     App::Core core;
-    core.analytics().configure(QStringLiteral(CLOUDMUS_GA4_MEASUREMENT_ID), QStringLiteral(CLOUDMUS_GA4_API_SECRET),
-        QStringLiteral(CLOUDMUS_VERSION));
-    core.analytics().setValidateRequests(debugLoggingRequested());
+    core.analytics().configure(QStringLiteral(CLOUDMUS_GA4_MEASUREMENT_ID), QStringLiteral(CLOUDMUS_VERSION));
+    core.analytics().setDebugView(debugLoggingRequested());
     core.analytics().recordLaunch();
     Config::Settings& settings = core.settings();
     Rpc::SourceManager& sourceManager = core.sourceManager();

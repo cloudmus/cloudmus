@@ -1,10 +1,13 @@
 #include "Settings.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QRandomGenerator>
+#include <QRegularExpression>
 #include <QStandardPaths>
-#include <QUuid>
 
+#include <limits>
 #include <utility>
 
 namespace Config {
@@ -187,8 +190,13 @@ QString Settings::analyticsClientId()
 {
     const QString key = QStringLiteral("analytics/clientId");
     QString id = settings_.value(key).toString();
-    if (id.isEmpty()) {
-        id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    // The web tag's own shape, "<random>.<first seen, Unix seconds>"; an
+    // older random UUID is replaced.
+    static const QRegularExpression shape(QStringLiteral("^\\d+\\.\\d+$"));
+    if (!shape.match(id).hasMatch()) {
+        id = QStringLiteral("%1.%2")
+                 .arg(QRandomGenerator::global()->bounded(1, std::numeric_limits<int>::max()))
+                 .arg(QDateTime::currentSecsSinceEpoch());
         settings_.setValue(key, id);
         settings_.sync();
         restrictPermissions();
@@ -196,29 +204,14 @@ QString Settings::analyticsClientId()
     return id;
 }
 
-QString Settings::analyticsCountryId() const
+int Settings::nextAnalyticsSession()
 {
-    return settings_.value(QStringLiteral("analytics/countryId")).toString();
-}
-
-QString Settings::analyticsCity() const { return settings_.value(QStringLiteral("analytics/city")).toString(); }
-
-QString Settings::analyticsRegionId() const { return settings_.value(QStringLiteral("analytics/regionId")).toString(); }
-
-QString Settings::analyticsContinentId() const
-{
-    return settings_.value(QStringLiteral("analytics/continentId")).toString();
-}
-
-void Settings::setAnalyticsLocation(
-    const QString& countryId, const QString& city, const QString& regionId, const QString& continentId)
-{
-    settings_.setValue(QStringLiteral("analytics/countryId"), countryId);
-    settings_.setValue(QStringLiteral("analytics/city"), city);
-    settings_.setValue(QStringLiteral("analytics/regionId"), regionId);
-    settings_.setValue(QStringLiteral("analytics/continentId"), continentId);
+    const QString key = QStringLiteral("analytics/sessionCount");
+    const int session = settings_.value(key, 0).toInt() + 1;
+    settings_.setValue(key, session);
     settings_.sync();
     restrictPermissions();
+    return session;
 }
 
 void Settings::setDownloadDirectory(const QString& path)
