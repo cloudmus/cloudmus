@@ -114,8 +114,8 @@ public:
         }
         if (area != nullptr)
             wl_region_destroy(area);
-        // Takes effect with the surface's next commit.
-        window->requestUpdate();
+        // Takes effect with the surface's next commit — enableBlurBehind()
+        // repaints the widget to make one.
         wl_display_flush(display_);
     }
 
@@ -366,9 +366,19 @@ void enableBlurBehind(QWidget* window, const QRegion& region)
     // only as it's mapped, after the show event this is usually called
     // from.
     QPointer<QWindow> target(handle);
-    QTimer::singleShot(0, handle, [target, region]() {
-        if (target && target->isVisible())
-            backend()->apply(target, region);
+    QPointer<QWidget> widget(window);
+    QTimer::singleShot(0, handle, [target, widget, region]() {
+        if (!target || !target->isVisible())
+            return;
+        backend()->apply(target, region);
+        // Wayland applies the blur region with the surface's next commit,
+        // and a widget window commits only when it repaints: a just-shown
+        // menu has nothing left to paint, so it stayed unblurred until the
+        // mouse moved over an item. QWindow::requestUpdate() isn't enough —
+        // with nothing dirty, the widget window paints nothing and commits
+        // nothing.
+        if (widget)
+            widget->update();
     });
 }
 
