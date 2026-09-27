@@ -94,7 +94,7 @@ private slots:
         QVERIFY(!sources_->toggleFavorite(QStringLiteral("fake"), QStringLiteral("p2")));
         QVERIFY(sources_->isFavorite(QStringLiteral("fake"), QStringLiteral("p2")));
         QCOMPARE(sidebarIds(sources_->model()), (QStringList { QStringLiteral("p2"), QStringLiteral("p1") }));
-        QCOMPARE(settings_->favorites(QStringLiteral("fake")), std::optional<QStringList>({ QStringLiteral("p2") }));
+        QCOMPARE(settings_->favorites(QStringLiteral("fake")), std::optional<QStringList>(QStringList { QStringLiteral("p2") }));
 
         QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
         sources_->refresh(QStringLiteral("fake"));
