@@ -22,12 +22,19 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
 {
     connect(audioPlayer_, &AudioPlayer::endOfFile, this, [this]() { advance(1, /*wasSkip=*/false); });
     connect(audioPlayer_, &AudioPlayer::started, this, [this]() {
+        preparedStartPending_ = false;
         playTimeoutTimer_->stop();
         emit loadingChanged(false);
         playing_ = true;
         emit playingChanged(true);
+        prepareNext();
     });
     connect(audioPlayer_, &AudioPlayer::failed, this, [this](const QString& message) {
+        if (preparedStartPending_ && hasCurrentTrack()) {
+            preparedStartPending_ = false;
+            playIndex(index_); // an expired prefetched URL gets a fresh resolution
+            return;
+        }
         playTimeoutTimer_->stop();
         emit loadingChanged(false);
         emit errorOccurred(message);
@@ -36,11 +43,17 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
         lastKnownPositionMs_ = posMs;
         emit positionChanged(posMs, durMs);
     });
+    connect(audioPlayer_, &AudioPlayer::prepared, this, [this]() { preparedReady_ = true; });
 
     playTimeoutTimer_ = new QTimer(this);
     playTimeoutTimer_->setSingleShot(true);
     playTimeoutTimer_->setInterval(kPlayTimeoutMs);
     connect(playTimeoutTimer_, &QTimer::timeout, this, [this]() {
+        if (preparedStartPending_ && hasCurrentTrack()) {
+            preparedStartPending_ = false;
+            playIndex(index_);
+            return;
+        }
         emit loadingChanged(false);
         emit errorOccurred(QStringLiteral("Timed out waiting for the track to start"));
     });
@@ -64,6 +77,7 @@ void PlaybackController::loadQueue(const QString& sourceId, const QList<Track>& 
 
 void PlaybackController::loadQueue(const QVector<QueueEntry>& entries, int startIndex)
 {
+    invalidatePrepared();
     setWaveMode(false);
     awaitingRadioTracks_ = false;
     queue_ = entries;
@@ -88,6 +102,7 @@ void PlaybackController::playAt(int index)
 void PlaybackController::startRadio(
     const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks)
 {
+    invalidatePrepared();
     setWaveMode(true);
     awaitingRadioTracks_ = false;
     waveSourceId_ = sourceId;
@@ -104,6 +119,7 @@ void PlaybackController::startRadio(
 
 void PlaybackController::enqueueNext(const QString& sourceId, const Track& track)
 {
+    invalidatePrepared();
     const bool wasEmpty = !hasQueue();
     const int insertPos = hasCurrentTrack() ? index_ + 1 : 0;
     queue_.insert(insertPos, QueueEntry { sourceId, track, /*userQueued=*/true });
@@ -120,10 +136,13 @@ void PlaybackController::enqueueNext(const QString& sourceId, const Track& track
     emit queueChanged();
     if (!hasCurrentTrack())
         playIndex(0);
+    else
+        prepareNext();
 }
 
 void PlaybackController::enqueueAtEnd(const QString& sourceId, const Track& track)
 {
+    invalidatePrepared();
     const bool wasEmpty = !hasQueue();
     const bool shouldPlayImmediately = !hasCurrentTrack();
     queue_.append(QueueEntry { sourceId, track, /*userQueued=*/true });
@@ -138,12 +157,15 @@ void PlaybackController::enqueueAtEnd(const QString& sourceId, const Track& trac
     // than the track this call is actually about.
     if (shouldPlayImmediately)
         playIndex(queue_.size() - 1);
+    else
+        prepareNext();
 }
 
 void PlaybackController::handleTracksAdded(const QString& sourceId, const TracksAddedParams& params)
 {
     if (!waveMode_ || sourceId != waveSourceId_ || params.stationId != waveStationId_)
         return;
+    invalidatePrepared();
     if (params.replaceUpcoming.value_or(false)) {
         // The station recomputed what comes next (docs/protocol.md §7.1):
         // drop the station's own unplayed tracks after the current (or
@@ -172,6 +194,8 @@ void PlaybackController::handleTracksAdded(const QString& sourceId, const Tracks
     if (awaitingRadioTracks_ && index_ + 1 < queue_.size()) {
         awaitingRadioTracks_ = false;
         playIndex(index_ + 1);
+    } else {
+        prepareNext();
     }
 }
 
@@ -182,8 +206,13 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
     if (index < 0 || index >= queue_.size())
         co_return;
 
+    // A slow backend or the redirect preflight must not leave the old track
+    // audible after the user has selected a new one.
+    stopForTransition();
+
     Rpc::RpcClient* client = sourceManager_.client(queue_[index].sourceId);
     if (client == nullptr || !client->available()) {
+        emit loadingChanged(false);
         emit errorOccurred(QStringLiteral("Source is unavailable"));
         co_return;
     }
@@ -200,6 +229,8 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
     // hero panel's title/cover — could fire with a dangling QueueEntry,
     // showing garbage or blank metadata for a track that's audibly playing.
     const QueueEntry entry = queue_[index];
+    const QPointer<PlaybackController> alive(this);
+    const int transition = transitionGeneration_;
     const int id = client->allocateRequestId();
     latestRequestId_ = id;
     latestRequestSourceId_ = entry.sourceId;
@@ -211,7 +242,9 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
         PlayParams params { entry.track.id };
         co_await client->callWithId<PlayResult>(id, QStringLiteral("playback.play"), params.toJson(), 5000);
     } catch (const Rpc::RpcCallException& e) {
-        if (id == latestRequestId_) {
+        if (!alive)
+            co_return;
+        if (transition == transitionGeneration_ && id == latestRequestId_) {
             startingIndex_ = -1;
             playTimeoutTimer_->stop();
             emit loadingChanged(false);
@@ -219,6 +252,12 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
         }
         co_return;
     }
+
+    if (!alive)
+        co_return;
+
+    if (transition != transitionGeneration_ || id != latestRequestId_)
+        co_return;
 
     const bool wasCurrentTrack = hasCurrentTrack();
     index_ = index;
@@ -232,6 +271,11 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
         Rpc::feedbackTrackStarted(*client, started).detach();
     }
     emit trackChanged(entry.track, entry.sourceId);
+    if (earlyStreamReady_) {
+        const StreamReadyParams ready = *earlyStreamReady_;
+        earlyStreamReady_.reset();
+        handleStreamReady(entry.sourceId, ready);
+    }
 }
 
 void PlaybackController::handleStreamReady(const QString& sourceId, const StreamReadyParams& params)
@@ -239,27 +283,22 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
     if (params.requestId != latestRequestId_ || sourceId != latestRequestSourceId_) {
         return; // superseded by a later playback.play — discard, see docs/protocol.md §11.1
     }
+    if (startingIndex_ >= 0) {
+        earlyStreamReady_ = params;
+        return;
+    }
     // Displayed by AudioPlayer as the track identity in the OS's per-stream
     // audio widget (mpv would otherwise report itself as "mpv" playing a
     // title derived from the raw stream URL) — same "%1 — %2" convention as
     // TrayIcon::setNowPlayingTooltip.
-    const Track& track = currentTrack();
-    QString title = track.title;
-    if (!track.artists.isEmpty()) {
-        QString artists;
-        for (int i = 0; i < track.artists.size(); ++i) {
-            if (i > 0)
-                artists += QStringLiteral(", ");
-            artists += track.artists[i].name;
-        }
-        title = QStringLiteral("%1 — %2").arg(track.title, artists);
-    }
+    const QString title = titleFor(currentTrack());
 
     // Loading indicator / playTimeoutTimer_ stay active until
     // AudioPlayer::started() or failed() — play() is asynchronous now (see
     // AudioPlayer.h), it may still be downloading the stream.
-    audioPlayer_->play(
-        params.stream.url, title, streamRouteProvider_ ? streamRouteProvider_(queue_[index_].sourceId) : std::nullopt);
+    audioPlayer_->play(params.stream.url, title,
+        streamRouteProvider_ ? streamRouteProvider_(queue_[index_].sourceId) : std::nullopt,
+        params.stream.headers.value_or(QMap<QString, QString> { }));
 }
 
 void PlaybackController::advance(int delta, bool wasSkip)
@@ -268,12 +307,24 @@ void PlaybackController::advance(int delta, bool wasSkip)
         return;
     sendFeedbackFinishedOrSkip(wasSkip);
     if (!wasSkip && effectiveRepeatMode() == RepeatMode::One && hasCurrentTrack()) {
-        playIndex(index_);
+        if (preparedReady_ && preparedIndex_ == index_)
+            promotePrepared(index_, false);
+        else
+            playIndex(index_);
         return;
     }
-    const int nextIndex = stepFrom(delta);
+    // Reuse the prepared index rather than stepping again: stepFrom() may
+    // reshuffle when it wraps. Under Repeat One the prepared entry is the
+    // current track itself, which a manual Next must skip.
+    const bool preparedIsNext = preparedIndex_ >= 0 && effectiveRepeatMode() != RepeatMode::One;
+    const int nextIndex = delta == 1 && preparedIsNext ? preparedIndex_ : stepFrom(delta);
     if (nextIndex >= 0) {
-        playIndex(nextIndex);
+        const bool sameRoute
+            = !streamRouteProvider_ || preparedRoute_ == streamRouteProvider_(queue_[nextIndex].sourceId);
+        if (delta == 1 && preparedReady_ && nextIndex == preparedIndex_ && sameRoute)
+            promotePrepared(nextIndex, wasSkip);
+        else
+            playIndex(nextIndex);
         return;
     }
     if (delta < 0) {
@@ -354,6 +405,8 @@ void PlaybackController::setShuffle(bool on)
         reshuffle(index_); // the rest of the list shuffled after what's playing
     else
         order_.clear();
+    invalidatePrepared();
+    prepareNext();
     emit playModeChanged();
 }
 
@@ -362,6 +415,8 @@ void PlaybackController::setRepeatMode(RepeatMode mode)
     if (repeatMode_ == mode)
         return;
     repeatMode_ = mode;
+    invalidatePrepared();
+    prepareNext();
     emit playModeChanged();
 }
 
@@ -407,14 +462,12 @@ void PlaybackController::togglePause()
 
 void PlaybackController::stop()
 {
-    audioPlayer_->stop();
-    playTimeoutTimer_->stop();
+    stopForTransition();
     // Discards any in-flight playback.play this stop() interrupts —
     // without this, a track/streamReady that arrives after index_ is
     // reset below would pass handleStreamReady()'s requestId check (it's
     // still "the latest" — nothing superseded it, the user just stopped)
     // and then dereference queue_[index_] at index_ == -1.
-    latestRequestId_ = -1;
     startingIndex_ = -1;
     if (awaitingRadioTracks_) {
         awaitingRadioTracks_ = false;
@@ -423,12 +476,131 @@ void PlaybackController::stop()
     const bool hadCurrentTrack = hasCurrentTrack();
     index_ = -1; // the current track becomes undefined — see hasCurrentTrack()
     lastKnownPositionMs_ = 0;
+    if (hadCurrentTrack)
+        emit currentTrackAvailabilityChanged(false);
+}
+
+void PlaybackController::stopForTransition()
+{
+    preparedStartPending_ = false;
+    ++transitionGeneration_;
+    invalidatePrepared();
+    audioPlayer_->stop();
+    playTimeoutTimer_->stop();
+    latestRequestId_ = -1;
+    startingIndex_ = -1;
+    earlyStreamReady_.reset();
     if (playing_) {
         playing_ = false;
         emit playingChanged(false);
     }
-    if (hadCurrentTrack)
-        emit currentTrackAvailabilityChanged(false);
+}
+
+QString PlaybackController::titleFor(const Track& track) const
+{
+    if (track.artists.isEmpty())
+        return track.title;
+    QStringList artists;
+    for (const auto& artist : track.artists)
+        artists.append(artist.name);
+    return QStringLiteral("%1 — %2").arg(track.title, artists.join(QStringLiteral(", ")));
+}
+
+void PlaybackController::invalidatePrepared()
+{
+    if (preparedRequestId_ >= 0) {
+        if (Rpc::RpcClient* client = preparedClient_) {
+            CancelParams params { preparedRequestId_ };
+            Rpc::playbackCancel(*client, params).detach();
+        }
+    }
+    preparedRequestId_ = -1;
+    preparedClient_.clear();
+    ++preparedGeneration_;
+    preparedIndex_ = -1;
+    preparedReady_ = false;
+    preparedRoute_.reset();
+    audioPlayer_->clearPrepared();
+}
+
+void PlaybackController::prepareNext()
+{
+    if (!playing_ || !hasCurrentTrack() || preparedIndex_ >= 0 || queue_.isEmpty())
+        return;
+    const int nextIndex = effectiveRepeatMode() == RepeatMode::One ? index_ : stepFrom(1);
+    if (nextIndex < 0 || nextIndex >= queue_.size())
+        return;
+    const QueueEntry entry = queue_[nextIndex];
+    Rpc::RpcClient* client = sourceManager_.client(entry.sourceId);
+    if (!client || !client->available())
+        return;
+    const QJsonObject playbackCaps = client->capabilities().value(QStringLiteral("playback")).toObject();
+    if (!playbackCaps.value(QStringLiteral("resolveStream")).toBool())
+        return;
+    preparedIndex_ = nextIndex;
+    prepareNextAsync(++preparedGeneration_, nextIndex, entry).detach();
+}
+
+Rpc::Task<void> PlaybackController::prepareNextAsync(int generation, int nextIndex, QueueEntry entry)
+{
+    const QPointer<PlaybackController> alive(this);
+    Rpc::RpcClient* client = sourceManager_.client(entry.sourceId);
+    if (!client)
+        co_return;
+    const int id = client->allocateRequestId();
+    preparedRequestId_ = id;
+    preparedClient_ = client;
+    try {
+        ResolveStreamParams params { entry.track.id };
+        ResolveStreamResult result = co_await client->callWithId<ResolveStreamResult>(
+            id, QStringLiteral("playback.resolveStream"), params.toJson(), 20000);
+        if (!alive)
+            co_return;
+        if (generation != preparedGeneration_ || nextIndex >= queue_.size()
+            || queue_[nextIndex].sourceId != entry.sourceId || queue_[nextIndex].track.id != entry.track.id)
+            co_return;
+        preparedRequestId_ = -1;
+        preparedClient_.clear();
+        preparedRoute_ = streamRouteProvider_ ? streamRouteProvider_(entry.sourceId) : std::nullopt;
+        audioPlayer_->prepare(result.stream.url, titleFor(entry.track), preparedRoute_,
+            result.stream.headers.value_or(QMap<QString, QString> { }));
+    } catch (const std::exception&) {
+        if (!alive)
+            co_return;
+        if (generation == preparedGeneration_) {
+            preparedRequestId_ = -1;
+            preparedClient_.clear();
+            preparedIndex_ = -1;
+        }
+    }
+}
+
+void PlaybackController::promotePrepared(int nextIndex, bool manual)
+{
+    const bool hadCurrentTrack = hasCurrentTrack();
+    audioPlayer_->usePrepared(manual);
+    index_ = nextIndex;
+    lastKnownPositionMs_ = 0;
+    preparedIndex_ = -1;
+    preparedReady_ = false;
+    preparedStartPending_ = true;
+    ++preparedGeneration_;
+    emit loadingChanged(true);
+    playTimeoutTimer_->start();
+    if (playing_) {
+        playing_ = false;
+        emit playingChanged(false);
+    }
+    if (!hadCurrentTrack)
+        emit currentTrackAvailabilityChanged(true);
+    const QueueEntry entry = queue_[index_];
+    if (waveMode_) {
+        if (Rpc::RpcClient* client = sourceManager_.client(entry.sourceId)) {
+            TrackStartedParams params { entry.track.id };
+            Rpc::feedbackTrackStarted(*client, params).detach();
+        }
+    }
+    emit trackChanged(entry.track, entry.sourceId);
 }
 
 void PlaybackController::next() { advance(1, /*wasSkip=*/true); }

@@ -3,11 +3,13 @@
 #include <QByteArray>
 #include <QHash>
 #include <QList>
+#include <QMap>
 #include <QNetworkProxy>
 #include <QObject>
 #include <QUrl>
 
 class QNetworkAccessManager;
+class QNetworkReply;
 class QTcpServer;
 
 namespace Playback {
@@ -37,7 +39,14 @@ public:
     // The local URL to hand mpv for `upstream`, fetched through `proxy`
     // (QNetworkProxy::NoProxy: directly). The last few URLs stay valid, so
     // a seek or reconnect into a track that's still playing keeps working.
-    QUrl urlFor(const QUrl& upstream, const QNetworkProxy& proxy);
+    QUrl urlFor(const QUrl& upstream, const QNetworkProxy& proxy, const QMap<QString, QString>& headers = { });
+    // Fetch the beginning of one upcoming stream. A ready URL serves those
+    // bytes locally before continuing with an upstream Range request.
+    QUrl prefetch(const QUrl& upstream, const QNetworkProxy& proxy, const QMap<QString, QString>& headers = { });
+    void cancelPrefetch();
+
+signals:
+    void prefetchReady(const QUrl& localUrl);
 
 private:
     friend class RelayConnection;
@@ -45,6 +54,12 @@ private:
     struct Target {
         QUrl upstream;
         QNetworkProxy proxy;
+        QMap<QString, QString> headers;
+        QByteArray prefix;
+        QByteArray contentType;
+        qint64 totalLength = -1;
+        bool complete = false;
+        bool ready = false;
     };
 
     void onNewConnection();
@@ -57,6 +72,8 @@ private:
     QHash<QByteArray, Target> targets_;
     QList<QByteArray> tokenOrder_; // oldest first
     QHash<QString, QNetworkAccessManager*> managers_;
+    QNetworkReply* prefetchReply_ = nullptr;
+    QByteArray prefetchToken_;
 };
 
 } // namespace Playback

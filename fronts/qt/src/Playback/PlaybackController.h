@@ -2,6 +2,7 @@
 
 #include <QNetworkProxy>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QVector>
 
@@ -131,6 +132,12 @@ signals:
 private:
     void playIndex(int index);
     Rpc::Task<void> playIndexAsync(int index);
+    void stopForTransition();
+    void prepareNext();
+    Rpc::Task<void> prepareNextAsync(int generation, int nextIndex, QueueEntry entry);
+    void invalidatePrepared();
+    void promotePrepared(int nextIndex, bool manual);
+    QString titleFor(const Track& track) const;
     void advance(int delta, bool wasSkip);
     // The queue index `delta` steps from the current one in play order
     // (shuffled or not), wrapping around under RepeatMode::All; -1 past
@@ -151,6 +158,15 @@ private:
     bool playing_ = false;
 
     int latestRequestId_ = -1;
+    int transitionGeneration_ = 0;
+    std::optional<StreamReadyParams> earlyStreamReady_;
+    int preparedGeneration_ = 0;
+    int preparedRequestId_ = -1;
+    QPointer<Rpc::RpcClient> preparedClient_;
+    int preparedIndex_ = -1;
+    bool preparedReady_ = false;
+    bool preparedStartPending_ = false;
+    std::optional<QNetworkProxy> preparedRoute_;
     // Queue index of the in-flight playback.play (-1 if none): it's about
     // to become index_, so a radio replacing its upcoming tracks must keep it.
     int startingIndex_ = -1;

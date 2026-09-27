@@ -21,7 +21,7 @@ namespace {
 Q_LOGGING_CATEGORY(lcAudioPlayer, "cloudmus.playback.audio")
 }
 
-AudioPlayer::AudioPlayer(QObject* parent)
+AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
     : QObject(parent)
 {
     // libmpv requires LC_NUMERIC == "C" before mpv_create() — it parses/
@@ -38,7 +38,8 @@ AudioPlayer::AudioPlayer(QObject* parent)
     // native PipeWire output was unreliable there; route through
     // pulse/pipewire-pulse or alsa instead.
     mpv_set_option_string(mpv_, "vid", "no");
-    mpv_set_option_string(mpv_, "ao", "pulse,alsa");
+    mpv_set_option_string(mpv_, "ao", audioOutput.constData());
+    mpv_set_option_string(mpv_, "gapless-audio", "yes");
 
     // Without these, mpv reports itself to PipeWire/Pulse (and thus to the
     // desktop's per-stream volume widget) as "mpv" playing a title derived
@@ -137,59 +138,76 @@ void AudioPlayer::processMpvEvents()
 void AudioPlayer::handleEvent(const mpv_event& event)
 {
     switch (event.event_id) {
-    case MPV_EVENT_PLAYBACK_RESTART:
-        emit started();
-        break;
+        case MPV_EVENT_START_FILE:
+            if (preparedQueued_) {
+                const QByteArray title = preparedTitle_.toUtf8();
+                mpv_set_property_string(mpv_, "force-media-title", title.constData());
+            }
+            break;
 
-    case MPV_EVENT_END_FILE: {
-        const auto* data = static_cast<mpv_event_end_file*>(event.data);
-        if (data->reason == MPV_END_FILE_REASON_EOF) {
-            emit endOfFile();
-        } else if (data->reason == MPV_END_FILE_REASON_ERROR) {
-            const QString message = QString::fromUtf8(mpv_error_string(data->error));
-            qCWarning(lcAudioPlayer) << "playback failed:" << message;
-            emit failed(message);
+        case MPV_EVENT_FILE_LOADED:
+            if (preparedPromoting_) {
+                const char* args[] = { "playlist-clear", nullptr };
+                mpv_command_async(mpv_, 0, args);
+                preparedPromoting_ = false;
+            }
+            break;
+
+        case MPV_EVENT_PLAYBACK_RESTART:
+            emit started();
+            break;
+
+        case MPV_EVENT_END_FILE: {
+            const auto* data = static_cast<mpv_event_end_file*>(event.data);
+            if (data->reason == MPV_END_FILE_REASON_EOF) {
+                emit endOfFile();
+            } else if (data->reason == MPV_END_FILE_REASON_ERROR) {
+                const QString message = QString::fromUtf8(mpv_error_string(data->error));
+                qCWarning(lcAudioPlayer) << "playback failed:" << message;
+                emit failed(message);
+            }
+            // STOP/QUIT/REDIRECT are our own doing (stop()/next loadfile) — no
+            // signal, same as the old QMediaPlayer wrapper's stop() not firing
+            // endOfFile().
+            break;
         }
-        // STOP/QUIT/REDIRECT are our own doing (stop()/next loadfile) — no
-        // signal, same as the old QMediaPlayer wrapper's stop() not firing
-        // endOfFile().
-        break;
-    }
 
-    case MPV_EVENT_LOG_MESSAGE: {
-        const auto* msg = static_cast<mpv_event_log_message*>(event.data);
-        const QString text = QString::fromUtf8(msg->text).trimmed();
-        if (text.isEmpty())
+        case MPV_EVENT_LOG_MESSAGE: {
+            const auto* msg = static_cast<mpv_event_log_message*>(event.data);
+            const QString text = QString::fromUtf8(msg->text).trimmed();
+            if (text.isEmpty())
+                break;
+            if (std::strcmp(msg->level, "error") == 0 || std::strcmp(msg->level, "warn") == 0)
+                qCWarning(lcAudioPlayer) << "[mpv]" << text;
+            else
+                qCDebug(lcAudioPlayer) << "[mpv]" << text;
             break;
-        if (std::strcmp(msg->level, "error") == 0 || std::strcmp(msg->level, "warn") == 0)
-            qCWarning(lcAudioPlayer) << "[mpv]" << text;
-        else
-            qCDebug(lcAudioPlayer) << "[mpv]" << text;
-        break;
-    }
+        }
 
-    case MPV_EVENT_PROPERTY_CHANGE: {
-        const auto* prop = static_cast<mpv_event_property*>(event.data);
-        if (prop->format != MPV_FORMAT_DOUBLE)
+        case MPV_EVENT_PROPERTY_CHANGE: {
+            const auto* prop = static_cast<mpv_event_property*>(event.data);
+            if (prop->format != MPV_FORMAT_DOUBLE)
+                break;
+            const qint64 ms = static_cast<qint64>(*static_cast<double*>(prop->data) * 1000.0);
+            if (std::strcmp(prop->name, "time-pos") == 0)
+                lastPositionMs_ = ms;
+            else if (std::strcmp(prop->name, "duration") == 0)
+                lastDurationMs_ = ms;
+            else
+                break;
+            emit positionChanged(lastPositionMs_, lastDurationMs_);
             break;
-        const qint64 ms = static_cast<qint64>(*static_cast<double*>(prop->data) * 1000.0);
-        if (std::strcmp(prop->name, "time-pos") == 0)
-            lastPositionMs_ = ms;
-        else if (std::strcmp(prop->name, "duration") == 0)
-            lastDurationMs_ = ms;
-        else
-            break;
-        emit positionChanged(lastPositionMs_, lastDurationMs_);
-        break;
-    }
+        }
 
-    default:
-        break;
+        default:
+            break;
     }
 }
 
-void AudioPlayer::play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route)
+void AudioPlayer::play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route,
+    const QMap<QString, QString>& headers)
 {
+    clearPrepared();
     // Set before loadfile, not after, so the incoming file picks it up
     // immediately instead of racing mpv's own URL-derived fallback title.
     const QByteArray titleUtf8 = title.toUtf8();
@@ -207,10 +225,16 @@ void AudioPlayer::play(const QString& url, const QString& title, const std::opti
     // would take http_proxy from the environment), follows redirects with
     // Qt's network stack like the preflight below does, and resumes a
     // stream that breaks off.
-    if (route) {
+    if (route || !headers.isEmpty()) {
         if (relay_ == nullptr)
             relay_ = new StreamRelay(this);
-        loadUrl(relay_->urlFor(QUrl(url), *route).toString());
+        loadUrl(
+            relay_->urlFor(QUrl(url), route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers).toString());
+        return;
+    }
+
+    if (QUrl(url).isLocalFile()) {
+        loadUrl(url);
         return;
     }
 
@@ -252,6 +276,61 @@ void AudioPlayer::play(const QString& url, const QString& title, const std::opti
     });
 }
 
+void AudioPlayer::prepare(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route,
+    const QMap<QString, QString>& headers)
+{
+    clearPrepared();
+    preparedTitle_ = title;
+    const QUrl upstream(url);
+    if (upstream.isLocalFile()) {
+        const QByteArray value = url.toUtf8();
+        const char* args[] = { "loadfile", value.constData(), "append", nullptr };
+        mpv_command_async(mpv_, 0, args);
+        preparedQueued_ = true;
+        emit prepared();
+        return;
+    }
+    if (!relay_) {
+        relay_ = new StreamRelay(this);
+        connect(relay_, &StreamRelay::prefetchReady, this, [this](const QUrl& localUrl) {
+            if (preparedQueued_)
+                return;
+            const QByteArray value = localUrl.toString().toUtf8();
+            const char* args[] = { "loadfile", value.constData(), "append", nullptr };
+            mpv_command_async(mpv_, 0, args);
+            preparedQueued_ = true;
+            emit prepared();
+        });
+    }
+    relay_->prefetch(upstream, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers);
+}
+
+void AudioPlayer::clearPrepared()
+{
+    if (relay_)
+        relay_->cancelPrefetch();
+    if (preparedQueued_ || preparedPromoting_) {
+        const char* args[] = { "playlist-clear", nullptr };
+        mpv_command_async(mpv_, 0, args);
+    }
+    preparedQueued_ = false;
+    preparedPromoting_ = false;
+    preparedTitle_.clear();
+}
+
+void AudioPlayer::usePrepared(bool manual)
+{
+    const QByteArray title = preparedTitle_.toUtf8();
+    mpv_set_property_string(mpv_, "force-media-title", title.constData());
+    if (manual) {
+        const char* args[] = { "playlist-next", nullptr };
+        mpv_command_async(mpv_, 0, args);
+        resume();
+    }
+    preparedQueued_ = false;
+    preparedPromoting_ = true;
+}
+
 void AudioPlayer::loadUrl(const QString& url)
 {
     // Fed straight to mpv, no local download-and-buffer step — unlike the
@@ -289,6 +368,13 @@ void AudioPlayer::resume()
 
 void AudioPlayer::stop()
 {
+    clearPrepared();
+    if (pendingRedirectResolve_) {
+        pendingRedirectResolve_->disconnect(this);
+        pendingRedirectResolve_->abort();
+        pendingRedirectResolve_->deleteLater();
+        pendingRedirectResolve_ = nullptr;
+    }
     const char* args[] = { "stop", nullptr };
     mpv_command_async(mpv_, 0, args);
 }

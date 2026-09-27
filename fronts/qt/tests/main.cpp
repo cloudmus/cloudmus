@@ -17,6 +17,7 @@ QObject* makeActivePlaylistTest();
 QObject* makeBrowseTest();
 QObject* makeDownloadsTest();
 QObject* makeAnalyticsTest();
+QObject* makeStreamRelayTest();
 }
 
 int main(int argc, char** argv)
@@ -34,7 +35,7 @@ int main(int argc, char** argv)
     int failures = 0;
     for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
              Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
-             Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest }) {
+             Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QByteArray>
+#include <QMap>
 #include <QNetworkProxy>
 #include <QObject>
 #include <QString>
@@ -29,13 +31,18 @@ class AudioPlayer : public QObject {
     Q_OBJECT
 
 public:
-    explicit AudioPlayer(QObject* parent = nullptr);
+    explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "pulse,alsa");
     ~AudioPlayer() override;
 
     // `route`: fetch the stream through this proxy (NoProxy: explicitly
     // directly), via StreamRelay; none — as the system has it, straight
     // from mpv.
-    void play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route = std::nullopt);
+    void play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route = std::nullopt,
+        const QMap<QString, QString>& headers = { });
+    void prepare(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route,
+        const QMap<QString, QString>& headers = { });
+    void clearPrepared();
+    void usePrepared(bool manual);
     void pause();
     void resume();
     void stop();
@@ -51,6 +58,7 @@ signals:
     // Natural end of the current track (not a manual stop/track change).
     void endOfFile();
     void positionChanged(qint64 positionMs, qint64 durationMs);
+    void prepared();
 
 private:
     // Drains libmpv's event queue on the GUI thread. Invoked (via
@@ -77,6 +85,9 @@ private:
     QNetworkReply* pendingRedirectResolve_ = nullptr;
     // Created on first use: only a source with its own connection needs it.
     StreamRelay* relay_ = nullptr;
+    QString preparedTitle_;
+    bool preparedQueued_ = false;
+    bool preparedPromoting_ = false;
 };
 
 } // namespace Playback

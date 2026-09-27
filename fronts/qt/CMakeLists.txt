@@ -304,6 +304,7 @@ add_executable(cloudmus-qt-tests
     tests/BrowseTest.cpp
     tests/DownloadsTest.cpp
     tests/AnalyticsTest.cpp
+    tests/StreamRelayTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

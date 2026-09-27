@@ -31,6 +31,8 @@ constexpr int kResumeDelaysMs[kMaxResumeAttempts] = { 500, 1000, 2000, 4000, 500
 constexpr qint64 kReadBufferBytes = 256 * 1024;
 constexpr qint64 kSocketHighWater = 512 * 1024;
 constexpr qint64 kChunkBytes = 64 * 1024;
+constexpr qint64 kPrefetchBytes = 8 * 1024 * 1024;
+constexpr qint64 kReadyBytes = 256 * 1024;
 
 QString proxyKey(const QNetworkProxy& proxy)
 {
@@ -120,6 +122,11 @@ private:
         head_ = method == "HEAD";
         upstream_ = target->upstream;
         proxy_ = target->proxy;
+        headers_ = target->headers;
+        prefix_ = target->prefix;
+        prefixLength_ = target->totalLength;
+        prefixComplete_ = target->complete;
+        prefixType_ = target->contentType;
 
         static const QRegularExpression range(QStringLiteral(R"(^\s*bytes=(\d*)-(\d*)\s*$)"));
         for (const QByteArray& line : lines.mid(1)) {
@@ -130,6 +137,21 @@ private:
             if (m.hasMatch() && !m.captured(1).isEmpty()) {
                 rangeStart_ = m.captured(1).toLongLong();
                 rangeEnd_ = m.captured(2).isEmpty() ? -1 : m.captured(2).toLongLong();
+            }
+        }
+        if (!head_ && rangeStart_ == 0 && rangeEnd_ < 0 && !prefix_.isEmpty() && prefixLength_ >= 0) {
+            QByteArray response = "HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(prefixLength_)
+                + "\r\nAccept-Ranges: bytes\r\nConnection: close\r\n";
+            if (!prefixType_.isEmpty())
+                response += "Content-Type: " + prefixType_ + "\r\n";
+            socket_->write(response + "\r\n");
+            socket_->write(prefix_);
+            sent_ = prefix_.size();
+            expectedLength_ = prefixLength_;
+            headSent_ = true;
+            if (prefixComplete_) {
+                socket_->disconnectFromHost();
+                return;
             }
         }
         startUpstream();
@@ -144,6 +166,8 @@ private:
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
         // Not gzip: Qt would decompress it, and the Content-Length/ranges
         // passed on to mpv would no longer match the bytes it gets.
+        for (auto it = headers_.cbegin(); it != headers_.cend(); ++it)
+            request.setRawHeader(it.key().toUtf8(), it.value().toUtf8());
         request.setRawHeader("Accept-Encoding", "identity");
         const qint64 from = rangeStart_ + sent_;
         if (from > 0 || rangeEnd_ >= 0) {
@@ -269,6 +293,11 @@ private:
     QByteArray request_;
     QUrl upstream_;
     QNetworkProxy proxy_;
+    QMap<QString, QString> headers_;
+    QByteArray prefix_;
+    QByteArray prefixType_;
+    qint64 prefixLength_ = -1;
+    bool prefixComplete_ = false;
     bool started_ = false;
     bool head_ = false;
     qint64 rangeStart_ = 0;
@@ -289,7 +318,7 @@ StreamRelay::StreamRelay(QObject* parent)
 {
 }
 
-QUrl StreamRelay::urlFor(const QUrl& upstream, const QNetworkProxy& proxy)
+QUrl StreamRelay::urlFor(const QUrl& upstream, const QNetworkProxy& proxy, const QMap<QString, QString>& headers)
 {
     if (server_ == nullptr) {
         server_ = new QTcpServer(this);
@@ -304,7 +333,7 @@ QUrl StreamRelay::urlFor(const QUrl& upstream, const QNetworkProxy& proxy)
     QByteArray token(16, Qt::Uninitialized);
     QRandomGenerator::system()->fillRange(reinterpret_cast<quint32*>(token.data()), token.size() / 4);
     token = token.toHex();
-    targets_.insert(token, Target { upstream, proxy });
+    targets_.insert(token, Target { upstream, proxy, headers });
     tokenOrder_.append(token);
     while (tokenOrder_.size() > kMaxTargets)
         targets_.remove(tokenOrder_.takeFirst());
@@ -315,6 +344,87 @@ QUrl StreamRelay::urlFor(const QUrl& upstream, const QNetworkProxy& proxy)
     url.setPort(server_->serverPort());
     url.setPath(QLatin1Char('/') + QString::fromLatin1(token));
     return url;
+}
+
+QUrl StreamRelay::prefetch(const QUrl& upstream, const QNetworkProxy& proxy, const QMap<QString, QString>& headers)
+{
+    cancelPrefetch();
+    const QUrl local = urlFor(upstream, proxy, headers);
+    prefetchToken_ = local.path().mid(1).toLatin1();
+    Target& target = targets_[prefetchToken_];
+    target.headers = headers;
+
+    QNetworkRequest request(upstream);
+    request.setTransferTimeout(kStallTimeoutMs);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    for (auto it = headers.cbegin(); it != headers.cend(); ++it)
+        request.setRawHeader(it.key().toUtf8(), it.value().toUtf8());
+    request.setRawHeader("Accept-Encoding", "identity");
+    request.setRawHeader("Range", "bytes=0-" + QByteArray::number(kPrefetchBytes - 1));
+    prefetchReply_ = managerFor(proxy)->get(request);
+    prefetchReply_->setReadBufferSize(kReadBufferBytes);
+    QNetworkReply* reply = prefetchReply_;
+    const QByteArray token = prefetchToken_;
+    const auto collect = [this, reply, token, local]() {
+        if (prefetchReply_ != reply || !targets_.contains(token))
+            return;
+        Target& target = targets_[token];
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status != 200 && status != 206)
+            return;
+        const QByteArray range = reply->rawHeader("Content-Range");
+        if (status == 206 && range.startsWith("bytes 0-")) {
+            const qsizetype slash = range.lastIndexOf('/');
+            bool ok = false;
+            const qint64 total = range.mid(slash + 1).toLongLong(&ok);
+            if (ok)
+                target.totalLength = total;
+        } else if (status == 200) {
+            bool ok = false;
+            const qint64 total = reply->rawHeader("Content-Length").toLongLong(&ok);
+            if (ok && total <= kPrefetchBytes) {
+                target.totalLength = total;
+                target.complete = true;
+            }
+        }
+        target.contentType = reply->rawHeader("Content-Type");
+        target.prefix += reply->read(kPrefetchBytes - target.prefix.size());
+        if (reply->isFinished() && target.totalLength == target.prefix.size())
+            target.complete = true;
+        if (target.prefix.size() >= kPrefetchBytes && !reply->isFinished())
+            reply->abort();
+        const bool usable = target.totalLength >= 0 && (status == 206 || target.complete);
+        const bool filled = target.prefix.size() >= kReadyBytes || reply->isFinished();
+        if (usable && filled && !target.prefix.isEmpty() && !target.ready
+            && (!target.complete || target.prefix.size() == target.totalLength)) {
+            target.ready = true;
+            emit prefetchReady(local);
+        }
+    };
+    connect(reply, &QNetworkReply::readyRead, this, collect);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, collect]() {
+        collect();
+        if (prefetchReply_ == reply)
+            prefetchReply_ = nullptr;
+        reply->deleteLater();
+    });
+    return local;
+}
+
+void StreamRelay::cancelPrefetch()
+{
+    if (prefetchReply_) {
+        prefetchReply_->disconnect(this);
+        prefetchReply_->abort();
+        prefetchReply_->deleteLater();
+        prefetchReply_ = nullptr;
+    }
+    if (!prefetchToken_.isEmpty()) {
+        auto it = targets_.find(prefetchToken_);
+        if (it != targets_.end())
+            it->prefix.clear();
+    }
+    prefetchToken_.clear();
 }
 
 void StreamRelay::onNewConnection()
