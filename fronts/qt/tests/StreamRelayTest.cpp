@@ -64,6 +64,39 @@ private slots:
         QCOMPARE(errors.size(), 0);
     }
 
+    void aTrackPreparedWhileAProxiedOneIsPlayingGetsQueued()
+    {
+        // play() through a route creates the relay first; the prefetch
+        // prepare() then starts through the same relay must still report.
+        const QByteArray body(512 * 1024, 'x');
+        QTcpServer upstream;
+        QVERIFY(upstream.listen(QHostAddress::LocalHost));
+        connect(&upstream, &QTcpServer::newConnection, &upstream, [&]() {
+            while (QTcpSocket* socket = upstream.nextPendingConnection()) {
+                connect(socket, &QTcpSocket::readyRead, socket, [socket, &body, request = QByteArray()]() mutable {
+                    request += socket->readAll();
+                    if (!request.contains("\r\n\r\n"))
+                        return;
+                    const QByteArray total = QByteArray::number(body.size());
+                    socket->write("HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-"
+                        + QByteArray::number(body.size() - 1) + '/' + total + "\r\nContent-Length: " + total
+                        + "\r\nConnection: close\r\n\r\n");
+                    socket->write(body);
+                    socket->disconnectFromHost();
+                });
+            }
+        });
+
+        Playback::AudioPlayer player(nullptr, "null");
+        QSignalSpy prepared(&player, &Playback::AudioPlayer::prepared);
+        const QNetworkProxy direct(QNetworkProxy::NoProxy);
+        player.play(QStringLiteral("http://127.0.0.1:%1/current").arg(upstream.serverPort()), QStringLiteral("Current"),
+            direct);
+        player.prepare(
+            QStringLiteral("http://127.0.0.1:%1/next").arg(upstream.serverPort()), QStringLiteral("Next"), direct);
+        QVERIFY(prepared.wait(5000));
+    }
+
     void stoppingDuringRedirectPreflightCannotStartTheOldTrack()
     {
         QTcpServer upstream;

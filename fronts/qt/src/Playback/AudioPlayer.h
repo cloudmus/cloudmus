@@ -70,6 +70,7 @@ private:
     static void mpvWakeup(void* ctx);
 
     void loadUrl(const QString& url);
+    StreamRelay* relay();
 
     mpv_handle* mpv_ = nullptr;
     qint64 lastPositionMs_ = 0;

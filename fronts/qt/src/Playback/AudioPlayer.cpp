@@ -226,10 +226,8 @@ void AudioPlayer::play(const QString& url, const QString& title, const std::opti
     // Qt's network stack like the preflight below does, and resumes a
     // stream that breaks off.
     if (route || !headers.isEmpty()) {
-        if (relay_ == nullptr)
-            relay_ = new StreamRelay(this);
         loadUrl(
-            relay_->urlFor(QUrl(url), route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers).toString());
+            relay()->urlFor(QUrl(url), route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers).toString());
         return;
     }
 
@@ -290,11 +288,20 @@ void AudioPlayer::prepare(const QString& url, const QString& title, const std::o
         emit prepared();
         return;
     }
-    if (!relay_) {
+    relay()->prefetch(upstream, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers);
+}
+
+StreamRelay* AudioPlayer::relay()
+{
+    // One place for the connection: play() may create the relay first (a
+    // source behind a proxy), and a prefetch through it must still get
+    // queued.
+    if (relay_ == nullptr) {
         relay_ = new StreamRelay(this);
         connect(relay_, &StreamRelay::prefetchReady, this, [this](const QUrl& localUrl) {
             if (preparedQueued_)
                 return;
+            qCDebug(lcAudioPlayer) << "next track buffered, queued in mpv";
             const QByteArray value = localUrl.toString().toUtf8();
             const char* args[] = { "loadfile", value.constData(), "append", nullptr };
             mpv_command_async(mpv_, 0, args);
@@ -302,7 +309,7 @@ void AudioPlayer::prepare(const QString& url, const QString& title, const std::o
             emit prepared();
         });
     }
-    relay_->prefetch(upstream, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers);
+    return relay_;
 }
 
 void AudioPlayer::clearPrepared()

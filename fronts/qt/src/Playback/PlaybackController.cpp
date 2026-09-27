@@ -1,5 +1,6 @@
 #include "PlaybackController.h"
 
+#include <QLoggingCategory>
 #include <QRandomGenerator>
 #include <QSet>
 #include <QTimer>
@@ -13,6 +14,7 @@ namespace Playback {
 
 namespace {
 constexpr int kPlayTimeoutMs = 10000;
+Q_LOGGING_CATEGORY(lcPlayback, "cloudmus.playback")
 }
 
 PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObject* parent)
@@ -321,10 +323,14 @@ void PlaybackController::advance(int delta, bool wasSkip)
     if (nextIndex >= 0) {
         const bool sameRoute
             = !streamRouteProvider_ || preparedRoute_ == streamRouteProvider_(queue_[nextIndex].sourceId);
-        if (delta == 1 && preparedReady_ && nextIndex == preparedIndex_ && sameRoute)
+        if (delta == 1 && preparedReady_ && nextIndex == preparedIndex_ && sameRoute) {
+            qCDebug(lcPlayback) << "advancing to the prepared track" << nextIndex;
             promotePrepared(nextIndex, wasSkip);
-        else
+        } else {
+            qCDebug(lcPlayback) << "advancing to an unprepared track" << nextIndex << "prepared:" << preparedIndex_
+                                << "ready:" << preparedReady_ << "same route:" << sameRoute;
             playIndex(nextIndex);
+        }
         return;
     }
     if (delta < 0) {
@@ -535,8 +541,11 @@ void PlaybackController::prepareNext()
     if (!client || !client->available())
         return;
     const QJsonObject playbackCaps = client->capabilities().value(QStringLiteral("playback")).toObject();
-    if (!playbackCaps.value(QStringLiteral("resolveStream")).toBool())
+    if (!playbackCaps.value(QStringLiteral("resolveStream")).toBool()) {
+        qCDebug(lcPlayback) << "source can't resolve streams ahead, no preloading:" << entry.sourceId;
         return;
+    }
+    qCDebug(lcPlayback) << "preparing the next track" << nextIndex << entry.track.id;
     preparedIndex_ = nextIndex;
     prepareNextAsync(++preparedGeneration_, nextIndex, entry).detach();
 }
@@ -564,9 +573,10 @@ Rpc::Task<void> PlaybackController::prepareNextAsync(int generation, int nextInd
         preparedRoute_ = streamRouteProvider_ ? streamRouteProvider_(entry.sourceId) : std::nullopt;
         audioPlayer_->prepare(result.stream.url, titleFor(entry.track), preparedRoute_,
             result.stream.headers.value_or(QMap<QString, QString> { }));
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (!alive)
             co_return;
+        qCDebug(lcPlayback) << "preparing the next track failed:" << e.what();
         if (generation == preparedGeneration_) {
             preparedRequestId_ = -1;
             preparedClient_.clear();
