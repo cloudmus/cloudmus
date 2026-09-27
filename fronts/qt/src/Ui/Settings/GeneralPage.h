@@ -19,7 +19,7 @@ public:
     QString id() const override { return QStringLiteral("general"); }
     QString title() const override;
     QString iconName() const override { return QStringLiteral("tune"); }
-    int estimatedHeight() const override { return 170; }
+    int estimatedHeight() const override { return 210; }
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;

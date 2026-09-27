@@ -271,6 +271,8 @@ RUN apt-get install -y --no-install-recommends \
         libgl1-mesa-dev \
         libxkbcommon-dev \
         libxcb1-dev \
+        libwayland-dev \
+        libwayland-bin \
         libx11-dev \
         libxext-dev \
         libxrender-dev \

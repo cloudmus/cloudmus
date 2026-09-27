@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="blur">
+  <description summary="KWin's blur-behind protocol, client side">
+    The interfaces KWin (KDE Plasma's compositor) offers for blurring what
+    is behind a surface, as defined in plasma-wayland-protocols' blur.xml
+    (LGPL-2.1-or-later) — restated here with just what a client needs to
+    generate its bindings: the interface names, versions and requests,
+    in their protocol order. Integration::WindowGlass uses it.
+  </description>
+
+  <interface name="org_kde_kwin_blur_manager" version="1">
+    <request name="create">
+      <arg name="id" type="new_id" interface="org_kde_kwin_blur"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+    <request name="unset">
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+  </interface>
+
+  <interface name="org_kde_kwin_blur" version="1">
+    <description summary="the blur behind one surface">
+      set_region, then commit; takes effect with the surface's next commit.
+      A null region blurs behind the whole surface.
+    </description>
+    <request name="commit"/>
+    <request name="set_region">
+      <arg name="region" type="object" interface="wl_region" allow-null="true"/>
+    </request>
+    <request name="release" type="destructor"/>
+  </interface>
+</protocol>

@@ -1074,7 +1074,8 @@ void MainWindow::showSettingsDialog(const QString& openAt)
     // A glass change from the General page, applied only now: switching
     // it replaces this window (Ui::WindowHost::recreate()), not something
     // to do under a modal dialog parented to it.
-    Theme::setGlassEnabled(Theme::glassWanted(settings_.glassBackground()) && Integration::WindowGlass::available());
+    Theme::setGlassEnabled(Theme::glassWanted(settings_.glassBackground())
+        && Integration::WindowGlass::support() != Integration::WindowGlass::Support::None);
 }
 
 void MainWindow::quitForReal()

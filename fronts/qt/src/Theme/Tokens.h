@@ -56,7 +56,8 @@ inline const Palette& palette() { return palette(currentMode()); }
 void setGlassEnabled(bool enabled);
 bool glassEnabled();
 // Whether glass is on when the user hasn't chosen: only in a dark scheme —
-// a light one's pale tint over a blurred desktop reads washed out.
+// a light one's pale tint over a blurred desktop reads washed out — and
+// only where the desktop blurs on request (Integration::WindowGlass).
 bool glassByDefault();
 // Whether the user wants glass: their choice (Config::Settings::
 // glassBackground()), or glassByDefault() if they never made one.

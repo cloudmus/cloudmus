@@ -3,6 +3,8 @@
 #include <QGuiApplication>
 #include <QStyleHints>
 
+#include "WindowGlass.h"
+
 namespace Theme {
 
 namespace {
@@ -71,7 +73,13 @@ void setGlassEnabled(bool enabled)
 
 bool glassEnabled() { return glassEnabled_; }
 
-bool glassByDefault() { return currentMode() == Mode::Dark; }
+bool glassByDefault()
+{
+    // Only where the desktop itself blurs: elsewhere glass is just a
+    // see-through window unless the user set up something to blur it.
+    return currentMode() == Mode::Dark
+        && Integration::WindowGlass::support() == Integration::WindowGlass::Support::Blur;
+}
 
 QColor glass(const QColor& color, qreal opacity)
 {

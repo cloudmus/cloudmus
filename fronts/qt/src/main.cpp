@@ -99,7 +99,8 @@ int main(int argc, char** argv)
 
     // Before the stylesheet and any window: both are built for glass or
     // not, and a window can't gain an alpha channel once created.
-    Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground()) && Integration::WindowGlass::available());
+    Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())
+        && Integration::WindowGlass::support() != Integration::WindowGlass::Support::None);
     Theme::applyGlobalStyleSheet(app);
     new Ui::ThemedToolTip(&app); // global service, not tied to any specific widget — see its own class doc
     // A bare-SVG QIcon lets Qt's SVG engine render sharply at whatever

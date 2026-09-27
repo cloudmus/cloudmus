@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(cloudmus-qt VERSION 0.1.0 LANGUAGES CXX)
+project(cloudmus-qt VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -224,6 +224,49 @@ target_link_libraries(cloudmus-ui PUBLIC
     Qt6::DBus
     Qt6::Svg
 )
+
+# Glass (Integration::WindowGlass): blur asked of the compositor directly —
+# over Wayland (the standard ext-background-effect-v1 or KWin's
+# org_kde_kwin_blur; needs Qt's private headers for a window's wl_surface,
+# plus wayland-client and wayland-scanner) and KWin's X11 window property
+# (xcb). Each is optional; without them, the system's KF6WindowSystem is
+# loaded at runtime instead, which works only next to the Qt it was built
+# against (not in the AppImage).
+find_package(Qt6 QUIET OPTIONAL_COMPONENTS GuiPrivate)
+pkg_check_modules(WAYLAND_CLIENT QUIET IMPORTED_TARGET wayland-client)
+find_program(WAYLAND_SCANNER wayland-scanner)
+if(TARGET Qt6::GuiPrivate AND WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER)
+    set(BLUR_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_wayland)
+    # Protocol copies in third_party/: the distro's wayland-protocols is
+    # too old for ext-background-effect on the AppImage's Debian 11 base.
+    foreach(protocol ext-background-effect-v1 org-kde-kwin-blur)
+        set(xml ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wayland/${protocol}.xml)
+        add_custom_command(
+            OUTPUT ${BLUR_GENERATED_DIR}/${protocol}-client-protocol.h
+                   ${BLUR_GENERATED_DIR}/${protocol}-protocol.c
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${BLUR_GENERATED_DIR}
+            COMMAND ${WAYLAND_SCANNER} client-header ${xml}
+                    ${BLUR_GENERATED_DIR}/${protocol}-client-protocol.h
+            COMMAND ${WAYLAND_SCANNER} private-code ${xml}
+                    ${BLUR_GENERATED_DIR}/${protocol}-protocol.c
+            DEPENDS ${xml}
+            VERBATIM
+        )
+        target_sources(cloudmus-ui PRIVATE
+            ${BLUR_GENERATED_DIR}/${protocol}-client-protocol.h
+            ${BLUR_GENERATED_DIR}/${protocol}-protocol.c)
+    endforeach()
+    target_include_directories(cloudmus-ui PRIVATE ${BLUR_GENERATED_DIR})
+    target_compile_definitions(cloudmus-ui PRIVATE CLOUDMUS_BLUR_WAYLAND)
+    target_link_libraries(cloudmus-ui PRIVATE Qt6::GuiPrivate PkgConfig::WAYLAND_CLIENT)
+    message(STATUS "Glass: Wayland blur protocols, built in")
+endif()
+pkg_check_modules(XCB QUIET IMPORTED_TARGET xcb)
+if(XCB_FOUND)
+    target_compile_definitions(cloudmus-ui PRIVATE CLOUDMUS_BLUR_X11)
+    target_link_libraries(cloudmus-ui PRIVATE PkgConfig::XCB)
+    message(STATUS "Glass: KWin's X11 blur property, built in")
+endif()
 
 add_executable(cloudmus-qt
     src/main.cpp

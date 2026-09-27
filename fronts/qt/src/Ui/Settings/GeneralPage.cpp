@@ -42,15 +42,24 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
         tr("Closing the window minimizes to the tray instead of quitting"), settings_.closeMinimizesToTray());
 
     glassCheck_ = makeCheck(tr("Glass background: blur what's behind the window"), glassWanted());
-    // Only where the window system can blur (KDE Plasma so far); elsewhere
-    // the window stays opaque whatever this says.
-    const bool glassAvailable = Integration::WindowGlass::available();
-    glassCheck_->setEnabled(glassAvailable);
-    auto* glassHint = new QLabel(tr("Not supported by this desktop."), widget);
+    // Where the app can't ask for the blur itself, the window can still be
+    // made see-through for a desktop extension to blur — said so, since
+    // without one it's just see-through. Where it can't be translucent at
+    // all, the window stays opaque whatever this says.
+    using Integration::WindowGlass::Support;
+    const Support glassSupport = Integration::WindowGlass::support();
+    glassCheck_->setEnabled(glassSupport != Support::None);
+    auto* glassHint = new QLabel(widget);
     glassHint->setProperty("hint", true);
     glassHint->setFont(Theme::font(Theme::TextStyle::BodySecondary));
     glassHint->setWordWrap(true);
-    glassHint->setVisible(!glassAvailable);
+    if (glassSupport == Support::SeeThrough)
+        glassHint->setText(tr("This desktop doesn't blur behind windows by itself, so without help the window is "
+                              "just see-through. On GNOME, install the Blur my Shell extension and add "
+                              "\"cloudmus-qt\" to its application blur list."));
+    else
+        glassHint->setText(tr("Not supported by this desktop."));
+    glassHint->setVisible(glassSupport != Support::Blur);
 
     // "Start hidden" only applies to a login launch — indented under it.
     auto* startHiddenRow = new QHBoxLayout;
