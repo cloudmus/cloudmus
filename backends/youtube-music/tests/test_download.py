@@ -7,7 +7,7 @@ from cloudmus_backend_ytmusic import download
 
 
 def _fake_extract_and_download(dest_dir: Path, ext: str, **info_extra):
-    def fake(video_id, outtmpl):
+    def fake(video_id, outtmpl, hook):
         raw_path = dest_dir / f"{video_id}.{ext}"
         raw_path.write_bytes(b"fake audio data")
         info = {"_filepath": str(raw_path)}
@@ -60,7 +60,7 @@ async def test_sanitizes_unsafe_characters_in_filename(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_non_transient_download_error_becomes_lookup_error(monkeypatch):
-    def fake(video_id, outtmpl):
+    def fake(video_id, outtmpl, hook):
         raise yt_dlp.utils.DownloadError("ERROR: [youtube] abc: Video unavailable")
 
     monkeypatch.setattr(download, "_extract_and_download", fake)
@@ -70,7 +70,7 @@ async def test_non_transient_download_error_becomes_lookup_error(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_transient_download_error_propagates(monkeypatch):
-    def fake(video_id, outtmpl):
+    def fake(video_id, outtmpl, hook):
         raise yt_dlp.utils.DownloadError("ERROR: some transient network blip")
 
     monkeypatch.setattr(download, "_extract_and_download", fake)
@@ -133,3 +133,42 @@ def test_tag_file_skips_unsupported_containers(tmp_path, monkeypatch):
     path = tmp_path / "song.webm"
     path.write_bytes(b"x")
     download._tag_file(path, {"track": "Song"})  # must not raise
+
+
+@pytest.mark.asyncio
+async def test_progress_goes_to_the_tracker(tmp_path, monkeypatch):
+    reported = []
+
+    class _Tracker:
+        cancelled = False
+
+        def progress(self, received, total, final=False):
+            reported.append((received, total))
+
+    def fake(video_id, outtmpl, hook):
+        hook({"status": "downloading", "downloaded_bytes": 50, "total_bytes": 100})
+        hook({"status": "finished"})
+        raw_path = tmp_path / f"{video_id}.m4a"
+        raw_path.write_bytes(b"x")
+        return {"_filepath": str(raw_path)}
+
+    monkeypatch.setattr(download, "_extract_and_download", fake)
+    await download.download_track("abc123", str(tmp_path), _Tracker())
+    assert reported == [(50, 100)]
+
+
+@pytest.mark.asyncio
+async def test_a_cancel_stops_the_download_and_removes_what_it_wrote(tmp_path, monkeypatch):
+    from rpc_common.downloads import Cancelled, Tracker
+
+    tracker = Tracker(None, None, None)
+
+    def fake(video_id, outtmpl, hook):
+        (tmp_path / f"{video_id}.m4a.part").write_bytes(b"half")
+        tracker.cancel()
+        hook({"status": "downloading", "downloaded_bytes": 4, "total_bytes": 8})
+
+    monkeypatch.setattr(download, "_extract_and_download", fake)
+    with pytest.raises(Cancelled):
+        await download.download_track("abc123", str(tmp_path), tracker)
+    assert list(tmp_path.iterdir()) == []

@@ -5,6 +5,15 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.7 — download progress and cancelling
+
+- **Additive, backward-compatible**: capability `downloadControl` (§5).
+  `catalog.downloadTrack` takes an optional `downloadId`; a source with the
+  capability reports `download/progress` (`receivedBytes`, `totalBytes`)
+  for it and stops it on `catalog.cancelDownload`, failing the download
+  with the new code `1410` (§7.5, §9). Sources without it ignore
+  `downloadId`; fronts show those downloads without progress.
+
 ## 1.6 — several stations per source, `Playlist.featured`
 
 - **Clarified**: `catalog.listPlaylists` may return more than one

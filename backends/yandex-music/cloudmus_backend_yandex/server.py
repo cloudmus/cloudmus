@@ -5,6 +5,7 @@ import asyncio
 from rpc_common import errors
 from rpc_common.generated.methods import emit_track_stream_ready
 from rpc_common.generated.models import StreamReadyParams
+from rpc_common.downloads import Downloads, serve as serve_downloads
 from rpc_common.server import BackendError, BackendServer
 
 from . import catalog, client as client_module, config, download, playback
@@ -20,6 +21,7 @@ CAPABILITIES = {
     "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False, "editPlaylists": True},
     "feedback": {"like": True, "dislike": True, "skip": True},
     "download": True,
+    "downloadControl": True,
     "auth": {"required": True, "flow": "deviceCode"},
 }
 
@@ -37,6 +39,9 @@ def build_server() -> BackendServer:
     # track without any on_change hook.
     settings = config.settings_store()
     settings.register(server)
+    # download/progress and catalog.cancelDownload (docs/protocol.md §7.5).
+    downloads = Downloads(server.notify)
+    serve_downloads(server, downloads)
 
     auth_session = DeviceAuthSession()
     radio_session: RadioSession | None = None
@@ -125,15 +130,19 @@ def build_server() -> BackendServer:
     async def handle_start_radio(params: dict, request_id: int) -> dict:
         return await get_radio_session().start(params.get("seed"))
 
-    @server.method("catalog.downloadTrack")
+    # Concurrent: a big file takes minutes — playback, browsing and a
+    # catalog.cancelDownload for it must not wait meanwhile.
+    @server.method("catalog.downloadTrack", concurrent=True)
     async def handle_download_track(params: dict, request_id: int) -> dict:
         try:
-            return await download.download_track(
-                client_module.get_client(),
-                params["trackId"],
-                params["destDir"],
-                settings.get("downloadQuality"),
-            )
+            with downloads.track(params.get("downloadId")) as tracker:
+                return await download.download_track(
+                    client_module.get_client(),
+                    params["trackId"],
+                    params["destDir"],
+                    tracker,
+                    settings.get("downloadQuality"),
+                )
         except LookupError:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,

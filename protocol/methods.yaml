@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.6"
+protocolVersion: "1.7"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -251,12 +251,29 @@ methods:
     params:
       type: object
       required: [trackId, destDir]
-      properties: {trackId: {type: string}, destDir: {type: string}}
+      properties:
+        trackId: {type: string}
+        destDir: {type: string}
+        # optional (1.7+): the front's name for this download, for its
+        # download/progress notifications and catalog.cancelDownload
+        # (capability downloadControl) — docs/protocol.md §7.5.
+        downloadId: {type: string}
     result:
       type: object
       required: [path]
       properties: {path: {type: string}}
     timeoutMs: 60000
+
+  catalog.cancelDownload:
+    # optional (1.7+): stops a catalog.downloadTrack started with this
+    # downloadId; that call then fails with code 1410 (docs/protocol.md §7.5).
+    requiresCapability: downloadControl
+    params:
+      type: object
+      required: [downloadId]
+      properties: {downloadId: {type: string}}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
 
   # --- 7.7 Settings ---
   settings.describe:
@@ -337,6 +354,18 @@ notifications:
         # the not-yet-played tail of the front's queue instead of being
         # appended to it (docs/protocol.md §7.1). Absent/false: append.
         replaceUpcoming: {type: boolean}
+
+  download/progress:
+    # optional (1.7+): how far a catalog.downloadTrack with a downloadId has
+    # got (capability downloadControl) — docs/protocol.md §7.5.
+    params:
+      x-name: DownloadProgressParams
+      type: object
+      required: [downloadId, receivedBytes]
+      properties:
+        downloadId: {type: string}
+        receivedBytes: {type: integer}
+        totalBytes: {type: integer}   # absent while unknown
 
   auth/prompt:
     # Flow-specific shape (deviceCode | usernamePassword | oauthRedirect, see

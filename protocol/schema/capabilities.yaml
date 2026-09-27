@@ -40,6 +40,9 @@ properties:
       skip: {type: boolean}
     additionalProperties: false
   download: {type: boolean}
+  # optional (1.7+): download/progress for, and catalog.cancelDownload of,
+  # a catalog.downloadTrack given a downloadId
+  downloadControl: {type: boolean}
   # optional (1.4+): settings.describe / settings.update
   settings: {type: boolean}
   auth:

@@ -6,10 +6,17 @@ import asyncio
 import re
 from pathlib import Path
 
+import requests
 from mutagen.id3 import APIC, ID3, TALB, TIT2, TPE1
 from yandex_music import Client
 
+from rpc_common.downloads import Tracker
+
 from . import quality
+
+# Read and reported in pieces of this size — small enough that a cancel
+# lands quickly, big enough not to spend the time in Python.
+CHUNK_BYTES = 64 * 1024
 
 
 def _safe_name(name: str) -> str:
@@ -31,7 +38,33 @@ def _tag_file(path: Path, track) -> None:
         pass  # tagging is best-effort; a missing/partial tag isn't fatal
 
 
-def _download_track_sync(client: Client, track_id: str, dest_dir: Path, quality_level: str) -> Path:
+def _fetch(client: Client, url: str, path: Path, tracker: Tracker) -> None:
+    """Streams `url` into `path`, reporting progress; a cancel (or any
+    failure) leaves no partial file behind. Same headers and proxies as
+    the library's own Request.download(), which reads the whole file in one
+    go and so can report nothing."""
+    request = client.request
+    try:
+        with requests.get(
+            url, headers=request.headers, proxies=request.proxies, stream=True, timeout=30
+        ) as response:
+            response.raise_for_status()
+            total = int(response.headers.get("Content-Length") or 0) or None
+            received = 0
+            with open(path, "wb") as out:
+                for chunk in response.iter_content(CHUNK_BYTES):
+                    out.write(chunk)
+                    received += len(chunk)
+                    tracker.progress(received, total)
+            tracker.progress(received, total, final=True)
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+
+
+def _download_track_sync(
+    client: Client, track_id: str, dest_dir: Path, quality_level: str, tracker: Tracker
+) -> Path:
     tracks = client.tracks([track_id])
     if not tracks:
         raise LookupError(f"track not found: {track_id}")
@@ -48,11 +81,14 @@ def _download_track_sync(client: Client, track_id: str, dest_dir: Path, quality_
     filename = _safe_name(f"{artists} - {track.title}") + extension
     path = dest_dir / filename
 
-    info.download(str(path))
+    tracker.check()
+    _fetch(client, info.get_direct_link(), path, tracker)
     _tag_file(path, track)
     return path
 
 
-async def download_track(client: Client, track_id: str, dest_dir: str, quality_level: str = quality.BEST) -> dict:
-    path = await asyncio.to_thread(_download_track_sync, client, track_id, Path(dest_dir), quality_level)
+async def download_track(
+    client: Client, track_id: str, dest_dir: str, tracker: Tracker, quality_level: str = quality.BEST
+) -> dict:
+    path = await asyncio.to_thread(_download_track_sync, client, track_id, Path(dest_dir), quality_level, tracker)
     return {"path": str(path.resolve())}

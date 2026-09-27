@@ -221,6 +221,7 @@ defaults, since the front does not assume any implicit capability.
 | `browse.search` | bool | `catalog.search` supported (reserved for future use; no method defined yet in v1 — see §13). |
 | `feedback.like` / `.dislike` / `.skip` | bool | Corresponding `feedback.*` methods (§7.4) are accepted. |
 | `download` | bool | `catalog.downloadTrack` (§7.5) is supported. |
+| `downloadControl` | bool | Optional (1.7+). Downloads report `download/progress` and can be stopped with `catalog.cancelDownload` (§7.5). |
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
 | `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
@@ -438,7 +439,8 @@ mirror that locally rather than showing both states lit up at once.
 
 | Method | Params | Result | Requires capability |
 |---|---|---|---|
-| `catalog.downloadTrack` | `{"trackId": string, "destDir": string}` | `{"path": string}` | `download` |
+| `catalog.downloadTrack` | `{"trackId": string, "destDir": string, "downloadId"?: string}` | `{"path": string}` | `download` |
+| `catalog.cancelDownload` | `{"downloadId": string}` | `{}` | `downloadControl` (1.7+) |
 
 - `destDir` is an absolute path to an existing directory, supplied by the
   front (e.g. the user's current working directory, or a configured music
@@ -458,6 +460,25 @@ mirror that locally rather than showing both states lit up at once.
 - If a source's capability declares `"download": false`, the front must not
   call this method; a source receiving it anyway without the capability
   should reply with a capability error (code `1100`, see §9).
+
+**Progress and cancelling (1.7+, capability `downloadControl`).** The front
+may name a download with a `downloadId` of its choosing (unique among its
+downloads in flight on that source). A source declaring `downloadControl`
+then:
+
+- sends `download/progress` notifications
+  `{"downloadId": string, "receivedBytes": integer, "totalBytes"?: integer}`
+  while the file transfers — `totalBytes` omitted while unknown — no more
+  often than a few times a second;
+- accepts `catalog.cancelDownload` `{"downloadId": string}`: it stops that
+  download, removes what it had written of the file, replies `{}`, and
+  the `catalog.downloadTrack` call fails with code `1410` ("download
+  cancelled"). Cancelling a download that already finished, or an unknown
+  `downloadId`, is not an error — it replies `{}` and does nothing.
+
+Since progress shows the download is alive, a front may give a named
+download a much longer timeout than the 60 seconds above. A source without
+`downloadControl` ignores `downloadId`.
 
 ### 7.7 Settings
 
@@ -533,6 +554,7 @@ every front shares them.
 | `state/changed` | `PlaybackState` (§6) | `selfPlayback` sources, whenever play/pause/seek/volume/track changes |
 | `track/streamReady` | `{"requestId": number, "trackId": string, "stream": StreamDescriptor}` | `providesStream` sources, asynchronously after `playback.play` |
 | `radio/tracksAdded` | `{"stationId": string, "tracks": [Track, ...], "replaceUpcoming"?: bool}` | Any source with `browse.radio`, proactively as it tops up the queue (§7.1 for `replaceUpcoming`) |
+| `download/progress` | `{"downloadId": string, "receivedBytes": number, "totalBytes"?: number}` | Sources with `downloadControl` (1.7+), while a named download transfers (§7.5) |
 | `auth/prompt` | flow-specific, see §10 | Sources with `auth.required: true`, mid-flow |
 | `auth/statusChanged` | `{"status": "authenticated"} \| {"status": "error", "message": string}` | Any source, on auth state transitions |
 | `error` | `{"code": number, "message": string, "data"?: object}` | Any source, for non-fatal issues worth surfacing in the UI (e.g. "track unavailable, skipping") |
@@ -563,7 +585,7 @@ Application-specific errors use a disjoint **positive** range:
 | 1100–1199 | Capability errors (method called without the declaring capability) |
 | 1200–1299 | Upstream/network errors (backend unreachable, rate-limited, timed out) |
 | 1300–1399 | Resource errors (track/playlist/station not found) |
-| 1400–1499 | State errors (e.g. `playback.seek` with nothing loaded) |
+| 1400–1499 | State errors (e.g. `playback.seek` with nothing loaded); `1410`: a download was cancelled (§7.5, 1.7+) |
 
 All application errors include:
 ```json

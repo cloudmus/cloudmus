@@ -118,7 +118,7 @@ Task<void> RpcClient::start(QProcessEnvironment environment)
     transport_.start(manifest_.argv, environment);
 
     const QJsonObject params {
-        { QStringLiteral("protocolVersion"), QStringLiteral("1.6") },
+        { QStringLiteral("protocolVersion"), QStringLiteral("1.7") },
         { QStringLiteral("front"),
           QJsonObject { { QStringLiteral("name"), QStringLiteral("cloudmus-qt") },
                         { QStringLiteral("version"), QStringLiteral("0.1.0") } } },
@@ -216,6 +216,9 @@ void RpcClient::dispatchNotification(const QString& method, const QJsonObject& p
     } else if (method == QStringLiteral("radio/tracksAdded")) {
         if (notifications.onRadioTracksAdded)
             notifications.onRadioTracksAdded(TracksAddedParams::fromJson(params));
+    } else if (method == QStringLiteral("download/progress")) {
+        if (notifications.onDownloadProgress)
+            notifications.onDownloadProgress(DownloadProgressParams::fromJson(params));
     } else if (method == QStringLiteral("auth/prompt")) {
         if (onAuthPromptRaw)
             onAuthPromptRaw(params); // see the member's doc comment for why this bypasses `notifications`

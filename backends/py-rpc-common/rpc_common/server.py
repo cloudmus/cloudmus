@@ -65,13 +65,25 @@ class BackendServer:
         self.source_description = source_description
         self.capabilities = capabilities
         self._handlers: dict[str, RequestHandler] = {}
+        # Methods run alongside the requests that come after them rather
+        # than one at a time — see method()'s `concurrent`.
+        self._concurrent: set[str] = set()
+        self._tasks: set[asyncio.Task] = set()
         self._writer: transport.NdjsonWriter | None = None
 
-    def method(self, name: str) -> Callable[[RequestHandler], RequestHandler]:
-        """Decorator: registers a handler for a `namespace.methodName` request."""
+    def method(self, name: str, *, concurrent: bool = False) -> Callable[[RequestHandler], RequestHandler]:
+        """Decorator: registers a handler for a `namespace.methodName` request.
+
+        Requests are handled one at a time, in order, which is what most
+        handlers rely on (e.g. a radio's feedback). `concurrent` is for a
+        long-running one — catalog.downloadTrack, minutes for a big file —
+        that must not hold everything else up meanwhile, a
+        catalog.cancelDownload for it included."""
 
         def decorator(fn: RequestHandler) -> RequestHandler:
             self._handlers[name] = fn
+            if concurrent:
+                self._concurrent.add(name)
             return fn
 
         return decorator
@@ -85,7 +97,7 @@ class BackendServer:
 
     def _handle_initialize(self, params: dict[str, Any], request_id: int) -> dict[str, Any]:
         return {
-            "protocolVersion": "1.6",
+            "protocolVersion": "1.7",
             "source": {
                 "id": self.source_id,
                 "name": self.source_name,
@@ -98,6 +110,57 @@ class BackendServer:
     def _handle_shutdown(self, params: dict[str, Any], request_id: int) -> dict[str, Any]:
         return {}
 
+    async def _dispatch(
+        self, writer: transport.NdjsonWriter, handler: RequestHandler | None, message: dict[str, Any]
+    ) -> None:
+        request_id = message.get("id")
+        method_name = message.get("method")
+        try:
+            if handler is None:
+                if request_id is not None:
+                    await writer.send(
+                        jsonrpc.make_error(
+                            request_id, -32601, f"method not found: {method_name}"
+                        )
+                    )
+                return
+            # Logged around every dispatch (not just failures), params
+            # and result included, so a request that hangs inside a
+            # handler — e.g. a blocking network call via
+            # asyncio.to_thread() — still leaves a trace on stderr: which
+            # method, with what params, and that it never completed,
+            # instead of a front-side "request timed out" with nothing
+            # to go on. Also makes a wrong-data bug (e.g. a field the
+            # handler forgot to map) visible directly in the log instead
+            # of only inferable from its symptom in the UI.
+            params = message.get("params", {})
+            logged_params = "<redacted>" if method_name in _REDACTED_PARAMS_METHODS else _summarize(params)
+            logger.info("-> %s id=%s params=%s", method_name, request_id, logged_params)
+            started = time.monotonic()
+            result = handler(params, request_id)
+            if asyncio.iscoroutine(result):
+                result = await result
+            logger.info(
+                "<- %s id=%s (%.0fms) result=%s",
+                method_name, request_id, (time.monotonic() - started) * 1000, _summarize(result),
+            )
+            if request_id is not None:
+                await writer.send(jsonrpc.make_result(request_id, result))
+        except BackendError as exc:
+            logger.warning(
+                "<- %s id=%s failed (%.0fms): code=%s message=%s data=%s",
+                method_name, request_id, (time.monotonic() - started) * 1000, exc.code, exc.message,
+                _summarize(exc.data),
+            )
+            if request_id is not None:
+                await writer.send(
+                    jsonrpc.make_error(request_id, exc.code, exc.message, exc.data)
+                )
+        except Exception as exc:  # noqa: BLE001 - must never crash the stdio loop
+            logger.exception("unhandled error in %s id=%s", method_name, request_id)
+            if request_id is not None:
+                await writer.send(jsonrpc.make_error(request_id, -32603, str(exc)))
+
     async def run(self, rpc_out: Any) -> None:
         reader, writer = await transport.open_stdio(rpc_out)
         self._writer = writer
@@ -109,56 +172,16 @@ class BackendServer:
         }
 
         async for message in reader:
-            request_id = message.get("id")
             method_name = message.get("method")
             if method_name is None:
                 continue
             handler = handlers.get(method_name)
-            try:
-                if handler is None:
-                    if request_id is not None:
-                        await writer.send(
-                            jsonrpc.make_error(
-                                request_id, -32601, f"method not found: {method_name}"
-                            )
-                        )
-                    continue
-                # Logged around every dispatch (not just failures), params
-                # and result included, so a request that hangs inside a
-                # handler — e.g. a blocking network call via
-                # asyncio.to_thread() — still leaves a trace on stderr: which
-                # method, with what params, and that it never completed,
-                # instead of a front-side "request timed out" with nothing
-                # to go on. Also makes a wrong-data bug (e.g. a field the
-                # handler forgot to map) visible directly in the log instead
-                # of only inferable from its symptom in the UI.
-                params = message.get("params", {})
-                logged_params = "<redacted>" if method_name in _REDACTED_PARAMS_METHODS else _summarize(params)
-                logger.info("-> %s id=%s params=%s", method_name, request_id, logged_params)
-                started = time.monotonic()
-                result = handler(params, request_id)
-                if asyncio.iscoroutine(result):
-                    result = await result
-                logger.info(
-                    "<- %s id=%s (%.0fms) result=%s",
-                    method_name, request_id, (time.monotonic() - started) * 1000, _summarize(result),
-                )
-                if request_id is not None:
-                    await writer.send(jsonrpc.make_result(request_id, result))
-            except BackendError as exc:
-                logger.warning(
-                    "<- %s id=%s failed (%.0fms): code=%s message=%s data=%s",
-                    method_name, request_id, (time.monotonic() - started) * 1000, exc.code, exc.message,
-                    _summarize(exc.data),
-                )
-                if request_id is not None:
-                    await writer.send(
-                        jsonrpc.make_error(request_id, exc.code, exc.message, exc.data)
-                    )
-            except Exception as exc:  # noqa: BLE001 - must never crash the stdio loop
-                logger.exception("unhandled error in %s id=%s", method_name, request_id)
-                if request_id is not None:
-                    await writer.send(jsonrpc.make_error(request_id, -32603, str(exc)))
+            if handler is not None and method_name in self._concurrent:
+                task = asyncio.create_task(self._dispatch(writer, handler, message))
+                self._tasks.add(task)
+                task.add_done_callback(self._tasks.discard)
+                continue
+            await self._dispatch(writer, handler, message)
 
             if method_name == "shutdown":
                 return

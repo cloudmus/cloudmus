@@ -24,6 +24,7 @@ RESOURCE_NOT_FOUND = 1300
 
 # 1400-1499: state errors
 STATE_INVALID = 1400
+DOWNLOAD_CANCELLED = 1410
 
 
 def app_error_data(retryable: bool, detail: str | None = None) -> dict[str, Any]:

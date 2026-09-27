@@ -18,6 +18,7 @@ assumption that this backend needs no ffmpeg CLI at all.
 from __future__ import annotations
 
 import asyncio
+import glob
 import re
 from pathlib import Path
 
@@ -26,6 +27,8 @@ from mutagen.id3 import ID3, TALB, TIT2, TPE1
 from mutagen.mp4 import MP4
 from mutagen.oggopus import OggOpus
 
+from rpc_common.downloads import Cancelled, Tracker
+
 from .playback import _is_non_transient
 
 _YDL_OPTS = {
@@ -33,6 +36,9 @@ _YDL_OPTS = {
     "noplaylist": True,
     "quiet": True,
     "no_warnings": True,
+    # Its own progress line on the console — progress goes to the front
+    # through the hook instead (see _progress_hook()).
+    "noprogress": True,
 }
 
 
@@ -72,20 +78,40 @@ def _tag_file(path: Path, info: dict) -> None:
         pass  # tagging is best-effort; a missing/partial tag isn't fatal
 
 
-def _extract_and_download(video_id: str, outtmpl: str) -> dict:
+def _extract_and_download(video_id: str, outtmpl: str, hook) -> dict:
     """Sole yt_dlp seam, kept as its own function so tests can monkeypatch
     it without touching the network — mirrors playback.py's
     _extract_info(). Returns yt-dlp's info dict plus the actual path it
     wrote to (ydl.prepare_filename(info), computed while still inside the
-    YoutubeDL context so any internal extension resolution has settled)."""
-    opts = {**_YDL_OPTS, "outtmpl": outtmpl}
+    YoutubeDL context so any internal extension resolution has settled).
+    `hook` is yt-dlp's progress hook."""
+    opts = {**_YDL_OPTS, "outtmpl": outtmpl, "progress_hooks": [hook]}
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(f"https://music.youtube.com/watch?v={video_id}", download=True)
         info["_filepath"] = ydl.prepare_filename(info)
         return info
 
 
-def _download_track_sync(video_id: str, dest_dir: Path) -> Path:
+def _progress_hook(tracker: Tracker):
+    def hook(status: dict) -> None:
+        if status.get("status") != "downloading":
+            return
+        if tracker.cancelled:
+            # yt-dlp's own way for a hook to stop a download.
+            raise yt_dlp.utils.DownloadCancelled()
+        total = status.get("total_bytes") or status.get("total_bytes_estimate")
+        tracker.progress(status.get("downloaded_bytes") or 0, total)
+
+    return hook
+
+
+def _remove_partial(video_id: str, dest_dir: Path) -> None:
+    # Whatever yt-dlp had written under the video id (the file, its .part).
+    for leftover in dest_dir.glob(f"{glob.escape(video_id)}.*"):
+        leftover.unlink(missing_ok=True)
+
+
+def _download_track_sync(video_id: str, dest_dir: Path, tracker: Tracker) -> Path:
     dest_dir.mkdir(parents=True, exist_ok=True)
     # Download under the plain video id first — sidesteps guessing how
     # yt-dlp's own outtmpl sanitizer would mangle a title/artist string,
@@ -93,8 +119,15 @@ def _download_track_sync(video_id: str, dest_dir: Path) -> Path:
     # disagreeing. Renamed to a human-readable name below once the file
     # (and its real extension) actually exists.
     try:
-        info = _extract_and_download(video_id, str(dest_dir / "%(id)s.%(ext)s"))
+        info = _extract_and_download(video_id, str(dest_dir / "%(id)s.%(ext)s"), _progress_hook(tracker))
+    except (yt_dlp.utils.DownloadCancelled, Cancelled):
+        _remove_partial(video_id, dest_dir)
+        raise Cancelled()
     except yt_dlp.utils.DownloadError as e:
+        # yt-dlp may wrap a cancel from the hook in a DownloadError.
+        if tracker.cancelled:
+            _remove_partial(video_id, dest_dir)
+            raise Cancelled() from e
         if _is_non_transient(e):
             raise LookupError(f"video unavailable: {video_id}") from e
         raise
@@ -108,6 +141,7 @@ def _download_track_sync(video_id: str, dest_dir: Path) -> Path:
     return final_path
 
 
-async def download_track(video_id: str, dest_dir: str) -> dict:
-    path = await asyncio.to_thread(_download_track_sync, video_id, Path(dest_dir))
+async def download_track(video_id: str, dest_dir: str, tracker: Tracker | None = None) -> dict:
+    tracker = tracker or Tracker(None, None, None)
+    path = await asyncio.to_thread(_download_track_sync, video_id, Path(dest_dir), tracker)
     return {"path": str(path.resolve())}

@@ -7,6 +7,7 @@ from ytmusicapi import LikeStatus
 from rpc_common import errors
 from rpc_common.generated.methods import emit_track_stream_ready
 from rpc_common.generated.models import StreamReadyParams
+from rpc_common.downloads import Downloads, serve as serve_downloads
 from rpc_common.server import BackendError, BackendServer
 
 from . import catalog, client as client_module, download, playback
@@ -22,6 +23,7 @@ CAPABILITIES = {
     "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False, "editPlaylists": True},
     "feedback": {"like": True, "dislike": True, "skip": True},
     "download": True,
+    "downloadControl": True,
     # usernamePassword, not deviceCode: device-code OAuth login itself still
     # works, but every data call made with the resulting token currently
     # 400s due to a confirmed upstream break (see auth.py's module
@@ -43,6 +45,9 @@ def build_server() -> BackendServer:
     )
 
     auth_session = BrowserAuthSession()
+    # download/progress and catalog.cancelDownload (docs/protocol.md §7.5).
+    downloads = Downloads(server.notify)
+    serve_downloads(server, downloads)
     radio_session: RadioSession | None = None
     inflight_plays: dict[int, tuple[asyncio.Task, asyncio.Event]] = {}
 
@@ -128,10 +133,13 @@ def build_server() -> BackendServer:
         except ValueError as e:
             raise BackendError(errors.STATE_INVALID, str(e), errors.app_error_data(retryable=False))
 
-    @server.method("catalog.downloadTrack")
+    # Concurrent: a big file takes minutes — playback, browsing and a
+    # catalog.cancelDownload for it must not wait meanwhile.
+    @server.method("catalog.downloadTrack", concurrent=True)
     async def handle_download_track(params: dict, request_id: int) -> dict:
         try:
-            return await download.download_track(params["trackId"], params["destDir"])
+            with downloads.track(params.get("downloadId")) as tracker:
+                return await download.download_track(params["trackId"], params["destDir"], tracker)
         except LookupError:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,

@@ -2,6 +2,6 @@
   "id": "youtube-music",
   "name": "YouTube Music",
   "argv": ["python3", "-m", "cloudmus_backend_ytmusic"],
-  "protocolVersion": "1.6",
+  "protocolVersion": "1.7",
   "icon": "icon.svg"
 }
