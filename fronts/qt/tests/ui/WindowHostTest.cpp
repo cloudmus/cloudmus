@@ -1,4 +1,5 @@
 #include <QDBusConnection>
+#include <QDBusConnectionInterface>
 #include <QDBusInterface>
 #include <QDBusPendingCallWatcher>
 #include <QDBusVariant>
@@ -278,7 +279,14 @@ private slots:
         adaptor.SetPosition(trackId, 181000000);
         QCOMPARE(adaptor.position(), 15000000);
 
-        if (QDBusConnection::sessionBus().isConnected()) {
+        // A running CloudMus owns the name on a shared session bus; calls
+        // would reach that player instead of this test's.
+        const QDBusConnectionInterface* bus = QDBusConnection::sessionBus().interface();
+        const bool nameTaken
+            = bus != nullptr && bus->isServiceRegistered(QStringLiteral("org.mpris.MediaPlayer2.cloudmus")).value();
+        if (nameTaken)
+            qWarning("org.mpris.MediaPlayer2.cloudmus is taken on this bus; skipping the D-Bus part");
+        if (QDBusConnection::sessionBus().isConnected() && !nameTaken) {
             Integration::MprisService service(core.playback(), core.nowPlaying());
             QDBusInterface player(QStringLiteral("org.mpris.MediaPlayer2.cloudmus"),
                 QStringLiteral("/org/mpris/MediaPlayer2"), QStringLiteral("org.mpris.MediaPlayer2.Player"));
