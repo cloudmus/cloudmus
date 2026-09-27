@@ -129,6 +129,9 @@ signals:
 private:
     void updatePlayAvailability();
     void updatePlayPauseIcon();
+    // Fixes both time labels' width to the widest text a track this long
+    // can show, so the seek slider between them doesn't shift as it plays.
+    void fitTimeLabels(qint64 longestMs);
     void refreshLikeButton();
     void refreshDislikeButton();
     void refreshDownloadButton();
@@ -158,6 +161,7 @@ private:
     bool loading_ = false;
     bool userIsDraggingSeek_ = false;
     qint64 lastDurationMs_ = 0;
+    int timeLabelWidth_ = 0;
     QString currentWebUrl_;
     Playback::RepeatMode repeat_ = Playback::RepeatMode::Off;
     bool radio_ = false;

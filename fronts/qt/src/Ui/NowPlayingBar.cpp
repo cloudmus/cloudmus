@@ -2,6 +2,7 @@
 
 #include <QDesktopServices>
 #include <QEnterEvent>
+#include <QFontMetrics>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -304,6 +305,10 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // digits change during playback.
     elapsedLabel_->setFont(Theme::tabularFont(Theme::TextStyle::Caption));
     durationLabel_->setFont(Theme::tabularFont(Theme::TextStyle::Caption));
+    // Elapsed hugs the slider from the left, duration from the right.
+    elapsedLabel_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    durationLabel_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    fitTimeLabels(0);
     // The seek handle stays visible at all times so the current playback
     // position reads at a glance; the volume one only shows on hover.
     auto* seekSlider = new ThemedSlider(ThemedSlider::Scheme::Accent, ThemedSlider::HandleVisibility::Always, this);
@@ -374,6 +379,8 @@ void NowPlayingBar::setTrackAvailable(bool available)
         seekSlider_->setBufferedValue(-1);
         elapsedLabel_->setText(QStringLiteral("0:00"));
         durationLabel_->setText(QStringLiteral("0:00"));
+        timeLabelWidth_ = 0;
+        fitTimeLabels(0);
     }
 }
 
@@ -503,6 +510,30 @@ void NowPlayingBar::setLoading(bool loading)
             loading ? QStringLiteral("refresh") : (playing_ ? QStringLiteral("pause") : QStringLiteral("play_arrow")));
 }
 
+void NowPlayingBar::fitTimeLabels(qint64 longestMs)
+{
+    // Tabular figures aren't guaranteed to be really equal-width in every
+    // font: measure the longest time's shape with its widest digit.
+    const QFontMetrics metrics(elapsedLabel_->font());
+    QChar widest = QLatin1Char('0');
+    for (char digit = '1'; digit <= '9'; ++digit) {
+        if (metrics.horizontalAdvance(QLatin1Char(digit)) > metrics.horizontalAdvance(widest))
+            widest = QLatin1Char(digit);
+    }
+    QString shape = formatDuration(longestMs);
+    for (QChar& c : shape) {
+        if (c.isDigit())
+            c = widest;
+    }
+    const int width = metrics.horizontalAdvance(shape) + 1;
+    // Only grows within a track; setPosition() resets it for a new one.
+    if (width <= timeLabelWidth_)
+        return;
+    timeLabelWidth_ = width;
+    elapsedLabel_->setFixedWidth(width);
+    durationLabel_->setFixedWidth(width);
+}
+
 void NowPlayingBar::updatePlayPauseIcon()
 {
     static_cast<IconHoverButton*>(playPauseButton_)
@@ -515,7 +546,10 @@ void NowPlayingBar::setPosition(qint64 positionMs, qint64 durationMs)
         lastDurationMs_ = durationMs;
         seekSlider_->setRange(0, static_cast<int>(durationMs));
         durationLabel_->setText(formatDuration(durationMs));
+        timeLabelWidth_ = 0;
     }
+    // A stream without a known duration can outgrow it.
+    fitTimeLabels(qMax(durationMs, positionMs));
     elapsedLabel_->setText(formatDuration(positionMs));
     if (!userIsDraggingSeek_) {
         seekSlider_->setValue(static_cast<int>(positionMs));
