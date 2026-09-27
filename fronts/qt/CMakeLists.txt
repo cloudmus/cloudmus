@@ -90,6 +90,8 @@ add_library(cloudmus-core STATIC
 
     src/App/Core.cpp
     src/App/Analytics.cpp
+    src/App/Geo.cpp
+    src/App/GeoNetworkSignature.cpp
     src/App/SourceSession.cpp
     src/App/PlaylistEditing.cpp
     src/App/TrackFetch.cpp

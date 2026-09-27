@@ -5,6 +5,7 @@
 #include <QSystemTrayIcon>
 #include <QTimer>
 
+#include <functional>
 #include <memory>
 
 #include "Autostart.h"
@@ -37,9 +38,9 @@
 namespace {
 
 // Awaits every backend's shutdown() in turn (closeStdin -> terminate ->
-// kill fallback, per docs/protocol.md §4.2) before actually exiting the
-// process, so quitting never leaves an orphan backend subprocess behind.
-Rpc::Task<void> shutdownAllAndQuit(Rpc::SourceManager& sourceManager)
+// kill fallback, per docs/protocol.md §4.2) before calling done, so
+// quitting never leaves an orphan backend subprocess behind.
+Rpc::Task<void> shutdownAll(Rpc::SourceManager& sourceManager, std::function<void()> done)
 {
     const QList<Rpc::RpcClient*> clients = sourceManager.clients();
     for (Rpc::RpcClient* client : clients) {
@@ -50,7 +51,7 @@ Rpc::Task<void> shutdownAllAndQuit(Rpc::SourceManager& sourceManager)
             // terminate/kill regardless of whether the ack arrived.
         }
     }
-    qApp->quit();
+    done();
 }
 
 } // namespace
@@ -96,6 +97,7 @@ int main(int argc, char** argv)
     App::Core core;
     core.analytics().configure(QStringLiteral(CLOUDMUS_GA4_MEASUREMENT_ID), QStringLiteral(CLOUDMUS_GA4_API_SECRET),
         QStringLiteral(CLOUDMUS_VERSION));
+    core.analytics().setValidateRequests(debugLoggingRequested());
     core.analytics().recordLaunch();
     Config::Settings& settings = core.settings();
     Rpc::SourceManager& sourceManager = core.sourceManager();
@@ -189,8 +191,17 @@ int main(int argc, char** argv)
     QObject::connect(
         &globalShortcuts, &Integration::GlobalShortcuts::stopTriggered, &playback, &Playback::PlaybackController::stop);
 
-    QObject::connect(&windowHost, &Ui::WindowHost::aboutToReallyQuit, &windowHost,
-        [&sourceManager]() { shutdownAllAndQuit(sourceManager).detach(); });
+    QObject::connect(&windowHost, &Ui::WindowHost::aboutToReallyQuit, &windowHost, [&sourceManager, &core]() {
+        // Queued usage events go out while the backends shut down; the app
+        // quits once both are done, whichever finishes last.
+        auto remaining = std::make_shared<int>(2);
+        auto done = [remaining]() {
+            if (--*remaining == 0)
+                qApp->quit();
+        };
+        core.analytics().flush(2000, done);
+        shutdownAll(sourceManager, done).detach();
+    });
 
     sourceManager.startAll();
 

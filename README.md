@@ -151,40 +151,6 @@ icon (playback controls, like/dislike, playlists), MPRIS (D-Bus)
 integration, KDE global shortcuts, desktop notifications for each track,
 playback history, a queue view, and cover art caching.
 
-### Usage statistics in the Qt front
-
-The Qt front sends usage events to Google Analytics when built with GA4
-credentials. This is on by default and can be turned off under **Settings →
-General → Send usage statistics to Google Analytics**. Turning it off stops
-new requests immediately; turning it back on keeps the same random
-installation ID, which is stored in the Qt front's `config.ini`.
-
-Events cover app launches, playback starts, opening a source, completed
-downloads, and adding or removing a track from a playlist. Requests contain
-the app version, a category for built-in sources, and where relevant the
-download type/count or playlist action. They do not contain track or playlist
-names or IDs, account details, or arbitrary backend data. Requests go
-directly from the app to Google over HTTPS. Google can also see the network
-address used for the request. Builds without GA4 credentials send nothing.
-
-To enable this in a build, create a GA4 property with a Web data stream and
-a Measurement Protocol API secret. Set `CLOUDMUS_GA4_MEASUREMENT_ID` and
-`CLOUDMUS_GA4_API_SECRET` in the environment before configuring CMake or
-running `build-appimage.sh`. The release workflow reads GitHub Actions
-secrets with those names and fails if either is missing. The API secret is
-embedded in the public AppImage and can be extracted; someone who obtains
-it could send false events to the GA4 property. In GA4 Custom definitions,
-register event-scoped dimensions for `source`, `kind`, `action`, and
-`app_version`, plus a custom metric for `saved_count`, to report on those
-event parameters.
-
-For a local GA4 check, start the Qt front with `CLOUDMUS_QT_DEBUG=1`. Its
-`~/.config/cloudmus/fronts/qt/debug.log` records analytics initialization,
-the event JSON sent in each request, and the HTTP status or network error.
-The installation ID and API secret are redacted. An HTTP 2xx means Google's
-endpoint received the request; it does not guarantee GA4 accepted every
-event, so also check the GA4 Realtime report.
-
 ## Building from source
 
 ### Requirements

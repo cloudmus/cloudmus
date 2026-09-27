@@ -196,6 +196,31 @@ QString Settings::analyticsClientId()
     return id;
 }
 
+QString Settings::analyticsCountryId() const
+{
+    return settings_.value(QStringLiteral("analytics/countryId")).toString();
+}
+
+QString Settings::analyticsCity() const { return settings_.value(QStringLiteral("analytics/city")).toString(); }
+
+QString Settings::analyticsRegionId() const { return settings_.value(QStringLiteral("analytics/regionId")).toString(); }
+
+QString Settings::analyticsContinentId() const
+{
+    return settings_.value(QStringLiteral("analytics/continentId")).toString();
+}
+
+void Settings::setAnalyticsLocation(
+    const QString& countryId, const QString& city, const QString& regionId, const QString& continentId)
+{
+    settings_.setValue(QStringLiteral("analytics/countryId"), countryId);
+    settings_.setValue(QStringLiteral("analytics/city"), city);
+    settings_.setValue(QStringLiteral("analytics/regionId"), regionId);
+    settings_.setValue(QStringLiteral("analytics/continentId"), continentId);
+    settings_.sync();
+    restrictPermissions();
+}
+
 void Settings::setDownloadDirectory(const QString& path)
 {
     // Only a folder the user actually chose is stored: saving the default
