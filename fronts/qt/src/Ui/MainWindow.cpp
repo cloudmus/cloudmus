@@ -467,6 +467,7 @@ void MainWindow::bindNowPlaying()
     connect(&nowPlaying_, &NowPlaying::playingChanged, nowPlayingBar_, &NowPlayingBar::setPlaying);
     connect(&nowPlaying_, &NowPlaying::loadingChanged, nowPlayingBar_, &NowPlayingBar::setLoading);
     connect(&nowPlaying_, &NowPlaying::positionChanged, nowPlayingBar_, &NowPlayingBar::setPosition);
+    connect(&nowPlaying_, &NowPlaying::volumeChanged, nowPlayingBar_, &NowPlayingBar::setVolume);
     connect(&nowPlaying_, &NowPlaying::queueAvailabilityChanged, nowPlayingBar_, &NowPlayingBar::setQueueAvailable);
 
     // Whatever state it's in already — a window created while something

@@ -1,7 +1,12 @@
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusPendingCallWatcher>
+#include <QDBusVariant>
 #include <QDir>
 #include <QFile>
 #include <QPointer>
 #include <QSignalSpy>
+#include <QSlider>
 #include <QStandardPaths>
 #include <QTest>
 #include <QTreeView>
@@ -10,6 +15,7 @@
 #include "DownloadsPanel.h"
 #include "FakeBackend.h"
 #include "MainWindow.h"
+#include "MprisService.h"
 #include "PlaylistSheet.h"
 #include "RpcClient.h"
 #include "TestSupport.h"
@@ -100,6 +106,78 @@ private slots:
         core.downloads().cancel(core.downloads().jobs().first().id);
         QTRY_VERIFY(!core.downloads().isActive());
         core.settings().setDownloadsEnabled(false);
+        for (Rpc::RpcClient* client : core.sourceManager().clients())
+            await(client->shutdown());
+    }
+
+    void mprisSeekAndVolumeFollowThePlayer()
+    {
+        App::Core core;
+        Ui::WindowHost host(core);
+        host.show();
+        QSignalSpy ready(&core.sourceManager(), &Rpc::SourceManager::sourceReady);
+        core.sourceManager().startAll();
+        QVERIFY(ready.wait(10000));
+
+        QObject adaptorHost;
+        Integration::MprisPlayerAdaptor adaptor(core.playback(), core.nowPlaying(), &adaptorHost);
+        QSignalSpy seeked(&adaptor, &Integration::MprisPlayerAdaptor::Seeked);
+        auto* slider = host.window()->findChild<QSlider*>(QStringLiteral("volumeSlider"));
+        QVERIFY(slider != nullptr);
+        adaptor.setVolume(0.42);
+        QCOMPARE(core.nowPlaying().volume(), 42);
+        QCOMPARE(core.settings().volume(), 42);
+        QCOMPARE(slider->value(), 42);
+        QCOMPARE(adaptor.volume(), 0.42);
+
+        Track track;
+        track.id = QStringLiteral("t1");
+        track.title = QStringLiteral("Track 1");
+        track.durationMs = 180000;
+        core.playback().loadQueue(QStringLiteral("fake"), { track }, 0);
+        QTRY_VERIFY(core.playback().hasCurrentTrack());
+        QVERIFY(adaptor.canSeek());
+        const auto trackId = adaptor.metadata().value(QStringLiteral("mpris:trackid")).value<QDBusObjectPath>();
+        adaptor.SetPosition(QDBusObjectPath(QStringLiteral("/org/cloudmus/Track/stale")), 20000000);
+        QCOMPARE(adaptor.position(), 0);
+        adaptor.SetPosition(trackId, 20000000);
+        QCOMPARE(adaptor.position(), 20000000);
+        QCOMPARE(seeked.count(), 1);
+        adaptor.Seek(-5000000);
+        QCOMPARE(adaptor.position(), 15000000);
+        QCOMPARE(seeked.count(), 2);
+        adaptor.SetPosition(trackId, 181000000);
+        QCOMPARE(adaptor.position(), 15000000);
+
+        if (QDBusConnection::sessionBus().isConnected()) {
+            Integration::MprisService service(core.playback(), core.nowPlaying());
+            QDBusInterface player(QStringLiteral("org.mpris.MediaPlayer2.cloudmus"),
+                QStringLiteral("/org/mpris/MediaPlayer2"), QStringLiteral("org.mpris.MediaPlayer2.Player"));
+            QVERIFY(player.isValid());
+            QDBusPendingCallWatcher call(player.asyncCall(
+                QStringLiteral("SetPosition"), QVariant::fromValue(trackId), QVariant::fromValue(qlonglong(25000000))));
+            QSignalSpy finished(&call, &QDBusPendingCallWatcher::finished);
+            QVERIFY(finished.wait(5000));
+            QVERIFY(!call.isError());
+            QCOMPARE(adaptor.position(), 25000000);
+
+            QDBusInterface properties(QStringLiteral("org.mpris.MediaPlayer2.cloudmus"),
+                QStringLiteral("/org/mpris/MediaPlayer2"), QStringLiteral("org.freedesktop.DBus.Properties"));
+            QDBusPendingCallWatcher setVolume(
+                properties.asyncCall(QStringLiteral("Set"), QStringLiteral("org.mpris.MediaPlayer2.Player"),
+                    QStringLiteral("Volume"), QVariant::fromValue(QDBusVariant(0.36))));
+            QSignalSpy volumeSet(&setVolume, &QDBusPendingCallWatcher::finished);
+            QVERIFY(volumeSet.wait(5000));
+            QVERIFY(!setVolume.isError());
+            QCOMPARE(core.nowPlaying().volume(), 36);
+            QCOMPARE(core.settings().volume(), 36);
+            QCOMPARE(slider->value(), 36);
+        }
+
+        core.playback().stop();
+        QVERIFY(!adaptor.canSeek());
+        QCOMPARE(adaptor.position(), 0);
+        QVERIFY(adaptor.metadata().isEmpty());
         for (Rpc::RpcClient* client : core.sourceManager().clients())
             await(client->shutdown());
     }

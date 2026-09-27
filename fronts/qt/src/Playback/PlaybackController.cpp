@@ -48,6 +48,11 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
 
 PlaybackController::~PlaybackController() = default;
 
+qint64 PlaybackController::positionMs() const
+{
+    return hasCurrentTrack() ? std::clamp(lastKnownPositionMs_, qint64(0), qint64(currentTrack().durationMs)) : 0;
+}
+
 void PlaybackController::loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex)
 {
     QVector<QueueEntry> entries;
@@ -217,6 +222,7 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
 
     const bool wasCurrentTrack = hasCurrentTrack();
     index_ = index;
+    lastKnownPositionMs_ = 0;
     if (id == latestRequestId_)
         startingIndex_ = -1;
     if (!wasCurrentTrack)
@@ -416,6 +422,7 @@ void PlaybackController::stop()
     }
     const bool hadCurrentTrack = hasCurrentTrack();
     index_ = -1; // the current track becomes undefined — see hasCurrentTrack()
+    lastKnownPositionMs_ = 0;
     if (playing_) {
         playing_ = false;
         emit playingChanged(false);
@@ -428,7 +435,16 @@ void PlaybackController::next() { advance(1, /*wasSkip=*/true); }
 
 void PlaybackController::previous() { advance(-1, /*wasSkip=*/true); }
 
-void PlaybackController::seek(qint64 positionMs) { audioPlayer_->seek(positionMs); }
+void PlaybackController::seek(qint64 positionMs)
+{
+    if (!hasCurrentTrack())
+        return;
+    positionMs = std::clamp(positionMs, qint64(0), qint64(currentTrack().durationMs));
+    audioPlayer_->seek(positionMs);
+    lastKnownPositionMs_ = positionMs;
+    emit positionChanged(positionMs, currentTrack().durationMs);
+    emit seeked(positionMs);
+}
 
 void PlaybackController::setVolume(int volume0To100) { audioPlayer_->setVolume(volume0To100); }
 

@@ -96,6 +96,7 @@ public:
     }
 
     bool isPlaying() const { return playing_; }
+    qint64 positionMs() const;
     bool hasCurrentTrack() const { return index_ >= 0 && index_ < queue_.size(); }
     bool hasQueue() const { return !queue_.isEmpty(); }
     const Track& currentTrack() const { return queue_[index_].track; }
@@ -107,6 +108,7 @@ signals:
     void trackChanged(const Track& track, const QString& sourceId);
     void playingChanged(bool playing);
     void positionChanged(qint64 positionMs, qint64 durationMs);
+    void seeked(qint64 positionMs);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
     void errorOccurred(QString message);
     // Emitted whenever hasCurrentTrack() actually changes: true right

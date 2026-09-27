@@ -1,12 +1,16 @@
 #pragma once
 
 #include <QDBusAbstractAdaptor>
+#include <QDBusObjectPath>
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
 
 namespace Playback {
 class PlaybackController;
+}
+namespace ViewModel {
+class NowPlaying;
 }
 
 namespace Integration {
@@ -68,15 +72,16 @@ class MprisPlayerAdaptor : public QDBusAbstractAdaptor {
     Q_PROPERTY(bool CanGoPrevious READ canTrue CONSTANT)
     Q_PROPERTY(bool CanPlay READ canTrue CONSTANT)
     Q_PROPERTY(bool CanPause READ canTrue CONSTANT)
-    Q_PROPERTY(bool CanSeek READ canTrue CONSTANT)
+    Q_PROPERTY(bool CanSeek READ canSeek)
     Q_PROPERTY(bool CanControl READ canTrue CONSTANT)
 
 public:
-    explicit MprisPlayerAdaptor(Playback::PlaybackController& playback, QObject* parent);
+    explicit MprisPlayerAdaptor(
+        Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying, QObject* parent);
 
     QString playbackStatus() const;
     QVariantMap metadata() const { return metadata_; }
-    double volume() const { return volume_; }
+    double volume() const;
     void setVolume(double v);
     qlonglong position() const;
     bool shuffle() const;
@@ -84,6 +89,7 @@ public:
     QString loopStatus() const;
     void setLoopStatus(const QString& status);
     bool canTrue() const { return true; }
+    bool canSeek() const;
 
 public slots:
     void Next();
@@ -93,6 +99,10 @@ public slots:
     void Stop();
     void Play();
     void Seek(qlonglong offsetUs);
+    void SetPosition(const QDBusObjectPath& trackId, qlonglong positionUs);
+
+signals:
+    void Seeked(qlonglong positionUs);
 
 private:
     void emitPropertiesChanged(const QStringList& properties);
@@ -100,8 +110,9 @@ private:
     void onPlayingChanged(bool playing);
 
     Playback::PlaybackController& playback_;
+    ViewModel::NowPlaying& nowPlaying_;
     QVariantMap metadata_;
-    double volume_ = 1.0;
+    quint64 trackSerial_ = 0;
 };
 
 // Owns both adaptors and registers /org/mpris/MediaPlayer2 on the session
@@ -110,7 +121,8 @@ class MprisService : public QObject {
     Q_OBJECT
 
 public:
-    explicit MprisService(Playback::PlaybackController& playback, QObject* parent = nullptr);
+    explicit MprisService(
+        Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying, QObject* parent = nullptr);
 
 signals:
     void quitRequested();

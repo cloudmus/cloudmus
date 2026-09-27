@@ -132,7 +132,7 @@ int main(int argc, char** argv)
     Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &windowHost, &Ui::WindowHost::quit);
 
-    Integration::MprisService mpris(playback);
+    Integration::MprisService mpris(playback, core.nowPlaying());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
     QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,
         [&windowHost]() { windowHost.bringToFront(); });
