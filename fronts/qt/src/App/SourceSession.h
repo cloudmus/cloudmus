@@ -5,6 +5,7 @@
 #include <QString>
 
 #include "Coro.h"
+#include "Models.h"
 
 namespace Covers {
 class CoverArtCache;
@@ -52,6 +53,8 @@ signals:
     void sourceReady(Rpc::RpcClient* client);
     // A source finished signing in — what it lists may have changed.
     void signedIn(Rpc::RpcClient* client);
+    // How far one of its named downloads has got (docs/protocol.md §7.5).
+    void downloadProgress(const QString& sourceId, const DownloadProgressParams& params);
 
 private:
     void wire(Rpc::RpcClient* client);

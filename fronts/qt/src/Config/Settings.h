@@ -139,6 +139,10 @@ public:
     QString downloadDirectory() const;
     // An empty path or the default one resets to the default.
     void setDownloadDirectory(const QString& path);
+    // Whether saving tracks is on at all — off until the user turns it on
+    // (and agrees to what downloads are for, see Ui::Settings::DownloadsPage).
+    bool downloadsEnabled() const;
+    void setDownloadsEnabled(bool on);
 
 private:
     void restrictPermissions();

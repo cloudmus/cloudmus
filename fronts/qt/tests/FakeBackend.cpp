@@ -58,7 +58,8 @@ QJsonObject capabilities()
         { QStringLiteral("feedback"),
             QJsonObject { { QStringLiteral("like"), true }, { QStringLiteral("dislike"), true },
                 { QStringLiteral("skip"), false } } },
-        { QStringLiteral("download"), false },
+        { QStringLiteral("download"), true },
+        { QStringLiteral("downloadControl"), true },
         { QStringLiteral("auth"),
             QJsonObject { { QStringLiteral("required"), false }, { QStringLiteral("flow"), QStringLiteral("none") } } },
     };
@@ -91,6 +92,10 @@ void installFakeBackendManifest()
 
 int runFakeBackend()
 {
+    // A catalog.downloadTrack of the track "slow" waits here, unanswered,
+    // until a catalog.cancelDownload for it.
+    QJsonValue slowDownloadRequestId;
+    QString slowDownloadId;
     std::string line;
     while (std::getline(std::cin, line)) {
         const QJsonObject request = QJsonDocument::fromJson(QByteArray::fromStdString(line)).object();
@@ -156,6 +161,37 @@ int runFakeBackend()
                 replyError(id, 1200, QStringLiteral("service down"));
             else
                 reply(id, { });
+        } else if (method == QStringLiteral("catalog.downloadTrack")) {
+            const QJsonObject params = request.value(QStringLiteral("params")).toObject();
+            const QString trackId = params.value(QStringLiteral("trackId")).toString();
+            const QString downloadId = params.value(QStringLiteral("downloadId")).toString();
+            const auto progress = [&](int received) {
+                notify(QStringLiteral("download/progress"),
+                    { { QStringLiteral("downloadId"), downloadId }, { QStringLiteral("receivedBytes"), received },
+                        { QStringLiteral("totalBytes"), 100 } });
+            };
+            if (trackId == QStringLiteral("fail")) {
+                replyError(id, 1300, QStringLiteral("no such track"));
+            } else if (trackId == QStringLiteral("slow")) {
+                progress(50);
+                slowDownloadRequestId = id;
+                slowDownloadId = downloadId;
+            } else {
+                progress(50);
+                progress(100);
+                reply(id,
+                    { { QStringLiteral("path"),
+                        params.value(QStringLiteral("destDir")).toString() + QStringLiteral("/") + trackId } });
+            }
+        } else if (method == QStringLiteral("catalog.cancelDownload")) {
+            const QString downloadId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("downloadId")).toString();
+            reply(id, { });
+            if (downloadId == slowDownloadId && !slowDownloadRequestId.isUndefined()) {
+                replyError(slowDownloadRequestId, 1410, QStringLiteral("Download cancelled"));
+                slowDownloadRequestId = QJsonValue();
+                slowDownloadId.clear();
+            }
         } else if (method == QStringLiteral("auth.getStatus")) {
             reply(id, { { QStringLiteral("status"), QStringLiteral("authenticated") } });
         } else if (method == QStringLiteral("auth.submit")) {

@@ -35,6 +35,7 @@
 #include "AboutDialog.h"
 #include "CoverArtCache.h"
 #include "DownloadPaths.h"
+#include "DownloadsPanel.h"
 #include "EmptyStatePlaceholder.h"
 #include "HeroPanel.h"
 #include "Icons.h"
@@ -99,6 +100,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , sourceSession_(core.sourceSession())
     , messages_(core.messages())
     , nowPlaying_(core.nowPlaying())
+    , downloads_(core.downloads())
     , playlistEditing_(core.playlistEditing())
     , sources_(core.sources())
     , activePlaylist_(core.activePlaylist())
@@ -225,6 +227,8 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // setTrackListVisible()).
     heroPanel_->setFillMode(true);
     connect(heroPanel_, &HeroPanel::playClicked, &activePlaylist_, &ViewModel::ActivePlaylist::play);
+    heroPanel_->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(heroPanel_, &HeroPanel::customContextMenuRequested, this, &MainWindow::onHeroContextMenuRequested);
 
     trackListModel_ = new TrackListModel(this);
     trackListModel_->setTrackStates(trackStates_);
@@ -309,6 +313,10 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     connect(sourcePanel_, &SourcePanel::refreshRequested, &sources_, &ViewModel::Sources::refresh);
     connect(sheet_, &PlaylistSheet::trackActivated, &browse_, &ViewModel::Browse::playRow);
     connect(sheet_, &PlaylistSheet::playAllClicked, &browse_, &ViewModel::Browse::playAll);
+    connect(sheet_, &PlaylistSheet::downloadAllClicked, this, [this]() {
+        if (browse_.page() == ViewModel::Browse::Page::Playlist)
+            downloads_.downloadPlaylist(browse_.context().sourceId, browse_.context().playlist);
+    });
     connect(sheet_, &PlaylistSheet::closeRequested, &browse_, &ViewModel::Browse::close);
     connect(sheet_, &PlaylistSheet::trackContextMenuRequested, this, [this](int row, const QPoint& globalPos) {
         TrackListModel* model = sheet_->trackModel();
@@ -398,7 +406,27 @@ void MainWindow::bindNowPlaying()
     connect(nowPlayingBar_, &NowPlayingBar::repeatClicked, &nowPlaying_, &NowPlaying::setRepeatMode);
     connect(nowPlayingBar_, &NowPlayingBar::likeClicked, &nowPlaying_, &NowPlaying::setLiked);
     connect(nowPlayingBar_, &NowPlayingBar::dislikeClicked, &nowPlaying_, &NowPlaying::setDisliked);
-    connect(nowPlayingBar_, &NowPlayingBar::downloadClicked, &nowPlaying_, &NowPlaying::download);
+    // Downloads under way: the button opens their panel; otherwise it
+    // saves the playing track.
+    connect(nowPlayingBar_, &NowPlayingBar::downloadClicked, this, [this](QPoint anchor) {
+        if (downloads_.isActive())
+            (new DownloadsPanel(downloads_, nowPlaying_, this))->popup(anchor);
+        else
+            nowPlaying_.download();
+    });
+    const auto showDownloads = [this]() {
+        nowPlayingBar_->setDownloadsVisible(downloads_.isEnabled());
+        nowPlayingBar_->setDownloadActivity(downloads_.isActive(), downloads_.progress());
+    };
+    connect(&downloads_, &ViewModel::Downloads::changed, this, showDownloads);
+    // Downloads switched on or off: the open playlist's Save button follows.
+    connect(&downloads_, &ViewModel::Downloads::changed, this, [this]() {
+        if (browse_.page() == ViewModel::Browse::Page::Playlist) {
+            const ActiveContext& context = browse_.context();
+            sheet_->setDownloadAvailable(!context.isHistory && canDownloadPlaylist(context.sourceId, context.playlist));
+        }
+    });
+    showDownloads();
     connect(nowPlayingBar_, &NowPlayingBar::playlistsClicked, this, &MainWindow::showPlaylistsMenu);
 
     // ...and what it says is shown: the toolbar, the hero panel (the
@@ -427,7 +455,6 @@ void MainWindow::bindNowPlaying()
         nowPlayingBar_->setDislikeState(feedback.dislikeSupported, feedback.disliked);
         nowPlayingBar_->setDislikeBusy(feedback.dislikeBusy);
         nowPlayingBar_->setDownloadState(feedback.downloadSupported);
-        nowPlayingBar_->setDownloadBusy(feedback.downloadBusy);
         nowPlayingBar_->setPlaylistsState(feedback.playlistsSupported);
     };
     const auto showPlayModes = [this]() {
@@ -518,6 +545,7 @@ void MainWindow::showBrowsePage()
                     context.playlist.coverUrl.value_or(QString()), context.playlist.title, /*canPlayAll=*/true);
             }
             sheet_->setBusy(browse_.isLoading());
+            sheet_->setDownloadAvailable(!context.isHistory && canDownloadPlaylist(context.sourceId, context.playlist));
             showBrowseRows();
             sheet_->present();
             break;
@@ -656,12 +684,44 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
             Theme::icon(favorite ? QStringLiteral("star_border") : QStringLiteral("star"), Theme::IconColor::Ink, 16),
             favorite ? tr("Remove from Favorites") : tr("Add to Favorites"), this,
             [this, sourceId, playlistId]() { toggleFavorite(sourceId, playlistId); });
+        const Playlist playlist = index.data(ViewModel::SidebarModel::PlaylistDataRole).value<Playlist>();
+        if (canDownloadPlaylist(sourceId, playlist)) {
+            menu->addAction(Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, 16),
+                tr("Save Playlist to Downloads"), this,
+                [this, sourceId, playlist]() { downloads_.downloadPlaylist(sourceId, playlist); });
+        }
     } else {
         menu->deleteLater();
         return;
     }
 
     menu->popup(sidebarView_->viewport()->mapToGlobal(pos));
+}
+
+bool MainWindow::canDownloadPlaylist(const QString& sourceId, const Playlist& playlist) const
+{
+    if (!downloads_.isEnabled() || sourceId.isEmpty() || playlist.kind == QStringLiteral("radioStation"))
+        return false;
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    return client != nullptr && client->capabilities().value(QStringLiteral("download")).toBool();
+}
+
+void MainWindow::onHeroContextMenuRequested(const QPoint& pos)
+{
+    // The active playlist's own menu — whatever the hero shows right now.
+    const ActiveContext& active = activePlaylist_.context();
+    if (!active.isValid())
+        return;
+    auto* menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    menu->addAction(Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), &activePlaylist_,
+        &ViewModel::ActivePlaylist::play);
+    if (!active.isHistory && canDownloadPlaylist(active.sourceId, active.playlist)) {
+        menu->addAction(Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, 16),
+            tr("Save Playlist to Downloads"), this,
+            [this, active]() { downloads_.downloadPlaylist(active.sourceId, active.playlist); });
+    }
+    menu->popup(heroPanel_->mapToGlobal(pos));
 }
 
 void MainWindow::toggleFavorite(const QString& sourceId, const QString& playlistId)
@@ -802,7 +862,8 @@ void MainWindow::showTrackMenu(
     const bool dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
     const bool radioSupported
         = capabilities.value(QStringLiteral("browse")).toObject().value(QStringLiteral("radio")).toBool();
-    const bool downloadSupported = capabilities.value(QStringLiteral("download")).toBool();
+    // Only while downloads are on (Settings → Downloads).
+    const bool downloadSupported = downloads_.isEnabled() && capabilities.value(QStringLiteral("download")).toBool();
     const QString webUrl = track.webUrl.value_or(QString());
 
     auto* menu = new QMenu(this);
@@ -885,7 +946,7 @@ void MainWindow::showTrackMenu(
         if (downloadSupported) {
             menu->addAction(Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, 16),
                 tr("Save to Downloads"), this,
-                [this, sourceId, track]() { nowPlaying_.downloadTrack(sourceId, track).detach(); });
+                [this, sourceId, track]() { downloads_.downloadTrack(sourceId, track); });
         }
     }
 
@@ -1001,7 +1062,7 @@ void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }
 
 void MainWindow::showSettingsDialog(const QString& openAt)
 {
-    SettingsDialog dialog(settings_, sourceManager_, *authStates_, this, openAt);
+    SettingsDialog dialog(settings_, sourceManager_, *authStates_, downloads_, this, openAt);
     // While it's up, this window's toasts (an auth error from App::SourceSession,
     // a download finishing) go to the dialog instead: this window is
     // behind it, where they'd go unseen. Restored before the dialog, and

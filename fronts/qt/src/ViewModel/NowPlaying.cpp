@@ -4,7 +4,7 @@
 #include <QJsonObject>
 #include <QLoggingCategory>
 
-#include "DownloadPaths.h"
+#include "Downloads.h"
 #include "Messages.h"
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
@@ -22,13 +22,14 @@ Q_LOGGING_CATEGORY(lcNowPlaying, "cloudmus.viewmodel.nowplaying")
 
 NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
     Library::TrackStates& trackStates, History::PlaybackHistory& history, Config::Settings& settings,
-    Messages& messages, QObject* parent)
+    Downloads& downloads, Messages& messages, QObject* parent)
     : QObject(parent)
     , playback_(playback)
     , sourceManager_(sourceManager)
     , trackStates_(trackStates)
     , history_(history)
     , settings_(settings)
+    , downloads_(downloads)
     , messages_(messages)
 {
     // The saved volume and play modes, applied to playback itself — mpv
@@ -71,6 +72,8 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
                 emit feedbackChanged();
         });
     connect(&trackStates_, &Library::TrackStates::bulkChanged, this, &NowPlaying::feedbackChanged);
+    // Whether the playing track is being saved.
+    connect(&downloads_, &Downloads::changed, this, &NowPlaying::feedbackChanged);
 }
 
 bool NowPlaying::hasTrack() const { return playback_.hasCurrentTrack(); }
@@ -130,8 +133,8 @@ NowPlaying::Feedback NowPlaying::feedback() const
     result.dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
     result.disliked = pendingDisliked_.value_or(state.disliked.value_or(false));
     result.dislikeBusy = pendingDisliked_.has_value();
-    result.downloadSupported = caps.value(QStringLiteral("download")).toBool();
-    result.downloadBusy = downloadBusy_;
+    result.downloadSupported = downloads_.isEnabled() && caps.value(QStringLiteral("download")).toBool();
+    result.downloadBusy = downloads_.isDownloading(source, track().id);
     result.playlistsSupported
         = caps.value(QStringLiteral("browse")).toObject().value(QStringLiteral("editPlaylists")).toBool();
     return result;
@@ -151,22 +154,8 @@ void NowPlaying::setDisliked(bool disliked)
 
 void NowPlaying::download()
 {
-    if (!hasTrack())
-        return;
-    // A copy: the queue may move on while the download runs.
-    const QString source = playback_.currentSourceId();
-    const Track current = track();
-    [](NowPlaying* self, QString source, Track current) -> Rpc::Task<void> {
-        self->downloadBusy_ = true;
-        emit self->feedbackChanged();
-        co_await self->downloadTrack(source, current);
-        // The track may have changed meanwhile; resetBusy() cleared it then.
-        if (self->isCurrent(source, current.id)) {
-            self->downloadBusy_ = false;
-            emit self->feedbackChanged();
-        }
-    }(this, source, current)
-                                                               .detach();
+    if (hasTrack())
+        downloads_.downloadTrack(playback_.currentSourceId(), track());
 }
 
 Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, bool liked, bool announce)
@@ -244,30 +233,6 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
     }
 }
 
-Rpc::Task<void> NowPlaying::downloadTrack(QString sourceId, Track track)
-{
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    if (client == nullptr || !client->available())
-        co_return;
-    const QString destDir = Library::downloadDirectoryFor(
-        settings_.downloadDirectory(), settings_.downloadLayout(), client->sourceName(), track);
-    // docs/protocol.md §7.5: destDir must already exist.
-    if (!QDir().mkpath(destDir)) {
-        messages_.error(tr("Can't create the folder %1").arg(destDir));
-        co_return;
-    }
-    messages_.info(tr("Downloading \"%1\"…").arg(track.title));
-    try {
-        DownloadTrackParams params { track.id, destDir };
-        co_await Rpc::catalogDownloadTrack(*client, params);
-        messages_.success(tr("Saved \"%1\"").arg(track.title));
-    } catch (const std::exception& e) {
-        const QString message = QString::fromStdString(e.what());
-        qCWarning(lcNowPlaying) << "catalog.downloadTrack failed for" << track.id << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
-    }
-}
-
 bool NowPlaying::isCurrent(const QString& sourceId, const QString& trackId) const
 {
     return hasTrack() && playback_.currentSourceId() == sourceId && track().id == trackId;
@@ -283,7 +248,6 @@ void NowPlaying::resetBusy()
 {
     pendingLiked_.reset();
     pendingDisliked_.reset();
-    downloadBusy_ = false;
 }
 
 } // namespace ViewModel

@@ -100,6 +100,7 @@ add_library(cloudmus-core STATIC
     src/ViewModel/ActivePlaylist.cpp
     src/ViewModel/Browse.cpp
     src/ViewModel/SourcePage.cpp
+    src/ViewModel/Downloads.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 )
@@ -155,6 +156,7 @@ add_custom_target(cloudmus_version
 add_library(cloudmus-ui STATIC
     src/Ui/MainWindow.cpp
     src/Ui/WindowHost.cpp
+    src/Ui/DownloadsPanel.cpp
     src/Ui/AboutDialog.cpp
     src/Ui/InfoDialog.cpp
     src/Ui/NavItemDelegate.cpp
@@ -246,6 +248,7 @@ add_executable(cloudmus-qt-tests
     tests/SourcesTest.cpp
     tests/ActivePlaylistTest.cpp
     tests/BrowseTest.cpp
+    tests/DownloadsTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

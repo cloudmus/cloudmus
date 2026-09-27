@@ -104,6 +104,11 @@ private:
     // offers "Play" (same as double-click — see onSidebarDoubleClicked).
     // Any other row (PlaylistsHeader/History) gets no menu.
     void onSidebarContextMenuRequested(const QPoint& pos);
+    // Right-click on the hero: the active playlist's Play and Save.
+    void onHeroContextMenuRequested(const QPoint& pos);
+    // Whether a whole playlist can be saved: downloads on, its source
+    // downloads, and it's not a radio station.
+    bool canDownloadPlaylist(const QString& sourceId, const Playlist& playlist) const;
     // Puts a playlist in the source's sidebar favorites or takes it out.
     void toggleFavorite(const QString& sourceId, const QString& playlistId);
     // The main track list mirrors the active playlist: the playback queue
@@ -196,6 +201,8 @@ private:
     // What's playing — the toolbar, the hero panel and the playing-row
     // highlight follow it (bindNowPlaying()).
     ViewModel::NowPlaying& nowPlaying_;
+    // Saving tracks and playlists (the toolbar's button, its panel, menus).
+    ViewModel::Downloads& downloads_;
     App::PlaylistEditing& playlistEditing_;
     // The sources and their playlists; owns sidebarModel_.
     ViewModel::Sources& sources_;

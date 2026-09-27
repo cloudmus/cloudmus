@@ -15,8 +15,8 @@ namespace {
 constexpr int kDialogWidth = 460;
 } // namespace
 
-InfoDialog::InfoDialog(
-    const QString& title, const QString& heading, const QString& text, const QString& actionText, QWidget* parent)
+InfoDialog::InfoDialog(const QString& title, const QString& heading, const QString& text, const QString& actionText,
+    QWidget* parent, const QString& closeText)
     : QDialog(parent)
 {
     setWindowTitle(title);
@@ -33,6 +33,8 @@ InfoDialog::InfoDialog(
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    if (!closeText.isEmpty())
+        buttons->button(QDialogButtonBox::Close)->setText(closeText);
     if (actionText.isEmpty()) {
         styleDialogButton(buttons->button(QDialogButtonBox::Close), "primary");
     } else {

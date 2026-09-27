@@ -6,15 +6,18 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QPainter>
 #include <QPushButton>
 #include <QSlider>
 #include <QUrl>
 #include <QVBoxLayout>
+#include <QVariantAnimation>
 
 #include "Icons.h"
 #include "Metrics.h"
 #include "Spacing.h"
 #include "ThemedSlider.h"
+#include "Tokens.h"
 #include "Typography.h"
 
 namespace Ui {
@@ -108,6 +111,65 @@ private:
     QString iconName_;
     Scheme scheme_;
 };
+
+// The download button, with a ring around it while downloads are under way
+// — filled to their progress like a browser's, or a spinning arc while
+// there's nothing to measure yet.
+class DownloadButton : public IconHoverButton {
+public:
+    explicit DownloadButton(QWidget* parent)
+        : IconHoverButton(QStringLiteral("file_download"), Scheme::Neutral, parent)
+    {
+        spin_ = new QVariantAnimation(this);
+        spin_->setStartValue(0.0);
+        spin_->setEndValue(360.0);
+        spin_->setDuration(1100);
+        spin_->setLoopCount(-1);
+        connect(spin_, &QVariantAnimation::valueChanged, this, qOverload<>(&QWidget::update));
+    }
+
+    void setRing(bool active, double progress)
+    {
+        active_ = active;
+        progress_ = progress;
+        const bool spinning = active && progress < 0;
+        if (spinning && spin_->state() != QAbstractAnimation::Running)
+            spin_->start();
+        else if (!spinning)
+            spin_->stop();
+        update();
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override
+    {
+        IconHoverButton::paintEvent(event);
+        if (!active_)
+            return;
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        constexpr qreal kWidth = 2.5;
+        const QRectF ring = QRectF(rect()).adjusted(kWidth / 2 + 1, kWidth / 2 + 1, -kWidth / 2 - 1, -kWidth / 2 - 1);
+        const Theme::Palette& pal = Theme::palette();
+        painter.setPen(QPen(pal.border, kWidth));
+        painter.drawEllipse(ring);
+        QPen arc(pal.accent, kWidth);
+        arc.setCapStyle(Qt::RoundCap);
+        painter.setPen(arc);
+        // Qt's angles: 1/16 degree, counter-clockwise from 3 o'clock.
+        if (progress_ < 0) {
+            const int start = int((90.0 - spin_->currentValue().toReal()) * 16);
+            painter.drawArc(ring, start, -90 * 16);
+        } else {
+            painter.drawArc(ring, 90 * 16, -int(qBound(0.0, progress_, 1.0) * 360 * 16));
+        }
+    }
+
+private:
+    QVariantAnimation* spin_;
+    bool active_ = false;
+    double progress_ = -1;
+};
 } // namespace
 
 NowPlayingBar::NowPlayingBar(QWidget* parent)
@@ -151,7 +213,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     dislikeButton_->setToolTip(tr("Dislike"));
     // Not checkable, unlike like/dislike — a repeat download is a normal
     // thing to ask for again, not a state to toggle off.
-    downloadButton_ = new IconHoverButton(QStringLiteral("file_download"), IconHoverButton::Scheme::Neutral, this);
+    downloadButton_ = new DownloadButton(this);
     downloadButton_->setToolTip(tr("Save to Downloads"));
     connect(previousButton_, &QPushButton::clicked, this, &NowPlayingBar::previousClicked);
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
@@ -178,7 +240,8 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // (setChecked() under the hood) never loop back into another RPC call.
     connect(likeButton_, &QPushButton::clicked, this, &NowPlayingBar::likeClicked);
     connect(dislikeButton_, &QPushButton::clicked, this, &NowPlayingBar::dislikeClicked);
-    connect(downloadButton_, &QPushButton::clicked, this, &NowPlayingBar::downloadClicked);
+    connect(downloadButton_, &QPushButton::clicked, this,
+        [this]() { emit downloadClicked(downloadButton_->mapToGlobal(QPoint(0, 0))); });
     playlistsButton_ = new IconHoverButton(QStringLiteral("playlist_add"), IconHoverButton::Scheme::Neutral, this);
     playlistsButton_->setToolTip(tr("Add to playlist"));
     connect(playlistsButton_, &QPushButton::clicked, this,
@@ -388,24 +451,26 @@ void NowPlayingBar::refreshDislikeButton()
 
 void NowPlayingBar::setPlaylistsState(bool capabilitySupported) { playlistsButton_->setEnabled(capabilitySupported); }
 
+void NowPlayingBar::setDownloadsVisible(bool visible) { downloadButton_->setVisible(visible); }
+
 void NowPlayingBar::setDownloadState(bool capabilitySupported)
 {
     downloadSupported_ = capabilitySupported;
-    downloadBusy_ = false;
     refreshDownloadButton();
 }
 
-void NowPlayingBar::setDownloadBusy(bool busy)
+void NowPlayingBar::setDownloadActivity(bool active, double progress)
 {
-    downloadBusy_ = busy;
+    downloadsActive_ = active;
+    static_cast<DownloadButton*>(downloadButton_)->setRing(active, progress);
     refreshDownloadButton();
 }
 
 void NowPlayingBar::refreshDownloadButton()
 {
-    downloadButton_->setEnabled(downloadSupported_ && !downloadBusy_);
-    static_cast<IconHoverButton*>(downloadButton_)
-        ->setIconName(downloadBusy_ ? QStringLiteral("refresh") : QStringLiteral("file_download"));
+    // While downloads run it opens their panel — clickable whatever plays.
+    downloadButton_->setEnabled(downloadSupported_ || downloadsActive_);
+    downloadButton_->setToolTip(downloadsActive_ ? tr("Downloads") : tr("Save to Downloads"));
 }
 
 void NowPlayingBar::setPlaying(bool playing)

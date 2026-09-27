@@ -79,16 +79,17 @@ public:
     void setLikeBusy(bool busy);
     void setDislikeBusy(bool busy);
 
-    // Save to Downloads — no toggle/checked state (unlike like/dislike, a
-    // repeat download is a perfectly normal thing to ask for again), just
-    // enabled iff the source declares the `download` capability and busy
-    // while catalog.downloadTrack is in flight (same "refresh" glyph-swap
-    // convention as setLikeBusy()/setDislikeBusy()).
+    // The download button — hidden while downloads are off in Settings.
+    // `capabilitySupported`: the playing track can be saved. `active`: some
+    // download is under way, drawn as a ring around the button — filled to
+    // `progress` (0..1), or spinning while that's unknown (-1); a click
+    // then opens the downloads panel instead (see downloadClicked()).
+    void setDownloadsVisible(bool visible);
     void setDownloadState(bool capabilitySupported);
+    void setDownloadActivity(bool active, double progress);
     // The "playlists" button (add to / remove from the user's playlists):
     // enabled iff the current track's source declares browse.editPlaylists.
     void setPlaylistsState(bool capabilitySupported);
-    void setDownloadBusy(bool busy);
 
     // Appended to the right end of the transport-button row (top row — see
     // the .cpp), after a stretch that keeps it pinned there. MainWindow
@@ -117,7 +118,9 @@ signals:
     // separately track "was it liked before."
     void likeClicked(bool liked);
     void dislikeClicked(bool disliked);
-    void downloadClicked();
+    // `anchor`: the button's top-left, global — where the downloads panel
+    // opens up from.
+    void downloadClicked(QPoint anchor);
     // `anchor`: global position (the button's bottom-left) to open the
     // playlists menu at.
     void playlistsClicked(QPoint anchor);
@@ -164,7 +167,7 @@ private:
     bool disliked_ = false;
     bool dislikeBusy_ = false;
     bool downloadSupported_ = false;
-    bool downloadBusy_ = false;
+    bool downloadsActive_ = false;
 };
 
 } // namespace Ui

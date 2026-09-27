@@ -41,6 +41,8 @@ void SourceSession::wire(Rpc::RpcClient* client)
         playback_.handleTracksAdded(client->sourceId(), p);
     };
     client->notifications.onError = [this](const ErrorParams& e) { messages_.error(e.message); };
+    client->notifications.onDownloadProgress
+        = [this, client](const DownloadProgressParams& p) { emit downloadProgress(client->sourceId(), p); };
     // Into authStates_, whose changed() repaints every view of it.
     client->onAuthPromptRaw
         = [this, client](const QJsonObject& params) { authStates_.setPrompt(client->sourceId(), params); };

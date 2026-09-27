@@ -55,6 +55,9 @@ public:
     // source's own icon (`iconPath`, may be empty), name and description.
     void showSource(const QString& name, const QString& description, const QString& iconPath);
     void setSubtitle(const QString& subtitle);
+    // The header's Save to Downloads button, next to Play — for a
+    // playlist that can be saved (downloads on, its source downloads).
+    void setDownloadAvailable(bool available);
     void setBusy(bool busy);
     // Repaints the track rows (e.g. the delegate's now-playing highlight moved).
     void updateRows();
@@ -73,6 +76,7 @@ signals:
     void trackActivated(int row);
     void trackContextMenuRequested(int row, const QPoint& globalPos);
     void playAllClicked();
+    void downloadAllClicked();
     void closeRequested();
     // The slide-out animation finished (not emitted by a no-op dismiss()).
     void dismissed();
@@ -92,6 +96,7 @@ private:
 
     HeaderInfo* headerInfo_ = nullptr;
     QPushButton* playAllButton_ = nullptr;
+    QToolButton* downloadAllButton_ = nullptr;
     QToolButton* backButton_ = nullptr;
     QLineEdit* filterEdit_ = nullptr;
     QStackedWidget* pages_ = nullptr;

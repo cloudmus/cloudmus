@@ -169,6 +169,10 @@ QString Settings::downloadDirectory() const
     return settings_.value(QStringLiteral("download/directory"), defaultDownloadDirectory()).toString();
 }
 
+bool Settings::downloadsEnabled() const { return settings_.value(QStringLiteral("download/enabled"), false).toBool(); }
+
+void Settings::setDownloadsEnabled(bool on) { settings_.setValue(QStringLiteral("download/enabled"), on); }
+
 void Settings::setDownloadDirectory(const QString& path)
 {
     // Only a folder the user actually chose is stored: saving the default

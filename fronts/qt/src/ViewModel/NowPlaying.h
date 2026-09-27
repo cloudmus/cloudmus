@@ -27,6 +27,7 @@ class SourceManager;
 
 namespace ViewModel {
 
+class Downloads;
 class Messages;
 
 // What's playing and what can be done about it: the track, playback state,
@@ -49,7 +50,7 @@ class NowPlaying : public QObject {
 public:
     NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
         Library::TrackStates& trackStates, History::PlaybackHistory& history, Config::Settings& settings,
-        Messages& messages, QObject* parent = nullptr);
+        Downloads& downloads, Messages& messages, QObject* parent = nullptr);
 
     // --- the track
     bool hasTrack() const;
@@ -99,10 +100,9 @@ public:
 
     // The same for any track (the track lists' context menus).
     // `announce`: tell the user once it's done — the toolbar's own button
-    // already shows it.
+    // already shows it. (Downloading any track: ViewModel::Downloads.)
     Rpc::Task<void> setTrackLiked(QString sourceId, QString trackId, bool liked, bool announce);
     Rpc::Task<void> setTrackDisliked(QString sourceId, QString trackId, bool disliked, bool announce);
-    Rpc::Task<void> downloadTrack(QString sourceId, Track track);
 
 signals:
     // A new track started, or the current one went away (hasTrack() false).
@@ -125,6 +125,7 @@ private:
     Library::TrackStates& trackStates_;
     History::PlaybackHistory& history_;
     Config::Settings& settings_;
+    Downloads& downloads_;
     Messages& messages_;
 
     bool loading_ = false;
@@ -132,7 +133,6 @@ private:
     // In-flight requests for the current track, with the state asked for.
     std::optional<bool> pendingLiked_;
     std::optional<bool> pendingDisliked_;
-    bool downloadBusy_ = false;
 };
 
 } // namespace ViewModel

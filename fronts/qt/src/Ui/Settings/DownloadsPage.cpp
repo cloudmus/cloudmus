@@ -1,5 +1,6 @@
 #include "Settings/DownloadsPage.h"
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
@@ -11,15 +12,18 @@
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
 
+#include "Downloads.h"
+#include "InfoDialog.h"
 #include "Settings.h"
 #include "Spacing.h"
 #include "Typography.h"
 
 namespace Ui::Settings {
 
-DownloadsPage::DownloadsPage(Config::Settings& settings, QObject* parent)
+DownloadsPage::DownloadsPage(Config::Settings& settings, ViewModel::Downloads& downloads, QObject* parent)
     : Page(parent)
     , settings_(settings)
+    , downloads_(downloads)
 {
 }
 
@@ -27,7 +31,16 @@ QString DownloadsPage::title() const { return tr("Downloads"); }
 
 QWidget* DownloadsPage::createWidget(QWidget* parent)
 {
-    auto* widget = new QWidget(parent);
+    auto* page = new QWidget(parent);
+    enabledCheck_ = new QCheckBox(tr("Allow saving tracks to this computer"), page);
+    enabledCheck_->setFont(Theme::font(Theme::TextStyle::Body));
+    enabledCheck_->setChecked(downloads_.isEnabled());
+    connect(enabledCheck_, &QCheckBox::toggled, this, &DownloadsPage::onEnabledToggled);
+
+    // The folder settings, only while downloads are allowed.
+    auto* widget = new QWidget(page);
+    folderSection_ = widget;
+    folderSection_->setEnabled(downloads_.isEnabled());
 
     downloadDirEdit_ = new QLineEdit(settings_.downloadDirectory(), widget);
     downloadDirEdit_->setPlaceholderText(Config::Settings::defaultDownloadDirectory());
@@ -90,7 +103,32 @@ QWidget* DownloadsPage::createWidget(QWidget* parent)
     layoutColumn->addWidget(layoutCombo_);
     layoutColumn->addWidget(exampleLabel_);
     form->addRow(tr("Subfolders:"), layoutColumn);
-    return widget;
+
+    auto* pageLayout = new QVBoxLayout(page);
+    pageLayout->setContentsMargins(0, 0, 0, 0);
+    pageLayout->setSpacing(Theme::Spacing::space3);
+    pageLayout->addWidget(enabledCheck_);
+    pageLayout->addWidget(widget);
+    return page;
+}
+
+void DownloadsPage::onEnabledToggled(bool on)
+{
+    if (on) {
+        InfoDialog dialog(tr("Downloads"), tr("Downloads are for your own listening"),
+            tr("Piracy hurts the artists whose music you love. Tracks you save with CloudMus are for your "
+               "personal listening only — not for sharing, uploading, selling or passing on to anyone else. "
+               "Saving music may also be against your music service's terms of use.\n\n"
+               "Do you agree to use downloads only this way?"),
+            tr("I Agree"), enabledCheck_->window(), tr("Cancel"));
+        if (dialog.exec() != QDialog::Accepted) {
+            const QSignalBlocker blocker(enabledCheck_);
+            enabledCheck_->setChecked(false);
+            return;
+        }
+    }
+    folderSection_->setEnabled(on);
+    emit dirtyChanged();
 }
 
 Config::Settings::DownloadLayout DownloadsPage::selectedLayout() const
@@ -129,6 +167,8 @@ bool DownloadsPage::isDirty() const
     // default folder.
     if (!downloadDirEdit_)
         return false;
+    if (enabledCheck_->isChecked() != downloads_.isEnabled())
+        return true;
     if (selectedLayout() != settings_.downloadLayout())
         return true;
     const QString text = downloadDirEdit_->text().trimmed();
@@ -142,6 +182,7 @@ Rpc::Task<bool> DownloadsPage::apply()
         co_return true;
     settings_.setDownloadDirectory(downloadDirEdit_->text());
     settings_.setDownloadLayout(selectedLayout());
+    downloads_.setEnabled(enabledCheck_->isChecked());
     co_return true;
 }
 

@@ -202,6 +202,17 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     playAllButton_->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
     connect(playAllButton_, &QPushButton::clicked, this, &PlaylistSheet::playAllClicked);
 
+    downloadAllButton_ = new QToolButton(this);
+    downloadAllButton_->setProperty("variant", "icon");
+    downloadAllButton_->setProperty("filled", true);
+    downloadAllButton_->setToolTip(tr("Save playlist to Downloads"));
+    downloadAllButton_->setIcon(
+        Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, Theme::Metrics::iconGlyphSize));
+    downloadAllButton_->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
+    downloadAllButton_->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
+    downloadAllButton_->hide();
+    connect(downloadAllButton_, &QToolButton::clicked, this, &PlaylistSheet::downloadAllClicked);
+
     // Back, at the sheet's left edge — right next to the sidebar the sheet
     // was opened from, so closing it doesn't need a trip across the window.
     // Filled so it reads as a round button even at rest.
@@ -219,6 +230,7 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     headerRow->setSpacing(Theme::Spacing::space3);
     headerRow->addWidget(backButton_);
     headerRow->addWidget(headerInfo_, 1);
+    headerRow->addWidget(downloadAllButton_);
     headerRow->addWidget(playAllButton_);
 
     filterEdit_ = new QLineEdit(this);
@@ -340,11 +352,14 @@ void PlaylistSheet::showTracks(
     pages_->show();
     setHeader(title, subtitle, coverUrl, coverSeed);
     playAllButton_->setVisible(canPlayAll);
+    downloadAllButton_->hide(); // setDownloadAvailable() says, for a playlist that can be saved
     filterEdit_->clear();
     filterEdit_->show();
     pages_->setCurrentWidget(trackView_);
     trackView_->scrollToTop();
 }
+
+void PlaylistSheet::setDownloadAvailable(bool available) { downloadAllButton_->setVisible(available); }
 
 void PlaylistSheet::showRadio(const Playlist& station)
 {
@@ -353,6 +368,7 @@ void PlaylistSheet::showRadio(const Playlist& station)
     radioHero_->show();
     headerInfo_->hide();
     playAllButton_->hide();
+    downloadAllButton_->hide();
     filterEdit_->hide();
     pages_->hide(); // covered anyway; hidden so Tab doesn't wander into it
     setBusy(false);
@@ -364,6 +380,7 @@ void PlaylistSheet::showSource(const QString& name, const QString& description, 
     pages_->show();
     setHeader(name, description, QString(), name, iconPath);
     playAllButton_->hide();
+    downloadAllButton_->hide();
     filterEdit_->hide();
     pages_->setCurrentWidget(sourcePanel_);
     setBusy(false);

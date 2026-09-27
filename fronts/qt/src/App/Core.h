@@ -6,6 +6,7 @@
 #include "AuthStates.h"
 #include "Browse.h"
 #include "CoverArtCache.h"
+#include "Downloads.h"
 #include "Messages.h"
 #include "NowPlaying.h"
 #include "PlaybackController.h"
@@ -41,6 +42,7 @@ public:
     SourceSession& sourceSession() { return sourceSession_; }
     ViewModel::Messages& messages() { return messages_; }
     ViewModel::NowPlaying& nowPlaying() { return nowPlaying_; }
+    ViewModel::Downloads& downloads() { return downloads_; }
     PlaylistEditing& playlistEditing() { return playlistEditing_; }
     ViewModel::Sources& sources() { return sources_; }
     ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
@@ -59,6 +61,7 @@ private:
     Covers::CoverArtCache coverArtCache_;
     ViewModel::Messages messages_;
     SourceSession sourceSession_;
+    ViewModel::Downloads downloads_;
     ViewModel::NowPlaying nowPlaying_;
     PlaylistEditing playlistEditing_;
     ViewModel::Sources sources_;

@@ -1,6 +1,9 @@
 #include <QSignalSpy>
 #include <QTest>
 
+#include "AuthStates.h"
+#include "CoverArtCache.h"
+#include "Downloads.h"
 #include "FakeBackend.h"
 #include "Messages.h"
 #include "NowPlaying.h"
@@ -9,6 +12,7 @@
 #include "RpcClient.h"
 #include "Settings.h"
 #include "SourceManager.h"
+#include "SourceSession.h"
 #include "TestSupport.h"
 #include "TrackStates.h"
 
@@ -28,15 +32,23 @@ class NowPlayingTest : public QObject {
     Q_OBJECT
 
 private slots:
-    void initTestCase() { installFakeBackendManifest(); }
+    void initTestCase()
+    {
+        installFakeBackendManifest();
+        settings_.setDownloadsEnabled(false); // the default, whatever an earlier run left
+    }
 
     void init()
     {
         sourceManager_ = std::make_unique<Rpc::SourceManager>();
         playback_ = std::make_unique<Playback::PlaybackController>(*sourceManager_);
         trackStates_ = std::make_unique<Library::TrackStates>();
+        session_ = std::make_unique<App::SourceSession>(
+            *sourceManager_, *playback_, authStates_, *trackStates_, coverArtCache_, messages_);
+        downloads_ = std::make_unique<ViewModel::Downloads>(
+            *sourceManager_, *session_, *trackStates_, coverArtCache_, settings_, messages_);
         nowPlaying_ = std::make_unique<ViewModel::NowPlaying>(
-            *playback_, *sourceManager_, *trackStates_, history_, settings_, messages_);
+            *playback_, *sourceManager_, *trackStates_, history_, settings_, *downloads_, messages_);
         QSignalSpy ready(sourceManager_.get(), &Rpc::SourceManager::sourceReady);
         sourceManager_->startAll();
         QVERIFY(ready.wait(10000));
@@ -47,6 +59,8 @@ private slots:
         for (Rpc::RpcClient* client : sourceManager_->clients())
             await(client->shutdown());
         nowPlaying_.reset();
+        downloads_.reset();
+        session_.reset();
         playback_.reset();
         sourceManager_.reset();
         trackStates_.reset();
@@ -59,7 +73,7 @@ private slots:
         const auto feedback = nowPlaying_->feedback();
         QVERIFY(feedback.likeSupported);
         QVERIFY(feedback.dislikeSupported);
-        QVERIFY(!feedback.downloadSupported);
+        QVERIFY(!feedback.downloadSupported); // downloads are off by default
         QVERIFY(!feedback.liked);
     }
 
@@ -108,6 +122,10 @@ private:
     std::unique_ptr<Rpc::SourceManager> sourceManager_;
     std::unique_ptr<Playback::PlaybackController> playback_;
     std::unique_ptr<Library::TrackStates> trackStates_;
+    Rpc::AuthStates authStates_;
+    Covers::CoverArtCache coverArtCache_;
+    std::unique_ptr<App::SourceSession> session_;
+    std::unique_ptr<ViewModel::Downloads> downloads_;
     std::unique_ptr<ViewModel::NowPlaying> nowPlaying_;
 };
 

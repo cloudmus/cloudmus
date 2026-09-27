@@ -20,6 +20,9 @@ namespace Rpc {
 class AuthStates;
 class SourceManager;
 } // namespace Rpc
+namespace ViewModel {
+class Downloads;
+}
 
 namespace Ui {
 
@@ -44,7 +47,7 @@ class SettingsDialog : public QDialog {
 public:
     // `openAt`: a Settings::Page::id() to show first instead of the top.
     SettingsDialog(Config::Settings& settings, Rpc::SourceManager& sourceManager, Rpc::AuthStates& authStates,
-        QWidget* parent = nullptr, const QString& openAt = { });
+        ViewModel::Downloads& downloads, QWidget* parent = nullptr, const QString& openAt = { });
 
     void done(int result) override;
 

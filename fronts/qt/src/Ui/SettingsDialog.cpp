@@ -39,7 +39,7 @@ constexpr int kPageIndexRole = Qt::UserRole + 100;
 } // namespace
 
 SettingsDialog::SettingsDialog(Config::Settings& settings, Rpc::SourceManager& sourceManager,
-    Rpc::AuthStates& authStates, QWidget* parent, const QString& openAt)
+    Rpc::AuthStates& authStates, ViewModel::Downloads& downloads, QWidget* parent, const QString& openAt)
     : QDialog(parent)
     , settings_(settings)
     , sourceManager_(sourceManager)
@@ -80,7 +80,7 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, Rpc::SourceManager& s
     // Over the settings column, clear of the Ok/Apply/Cancel row.
     toastNotifier_ = new ToastNotifier(pageStack_);
     addPage(new Settings::GeneralPage(settings_, this));
-    addPage(new Settings::DownloadsPage(settings_, this));
+    addPage(new Settings::DownloadsPage(settings_, downloads, this));
     // Ahead of the sources: applied first, so a proxy added and picked by
     // a source in the same Apply exists by the time the source saves it.
     auto* network = new Settings::NetworkPage(settings_, sourceManager, *toastNotifier_, restarts_, this);
