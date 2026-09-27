@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
+#include "Analytics.h"
 #include "Autostart.h"
 #include "Settings.h"
 #include "Spacing.h"
@@ -14,9 +15,10 @@
 
 namespace Ui::Settings {
 
-GeneralPage::GeneralPage(Config::Settings& settings, QObject* parent)
+GeneralPage::GeneralPage(Config::Settings& settings, App::Analytics& analytics, QObject* parent)
     : Page(parent)
     , settings_(settings)
+    , analytics_(analytics)
 {
 }
 
@@ -61,6 +63,16 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
         glassHint->setText(tr("Not supported by this desktop."));
     glassHint->setVisible(glassSupport != Support::Blur);
 
+    analyticsCheck_ = makeCheck(tr("Send usage statistics to Google Analytics"), settings_.analyticsEnabled());
+    auto* analyticsHint = new QLabel(widget);
+    analyticsHint->setProperty("hint", true);
+    analyticsHint->setFont(Theme::font(Theme::TextStyle::BodySecondary));
+    analyticsHint->setWordWrap(true);
+    analyticsHint->setText(tr("Sends app launches, playback starts, source selection, completed downloads and playlist "
+                              "changes. Includes the app version, source type and a random installation ID; "
+                              "never track names or account details. Google can see the request's network address. "
+                              "Turn this off to stop sending."));
+
     // "Start hidden" only applies to a login launch — indented under it.
     auto* startHiddenRow = new QHBoxLayout;
     startHiddenRow->setContentsMargins(Theme::Spacing::space5, 0, 0, 0);
@@ -75,6 +87,9 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addSpacing(Theme::Spacing::space3);
     layout->addWidget(glassCheck_);
     layout->addWidget(glassHint);
+    layout->addSpacing(Theme::Spacing::space3);
+    layout->addWidget(analyticsCheck_);
+    layout->addWidget(analyticsHint);
     return widget;
 }
 
@@ -86,7 +101,8 @@ bool GeneralPage::isDirty() const
         && (launchAtLoginCheck_->isChecked() != launchAtLogin_
             || startHiddenCheck_->isChecked() != settings_.startHiddenAtLogin()
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
-            || glassCheck_->isChecked() != glassWanted());
+            || glassCheck_->isChecked() != glassWanted()
+            || analyticsCheck_->isChecked() != settings_.analyticsEnabled());
 }
 
 Rpc::Task<bool> GeneralPage::apply()
@@ -102,6 +118,8 @@ Rpc::Task<bool> GeneralPage::apply()
     // setting keeps following the desktop's light/dark scheme.
     if (glassCheck_->isChecked() != glassWanted())
         settings_.setGlassBackground(glassCheck_->isChecked());
+    if (analyticsCheck_->isChecked() != settings_.analyticsEnabled())
+        analytics_.setEnabled(analyticsCheck_->isChecked());
     // Switched once the Settings window closes — see
     // Ui::MainWindow::showSettingsDialog().
     co_return true;

@@ -101,6 +101,7 @@ public:
 
 signals:
     void changed();
+    void completed(const QString& sourceId, bool playlist, int savedCount);
 
 private:
     Job* find(int jobId);

@@ -24,6 +24,15 @@ for var in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy; do
     fi
 done
 
+# These values become part of the public AppImage, so Docker receives them
+# only for the build run, never as image build arguments.
+ga4_run_envs=()
+for var in CLOUDMUS_GA4_MEASUREMENT_ID CLOUDMUS_GA4_API_SECRET; do
+    if [ -n "${!var:-}" ]; then
+        ga4_run_envs+=(-e "$var")
+    fi
+done
+
 docker build \
     "${proxy_build_args[@]}" \
     -t cloudmus-appimage-builder \
@@ -34,6 +43,7 @@ mkdir -p dist
 
 docker run --rm \
     "${proxy_run_envs[@]}" \
+    "${ga4_run_envs[@]}" \
     -v "$PWD":/workspace:z \
     -w /workspace \
     cloudmus-appimage-builder \

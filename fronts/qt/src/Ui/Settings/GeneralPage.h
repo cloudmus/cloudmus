@@ -7,6 +7,9 @@ class QCheckBox;
 namespace Config {
 class Settings;
 }
+namespace App {
+class Analytics;
+}
 
 namespace Ui::Settings {
 
@@ -14,12 +17,12 @@ class GeneralPage : public Page {
     Q_OBJECT
 
 public:
-    GeneralPage(Config::Settings& settings, QObject* parent = nullptr);
+    GeneralPage(Config::Settings& settings, App::Analytics& analytics, QObject* parent = nullptr);
 
     QString id() const override { return QStringLiteral("general"); }
     QString title() const override;
     QString iconName() const override { return QStringLiteral("tune"); }
-    int estimatedHeight() const override { return 210; }
+    int estimatedHeight() const override { return 300; }
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;
@@ -30,10 +33,12 @@ private:
     bool glassWanted() const;
 
     Config::Settings& settings_;
+    App::Analytics& analytics_;
     QCheckBox* launchAtLoginCheck_ = nullptr;
     QCheckBox* startHiddenCheck_ = nullptr;
     QCheckBox* closeToTrayCheck_ = nullptr;
     QCheckBox* glassCheck_ = nullptr;
+    QCheckBox* analyticsCheck_ = nullptr;
     // What launchAtLoginCheck_ started from / was last applied as — the
     // autostart entry lives outside Config::Settings, so isDirty() would
     // otherwise re-read the file every time it's asked.

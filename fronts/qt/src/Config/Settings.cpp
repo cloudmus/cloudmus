@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
+#include <QUuid>
 
 #include <utility>
 
@@ -172,6 +173,28 @@ QString Settings::downloadDirectory() const
 bool Settings::downloadsEnabled() const { return settings_.value(QStringLiteral("download/enabled"), false).toBool(); }
 
 void Settings::setDownloadsEnabled(bool on) { settings_.setValue(QStringLiteral("download/enabled"), on); }
+
+bool Settings::analyticsEnabled() const { return settings_.value(QStringLiteral("analytics/enabled"), true).toBool(); }
+
+void Settings::setAnalyticsEnabled(bool on)
+{
+    settings_.setValue(QStringLiteral("analytics/enabled"), on);
+    settings_.sync();
+    restrictPermissions();
+}
+
+QString Settings::analyticsClientId()
+{
+    const QString key = QStringLiteral("analytics/clientId");
+    QString id = settings_.value(key).toString();
+    if (id.isEmpty()) {
+        id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        settings_.setValue(key, id);
+        settings_.sync();
+        restrictPermissions();
+    }
+    return id;
+}
 
 void Settings::setDownloadDirectory(const QString& path)
 {

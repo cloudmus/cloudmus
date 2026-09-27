@@ -192,6 +192,7 @@ private:
     void refreshAuthSection(const QString& sourceId, const Rpc::AuthStates::State& state);
 
     Rpc::SourceManager& sourceManager_;
+    App::Analytics& analytics_;
     Playback::PlaybackController& playback_;
     Config::Settings& settings_;
     App::SourceSession& sourceSession_;

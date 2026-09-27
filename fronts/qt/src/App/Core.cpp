@@ -6,6 +6,7 @@ namespace App {
 
 Core::Core(QObject* parent)
     : QObject(parent)
+    , analytics_(settings_)
     , playback_(sourceManager_)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
     , downloads_(sourceManager_, sourceSession_, trackStates_, coverArtCache_, settings_, messages_)
@@ -29,6 +30,12 @@ Core::Core(QObject* parent)
         [this](const Track& track, const QString& sourceId) {
             playbackHistory_.record(sourceId, track);
             trackStates_.setLastPlayed(sourceId, track.id, QDateTime::currentDateTimeUtc());
+            analytics_.recordPlayback(sourceId);
+        });
+    connect(&downloads_, &ViewModel::Downloads::completed, &analytics_, &Analytics::recordDownload);
+    connect(&playlistEditing_, &PlaylistEditing::playlistEdited, &analytics_,
+        [this](const QString& sourceId, const Track&, const QString&, bool added, int) {
+            analytics_.recordPlaylistChange(sourceId, added);
         });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
 

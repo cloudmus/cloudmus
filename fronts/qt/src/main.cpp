@@ -12,6 +12,7 @@
 #include "Coro.h"
 #include "CoverArtCache.h"
 #include "Fonts.h"
+#include "GA4Config.h"
 #include "GeneratedCoverArt.h"
 #include "GlobalShortcuts.h"
 #include "Logging.h"
@@ -93,6 +94,9 @@ int main(int argc, char** argv)
     // never matching the design system.
     QApplication::setFont(Theme::font(Theme::TextStyle::Body));
     App::Core core;
+    core.analytics().configure(QStringLiteral(CLOUDMUS_GA4_MEASUREMENT_ID), QStringLiteral(CLOUDMUS_GA4_API_SECRET),
+        QStringLiteral(CLOUDMUS_VERSION));
+    core.analytics().recordLaunch();
     Config::Settings& settings = core.settings();
     Rpc::SourceManager& sourceManager = core.sourceManager();
     Playback::PlaybackController& playback = core.playback();

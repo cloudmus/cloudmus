@@ -301,6 +301,8 @@ void Downloads::finish(Job& job, const QString& lastError)
     if (job.state == State::Cancelled)
         return;
     job.state = job.saved > 0 ? State::Done : State::Failed;
+    if (job.saved > 0)
+        emit completed(job.sourceId, job.isPlaylist, job.saved);
     const int count = int(job.tracks.size());
     if (!job.isPlaylist) {
         if (job.saved > 0)

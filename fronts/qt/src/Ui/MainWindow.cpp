@@ -95,6 +95,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     : QMainWindow(parent)
     , authStates_(&core.authStates())
     , sourceManager_(core.sourceManager())
+    , analytics_(core.analytics())
     , playback_(core.playback())
     , settings_(core.settings())
     , sourceSession_(core.sourceSession())
@@ -630,7 +631,9 @@ void MainWindow::onSidebarActivated(const QModelIndex& index)
         // Unconditional — every source gets a panel (name/description/
         // capabilities), not just ones with an auth problem. See
         // SourcePanel's class doc.
-        browse_.openSource(index.data(ViewModel::SidebarModel::SourceIdRole).toString());
+        const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
+        browse_.openSource(sourceId);
+        analytics_.recordSourceOpened(sourceId);
         return;
     }
     if (kind != ViewModel::SidebarModel::Kind::Wave && kind != ViewModel::SidebarModel::Kind::Liked
@@ -1062,7 +1065,7 @@ void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }
 
 void MainWindow::showSettingsDialog(const QString& openAt)
 {
-    SettingsDialog dialog(settings_, sourceManager_, *authStates_, downloads_, this, openAt);
+    SettingsDialog dialog(settings_, analytics_, sourceManager_, *authStates_, downloads_, this, openAt);
     // While it's up, this window's toasts (an auth error from App::SourceSession,
     // a download finishing) go to the dialog instead: this window is
     // behind it, where they'd go unseen. Restored before the dialog, and

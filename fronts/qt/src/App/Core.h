@@ -3,6 +3,7 @@
 #include <QObject>
 
 #include "ActivePlaylist.h"
+#include "Analytics.h"
 #include "AuthStates.h"
 #include "Browse.h"
 #include "CoverArtCache.h"
@@ -33,6 +34,7 @@ public:
     explicit Core(QObject* parent = nullptr);
 
     Config::Settings& settings() { return settings_; }
+    Analytics& analytics() { return analytics_; }
     Rpc::SourceManager& sourceManager() { return sourceManager_; }
     Playback::PlaybackController& playback() { return playback_; }
     Rpc::AuthStates& authStates() { return authStates_; }
@@ -53,6 +55,7 @@ private:
     // Declaration order is construction order: playback_ needs
     // sourceManager_.
     Config::Settings settings_;
+    Analytics analytics_;
     Rpc::SourceManager sourceManager_;
     Playback::PlaybackController playback_;
     Rpc::AuthStates authStates_;

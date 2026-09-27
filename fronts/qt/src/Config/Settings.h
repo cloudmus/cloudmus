@@ -144,6 +144,11 @@ public:
     bool downloadsEnabled() const;
     void setDownloadsEnabled(bool on);
 
+    bool analyticsEnabled() const;
+    void setAnalyticsEnabled(bool on);
+    // Random installation identifier, kept when analytics is switched off.
+    QString analyticsClientId();
+
 private:
     void restrictPermissions();
 

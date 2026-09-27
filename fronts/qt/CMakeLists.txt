@@ -89,6 +89,7 @@ add_library(cloudmus-core STATIC
     src/Covers/CoverArtCache.cpp
 
     src/App/Core.cpp
+    src/App/Analytics.cpp
     src/App/SourceSession.cpp
     src/App/PlaylistEditing.cpp
     src/App/TrackFetch.cpp
@@ -143,6 +144,22 @@ target_link_libraries(cloudmus-core PUBLIC
 # Version.h (CLOUDMUS_VERSION) — regenerated on every build so a dev
 # build's git commit stays current; see cmake/Version.cmake.
 set(VERSION_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_version)
+
+# Read GA4 values from the environment; the generated header stays in the
+# build directory and the values do not enter compiler command lines.
+set(CLOUDMUS_GA4_MEASUREMENT_ID "$ENV{CLOUDMUS_GA4_MEASUREMENT_ID}")
+set(CLOUDMUS_GA4_API_SECRET "$ENV{CLOUDMUS_GA4_API_SECRET}")
+if((CLOUDMUS_GA4_MEASUREMENT_ID AND NOT CLOUDMUS_GA4_API_SECRET)
+    OR (CLOUDMUS_GA4_API_SECRET AND NOT CLOUDMUS_GA4_MEASUREMENT_ID))
+    message(FATAL_ERROR "Both CLOUDMUS_GA4_MEASUREMENT_ID and CLOUDMUS_GA4_API_SECRET are required")
+endif()
+if(CLOUDMUS_GA4_MEASUREMENT_ID AND NOT CLOUDMUS_GA4_MEASUREMENT_ID MATCHES "^G-[A-Z0-9]+$")
+    message(FATAL_ERROR "Invalid GA4 Measurement ID")
+endif()
+if(CLOUDMUS_GA4_API_SECRET AND NOT CLOUDMUS_GA4_API_SECRET MATCHES "^[A-Za-z0-9_-]+$")
+    message(FATAL_ERROR "Invalid GA4 API secret")
+endif()
+configure_file(cmake/GA4Config.h.in ${VERSION_DIR}/GA4Config.h @ONLY)
 add_custom_target(cloudmus_version
     COMMAND ${CMAKE_COMMAND} -DBASE=${PROJECT_VERSION} -DSRC=${CLOUDMUS_REPO_ROOT} -DOUT=${VERSION_DIR}/Version.h
             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Version.cmake
@@ -276,6 +293,7 @@ add_executable(cloudmus-qt
     resources/fonts.qrc
     resources/about.qrc
 )
+target_include_directories(cloudmus-qt PRIVATE ${VERSION_DIR})
 add_dependencies(cloudmus-qt cloudmus_version)
 target_link_libraries(cloudmus-qt PRIVATE cloudmus-ui)
 
@@ -292,6 +310,7 @@ add_executable(cloudmus-qt-tests
     tests/ActivePlaylistTest.cpp
     tests/BrowseTest.cpp
     tests/DownloadsTest.cpp
+    tests/AnalyticsTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
