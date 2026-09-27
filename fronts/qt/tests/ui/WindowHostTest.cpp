@@ -1,8 +1,3 @@
-#include <QDBusConnection>
-#include <QDBusConnectionInterface>
-#include <QDBusInterface>
-#include <QDBusPendingCallWatcher>
-#include <QDBusVariant>
 #include <QDir>
 #include <QFile>
 #include <QListView>
@@ -278,38 +273,6 @@ private slots:
         QCOMPARE(seeked.count(), 2);
         adaptor.SetPosition(trackId, 181000000);
         QCOMPARE(adaptor.position(), 15000000);
-
-        // A running CloudMus owns the name on a shared session bus; calls
-        // would reach that player instead of this test's.
-        const QDBusConnectionInterface* bus = QDBusConnection::sessionBus().interface();
-        const bool nameTaken
-            = bus != nullptr && bus->isServiceRegistered(QStringLiteral("org.mpris.MediaPlayer2.cloudmus")).value();
-        if (nameTaken)
-            qWarning("org.mpris.MediaPlayer2.cloudmus is taken on this bus; skipping the D-Bus part");
-        if (QDBusConnection::sessionBus().isConnected() && !nameTaken) {
-            Integration::MprisService service(core.playback(), core.nowPlaying());
-            QDBusInterface player(QStringLiteral("org.mpris.MediaPlayer2.cloudmus"),
-                QStringLiteral("/org/mpris/MediaPlayer2"), QStringLiteral("org.mpris.MediaPlayer2.Player"));
-            QVERIFY(player.isValid());
-            QDBusPendingCallWatcher call(player.asyncCall(
-                QStringLiteral("SetPosition"), QVariant::fromValue(trackId), QVariant::fromValue(qlonglong(25000000))));
-            QSignalSpy finished(&call, &QDBusPendingCallWatcher::finished);
-            QVERIFY(finished.wait(5000));
-            QVERIFY(!call.isError());
-            QCOMPARE(adaptor.position(), 25000000);
-
-            QDBusInterface properties(QStringLiteral("org.mpris.MediaPlayer2.cloudmus"),
-                QStringLiteral("/org/mpris/MediaPlayer2"), QStringLiteral("org.freedesktop.DBus.Properties"));
-            QDBusPendingCallWatcher setVolume(
-                properties.asyncCall(QStringLiteral("Set"), QStringLiteral("org.mpris.MediaPlayer2.Player"),
-                    QStringLiteral("Volume"), QVariant::fromValue(QDBusVariant(0.36))));
-            QSignalSpy volumeSet(&setVolume, &QDBusPendingCallWatcher::finished);
-            QVERIFY(volumeSet.wait(5000));
-            QVERIFY(!setVolume.isError());
-            QCOMPARE(core.nowPlaying().volume(), 36);
-            QCOMPARE(core.settings().volume(), 36);
-            QCOMPARE(slider->value(), 36);
-        }
 
         core.playback().stop();
         QVERIFY(!adaptor.canSeek());

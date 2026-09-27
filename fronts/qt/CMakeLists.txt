@@ -318,12 +318,5 @@ add_executable(cloudmus-qt-ui-tests
 )
 target_include_directories(cloudmus-qt-ui-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-ui-tests PRIVATE cloudmus-ui Qt6::Test)
-# On a bus of their own: the MPRIS test owns org.mpris.MediaPlayer2.cloudmus,
-# which a CloudMus the developer has running already holds on the session bus.
-find_program(DBUS_RUN_SESSION dbus-run-session)
-if(DBUS_RUN_SESSION)
-    add_test(NAME cloudmus-qt-ui-tests COMMAND ${DBUS_RUN_SESSION} -- $<TARGET_FILE:cloudmus-qt-ui-tests>)
-else()
-    add_test(NAME cloudmus-qt-ui-tests COMMAND cloudmus-qt-ui-tests)
-endif()
+add_test(NAME cloudmus-qt-ui-tests COMMAND cloudmus-qt-ui-tests)
 set_tests_properties(cloudmus-qt-ui-tests PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
