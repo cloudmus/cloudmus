@@ -407,7 +407,7 @@ void SourcePage::updateConnectionHint()
     if (connectionOrphaned_)
         text = tr("Its proxy was removed — it uses the system connection.");
     else if (selectedConnection() == QLatin1String(Config::Settings::kSystemConnection))
-        text = tr("The system's proxy settings, if any (HTTP_PROXY and the like).");
+        text = tr("Uses the system's proxy settings, if any.");
     connectionHint_->setText(text);
     connectionHint_->setVisible(!text.isEmpty());
 }

@@ -64,15 +64,6 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     glassHint->setVisible(glassSupport != Support::Blur);
 
     analyticsCheck_ = makeCheck(tr("Send usage statistics to Google Analytics"), settings_.analyticsEnabled());
-    auto* analyticsHint = new QLabel(widget);
-    analyticsHint->setProperty("hint", true);
-    analyticsHint->setFont(Theme::font(Theme::TextStyle::BodySecondary));
-    analyticsHint->setWordWrap(true);
-    analyticsHint->setText(tr("Sends app launches, playback starts, source selection, completed downloads and playlist "
-                              "changes. Includes the app version, source type and a random installation ID; "
-                              "never track names or account details. Google sees the request's network address and "
-                              "derives an approximate location from it. "
-                              "Turn this off to stop sending."));
 
     // "Start hidden" only applies to a login launch — indented under it.
     auto* startHiddenRow = new QHBoxLayout;
@@ -90,7 +81,6 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addWidget(glassHint);
     layout->addSpacing(Theme::Spacing::space3);
     layout->addWidget(analyticsCheck_);
-    layout->addWidget(analyticsHint);
     return widget;
 }
 
