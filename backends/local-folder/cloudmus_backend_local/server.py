@@ -12,6 +12,7 @@ from . import catalog, config, playback
 CAPABILITIES = {
     "playback": {
         "providesStream": True,
+        "resolveStream": True,
         "selfPlayback": False,
         "controls": {"pause": False, "seek": False, "volume": False},
     },
@@ -66,6 +67,13 @@ def build_server() -> BackendServer:
             )
         )
         return {"accepted": True}
+
+    @server.method("playback.resolveStream")
+    def handle_resolve_stream(params: dict, request_id: int) -> dict:
+        stream = playback.resolve_stream(config.get_music_dir(), params["trackId"])
+        if stream is None:
+            raise BackendError(errors.RESOURCE_NOT_FOUND, "Track not found")
+        return {"stream": stream.to_dict()}
 
     @server.method("playback.cancel")
     def handle_cancel(params: dict, request_id: int) -> dict:

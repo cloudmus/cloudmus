@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.7"
+protocolVersion: "1.8"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -95,6 +95,19 @@ methods:
       required: [accepted]
       properties: {accepted: {type: boolean}}
     timeoutMs: 5000
+
+  playback.resolveStream:
+    requiresCapability: playback.resolveStream
+    params:
+      type: object
+      required: [trackId]
+      properties: {trackId: {type: string}}
+    result:
+      type: object
+      required: [stream]
+      properties:
+        stream: {$ref: "schema/stream_descriptor.yaml"}
+    timeoutMs: 20000
 
   playback.cancel:
     params:

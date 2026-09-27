@@ -17,6 +17,7 @@ from .radio import RadioSession
 CAPABILITIES = {
     "playback": {
         "providesStream": True,
+        "resolveStream": True,
         "selfPlayback": False,
         "controls": {"pause": False, "seek": False, "volume": False},
     },
@@ -149,6 +150,28 @@ def build_server() -> BackendServer:
 
     # --- playback ---
 
+    inflight_resolutions: dict[int, asyncio.Event] = {}
+
+    @server.method("playback.resolveStream", concurrent=True)
+    async def handle_resolve_stream(params: dict, request_id: int) -> dict:
+        cancel_event = asyncio.Event()
+        inflight_resolutions[request_id] = cancel_event
+        try:
+            stream = await playback.resolve_stream_with_retry(params["trackId"], cancel_event)
+        except asyncio.CancelledError:
+            raise BackendError(errors.STATE_INVALID, "Stream resolution cancelled")
+        except LookupError as e:
+            raise BackendError(errors.RESOURCE_NOT_FOUND, str(e), errors.app_error_data(retryable=False)) from e
+        except Exception as e:
+            raise BackendError(
+                errors.UPSTREAM_UNREACHABLE,
+                str(e),
+                errors.app_error_data(retryable=True),
+            ) from e
+        finally:
+            inflight_resolutions.pop(request_id, None)
+        return {"stream": stream.to_dict()}
+
     @server.method("playback.play")
     def handle_play(params: dict, request_id: int) -> dict:
         track_id = params["trackId"]
@@ -195,6 +218,9 @@ def build_server() -> BackendServer:
         if entry is not None:
             _, cancel_event = entry
             cancel_event.set()
+        resolution = inflight_resolutions.get(params["requestId"])
+        if resolution is not None:
+            resolution.set()
         return {}
 
     # --- feedback ---

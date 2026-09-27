@@ -5,6 +5,13 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.8 — resolving future streams
+
+- **Additive, backward-compatible**: optional `playback.resolveStream`
+  capability and method let a front obtain a `StreamDescriptor` for a future
+  track without starting it, so it can preload audio while the current track
+  continues. Sources without the capability keep the `playback.play` flow.
+
 ## 1.7 — download progress and cancelling
 
 - **Additive, backward-compatible**: capability `downloadControl` (§5).

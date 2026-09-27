@@ -9,6 +9,8 @@ properties:
     required: [providesStream, selfPlayback, controls]
     properties:
       providesStream: {type: boolean}
+      # optional (1.8+): playback.resolveStream for preparing a future track
+      resolveStream: {type: boolean}
       selfPlayback: {type: boolean}
       controls:
         type: object

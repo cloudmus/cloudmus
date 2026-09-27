@@ -1,6 +1,6 @@
 # cloudmus Source/Front RPC Protocol
 
-**Version:** `1.1` (see §12 for versioning rules)
+**Version:** `1.8` (see §12 for versioning rules)
 
 ## 1. Overview
 
@@ -212,6 +212,7 @@ defaults, since the front does not assume any implicit capability.
 | Field | Type | Meaning |
 |---|---|---|
 | `playback.providesStream` | bool | Source resolves a playable stream/URI for the front to play via its own playback engine (see §8's `track/streamReady`). |
+| `playback.resolveStream` | bool | Optional (1.8+): source can resolve a future track without starting playback; enables front-side preloading. Only valid with `providesStream`. |
 | `playback.selfPlayback` | bool | Source plays audio itself; the front only mirrors state pushed via `state/changed` and forwards transport commands to the source. **Must not be `true` at the same time as `providesStream`** — if a source sets both, the front logs a warning and behaves as if only `providesStream` were true. |
 | `playback.controls.pause` / `.seek` / `.volume` | bool | Only meaningful when `selfPlayback` is `true`. Declares which transport commands (§7.3) the front may send. Ignored entirely in `providesStream` mode, where the front's own playback engine always has full pause/seek/volume control locally. |
 | `browse.playlists` | bool | `catalog.listPlaylists` / `catalog.listTracks` supported. |
@@ -370,11 +371,20 @@ played part of the queue are dropped by the front.
 | Method | Params | Result |
 |---|---|---|
 | `playback.play` | `{"trackId": string}` | `{"accepted": true}` (fast ack — see §11.1 for the async resolution flow) |
+| `playback.resolveStream` | `{"trackId": string}` | `{"stream": StreamDescriptor}` (1.8+, only with `playback.resolveStream`) |
 | `playback.cancel` | `{"requestId": number}` | *(no response required; fire-and-forget notification-style call is also acceptable, but implemented as a request for symmetry — front does not wait on its result)* |
 
 The front never sends `playback.pause/resume/seek/setVolume/next/previous`
 to a `providesStream` source — those are handled entirely locally by the
 front's own playback engine once it has a `StreamDescriptor`.
+`playback.resolveStream` performs only stream resolution: it must not change
+playback state, emit `track/streamReady`, or report a track as started. The
+front may call it while another track plays, and may discard its result if
+the queue changes. A source must handle this potentially slow request
+concurrently with transport and feedback requests. The front still uses
+`playback.play` with sources that do not declare this optional capability.
+`playback.cancel` may also name an in-flight `playback.resolveStream` request;
+the source then stops resolution on a best-effort basis.
 
 ### 7.3 Playback — `selfPlayback` sources
 
