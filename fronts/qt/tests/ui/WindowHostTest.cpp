@@ -4,7 +4,9 @@
 #include <QDBusVariant>
 #include <QDir>
 #include <QFile>
+#include <QListView>
 #include <QPointer>
+#include <QScrollBar>
 #include <QSignalSpy>
 #include <QSlider>
 #include <QStandardPaths>
@@ -106,6 +108,51 @@ private slots:
         core.downloads().cancel(core.downloads().jobs().first().id);
         QTRY_VERIFY(!core.downloads().isActive());
         core.settings().setDownloadsEnabled(false);
+        for (Rpc::RpcClient* client : core.sourceManager().clients())
+            await(client->shutdown());
+    }
+
+    void playingTrackScrollsIntoView()
+    {
+        App::Core core;
+        Ui::WindowHost host(core);
+        host.show();
+        QSignalSpy ready(&core.sourceManager(), &Rpc::SourceManager::sourceReady);
+        core.sourceManager().startAll();
+        QVERIFY(ready.wait(10000));
+
+        auto* list = host.window()->findChild<QListView*>(QStringLiteral("trackListView"));
+        QVERIFY(list != nullptr);
+        QList<Track> tracks;
+        for (int i = 0; i < 40; ++i) {
+            Track track;
+            track.id = QStringLiteral("t%1").arg(i);
+            track.title = QStringLiteral("Track %1").arg(i);
+            tracks.append(track);
+        }
+        core.playback().loadQueue(QStringLiteral("fake"), tracks, 30);
+        QTRY_COMPARE(core.playback().currentIndex(), 30);
+        QTRY_COMPARE(list->model()->rowCount(), 40);
+        const auto rowRect = [list](int row) { return list->visualRect(list->model()->index(row, 0)); };
+        const QRect viewport = list->viewport()->rect();
+        QTRY_VERIFY(viewport.contains(rowRect(30)));
+        QCOMPARE(rowRect(30).bottom(), viewport.bottom());
+
+        list->verticalScrollBar()->setValue(0);
+        core.playback().playAt(35);
+        QTRY_COMPARE(core.playback().currentIndex(), 35);
+        QCOMPARE(rowRect(35).bottom(), viewport.bottom());
+
+        const int scroll = list->verticalScrollBar()->value();
+        core.playback().playAt(34);
+        QTRY_COMPARE(core.playback().currentIndex(), 34);
+        QCOMPARE(list->verticalScrollBar()->value(), scroll);
+
+        list->verticalScrollBar()->setValue(list->verticalScrollBar()->maximum());
+        core.playback().playAt(3);
+        QTRY_COMPARE(core.playback().currentIndex(), 3);
+        QCOMPARE(rowRect(3).top(), viewport.top());
+
         for (Rpc::RpcClient* client : core.sourceManager().clients())
             await(client->shutdown());
     }

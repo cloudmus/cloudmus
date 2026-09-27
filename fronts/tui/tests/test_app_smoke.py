@@ -4,8 +4,9 @@ import subprocess
 
 import pytest
 
-from cloudmus_tui.app import PlayerApp
+from cloudmus_tui.app import PlayerApp, TrackItem
 from cloudmus_tui.discovery import BackendManifest
+from cloudmus_tui.playback_engine import QueueEntry
 
 
 def _make_silent_mp3(path, duration_sec=2):
@@ -69,5 +70,40 @@ async def test_app_boots_with_local_folder_backend(tmp_path):
         assert app.playback_engine.current().track["id"] == app._current_tracks[0]["id"]
 
     await app.source_manager.shutdown_all()
+    if app.playback_engine is not None:
+        app.playback_engine.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_track_change_scrolls_open_playlist():
+    app = PlayerApp(manifests=[])
+    async with app.run_test() as pilot:
+        tracks_view = app.query_one("#tracks")
+        tracks = [{"id": str(i), "title": f"Track {i}"} for i in range(40)]
+        app._current_source_id = "test"
+        app._current_tracks = tracks
+        for i, track in enumerate(tracks):
+            await tracks_view.append(TrackItem(i, track))
+        await pilot.pause()
+
+        assert app.playback_engine is not None
+        app.playback_engine.queue = [QueueEntry("test", track) for track in tracks]
+        app.playback_engine.index = 30
+        app._on_track_change(app.playback_engine.current())
+        await pilot.pause()
+        assert tracks_view.scroll_y > 0
+        assert tracks_view.children[30].region.overlaps(tracks_view.scrollable_content_region)
+
+        scroll = tracks_view.scroll_y
+        app.playback_engine.index = 29
+        app._on_track_change(app.playback_engine.current())
+        await pilot.pause()
+        assert tracks_view.scroll_y == scroll
+
+        app.playback_engine.index = 2
+        app._on_track_change(app.playback_engine.current())
+        await pilot.pause()
+        assert tracks_view.scroll_y == tracks_view.children[2].virtual_region.y
+
     if app.playback_engine is not None:
         app.playback_engine.shutdown()

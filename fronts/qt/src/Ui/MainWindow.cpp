@@ -461,7 +461,14 @@ void MainWindow::bindNowPlaying()
     const auto showPlayModes = [this]() {
         nowPlayingBar_->setPlayModes(nowPlaying_.shuffle(), nowPlaying_.repeatMode(), nowPlaying_.isRadio());
     };
-    connect(&nowPlaying_, &NowPlaying::trackChanged, this, showTrack);
+    connect(&nowPlaying_, &NowPlaying::trackChanged, this, [this, showTrack]() {
+        showTrack();
+        if (playback_.hasCurrentTrack()) {
+            const QModelIndex index = trackListModel_->index(playback_.currentIndex());
+            if (index.isValid())
+                trackListView_->scrollTo(index, QAbstractItemView::EnsureVisible);
+        }
+    });
     connect(&nowPlaying_, &NowPlaying::feedbackChanged, this, showFeedback);
     connect(&nowPlaying_, &NowPlaying::playModesChanged, this, showPlayModes);
     connect(&nowPlaying_, &NowPlaying::playingChanged, nowPlayingBar_, &NowPlayingBar::setPlaying);
@@ -497,6 +504,11 @@ void MainWindow::bindActivePlaylist()
 
     // Whatever it has already — e.g. the playlist restored at startup.
     refreshMainList();
+    if (playback_.hasCurrentTrack()) {
+        const QModelIndex index = trackListModel_->index(playback_.currentIndex());
+        if (index.isValid())
+            trackListView_->scrollTo(index, QAbstractItemView::EnsureVisible);
+    }
     refreshHero();
     trackListBusyIndicator_->setVisible(activePlaylist_.isLoading());
     heroPanel_->setPlayBusy(activePlaylist_.isStartingRadio());

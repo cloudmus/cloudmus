@@ -168,6 +168,14 @@ class PlayerApp(App):
 
     def _on_track_change(self, entry: Optional[QueueEntry]) -> None:
         self._refresh_now_playing()
+        if entry is None or self.playback_engine is None:
+            return
+        index = self.playback_engine.index
+        if (entry.source_id == self._current_source_id
+                and 0 <= index < len(self._current_tracks)
+                and self._current_tracks[index] is entry.track):
+            tracks_view = self.query_one("#tracks", ListView)
+            tracks_view.scroll_to_widget(tracks_view.children[index], animate=False)
 
     def _on_error(self, message: str) -> None:
         self.notify(message, severity="error", timeout=6)
