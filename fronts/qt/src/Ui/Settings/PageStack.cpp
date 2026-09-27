@@ -1,5 +1,6 @@
 #include "Settings/PageStack.h"
 
+#include <QApplication>
 #include <QLabel>
 #include <QPainter>
 #include <QScrollBar>
@@ -358,6 +359,16 @@ void PageStack::resizeEvent(QResizeEvent* event)
 {
     QScrollArea::resizeEvent(event);
     materializeNearViewport();
+}
+
+bool PageStack::focusNextPrevChild(bool next)
+{
+    const QWidget* focused = QApplication::focusWidget();
+    if (focused != nullptr && isAncestorOf(focused) && (!focused->isVisible() || !focused->isEnabled())) {
+        setFocus(Qt::OtherFocusReason);
+        return true;
+    }
+    return QScrollArea::focusNextPrevChild(next);
 }
 
 void PageStack::showEvent(QShowEvent* event)

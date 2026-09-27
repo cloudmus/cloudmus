@@ -52,6 +52,11 @@ signals:
 protected:
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
+    // QScrollArea scrolls to whatever widget focus moves to. When Qt moves
+    // it only because the focused widget was hidden or disabled (a sign-in
+    // or sign-out button once pressed), that's typically back at the top of
+    // the column: focus goes to the area itself instead, where it is.
+    bool focusNextPrevChild(bool next) override;
 
 private:
     struct Section {
