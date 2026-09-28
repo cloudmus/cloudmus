@@ -183,6 +183,7 @@ add_library(cloudmus-ui STATIC
     src/Ui/SmoothScroller.cpp
     src/Ui/OverlayScrollBar.cpp
     src/Ui/ThemedSlider.cpp
+    src/Ui/ThemeCrossfade.cpp
     src/Ui/Transition.cpp
     src/Ui/TrackHoverCard.cpp
     src/Ui/TextLayout.cpp

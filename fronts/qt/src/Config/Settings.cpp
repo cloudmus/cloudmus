@@ -162,6 +162,25 @@ std::optional<bool> Settings::glassBackground() const
 
 void Settings::setGlassBackground(bool on) { settings_.setValue(QStringLiteral("window/glass"), on); }
 
+Settings::ColorScheme Settings::colorScheme() const
+{
+    const QString value = settings_.value(QStringLiteral("window/colorScheme")).toString();
+    if (value == QLatin1String("light"))
+        return ColorScheme::Light;
+    if (value == QLatin1String("dark"))
+        return ColorScheme::Dark;
+    return ColorScheme::System;
+}
+
+void Settings::setColorScheme(ColorScheme scheme)
+{
+    const QString key = QStringLiteral("window/colorScheme");
+    if (scheme == ColorScheme::System)
+        settings_.remove(key);
+    else
+        settings_.setValue(key, scheme == ColorScheme::Dark ? QStringLiteral("dark") : QStringLiteral("light"));
+}
+
 bool Settings::closeMinimizesToTray() const
 {
     return settings_.value(QStringLiteral("window/closeMinimizesToTray"), true).toBool();

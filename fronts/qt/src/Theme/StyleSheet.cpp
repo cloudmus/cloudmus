@@ -1,6 +1,7 @@
 #include "StyleSheet.h"
 
 #include <QApplication>
+#include <QPalette>
 
 #include "Icons.h"
 #include "Metrics.h"
@@ -463,11 +464,46 @@ QString buildStyleSheet(Mode mode)
         + sidebarTreeBlock(p) + trackListBlock(p) + dialogsBlock(p) + settingsBlock(p) + comboBoxBlock(p);
 }
 
+// For whatever the stylesheet leaves to QPalette (text selection,
+// placeholders, disabled text, widgets painting with palette() roles):
+// otherwise that's the desktop's palette, which is the wrong one when the
+// user picked the other scheme (setModeOverride()).
+QPalette buildPalette(Mode mode)
+{
+    const Palette& p = palette(mode);
+    QPalette result;
+    result.setColor(QPalette::Window, p.surface0);
+    result.setColor(QPalette::WindowText, p.ink);
+    result.setColor(QPalette::Base, p.surface100);
+    result.setColor(QPalette::AlternateBase, p.surface200);
+    result.setColor(QPalette::Text, p.ink);
+    result.setColor(QPalette::Button, p.surface200);
+    result.setColor(QPalette::ButtonText, p.ink);
+    result.setColor(QPalette::BrightText, p.onAccent);
+    result.setColor(QPalette::ToolTipBase, p.surfaceRaised);
+    result.setColor(QPalette::ToolTipText, p.ink);
+    result.setColor(QPalette::PlaceholderText, p.inkTertiary);
+    result.setColor(QPalette::Highlight, p.accent);
+    result.setColor(QPalette::HighlightedText, p.onAccent);
+    result.setColor(QPalette::Link, p.accent);
+    result.setColor(QPalette::LinkVisited, p.accentPressed);
+    result.setColor(QPalette::Light, p.surface400);
+    result.setColor(QPalette::Midlight, p.surface300);
+    result.setColor(QPalette::Mid, p.borderStrong);
+    result.setColor(QPalette::Dark, p.border);
+    for (const QPalette::ColorRole role : { QPalette::WindowText, QPalette::Text, QPalette::ButtonText })
+        result.setColor(QPalette::Disabled, role, p.inkTertiary);
+    return result;
+}
+
 void applyGlobalStyleSheet(QApplication& app)
 {
-    app.setStyleSheet(buildStyleSheet(currentMode()));
-    QObject::connect(
-        &notifier(), &Notifier::changed, &app, [&app]() { app.setStyleSheet(buildStyleSheet(currentMode())); });
+    const auto apply = [&app]() {
+        QApplication::setPalette(buildPalette(currentMode()));
+        app.setStyleSheet(buildStyleSheet(currentMode()));
+    };
+    apply();
+    QObject::connect(&notifier(), &Notifier::changed, &app, apply);
 }
 
 } // namespace Theme

@@ -44,6 +44,9 @@ struct Palette {
 // "unknown defaults to the more common case" convention Integration::TrayIcon
 // already uses for its own light/dark glyph pick.
 Mode currentMode();
+// The user's pick over the desktop's scheme; nullopt follows the desktop.
+// A change emits Notifier::changed(), as a desktop switch does.
+void setModeOverride(std::optional<Mode> mode);
 
 const Palette& palette(Mode mode);
 inline const Palette& palette() { return palette(currentMode()); }

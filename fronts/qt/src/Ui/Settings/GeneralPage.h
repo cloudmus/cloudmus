@@ -1,12 +1,11 @@
 #pragma once
 
+#include "Settings.h"
 #include "Settings/Page.h"
 
 class QCheckBox;
+class QComboBox;
 
-namespace Config {
-class Settings;
-}
 namespace App {
 class Analytics;
 }
@@ -28,6 +27,10 @@ public:
     bool isDirty() const override;
     Rpc::Task<bool> apply() override;
 
+    // Makes the look follow `scheme` (Theme::setModeOverride()): at
+    // startup, and on applying this page.
+    static void applyColorScheme(Config::Settings::ColorScheme scheme);
+
 private:
     // The glass setting in effect: the user's choice, or the default.
     bool glassWanted() const;
@@ -37,6 +40,7 @@ private:
     QCheckBox* launchAtLoginCheck_ = nullptr;
     QCheckBox* startHiddenCheck_ = nullptr;
     QCheckBox* closeToTrayCheck_ = nullptr;
+    QComboBox* colorSchemeCombo_ = nullptr;
     QCheckBox* glassCheck_ = nullptr;
     QCheckBox* analyticsCheck_ = nullptr;
     // What launchAtLoginCheck_ started from / was last applied as — the

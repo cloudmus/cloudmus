@@ -1,14 +1,17 @@
 #include "Settings/GeneralPage.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QStyledItemDelegate>
 #include <QVBoxLayout>
 
 #include "Analytics.h"
 #include "Autostart.h"
 #include "Settings.h"
 #include "Spacing.h"
+#include "ThemeCrossfade.h"
 #include "Tokens.h"
 #include "Typography.h"
 #include "WindowGlass.h"
@@ -42,6 +45,24 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     connect(launchAtLoginCheck_, &QCheckBox::toggled, startHiddenCheck_, &QCheckBox::setEnabled);
     closeToTrayCheck_ = makeCheck(
         tr("Closing the window minimizes to the tray instead of quitting"), settings_.closeMinimizesToTray());
+
+    using ColorScheme = Config::Settings::ColorScheme;
+    colorSchemeCombo_ = new QComboBox(widget);
+    colorSchemeCombo_->setFont(Theme::font(Theme::TextStyle::Body));
+    // See DownloadsPage: only a QStyledItemDelegate honors the ::item QSS.
+    colorSchemeCombo_->setItemDelegate(new QStyledItemDelegate(colorSchemeCombo_));
+    colorSchemeCombo_->addItem(tr("System"), int(ColorScheme::System));
+    colorSchemeCombo_->addItem(tr("Light"), int(ColorScheme::Light));
+    colorSchemeCombo_->addItem(tr("Dark"), int(ColorScheme::Dark));
+    colorSchemeCombo_->setCurrentIndex(colorSchemeCombo_->findData(int(settings_.colorScheme())));
+    connect(colorSchemeCombo_, &QComboBox::currentIndexChanged, this, &Page::dirtyChanged);
+    auto* colorSchemeRow = new QHBoxLayout;
+    colorSchemeRow->setSpacing(Theme::Spacing::space3);
+    auto* colorSchemeLabel = new QLabel(tr("Theme:"), widget);
+    colorSchemeLabel->setFont(Theme::font(Theme::TextStyle::Body));
+    colorSchemeRow->addWidget(colorSchemeLabel);
+    colorSchemeRow->addWidget(colorSchemeCombo_);
+    colorSchemeRow->addStretch(1);
 
     glassCheck_ = makeCheck(tr("Glass background: blur what's behind the window"), glassWanted());
     // Where the app can't ask for the blur itself, the window can still be
@@ -77,6 +98,7 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addLayout(startHiddenRow);
     layout->addWidget(closeToTrayCheck_);
     layout->addSpacing(Theme::Spacing::space3);
+    layout->addLayout(colorSchemeRow);
     layout->addWidget(glassCheck_);
     layout->addWidget(glassHint);
     layout->addSpacing(Theme::Spacing::space3);
@@ -92,6 +114,7 @@ bool GeneralPage::isDirty() const
         && (launchAtLoginCheck_->isChecked() != launchAtLogin_
             || startHiddenCheck_->isChecked() != settings_.startHiddenAtLogin()
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
+            || colorSchemeCombo_->currentData().toInt() != int(settings_.colorScheme())
             || glassCheck_->isChecked() != glassWanted()
             || analyticsCheck_->isChecked() != settings_.analyticsEnabled());
 }
@@ -105,6 +128,11 @@ Rpc::Task<bool> GeneralPage::apply()
         launchAtLogin_ = launchAtLoginCheck_->isChecked();
     settings_.setStartHiddenAtLogin(startHiddenCheck_->isChecked());
     settings_.setCloseMinimizesToTray(closeToTrayCheck_->isChecked());
+    const auto scheme = Config::Settings::ColorScheme(colorSchemeCombo_->currentData().toInt());
+    if (scheme != settings_.colorScheme()) {
+        settings_.setColorScheme(scheme);
+        crossfadeThemeChange([scheme]() { applyColorScheme(scheme); });
+    }
     // Stored only once the user goes against the default, so an untouched
     // setting keeps following the desktop's light/dark scheme.
     if (glassCheck_->isChecked() != glassWanted())
@@ -114,6 +142,15 @@ Rpc::Task<bool> GeneralPage::apply()
     // Switched once the Settings window closes — see
     // Ui::MainWindow::showSettingsDialog().
     co_return true;
+}
+
+void GeneralPage::applyColorScheme(Config::Settings::ColorScheme scheme)
+{
+    using ColorScheme = Config::Settings::ColorScheme;
+    if (scheme == ColorScheme::System)
+        Theme::setModeOverride(std::nullopt);
+    else
+        Theme::setModeOverride(scheme == ColorScheme::Dark ? Theme::Mode::Dark : Theme::Mode::Light);
 }
 
 } // namespace Ui::Settings

@@ -24,6 +24,7 @@
 #include "ProxyRouting.h"
 #include "RpcClient.h"
 #include "Settings.h"
+#include "Settings/GeneralPage.h"
 #include "SourceManager.h"
 #include "Style.h"
 #include "StyleSheet.h"
@@ -102,6 +103,8 @@ int main(int argc, char** argv)
     Rpc::SourceManager& sourceManager = core.sourceManager();
     Playback::PlaybackController& playback = core.playback();
 
+    // Before glass, whose default depends on it, and the stylesheet.
+    Ui::Settings::GeneralPage::applyColorScheme(settings.colorScheme());
     // Before the stylesheet and any window: both are built for glass or
     // not, and a window can't gain an alpha channel once created.
     Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())

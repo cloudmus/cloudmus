@@ -92,6 +92,15 @@ public:
     std::optional<bool> glassBackground() const;
     void setGlassBackground(bool on);
 
+    // Light or dark look, or System: whatever the desktop's scheme is.
+    enum class ColorScheme {
+        System,
+        Light,
+        Dark
+    };
+    ColorScheme colorScheme() const;
+    void setColorScheme(ColorScheme scheme);
+
     bool closeMinimizesToTray() const;
     void setCloseMinimizesToTray(bool value);
 

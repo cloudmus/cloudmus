@@ -94,8 +94,22 @@ QColor glass(const QColor& color, qreal opacity)
     return tinted;
 }
 
+namespace {
+std::optional<Mode> modeOverride;
+}
+
+void setModeOverride(std::optional<Mode> mode)
+{
+    if (modeOverride == mode)
+        return;
+    modeOverride = mode;
+    emit notifier().changed();
+}
+
 Mode currentMode()
 {
+    if (modeOverride)
+        return *modeOverride;
     return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark ? Mode::Dark : Mode::Light;
 }
 
