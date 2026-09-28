@@ -75,6 +75,12 @@ constexpr qreal kGlassOpacity = 0.8;
 // opaque color it stands in for.
 constexpr qreal kChromeGlassOpacity = 0.85;
 QColor glass(const QColor& color, qreal opacity = kGlassOpacity);
+// With glass, the content area's list is a light layer of surface0 at this
+// opacity over the chrome glass, so it still reads a step darker.
+constexpr qreal kContentGlassLayer = 0.3;
+// `top` composited over `bottom` (source-over), both possibly see-through:
+// the one color a stack of translucent layers shows as.
+QColor over(const QColor& top, const QColor& bottom);
 
 // Fires once, app-wide, whenever the desktop's light/dark scheme changes —
 // every theme-driven consumer (the generated stylesheet, the icon tint

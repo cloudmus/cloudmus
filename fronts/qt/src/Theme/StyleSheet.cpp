@@ -285,7 +285,7 @@ QString trackListBlock(const Palette& p)
     // shading it as much as the chrome.
     QColor background = p.surface0;
     if (glassEnabled())
-        background.setAlphaF(0.3);
+        background.setAlphaF(kContentGlassLayer);
     return QStringLiteral(R"(QListView#trackListView { background: %1; border: none; outline: 0; })")
         .arg(css(background));
 }

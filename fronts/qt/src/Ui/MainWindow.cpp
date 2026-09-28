@@ -245,7 +245,16 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     trackListView_->setMouseTracking(true);
     trackListView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(trackListView_);
-    ScrollEdgeFade::attach(trackListView_, [] { return Theme::glass(Theme::palette().surface0); });
+    ScrollEdgeFade::attach(trackListView_, [] {
+        const Theme::Palette& pal = Theme::palette();
+        if (!Theme::glassEnabled())
+            return pal.surface0;
+        // What's actually behind the rows: the list's own light layer over
+        // the window's chrome glass (see the stylesheet's trackListBlock()).
+        QColor layer = pal.surface0;
+        layer.setAlphaF(Theme::kContentGlassLayer);
+        return Theme::over(layer, Theme::glass(pal.surface100, Theme::kChromeGlassOpacity));
+    });
     OverlayScrollBar::attach(trackListView_);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);

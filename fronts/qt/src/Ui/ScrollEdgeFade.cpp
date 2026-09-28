@@ -55,16 +55,28 @@ protected:
         if (opacity_ <= 0.0)
             return;
         const QColor color = background_();
-        const auto withAlpha = [&](qreal a) {
-            QColor c = color;
-            c.setAlphaF(color.alphaF() * a * opacity_); // a glass color is see-through already
-            return c;
+        const auto gradient = [&](const QColor& base) {
+            const auto withAlpha = [&](qreal a) {
+                QColor c = base;
+                c.setAlphaF(base.alphaF() * a * opacity_);
+                return c;
+            };
+            QLinearGradient result(0, atTop_ ? 0 : height(), 0, atTop_ ? height() : 0);
+            result.setColorAt(0.0, withAlpha(1.0));
+            result.setColorAt(0.5, withAlpha(0.55));
+            result.setColorAt(1.0, withAlpha(0.0));
+            return result;
         };
-        QLinearGradient gradient(0, atTop_ ? 0 : height(), 0, atTop_ ? height() : 0);
-        gradient.setColorAt(0.0, withAlpha(1.0));
-        gradient.setColorAt(0.5, withAlpha(0.55));
-        gradient.setColorAt(1.0, withAlpha(0.0));
-        QPainter(this).fillRect(rect(), gradient);
+        // Blended toward the background rather than painted over it: what's
+        // underneath gives way by the fade's amount, then the background
+        // takes its place. The same as painting over for an opaque color,
+        // but a see-through glass one would otherwise pile onto the glass
+        // already under it, leaving a denser band at the edge.
+        QPainter painter(this);
+        painter.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+        painter.fillRect(rect(), gradient(Qt::black));
+        painter.setCompositionMode(QPainter::CompositionMode_Plus);
+        painter.fillRect(rect(), gradient(color));
     }
 
 private:

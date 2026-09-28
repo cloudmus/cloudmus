@@ -37,6 +37,29 @@ const Palette kLight {
     /* danger        */ QColor(0xC6, 0x32, 0x2B),
 };
 
+// kLight under glass: the see-through chrome turns grey over a dark
+// desktop, where kLight's greys (borders, the slider groove, secondary and
+// disabled icons) nearly vanish — the same roles a good step darker.
+const Palette kLightGlass {
+    /* surface0      */ QColor(0xEE, 0xE8, 0xE2),
+    /* surface100    */ QColor(0xFF, 0xFF, 0xFF),
+    /* surface200    */ QColor(0xFF, 0xFF, 0xFF),
+    /* surface300    */ QColor(0xE2, 0xD9, 0xD1),
+    /* surface400    */ QColor(0xD3, 0xC7, 0xBD),
+    /* border        */ QColor(0x9E, 0x8F, 0x83),
+    /* borderStrong  */ QColor(0x7E, 0x6F, 0x63),
+    /* ink           */ QColor(0x1C, 0x15, 0x11),
+    /* inkSecondary  */ QColor(0x3E, 0x33, 0x2C),
+    /* inkTertiary   */ QColor(0x5A, 0x4D, 0x44),
+    /* accent        */ QColor(0xC2, 0x3D, 0x16),
+    /* accentHover   */ QColor(0xA8, 0x33, 0x0F),
+    /* accentPressed */ QColor(0x8E, 0x2A, 0x0C),
+    /* onAccent      */ QColor(0xFF, 0xFF, 0xFF),
+    /* surfaceRaised */ QColor(0xFF, 0xFF, 0xFF),
+    /* success       */ QColor(0x2E, 0x8B, 0x57),
+    /* danger        */ QColor(0xC6, 0x32, 0x2B),
+};
+
 const Palette kDark {
     /* surface0      */ QColor(0x14, 0x10, 0x0D),
     /* surface100    */ QColor(0x1C, 0x17, 0x14),
@@ -85,10 +108,11 @@ QColor glass(const QColor& color, qreal opacity)
 {
     if (!glassEnabled_)
         return color;
-    // A light tint over a blurred desktop reads milky and low-contrast — in
-    // a light scheme the tint covers half of what would still show through.
+    // A pale tint hides the blur behind it far more than a dark one at the
+    // same opacity — the light scheme's glass only reads as glass at a
+    // thinner tint.
     if (currentMode() == Mode::Light)
-        opacity += (1.0 - opacity) / 2;
+        opacity -= 0.05;
     QColor tinted = color;
     tinted.setAlphaF(opacity);
     return tinted;
@@ -106,6 +130,18 @@ void setModeOverride(std::optional<Mode> mode)
     emit notifier().changed();
 }
 
+QColor over(const QColor& top, const QColor& bottom)
+{
+    const qreal topAlpha = top.alphaF();
+    const qreal bottomAlpha = bottom.alphaF() * (1.0 - topAlpha);
+    const qreal alpha = topAlpha + bottomAlpha;
+    if (alpha <= 0.0)
+        return Qt::transparent;
+    const auto channel = [&](qreal t, qreal b) { return (t * topAlpha + b * bottomAlpha) / alpha; };
+    return QColor::fromRgbF(float(channel(top.redF(), bottom.redF())), float(channel(top.greenF(), bottom.greenF())),
+        float(channel(top.blueF(), bottom.blueF())), float(alpha));
+}
+
 Mode currentMode()
 {
     if (modeOverride)
@@ -113,7 +149,12 @@ Mode currentMode()
     return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark ? Mode::Dark : Mode::Light;
 }
 
-const Palette& palette(Mode mode) { return mode == Mode::Dark ? kDark : kLight; }
+const Palette& palette(Mode mode)
+{
+    if (mode == Mode::Dark)
+        return kDark;
+    return glassEnabled_ ? kLightGlass : kLight;
+}
 
 Notifier::Notifier()
 {
