@@ -15,6 +15,7 @@ timeout (docs/protocol.md §11.1).
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import yt_dlp
 
@@ -37,11 +38,23 @@ _MIME_TYPES = {"m4a": "audio/mp4", "webm": "audio/webm", "opus": "audio/opus"}
 _NON_TRANSIENT_SIGNATURES = ("video unavailable", "private video", "copyright", "sign in to confirm")
 
 
+# One YoutubeDL for the process: a fresh one per track threw away its
+# open connections and in-memory caches (player JS, client config), so
+# every resolve paid the full connection setup again. YoutubeDL isn't
+# thread-safe, and the current and the next track may resolve at once —
+# hence the lock.
+_ydl: yt_dlp.YoutubeDL | None = None
+_ydl_lock = threading.Lock()
+
+
 def _extract_info(video_id: str) -> dict:
     """Sole yt_dlp seam, kept as its own function so tests can monkeypatch it
     without touching the network."""
-    with yt_dlp.YoutubeDL(_YDL_OPTS) as ydl:
-        return ydl.extract_info(f"https://music.youtube.com/watch?v={video_id}", download=False)
+    global _ydl
+    with _ydl_lock:
+        if _ydl is None:
+            _ydl = yt_dlp.YoutubeDL(_YDL_OPTS)
+        return _ydl.extract_info(f"https://music.youtube.com/watch?v={video_id}", download=False)
 
 
 def _resolve_stream_sync(video_id: str) -> StreamDescriptor:
