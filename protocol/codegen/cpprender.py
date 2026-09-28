@@ -50,7 +50,7 @@ def _cpp_type(t: TypeIR) -> str:
     if t.kind == "object_ref":
         return t.ref_name
     if t.kind == "array":
-        # QList, not std::vector: this codebase is Qt-only (see AGENTS.md),
+        # QList, not std::vector: the C++ side is the Qt front,
         # and QList integrates directly with the rest of the hand-written
         # Qt code (models, signals/slots) without extra conversions.
         return f"QList<{_cpp_type(t.item)}>"

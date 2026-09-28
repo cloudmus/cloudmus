@@ -1,7 +1,8 @@
 """Owns one BackendClient per discovered manifest: starts them all, routes
 notifications with the originating source id attached, and restarts a
-crashed backend with backoff (docs/protocol.md §9's "crash handling", 2s/5s/10s,
-max 3 attempts before giving up and marking it unavailable for the session).
+crashed backend with backoff (2s/5s/10s, max 3 attempts before giving up and
+marking it unavailable for the session; docs/development.md, "Backend
+discovery and supervision").
 """
 from __future__ import annotations
 

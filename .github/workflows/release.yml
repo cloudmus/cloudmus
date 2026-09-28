@@ -38,7 +38,7 @@ jobs:
           asset="dist/CloudMus-${TAG}-x86_64.AppImage"
           cp dist/CloudMus-x86_64.AppImage "$asset"
           # Release notes = the annotated tag's message minus its first
-          # line (the version), see AGENTS.md "Releasing". Re-fetched
+          # line (the version), see docs/releasing.md. Re-fetched
           # explicitly: checkout can leave the tag as a lightweight one.
           # A lightweight tag (e.g. from the GitHub UI) has no notes to
           # offer — then GitHub's generated ones, and an existing release's

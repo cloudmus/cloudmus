@@ -1,4 +1,4 @@
-"""Backend discovery via manifest files (docs/protocol.md, architecture-plan.md §6).
+"""Backend discovery via manifest files (docs/development.md, "Backend discovery and supervision").
 
 Production: scans ~/.config/cloudmus/backends.d/*.json for manifests dropped
 there by installed backends. Dev mode (CLOUDMUS_DEV_BACKENDS=1) additionally

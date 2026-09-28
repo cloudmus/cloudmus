@@ -67,7 +67,7 @@ add_custom_target(protocol_codegen_cpp DEPENDS ${GENERATED_CPP_STAMP})
 
 # --- cloudmus-core: everything below the view — backends, playback, state,
 # settings — with no Qt Widgets, so the linker keeps widget code out of it
-# (see docs/mvvm-plan.md). Linked by the app and by the tests.
+# (see fronts/qt/AGENTS.md). Linked by the app and by the tests.
 add_library(cloudmus-core STATIC
     src/Rpc/NdjsonTransport.cpp
     src/Rpc/BackendManifest.cpp

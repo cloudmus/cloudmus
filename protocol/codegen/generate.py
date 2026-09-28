@@ -56,7 +56,7 @@ def generate_python(ir: schema_ir.ProtocolIR) -> None:
 
 
 def _clang_format_inplace(paths: list[Path]) -> None:
-    """Applies fronts/qt/_clang-format (see AGENTS.md) to generated C++ output
+    """Applies fronts/qt/_clang-format (see fronts/qt/AGENTS.md) to generated C++ output
     so generated/ matches the same house style as hand-written code —
     clang-format finds it by walking up from each file's directory, same as
     it would for any other file under fronts/qt/."""

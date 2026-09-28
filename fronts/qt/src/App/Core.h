@@ -26,7 +26,6 @@ namespace App {
 // playback and the state kept about them. Created once in main() and alive
 // for the whole run — the window (and the tray, MPRIS, notifications) only
 // use it, so a window can come and go without anything here being lost.
-// See docs/mvvm-plan.md: view models join these as the plan's stages land.
 class Core : public QObject {
     Q_OBJECT
 

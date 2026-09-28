@@ -81,7 +81,7 @@ async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path):
             assert len(result["playlists"]) == 1
             await pilot.pause(0.1)
 
-        # source_manager's restart backoff (docs/architecture-plan.md §5: 2s
+        # source_manager's restart backoff (docs/development.md: 2s
         # first attempt) should bring yandex-music back up on its own.
         for _ in range(50):
             client = app.source_manager.clients.get("yandex-music")
@@ -101,7 +101,7 @@ async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path):
 @pytest.mark.asyncio
 async def test_repeatedly_crashing_backend_marked_unavailable(tmp_path, monkeypatch):
     """A backend that crashes immediately every time it's (re)started should
-    exhaust source_manager's restart budget (docs/architecture-plan.md §5:
+    exhaust source_manager's restart budget (docs/development.md:
     2s/5s/10s, max 3 attempts) and end up reported as unavailable, without
     ever taking down the front."""
     from cloudmus_tui import source_manager as sm_module

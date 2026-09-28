@@ -16,7 +16,7 @@ class MainWindow;
 // Owns the main window, and can replace it with a new one — e.g. to switch
 // the glass background, which is fixed when a window is created. Nothing
 // is lost doing that: all the state lives in App::Core, and a new window
-// shows it as it is at once (see docs/mvvm-plan.md). Everything that has
+// shows it as it is at once (see fronts/qt/AGENTS.md). Everything that has
 // to reach "the window" — the tray, MPRIS, notifications, main() — goes
 // through here rather than holding on to one.
 class WindowHost : public QObject {
