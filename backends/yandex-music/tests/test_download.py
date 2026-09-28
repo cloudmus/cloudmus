@@ -29,7 +29,7 @@ def _client():
 
 
 def test_fetch_streams_the_file_and_reports_progress(tmp_path, monkeypatch):
-    monkeypatch.setattr(download.requests, "get", lambda *a, **k: _Response([b"ab", b"cd"], 4))
+    monkeypatch.setattr(download.http_session.session(), "get", lambda *a, **k: _Response([b"ab", b"cd"], 4))
     reported = []
     tracker = Tracker(None, None, None)
     tracker.progress = lambda received, total, final=False: reported.append((received, total, final))
@@ -47,7 +47,7 @@ def test_a_cancel_mid_way_leaves_no_file(tmp_path, monkeypatch):
         tracker.cancel()
         yield b"cd"
 
-    monkeypatch.setattr(download.requests, "get", lambda *a, **k: _Response(chunks(), 4))
+    monkeypatch.setattr(download.http_session.session(), "get", lambda *a, **k: _Response(chunks(), 4))
     path = tmp_path / "t.mp3"
     with pytest.raises(Cancelled):
         download._fetch(_client(), "https://x", path, tracker)

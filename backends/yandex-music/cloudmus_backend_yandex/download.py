@@ -6,13 +6,12 @@ import asyncio
 import re
 from pathlib import Path
 
-import requests
 from mutagen.id3 import APIC, ID3, TALB, TIT2, TPE1
 from yandex_music import Client
 
 from rpc_common.downloads import Tracker
 
-from . import quality
+from . import http_session, quality
 
 # Read and reported in pieces of this size — small enough that a cancel
 # lands quickly, big enough not to spend the time in Python.
@@ -45,7 +44,7 @@ def _fetch(client: Client, url: str, path: Path, tracker: Tracker) -> None:
     go and so can report nothing."""
     request = client.request
     try:
-        with requests.get(
+        with http_session.session().get(
             url, headers=request.headers, proxies=request.proxies, stream=True, timeout=30
         ) as response:
             response.raise_for_status()
