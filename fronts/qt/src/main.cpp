@@ -66,6 +66,15 @@ int main(int argc, char** argv)
 {
     // Before libmpv or any network access reads the environment.
     Net::bypassProxyForLoopback();
+#ifdef Q_OS_WIN
+    // FreeType, not Qt's default DirectWrite: our windows are translucent,
+    // so DirectWrite loses ClearType and falls back to grayscale AA, and its
+    // hinting at fractional sizes (13px at 125%) makes stems uneven — text
+    // came out jagged. FreeType renders the bundled Manrope as on Linux.
+    // Left alone if set, so it can still be overridden.
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
+        qputenv("QT_QPA_PLATFORM", "windows:fontengine=freetype");
+#endif
     QApplication app(argc, argv);
     // Fusion, not whatever native style the desktop provides (Breeze under
     // KDE): Breeze's own QCommonStyle-derived painting largely ignores QSS
