@@ -18,6 +18,8 @@ QObject* makeBrowseTest();
 QObject* makeDownloadsTest();
 QObject* makeAnalyticsTest();
 QObject* makeStreamRelayTest();
+QObject* makeCrashReporterTest();
+int runCrashReporterChildIfAsked(int argc, char** argv);
 }
 
 int main(int argc, char** argv)
@@ -29,13 +31,18 @@ int main(int argc, char** argv)
             return Tests::runFakeBackend();
     }
 
+    // ...and as the crashing program CrashReporterTest needs.
+    if (const int code = Tests::runCrashReporterChildIfAsked(argc, argv); code >= 0)
+        return code;
+
     QCoreApplication app(argc, argv);
     // Anything a test saves goes to throwaway locations, not the user's.
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
     for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
              Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
-             Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest }) {
+             Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
+             Tests::makeCrashReporterTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

@@ -11,6 +11,8 @@
 #include <QStandardPaths>
 #include <QTextStream>
 
+#include "CrashReporter.h"
+
 namespace {
 
 bool g_debugEnabled = false;
@@ -35,12 +37,6 @@ const char* levelName(QtMsgType type)
 
 void messageHandler(QtMsgType type, const QMessageLogContext& context, const QString& msg)
 {
-    // Verbose (qDebug/qInfo) output is opt-in; warnings/errors always show —
-    // those indicate a real problem (backend spawn failure, RPC error, etc.)
-    // the user should see without needing --debug.
-    if ((type == QtDebugMsg || type == QtInfoMsg) && !g_debugEnabled)
-        return;
-
     // context.category is "default" for plain qDebug()/qWarning() calls (no
     // QLoggingCategory involved) — only show it when it's an actual named
     // category (e.g. "cloudmus.rpc.client", declared once per module via
@@ -53,6 +49,16 @@ void messageHandler(QtMsgType type, const QMessageLogContext& context, const QSt
     const QString line = QStringLiteral("%1 [%2] %3%4")
                              .arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs),
                                   QString::fromLatin1(levelName(type)), categoryPrefix, msg);
+
+    // Every message, verbose or not: a crash report carries the last ones,
+    // and the crash that needs them rarely happens with --debug on.
+    Diagnostics::CrashReporter::addBreadcrumb(line);
+
+    // Verbose (qDebug/qInfo) output is opt-in; warnings/errors always show —
+    // those indicate a real problem (backend spawn failure, RPC error, etc.)
+    // the user should see without needing --debug.
+    if ((type == QtDebugMsg || type == QtInfoMsg) && !g_debugEnabled)
+        return;
 
     FILE* stream = (type == QtWarningMsg || type == QtCriticalMsg || type == QtFatalMsg) ? stderr : stdout;
     std::fprintf(stream, "%s\n", qPrintable(line));

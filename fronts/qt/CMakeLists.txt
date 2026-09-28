@@ -131,9 +131,16 @@ add_library(cloudmus-core STATIC
     src/ViewModel/SourcePage.cpp
     src/ViewModel/Downloads.cpp
 
+    src/Diagnostics/CrashReporter.cpp
+
     ${GENERATED_DIR}/RpcMethods.cpp
 )
 add_dependencies(cloudmus-core protocol_codegen_cpp)
+if(WIN32)
+    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterWin.cpp)
+else()
+    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp)
+endif()
 
 # GCC needs this explicitly for C++20 coroutines (Rpc::Task<T>,
 # co_await/co_return in RpcClient/PlaybackController/etc.) on the GCC
@@ -160,6 +167,7 @@ target_include_directories(cloudmus-core PUBLIC
     src/Covers
     src/App
     src/ViewModel
+    src/Diagnostics
 )
 
 target_link_libraries(cloudmus-core PUBLIC
@@ -343,6 +351,11 @@ endif()
 target_include_directories(cloudmus-qt PRIVATE ${VERSION_DIR})
 add_dependencies(cloudmus-qt cloudmus_version)
 target_link_libraries(cloudmus-qt PRIVATE cloudmus-ui)
+# Crash reports' stacks name the app's own functions only if they're in
+# the dynamic symbol table (backtrace_symbols_fd reads that, not debug info).
+if(NOT WIN32)
+    set_target_properties(cloudmus-qt PROPERTIES ENABLE_EXPORTS ON)
+endif()
 
 # --- tests (QtTest): `ctest --test-dir build`, or run build/bin/cloudmus-qt-tests.
 if(BUILD_TESTING)
@@ -359,9 +372,12 @@ add_executable(cloudmus-qt-tests
     tests/DownloadsTest.cpp
     tests/AnalyticsTest.cpp
     tests/StreamRelayTest.cpp
+    tests/CrashReporterTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
+# CrashReporterTest checks that a crash report names the crashing function.
+set_target_properties(cloudmus-qt-tests PROPERTIES ENABLE_EXPORTS ON)
 add_test(NAME cloudmus-qt-tests COMMAND cloudmus-qt-tests)
 
 # The window's own tests — widgets, run without a screen (offscreen).

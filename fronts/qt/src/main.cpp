@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QIcon>
 #include <QSize>
+#include <QStandardPaths>
 #include <QStyleFactory>
 #include <QSystemTrayIcon>
 #include <QTimer>
@@ -12,6 +13,7 @@
 #include "Core.h"
 #include "Coro.h"
 #include "CoverArtCache.h"
+#include "CrashReporter.h"
 #include "Fonts.h"
 #include "GA4Config.h"
 #include "GeneratedCoverArt.h"
@@ -86,6 +88,15 @@ int main(int argc, char** argv)
     // way to resolve one from a .desktop file's Icon= key at all.
     QApplication::setDesktopFileName(QStringLiteral("cloudmus-qt"));
     installLogging(); // reads --debug / CLOUDMUS_QT_DEBUG — see Logging.h
+    // Next to debug.log. Right after logging, so the report of even an
+    // early crash carries the log lines before it.
+    Diagnostics::CrashReporter::install({
+        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+            + QStringLiteral("/cloudmus/fronts/qt/crashes"),
+        QStringLiteral(CLOUDMUS_VERSION),
+    });
+    for (const QString& report : Diagnostics::CrashReporter::takeNewReports())
+        qWarning() << "cloudmus-qt: the last run crashed, report:" << report;
     // Must happen before anything builds a Theme::Typography::font(): Qt
     // resolves/caches a family's available faces the first time a QFont
     // naming it is used, so registering the Manrope weight files late risks

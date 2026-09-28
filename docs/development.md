@@ -168,6 +168,25 @@ The root `pyproject.toml` isn't a package: it only sets pytest's
 | `CLOUDMUS_TUI_DEBUG=1` | TUI debug log, `./cloudmus-tui-debug.log` |
 | `CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR` | Overrides the local-folder backend's music folder |
 
+## Crash reports
+
+When the Qt front crashes, it writes `crash-<unix time>.txt` to
+`~/.config/cloudmus/fronts/qt/crashes/`
+(`%LOCALAPPDATA%\cloudmus\fronts\qt\crashes\` on Windows). The report holds
+the reason, the stack and the last 40 log lines, whether or not debug
+logging is on. On Windows a minidump (`.dmp`) is written next to it. The
+next start logs the report's path and renames it to `*.reported.txt`, and
+only the newest ten are kept.
+
+Stack frames read `module+offset`. To resolve one of the app's own frames,
+pass `addr2line` the offset plus the module's image base, from the build
+that shipped (the Windows exe is not stripped):
+
+```bash
+base=$(x86_64-w64-mingw32-objdump -p build-windows/bin/cloudmus-qt.exe | awk '/^ImageBase/ {print $2}')
+x86_64-w64-mingw32-addr2line -f -C -e build-windows/bin/cloudmus-qt.exe $(printf '0x%x' $((0x$base + 0x1a2b3c)))
+```
+
 ## Repository layout
 
 ```
