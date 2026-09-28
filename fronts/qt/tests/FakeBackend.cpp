@@ -171,7 +171,17 @@ int runFakeBackend()
         } else if (method == QStringLiteral("playback.play")) {
             // Accepted, but no stream follows: the track counts as current
             // (what the tests look at) without anything actually playing.
+            // Except for "refused": its stream is one nothing answers at.
             reply(id, { { QStringLiteral("accepted"), true } });
+            const QString trackId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
+            if (trackId == QStringLiteral("refused"))
+                notify(QStringLiteral("track/streamReady"),
+                    { { QStringLiteral("requestId"), id }, { QStringLiteral("trackId"), trackId },
+                        { QStringLiteral("stream"),
+                            QJsonObject { { QStringLiteral("kind"), QStringLiteral("url") },
+                                { QStringLiteral("url"), QStringLiteral("http://127.0.0.1:9/refused") },
+                                { QStringLiteral("mimeType"), QStringLiteral("audio/mpeg") } } } });
         } else if (method.startsWith(QStringLiteral("feedback."))) {
             // A track id of "fail" makes any feedback call fail.
             const QString trackId

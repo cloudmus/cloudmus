@@ -140,6 +140,9 @@ private:
     void promotePrepared(int nextIndex, bool manual);
     QString titleFor(const Track& track) const;
     void advance(int delta, bool wasSkip);
+    // The current track failed to load or start: resolved again a few
+    // times, then left paused with Play loading it anew.
+    void handleStartFailure(const QString& message);
     // The queue index `delta` steps from the current one in play order
     // (shuffled or not), wrapping around under RepeatMode::All; -1 past
     // either end otherwise.
@@ -167,6 +170,10 @@ private:
     int preparedIndex_ = -1;
     bool preparedReady_ = false;
     bool preparedStartPending_ = false;
+    // Fresh resolutions tried for the current track since it last started.
+    int startRetries_ = 0;
+    // The current track failed for good: Play loads it again.
+    bool reloadOnResume_ = false;
     std::optional<QNetworkProxy> preparedRoute_;
     // Queue index of the in-flight playback.play (-1 if none): it's about
     // to become index_, so a radio replacing its upcoming tracks must keep it.

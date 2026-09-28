@@ -14,6 +14,9 @@ namespace Playback {
 
 namespace {
 constexpr int kPlayTimeoutMs = 10000;
+// A stream URL can be refused although it was just resolved (YouTube's
+// googlevideo answers some with 403 Forbidden); a fresh one usually plays.
+constexpr int kMaxStartRetries = 2;
 Q_LOGGING_CATEGORY(lcPlayback, "cloudmus.playback")
 }
 
@@ -25,22 +28,15 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
     connect(audioPlayer_, &AudioPlayer::endOfFile, this, [this]() { advance(1, /*wasSkip=*/false); });
     connect(audioPlayer_, &AudioPlayer::started, this, [this]() {
         preparedStartPending_ = false;
+        startRetries_ = 0;
+        reloadOnResume_ = false;
         playTimeoutTimer_->stop();
         emit loadingChanged(false);
         playing_ = true;
         emit playingChanged(true);
         prepareNext();
     });
-    connect(audioPlayer_, &AudioPlayer::failed, this, [this](const QString& message) {
-        if (preparedStartPending_ && hasCurrentTrack()) {
-            preparedStartPending_ = false;
-            playIndex(index_); // an expired prefetched URL gets a fresh resolution
-            return;
-        }
-        playTimeoutTimer_->stop();
-        emit loadingChanged(false);
-        emit errorOccurred(message);
-    });
+    connect(audioPlayer_, &AudioPlayer::failed, this, &PlaybackController::handleStartFailure);
     connect(audioPlayer_, &AudioPlayer::positionChanged, this, [this](qint64 posMs, qint64 durMs) {
         lastKnownPositionMs_ = posMs;
         emit positionChanged(posMs, durMs);
@@ -51,15 +47,8 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
     playTimeoutTimer_ = new QTimer(this);
     playTimeoutTimer_->setSingleShot(true);
     playTimeoutTimer_->setInterval(kPlayTimeoutMs);
-    connect(playTimeoutTimer_, &QTimer::timeout, this, [this]() {
-        if (preparedStartPending_ && hasCurrentTrack()) {
-            preparedStartPending_ = false;
-            playIndex(index_);
-            return;
-        }
-        emit loadingChanged(false);
-        emit errorOccurred(QStringLiteral("Timed out waiting for the track to start"));
-    });
+    connect(playTimeoutTimer_, &QTimer::timeout, this,
+        [this]() { handleStartFailure(QStringLiteral("Timed out waiting for the track to start")); });
 }
 
 PlaybackController::~PlaybackController() = default;
@@ -91,8 +80,33 @@ void PlaybackController::loadQueue(const QVector<QueueEntry>& entries, int start
     playIndex(startIndex);
 }
 
+void PlaybackController::handleStartFailure(const QString& message)
+{
+    preparedStartPending_ = false;
+    // Also an expired prefetched URL: resolving the track again gets a
+    // fresh one.
+    if (hasCurrentTrack() && startRetries_ < kMaxStartRetries) {
+        ++startRetries_;
+        qCDebug(lcPlayback) << "track didn't start, resolving it again:" << message;
+        playIndex(index_);
+        return;
+    }
+    startRetries_ = 0;
+    playTimeoutTimer_->stop();
+    emit loadingChanged(false);
+    // Nothing plays now: shown as paused, and Play loads the track again
+    // rather than resuming an mpv with nothing in it.
+    reloadOnResume_ = hasCurrentTrack();
+    if (playing_) {
+        playing_ = false;
+        emit playingChanged(false);
+    }
+    emit errorOccurred(message);
+}
+
 void PlaybackController::playAt(int index)
 {
+    startRetries_ = 0;
     awaitingRadioTracks_ = false;
     // Jumping away from the current track is a skip as far as a radio is
     // concerned — and its feedback is what makes the station send the next
@@ -306,6 +320,7 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
 
 void PlaybackController::advance(int delta, bool wasSkip)
 {
+    startRetries_ = 0;
     if (queue_.isEmpty())
         return;
     sendFeedbackFinishedOrSkip(wasSkip);
@@ -457,6 +472,11 @@ void PlaybackController::togglePause()
 {
     if (!hasCurrentTrack())
         return;
+    if (reloadOnResume_) {
+        reloadOnResume_ = false;
+        playIndex(index_);
+        return;
+    }
     if (playing_) {
         audioPlayer_->pause();
         playing_ = false;
@@ -490,6 +510,7 @@ void PlaybackController::stop()
 void PlaybackController::stopForTransition()
 {
     preparedStartPending_ = false;
+    reloadOnResume_ = false;
     ++transitionGeneration_;
     invalidatePrepared();
     audioPlayer_->stop();

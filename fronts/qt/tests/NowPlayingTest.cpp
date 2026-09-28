@@ -9,6 +9,7 @@
 #include "NowPlaying.h"
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
+#include "ProxyRouting.h"
 #include "RpcClient.h"
 #include "Settings.h"
 #include "SourceManager.h"
@@ -35,6 +36,7 @@ private slots:
     void initTestCase()
     {
         installFakeBackendManifest();
+        Net::bypassProxyForLoopback(); // as main() does, for the refused stream below
         settings_.setDownloadsEnabled(false); // the default, whatever an earlier run left
     }
 
@@ -64,6 +66,27 @@ private slots:
         playback_.reset();
         sourceManager_.reset();
         trackStates_.reset();
+    }
+
+    // A stream refused although just resolved (YouTube's 403s) is resolved
+    // again a couple of times; then the track is left paused, and Play
+    // loads it anew instead of resuming nothing.
+    void aTrackThatWontStartIsRetriedThenLeftForPlayToReload()
+    {
+        QSignalSpy loading(playback_.get(), &Playback::PlaybackController::loadingChanged);
+        QSignalSpy errors(playback_.get(), &Playback::PlaybackController::errorOccurred);
+        play({ track(QStringLiteral("refused")) });
+        QTRY_COMPARE_WITH_TIMEOUT(errors.size(), 1, 20000);
+        const auto starts = [&loading]() {
+            return std::count_if(
+                loading.cbegin(), loading.cend(), [](const QList<QVariant>& args) { return args.first().toBool(); });
+        };
+        QCOMPARE(starts(), 3);
+        QVERIFY(!playback_->isPlaying());
+
+        playback_->togglePause();
+        QTRY_VERIFY(starts() >= 4);
+        QTRY_COMPARE_WITH_TIMEOUT(errors.size(), 2, 20000);
     }
 
     void aTrackStartingShowsWithItsSourcesActions()
