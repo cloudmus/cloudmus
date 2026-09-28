@@ -259,7 +259,17 @@ void AudioPlayer::play(const QString& url, const QString& title, const std::opti
     // would take http_proxy from the environment), follows redirects with
     // Qt's network stack like the preflight below does, and resumes a
     // stream that breaks off.
-    if (route || !headers.isEmpty()) {
+    //
+    // On Windows every remote stream goes this way: libmpv there crashed
+    // the whole app when a track change cut off an HTTPS stream it was
+    // still downloading itself, while switching between relayed streams
+    // never did. mpv then only ever reads plain HTTP from loopback.
+#ifdef Q_OS_WIN
+    const bool relayAlways = !QUrl(url).isLocalFile();
+#else
+    const bool relayAlways = false;
+#endif
+    if (route || !headers.isEmpty() || relayAlways) {
         loadUrl(
             relay()->urlFor(QUrl(url), route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers).toString());
         return;
