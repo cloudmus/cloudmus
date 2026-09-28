@@ -9,12 +9,60 @@
 #include <QSystemTrayIcon>
 #include <QWidget>
 
+#include <functional>
+
 #include "Icons.h"
 #include "NowPlaying.h"
 #include "PlaylistEditing.h"
 #include "WindowHost.h"
 
+#ifdef Q_OS_WIN
+#include <QSettings>
+#include <QWinEventNotifier>
+
+#include <windows.h>
+#endif
+
 namespace Integration {
+
+#ifdef Q_OS_WIN
+namespace {
+
+constexpr wchar_t kPersonalizeKey[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
+
+// The taskbar's own scheme — "Choose your default Windows mode" — apart
+// from the apps' one Qt reports (and the app may override). Missing
+// before Windows 10 1903, whose taskbar was always dark.
+bool taskbarIsLight()
+{
+    const QSettings personalize(
+        QStringLiteral("HKEY_CURRENT_USER\\") + QString::fromWCharArray(kPersonalizeKey), QSettings::NativeFormat);
+    return personalize.value(QStringLiteral("SystemUsesLightTheme"), 0).toInt() != 0;
+}
+
+// Calls `changed` whenever a value under the Personalize key changes —
+// Qt's colorSchemeChanged only follows the apps' scheme.
+void watchPersonalizeKey(QObject* owner, std::function<void()> changed)
+{
+    HKEY key = nullptr;
+    if (RegOpenKeyExW(HKEY_CURRENT_USER, kPersonalizeKey, 0, KEY_NOTIFY, &key) != ERROR_SUCCESS)
+        return;
+    HANDLE event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    const auto arm = [key, event]() { RegNotifyChangeKeyValue(key, FALSE, REG_NOTIFY_CHANGE_LAST_SET, event, TRUE); };
+    arm();
+    auto* notifier = new QWinEventNotifier(event, owner);
+    QObject::connect(notifier, &QWinEventNotifier::activated, owner, [arm, changed]() {
+        arm(); // a notification fires once
+        changed();
+    });
+    QObject::connect(notifier, &QObject::destroyed, [key, event]() {
+        RegCloseKey(key);
+        CloseHandle(event);
+    });
+}
+
+} // namespace
+#endif
 
 TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
     QObject* parent)
@@ -25,7 +73,11 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
 {
     trayIcon_ = new QSystemTrayIcon(this);
     updateTrayIcon();
+#ifdef Q_OS_WIN
+    watchPersonalizeKey(this, [this]() { updateTrayIcon(); });
+#else
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, &TrayIcon::updateTrayIcon);
+#endif
     trayIcon_->setToolTip(QStringLiteral("CloudMus"));
 
     // Context-menu action icons are in scope for the Material Icons
@@ -164,7 +216,13 @@ void TrayIcon::updateTrayIcon()
     // Unknown (no portal/desktop integration reporting a scheme) defaults
     // to the light-panel (black) glyph — a light panel is the more common
     // case, and black-on-unknown is less likely to vanish than white-on-unknown.
+#ifdef Q_OS_WIN
+    // The icon sits on the taskbar, which has a scheme of its own: a dark
+    // taskbar with light apps is Windows' default.
+    const bool dark = !taskbarIsLight();
+#else
     const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+#endif
     trayIcon_->setIcon(QIcon(dark ? QStringLiteral(":/icons/icons/tray_icon_dark.svg")
                                   : QStringLiteral(":/icons/icons/tray_icon_light.svg")));
 }
