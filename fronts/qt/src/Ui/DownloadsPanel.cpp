@@ -6,6 +6,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
@@ -34,6 +35,9 @@ constexpr int kMaxRowsHeight = 360;
 constexpr int kPad = Theme::Spacing::space3;
 constexpr int kBarHeight = 3;
 constexpr int kCancelSide = 24;
+#ifdef Q_OS_WIN
+constexpr int kFadeMs = 150;
+#endif
 
 // "3.2 of 8.1 MB" — or in KB, for a file under a megabyte.
 QString sizeText(qint64 received, qint64 total)
@@ -240,7 +244,9 @@ private:
 } // namespace
 
 DownloadsPanel::DownloadsPanel(ViewModel::Downloads& downloads, ViewModel::NowPlaying& nowPlaying, QWidget* parent)
-    : QWidget(parent, Qt::Popup | Qt::FramelessWindowHint)
+    // No native drop shadow: Windows would put a rectangular one around
+    // the whole window, shadow margin included; paintEvent() draws ours.
+    : QWidget(parent, Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
     , downloads_(downloads)
     , nowPlaying_(nowPlaying)
 {
@@ -302,6 +308,24 @@ void DownloadsPanel::popup(const QPoint& anchor)
     anchor_ = anchor;
     adjustSize();
     place();
+#ifdef Q_OS_WIN
+    // windowOpacity, not painting with opacity like ThemedToolTip: that
+    // wouldn't reach the child widgets. Windows only — Wayland has no
+    // window opacity, and Linux compositors animate popups themselves.
+    fade_ = new QPropertyAnimation(this, "windowOpacity", this);
+    fade_->setDuration(kFadeMs);
+    fade_->setEasingCurve(QEasingCurve::OutCubic);
+    connect(fade_, &QPropertyAnimation::finished, this, [this]() {
+        if (fade_->endValue().toReal() <= 0.0) {
+            fadedOut_ = true;
+            close();
+        }
+    });
+    setWindowOpacity(0.0);
+    fade_->setStartValue(0.0);
+    fade_->setEndValue(1.0);
+    fade_->start();
+#endif
     show();
 }
 
@@ -346,6 +370,20 @@ void DownloadsPanel::showEvent(QShowEvent* event)
 
 void DownloadsPanel::closeEvent(QCloseEvent* event)
 {
+#ifdef Q_OS_WIN
+    // Fade out first, then close for real (fade_'s finished()). A click
+    // outside while fading asks again — nothing to do, already going.
+    if (fade_ && !fadedOut_) {
+        event->ignore();
+        if (fade_->endValue().toReal() > 0.0) {
+            fade_->stop();
+            fade_->setStartValue(windowOpacity());
+            fade_->setEndValue(0.0);
+            fade_->start();
+        }
+        return;
+    }
+#endif
     // What's over has been seen by now.
     if (!downloads_.isActive())
         downloads_.clearFinished();

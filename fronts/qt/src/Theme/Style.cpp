@@ -187,6 +187,15 @@ void CloudMusStyle::polish(QWidget* widget)
     QProxyStyle::polish(widget);
 
     if (qobject_cast<QMenu*>(widget)) {
+        // Windows gives a top-level window per-pixel alpha only when it's
+        // also frameless — Qt::Popup alone isn't, and the shadow margin
+        // came out black there. No native drop shadow either: Windows
+        // would put a rectangular one around the whole window, and
+        // drawPrimitive() paints our own. Checked first: setWindowFlags()
+        // re-parents, not something to repeat on every re-polish.
+        const Qt::WindowFlags frameless = Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint;
+        if ((widget->windowFlags() & frameless) != frameless)
+            widget->setWindowFlags(widget->windowFlags() | frameless);
         widget->setAttribute(Qt::WA_TranslucentBackground);
         // "13px/600 — button labels, actionable menu items" is this design
         // system's own description of TextStyle::Button — Fusion's default

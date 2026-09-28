@@ -5,6 +5,7 @@
 #include <QRect>
 #include <QWidget>
 
+class QPropertyAnimation;
 class QPushButton;
 class QScrollArea;
 class QVariantAnimation;
@@ -47,6 +48,12 @@ private:
     QScrollArea* scroll_ = nullptr;
     QWidget* rows_ = nullptr;
     QPoint anchor_;
+#ifdef Q_OS_WIN
+    // Fades the whole window in and out: Windows doesn't animate a popup
+    // the way Linux compositors do, and it would just pop in and vanish.
+    QPropertyAnimation* fade_ = nullptr;
+    bool fadedOut_ = false;
+#endif
 };
 
 } // namespace Ui

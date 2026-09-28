@@ -10,12 +10,12 @@ namespace Theme {
 // to reach the ONE class of widget QSS alone can't properly round:
 // QMenu. QSS border-radius only draws a rounded shape inside a still-
 // rectangular, opaque window (confirmed in practice) — genuine rounding
-// needs WA_TranslucentBackground, which QSS has no way to request. A
-// QStyle is also the only mechanism that reaches EVERY QMenu instance
-// regardless of who constructs it, including ones built entirely inside
-// Qt itself (e.g. QLineEdit's built-in right-click context menu) that the
-// app never sees a pointer to and so could never subclass or otherwise
-// intercept.
+// needs WA_TranslucentBackground (and, for Windows, a frameless window),
+// which QSS has no way to request. A QStyle is also the only mechanism
+// that reaches EVERY QMenu instance regardless of who constructs it,
+// including ones built entirely inside Qt itself (e.g. QLineEdit's
+// built-in right-click context menu) that the app never sees a pointer
+// to and so could never subclass or otherwise intercept.
 //
 // The drop shadow is hand-painted in drawPrimitive() rather than a
 // QGraphicsDropShadowEffect: an effect's blur bleeds outside the widget's
