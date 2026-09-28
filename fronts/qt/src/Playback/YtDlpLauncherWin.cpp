@@ -38,7 +38,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     startup.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
     startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
     PROCESS_INFORMATION process {};
-    if (!CreateProcessW(python.c_str(), mutableCommand.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW,
+    // DETACHED_PROCESS: no console (and no conhost.exe) for yt-dlp; it only
+    // talks to mpv over the inherited pipes.
+    if (!CreateProcessW(python.c_str(), mutableCommand.data(), nullptr, nullptr, TRUE, DETACHED_PROCESS,
             nullptr, nullptr, &startup, &process))
         return 1;
     WaitForSingleObject(process.hProcess, INFINITE);

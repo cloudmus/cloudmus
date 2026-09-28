@@ -43,8 +43,12 @@ void NdjsonTransport::start(const QStringList& argv, const QProcessEnvironment& 
     process_.setArguments(argv.mid(1));
     process_.setProcessEnvironment(environment);
 #ifdef Q_OS_WIN
+    // No console at all: CREATE_NO_WINDOW still gives each backend a hidden
+    // one, i.e. a conhost.exe per backend. Backends talk over the pipes
+    // QProcess sets up and start no console programs (one started from a
+    // detached process would get a visible console window).
     process_.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* args) {
-        args->flags |= CREATE_NO_WINDOW;
+        args->flags |= DETACHED_PROCESS;
     });
 #endif
     process_.start();
