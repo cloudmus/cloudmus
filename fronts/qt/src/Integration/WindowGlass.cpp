@@ -25,6 +25,14 @@
 #include <xcb/xcb.h>
 #endif
 
+#if defined(Q_OS_WIN)
+#include <QOperatingSystemVersion>
+
+#include <windows.h>
+
+#include <dwmapi.h>
+#endif
+
 namespace Integration::WindowGlass {
 
 namespace {
@@ -47,6 +55,8 @@ class Backend {
 public:
     virtual ~Backend() = default;
     virtual void apply(QWindow* window, const QRegion& region) = 0;
+    // Whether apply() can blur just `region`, not only the whole window.
+    virtual bool blursRegions() const { return true; }
 };
 
 #if defined(CLOUDMUS_BLUR_WAYLAND)
@@ -280,8 +290,80 @@ private:
 };
 #endif
 
+#if defined(Q_OS_WIN)
+// Windows: DWM blurs behind a whole window only — no region, so
+// blursRegions() is false and popups stay opaque (see blursRegions() in
+// the header). Windows 11 22H2 and later: the documented system backdrop,
+// acrylic, behind the client area as well once the frame extends over
+// it. Before that (Windows 10): the undocumented accent policy the shell
+// itself uses for blur — acrylic through it lags while dragging a window
+// on Windows 10, plain blur doesn't.
+class WindowsBackend : public Backend {
+public:
+    static Backend* create()
+    {
+        const auto os = QOperatingSystemVersion::current();
+        if (os >= QOperatingSystemVersion::Windows11_22H2)
+            return new WindowsBackend(nullptr);
+        if (os < QOperatingSystemVersion::Windows10)
+            return nullptr;
+        const auto setAttribute = reinterpret_cast<SetWindowCompositionAttributeFn>(
+            GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetWindowCompositionAttribute"));
+        if (setAttribute == nullptr) {
+            qCWarning(lcGlass) << "no SetWindowCompositionAttribute in user32";
+            return nullptr;
+        }
+        return new WindowsBackend(setAttribute);
+    }
+
+    void apply(QWindow* window, const QRegion& region) override
+    {
+        if (!region.isEmpty())
+            return; // a popup's panel: can't be blurred alone
+        const auto hwnd = reinterpret_cast<HWND>(window->winId());
+        if (setAttribute_ == nullptr) {
+            const MARGINS wholeWindow = { -1, -1, -1, -1 };
+            DwmExtendFrameIntoClientArea(hwnd, &wholeWindow);
+            const int acrylic = 3; // DWMSBT_TRANSIENTWINDOW
+            DwmSetWindowAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &acrylic, sizeof(acrylic));
+            return;
+        }
+        AccentPolicy accent = { 3 /* ACCENT_ENABLE_BLURBEHIND */, 0, 0, 0 };
+        CompositionAttributeData data = { 19 /* WCA_ACCENT_POLICY */, &accent, sizeof(accent) };
+        setAttribute_(hwnd, &data);
+    }
+
+    bool blursRegions() const override { return false; }
+
+private:
+    // user32's undocumented SetWindowCompositionAttribute() and its data.
+    struct AccentPolicy {
+        int state;
+        int flags;
+        DWORD gradientColor;
+        int animationId;
+    };
+    struct CompositionAttributeData {
+        int attribute;
+        void* data;
+        SIZE_T size;
+    };
+    using SetWindowCompositionAttributeFn = BOOL(WINAPI*)(HWND, CompositionAttributeData*);
+
+    explicit WindowsBackend(SetWindowCompositionAttributeFn setAttribute)
+        : setAttribute_(setAttribute)
+    {
+    }
+
+    SetWindowCompositionAttributeFn setAttribute_;
+};
+#endif
+
 Backend* createBackend()
 {
+#if defined(Q_OS_WIN)
+    return WindowsBackend::create();
+#endif
 #if defined(CLOUDMUS_BLUR_WAYLAND)
     // Any compositor: the standard protocol isn't KDE's alone.
     if (isWayland()) {
@@ -352,6 +434,8 @@ Support support()
                                                       : Support::None;
     return value;
 }
+
+bool blursRegions() { return backend() == nullptr || backend()->blursRegions(); }
 
 void enableBlurBehind(QWidget* window, const QRegion& region)
 {

@@ -286,8 +286,8 @@ if(TARGET Qt6::DBus)
     target_link_libraries(cloudmus-ui PUBLIC Qt6::DBus)
 endif()
 if(WIN32)
-    # Tray balloons sent directly (NotificationToastWin.cpp), window
-    # cloaking (FirstPaintCloakWin.cpp).
+    # Tray balloons sent directly (NotificationToastWin.cpp); DWM for
+    # window cloaking (FirstPaintCloakWin.cpp) and glass (WindowGlass.cpp).
     target_link_libraries(cloudmus-ui PRIVATE shell32 dwmapi)
 endif()
 

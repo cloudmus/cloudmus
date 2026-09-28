@@ -53,7 +53,8 @@ void paintMenuShadow(QPainter* painter, const QRect& panelRect)
 {
     // Stronger over glass: the panel no longer stands out by being
     // opaque, so the shadow has to carry its edge.
-    const int maxAlpha = glassEnabled() ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha;
+    const bool seeThrough = glassEnabled() && Integration::WindowGlass::blursRegions();
+    const int maxAlpha = seeThrough ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha;
     paintSoftShadow(painter, panelRect, kMenuShadowMargin, kMenuShadowOffsetY, maxAlpha, Radius::md);
 }
 
@@ -260,7 +261,7 @@ void CloudMusStyle::drawPrimitive(
 
         const Palette& pal = palette();
         painter->setPen(QPen(pal.border, 1));
-        painter->setBrush(glass(pal.surface200));
+        painter->setBrush(popupGlass(pal.surface200));
         painter->drawPath(roundedPath(QRectF(panelRect).adjusted(0.5, 0.5, -0.5, -0.5), Radius::md));
         painter->restore();
         return;

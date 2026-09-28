@@ -22,8 +22,10 @@ namespace Integration::WindowGlass {
 //     no way for the app to ask for blur. The window can still be
 //     translucent, for a desktop extension to blur (on GNOME, Blur my
 //     Shell's per-application blur) — Support::SeeThrough.
-//   - Windows / macOS: not yet — the place for DwmSetWindowAttribute(
-//     DWMWA_SYSTEMBACKDROP_TYPE, acrylic) / an NSVisualEffectView behind the
+//   - Windows 11 22H2+: DWM's acrylic system backdrop; Windows 10: DWM's
+//     blur through the accent policy. Whole windows only — see
+//     blursRegions().
+//   - macOS: not yet — the place for an NSVisualEffectView behind the
 //     window's content.
 
 enum class Support {
@@ -46,6 +48,12 @@ Support support();
 // again when the shape changes (e.g. on resize); a no-op unless
 // support() is Support::Blur.
 void enableBlurBehind(QWidget* window, const QRegion& region = QRegion());
+
+// Whether enableBlurBehind() can blur just a region of a window. Where it
+// can't (Windows), a popup whose panel is smaller than its window stays
+// opaque — see Theme::popupGlass(). True where there's no blur to ask for
+// at all: what blurs a see-through window there follows its alpha.
+bool blursRegions();
 
 // The region for blurring behind a rounded panel at `rect`, for
 // enableBlurBehind() — a little inside it, so no blur shows past its edge.

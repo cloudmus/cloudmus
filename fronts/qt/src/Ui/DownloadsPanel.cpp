@@ -349,12 +349,13 @@ void DownloadsPanel::paintEvent(QPaintEvent*)
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.setRenderHint(QPainter::Antialiasing);
     const QRect panel = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
-    Theme::paintSoftShadow(&painter, panel, kShadowMargin, 2, Theme::glassEnabled() ? 56 : 32, Theme::Radius::md);
+    Theme::paintSoftShadow(&painter, panel, kShadowMargin, 2,
+        Theme::glassEnabled() && Integration::WindowGlass::blursRegions() ? 56 : 32, Theme::Radius::md);
     const Theme::Palette& pal = Theme::palette();
     QPainterPath path;
     path.addRoundedRect(QRectF(panel).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::md, Theme::Radius::md);
     painter.setPen(QPen(pal.border, 1));
-    painter.setBrush(Theme::glass(pal.surface200));
+    painter.setBrush(Theme::popupGlass(pal.surface200));
     painter.drawPath(path);
 }
 

@@ -131,7 +131,7 @@ protected:
         // against its edge.
         path.addRoundedRect(QRectF(contentRect).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::sm, Theme::Radius::sm);
         painter.setPen(QPen(pal.border, 1));
-        painter.setBrush(Theme::glass(pal.surface400));
+        painter.setBrush(Theme::popupGlass(pal.surface400));
         painter.drawPath(path);
 
         painter.setPen(pal.ink);

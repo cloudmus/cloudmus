@@ -75,6 +75,11 @@ constexpr qreal kGlassOpacity = 0.8;
 // opaque color it stands in for.
 constexpr qreal kChromeGlassOpacity = 0.85;
 QColor glass(const QColor& color, qreal opacity = kGlassOpacity);
+// glass() for a popup's panel (a menu, a tooltip) — the popup window is
+// bigger than the panel, for its shadow — or `color` opaque where the
+// window system can't blur behind just the panel
+// (Integration::WindowGlass::blursRegions()).
+QColor popupGlass(const QColor& color);
 // With glass, the content area's list is a light layer of surface0 at this
 // opacity over the chrome glass, so it still reads a step darker.
 constexpr qreal kContentGlassLayer = 0.3;
