@@ -66,6 +66,12 @@ pip wheel --no-deps --wheel-dir "${wheel_dir}" \
     ./backends/yandex-music ./backends/youtube-music
 python3 packaging/windows/build-python-env.py \
     "${stage_dir}/python/Lib/site-packages" "${wheel_dir}"
+# Without bytecode every fresh install compiles all of site-packages on each
+# backend's first start (under the virus scanner, too). The bundled 3.13
+# must do it — the host Python is another version — and unchecked-hash
+# pycs stay valid whatever mtimes the installer gives the sources.
+xvfb-run -a wine "${stage_dir}/python/python.exe" -m compileall -q -j 0 \
+    --invalidation-mode unchecked-hash "$(winepath -w "${stage_dir}/python/Lib/site-packages")"
 
 python3 - "${stage_dir}/backends" <<'PY'
 import json
