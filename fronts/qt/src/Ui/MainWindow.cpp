@@ -54,6 +54,7 @@
 #include "SmoothScroller.h"
 #include "SourcePanel.h"
 #include "Spacing.h"
+#include "Style.h"
 #include "ToastNotifier.h"
 #include "Tokens.h"
 #include "TrackFetch.h"
@@ -734,7 +735,7 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
         return;
     }
 
-    menu->popup(sidebarView_->viewport()->mapToGlobal(pos));
+    Theme::popupMenu(menu, sidebarView_->viewport()->mapToGlobal(pos));
 }
 
 bool MainWindow::canDownloadPlaylist(const QString& sourceId, const Playlist& playlist) const
@@ -760,7 +761,7 @@ void MainWindow::onHeroContextMenuRequested(const QPoint& pos)
             tr("Save Playlist to Downloads"), this,
             [this, active]() { downloads_.downloadPlaylist(active.sourceId, active.playlist); });
     }
-    menu->popup(heroPanel_->mapToGlobal(pos));
+    Theme::popupMenu(menu, heroPanel_->mapToGlobal(pos));
 }
 
 void MainWindow::toggleFavorite(const QString& sourceId, const QString& playlistId)
@@ -1009,7 +1010,7 @@ void MainWindow::showTrackMenu(
         }
     }
 
-    menu->popup(globalPos);
+    Theme::popupMenu(menu, globalPos);
 }
 
 bool MainWindow::isOnScreen() const
@@ -1058,7 +1059,7 @@ void MainWindow::showPlaylistsMenu(QPoint anchor)
     auto* menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
     fillPlaylistsMenuAsync(menu, playback_.currentSourceId(), playback_.currentTrack(), anchor).detach();
-    menu->popup(anchor);
+    Theme::popupMenu(menu, anchor);
 }
 
 Rpc::Task<void> MainWindow::fillPlaylistsMenuAsync(
@@ -1099,7 +1100,7 @@ Rpc::Task<void> MainWindow::fillPlaylistsMenuAsync(
         });
     }
     if (reopenAt && menu->isVisible())
-        menu->popup(*reopenAt); // grew past "Loading…" — keep it on screen
+        Theme::popupMenu(menu, *reopenAt); // grew past "Loading…" — keep it on screen
 }
 
 Rpc::Task<void> MainWindow::setTrackInPlaylistAsync(

@@ -1,5 +1,6 @@
 #include "Style.h"
 
+#include <QCursor>
 #include <QEvent>
 #include <QMenu>
 #include <QPainter>
@@ -8,6 +9,7 @@
 #include <QSplitter>
 #include <QStyleOption>
 #include <QTimer>
+#include <QToolButton>
 #include <QWindow>
 
 #include "Metrics.h"
@@ -31,6 +33,9 @@ namespace {
 constexpr int kMenuShadowMargin = 12;
 constexpr int kMenuShadowOffsetY = 2;
 constexpr int kMenuShadowMaxAlpha = 32;
+
+// Where popupMenu() keeps a menu's anchor, in global coordinates.
+constexpr char kMenuAnchorProperty[] = "cloudmusMenuAnchor";
 
 QPainterPath roundedPath(const QRectF& rect, qreal radius)
 {
@@ -100,6 +105,29 @@ void placeSubmenu(QMenu* menu, const QMenu* parentMenu)
         window->setProperty("_q_waylandPopupAnchor", QVariant::fromValue(Qt::Edges(Qt::TopEdge | Qt::RightEdge)));
         window->setProperty("_q_waylandPopupGravity", QVariant::fromValue(Qt::Edges(Qt::BottomEdge | Qt::RightEdge)));
     }
+}
+
+// The anchor Qt placed `menu` against, in global coordinates: the point
+// popupMenu() recorded, or the QToolButton the menu drops from. Else the
+// cursor — menus Qt pops up itself (QLineEdit's, the tray icon's) open
+// where it was clicked.
+QRect menuAnchor(const QMenu* menu)
+{
+    const QVariant recorded = menu->property(kMenuAnchorProperty);
+    if (recorded.isValid())
+        return recorded.toRect();
+    if (const auto* button = qobject_cast<const QToolButton*>(menu->parentWidget()); button && button->menu() == menu)
+        return QRect(button->mapToGlobal(QPoint(0, 0)), button->size());
+    return QRect(QCursor::pos(), QSize(1, 1));
+}
+
+// See CloudMusStyle::eventFilter().
+QPoint anchorShift(const QMenu* menu)
+{
+    const QRect anchor = menuAnchor(menu);
+    const QPoint pos = menu->pos();
+    return QPoint(pos.x() >= anchor.left() ? -kMenuShadowMargin : kMenuShadowMargin,
+        pos.y() >= anchor.top() ? -kMenuShadowMargin : kMenuShadowMargin);
 }
 
 // A menu itself, or a widget inside one (e.g. a QCheckBox row put into a
@@ -384,13 +412,13 @@ bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)
         // here lands before anything is visible on screen, no flicker.
         //
         // Qt positioned this (already margin-enlarged, see pixelMetric())
-        // window so ITS OWN top-left sits at the caller's intended point;
-        // shift it back by the same margin so the visible rounded panel's
-        // top-left — not the window's — is the one that ends up there.
-        // Known limitation: if Qt instead anchored a different corner
-        // (flipped near a screen edge to stay on-screen), this fixed
-        // offset no longer matches which corner was anchored — accepted,
-        // not the reported case and not fixable without private Qt state.
+        // window against the caller's anchor: below and right of it
+        // normally, but ABOVE it (window bottom at the anchor) when there's
+        // no room below, and left of it when there's none on the right.
+        // Shift it by the margin towards the anchor on each axis, so the
+        // visible rounded panel's edge, not the window's, ends up there — a
+        // fixed up-left shift put an upward-flipped menu two margins above
+        // its button.
         //
         // A submenu is placed from scratch instead (see placeSubmenu()):
         // Qt put it by the parent's item, not at a point of the caller's.
@@ -399,10 +427,16 @@ bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)
             if (parentMenu && parentMenu->isVisible() && parentMenu->actions().contains(menu->menuAction()))
                 placeSubmenu(menu, parentMenu);
             else
-                menu->move(menu->pos() - QPoint(kMenuShadowMargin, kMenuShadowMargin));
+                menu->move(menu->pos() + anchorShift(menu));
         }
     }
     return QProxyStyle::eventFilter(watched, event);
+}
+
+void popupMenu(QMenu* menu, const QPoint& globalPos)
+{
+    menu->setProperty(kMenuAnchorProperty, QRect(globalPos, QSize(1, 1)));
+    menu->popup(globalPos);
 }
 
 } // namespace Theme

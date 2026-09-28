@@ -2,6 +2,8 @@
 
 #include <QProxyStyle>
 
+class QMenu;
+class QPoint;
 class QStyleOptionMenuItem;
 
 namespace Theme {
@@ -65,10 +67,16 @@ public:
 
     // Compensates for pixelMetric()'s PM_MenuPanelWidth growing the menu's
     // window by the shadow margin on every side: Qt positions that
-    // (now-bigger) window so ITS top-left lands at the caller's target
-    // point, which leaves the visible rounded panel's own top-left
-    // sitting one margin further down-right than intended. See Style.cpp.
+    // (now-bigger) window with one of ITS edges at the caller's anchor,
+    // which leaves the visible rounded panel one margin away from it.
+    // See Style.cpp.
     bool eventFilter(QObject* watched, QEvent* event) override;
 };
+
+// QMenu::popup(), remembering `globalPos` as the anchor — so
+// CloudMusStyle can tell which side of it Qt put the menu on (flipped up
+// or left when there's no room) and place the panel, not its shadow
+// margin, right at it. Use for every menu popped up at a point.
+void popupMenu(QMenu* menu, const QPoint& globalPos);
 
 } // namespace Theme
