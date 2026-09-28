@@ -36,7 +36,9 @@
 #include "WindowGlass.h"
 #include "WindowHost.h"
 
-#ifndef Q_OS_WIN
+#ifdef Q_OS_WIN
+#include "FirstPaintCloak.h"
+#else
 #include "GlobalShortcuts.h"
 #include "MprisService.h"
 #endif
@@ -133,6 +135,9 @@ int main(int argc, char** argv)
     Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())
         && Integration::WindowGlass::support() != Integration::WindowGlass::Support::None);
     Theme::applyGlobalStyleSheet(app);
+#ifdef Q_OS_WIN
+    app.installEventFilter(new Integration::FirstPaintCloak(&app));
+#endif
     new Ui::ThemedToolTip(&app); // global service, not tied to any specific widget — see its own class doc
     // A bare-SVG QIcon lets Qt's SVG engine render sharply at whatever
     // size is *requested*, but under X11 (including XWayland) Qt still

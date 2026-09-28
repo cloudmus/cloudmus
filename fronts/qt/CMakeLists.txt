@@ -204,6 +204,7 @@ set(CLOUDMUS_PLATFORM_SOURCES)
 if(WIN32)
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
         src/Integration/AutostartWin.cpp
+        src/Integration/FirstPaintCloakWin.cpp
         src/Integration/NotificationToastWin.cpp)
 else()
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
@@ -285,8 +286,9 @@ if(TARGET Qt6::DBus)
     target_link_libraries(cloudmus-ui PUBLIC Qt6::DBus)
 endif()
 if(WIN32)
-    # Tray balloons sent directly (NotificationToastWin.cpp).
-    target_link_libraries(cloudmus-ui PRIVATE shell32)
+    # Tray balloons sent directly (NotificationToastWin.cpp), window
+    # cloaking (FirstPaintCloakWin.cpp).
+    target_link_libraries(cloudmus-ui PRIVATE shell32 dwmapi)
 endif()
 
 # Glass (Integration::WindowGlass): blur asked of the compositor directly —
