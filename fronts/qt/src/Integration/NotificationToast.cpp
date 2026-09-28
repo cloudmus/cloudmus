@@ -51,9 +51,10 @@ QString appIconName()
 }
 } // namespace
 
-NotificationToast::NotificationToast(QObject* parent)
+NotificationToast::NotificationToast(QSystemTrayIcon* trayIcon, QObject* parent)
     : QObject(parent)
 {
+    Q_UNUSED(trayIcon);
     QDBusConnection::sessionBus().connect(QStringLiteral("org.freedesktop.Notifications"),
         QStringLiteral("/org/freedesktop/Notifications"), QStringLiteral("org.freedesktop.Notifications"),
         QStringLiteral("NotificationClosed"), this, SLOT(onNotificationClosed(uint, uint)));

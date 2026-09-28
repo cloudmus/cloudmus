@@ -1,6 +1,7 @@
 #include "BackendManifest.h"
 
 #include <QDir>
+#include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -79,7 +80,7 @@ bool parseManifest(const QString& path, BackendManifest& out)
     return !out.id.isEmpty() && !out.argv.isEmpty();
 }
 
-void scanDir(const QDir& dir, QList<BackendManifest>& out, QSet<QString>& seenIds)
+void scanDir(const QDir& dir, QList<BackendManifest>& out, QSet<QString>& seenIds, bool bundled = false)
 {
     if (!dir.exists())
         return;
@@ -88,6 +89,9 @@ void scanDir(const QDir& dir, QList<BackendManifest>& out, QSet<QString>& seenId
         BackendManifest manifest;
         if (!parseManifest(dir.filePath(fileName), manifest))
             continue;
+        if (bundled && !QDir::isAbsolutePath(manifest.argv.first())) {
+            manifest.argv[0] = dir.absoluteFilePath(manifest.argv.first());
+        }
         if (seenIds.contains(manifest.id))
             continue;
         seenIds.insert(manifest.id);
@@ -104,6 +108,10 @@ QList<BackendManifest> discoverManifests()
 
     const QString configHome = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
     scanDir(QDir(configHome + QStringLiteral("/cloudmus/backends.d")), result, seenIds);
+
+#ifdef Q_OS_WIN
+    scanDir(QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/backends")), result, seenIds, true);
+#endif
 
     const QString devFlag = QProcessEnvironment::systemEnvironment().value(QStringLiteral("CLOUDMUS_DEV_BACKENDS"));
     if (envFlagTruthy(devFlag)) {

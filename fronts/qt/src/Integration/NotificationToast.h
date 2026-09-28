@@ -5,6 +5,8 @@
 #include <QSet>
 #include <QString>
 
+class QSystemTrayIcon;
+
 namespace Integration {
 
 // One OS-level org.freedesktop.Notifications popup per track change,
@@ -16,7 +18,7 @@ class NotificationToast : public QObject {
     Q_OBJECT
 
 public:
-    explicit NotificationToast(QObject* parent = nullptr);
+    explicit NotificationToast(QSystemTrayIcon* trayIcon = nullptr, QObject* parent = nullptr);
 
     void showTrackChange(const QString& title, const QString& artist, const QPixmap& cover);
     // Re-sends the notification still on screen with `cover` (e.g. once a
@@ -48,6 +50,7 @@ private:
     // the server sent for the one about to be clicked.
     QSet<uint> ownIds_;
     QString pendingActivationToken_;
+    QSystemTrayIcon* trayIcon_ = nullptr;
 };
 
 } // namespace Integration

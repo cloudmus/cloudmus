@@ -163,7 +163,7 @@ class SettingsStore:
 
     def _load_config(self) -> dict[str, Any]:
         try:
-            return json.loads(self.config_file.read_text())
+            return json.loads(self.config_file.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return {}
 
@@ -218,7 +218,7 @@ class SettingsStore:
                 stored[key] = value
         config[_SETTINGS_KEY] = stored
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
-        self.config_file.write_text(json.dumps(config, indent=2, ensure_ascii=False))
+        self.config_file.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
         # May hold secrets, like the tokens backends keep in the same file.
         self.config_file.chmod(0o600)
 

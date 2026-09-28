@@ -31,7 +31,11 @@ class AudioPlayer : public QObject {
     Q_OBJECT
 
 public:
+#ifdef Q_OS_WIN
+    explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "wasapi");
+#else
     explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "pulse,alsa");
+#endif
     ~AudioPlayer() override;
 
     // `route`: fetch the stream through this proxy (NoProxy: explicitly

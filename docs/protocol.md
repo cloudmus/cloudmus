@@ -340,6 +340,12 @@ above is true, not only `browse.playlists`.
   several chained upstream requests, e.g. youtube-music's ytmusicapi
   wrapper does three sequential calls per `listPlaylists`, the last one a
   scan of the home feed for the account's personal mixes).
+- `catalog.listTracks` and `catalog.listLiked`: recommended client-side
+  timeout **30 seconds** — the first `listTracks` of a large local-folder
+  playlist reads music tags for every file, and on a slow fresh Windows
+  install that alone can cross a ~5s budget (it used to surface as a
+  spurious "request timed out", same fix as the listPlaylists bump above;
+  see `protocol-changelog.md` 1.9).
 
 `cursor` is an **opaque string** — the front only ever passes back exactly
 what it last received in `nextCursor`; it has no structure a front is

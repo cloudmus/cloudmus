@@ -31,6 +31,7 @@ class TrayIcon : public QObject {
 public:
     TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
         QObject* parent = nullptr);
+    QSystemTrayIcon* systemTrayIcon() const { return trayIcon_; }
 
 signals:
     void quitRequested();

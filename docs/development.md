@@ -106,6 +106,20 @@ Build the AppImage (needs only Docker; the Debian 11 build container in
 ./build-appimage.sh   # -> dist/CloudMus-x86_64.AppImage
 ```
 
+Build the Windows x64 NSIS installer from Linux with Docker:
+
+```bash
+./build-windows.sh    # -> dist/CloudMus-x86_64-Setup.exe
+```
+
+The Windows builder in `packaging/windows/` installs the official Qt MinGW
+toolchain and runs Windows CMake under Wine. Its first run downloads several
+large archives; subsequent runs reuse Docker layers. It also bundles a
+Windows Python runtime and the three backends. `build-windows/` and
+`dist/windows-stage/` are generated and can be deleted. A release tag supplies
+the installer and About-dialog version. `CLOUDMUS_GA4_MEASUREMENT_ID` is
+forwarded to either Docker build when set.
+
 ## Tests
 
 ```bash
@@ -161,6 +175,7 @@ protocol/            Protocol schemas (schema/, methods.yaml) + codegen/
 backends/            py-rpc-common/ and one folder per service
 fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, AppRun, build script)
+packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)
 .github/workflows/   Release build
 docs/                Protocol spec, this guide, releasing, analytics
 art/                 Logo and screenshots

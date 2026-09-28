@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import os
 from pathlib import Path
 
 from mutagen.flac import FLAC, Picture
@@ -19,6 +18,7 @@ from mutagen.id3 import ID3, APIC
 from mutagen.mp4 import MP4, MP4Cover
 from mutagen.oggopus import OggOpus
 from mutagen.oggvorbis import OggVorbis
+from rpc_common.platform_paths import cache_home
 
 _MP4_COVER_EXTENSIONS = {
     MP4Cover.FORMAT_JPEG: ".jpg",
@@ -27,8 +27,7 @@ _MP4_COVER_EXTENSIONS = {
 
 
 def _cache_dir() -> Path:
-    base = os.environ.get("XDG_CACHE_HOME")
-    cache_root = Path(base).expanduser() if base else Path.home() / ".cache"
+    cache_root = cache_home()
     cache_dir = cache_root / "cloudmus" / "backends" / "local-folder" / "covers"
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir

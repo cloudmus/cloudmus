@@ -4,6 +4,8 @@
 #include <cstring>
 
 #include <QByteArray>
+#include <QCoreApplication>
+#include <QFileInfo>
 #include <QLoggingCategory>
 #include <QMetaObject>
 #include <QNetworkAccessManager>
@@ -70,6 +72,15 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
         mpv_set_option_string(mpv_, "config-dir", mpvConfigDir.constData());
         mpv_set_option_string(mpv_, "config", "yes");
     }
+#ifdef Q_OS_WIN
+    // The packaged helper passes mpv's yt-dlp request to our bundled Python.
+    // Current Windows libmpv supports this hook option directly.
+    const QString ytDlpPath = QCoreApplication::applicationDirPath() + QStringLiteral("/yt-dlp.exe");
+    if (QFileInfo::exists(ytDlpPath)) {
+        const QByteArray option = "ytdl_hook-ytdl_path=" + ytDlpPath.toUtf8();
+        mpv_set_option_string(mpv_, "script-opts", option.constData());
+    }
+#endif
 
     // libavformat (mpv's network/demuxer layer) links against GnuTLS, not
     // the OpenSSL bundled above for Qt's own TLS backend — a completely
@@ -88,7 +99,15 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
     // at the certifi CA bundle already bundled as a backend dependency
     // (requests/urllib3 pull it in) — reusing it here instead of
     // shipping a second copy of the same certificate list.
-    const QByteArray tlsCaFile = qgetenv("CLOUDMUS_TLS_CA_FILE");
+    QByteArray tlsCaFile = qgetenv("CLOUDMUS_TLS_CA_FILE");
+#ifdef Q_OS_WIN
+    if (tlsCaFile.isEmpty()) {
+        const QString certifi = QCoreApplication::applicationDirPath()
+            + QStringLiteral("/python/Lib/site-packages/certifi/cacert.pem");
+        if (QFileInfo::exists(certifi))
+            tlsCaFile = certifi.toUtf8();
+    }
+#endif
     if (!tlsCaFile.isEmpty()) {
         mpv_set_option_string(mpv_, "tls-ca-file", tlsCaFile.constData());
     }

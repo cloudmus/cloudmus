@@ -15,7 +15,7 @@
 ---
 
 CloudMus — *cloud music* — brings Yandex Music, YouTube Music and your
-local music folder into one good-looking native Linux app: a glass window
+local music folder into one native desktop app: a glass window on Linux
 that blurs your desktop behind it, big cover art, smooth animations, light
 and dark themes. No browser tabs, no Electron wrappers: one fast player with the
 same controls for every service.
@@ -50,7 +50,7 @@ Spotify, Apple Music, SoundCloud, TuneIn, VK Music, Zvuk (Sber) and others.
   streams and covers go through them too.
 - **Picks up where you left off** — the last playlist and track are
   restored on start; everything you play lands in History.
-- **Nothing to install** — a single AppImage with everything inside.
+- **Self-contained downloads** — an AppImage for Linux and an installer for Windows.
 
 ## Download and install
 
@@ -87,6 +87,18 @@ Ubuntu 24.04+), or run it with `--appimage-extract-and-run`.
 Settings, sign-in tokens and history live in `~/.config/cloudmus/`, cached
 covers in `~/.cache/cloudmus/` — delete them too to remove everything.
 
+### Windows
+
+Download `CloudMus-<version>-x86_64-Setup.exe` from the same release and run
+it on Windows 10 or 11 (x64). It installs for the current user without
+administrator rights. Update by running a newer installer after closing
+CloudMus; remove it through Windows Settings. Settings and sign-in data are
+kept under `%APPDATA%\cloudmus`, and caches under `%LOCALAPPDATA%\cloudmus`.
+The installer includes Python, Qt and the three built-in backends.
+
+On Windows the tray, notifications and launch-at-login setting work. Linux
+media keys, MPRIS and KDE shortcuts are specific to Linux.
+
 ## First steps
 
 Sources are switched on and off, signed in and configured in
@@ -98,8 +110,8 @@ Sources are switched on and off, signed in and configured in
   logged-in browser session (Google's own device sign-in is currently
   broken, [sigma67/ytmusicapi#676](https://github.com/sigma67/ytmusicapi/issues/676)).
   Step-by-step: [Setting up browser-header auth](backends/youtube-music/README.md#setting-up-browser-header-auth).
-- **Local folder** — plays your music folder (`xdg-user-dir MUSIC`, e.g.
-  `~/Music`), each subfolder shown as a playlist; another folder can be
+- **Local folder** — plays your Music folder (XDG Music on Linux, the Windows
+  Music known folder on Windows), each subfolder shown as a playlist; another folder can be
   picked in the source's settings.
 - **Downloads** are off until turned on in Settings; they go to the same
   music folder unless you choose another one.

@@ -2,9 +2,10 @@ import json
 import os
 from pathlib import Path
 
+from rpc_common.platform_paths import config_home
 from rpc_common.settings import Field, Group, SettingsStore
 
-CONFIG_DIR = Path.home() / ".config" / "cloudmus" / "backends" / "local-folder"
+CONFIG_DIR = config_home() / "cloudmus" / "backends" / "local-folder"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 MUSIC_DIR_ENV = "CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR"
@@ -17,9 +18,9 @@ def _xdg_music_dir() -> Path | None:
     Qt front as its default download folder, so downloads land where this
     backend looks. None when unset, or set to $HOME itself — the spec's way
     of disabling a user dir."""
-    config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    xdg_config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     try:
-        lines = (config_home / "user-dirs.dirs").read_text().splitlines()
+        lines = (xdg_config_home / "user-dirs.dirs").read_text(encoding="utf-8").splitlines()
     except OSError:
         return None
     for line in lines:
@@ -38,7 +39,29 @@ def _xdg_music_dir() -> Path | None:
 def default_music_dir() -> Path:
     """The XDG music folder (e.g. ~/Музыка on a Russian-locale desktop),
     else ~/Music."""
+    if os.name == "nt":
+        return _windows_music_dir()
     return _xdg_music_dir() or Path.home() / "Music"
+
+
+def _windows_music_dir() -> Path:
+    """Ask Windows for the redirected Music known folder, if configured."""
+    import ctypes
+    import uuid
+    folder_id = uuid.UUID("4bd8d571-6d19-48d3-be97-422220080e43")
+    guid = (ctypes.c_byte * 16).from_buffer_copy(folder_id.bytes_le)
+    path = ctypes.c_wchar_p()
+    shell32 = ctypes.windll.shell32
+    shell32.SHGetKnownFolderPath.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p,
+                                             ctypes.POINTER(ctypes.c_wchar_p)]
+    shell32.SHGetKnownFolderPath.restype = ctypes.c_long
+    ctypes.windll.ole32.CoTaskMemFree.argtypes = [ctypes.c_void_p]
+    if shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(path)) == 0:
+        try:
+            return Path(path.value)
+        finally:
+            ctypes.windll.ole32.CoTaskMemFree(path)
+    return Path.home() / "Music"
 
 
 def settings_store() -> SettingsStore:
@@ -70,7 +93,7 @@ def _migrate_legacy_music_dir() -> None:
     SettingsStore.update(), which would refuse a folder that happens to be
     missing right now."""
     try:
-        data = json.loads(CONFIG_FILE.read_text())
+        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return
     legacy = data.pop("musicDir", None)
@@ -78,7 +101,7 @@ def _migrate_legacy_music_dir() -> None:
         return
     settings = data.setdefault("settings", {})
     settings.setdefault("musicDir", legacy)
-    CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def get_music_dir() -> Path:

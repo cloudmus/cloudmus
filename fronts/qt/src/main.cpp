@@ -15,10 +15,8 @@
 #include "Fonts.h"
 #include "GA4Config.h"
 #include "GeneratedCoverArt.h"
-#include "GlobalShortcuts.h"
 #include "Logging.h"
 #include "MainWindow.h"
-#include "MprisService.h"
 #include "NotificationToast.h"
 #include "PlaybackController.h"
 #include "ProxyRouting.h"
@@ -35,6 +33,11 @@
 #include "Version.h"
 #include "WindowGlass.h"
 #include "WindowHost.h"
+
+#ifndef Q_OS_WIN
+#include "GlobalShortcuts.h"
+#include "MprisService.h"
+#endif
 
 namespace {
 
@@ -136,12 +139,14 @@ int main(int argc, char** argv)
     Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &windowHost, &Ui::WindowHost::quit);
 
+#ifndef Q_OS_WIN
     Integration::MprisService mpris(playback, core.nowPlaying());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
     QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,
         [&windowHost]() { windowHost.bringToFront(); });
+#endif
 
-    Integration::NotificationToast notificationToast;
+    Integration::NotificationToast notificationToast(tray.systemTrayIcon());
     // The notification carries the track's cover from the UI's own cache.
     // If it's still loading, the notification goes out right away without
     // it and is updated in place once it arrives (while still on screen).
@@ -183,6 +188,7 @@ int main(int argc, char** argv)
             notificationToast.updateCover(pendingCover->title, pendingCover->artists, cover);
         });
 
+#ifndef Q_OS_WIN
     Integration::GlobalShortcuts globalShortcuts;
     QObject::connect(&globalShortcuts, &Integration::GlobalShortcuts::playPauseTriggered, &playback,
         &Playback::PlaybackController::togglePause);
@@ -192,6 +198,7 @@ int main(int argc, char** argv)
         &Playback::PlaybackController::previous);
     QObject::connect(
         &globalShortcuts, &Integration::GlobalShortcuts::stopTriggered, &playback, &Playback::PlaybackController::stop);
+#endif
 
     QObject::connect(&windowHost, &Ui::WindowHost::aboutToReallyQuit, &windowHost, [&sourceManager, &core]() {
         // Queued usage events go out while the backends shut down; the app

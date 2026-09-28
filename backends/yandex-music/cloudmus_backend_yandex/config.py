@@ -1,23 +1,24 @@
 import json
 from pathlib import Path
 
+from rpc_common.platform_paths import config_home
 from rpc_common.settings import Field, Group, SettingsStore
 
 from . import quality
 
-CONFIG_DIR = Path.home() / ".config" / "cloudmus" / "backends" / "yandex-music"
+CONFIG_DIR = config_home() / "cloudmus" / "backends" / "yandex-music"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 
 def load() -> dict:
     if not CONFIG_FILE.exists():
         return {}
-    return json.loads(CONFIG_FILE.read_text())
+    return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
 
 
 def save(data: dict) -> None:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    CONFIG_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     CONFIG_FILE.chmod(0o600)
 
 

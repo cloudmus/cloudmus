@@ -11,6 +11,13 @@ namespace {
 
 Q_LOGGING_CATEGORY(lcRpcClient, "cloudmus.rpc.client")
 
+// Time budget for the initialize handshake. Generous on purpose: the front
+// can only start asking the backend anything once Python's cold import has
+// run, which on a busy Windows box (wine, AV-indexed app dir, cold disk)
+// routinely takes several seconds; a backend that needs more time still
+// fails loudly (SourceManager surfaces the timeout and restarts).
+constexpr int kInitializeTimeoutMs = 30000;
+
 // Resolves to the raw JSON `result` object of one request, or throws
 // RpcCallException on an `error` response or timeout. Not a template: every
 // call funnels through this one primitive and typed results are parsed on
@@ -71,26 +78,27 @@ RpcClient::RpcClient(BackendManifest manifest, QObject* parent)
         emit becameUnavailable();
     };
     connect(&transport_, &NdjsonTransport::finished, this,
-            [this, onTransportDown](int exitCode, QProcess::ExitStatus status) {
-                // available_ is set false by shutdown() *before* it sends
-                // SIGTERM (see NdjsonTransport::terminateThenKill) — so by
-                // the time this fires for a shutdown we asked for, it's
-                // already false, and QProcess reports that expected,
-                // self-inflicted SIGTERM exit as CrashExit/exitCode=15
-                // indistinguishably from a real crash. Log level is the
-                // only difference: an actual unexpected exit (available_
-                // still true here) stays a warning; an expected one from
-                // our own shutdown() drops to debug so a normal app quit
-                // doesn't print alarming "Crashed" lines for every backend.
-                if (available_) {
-                    qCWarning(lcRpcClient) << manifest_.id << "process finished, exitCode=" << exitCode
-                                           << "status=" << status;
-                } else {
-                    qCDebug(lcRpcClient) << manifest_.id << "process finished (expected, from shutdown()), exitCode="
-                                        << exitCode << "status=" << status;
-                }
-                onTransportDown();
-            });
+        [this, onTransportDown](int exitCode, QProcess::ExitStatus status) {
+            // available_ is set false by shutdown() *before* it sends
+            // SIGTERM (see NdjsonTransport::terminateThenKill) — so by
+            // the time this fires for a shutdown we asked for, it's
+            // already false, and QProcess reports that expected,
+            // self-inflicted SIGTERM exit as CrashExit/exitCode=15
+            // indistinguishably from a real crash. Log level is the
+            // only difference: an actual unexpected exit (available_
+            // still true here) stays a warning; an expected one from
+            // our own shutdown() drops to debug so a normal app quit
+            // doesn't print alarming "Crashed" lines for every backend.
+            if (available_) {
+                qCWarning(lcRpcClient) << manifest_.id << "process finished, exitCode=" << exitCode
+                                       << "status=" << status;
+            } else {
+                qCDebug(lcRpcClient) << manifest_.id
+                                     << "process finished (expected, from shutdown()), exitCode=" << exitCode
+                                     << "status=" << status;
+            }
+            onTransportDown();
+        });
     connect(&transport_, &NdjsonTransport::errorOccurred, this, [this, onTransportDown](QProcess::ProcessError error) {
         if (available_) {
             qCWarning(lcRpcClient) << manifest_.id << "process error:" << error;
@@ -120,10 +128,21 @@ Task<void> RpcClient::start(QProcessEnvironment environment)
     const QJsonObject params {
         { QStringLiteral("protocolVersion"), QStringLiteral("1.8") },
         { QStringLiteral("front"),
-          QJsonObject { { QStringLiteral("name"), QStringLiteral("cloudmus-qt") },
-                        { QStringLiteral("version"), QStringLiteral("0.1.0") } } },
+            QJsonObject { { QStringLiteral("name"), QStringLiteral("cloudmus-qt") },
+                { QStringLiteral("version"), QStringLiteral("0.1.0") } } },
     };
-    QJsonObject result = co_await callRaw(QStringLiteral("initialize"), params, 5000);
+    QJsonObject result;
+    try {
+        result = co_await callRaw(QStringLiteral("initialize"), params, kInitializeTimeoutMs);
+    } catch (...) {
+        // The backend came up too slowly or died mid-handshake. Kill the
+        // spawned process rather than leaving it running against a dead
+        // pipe: it would answer never, and a later restart would spawn a
+        // second one on top. SourceManager turns this into a restart.
+        transport_.closeStdin();
+        transport_.terminateThenKill(1000);
+        throw;
+    }
 
     const QJsonObject source = result.value(QStringLiteral("source")).toObject();
     sourceId_ = source.value(QStringLiteral("id")).toString();
@@ -161,8 +180,8 @@ Task<QJsonObject> RpcClient::callRawWithId(int id, QString method, QJsonObject p
     co_return co_await CallAwaiter(*this, id, timeoutMs);
 }
 
-void RpcClient::registerPending(int id, int timeoutMs, std::function<void(const QJsonObject&)> onResult,
-                                std::function<void(RpcError)> onError)
+void RpcClient::registerPending(
+    int id, int timeoutMs, std::function<void(const QJsonObject&)> onResult, std::function<void(RpcError)> onError)
 {
     pending_.insert(id, PendingEntry { std::move(onResult), std::move(onError) });
     QTimer::singleShot(timeoutMs, this, [this, id]() {
@@ -180,8 +199,8 @@ void RpcClient::handleMessage(const QJsonObject& msg)
     if (msg.contains(QStringLiteral("method"))) {
         // Sources never send requests to the front (docs/protocol.md §3) —
         // a message with `method` and no response fields is a notification.
-        dispatchNotification(msg.value(QStringLiteral("method")).toString(),
-                             msg.value(QStringLiteral("params")).toObject());
+        dispatchNotification(
+            msg.value(QStringLiteral("method")).toString(), msg.value(QStringLiteral("params")).toObject());
         return;
     }
     if (!msg.contains(QStringLiteral("id")))

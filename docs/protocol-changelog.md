@@ -5,6 +5,18 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.9 — recommended client-side timeouts (no wire change)
+
+- **No wire change** (`protocolVersion` stays 1.8): bumped the *recommended
+  client-side timeouts* for `catalog.listTracks`/`catalog.listLiked` to 30s
+  and `settings.describe` to 20s (mirroring the 1.4-era `listPlaylists`
+  bump). Rationale: the first `listTracks` against a large local-folder
+  playlist reads music-file tags for every entry, and on a cold,
+  AV-indexed Windows install — including the current Wine test rig — that
+  can cross a 5s budget and surface as a spurious "request timed out" even
+  though the backend answers fine once warm. Fronts MAY keep any shorter
+  timeout of their own; the bump just raises the default guidance.
+
 ## 1.8 — resolving future streams
 
 - **Additive, backward-compatible**: optional `playback.resolveStream`

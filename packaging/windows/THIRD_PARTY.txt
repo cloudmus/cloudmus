@@ -1,0 +1,15 @@
+CloudMus for Windows bundles Qt 6.9.3, libmpv, the Vulkan loader,
+CPython 3.13.7, MinGW runtime libraries and Python packages used by its
+three backends.
+
+Qt: https://www.qt.io/licensing/open-source-lgpl-obligations
+libmpv: https://github.com/mpv-player/mpv/blob/master/Copyright
+Vulkan loader (vulkan-1.dll): VulkanRT-License.txt, alongside
+CPython: https://docs.python.org/3/license.html
+MinGW-w64: https://www.mingw-w64.org/licensing/
+
+Python package licenses and versions are recorded in the accompanying
+python/Lib/site-packages/*.dist-info/ directories.
+
+These components are dynamically linked or packaged as separate files.
+Their source code is available from the linked upstream projects.

@@ -3,6 +3,10 @@
 #include <QJsonDocument>
 #include <QLoggingCategory>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 namespace Rpc {
 
 namespace {
@@ -38,6 +42,11 @@ void NdjsonTransport::start(const QStringList& argv, const QProcessEnvironment& 
     process_.setProgram(argv.first());
     process_.setArguments(argv.mid(1));
     process_.setProcessEnvironment(environment);
+#ifdef Q_OS_WIN
+    process_.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* args) {
+        args->flags |= CREATE_NO_WINDOW;
+    });
+#endif
     process_.start();
 }
 

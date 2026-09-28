@@ -30,6 +30,74 @@ jobs:
           test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"
           ./build-appimage.sh
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: dist/CloudMus-x86_64.AppImage
+
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build Windows installer
+        env:
+          CLOUDMUS_GA4_MEASUREMENT_ID: ${{ secrets.CLOUDMUS_GA4_MEASUREMENT_ID }}
+        run: |
+          test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"
+          ./build-windows.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/CloudMus-x86_64-Setup.exe
+
+  windows-smoke:
+    needs: windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+      - name: Install and test packaged runtime
+        shell: pwsh
+        run: |
+          $installDir = "$env:LOCALAPPDATA\Programs\CloudMus"
+          $installer = Join-Path $PWD 'CloudMus-x86_64-Setup.exe'
+          $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "NSIS installation failed: $($process.ExitCode)" }
+          $app = Join-Path $installDir 'cloudmus-qt.exe'
+          $python = Join-Path $installDir 'python\python.exe'
+          if (!(Test-Path $app)) { throw 'Application missing' }
+          if (!(Test-Path (Join-Path $installDir 'libmpv-2.dll'))) { throw 'libmpv missing' }
+          & $python -c 'import cloudmus_backend_local, cloudmus_backend_yandex, cloudmus_backend_ytmusic, rpc_common, yaml, jsonschema'
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled backend imports failed' }
+          python packaging/windows/smoke.py $installDir
+          if ($LASTEXITCODE -ne 0) { throw 'Backend RPC smoke test failed' }
+          $appProcess = Start-Process -FilePath $app -PassThru
+          Start-Sleep -Seconds 8
+          if ($appProcess.HasExited) { throw "CloudMus exited at startup: $($appProcess.ExitCode)" }
+          taskkill /PID $appProcess.Id /T /F | Out-Null
+          $uninstaller = Join-Path $installDir 'Uninstall.exe'
+          $process = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "NSIS uninstallation failed: $($process.ExitCode)" }
+
+  publish:
+    needs: [appimage, windows-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: appimage
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist
       - name: Publish to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,4 +124,6 @@ jobs:
           else
               gh release create "$TAG" --verify-tag --title "$TAG" "${notes[@]}"
           fi
-          gh release upload "$TAG" "$asset" --clobber
+          windows_asset="dist/CloudMus-${TAG}-x86_64-Setup.exe"
+          cp dist/CloudMus-x86_64-Setup.exe "$windows_asset"
+          gh release upload "$TAG" "$asset" "$windows_asset" --clobber

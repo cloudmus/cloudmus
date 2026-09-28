@@ -23,7 +23,9 @@
 import json
 from pathlib import Path
 
-CONFIG_DIR = Path.home() / ".config" / "cloudmus" / "backends" / "youtube-music"
+from rpc_common.platform_paths import config_home
+
+CONFIG_DIR = config_home() / "cloudmus" / "backends" / "youtube-music"
 CLIENT_FILE = CONFIG_DIR / "config.json"
 TOKEN_FILE = CONFIG_DIR / "oauth_token.json"
 BROWSER_HEADERS_FILE = CONFIG_DIR / "browser_headers.json"
@@ -32,7 +34,7 @@ BROWSER_HEADERS_FILE = CONFIG_DIR / "browser_headers.json"
 def get_client_credentials() -> tuple[str, str] | None:
     if not CLIENT_FILE.exists():
         return None
-    data = json.loads(CLIENT_FILE.read_text())
+    data = json.loads(CLIENT_FILE.read_text(encoding="utf-8"))
     client_id, client_secret = data.get("clientId"), data.get("clientSecret")
     if not client_id or not client_secret:
         return None

@@ -8,10 +8,28 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network DBus Svg Test)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg)
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+endif()
+if(UNIX AND NOT APPLE)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+if(WIN32)
+    set(CLOUDMUS_MPV_ROOT "" CACHE PATH "Directory containing Windows libmpv include/ and lib/")
+    find_path(MPV_INCLUDE_DIR mpv/client.h PATHS "${CLOUDMUS_MPV_ROOT}/include" NO_DEFAULT_PATH REQUIRED)
+    find_library(MPV_IMPORT_LIBRARY NAMES mpv libmpv PATHS "${CLOUDMUS_MPV_ROOT}/lib" NO_DEFAULT_PATH REQUIRED)
+    add_library(cloudmus-mpv INTERFACE)
+    target_include_directories(cloudmus-mpv INTERFACE "${MPV_INCLUDE_DIR}")
+    target_link_libraries(cloudmus-mpv INTERFACE "${MPV_IMPORT_LIBRARY}")
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+    add_library(cloudmus-mpv INTERFACE)
+    target_link_libraries(cloudmus-mpv INTERFACE PkgConfig::MPV)
+endif()
 
 # --- protocol/codegen: regenerate fronts/qt/generated/ whenever the schema
 # or methods change, before anything tries to #include it. Requires Python +
@@ -47,6 +65,8 @@ file(GLOB_RECURSE PROTOCOL_SCHEMA_FILES ${CLOUDMUS_REPO_ROOT}/protocol/schema/*.
 # The generated sources are listed as outputs, not just the stamp: on a
 # fresh checkout they don't exist yet (gitignored), and CMake refuses to
 # configure with a missing source file unless it knows a rule produces it.
+option(CLOUDMUS_PREGENERATED_PROTOCOL "Use generated protocol sources already present in the checkout" OFF)
+if(NOT CLOUDMUS_PREGENERATED_PROTOCOL)
 add_custom_command(
     OUTPUT ${GENERATED_CPP_STAMP}
            ${GENERATED_DIR}/Models.h
@@ -64,6 +84,14 @@ add_custom_command(
     VERBATIM
 )
 add_custom_target(protocol_codegen_cpp DEPENDS ${GENERATED_CPP_STAMP})
+else()
+    foreach(source Models.h RpcMethods.h RpcMethods.cpp)
+        if(NOT EXISTS "${GENERATED_DIR}/${source}")
+            message(FATAL_ERROR "Missing pregenerated protocol file: ${GENERATED_DIR}/${source}")
+        endif()
+    endforeach()
+    add_custom_target(protocol_codegen_cpp)
+endif()
 
 # --- cloudmus-core: everything below the view — backends, playback, state,
 # settings — with no Qt Widgets, so the linker keeps widget code out of it
@@ -138,7 +166,7 @@ target_link_libraries(cloudmus-core PUBLIC
     Qt6::Core
     Qt6::Gui
     Qt6::Network
-    PkgConfig::MPV
+    cloudmus-mpv
 )
 
 # Version.h (CLOUDMUS_VERSION) — regenerated on every build so a dev
@@ -155,6 +183,7 @@ endif()
 configure_file(cmake/GA4Config.h.in ${VERSION_DIR}/GA4Config.h @ONLY)
 add_custom_target(cloudmus_version
     COMMAND ${CMAKE_COMMAND} -DBASE=${PROJECT_VERSION} -DSRC=${CLOUDMUS_REPO_ROOT} -DOUT=${VERSION_DIR}/Version.h
+            -DVERSION_OVERRIDE=${CLOUDMUS_VERSION_OVERRIDE}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Version.cmake
     BYPRODUCTS ${VERSION_DIR}/Version.h
     COMMENT "Updating Version.h"
@@ -163,6 +192,19 @@ add_custom_target(cloudmus_version
 # --- cloudmus-ui: the widgets and the desktop integrations on top of the
 # core — everything of the app but main() and its resources, so the window
 # tests can link it too.
+set(CLOUDMUS_PLATFORM_SOURCES)
+if(WIN32)
+    list(APPEND CLOUDMUS_PLATFORM_SOURCES
+        src/Integration/AutostartWin.cpp
+        src/Integration/NotificationToastWin.cpp)
+else()
+    list(APPEND CLOUDMUS_PLATFORM_SOURCES
+        src/Integration/Autostart.cpp
+        src/Integration/NotificationToast.cpp
+        src/Integration/MprisService.cpp
+        src/Integration/GlobalShortcuts.cpp)
+endif()
+
 add_library(cloudmus-ui STATIC
     src/Ui/MainWindow.cpp
     src/Ui/WindowHost.cpp
@@ -213,10 +255,7 @@ add_library(cloudmus-ui STATIC
     src/Theme/Style.cpp
 
     src/Integration/TrayIcon.cpp
-    src/Integration/Autostart.cpp
-    src/Integration/NotificationToast.cpp
-    src/Integration/MprisService.cpp
-    src/Integration/GlobalShortcuts.cpp
+    ${CLOUDMUS_PLATFORM_SOURCES}
     src/Integration/WindowGlass.cpp
 
 )
@@ -232,9 +271,11 @@ target_include_directories(cloudmus-ui PUBLIC
 target_link_libraries(cloudmus-ui PUBLIC
     cloudmus-core
     Qt6::Widgets
-    Qt6::DBus
     Qt6::Svg
 )
+if(TARGET Qt6::DBus)
+    target_link_libraries(cloudmus-ui PUBLIC Qt6::DBus)
+endif()
 
 # Glass (Integration::WindowGlass): blur asked of the compositor directly —
 # over Wayland (the standard ext-background-effect-v1 or KWin's
@@ -244,8 +285,10 @@ target_link_libraries(cloudmus-ui PUBLIC
 # loaded at runtime instead, which works only next to the Qt it was built
 # against (not in the AppImage).
 find_package(Qt6 QUIET OPTIONAL_COMPONENTS GuiPrivate)
-pkg_check_modules(WAYLAND_CLIENT QUIET IMPORTED_TARGET wayland-client)
-find_program(WAYLAND_SCANNER wayland-scanner)
+if(NOT WIN32)
+    pkg_check_modules(WAYLAND_CLIENT QUIET IMPORTED_TARGET wayland-client)
+    find_program(WAYLAND_SCANNER wayland-scanner)
+endif()
 if(TARGET Qt6::GuiPrivate AND WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER)
     set(BLUR_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_wayland)
     # Protocol copies in third_party/: the distro's wayland-protocols is
@@ -272,7 +315,9 @@ if(TARGET Qt6::GuiPrivate AND WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER)
     target_link_libraries(cloudmus-ui PRIVATE Qt6::GuiPrivate PkgConfig::WAYLAND_CLIENT)
     message(STATUS "Glass: Wayland blur protocols, built in")
 endif()
-pkg_check_modules(XCB QUIET IMPORTED_TARGET xcb)
+if(NOT WIN32)
+    pkg_check_modules(XCB QUIET IMPORTED_TARGET xcb)
+endif()
 if(XCB_FOUND)
     target_compile_definitions(cloudmus-ui PRIVATE CLOUDMUS_BLUR_X11)
     target_link_libraries(cloudmus-ui PRIVATE PkgConfig::XCB)
@@ -287,12 +332,20 @@ add_executable(cloudmus-qt
     resources/fonts.qrc
     resources/about.qrc
 )
+if(WIN32)
+    set_target_properties(cloudmus-qt PROPERTIES WIN32_EXECUTABLE TRUE)
+    set(CLOUDMUS_ICON_PATH "${CLOUDMUS_REPO_ROOT}/packaging/windows/cloudmus.ico")
+    configure_file(resources/cloudmus.rc.in "${CMAKE_CURRENT_BINARY_DIR}/cloudmus.rc" @ONLY)
+    target_sources(cloudmus-qt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cloudmus.rc")
+    add_executable(cloudmus-yt-dlp WIN32 src/Playback/YtDlpLauncherWin.cpp)
+    set_target_properties(cloudmus-yt-dlp PROPERTIES OUTPUT_NAME "yt-dlp")
+endif()
 target_include_directories(cloudmus-qt PRIVATE ${VERSION_DIR})
 add_dependencies(cloudmus-qt cloudmus_version)
 target_link_libraries(cloudmus-qt PRIVATE cloudmus-ui)
 
 # --- tests (QtTest): `ctest --test-dir build`, or run build/bin/cloudmus-qt-tests.
-enable_testing()
+if(BUILD_TESTING)
 add_executable(cloudmus-qt-tests
     tests/main.cpp
     tests/FakeBackend.cpp
@@ -321,3 +374,4 @@ target_include_directories(cloudmus-qt-ui-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-ui-tests PRIVATE cloudmus-ui Qt6::Test)
 add_test(NAME cloudmus-qt-ui-tests COMMAND cloudmus-qt-ui-tests)
 set_tests_properties(cloudmus-qt-ui-tests PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
+endif()

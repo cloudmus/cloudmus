@@ -54,7 +54,13 @@ methods:
       properties:
         tracks: {type: array, items: {$ref: "schema/track.yaml"}}
         nextCursor: {type: string}
-    timeoutMs: 5000
+    # 5000 was the shared default until cold scans surfaced as spurious
+    # "request timed out": local-folder reads tags for every file in a
+    # playlist on first request (a several-second job on a big folder,
+    # worse over wine/Windows), and a bumpy first page of a slow stream
+    # catalog is no better. Generous like listPlaylists — the backends
+    # answer these promptly once warm. Same rationale for listLiked.
+    timeoutMs: 30000
 
   catalog.listLiked:
     requiresCapability: browse.likedTracks
@@ -68,7 +74,10 @@ methods:
       properties:
         tracks: {type: array, items: {$ref: "schema/track.yaml"}}
         nextCursor: {type: string}
-    timeoutMs: 5000
+    # Same rationale as catalog.listTracks: a cold liked-list on a slow
+    # disk can take several seconds to assemble, and the front only
+    # surfaces the error when it truly hangs.
+    timeoutMs: 30000
 
   catalog.startRadio:
     requiresCapability: browse.radio
@@ -293,7 +302,9 @@ methods:
     requiresCapability: settings
     params: {type: object, properties: {}, required: []}
     result: {$ref: "schema/settings_description.yaml"}
-    timeoutMs: 5000
+    # Runs as the settings dialog opens, right after a cold backend start —
+    # a bit more headroom costs nothing.
+    timeoutMs: 20000
 
   settings.update:
     requiresCapability: settings

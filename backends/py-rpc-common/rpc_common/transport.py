@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import sys
 from typing import Any
 
 
@@ -68,7 +70,8 @@ async def open_stdio(rpc_out: Any) -> tuple["NdjsonReader", "NdjsonWriter"]:
     install_stdout_purity_guard) into asyncio streams and wraps them as an
     NdjsonReader/NdjsonWriter pair. Call once, after installing the guard.
     """
-    import sys
+    if os.name == "nt":
+        return _WindowsReader(), _WindowsWriter(rpc_out)
 
     loop = asyncio.get_event_loop()
 
@@ -82,6 +85,44 @@ async def open_stdio(rpc_out: Any) -> tuple["NdjsonReader", "NdjsonWriter"]:
     writer_stream = asyncio.StreamWriter(write_transport, write_protocol, None, loop)
 
     return NdjsonReader(reader), NdjsonWriter(writer_stream)
+
+
+class _WindowsReader:
+    """Windows stdio is a regular anonymous pipe; asyncio pipe transports reject it."""
+
+    def __aiter__(self) -> "_WindowsReader":
+        return self
+
+    async def __anext__(self) -> dict[str, Any]:
+        while True:
+            raw = await asyncio.to_thread(sys.stdin.buffer.readline)
+            if not raw:
+                raise StopAsyncIteration
+            line = raw.decode("utf-8").strip()
+            if not line:
+                continue
+            try:
+                value = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise FramingError(f"non-JSON line on wire: {line!r}") from exc
+            if not isinstance(value, dict):
+                raise FramingError(f"line is not a JSON object: {line!r}")
+            return value
+
+
+class _WindowsWriter:
+    def __init__(self, rpc_out: Any):
+        self._stream = rpc_out.buffer
+        self._lock = asyncio.Lock()
+
+    async def send(self, message: dict[str, Any]) -> None:
+        line = json.dumps(message, separators=(",", ":"), ensure_ascii=False).encode("utf-8") + b"\n"
+        async with self._lock:
+            await asyncio.to_thread(self._write, line)
+
+    def _write(self, line: bytes) -> None:
+        self._stream.write(line)
+        self._stream.flush()
 
 
 def install_stdout_purity_guard() -> Any:

@@ -6,6 +6,7 @@ downloads/
 *.mp3
 build/
 build-appimage/
+build-windows/
 dist/
 
 # protocol/codegen output — regenerate with:
