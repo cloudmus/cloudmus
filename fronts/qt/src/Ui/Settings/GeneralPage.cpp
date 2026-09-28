@@ -2,8 +2,10 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QStyleHints>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
 
@@ -151,6 +153,16 @@ void GeneralPage::applyColorScheme(Config::Settings::ColorScheme scheme)
         Theme::setModeOverride(std::nullopt);
     else
         Theme::setModeOverride(scheme == ColorScheme::Dark ? Theme::Mode::Dark : Theme::Mode::Light);
+#ifdef Q_OS_WIN
+    // Windows draws the title bar light or dark after Qt's color scheme,
+    // which otherwise follows the system's — a white title bar over a dark
+    // app. Setting it recolors every window's frame, open ones included.
+    // Not elsewhere: there the scheme is also what Qt's platform theme and
+    // the desktop's decorations go by, and those already look right.
+    QGuiApplication::styleHints()->setColorScheme(scheme == ColorScheme::System ? Qt::ColorScheme::Unknown
+            : scheme == ColorScheme::Dark                                       ? Qt::ColorScheme::Dark
+                                                                                : Qt::ColorScheme::Light);
+#endif
 }
 
 } // namespace Ui::Settings
