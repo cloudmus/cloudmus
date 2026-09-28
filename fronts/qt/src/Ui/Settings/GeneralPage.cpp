@@ -47,6 +47,8 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     connect(launchAtLoginCheck_, &QCheckBox::toggled, startHiddenCheck_, &QCheckBox::setEnabled);
     closeToTrayCheck_ = makeCheck(
         tr("Closing the window minimizes to the tray instead of quitting"), settings_.closeMinimizesToTray());
+    trackNotificationsCheck_
+        = makeCheck(tr("Show a notification when the track changes"), settings_.trackNotifications());
 
     using ColorScheme = Config::Settings::ColorScheme;
     colorSchemeCombo_ = new QComboBox(widget);
@@ -99,6 +101,7 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addWidget(launchAtLoginCheck_);
     layout->addLayout(startHiddenRow);
     layout->addWidget(closeToTrayCheck_);
+    layout->addWidget(trackNotificationsCheck_);
     layout->addSpacing(Theme::Spacing::space3);
     layout->addLayout(colorSchemeRow);
     layout->addWidget(glassCheck_);
@@ -116,6 +119,7 @@ bool GeneralPage::isDirty() const
         && (launchAtLoginCheck_->isChecked() != launchAtLogin_
             || startHiddenCheck_->isChecked() != settings_.startHiddenAtLogin()
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
+            || trackNotificationsCheck_->isChecked() != settings_.trackNotifications()
             || colorSchemeCombo_->currentData().toInt() != int(settings_.colorScheme())
             || glassCheck_->isChecked() != glassWanted()
             || analyticsCheck_->isChecked() != settings_.analyticsEnabled());
@@ -130,6 +134,8 @@ Rpc::Task<bool> GeneralPage::apply()
         launchAtLogin_ = launchAtLoginCheck_->isChecked();
     settings_.setStartHiddenAtLogin(startHiddenCheck_->isChecked());
     settings_.setCloseMinimizesToTray(closeToTrayCheck_->isChecked());
+    if (trackNotificationsCheck_->isChecked() != settings_.trackNotifications())
+        settings_.setTrackNotifications(trackNotificationsCheck_->isChecked());
     const auto scheme = Config::Settings::ColorScheme(colorSchemeCombo_->currentData().toInt());
     if (scheme != settings_.colorScheme()) {
         settings_.setColorScheme(scheme);

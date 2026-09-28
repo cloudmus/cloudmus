@@ -40,6 +40,7 @@ private:
     QCheckBox* launchAtLoginCheck_ = nullptr;
     QCheckBox* startHiddenCheck_ = nullptr;
     QCheckBox* closeToTrayCheck_ = nullptr;
+    QCheckBox* trackNotificationsCheck_ = nullptr;
     QComboBox* colorSchemeCombo_ = nullptr;
     QCheckBox* glassCheck_ = nullptr;
     QCheckBox* analyticsCheck_ = nullptr;

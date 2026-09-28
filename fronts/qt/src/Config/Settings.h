@@ -101,6 +101,11 @@ public:
     ColorScheme colorScheme() const;
     void setColorScheme(ColorScheme scheme);
 
+    // A system notification on every track change. Off by default on
+    // Windows, where each one also piles up in the Action Center.
+    bool trackNotifications() const;
+    void setTrackNotifications(bool on);
+
     bool closeMinimizesToTray() const;
     void setCloseMinimizesToTray(bool value);
 

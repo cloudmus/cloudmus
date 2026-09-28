@@ -179,7 +179,10 @@ int main(int argc, char** argv)
     const QSize notificationCoverSize(256, 256);
     Covers::CoverArtCache* coverCache = &core.coverArtCache();
     QObject::connect(&playback, &Playback::PlaybackController::trackChanged, &notificationToast,
-        [&notificationToast, coverCache, pendingCover, notificationCoverSize](const Track& track, const QString&) {
+        [&notificationToast, &settings, coverCache, pendingCover, notificationCoverSize](
+            const Track& track, const QString&) {
+            if (!settings.trackNotifications())
+                return;
             QString artists;
             for (int i = 0; i < track.artists.size(); ++i) {
                 if (i > 0)

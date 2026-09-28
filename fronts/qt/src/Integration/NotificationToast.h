@@ -6,6 +6,7 @@
 #include <QString>
 
 class QSystemTrayIcon;
+class QTimer;
 
 namespace Integration {
 
@@ -51,6 +52,16 @@ private:
     QSet<uint> ownIds_;
     QString pendingActivationToken_;
     QSystemTrayIcon* trayIcon_ = nullptr;
+#ifdef Q_OS_WIN
+    // Windows: sends the tray balloon itself, see NotificationToastWin.cpp.
+    void showBalloon(const QString& title, const QString& artist, const QPixmap& cover);
+    // A track whose cover is still loading, waiting a moment for it —
+    // a balloon can't be updated in place, only replaced by a second one.
+    QTimer* coverWait_ = nullptr;
+    QString waitingTitle_;
+    QString waitingArtist_;
+    void* balloonIcon_ = nullptr; // HICON, kept until the next balloon
+#endif
 };
 
 } // namespace Integration

@@ -284,6 +284,10 @@ target_link_libraries(cloudmus-ui PUBLIC
 if(TARGET Qt6::DBus)
     target_link_libraries(cloudmus-ui PUBLIC Qt6::DBus)
 endif()
+if(WIN32)
+    # Tray balloons sent directly (NotificationToastWin.cpp).
+    target_link_libraries(cloudmus-ui PRIVATE shell32)
+endif()
 
 # Glass (Integration::WindowGlass): blur asked of the compositor directly —
 # over Wayland (the standard ext-background-effect-v1 or KWin's

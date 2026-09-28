@@ -181,6 +181,18 @@ void Settings::setColorScheme(ColorScheme scheme)
         settings_.setValue(key, scheme == ColorScheme::Dark ? QStringLiteral("dark") : QStringLiteral("light"));
 }
 
+bool Settings::trackNotifications() const
+{
+#ifdef Q_OS_WIN
+    constexpr bool byDefault = false;
+#else
+    constexpr bool byDefault = true;
+#endif
+    return settings_.value(QStringLiteral("notifications/trackChange"), byDefault).toBool();
+}
+
+void Settings::setTrackNotifications(bool on) { settings_.setValue(QStringLiteral("notifications/trackChange"), on); }
+
 bool Settings::closeMinimizesToTray() const
 {
     return settings_.value(QStringLiteral("window/closeMinimizesToTray"), true).toBool();
