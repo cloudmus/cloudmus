@@ -88,8 +88,11 @@ for backend_id in ('local-folder', 'yandex-music', 'youtube-music'):
 PY
 
 echo '==> Building NSIS installer'
+bitmaps_dir="${build_dir}/installer-bitmaps"
+packaging/windows/make-installer-bitmaps.sh "${bitmaps_dir}"
 makensis -V2 -DVERSION="${version}" -DSTAGING="${stage_dir}" \
     -DCLOUDMUS_ICON="${repo_dir}/packaging/windows/cloudmus.ico" \
+    -DBITMAPS="${bitmaps_dir}" \
     -DOUTPUT="${repo_dir}/dist/CloudMus-x86_64-Setup.exe" \
     packaging/windows/cloudmus.nsi
 echo '==> Built dist/CloudMus-x86_64-Setup.exe'

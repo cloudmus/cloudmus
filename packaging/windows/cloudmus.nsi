@@ -15,18 +15,14 @@ Unicode true
 !ifndef CLOUDMUS_ICON
   !error "CLOUDMUS_ICON is required"
 !endif
-; 24-bit BMPs made from art/cloudmus-nsis-{left,top}.png (NSIS takes no
-; PNG), at Modern UI's own sizes — the welcome/finish side image 164x314,
-; the header one 150x57, cut from the banner's right end (its logo): the
-; slot can't grow, a wider image ran past the window's edge:
-;   magick art/cloudmus-nsis-left.png -resize 164x314! -background white \
-;       -flatten -type TrueColor BMP3:packaging/windows/installer-welcome.bmp
-;   magick art/cloudmus-nsis-top.png -gravity east -crop 300x114+0+0 +repage \
-;       -resize 150x57! -background white -flatten -type TrueColor \
-;       BMP3:packaging/windows/installer-header.bmp
-; Relative to this script: makensis runs from its directory.
-!define WELCOME_BITMAP "installer-welcome.bmp"
-!define HEADER_BITMAP "installer-header.bmp"
+!ifndef BITMAPS
+  !error "BITMAPS is required (make-installer-bitmaps.sh's output)"
+!endif
+
+; Scaled with the display (system DPI), not bitmap-stretched by Windows —
+; blurry at 125% and up. Its banners come in one bitmap per scale, the one
+; for the display's picked at start (dpiGuiInit below).
+ManifestDPIAware true
 
 Name "CloudMus"
 OutFile "${OUTPUT}"
@@ -38,11 +34,13 @@ SetCompressor /SOLID lzma
 !define MUI_ICON "${CLOUDMUS_ICON}"
 !define MUI_UNICON "${CLOUDMUS_ICON}"
 !define MUI_ABORTWARNING
-!define MUI_WELCOMEFINISHPAGE_BITMAP "${WELCOME_BITMAP}"
-!define MUI_UNWELCOMEFINISHPAGE_BITMAP "${WELCOME_BITMAP}"
+; The 100% ones: replaced with the display's own scale in dpiGuiInit.
+!define MUI_WELCOMEFINISHPAGE_BITMAP "${BITMAPS}/welcome-100.bmp"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_RIGHT
-!define MUI_HEADERIMAGE_BITMAP "${HEADER_BITMAP}"
+!define MUI_HEADERIMAGE_BITMAP "${BITMAPS}/header-100.bmp"
+!define MUI_CUSTOMFUNCTION_GUIINIT dpiGuiInit
+!define MUI_CUSTOMFUNCTION_UNGUIINIT un.dpiGuiInit
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -51,6 +49,71 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
+
+; The bitmaps' scales, as make-installer-bitmaps.sh renders them.
+Var DpiScale
+
+; $DpiScale: the smallest scale at least the display's (system DPI).
+!macro PICK_DPI_SCALE
+  System::Call 'USER32::GetDC(p0)p.r0'
+  System::Call 'GDI32::GetDeviceCaps(pr0,i88)i.r1' ; LOGPIXELSX
+  System::Call 'USER32::ReleaseDC(p0,pr0)'
+  IntOp $1 $1 * 100
+  IntOp $1 $1 / 96
+  ${If} $1 <= 100
+    StrCpy $DpiScale 100
+  ${ElseIf} $1 <= 125
+    StrCpy $DpiScale 125
+  ${ElseIf} $1 <= 150
+    StrCpy $DpiScale 150
+  ${ElseIf} $1 <= 175
+    StrCpy $DpiScale 175
+  ${ElseIf} $1 <= 200
+    StrCpy $DpiScale 200
+  ${ElseIf} $1 <= 250
+    StrCpy $DpiScale 250
+  ${Else}
+    StrCpy $DpiScale 300
+  ${EndIf}
+!macroend
+
+!macro EXTRACT_SCALED NAME TARGET
+  ${If} $DpiScale == 100
+    File "/oname=${TARGET}" "${BITMAPS}/${NAME}-100.bmp"
+  ${ElseIf} $DpiScale == 125
+    File "/oname=${TARGET}" "${BITMAPS}/${NAME}-125.bmp"
+  ${ElseIf} $DpiScale == 150
+    File "/oname=${TARGET}" "${BITMAPS}/${NAME}-150.bmp"
+  ${ElseIf} $DpiScale == 175
+    File "/oname=${TARGET}" "${BITMAPS}/${NAME}-175.bmp"
+  ${ElseIf} $DpiScale == 200
+    File "/oname=${TARGET}" "${BITMAPS}/${NAME}-200.bmp"
+  ${ElseIf} $DpiScale == 250
+    File "/oname=${TARGET}" "${BITMAPS}/${NAME}-250.bmp"
+  ${Else}
+    File "/oname=${TARGET}" "${BITMAPS}/${NAME}-300.bmp"
+  ${EndIf}
+!macroend
+
+; Runs after Modern UI's own GUI init, which unpacked and loaded its 100%
+; bitmaps: the side one is overwritten before its pages load it, the
+; header one is loaded again.
+!macro DPI_GUIINIT UN
+  Function ${UN}dpiGuiInit
+    Push $0
+    Push $1
+    !insertmacro PICK_DPI_SCALE
+    !if "${UN}" == ""
+      !insertmacro EXTRACT_SCALED welcome "$PLUGINSDIR\modern-wizard.bmp"
+    !endif
+    !insertmacro EXTRACT_SCALED header "$PLUGINSDIR\modern-header.bmp"
+    SetBrandingImage /IMGID=1046 /RESIZETOFIT "$PLUGINSDIR\modern-header.bmp"
+    Pop $1
+    Pop $0
+  FunctionEnd
+!macroend
+!insertmacro DPI_GUIINIT ""
+!insertmacro DPI_GUIINIT "un."
 
 Function .onInit
   SetShellVarContext current

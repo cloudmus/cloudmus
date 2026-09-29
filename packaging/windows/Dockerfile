@@ -72,3 +72,9 @@ RUN curl -fL --retry 3 -o /opt/python-embed.zip \
     "https://www.python.org/ftp/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip"
 
 RUN mkdir -p "${WINEPREFIX}" && xvfb-run -a wineboot --init && wineserver -w
+
+# The installer's banners, rendered from SVG (make-installer-bitmaps.sh).
+# Last, so adding it didn't invalidate the layers above.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        librsvg2-bin imagemagick \
+    && rm -rf /var/lib/apt/lists/*
