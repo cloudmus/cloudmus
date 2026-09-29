@@ -352,6 +352,9 @@ if(WIN32)
     set(CLOUDMUS_ICON_PATH "${CLOUDMUS_REPO_ROOT}/packaging/windows/cloudmus.ico")
     configure_file(resources/cloudmus.rc.in "${CMAKE_CURRENT_BINARY_DIR}/cloudmus.rc" @ONLY)
     target_sources(cloudmus-qt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/cloudmus.rc")
+    # Takes the version from Version.h, which is regenerated on every build.
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/cloudmus.rc" PROPERTIES
+        OBJECT_DEPENDS "${VERSION_DIR}/Version.h")
     add_executable(cloudmus-yt-dlp WIN32 src/Playback/YtDlpLauncherWin.cpp)
     set_target_properties(cloudmus-yt-dlp PROPERTIES OUTPUT_NAME "yt-dlp")
 endif()
