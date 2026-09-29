@@ -120,6 +120,9 @@ Windows Python runtime and the three backends. `build-windows/` and
 the installer and About-dialog version. `CLOUDMUS_GA4_MEASUREMENT_ID` is
 forwarded to either Docker build when set.
 
+Quick Windows compile checks, running the build under Wine and what that
+can't tell: [`docs/windows.md`](windows.md).
+
 ## Tests
 
 ```bash
@@ -196,7 +199,7 @@ fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, AppRun, build script)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)
 .github/workflows/   Release build
-docs/                Protocol spec, this guide, releasing, analytics
+docs/                Protocol spec, this guide, Windows, releasing, analytics
 art/                 Logo and screenshots
 ```
 

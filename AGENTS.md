@@ -49,6 +49,10 @@ python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local  # pe
 `CLOUDMUS_DEV_BACKENDS=1` makes fronts use backends from this checkout.
 `./build-appimage.sh` needs Docker and is slow — only for packaging changes.
 
+Windows: before building or checking anything for Windows (any `Q_OS_WIN` /
+`*Win.cpp` change), read `docs/windows.md`. It covers the quick compile check
+in Docker, running under Wine, and what only a real Windows can show.
+
 ## Conventions
 
 - English everywhere. Match surrounding code; comments explain *why*.
