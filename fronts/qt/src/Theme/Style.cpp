@@ -30,9 +30,13 @@ namespace {
 // blur-radius-16 effect: that margin has to be real, opaque window space
 // for a QMenu (there's no way to let it bleed past the window edge), so a
 // tighter falloff is the practical tradeoff.
-constexpr int kMenuShadowMargin = 12;
+constexpr int kMenuShadowReach = 12;
 constexpr int kMenuShadowOffsetY = 2;
 constexpr int kMenuShadowMaxAlpha = 32;
+
+// The reserved width itself: none where the window system shadows popups
+// (Theme::popupShadowIsNative()).
+int menuShadowMargin() { return popupShadowMargin(kMenuShadowReach); }
 
 // Where popupMenu() keeps a menu's anchor, in global coordinates.
 constexpr char kMenuAnchorProperty[] = "cloudmusMenuAnchor";
@@ -46,16 +50,15 @@ QPainterPath roundedPath(const QRectF& rect, qreal radius)
 
 QRect menuPanelRect(const QRect& widgetRect)
 {
-    return widgetRect.adjusted(kMenuShadowMargin, kMenuShadowMargin, -kMenuShadowMargin, -kMenuShadowMargin);
+    return widgetRect.adjusted(menuShadowMargin(), menuShadowMargin(), -menuShadowMargin(), -menuShadowMargin());
 }
 
 void paintMenuShadow(QPainter* painter, const QRect& panelRect)
 {
     // Stronger over glass: the panel no longer stands out by being
     // opaque, so the shadow has to carry its edge.
-    const bool seeThrough = glassEnabled() && Integration::WindowGlass::blursRegions();
-    const int maxAlpha = seeThrough ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha;
-    paintSoftShadow(painter, panelRect, kMenuShadowMargin, kMenuShadowOffsetY, maxAlpha, Radius::md);
+    const int maxAlpha = glassEnabled() ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha;
+    paintSoftShadow(painter, panelRect, menuShadowMargin(), kMenuShadowOffsetY, maxAlpha, Radius::md);
 }
 
 // Places a submenu (window already sized, not yet mapped) beside the
@@ -68,7 +71,7 @@ void placeSubmenu(QMenu* menu, const QMenu* parentMenu)
     constexpr int kGap = Spacing::space1;
     const QRect item = parentMenu->actionGeometry(menu->menuAction());
     const QRect parentPanel = menuPanelRect(parentMenu->rect());
-    int firstItemTop = kMenuShadowMargin;
+    int firstItemTop = menuShadowMargin();
     for (QAction* action : menu->actions()) {
         if (action->isVisible() && !action->isSeparator()) {
             firstItemTop = menu->actionGeometry(action).top();
@@ -76,19 +79,19 @@ void placeSubmenu(QMenu* menu, const QMenu* parentMenu)
         }
     }
     const QPoint rightOf = parentMenu->mapToGlobal(
-        QPoint(parentPanel.right() + 1 + kGap - kMenuShadowMargin, item.top() - firstItemTop));
+        QPoint(parentPanel.right() + 1 + kGap - menuShadowMargin(), item.top() - firstItemTop));
     QPoint pos = rightOf;
     const QRect screen = menu->screen()->availableGeometry();
     const QRect panelAt = menuPanelRect(QRect(pos, menu->size()));
     if (panelAt.right() > screen.right()) {
         const int parentLeft = parentMenu->mapToGlobal(parentPanel.topLeft()).x();
-        pos.setX(parentLeft - kGap - menu->width() + kMenuShadowMargin);
+        pos.setX(parentLeft - kGap - menu->width() + menuShadowMargin());
     }
     // Keep the panel (not the shadow) within the screen vertically.
-    const int panelBottom = pos.y() + menu->height() - kMenuShadowMargin;
+    const int panelBottom = pos.y() + menu->height() - menuShadowMargin();
     if (panelBottom > screen.bottom() + 1)
         pos.ry() -= panelBottom - (screen.bottom() + 1);
-    pos.setY(qMax(pos.y(), screen.top() - kMenuShadowMargin));
+    pos.setY(qMax(pos.y(), screen.top() - menuShadowMargin()));
     menu->move(pos);
 
     // Wayland: a client can't place its popups — the compositor does, from
@@ -99,8 +102,8 @@ void placeSubmenu(QMenu* menu, const QMenu* parentMenu)
     // left edge at its right end, or (flipped when there's no room) its
     // right edge at its left end — at the height computed above.
     if (QWindow* window = menu->windowHandle()) {
-        const int rightX = parentPanel.right() + 1 + kGap - kMenuShadowMargin;
-        const int leftX = parentPanel.left() - kGap + kMenuShadowMargin;
+        const int rightX = parentPanel.right() + 1 + kGap - menuShadowMargin();
+        const int leftX = parentPanel.left() - kGap + menuShadowMargin();
         const QRect anchor(leftX, item.top() - firstItemTop, rightX - leftX, 1);
         window->setProperty("_q_waylandPopupAnchorRect", anchor);
         window->setProperty("_q_waylandPopupAnchor", QVariant::fromValue(Qt::Edges(Qt::TopEdge | Qt::RightEdge)));
@@ -127,8 +130,8 @@ QPoint anchorShift(const QMenu* menu)
 {
     const QRect anchor = menuAnchor(menu);
     const QPoint pos = menu->pos();
-    return QPoint(pos.x() >= anchor.left() ? -kMenuShadowMargin : kMenuShadowMargin,
-        pos.y() >= anchor.top() ? -kMenuShadowMargin : kMenuShadowMargin);
+    return QPoint(pos.x() >= anchor.left() ? -menuShadowMargin() : menuShadowMargin(),
+        pos.y() >= anchor.top() ? -menuShadowMargin() : menuShadowMargin());
 }
 
 // A menu itself, or a widget inside one (e.g. a QCheckBox row put into a
@@ -222,7 +225,10 @@ void CloudMusStyle::polish(QWidget* widget)
         // would put a rectangular one around the whole window, and
         // drawPrimitive() paints our own. Checked first: setWindowFlags()
         // re-parents, not something to repeat on every re-polish.
-        const Qt::WindowFlags frameless = Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint;
+        // Where the window system shadows popups itself, its shadow is kept
+        // (Theme::popupShadowIsNative()).
+        const Qt::WindowFlags frameless = popupShadowIsNative() ? Qt::WindowFlags(Qt::FramelessWindowHint)
+                                                                : Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint;
         if ((widget->windowFlags() & frameless) != frameless)
             widget->setWindowFlags(widget->windowFlags() | frameless);
         widget->setAttribute(Qt::WA_TranslucentBackground);
@@ -261,7 +267,7 @@ void CloudMusStyle::drawPrimitive(
 
         const Palette& pal = palette();
         painter->setPen(QPen(pal.border, 1));
-        painter->setBrush(popupGlass(pal.surface200));
+        painter->setBrush(glass(pal.surface200));
         painter->drawPath(roundedPath(QRectF(panelRect).adjusted(0.5, 0.5, -0.5, -0.5), Radius::md));
         painter->restore();
         return;
@@ -359,7 +365,7 @@ int CloudMusStyle::pixelMetric(PixelMetric metric, const QStyleOption* option, c
     // window uniformly on all four sides without otherwise touching item
     // layout math (that's PM_MenuHMargin/VMargin's job, untouched here).
     if (metric == PM_MenuPanelWidth && qobject_cast<const QMenu*>(widget))
-        return kMenuShadowMargin;
+        return menuShadowMargin();
     // Equal breathing room on every side between the panel and its items,
     // so the first/last item's hover fill doesn't run into the panel's
     // rounded edge.
@@ -401,8 +407,7 @@ bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)
         if (auto* menu = qobject_cast<QMenu*>(watched)) {
             QTimer::singleShot(0, menu, [menu]() {
                 if (menu->isVisible()) {
-                    Integration::WindowGlass::enableBlurBehind(
-                        menu, Integration::WindowGlass::roundedRegion(menuPanelRect(menu->rect()), Radius::md));
+                    Integration::WindowGlass::enableBlurBehindPanel(menu, menuPanelRect(menu->rect()), Radius::md);
                 }
             });
         }

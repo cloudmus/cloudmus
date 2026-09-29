@@ -11,6 +11,7 @@
 #include <QWindow>
 
 #include <cstring>
+#include <functional>
 #include <vector>
 
 #if defined(CLOUDMUS_BLUR_WAYLAND)
@@ -27,6 +28,7 @@
 
 #if defined(Q_OS_WIN)
 #include <QOperatingSystemVersion>
+#include <QtMath>
 
 #include <windows.h>
 
@@ -55,8 +57,13 @@ class Backend {
 public:
     virtual ~Backend() = default;
     virtual void apply(QWindow* window, const QRegion& region) = 0;
-    // Whether apply() can blur just `region`, not only the whole window.
-    virtual bool blursRegions() const { return true; }
+    // See enableBlurBehindPanel().
+    virtual void applyPanel(QWindow* window, const QRect& panel, qreal radius)
+    {
+        apply(window, roundedRegion(panel, radius));
+    }
+    // See blurClipsWindow().
+    virtual bool clipsWindow() const { return false; }
 };
 
 #if defined(CLOUDMUS_BLUR_WAYLAND)
@@ -291,9 +298,9 @@ private:
 #endif
 
 #if defined(Q_OS_WIN)
-// Windows: DWM blurs behind a whole window only — no region, so
-// blursRegions() is false and popups stay opaque (see blursRegions() in
-// the header). Windows 11 22H2 and later: the documented system backdrop,
+// Windows: DWM blurs behind a whole window only, no region — a popup's
+// window is clipped to its panel instead (a window region), which the
+// accent's blur follows. Windows 11 22H2 and later: the documented system backdrop,
 // acrylic, behind the client area as well once the frame extends over
 // it; its light/dark tint follows the frame's, which follows the app's
 // scheme (Ui::Settings::GeneralPage::applyColorScheme()). Before that
@@ -306,8 +313,6 @@ public:
     static Backend* create()
     {
         const auto os = QOperatingSystemVersion::current();
-        if (os >= QOperatingSystemVersion::Windows11_22H2)
-            return new WindowsBackend(nullptr, 0);
         if (os < QOperatingSystemVersion::Windows10)
             return nullptr;
         constexpr int kWindows10_1803 = 17134;
@@ -318,7 +323,7 @@ public:
             qCWarning(lcGlass) << "no SetWindowCompositionAttribute in user32";
             return nullptr;
         }
-        return new WindowsBackend(setAttribute, accentState);
+        return new WindowsBackend(setAttribute, accentState, os >= QOperatingSystemVersion::Windows11_22H2);
     }
 
     void apply(QWindow* window, const QRegion& region) override
@@ -326,23 +331,38 @@ public:
         if (!region.isEmpty())
             return; // a popup's panel: can't be blurred alone
         const auto hwnd = reinterpret_cast<HWND>(window->winId());
-        if (setAttribute_ == nullptr) {
+        if (systemBackdrop_) {
             const MARGINS wholeWindow = { -1, -1, -1, -1 };
             DwmExtendFrameIntoClientArea(hwnd, &wholeWindow);
             const int acrylic = 3; // DWMSBT_TRANSIENTWINDOW
             DwmSetWindowAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &acrylic, sizeof(acrylic));
             return;
         }
-        // The acrylic's own tint: all but transparent, since the app paints
-        // its own (Theme::glass()) — not fully, which breaks acrylic on some
-        // Windows 10 builds. AABBGGRR.
-        constexpr DWORD kTint = 0x01000000;
-        AccentPolicy accent = { accentState_, 0, kTint, 0 };
-        CompositionAttributeData data = { 19 /* WCA_ACCENT_POLICY */, &accent, sizeof(accent) };
-        setAttribute_(hwnd, &data);
+        setAccent(hwnd);
     }
 
-    bool blursRegions() const override { return false; }
+    // A popup (frameless and translucent, so a layered window, which DWM's
+    // system backdrop doesn't cover even on Windows 11): the accent, on the
+    // window clipped to the panel's rounded shape. The region is binary, so
+    // its corners are stepped — the panel's own antialiased edge sits on top.
+    void applyPanel(QWindow* window, const QRect& panel, qreal radius) override
+    {
+        const auto hwnd = reinterpret_cast<HWND>(window->winId());
+        const qreal dpr = window->devicePixelRatio();
+        const int left = qFloor(panel.left() * dpr);
+        const int top = qFloor(panel.top() * dpr);
+        const int right = qCeil((panel.right() + 1) * dpr);
+        const int bottom = qCeil((panel.bottom() + 1) * dpr);
+        const int diameter = qRound(2 * radius * dpr);
+        // Right/bottom exclusive, and one more: CreateRoundRectRgn leaves
+        // out its last row and column.
+        HRGN shape = CreateRoundRectRgn(left, top, right + 1, bottom + 1, diameter, diameter);
+        if (SetWindowRgn(hwnd, shape, TRUE) == 0)
+            DeleteObject(shape); // else the system owns it
+        setAccent(hwnd);
+    }
+
+    bool clipsWindow() const override { return true; }
 
 private:
     // user32's undocumented SetWindowCompositionAttribute() and its data.
@@ -361,14 +381,28 @@ private:
     };
     using SetWindowCompositionAttributeFn = BOOL(WINAPI*)(HWND, CompositionAttributeData*);
 
-    WindowsBackend(SetWindowCompositionAttributeFn setAttribute, int accentState)
+    WindowsBackend(SetWindowCompositionAttributeFn setAttribute, int accentState, bool systemBackdrop)
         : setAttribute_(setAttribute)
         , accentState_(accentState)
+        , systemBackdrop_(systemBackdrop)
     {
+    }
+
+    void setAccent(HWND hwnd)
+    {
+        // The acrylic's own tint: all but transparent, since the app paints
+        // its own (Theme::glass()) — not fully, which breaks acrylic on some
+        // Windows 10 builds. AABBGGRR.
+        constexpr DWORD kTint = 0x01000000;
+        AccentPolicy accent = { accentState_, 0, kTint, 0 };
+        CompositionAttributeData data = { 19 /* WCA_ACCENT_POLICY */, &accent, sizeof(accent) };
+        setAttribute_(hwnd, &data);
     }
 
     SetWindowCompositionAttributeFn setAttribute_;
     int accentState_;
+    // Windows 11 22H2+: the main window gets DWM's system backdrop.
+    bool systemBackdrop_;
 };
 #endif
 
@@ -448,9 +482,11 @@ Support support()
     return value;
 }
 
-bool blursRegions() { return backend() == nullptr || backend()->blursRegions(); }
+bool blurClipsWindow() { return backend() != nullptr && backend()->clipsWindow(); }
 
-void enableBlurBehind(QWidget* window, const QRegion& region)
+namespace {
+// Runs `apply` with `window`'s native window once it's on screen.
+void applyWhenShown(QWidget* window, std::function<void(QWindow*)> apply)
 {
     if (window == nullptr || backend() == nullptr)
         return;
@@ -464,10 +500,10 @@ void enableBlurBehind(QWidget* window, const QRegion& region)
     // from.
     QPointer<QWindow> target(handle);
     QPointer<QWidget> widget(window);
-    QTimer::singleShot(0, handle, [target, widget, region]() {
+    QTimer::singleShot(0, handle, [target, widget, apply]() {
         if (!target || !target->isVisible())
             return;
-        backend()->apply(target, region);
+        apply(target);
         // Wayland applies the blur region with the surface's next commit,
         // and a widget window commits only when it repaints: a just-shown
         // menu has nothing left to paint, so it stayed unblurred until the
@@ -477,6 +513,17 @@ void enableBlurBehind(QWidget* window, const QRegion& region)
         if (widget)
             widget->update();
     });
+}
+} // namespace
+
+void enableBlurBehind(QWidget* window, const QRegion& region)
+{
+    applyWhenShown(window, [region](QWindow* target) { backend()->apply(target, region); });
+}
+
+void enableBlurBehindPanel(QWidget* window, const QRect& panel, qreal radius)
+{
+    applyWhenShown(window, [panel, radius](QWindow* target) { backend()->applyPanel(target, panel, radius); });
 }
 
 QRegion roundedRegion(const QRect& rect, qreal radius)

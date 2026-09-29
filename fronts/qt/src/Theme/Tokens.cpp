@@ -104,7 +104,9 @@ bool glassByDefault()
         && Integration::WindowGlass::support() == Integration::WindowGlass::Support::Blur;
 }
 
-QColor popupGlass(const QColor& color) { return Integration::WindowGlass::blursRegions() ? glass(color) : color; }
+bool popupShadowIsNative() { return glassEnabled_ && Integration::WindowGlass::blurClipsWindow(); }
+
+int popupShadowMargin(int margin) { return popupShadowIsNative() ? 0 : margin; }
 
 QColor glass(const QColor& color, qreal opacity)
 {

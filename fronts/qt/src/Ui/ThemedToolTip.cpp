@@ -30,14 +30,17 @@ constexpr int kCursorOffset = 16; // roughly matches the native QToolTip's own o
 // QGraphicsDropShadowEffect's blur bleeds past the widget's own geometry,
 // but a top-level window can't paint beyond its own frame — it was
 // getting silently clipped away invisible. Smaller/softer than the menu's
-// (kMenuShadowMargin=12, max alpha 32) since this popup is much smaller.
-constexpr int kShadowMargin = 8;
+// (12px reach, max alpha 32) since this popup is much smaller.
+constexpr int kShadowReach = 8;
+// The margin reserved for the shadow — none where the window system
+// shadows popups itself (Theme::popupShadowIsNative()).
+int shadowMargin() { return Theme::popupShadowMargin(kShadowReach); }
 constexpr int kShadowOffsetY = 2;
 constexpr int kShadowMaxAlpha = 40;
 
 void paintShadow(QPainter* painter, const QRect& contentRect)
 {
-    Theme::paintSoftShadow(painter, contentRect, kShadowMargin, kShadowOffsetY, kShadowMaxAlpha, Theme::Radius::sm);
+    Theme::paintSoftShadow(painter, contentRect, shadowMargin(), kShadowOffsetY, kShadowMaxAlpha, Theme::Radius::sm);
 }
 } // namespace
 
@@ -86,7 +89,7 @@ public:
         const int padX = Theme::Spacing::space2;
         const int padY = Theme::Spacing::space1;
         const QSize contentSize(textSize.width() + padX * 2, textSize.height() + padY * 2);
-        resize(contentSize.width() + kShadowMargin * 2, contentSize.height() + kShadowMargin * 2);
+        resize(contentSize.width() + shadowMargin() * 2, contentSize.height() + shadowMargin() * 2);
         reposition(globalPos);
 
         animateOpacityTo(1.0);
@@ -94,9 +97,8 @@ public:
         raise();
         // Just the rounded panel, not the shadow margin around it.
         if (Theme::glassEnabled()) {
-            const QRect content = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
-            Integration::WindowGlass::enableBlurBehind(
-                this, Integration::WindowGlass::roundedRegion(content, Theme::Radius::sm));
+            const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+            Integration::WindowGlass::enableBlurBehindPanel(this, content, Theme::Radius::sm);
         }
     }
 
@@ -121,7 +123,7 @@ protected:
         painter.setOpacity(opacity_);
         painter.setRenderHint(QPainter::Antialiasing);
 
-        const QRect contentRect = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
+        const QRect contentRect = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
         paintShadow(&painter, contentRect);
 
         const Theme::Palette& pal = Theme::palette();
@@ -131,7 +133,7 @@ protected:
         // against its edge.
         path.addRoundedRect(QRectF(contentRect).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::sm, Theme::Radius::sm);
         painter.setPen(QPen(pal.border, 1));
-        painter.setBrush(Theme::popupGlass(pal.surface400));
+        painter.setBrush(Theme::glass(pal.surface400));
         painter.drawPath(path);
 
         painter.setPen(pal.ink);
@@ -151,9 +153,9 @@ private:
     {
         // Anchor the VISIBLE content box (not the shadow-inflated window)
         // at the cursor — otherwise the tooltip would visually sit
-        // kShadowMargin further right/down than the cursor, the same bug
+        // shadowMargin() further right/down than the cursor, the same bug
         // Theme::CloudMusStyle had to compensate for with QMenu.
-        const QSize contentSize = size() - QSize(2 * kShadowMargin, 2 * kShadowMargin);
+        const QSize contentSize = size() - QSize(2 * shadowMargin(), 2 * shadowMargin());
         QRect content(globalPos + QPoint(kCursorOffset, kCursorOffset), contentSize);
         const QScreen* screen = QGuiApplication::screenAt(globalPos);
         if (!screen)
@@ -171,7 +173,7 @@ private:
         if (content.bottom() > avail.bottom())
             content.moveBottom(globalPos.y() - kCursorOffset);
 
-        setGeometry(QRect(content.topLeft() - QPoint(kShadowMargin, kShadowMargin), size()));
+        setGeometry(QRect(content.topLeft() - QPoint(shadowMargin(), shadowMargin()), size()));
     }
 
     QString text_;

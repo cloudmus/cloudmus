@@ -23,8 +23,8 @@ namespace Integration::WindowGlass {
 //     translucent, for a desktop extension to blur (on GNOME, Blur my
 //     Shell's per-application blur) — Support::SeeThrough.
 //   - Windows 11 22H2+: DWM's acrylic system backdrop; Windows 10: DWM's
-//     blur through the accent policy. Whole windows only — see
-//     blursRegions().
+//     acrylic through the accent policy. Whole windows only — a popup's
+//     window is clipped to its panel instead, see blurClipsWindow().
 //   - macOS: not yet — the place for an NSVisualEffectView behind the
 //     window's content.
 
@@ -49,11 +49,17 @@ Support support();
 // support() is Support::Blur.
 void enableBlurBehind(QWidget* window, const QRegion& region = QRegion());
 
-// Whether enableBlurBehind() can blur just a region of a window. Where it
-// can't (Windows), a popup whose panel is smaller than its window stays
-// opaque — see Theme::popupGlass(). True where there's no blur to ask for
-// at all: what blurs a see-through window there follows its alpha.
-bool blursRegions();
+// Blurs behind a popup's rounded panel at `panel`, in the window's own
+// coordinates: the region just inside it (roundedRegion()) — or, where the
+// blur only covers whole windows (blurClipsWindow()), the window itself
+// clipped to the panel's shape. Same call-again rules as
+// enableBlurBehind().
+void enableBlurBehindPanel(QWidget* window, const QRect& panel, qreal radius);
+
+// Whether blur covers whole windows only (Windows), so a popup's window
+// gets clipped to its panel — leaving no room around it for a hand-painted
+// shadow: see Theme::popupShadowMargin().
+bool blurClipsWindow();
 
 // The region for blurring behind a rounded panel at `rect`, for
 // enableBlurBehind() — a little inside it, so no blur shows past its edge.

@@ -29,7 +29,10 @@ namespace Ui {
 namespace {
 
 // Room around the panel for its shadow, as for menus (Theme::CloudMusStyle).
-constexpr int kShadowMargin = 12;
+constexpr int kShadowReach = 12;
+// The margin reserved for the shadow — none where the window system
+// shadows popups itself (Theme::popupShadowIsNative()).
+int shadowMargin() { return Theme::popupShadowMargin(kShadowReach); }
 constexpr int kWidth = 360;
 constexpr int kMaxRowsHeight = 360;
 constexpr int kPad = Theme::Spacing::space3;
@@ -246,7 +249,9 @@ private:
 DownloadsPanel::DownloadsPanel(ViewModel::Downloads& downloads, ViewModel::NowPlaying& nowPlaying, QWidget* parent)
     // No native drop shadow: Windows would put a rectangular one around
     // the whole window, shadow margin included; paintEvent() draws ours.
-    : QWidget(parent, Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
+    : QWidget(parent,
+          Qt::Popup | Qt::FramelessWindowHint
+              | (Theme::popupShadowIsNative() ? Qt::WindowFlags() : Qt::NoDropShadowWindowHint))
     , downloads_(downloads)
     , nowPlaying_(nowPlaying)
 {
@@ -277,7 +282,7 @@ DownloadsPanel::DownloadsPanel(ViewModel::Downloads& downloads, ViewModel::NowPl
     OverlayScrollBar::attach(scroll_);
 
     auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(kShadowMargin, kShadowMargin, kShadowMargin, kShadowMargin);
+    layout->setContentsMargins(shadowMargin(), shadowMargin(), shadowMargin(), shadowMargin());
     layout->setSpacing(Theme::Spacing::space2);
     layout->addLayout(header);
     layout->addWidget(scroll_);
@@ -291,7 +296,7 @@ void DownloadsPanel::refresh()
 {
     const ViewModel::NowPlaying::Feedback feedback = nowPlaying_.feedback();
     saveCurrentButton_->setEnabled(feedback.downloadSupported && !feedback.downloadBusy);
-    const int contentWidth = kWidth - 2 * kShadowMargin;
+    const int contentWidth = kWidth - 2 * shadowMargin();
     rows_->setFixedWidth(contentWidth);
     const int height = static_cast<Rows*>(rows_)->relayout();
     rows_->setFixedHeight(height);
@@ -332,11 +337,11 @@ void DownloadsPanel::popup(const QPoint& anchor)
 void DownloadsPanel::place()
 {
     // Its visible panel's bottom-left just above the button's top-left.
-    QPoint pos(anchor_.x() - kShadowMargin, anchor_.y() - height() + kShadowMargin - Theme::Spacing::space1);
+    QPoint pos(anchor_.x() - shadowMargin(), anchor_.y() - height() + shadowMargin() - Theme::Spacing::space1);
     if (const QScreen* screen = QGuiApplication::screenAt(anchor_)) {
         const QRect avail = screen->availableGeometry();
-        pos.setX(qBound(avail.left() - kShadowMargin, pos.x(), avail.right() - width() + kShadowMargin));
-        pos.setY(qMax(avail.top() - kShadowMargin, pos.y()));
+        pos.setX(qBound(avail.left() - shadowMargin(), pos.x(), avail.right() - width() + shadowMargin()));
+        pos.setY(qMax(avail.top() - shadowMargin(), pos.y()));
     }
     move(pos);
 }
@@ -348,14 +353,13 @@ void DownloadsPanel::paintEvent(QPaintEvent*)
     painter.fillRect(rect(), Qt::transparent);
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.setRenderHint(QPainter::Antialiasing);
-    const QRect panel = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
-    Theme::paintSoftShadow(&painter, panel, kShadowMargin, 2,
-        Theme::glassEnabled() && Integration::WindowGlass::blursRegions() ? 56 : 32, Theme::Radius::md);
+    const QRect panel = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+    Theme::paintSoftShadow(&painter, panel, shadowMargin(), 2, Theme::glassEnabled() ? 56 : 32, Theme::Radius::md);
     const Theme::Palette& pal = Theme::palette();
     QPainterPath path;
     path.addRoundedRect(QRectF(panel).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::md, Theme::Radius::md);
     painter.setPen(QPen(pal.border, 1));
-    painter.setBrush(Theme::popupGlass(pal.surface200));
+    painter.setBrush(Theme::glass(pal.surface200));
     painter.drawPath(path);
 }
 
@@ -363,9 +367,8 @@ void DownloadsPanel::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
     if (Theme::glassEnabled()) {
-        const QRect panel = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
-        Integration::WindowGlass::enableBlurBehind(
-            this, Integration::WindowGlass::roundedRegion(panel, Theme::Radius::md));
+        const QRect panel = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+        Integration::WindowGlass::enableBlurBehindPanel(this, panel, Theme::Radius::md);
     }
 }
 

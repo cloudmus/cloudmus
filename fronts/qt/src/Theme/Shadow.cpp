@@ -7,6 +7,8 @@ namespace Theme {
 
 void paintSoftShadow(QPainter* painter, const QRect& contentRect, int margin, int offsetY, int maxAlpha, int radius)
 {
+    if (margin <= 0)
+        return; // no room reserved: the window system's shadow instead
     painter->save();
     painter->setBrush(Qt::NoBrush);
     // Runs down past 0 into negative spreads: the rings are shifted down by

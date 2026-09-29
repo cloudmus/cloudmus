@@ -35,7 +35,10 @@ constexpr int kPadding = Theme::Spacing::space3;
 constexpr int kCoverSide = 256;
 constexpr int kContentWidth = kCoverSide + 2 * kPadding;
 constexpr int kCursorOffset = 16;
-constexpr int kShadowMargin = 12;
+constexpr int kShadowReach = 12;
+// The margin reserved for the shadow — none where the window system
+// shadows popups itself (Theme::popupShadowIsNative()).
+int shadowMargin() { return Theme::popupShadowMargin(kShadowReach); }
 constexpr int kShadowOffsetY = 3;
 constexpr int kShadowMaxAlpha = 48;
 constexpr int kBadgeSize = 14;
@@ -107,7 +110,7 @@ public:
         coverUrl_ = coverUrlOf(data.track);
         buildRows();
         const int contentHeight = layoutHeight();
-        resize(kContentWidth + 2 * kShadowMargin, contentHeight + 2 * kShadowMargin);
+        resize(kContentWidth + 2 * shadowMargin(), contentHeight + 2 * shadowMargin());
         reposition(globalPos);
         update();
         animateOpacityTo(1.0);
@@ -115,9 +118,8 @@ public:
         raise();
         // Just the rounded panel, not the shadow margin around it.
         if (Theme::glassEnabled()) {
-            const QRect content = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
-            Integration::WindowGlass::enableBlurBehind(
-                this, Integration::WindowGlass::roundedRegion(content, Theme::Radius::md));
+            const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+            Integration::WindowGlass::enableBlurBehindPanel(this, content, Theme::Radius::md);
         }
     }
 
@@ -140,12 +142,12 @@ protected:
         painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
         const Theme::Palette& pal = Theme::palette();
-        const QRect content = rect().adjusted(kShadowMargin, kShadowMargin, -kShadowMargin, -kShadowMargin);
-        Theme::paintSoftShadow(&painter, content, kShadowMargin, kShadowOffsetY, kShadowMaxAlpha, Theme::Radius::md);
+        const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+        Theme::paintSoftShadow(&painter, content, shadowMargin(), kShadowOffsetY, kShadowMaxAlpha, Theme::Radius::md);
         QPainterPath panel;
         panel.addRoundedRect(QRectF(content).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::md, Theme::Radius::md);
         painter.setPen(QPen(pal.border, 1));
-        painter.setBrush(Theme::popupGlass(pal.surface200));
+        painter.setBrush(Theme::glass(pal.surface200));
         painter.drawPath(panel);
 
         // Cover
@@ -288,7 +290,7 @@ private:
     // approach as ThemedToolTip's popup.
     void reposition(const QPoint& globalPos)
     {
-        const QSize contentSize = size() - QSize(2 * kShadowMargin, 2 * kShadowMargin);
+        const QSize contentSize = size() - QSize(2 * shadowMargin(), 2 * shadowMargin());
         QRect content(globalPos + QPoint(kCursorOffset, kCursorOffset), contentSize);
         const QScreen* screen = QGuiApplication::screenAt(globalPos);
         if (!screen)
@@ -300,7 +302,7 @@ private:
             content.moveBottom(qMax(avail.top() + contentSize.height(), globalPos.y() - kCursorOffset));
         if (content.top() < avail.top())
             content.moveTop(avail.top());
-        setGeometry(QRect(content.topLeft() - QPoint(kShadowMargin, kShadowMargin), size()));
+        setGeometry(QRect(content.topLeft() - QPoint(shadowMargin(), shadowMargin()), size()));
     }
 
     Covers::CoverArtCache* coverCache_;
