@@ -295,25 +295,30 @@ private:
 // blursRegions() is false and popups stay opaque (see blursRegions() in
 // the header). Windows 11 22H2 and later: the documented system backdrop,
 // acrylic, behind the client area as well once the frame extends over
-// it. Before that (Windows 10): the undocumented accent policy the shell
-// itself uses for blur — acrylic through it lags while dragging a window
-// on Windows 10, plain blur doesn't.
+// it; its light/dark tint follows the frame's, which follows the app's
+// scheme (Ui::Settings::GeneralPage::applyColorScheme()). Before that
+// (Windows 10, Windows 11 21H2): the undocumented accent policy the shell
+// itself uses — acrylic too since Windows 10 1803, as in the system's own
+// apps (plain blur, much weaker, before). Acrylic through it has been
+// known to lag while a window is dragged or resized.
 class WindowsBackend : public Backend {
 public:
     static Backend* create()
     {
         const auto os = QOperatingSystemVersion::current();
         if (os >= QOperatingSystemVersion::Windows11_22H2)
-            return new WindowsBackend(nullptr);
+            return new WindowsBackend(nullptr, 0);
         if (os < QOperatingSystemVersion::Windows10)
             return nullptr;
+        constexpr int kWindows10_1803 = 17134;
+        const int accentState = os.microVersion() >= kWindows10_1803 ? kAccentAcrylic : kAccentBlur;
         const auto setAttribute = reinterpret_cast<SetWindowCompositionAttributeFn>(
             GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetWindowCompositionAttribute"));
         if (setAttribute == nullptr) {
             qCWarning(lcGlass) << "no SetWindowCompositionAttribute in user32";
             return nullptr;
         }
-        return new WindowsBackend(setAttribute);
+        return new WindowsBackend(setAttribute, accentState);
     }
 
     void apply(QWindow* window, const QRegion& region) override
@@ -328,7 +333,11 @@ public:
             DwmSetWindowAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &acrylic, sizeof(acrylic));
             return;
         }
-        AccentPolicy accent = { 3 /* ACCENT_ENABLE_BLURBEHIND */, 0, 0, 0 };
+        // The acrylic's own tint: all but transparent, since the app paints
+        // its own (Theme::glass()) — not fully, which breaks acrylic on some
+        // Windows 10 builds. AABBGGRR.
+        constexpr DWORD kTint = 0x01000000;
+        AccentPolicy accent = { accentState_, 0, kTint, 0 };
         CompositionAttributeData data = { 19 /* WCA_ACCENT_POLICY */, &accent, sizeof(accent) };
         setAttribute_(hwnd, &data);
     }
@@ -337,6 +346,8 @@ public:
 
 private:
     // user32's undocumented SetWindowCompositionAttribute() and its data.
+    static constexpr int kAccentBlur = 3; // ACCENT_ENABLE_BLURBEHIND
+    static constexpr int kAccentAcrylic = 4; // ACCENT_ENABLE_ACRYLICBLURBEHIND
     struct AccentPolicy {
         int state;
         int flags;
@@ -350,12 +361,14 @@ private:
     };
     using SetWindowCompositionAttributeFn = BOOL(WINAPI*)(HWND, CompositionAttributeData*);
 
-    explicit WindowsBackend(SetWindowCompositionAttributeFn setAttribute)
+    WindowsBackend(SetWindowCompositionAttributeFn setAttribute, int accentState)
         : setAttribute_(setAttribute)
+        , accentState_(accentState)
     {
     }
 
     SetWindowCompositionAttributeFn setAttribute_;
+    int accentState_;
 };
 #endif
 
