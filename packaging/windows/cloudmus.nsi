@@ -15,15 +15,34 @@ Unicode true
 !ifndef CLOUDMUS_ICON
   !error "CLOUDMUS_ICON is required"
 !endif
+; 24-bit BMPs made from art/cloudmus-nsis-{left,top}.png (NSIS takes no
+; PNG), at Modern UI's own sizes — the welcome/finish side image 164x314,
+; the header one 150x57, cut from the banner's right end (its logo): the
+; slot can't grow, a wider image ran past the window's edge:
+;   magick art/cloudmus-nsis-left.png -resize 164x314! -background white \
+;       -flatten -type TrueColor BMP3:packaging/windows/installer-welcome.bmp
+;   magick art/cloudmus-nsis-top.png -gravity east -crop 300x114+0+0 +repage \
+;       -resize 150x57! -background white -flatten -type TrueColor \
+;       BMP3:packaging/windows/installer-header.bmp
+; Relative to this script: makensis runs from its directory.
+!define WELCOME_BITMAP "installer-welcome.bmp"
+!define HEADER_BITMAP "installer-header.bmp"
 
 Name "CloudMus"
 OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\CloudMus"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
-Icon "${CLOUDMUS_ICON}"
-UninstallIcon "${CLOUDMUS_ICON}"
+; Through Modern UI, not Icon/UninstallIcon: it sets those itself, to
+; its own default icons.
+!define MUI_ICON "${CLOUDMUS_ICON}"
+!define MUI_UNICON "${CLOUDMUS_ICON}"
 !define MUI_ABORTWARNING
+!define MUI_WELCOMEFINISHPAGE_BITMAP "${WELCOME_BITMAP}"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "${WELCOME_BITMAP}"
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_HEADERIMAGE_BITMAP "${HEADER_BITMAP}"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
