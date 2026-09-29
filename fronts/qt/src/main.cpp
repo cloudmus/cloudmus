@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QFont>
 #include <QIcon>
 #include <QSize>
 #include <QStandardPaths>
@@ -37,6 +38,8 @@
 #include "WindowHost.h"
 
 #ifdef Q_OS_WIN
+#include <windows.h>
+
 #include "FirstPaintCloak.h"
 #else
 #include "GlobalShortcuts.h"
@@ -62,6 +65,30 @@ Rpc::Task<void> shutdownAll(Rpc::SourceManager& sourceManager, std::function<voi
     done();
 }
 
+#ifdef Q_OS_WIN
+// Windows' "Smooth edges of screen fonts" and ClearType settings.
+enum class FontSmoothing {
+    Off,
+    Grayscale,
+    ClearTypeRgb,
+    ClearTypeBgr,
+};
+
+FontSmoothing systemFontSmoothing()
+{
+    BOOL enabled = TRUE;
+    SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &enabled, 0);
+    if (!enabled)
+        return FontSmoothing::Off;
+    UINT type = 0;
+    if (!SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &type, 0) || type != FE_FONTSMOOTHINGCLEARTYPE)
+        return FontSmoothing::Grayscale;
+    UINT orientation = FE_FONTSMOOTHINGORIENTATIONRGB;
+    SystemParametersInfoW(SPI_GETFONTSMOOTHINGORIENTATION, 0, &orientation, 0);
+    return orientation == FE_FONTSMOOTHINGORIENTATIONBGR ? FontSmoothing::ClearTypeBgr : FontSmoothing::ClearTypeRgb;
+}
+#endif
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -69,13 +96,23 @@ int main(int argc, char** argv)
     // Before libmpv or any network access reads the environment.
     Net::bypassProxyForLoopback();
 #ifdef Q_OS_WIN
-    // FreeType, not Qt's default DirectWrite: our windows are translucent,
-    // so DirectWrite loses ClearType and falls back to grayscale AA, and its
-    // hinting at fractional sizes (13px at 125%) makes stems uneven — text
-    // came out jagged. FreeType renders the bundled Manrope as on Linux.
-    // Left alone if set, so it can still be overridden.
+    // FreeType, not Qt's default DirectWrite: at fractional display scales
+    // (13px at 125%) DirectWrite's text came out jagged, with uneven stems.
+    // FreeType renders the bundled Manrope as on Linux. Left alone if set,
+    // so it can still be overridden.
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
         qputenv("QT_QPA_PLATFORM", "windows:fontengine=freetype");
+    // Qt's FreeType engine doesn't read the system's ClearType setting: it
+    // takes the subpixel layout from this variable, else from a registry
+    // key only the ClearType tuner writes — so text was grayscale even
+    // with ClearType on. Read once; a change applies after a restart.
+    const FontSmoothing fontSmoothing = systemFontSmoothing();
+    if (qEnvironmentVariableIsEmpty("QT_SUBPIXEL_AA_TYPE")) {
+        if (fontSmoothing == FontSmoothing::ClearTypeRgb)
+            qputenv("QT_SUBPIXEL_AA_TYPE", "RGB");
+        else if (fontSmoothing == FontSmoothing::ClearTypeBgr)
+            qputenv("QT_SUBPIXEL_AA_TYPE", "BGR");
+    }
 #endif
     QApplication app(argc, argv);
     // Fusion, not whatever native style the desktop provides (Breeze under
@@ -119,7 +156,14 @@ int main(int argc, char** argv)
     // QFormLayout's auto-generated row QLabel, QDialogButtonBox, etc.)
     // silently falls back to whatever generic font Qt/the platform picks,
     // never matching the design system.
-    QApplication::setFont(Theme::font(Theme::TextStyle::Body));
+    QFont appFont = Theme::font(Theme::TextStyle::Body);
+#ifdef Q_OS_WIN
+    // Font smoothing turned off in the system: no antialiasing either. Every
+    // Theme::font() builds on this font, so they all inherit it.
+    if (fontSmoothing == FontSmoothing::Off)
+        appFont.setStyleStrategy(QFont::NoAntialias);
+#endif
+    QApplication::setFont(appFont);
     App::Core core;
     core.analytics().configure(QStringLiteral(CLOUDMUS_GA4_MEASUREMENT_ID), QStringLiteral(CLOUDMUS_VERSION));
     core.analytics().setDebugView(debugLoggingRequested());
