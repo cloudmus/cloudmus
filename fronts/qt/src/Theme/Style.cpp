@@ -8,11 +8,11 @@
 #include <QScreen>
 #include <QSplitter>
 #include <QStyleOption>
-#include <QTimer>
 #include <QToolButton>
 #include <QWindow>
 
 #include "Metrics.h"
+#include "PopupWindow.h"
 #include "Radius.h"
 #include "Shadow.h"
 #include "Spacing.h"
@@ -34,9 +34,16 @@ constexpr int kMenuShadowReach = 12;
 constexpr int kMenuShadowOffsetY = 2;
 constexpr int kMenuShadowMaxAlpha = 32;
 
-// The reserved width itself: none where the window system shadows popups
-// (Theme::popupShadowIsNative()).
+// The reserved width itself: none unless the shadow is painted in the
+// menu's own window (Theme::PopupLook).
 int menuShadowMargin() { return popupShadowMargin(kMenuShadowReach); }
+
+PopupShadow menuShadow()
+{
+    // Stronger over glass: the panel no longer stands out by being
+    // opaque, so the shadow has to carry its edge.
+    return { kMenuShadowReach, kMenuShadowOffsetY, glassEnabled() ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha };
+}
 
 // Where popupMenu() keeps a menu's anchor, in global coordinates.
 constexpr char kMenuAnchorProperty[] = "cloudmusMenuAnchor";
@@ -55,10 +62,8 @@ QRect menuPanelRect(const QRect& widgetRect)
 
 void paintMenuShadow(QPainter* painter, const QRect& panelRect)
 {
-    // Stronger over glass: the panel no longer stands out by being
-    // opaque, so the shadow has to carry its edge.
-    const int maxAlpha = glassEnabled() ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha;
-    paintSoftShadow(painter, panelRect, menuShadowMargin(), kMenuShadowOffsetY, maxAlpha, Radius::md);
+    const PopupShadow shadow = menuShadow();
+    paintSoftShadow(painter, panelRect, menuShadowMargin(), shadow.offsetY, shadow.maxAlpha, Radius::md);
 }
 
 // Places a submenu (window already sized, not yet mapped) beside the
@@ -223,14 +228,14 @@ void CloudMusStyle::polish(QWidget* widget)
         // also frameless — Qt::Popup alone isn't, and the shadow margin
         // came out black there. No native drop shadow either: Windows
         // would put a rectangular one around the whole window, and
-        // drawPrimitive() paints our own. Checked first: setWindowFlags()
-        // re-parents, not something to repeat on every re-polish.
-        // Where the window system shadows popups itself, its shadow is kept
-        // (Theme::popupShadowIsNative()).
-        const Qt::WindowFlags frameless = popupShadowIsNative() ? Qt::WindowFlags(Qt::FramelessWindowHint)
-                                                                : Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint;
-        if ((widget->windowFlags() & frameless) != frameless)
-            widget->setWindowFlags(widget->windowFlags() | frameless);
+        // drawPrimitive() paints our own. Except Windows 11's own popup
+        // look, which needs the opposite — popupWindowFlags() knows.
+        // Checked first: setWindowFlags() re-parents, not something to
+        // repeat on every re-polish.
+        const Qt::WindowFlags flags = popupWindowFlags(widget->windowFlags() | Qt::FramelessWindowHint);
+        if (widget->windowFlags() != flags)
+            widget->setWindowFlags(flags);
+        preparePopup(widget, /*clickThrough=*/false);
         widget->setAttribute(Qt::WA_TranslucentBackground);
         // "13px/600 — button labels, actionable menu items" is this design
         // system's own description of TextStyle::Button — Fusion's default
@@ -398,19 +403,12 @@ int CloudMusStyle::styleHint(
 
 bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)
 {
-    // With glass, the blur goes only behind the rounded panel, not the
-    // shadow margin around it — the mask follows the menu's size. Set once
-    // the menu is actually on screen: QEvent::Show comes before its surface
-    // exists, and a mask set then doesn't reach the compositor — the whole
-    // window got blurred, drowning the shadow.
-    if (glassEnabled() && (event->type() == QEvent::Show || event->type() == QEvent::Resize)) {
-        if (auto* menu = qobject_cast<QMenu*>(watched)) {
-            QTimer::singleShot(0, menu, [menu]() {
-                if (menu->isVisible()) {
-                    Integration::WindowGlass::enableBlurBehindPanel(menu, menuPanelRect(menu->rect()), Radius::md);
-                }
-            });
-        }
+    // The menu's glass and shadow (setUpPopup()), again as its size
+    // changes. On Show, before the menu is on screen: Windows 11's own
+    // popup look must be set by then; blur waits for the surface by itself.
+    if (event->type() == QEvent::Show || event->type() == QEvent::Resize) {
+        if (auto* menu = qobject_cast<QMenu*>(watched))
+            setUpPopup(menu, menuPanelRect(menu->rect()), Radius::md, menuShadow());
     }
     if (event->type() == QEvent::Show) {
         // QShowEvent is sent synchronously inside QWidget::setVisible(true),

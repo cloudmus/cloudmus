@@ -262,6 +262,7 @@ add_library(cloudmus-ui STATIC
     src/Theme/CoverPlaceholder.cpp
     src/Theme/StyleSheet.cpp
     src/Theme/Style.cpp
+    src/Theme/PopupWindow.cpp
 
     src/Integration/TrayIcon.cpp
     ${CLOUDMUS_PLATFORM_SOURCES}

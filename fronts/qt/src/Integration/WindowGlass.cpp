@@ -62,8 +62,10 @@ public:
     {
         apply(window, roundedRegion(panel, radius));
     }
-    // See blurClipsWindow().
-    virtual bool clipsWindow() const { return false; }
+    // See fallbackBlur(), nativePopups(), setUpNativePopup().
+    virtual bool isFallback() const { return false; }
+    virtual bool hasNativePopups() const { return false; }
+    virtual void setUpNativePopup(QWindow*, int, bool) { }
 };
 
 #if defined(CLOUDMUS_BLUR_WAYLAND)
@@ -307,7 +309,8 @@ private:
 // (Windows 10, Windows 11 21H2): the undocumented accent policy the shell
 // itself uses, with plain blur — weaker than the system apps' acrylic,
 // but its acrylic mode made windows lag badly while dragged or resized.
-// Popups take the accent path everywhere (see applyPanel()).
+// Popups: on Windows 11 22H2+ DWM's own (setUpNativePopup()), before it
+// the accent on the popup's window clipped to its panel (applyPanel()).
 class WindowsBackend : public Backend {
 public:
     static Backend* create()
@@ -360,7 +363,28 @@ public:
         setAccent(hwnd);
     }
 
-    bool clipsWindow() const override { return true; }
+    bool isFallback() const override { return !systemBackdrop_; }
+    bool hasNativePopups() const override { return systemBackdrop_; }
+
+    // Windows 11's own popup look, as its menus have: rounded corners and
+    // a shadow from DWM — for a window that isn't layered — and, with
+    // glass, the acrylic backdrop behind it. Our panel paints its own
+    // border, so DWM's is off. Applied before the window shows, so it
+    // never shows square or unextended (black where it's transparent).
+    void setUpNativePopup(QWindow* window, int radius, bool backdrop) override
+    {
+        const auto hwnd = reinterpret_cast<HWND>(window->winId());
+        const int corners = radius <= 4 ? 3 /* DWMWCP_ROUNDSMALL */ : 2 /* DWMWCP_ROUND */;
+        DwmSetWindowAttribute(hwnd, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &corners, sizeof(corners));
+        const COLORREF noBorder = 0xFFFFFFFE; // DWMWA_COLOR_NONE
+        DwmSetWindowAttribute(hwnd, 34 /* DWMWA_BORDER_COLOR */, &noBorder, sizeof(noBorder));
+        // Extended over the whole client area, its per-pixel alpha counts —
+        // the backdrop shows through the panel's translucent tint.
+        const MARGINS wholeWindow = { -1, -1, -1, -1 };
+        DwmExtendFrameIntoClientArea(hwnd, &wholeWindow);
+        const int type = backdrop ? 3 /* DWMSBT_TRANSIENTWINDOW */ : 1 /* DWMSBT_NONE */;
+        DwmSetWindowAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &type, sizeof(type));
+    }
 
 private:
     // user32's undocumented SetWindowCompositionAttribute() and its data.
@@ -473,7 +497,18 @@ Support support()
     return value;
 }
 
-bool blurClipsWindow() { return backend() != nullptr && backend()->clipsWindow(); }
+bool fallbackBlur() { return backend() != nullptr && backend()->isFallback(); }
+
+bool nativePopups() { return backend() != nullptr && backend()->hasNativePopups(); }
+
+void setUpNativePopup(QWidget* popup, int radius, bool backdrop)
+{
+    if (popup == nullptr || !nativePopups())
+        return;
+    popup->winId(); // the native window, before it shows
+    if (QWindow* handle = popup->windowHandle())
+        backend()->setUpNativePopup(handle, radius, backdrop);
+}
 
 namespace {
 // Runs `apply` with `window`'s native window once it's on screen.

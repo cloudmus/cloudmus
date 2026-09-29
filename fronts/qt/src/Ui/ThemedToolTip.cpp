@@ -11,12 +11,12 @@
 #include <QVariantAnimation>
 #include <QWidget>
 
+#include "PopupWindow.h"
 #include "Radius.h"
 #include "Shadow.h"
 #include "Spacing.h"
 #include "Tokens.h"
 #include "Typography.h"
-#include "WindowGlass.h"
 
 namespace Ui {
 
@@ -32,11 +32,12 @@ constexpr int kCursorOffset = 16; // roughly matches the native QToolTip's own o
 // getting silently clipped away invisible. Smaller/softer than the menu's
 // (12px reach, max alpha 32) since this popup is much smaller.
 constexpr int kShadowReach = 8;
-// The margin reserved for the shadow — none where the window system
-// shadows popups itself (Theme::popupShadowIsNative()).
+// The margin reserved for the shadow — none unless it's painted in the
+// tooltip's own window (Theme::PopupLook).
 int shadowMargin() { return Theme::popupShadowMargin(kShadowReach); }
 constexpr int kShadowOffsetY = 2;
 constexpr int kShadowMaxAlpha = 40;
+constexpr Theme::PopupShadow kShadow { kShadowReach, kShadowOffsetY, kShadowMaxAlpha };
 
 void paintShadow(QPainter* painter, const QRect& contentRect)
 {
@@ -52,8 +53,10 @@ void paintShadow(QPainter* painter, const QRect& contentRect)
 class ThemedToolTipPopup : public QWidget {
 public:
     ThemedToolTipPopup()
-        : QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput)
+        : QWidget(
+              nullptr, Theme::popupWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput))
     {
+        Theme::preparePopup(this, /*clickThrough=*/true);
         setAttribute(Qt::WA_TranslucentBackground); // real transparency outside the rounded shape
         setAttribute(Qt::WA_ShowWithoutActivating);
         setAttribute(Qt::WA_TransparentForMouseEvents); // never intercepts clicks
@@ -65,6 +68,7 @@ public:
         opacityAnim_ = new QVariantAnimation(this);
         connect(opacityAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
             opacity_ = value.toReal();
+            Theme::setPopupOpacity(this, opacity_);
             update();
         });
         opacityAnim_->setDuration(kAnimationMs);
@@ -91,15 +95,13 @@ public:
         const QSize contentSize(textSize.width() + padX * 2, textSize.height() + padY * 2);
         resize(contentSize.width() + shadowMargin() * 2, contentSize.height() + shadowMargin() * 2);
         reposition(globalPos);
+        // Glass behind just the rounded panel, not the shadow margin.
+        const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+        Theme::setUpPopup(this, content, Theme::Radius::sm, kShadow);
 
         animateOpacityTo(1.0);
         show();
         raise();
-        // Just the rounded panel, not the shadow margin around it.
-        if (Theme::glassEnabled()) {
-            const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
-            Integration::WindowGlass::enableBlurBehindPanel(this, content, Theme::Radius::sm);
-        }
     }
 
     void fadeOutAndHide()
@@ -143,6 +145,13 @@ protected:
 private:
     void animateOpacityTo(qreal target)
     {
+        if (!Theme::popupsFade()) {
+            opacity_ = target;
+            if (target <= 0.0)
+                hide();
+            update();
+            return;
+        }
         opacityAnim_->stop();
         opacityAnim_->setStartValue(opacity_);
         opacityAnim_->setEndValue(target);

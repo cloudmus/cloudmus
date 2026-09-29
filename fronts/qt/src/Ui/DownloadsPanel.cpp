@@ -17,12 +17,12 @@
 #include "Icons.h"
 #include "NowPlaying.h"
 #include "OverlayScrollBar.h"
+#include "PopupWindow.h"
 #include "Radius.h"
 #include "Shadow.h"
 #include "Spacing.h"
 #include "Tokens.h"
 #include "Typography.h"
-#include "WindowGlass.h"
 
 namespace Ui {
 
@@ -30,9 +30,11 @@ namespace {
 
 // Room around the panel for its shadow, as for menus (Theme::CloudMusStyle).
 constexpr int kShadowReach = 12;
-// The margin reserved for the shadow — none where the window system
-// shadows popups itself (Theme::popupShadowIsNative()).
+// The margin reserved for the shadow — none unless it's painted in the
+// panel's own window (Theme::PopupLook).
 int shadowMargin() { return Theme::popupShadowMargin(kShadowReach); }
+// Stronger over glass, as for menus.
+Theme::PopupShadow shadow() { return { kShadowReach, 2, Theme::glassEnabled() ? 56 : 32 }; }
 constexpr int kWidth = 360;
 constexpr int kMaxRowsHeight = 360;
 constexpr int kPad = Theme::Spacing::space3;
@@ -247,14 +249,14 @@ private:
 } // namespace
 
 DownloadsPanel::DownloadsPanel(ViewModel::Downloads& downloads, ViewModel::NowPlaying& nowPlaying, QWidget* parent)
-    // No native drop shadow: Windows would put a rectangular one around
-    // the whole window, shadow margin included; paintEvent() draws ours.
-    : QWidget(parent,
-          Qt::Popup | Qt::FramelessWindowHint
-              | (Theme::popupShadowIsNative() ? Qt::WindowFlags() : Qt::NoDropShadowWindowHint))
+    // No native drop shadow (popupWindowFlags()): Windows would put a
+    // rectangular one around the whole window, shadow margin included;
+    // paintEvent() draws ours — except with Windows 11's own popup look.
+    : QWidget(parent, Theme::popupWindowFlags(Qt::Popup | Qt::FramelessWindowHint))
     , downloads_(downloads)
     , nowPlaying_(nowPlaying)
 {
+    Theme::preparePopup(this, /*clickThrough=*/false);
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_DeleteOnClose);
 
@@ -317,9 +319,18 @@ void DownloadsPanel::popup(const QPoint& anchor)
     // windowOpacity, not painting with opacity like ThemedToolTip: that
     // wouldn't reach the child widgets. Windows only — Wayland has no
     // window opacity, and Linux compositors animate popups themselves.
+    // Not Windows 11's own popup look (Theme::popupsFade()): window
+    // opacity would make it a layered window, which DWM doesn't back.
+    if (!Theme::popupsFade()) {
+        show();
+        return;
+    }
     fade_ = new QPropertyAnimation(this, "windowOpacity", this);
     fade_->setDuration(kFadeMs);
     fade_->setEasingCurve(QEasingCurve::OutCubic);
+    // A shadow window of its own (Theme::PopupLook::Clipped) fades along.
+    connect(fade_, &QPropertyAnimation::valueChanged, this,
+        [this](const QVariant& value) { Theme::setPopupOpacity(this, value.toReal()); });
     connect(fade_, &QPropertyAnimation::finished, this, [this]() {
         if (fade_->endValue().toReal() <= 0.0) {
             fadedOut_ = true;
@@ -354,7 +365,7 @@ void DownloadsPanel::paintEvent(QPaintEvent*)
     painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
     painter.setRenderHint(QPainter::Antialiasing);
     const QRect panel = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
-    Theme::paintSoftShadow(&painter, panel, shadowMargin(), 2, Theme::glassEnabled() ? 56 : 32, Theme::Radius::md);
+    Theme::paintSoftShadow(&painter, panel, shadowMargin(), shadow().offsetY, shadow().maxAlpha, Theme::Radius::md);
     const Theme::Palette& pal = Theme::palette();
     QPainterPath path;
     path.addRoundedRect(QRectF(panel).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::md, Theme::Radius::md);
@@ -366,9 +377,17 @@ void DownloadsPanel::paintEvent(QPaintEvent*)
 void DownloadsPanel::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
-    if (Theme::glassEnabled()) {
+    const QRect panel = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+    Theme::setUpPopup(this, panel, Theme::Radius::md, shadow());
+}
+
+void DownloadsPanel::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    // The glass's shape follows the panel's (on show it's set up anyway).
+    if (isVisible()) {
         const QRect panel = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
-        Integration::WindowGlass::enableBlurBehindPanel(this, panel, Theme::Radius::md);
+        Theme::setUpPopup(this, panel, Theme::Radius::md, shadow());
     }
 }
 

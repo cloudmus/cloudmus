@@ -99,14 +99,12 @@ bool glassEnabled() { return glassEnabled_; }
 bool glassByDefault()
 {
     // Only where the desktop itself blurs: elsewhere glass is just a
-    // see-through window unless the user set up something to blur it.
-    return currentMode() == Mode::Dark
-        && Integration::WindowGlass::support() == Integration::WindowGlass::Support::Blur;
+    // see-through window unless the user set up something to blur it. Nor
+    // where the blur is a workaround (Windows 10's): weaker, and popups
+    // need a shadow window of their own — there only if asked for.
+    return currentMode() == Mode::Dark && Integration::WindowGlass::support() == Integration::WindowGlass::Support::Blur
+        && !Integration::WindowGlass::fallbackBlur();
 }
-
-bool popupShadowIsNative() { return glassEnabled_ && Integration::WindowGlass::blurClipsWindow(); }
-
-int popupShadowMargin(int margin) { return popupShadowIsNative() ? 0 : margin; }
 
 QColor glass(const QColor& color, qreal opacity)
 {

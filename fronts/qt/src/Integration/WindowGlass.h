@@ -22,9 +22,10 @@ namespace Integration::WindowGlass {
 //     no way for the app to ask for blur. The window can still be
 //     translucent, for a desktop extension to blur (on GNOME, Blur my
 //     Shell's per-application blur) — Support::SeeThrough.
-//   - Windows 11 22H2+: DWM's acrylic system backdrop; Windows 10: DWM's
-//     acrylic through the accent policy. Whole windows only — a popup's
-//     window is clipped to its panel instead, see blurClipsWindow().
+//   - Windows 11 22H2+: DWM's acrylic system backdrop, popups included
+//     (nativePopups()). Windows 10: DWM's blur through the undocumented
+//     accent policy, whole windows only (fallbackBlur()) — a popup's window
+//     is clipped to its panel instead.
 //   - macOS: not yet — the place for an NSVisualEffectView behind the
 //     window's content.
 
@@ -51,15 +52,26 @@ void enableBlurBehind(QWidget* window, const QRegion& region = QRegion());
 
 // Blurs behind a popup's rounded panel at `panel`, in the window's own
 // coordinates: the region just inside it (roundedRegion()) — or, where the
-// blur only covers whole windows (blurClipsWindow()), the window itself
+// blur only covers whole windows (fallbackBlur()), the window itself
 // clipped to the panel's shape. Same call-again rules as
 // enableBlurBehind().
 void enableBlurBehindPanel(QWidget* window, const QRect& panel, qreal radius);
 
-// Whether blur covers whole windows only (Windows), so a popup's window
-// gets clipped to its panel — leaving no room around it for a hand-painted
-// shadow: see Theme::popupShadowMargin().
-bool blurClipsWindow();
+// Whether the blur is a workaround: Windows 10's undocumented accent
+// policy — plain blur, whole windows only. Glass isn't on by default then.
+bool fallbackBlur();
+
+// Whether popups are the window system's own (Windows 11 22H2+): DWM
+// rounds a popup window's corners, shadows it and — with glass — puts its
+// acrylic backdrop behind it; the window is just the panel. See
+// Theme::PopupWindow.
+bool nativePopups();
+
+// Makes `popup` (shown or about to be, with its native window) such a
+// native popup: `radius` its corners' (DWM's two sizes: 4 or 8), `backdrop`
+// whether acrylic goes behind it. The window must not be layered — see
+// Theme::popupWindowFlags(). A no-op unless nativePopups().
+void setUpNativePopup(QWidget* popup, int radius, bool backdrop);
 
 // The region for blurring behind a rounded panel at `rect`, for
 // enableBlurBehind() — a little inside it, so no blur shows past its edge.

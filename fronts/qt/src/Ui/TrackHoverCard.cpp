@@ -13,6 +13,7 @@
 #include "CoverArtCache.h"
 #include "CoverPlaceholder.h"
 #include "Icons.h"
+#include "PopupWindow.h"
 #include "Radius.h"
 #include "Shadow.h"
 #include "Spacing.h"
@@ -21,7 +22,6 @@
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
 #include "Typography.h"
-#include "WindowGlass.h"
 
 namespace Ui {
 
@@ -36,11 +36,12 @@ constexpr int kCoverSide = 256;
 constexpr int kContentWidth = kCoverSide + 2 * kPadding;
 constexpr int kCursorOffset = 16;
 constexpr int kShadowReach = 12;
-// The margin reserved for the shadow — none where the window system
-// shadows popups itself (Theme::popupShadowIsNative()).
+// The margin reserved for the shadow — none unless it's painted in the
+// card's own window (Theme::PopupLook).
 int shadowMargin() { return Theme::popupShadowMargin(kShadowReach); }
 constexpr int kShadowOffsetY = 3;
 constexpr int kShadowMaxAlpha = 48;
+constexpr Theme::PopupShadow kShadow { kShadowReach, kShadowOffsetY, kShadowMaxAlpha };
 constexpr int kBadgeSize = 14;
 
 struct CardData {
@@ -75,9 +76,11 @@ QString coverUrlOf(const Track& track)
 class CardPopup : public QWidget {
 public:
     explicit CardPopup(Covers::CoverArtCache* coverCache)
-        : QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput)
+        : QWidget(
+              nullptr, Theme::popupWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput))
         , coverCache_(coverCache)
     {
+        Theme::preparePopup(this, /*clickThrough=*/true);
         setAttribute(Qt::WA_TranslucentBackground);
         setAttribute(Qt::WA_ShowWithoutActivating);
         setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -88,6 +91,7 @@ public:
         opacityAnim_ = new QVariantAnimation(this);
         connect(opacityAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
             opacity_ = value.toReal();
+            Theme::setPopupOpacity(this, opacity_);
             update();
         });
         opacityAnim_->setDuration(kAnimationMs);
@@ -112,15 +116,13 @@ public:
         const int contentHeight = layoutHeight();
         resize(kContentWidth + 2 * shadowMargin(), contentHeight + 2 * shadowMargin());
         reposition(globalPos);
+        // Glass behind just the rounded panel, not the shadow margin.
+        const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+        Theme::setUpPopup(this, content, Theme::Radius::md, kShadow);
         update();
         animateOpacityTo(1.0);
         show();
         raise();
-        // Just the rounded panel, not the shadow margin around it.
-        if (Theme::glassEnabled()) {
-            const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
-            Integration::WindowGlass::enableBlurBehindPanel(this, content, Theme::Radius::md);
-        }
     }
 
     void fadeOut()
@@ -280,6 +282,13 @@ private:
 
     void animateOpacityTo(qreal target)
     {
+        if (!Theme::popupsFade()) {
+            opacity_ = target;
+            if (target <= 0.0)
+                hide();
+            update();
+            return;
+        }
         opacityAnim_->stop();
         opacityAnim_->setStartValue(opacity_);
         opacityAnim_->setEndValue(target);

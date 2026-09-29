@@ -75,15 +75,6 @@ constexpr qreal kGlassOpacity = 0.8;
 // opaque color it stands in for.
 constexpr qreal kChromeGlassOpacity = 0.85;
 QColor glass(const QColor& color, qreal opacity = kGlassOpacity);
-// Whether a popup (a menu, a tooltip) gets the window system's own drop
-// shadow instead of the hand-painted one (Theme::paintSoftShadow()): with
-// glass where the blur clips the popup's window to its panel
-// (Integration::WindowGlass::blurClipsWindow()), there's no room around
-// the panel to paint one into.
-bool popupShadowIsNative();
-// The margin a popup reserves around its panel for the hand-painted
-// shadow: `margin`, or 0 when popupShadowIsNative().
-int popupShadowMargin(int margin);
 // With glass, the content area's list is a light layer of surface0 at this
 // opacity over the chrome glass, so it still reads a step darker.
 constexpr qreal kContentGlassLayer = 0.3;
