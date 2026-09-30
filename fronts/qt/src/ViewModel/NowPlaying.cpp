@@ -226,23 +226,30 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
         pendingDisliked_ = disliked;
         emit feedbackChanged();
     }
+    // No point listening to a track being disliked — move on right away, like
+    // the services' own players do, instead of waiting for the slow call.
+    // next() also sends the skip feedback a radio uses to adapt its upcoming
+    // tracks, and stops playback when the queue is over. The button stays
+    // busy (pendingDisliked_) until the call finishes.
+    if (disliked && isCurrent(sourceId, trackId)) {
+        playback_.next();
+        // The busy flag isn't per track: don't leave it on the next one.
+        if (!isShownTrack(sourceId, trackId)) {
+            pendingDisliked_.reset();
+            emit feedbackChanged();
+        }
+    }
     try {
         if (disliked)
             co_await Rpc::feedbackDislike(*client, DislikeParams { trackId });
         else
             co_await Rpc::feedbackUndislike(*client, UndislikeParams { trackId });
-        const bool wasCurrent = isCurrent(sourceId, trackId);
         if (isShownTrack(sourceId, trackId))
             pendingDisliked_.reset();
         // Cross-clears the like too (docs/protocol.md §7.4).
         trackStates_.setDisliked(sourceId, trackId, disliked);
         if (disliked)
             history_.markTrackLiked(sourceId, trackId, false);
-        // No point listening to a track just disliked — move on, like the
-        // services' own players do. next() also sends the skip feedback a
-        // radio uses to adapt its upcoming tracks.
-        if (wasCurrent && disliked)
-            playback_.next();
         if (announce)
             messages_.info(disliked ? tr("Disliked") : tr("Removed dislike"));
     } catch (const std::exception& e) {
