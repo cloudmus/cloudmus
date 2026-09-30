@@ -24,8 +24,9 @@ namespace App {
 
 // Everything the app is, short of its window: settings, the backends,
 // playback and the state kept about them. Created once in main() and alive
-// for the whole run — the window (and the tray, MPRIS, notifications) only
-// use it, so a window can come and go without anything here being lost.
+// for the whole run — the window (and the tray, MPRIS/SMTC, notifications)
+// only use it, so a window can come and go without anything here being
+// lost.
 class Core : public QObject {
     Q_OBJECT
 

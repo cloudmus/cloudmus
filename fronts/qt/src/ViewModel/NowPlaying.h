@@ -33,7 +33,7 @@ class Messages;
 // What's playing and what can be done about it: the track, playback state,
 // play modes, volume, and the track's like/dislike/download/playlists
 // actions — for every view of it (the transport bar, the hero panel, the
-// tray; MPRIS talks to Playback::PlaybackController directly). Views read
+// tray; MPRIS and SMTC talk to Playback::PlaybackController directly). Views read
 // it through the getters and the change signals and act only through its
 // methods; nothing here knows about widgets.
 class NowPlaying : public QObject {

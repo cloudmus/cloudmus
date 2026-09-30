@@ -40,7 +40,11 @@
 #ifdef Q_OS_WIN
 #include <windows.h>
 
-#include "FirstPaintCloak.h"
+#include <shobjidl.h>
+
+#include "FirstFrameBackground.h"
+#include "SmtcService.h"
+#include "TaskbarThumbButtons.h"
 #else
 #include "GlobalShortcuts.h"
 #include "MprisService.h"
@@ -96,6 +100,18 @@ int main(int argc, char** argv)
     // Before libmpv or any network access reads the environment.
     Net::bypassProxyForLoopback();
 #ifdef Q_OS_WIN
+    // Before any window exists (Microsoft's own guidance) — ties this
+    // process's windows, and Integration::SmtcService's session, to one
+    // stable identity, so Explorer can resolve an icon/name for them.
+    // Hardware media keys and the lock screen worked without this
+    // (SmtcService::pushThumbnail() feeds them the cover directly), but
+    // the volume flyout's "Now playing" card (Windows 10) stayed blank —
+    // that one specifically needs to resolve the running process back to
+    // a registered app. If it's still blank after this: the next step is
+    // giving packaging/windows/cloudmus.nsi's CreateShortCut calls the
+    // same id as a Start Menu shortcut property (System::Call +
+    // IPropertyStore) — untried so far, since this alone may be enough.
+    SetCurrentProcessExplicitAppUserModelID(L"CloudMus.CloudMus");
     // FreeType, not Qt's default DirectWrite: at fractional display scales
     // (13px at 125%) DirectWrite's text came out jagged, with uneven stems.
     // FreeType renders the bundled Manrope as on Linux. Left alone if set,
@@ -180,7 +196,8 @@ int main(int argc, char** argv)
         && Integration::WindowGlass::support() != Integration::WindowGlass::Support::None);
     Theme::applyGlobalStyleSheet(app);
 #ifdef Q_OS_WIN
-    app.installEventFilter(new Integration::FirstPaintCloak(&app));
+    static Integration::FirstFrameBackground firstFrameBackground;
+    app.installNativeEventFilter(&firstFrameBackground);
 #endif
     new Ui::ThemedToolTip(&app); // global service, not tied to any specific widget — see its own class doc
     // A bare-SVG QIcon lets Qt's SVG engine render sharply at whatever
@@ -208,7 +225,24 @@ int main(int argc, char** argv)
     Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &windowHost, &Ui::WindowHost::quit);
 
-#ifndef Q_OS_WIN
+#ifdef Q_OS_WIN
+    // Deferred to the event loop's first idle turn, not constructed here
+    // and now: SmtcService's first WinRT/COM calls (activating
+    // SystemMediaTransportControls, several synchronous round trips) can
+    // take a noticeable moment on a cold process, and running them ahead
+    // of windowHost.show() below was found to cost the window its DWM
+    // open/restore-from-minimize animation — apparently a show() that
+    // lands noticeably later than process start no longer reads to
+    // Explorer as a fresh launch. unique_ptr, not a value: both need
+    // playback/core, not available this early with default construction,
+    // and both must still outlive main()'s own return.
+    std::unique_ptr<Integration::SmtcService> smtc;
+    std::unique_ptr<Integration::TaskbarThumbButtons> taskbarThumbButtons;
+    QTimer::singleShot(0, &windowHost, [&]() {
+        smtc = std::make_unique<Integration::SmtcService>(playback, core.coverArtCache());
+        taskbarThumbButtons = std::make_unique<Integration::TaskbarThumbButtons>(windowHost, playback);
+    });
+#else
     Integration::MprisService mpris(playback, core.nowPlaying());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
     QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,

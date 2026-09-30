@@ -42,8 +42,8 @@ class PageStack;
 // right (Settings::PageStack — built lazily as it scrolls), Ok/Apply/
 // Cancel below. Custom global-hotkey rebinding UI is not built yet
 // (Integration::GlobalShortcuts uses a fixed default binding set for now) —
-// hardware media keys work regardless via MPRIS, which doesn't need any
-// UI here.
+// hardware media keys work regardless via MPRIS (Linux) or SMTC (Windows),
+// neither of which needs any UI here.
 class SettingsDialog : public QDialog {
     Q_OBJECT
 

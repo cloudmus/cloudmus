@@ -204,8 +204,10 @@ set(CLOUDMUS_PLATFORM_SOURCES)
 if(WIN32)
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
         src/Integration/AutostartWin.cpp
-        src/Integration/FirstPaintCloakWin.cpp
-        src/Integration/NotificationToastWin.cpp)
+        src/Integration/FirstFrameBackgroundWin.cpp
+        src/Integration/NotificationToastWin.cpp
+        src/Integration/SmtcService.cpp
+        src/Integration/TaskbarThumbButtons.cpp)
 else()
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
         src/Integration/Autostart.cpp
@@ -288,8 +290,11 @@ if(TARGET Qt6::DBus)
 endif()
 if(WIN32)
     # Tray balloons sent directly (NotificationToastWin.cpp); DWM for
-    # window cloaking (FirstPaintCloakWin.cpp) and glass (WindowGlass.cpp).
-    target_link_libraries(cloudmus-ui PRIVATE shell32 dwmapi)
+    # first-frame background (FirstFrameBackgroundWin.cpp) and glass (WindowGlass.cpp);
+    # runtimeobject for WinRT activation (Ro*), shcore + shlwapi to hand a
+    # cover to SMTC without an http(s) URL (SmtcService.cpp); ole32 for
+    # CoCreateInstance(ITaskbarList3) (TaskbarThumbButtons.cpp).
+    target_link_libraries(cloudmus-ui PRIVATE shell32 dwmapi runtimeobject shcore shlwapi ole32)
 endif()
 
 # Glass (Integration::WindowGlass): blur asked of the compositor directly —
@@ -361,6 +366,10 @@ endif()
 target_include_directories(cloudmus-qt PRIVATE ${VERSION_DIR})
 add_dependencies(cloudmus-qt cloudmus_version)
 target_link_libraries(cloudmus-qt PRIVATE cloudmus-ui)
+if(WIN32)
+    # SetCurrentProcessExplicitAppUserModelID(), called from main.cpp itself.
+    target_link_libraries(cloudmus-qt PRIVATE shell32)
+endif()
 # Crash reports' stacks name the app's own functions only if they're in
 # the dynamic symbol table (backtrace_symbols_fd reads that, not debug info).
 if(NOT WIN32)
