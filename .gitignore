@@ -17,3 +17,6 @@ fronts/qt/generated/
 
 # Qt Creator's local project state (build kit, paths — machine-specific)
 fronts/qt/.qtcreator/
+
+# VS Code workspace settings (machine-specific)
+.vscode/
