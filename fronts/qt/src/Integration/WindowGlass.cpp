@@ -65,6 +65,10 @@ public:
     // See fallbackBlur(), nativePopups(), setUpNativePopup().
     virtual bool isFallback() const { return false; }
     virtual bool hasNativePopups() const { return false; }
+    // Whether apply()/applyPanel() work on a native window that isn't on
+    // screen yet — then there's no need to wait for it to be mapped, and the
+    // first frame is already blurred.
+    virtual bool appliesBeforeShow() const { return false; }
     virtual void setUpNativePopup(QWindow*, int, bool) { }
 };
 
@@ -309,8 +313,10 @@ private:
 // (Windows 10, Windows 11 21H2): the undocumented accent policy the shell
 // itself uses, with plain blur — weaker than the system apps' acrylic,
 // but its acrylic mode made windows lag badly while dragged or resized.
-// Popups: on Windows 11 22H2+ DWM's own (setUpNativePopup()), before it
-// the accent on the popup's window clipped to its panel (applyPanel()).
+// Popups: on any Windows 11 (22000+) DWM's own rounded corners and shadow
+// (setUpNativePopup()) — with the system backdrop on 22H2+, the acrylic
+// accent before it; on Windows 10 the accent on the popup's window clipped
+// to its panel (applyPanel()).
 class WindowsBackend : public Backend {
 public:
     static Backend* create()
@@ -324,7 +330,11 @@ public:
             qCWarning(lcGlass) << "no SetWindowCompositionAttribute in user32";
             return nullptr;
         }
-        return new WindowsBackend(setAttribute, os >= QOperatingSystemVersion::Windows11_22H2);
+        const bool nativePopups = os >= QOperatingSystemVersion::Windows11;
+        const bool systemBackdrop = os >= QOperatingSystemVersion::Windows11_22H2;
+        qCInfo(lcGlass) << "Windows build" << os.microVersion() << "- system backdrop:" << systemBackdrop
+                        << "native popups:" << nativePopups;
+        return new WindowsBackend(setAttribute, systemBackdrop, nativePopups);
     }
 
     void apply(QWindow* window, const QRegion& region) override
@@ -364,7 +374,8 @@ public:
     }
 
     bool isFallback() const override { return !systemBackdrop_; }
-    bool hasNativePopups() const override { return systemBackdrop_; }
+    bool hasNativePopups() const override { return nativePopups_; }
+    bool appliesBeforeShow() const override { return true; }
 
     // Windows 11's own popup look, as its menus have: rounded corners and
     // a shadow from DWM — for a window that isn't layered — and, with
@@ -382,13 +393,23 @@ public:
         // the backdrop shows through the panel's translucent tint.
         const MARGINS wholeWindow = { -1, -1, -1, -1 };
         DwmExtendFrameIntoClientArea(hwnd, &wholeWindow);
-        const int type = backdrop ? 3 /* DWMSBT_TRANSIENTWINDOW */ : 1 /* DWMSBT_NONE */;
-        DwmSetWindowAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &type, sizeof(type));
+        if (systemBackdrop_) {
+            const int type = backdrop ? 3 /* DWMSBT_TRANSIENTWINDOW */ : 1 /* DWMSBT_NONE */;
+            DwmSetWindowAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &type, sizeof(type));
+        } else if (backdrop) {
+            // Windows 11 21H2 has no system backdrop: the acrylic accent
+            // instead, fine for a popup that's never dragged or resized
+            // (the lag that kept it off the main window). Plain blur if
+            // it's refused.
+            if (!setAccent(hwnd, kAccentAcrylic, 0x01000000))
+                setAccent(hwnd, kAccentBlur, 0);
+        }
     }
 
 private:
     // user32's undocumented SetWindowCompositionAttribute() and its data.
     static constexpr int kAccentBlur = 3; // ACCENT_ENABLE_BLURBEHIND
+    static constexpr int kAccentAcrylic = 4; // ACCENT_ENABLE_ACRYLICBLURBEHIND
     struct AccentPolicy {
         int state;
         int flags;
@@ -402,22 +423,25 @@ private:
     };
     using SetWindowCompositionAttributeFn = BOOL(WINAPI*)(HWND, CompositionAttributeData*);
 
-    WindowsBackend(SetWindowCompositionAttributeFn setAttribute, bool systemBackdrop)
+    WindowsBackend(SetWindowCompositionAttributeFn setAttribute, bool systemBackdrop, bool nativePopups)
         : setAttribute_(setAttribute)
         , systemBackdrop_(systemBackdrop)
+        , nativePopups_(nativePopups)
     {
     }
 
-    void setAccent(HWND hwnd)
+    bool setAccent(HWND hwnd, int state = kAccentBlur, DWORD gradientColor = 0)
     {
-        AccentPolicy accent = { kAccentBlur, 0, 0, 0 };
+        AccentPolicy accent = { state, 0, gradientColor, 0 };
         CompositionAttributeData data = { 19 /* WCA_ACCENT_POLICY */, &accent, sizeof(accent) };
-        setAttribute_(hwnd, &data);
+        return setAttribute_(hwnd, &data) != FALSE;
     }
 
     SetWindowCompositionAttributeFn setAttribute_;
     // Windows 11 22H2+: the main window gets DWM's system backdrop.
     bool systemBackdrop_;
+    // Windows 11 (any build): DWM's own popup look.
+    bool nativePopups_;
 };
 #endif
 
@@ -521,6 +545,10 @@ void applyWhenShown(QWidget* window, std::function<void(QWindow*)> apply)
     QWindow* handle = window->windowHandle();
     if (handle == nullptr)
         return;
+    if (backend()->appliesBeforeShow()) {
+        apply(handle);
+        return;
+    }
     // Once it's on screen: a window being shown gets its native surface
     // only as it's mapped, after the show event this is usually called
     // from.
