@@ -96,8 +96,10 @@ CloudMus; remove it through Windows Settings. Settings and sign-in data are
 kept under `%APPDATA%\cloudmus`, and caches under `%LOCALAPPDATA%\cloudmus`.
 The installer includes Python, Qt and the three built-in backends.
 
-On Windows the tray, notifications and launch-at-login setting work. Linux
-media keys, MPRIS and KDE shortcuts are specific to Linux.
+On Windows the tray, notifications and launch-at-login setting work, and
+media keys plus the volume flyout's/quick settings' media card work through
+System Media Transport Controls (SMTC), MPRIS' Windows counterpart. MPRIS
+itself and KDE global shortcuts are specific to Linux.
 
 ## First steps
 

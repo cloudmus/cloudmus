@@ -33,7 +33,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: appimage
-          path: dist/CloudMus-x86_64.AppImage
+          path: dist/CloudMus-*-x86_64.AppImage
 
   windows:
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: dist/CloudMus-x86_64-Setup.exe
+          path: dist/CloudMus-*-x86_64-Setup.exe
 
   windows-smoke:
     needs: windows
@@ -64,7 +64,7 @@ jobs:
         shell: pwsh
         run: |
           $installDir = "$env:LOCALAPPDATA\Programs\CloudMus"
-          $installer = Join-Path $PWD 'CloudMus-x86_64-Setup.exe'
+          $installer = (Get-ChildItem -Path $PWD -Filter 'CloudMus-*-x86_64-Setup.exe' | Select-Object -First 1).FullName
           $process = Start-Process -FilePath $installer -ArgumentList '/S' -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "NSIS installation failed: $($process.ExitCode)" }
           $app = Join-Path $installDir 'cloudmus-qt.exe'
@@ -103,8 +103,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          asset="dist/CloudMus-${TAG}-x86_64.AppImage"
-          cp dist/CloudMus-x86_64.AppImage "$asset"
+          # The AppImage/installer are already named with their own
+          # version (packaging/appimage and packaging/windows's
+          # build-in-docker.sh, from `git describe`), which matches TAG
+          # exactly for a clean tagged checkout like this one.
+          appimage_asset="$(ls dist/CloudMus-*-x86_64.AppImage)"
+          windows_asset="$(ls dist/CloudMus-*-x86_64-Setup.exe)"
           # Release notes = the annotated tag's message minus its first
           # line (the version), see docs/releasing.md. Re-fetched
           # explicitly: checkout can leave the tag as a lightweight one.
@@ -124,6 +128,4 @@ jobs:
           else
               gh release create "$TAG" --verify-tag --title "$TAG" "${notes[@]}"
           fi
-          windows_asset="dist/CloudMus-${TAG}-x86_64-Setup.exe"
-          cp dist/CloudMus-x86_64-Setup.exe "$windows_asset"
-          gh release upload "$TAG" "$asset" "$windows_asset" --clobber
+          gh release upload "$TAG" "$appimage_asset" "$windows_asset" --clobber

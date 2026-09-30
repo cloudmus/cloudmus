@@ -15,7 +15,7 @@ The full installer, once and for packaging changes (slow: it also bundles
 Python and the backends):
 
 ```bash
-./build-windows.sh     # -> dist/CloudMus-x86_64-Setup.exe, dist/windows-stage/
+./build-windows.sh     # -> dist/CloudMus-<version>-x86_64-Setup.exe, dist/windows-stage/
 ```
 
 After that, to check that a change compiles and links for Windows, rebuild

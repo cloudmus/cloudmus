@@ -83,6 +83,13 @@ for backend_id in ('local-folder', 'yandex-music', 'youtube-music'):
     source = pathlib.Path('backends') / backend_id
     manifest = json.loads((source / 'manifest.json').read_text(encoding='utf-8'))
     manifest['argv'] = ['../python/python.exe', *manifest['argv'][1:]]
+    # manifest['icon'] is "icon.svg", resolved relative to the manifest's
+    # own directory (Rpc::BackendManifest::parseManifest) — on Linux/dev
+    # that's backends/<id>/icon.svg, next to backends/<id>/manifest.json,
+    # but here every backend's files land flattened into one directory, so
+    # the icon has to be renamed to match, or that lookup silently misses.
+    if 'icon' in manifest:
+        manifest['icon'] = f'{backend_id}.svg'
     (dest / f'{backend_id}.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
     (dest / f'{backend_id}.svg').write_bytes((source / 'icon.svg').read_bytes())
 PY
@@ -90,9 +97,10 @@ PY
 echo '==> Building NSIS installer'
 bitmaps_dir="${build_dir}/installer-bitmaps"
 packaging/windows/make-installer-bitmaps.sh "${bitmaps_dir}"
+installer="${repo_dir}/dist/CloudMus-${version}-x86_64-Setup.exe"
 makensis -V2 -DVERSION="${version}" -DSTAGING="${stage_dir}" \
     -DCLOUDMUS_ICON="${repo_dir}/packaging/windows/cloudmus.ico" \
     -DBITMAPS="${bitmaps_dir}" \
-    -DOUTPUT="${repo_dir}/dist/CloudMus-x86_64-Setup.exe" \
+    -DOUTPUT="${installer}" \
     packaging/windows/cloudmus.nsi
-echo '==> Built dist/CloudMus-x86_64-Setup.exe'
+echo "==> Built ${installer#${repo_dir}/}"

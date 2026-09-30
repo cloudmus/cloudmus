@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs *inside* the packaging/appimage/Dockerfile container, with the
 # repo bind-mounted at /workspace (see build-appimage.sh). Produces
-# dist/CloudMus-x86_64.AppImage.
+# dist/CloudMus-<version>-x86_64.AppImage.
 set -euo pipefail
 
 REPO_ROOT="$(pwd)"
@@ -14,6 +14,16 @@ APPIMAGE_TOOLS_DIR="/opt/appimage-tools"
 # cmake/Version.cmake's `git describe` would silently fall back to the
 # bare base version instead of the release tag.
 git config --global --add safe.directory "${REPO_ROOT}"
+
+# Same derivation as cmake/Version.cmake and packaging/windows/build-in-docker.sh
+# (duplicated rather than shared: this is plain bash, not CMake, and it's
+# three lines) — used for the AppImage's own filename below.
+version="$(git describe --tags --dirty --match '[0-9]*' --match 'v[0-9]*' 2>/dev/null || true)"
+if [ -z "${version}" ]; then
+    commit="$(git describe --always --dirty=.dirty 2>/dev/null || true)"
+    version="0.1.0${commit:+\+g${commit}}"
+fi
+version="${version#v}"
 
 rm -rf "${APPDIR}"
 mkdir -p "${APPDIR}" "${DIST_DIR}"
@@ -406,7 +416,8 @@ chmod +x "${APPDIR}/AppRun"
 
 # --- 7. Package the final AppImage ---
 echo "==> Running appimagetool"
+appimage="${DIST_DIR}/CloudMus-${version}-x86_64.AppImage"
 "${APPIMAGE_TOOLS_DIR}/appimagetool/AppRun" \
-    "${APPDIR}" "${DIST_DIR}/CloudMus-x86_64.AppImage"
+    "${APPDIR}" "${appimage}"
 
-echo "==> Built: dist/CloudMus-x86_64.AppImage"
+echo "==> Built: ${appimage#${REPO_ROOT}/}"

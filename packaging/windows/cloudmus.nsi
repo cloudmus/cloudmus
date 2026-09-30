@@ -41,10 +41,18 @@ SetCompressor /SOLID lzma
 !define MUI_HEADERIMAGE_BITMAP "${BITMAPS}/header-100.bmp"
 !define MUI_CUSTOMFUNCTION_GUIINIT dpiGuiInit
 !define MUI_CUSTOMFUNCTION_UNGUIINIT un.dpiGuiInit
+; Its image control (${NSD_CreateBitmap} in MUI2's Welcome.nsh) is sized
+; from dialog units, not a clean percentage of 164x314 — close to
+; dpiGuiInit's swapped-in bitmap at the display's scale, but usually not
+; pixel-exact, and a static control stretches to fill whatever size it
+; ended up at, distorting the picture. resizeWelcomeImage forces it back
+; to the bitmap's own exact size once the page (and so the control) exists.
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW resizeWelcomeImage
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\cloudmus-qt.exe"
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW resizeFinishImage
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
@@ -114,6 +122,35 @@ Var DpiScale
 !macroend
 !insertmacro DPI_GUIINIT ""
 !insertmacro DPI_GUIINIT "un."
+
+; $DpiScale's own welcome-<scale>.bmp is exactly 164xDpiScale% by
+; 314xDpiScale% (make-installer-bitmaps.sh renders every scale off the
+; same 164x314 SVG, just zoomed) — the size MUI_PAGE_CUSTOMFUNCTION_SHOW
+; forces $VAR (the page's bitmap control, already created by the time SHOW
+; runs) to, so it always exactly matches what's actually loaded into it.
+!macro RESIZE_WIZARD_IMAGE VAR
+  Push $0
+  Push $1
+  Push $2
+  IntOp $1 164 * $DpiScale
+  IntOp $1 $1 / 100
+  IntOp $2 314 * $DpiScale
+  IntOp $2 $2 / 100
+  StrCpy $0 ${VAR}
+  ; SetWindowPos(hWnd, NULL, 0, 0, cx, cy, SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE)
+  System::Call 'USER32::SetWindowPos(pr0,p0,i0,i0,ir1,ir2,i0x16)'
+  Pop $2
+  Pop $1
+  Pop $0
+!macroend
+
+Function resizeWelcomeImage
+  !insertmacro RESIZE_WIZARD_IMAGE $mui.WelcomePage.Image
+FunctionEnd
+
+Function resizeFinishImage
+  !insertmacro RESIZE_WIZARD_IMAGE $mui.FinishPage.Image
+FunctionEnd
 
 Function .onInit
   SetShellVarContext current

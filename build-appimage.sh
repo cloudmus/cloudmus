@@ -48,5 +48,3 @@ docker run --rm \
     -w /workspace \
     cloudmus-appimage-builder \
     bash packaging/appimage/build-in-docker.sh
-
-echo "Built: dist/CloudMus-x86_64.AppImage"

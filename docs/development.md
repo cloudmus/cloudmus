@@ -103,13 +103,13 @@ Build the AppImage (needs only Docker; the Debian 11 build container in
 `packaging/appimage/` sets the glibc 2.31 floor):
 
 ```bash
-./build-appimage.sh   # -> dist/CloudMus-x86_64.AppImage
+./build-appimage.sh   # -> dist/CloudMus-<version>-x86_64.AppImage
 ```
 
 Build the Windows x64 NSIS installer from Linux with Docker:
 
 ```bash
-./build-windows.sh    # -> dist/CloudMus-x86_64-Setup.exe
+./build-windows.sh    # -> dist/CloudMus-<version>-x86_64-Setup.exe
 ```
 
 The Windows builder in `packaging/windows/` installs the official Qt MinGW

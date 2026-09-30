@@ -22,5 +22,3 @@ mkdir -p dist
 docker run --rm "${proxy_run_envs[@]}" "${ga4_run_envs[@]}" \
     -v "$PWD":/workspace:z -w /workspace cloudmus-windows-builder \
     bash packaging/windows/build-in-docker.sh
-
-echo "Built: dist/CloudMus-x86_64-Setup.exe"
