@@ -227,7 +227,8 @@ private:
     {
         if (reply_ == nullptr)
             return;
-        if (headSent_ && !(resuming_ && noResume_)) {
+        // An aborted reply is closed but still finishes: nothing left to read.
+        if (headSent_ && !(resuming_ && noResume_) && reply_->isOpen()) {
             while (socket_->bytesToWrite() < kSocketHighWater && reply_->bytesAvailable() > 0) {
                 const QByteArray chunk = reply_->read(kChunkBytes);
                 socket_->write(chunk);
@@ -235,7 +236,7 @@ private:
                 gotData_ = true;
             }
         }
-        if (upstreamFinished_ && reply_->bytesAvailable() == 0)
+        if (upstreamFinished_ && (!reply_->isOpen() || reply_->bytesAvailable() == 0))
             onUpstreamDone();
     }
 
@@ -243,6 +244,9 @@ private:
     {
         const QNetworkReply::NetworkError error = reply_->error();
         const QString errorText = reply_->errorString();
+        // Signals the HTTP thread queued before an abort still arrive
+        // (metaDataChanged, readyRead) — after reply_ is gone.
+        reply_->disconnect(this);
         reply_->deleteLater();
         reply_ = nullptr;
         upstreamFinished_ = false;
@@ -388,7 +392,8 @@ QUrl StreamRelay::prefetch(const QUrl& upstream, const QNetworkProxy& proxy, con
             }
         }
         target.contentType = reply->rawHeader("Content-Type");
-        target.prefix += reply->read(kPrefetchBytes - target.prefix.size());
+        if (reply->isOpen())
+            target.prefix += reply->read(kPrefetchBytes - target.prefix.size());
         if (reply->isFinished() && target.totalLength == target.prefix.size())
             target.complete = true;
         if (target.prefix.size() >= kPrefetchBytes && !reply->isFinished())
