@@ -43,7 +43,9 @@ Qt::WindowFlags popupWindowFlags(Qt::WindowFlags flags);
 void preparePopup(QWidget* popup, bool clickThrough);
 
 // Whether popups fade in and out: not Native ones, whose backdrop and
-// shadow (DWM's) can't fade along with what we paint.
+// shadow (DWM's) can't fade along with what we paint, nor Painted ones
+// over the compositor's blur, which can't either — the compositor fades
+// those itself, blur included, as it does menus.
 bool popupsFade();
 
 // A popup's hand-painted shadow (paintSoftShadow()).

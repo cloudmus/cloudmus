@@ -185,7 +185,20 @@ void preparePopup(QWidget* popup, bool clickThrough)
 #endif
 }
 
-bool popupsFade() { return popupLook() != PopupLook::Native; }
+bool popupsFade()
+{
+    switch (popupLook()) {
+        case PopupLook::Native:
+            return false;
+        case PopupLook::Painted:
+            // No blur protocol has an opacity: painted fading left the blur
+            // at full strength until the popup hid, then it vanished at once.
+            return !(glassEnabled() && Integration::WindowGlass::support() == Integration::WindowGlass::Support::Blur);
+        case PopupLook::Clipped:
+            break;
+    }
+    return true;
+}
 
 void setUpPopup(QWidget* popup, const QRect& panel, int radius, const PopupShadow& shadow)
 {
