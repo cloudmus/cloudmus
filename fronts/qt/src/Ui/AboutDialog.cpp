@@ -120,11 +120,18 @@ AboutDialog::AboutDialog(QWidget* parent)
 
     // --- description
     description_
-        = makeLabel(tr("A lightweight music player for your cloud music services. Every service is a pluggable "
-                       "backend — a separate program speaking a small JSON-RPC protocol — so new ones can be "
-                       "written in any programming language."),
+        = makeLabel(tr("A beautiful desktop music player for all your music services at once. Streaming services "
+                       "and your local music folder in one fast app, with the same controls for every service."),
             Theme::TextStyle::Body, this);
     description_->setAlignment(Qt::AlignCenter);
+
+    auto* projectLabel = makeLabel(
+        link(QStringLiteral("https://github.com/cloudmus/cloudmus"), QStringLiteral("github.com/cloudmus/cloudmus")),
+        Theme::TextStyle::Body, this);
+    projectLabel->setTextFormat(Qt::RichText);
+    projectLabel->setOpenExternalLinks(true);
+    projectLabel->setAlignment(Qt::AlignCenter);
+    projectLabel->setWordWrap(false); // one short line — its minimum is then its real size
 
     // --- Authors / License tabs
     auto* authorsLabel = makeLabel(
@@ -213,6 +220,7 @@ AboutDialog::AboutDialog(QWidget* parent)
     root->addLayout(header);
     root->addSpacing(Theme::Spacing::space4);
     root->addWidget(description_);
+    root->addWidget(projectLabel);
     root->addSpacing(Theme::Spacing::space4);
     root->addLayout(tabRow);
     root->addWidget(pages, 1); // takes any extra height when resized
