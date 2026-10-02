@@ -15,8 +15,8 @@
 ---
 
 CloudMus — *cloud music* — brings Yandex Music, YouTube Music and your
-local music folder into one native desktop app: a glass window on Linux
-that blurs your desktop behind it, big cover art, smooth animations, light
+local music folder into one native desktop app for Windows and Linux: a
+glass window that blurs your desktop behind it, big cover art, smooth animations, light
 and dark themes. No browser tabs, no Electron wrappers: one fast player with the
 same controls for every service.
 
@@ -28,9 +28,9 @@ Spotify, Apple Music, SoundCloud, TuneIn, VK Music, Zvuk (Sber) and others.
 - **Every service in one place** — switch between Yandex Music, YouTube
   Music and your own files in the same sidebar, with one queue, one
   history and one set of controls. More services can be added as plug-ins.
-- **Looks great** — a frosted-glass background (real blur on KDE Plasma
-  and Wayland compositors, see-through on GNOME with Blur my Shell), light,
-  dark or system theme, hero panels with large covers, overlay scrollbars
+- **Looks great** — a frosted-glass background (acrylic on Windows 11,
+  blur on Windows 10, real blur on KDE Plasma and Wayland compositors,
+  see-through on GNOME with Blur my Shell), light, dark or system theme, hero panels with large covers, overlay scrollbars
   and animated transitions.
 - **Endless personal radio** — Yandex My Wave and personal playlists
   (Playlist of the Day, Déjà Vu, Premiere…), YouTube Music mixes
@@ -43,9 +43,11 @@ Spotify, Apple Music, SoundCloud, TuneIn, VK Music, Zvuk (Sber) and others.
   album.
 - **Your library, editable** — like and dislike, add the playing track to
   your playlists or remove it, from the toolbar, the track menu or the tray.
-- **Part of your desktop** — tray icon with playback controls, media keys
-  and MPRIS (seek, volume, shuffle, repeat), KDE global shortcuts, track
-  notifications with covers, launch at login.
+- **Part of your desktop** — on Windows and Linux alike: tray icon with
+  playback controls, media keys, track notifications, launch at login.
+  On Windows the player shows up in the volume flyout and quick settings;
+  on Linux it speaks MPRIS (seek, volume, shuffle, repeat) and supports
+  KDE global shortcuts.
 - **Proxies per service** — HTTP and SOCKS5 proxies, chosen per source;
   streams and covers go through them too.
 - **Picks up where you left off** — the last playlist and track are
@@ -54,8 +56,42 @@ Spotify, Apple Music, SoundCloud, TuneIn, VK Music, Zvuk (Sber) and others.
 
 ## Download and install
 
-CloudMus for Linux is published as an **AppImage** — a single file that
-bundles everything it needs.
+CloudMus runs on **Windows** and **Linux** (x86_64). Both downloads are on
+the [latest release](https://github.com/cloudmus/cloudmus/releases/latest)
+page.
+
+### Windows
+
+**Requirements:** Windows 10 or 11, x64.
+
+1. Download `CloudMus-<version>-x86_64-Setup.exe` from the
+   [latest release](https://github.com/cloudmus/cloudmus/releases/latest).
+2. Run it. It installs for the current user without administrator
+   rights.
+
+**Updating:** close CloudMus and run a newer installer.
+
+**Uninstalling:** remove CloudMus through Windows Settings. Settings and
+sign-in data are kept under `%APPDATA%\cloudmus`, and caches under
+`%LOCALAPPDATA%\cloudmus` — delete them too to remove everything.
+
+What works on Windows:
+
+- glass background: acrylic blur behind the window, menus and popups on
+  Windows 11, blur on Windows 10;
+- tray icon with playback controls;
+- track notifications;
+- launch at login;
+- media keys and the media card in the volume flyout and quick settings,
+  through System Media Transport Controls (SMTC).
+
+### Linux
+
+CloudMus for Linux is published as an [**AppImage**](https://appimage.org/)
+— a single file that bundles everything it needs.
+
+**Requirements:** x86_64 Linux with glibc 2.31 or newer (Debian 11,
+Ubuntu 20.04, Fedora 32, openSUSE Leap 15.3 or later).
 
 1. Download `CloudMus-<version>-x86_64.AppImage` from the
    [latest release](https://github.com/cloudmus/cloudmus/releases/latest).
@@ -74,10 +110,9 @@ afterwards it can be started from there. Keep the AppImage where you put
 it — the menu entry points at that file; if you move it, launch it once
 from the new place.
 
-**Requirements:** x86_64 Linux with glibc 2.31 or newer (Debian 11,
-Ubuntu 20.04, Fedora 32, openSUSE Leap 15.3 or later). If the AppImage
-refuses to start with a FUSE error, install `libfuse2` (`libfuse2t64` on
-Ubuntu 24.04+), or run it with `--appimage-extract-and-run`.
+If the AppImage refuses to start with a FUSE error, install `libfuse2`
+(`libfuse2t64` on Ubuntu 24.04+), or run it with
+`--appimage-extract-and-run`.
 
 **Updating:** download the new release's AppImage and replace the old file.
 
@@ -87,19 +122,17 @@ Ubuntu 24.04+), or run it with `--appimage-extract-and-run`.
 Settings, sign-in tokens and history live in `~/.config/cloudmus/`, cached
 covers in `~/.cache/cloudmus/` — delete them too to remove everything.
 
-### Windows
+What works on Linux:
 
-Download `CloudMus-<version>-x86_64-Setup.exe` from the same release and run
-it on Windows 10 or 11 (x64). It installs for the current user without
-administrator rights. Update by running a newer installer after closing
-CloudMus; remove it through Windows Settings. Settings and sign-in data are
-kept under `%APPDATA%\cloudmus`, and caches under `%LOCALAPPDATA%\cloudmus`.
-The installer includes Python, Qt and the three built-in backends.
-
-On Windows the tray, notifications and launch-at-login setting work, and
-media keys plus the volume flyout's/quick settings' media card work through
-System Media Transport Controls (SMTC), MPRIS' Windows counterpart. MPRIS
-itself and KDE global shortcuts are specific to Linux.
+- glass background: real blur on KDE Plasma and Wayland compositors with
+  the standard blur protocol, see-through on GNOME with an extension such
+  as Blur my Shell;
+- tray icon with playback controls;
+- track notifications with covers;
+- launch at login;
+- media keys and desktop media widgets through MPRIS (seek, volume,
+  shuffle, repeat);
+- global shortcuts on KDE Plasma.
 
 ## First steps
 
