@@ -319,9 +319,8 @@ void DownloadsPanel::popup(const QPoint& anchor)
     // windowOpacity, not painting with opacity like ThemedToolTip: that
     // wouldn't reach the child widgets. Windows only — Wayland has no
     // window opacity, and Linux compositors animate popups themselves.
-    // Not Windows 11's own popup look (Theme::popupsFade()): window
-    // opacity would make it a layered window, which DWM doesn't back.
-    if (!Theme::popupsFade()) {
+    // On Windows 11 as menus fade there (Theme::PopupFade::Window).
+    if (Theme::popupFade() == Theme::PopupFade::None) {
         show();
         return;
     }

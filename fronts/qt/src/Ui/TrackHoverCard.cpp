@@ -85,9 +85,11 @@ public:
         setAttribute(Qt::WA_ShowWithoutActivating);
         setAttribute(Qt::WA_TransparentForMouseEvents);
 
-        // Fades by painting with opacity, not by windowOpacity: Wayland has
-        // no window opacity (Qt logs "This plugin does not support setting
-        // window opacity" on every animation step and just doesn't fade).
+        // Fades as Theme::popupFade() says: by painting with opacity — not
+        // by windowOpacity, as Wayland has no window opacity (Qt logs "This
+        // plugin does not support setting window opacity" on every
+        // animation step and just doesn't fade) — or, on Windows 11, by
+        // the window's opacity (Theme::setPopupOpacity()), as menus fade.
         opacityAnim_ = new QVariantAnimation(this);
         connect(opacityAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
             opacity_ = value.toReal();
@@ -120,6 +122,8 @@ public:
         const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
         Theme::setUpPopup(this, content, Theme::Radius::md, kShadow);
         update();
+        // Shown at the fade's current opacity, not one opaque frame first.
+        Theme::setPopupOpacity(this, opacity_);
         animateOpacityTo(1.0);
         show();
         raise();
@@ -139,7 +143,7 @@ protected:
         painter.setCompositionMode(QPainter::CompositionMode_Source);
         painter.fillRect(rect(), Qt::transparent);
         painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-        painter.setOpacity(opacity_);
+        painter.setOpacity(Theme::popupFade() == Theme::PopupFade::Painted ? opacity_ : 1.0);
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
@@ -282,7 +286,7 @@ private:
 
     void animateOpacityTo(qreal target)
     {
-        if (!Theme::popupsFade()) {
+        if (Theme::popupFade() == Theme::PopupFade::None) {
             opacity_ = target;
             if (target <= 0.0)
                 hide();

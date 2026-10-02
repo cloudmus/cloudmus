@@ -42,11 +42,22 @@ Qt::WindowFlags popupWindowFlags(Qt::WindowFlags flags);
 // with Qt::WindowTransparentForInput, which a Native popup can't have.
 void preparePopup(QWidget* popup, bool clickThrough);
 
-// Whether popups fade in and out: not Native ones, whose backdrop and
-// shadow (DWM's) can't fade along with what we paint, nor Painted ones
-// over the compositor's blur, which can't either — the compositor fades
-// those itself, blur included, as it does menus.
-bool popupsFade();
+// How popups fade in and out.
+enum class PopupFade {
+    // Not at all: Painted popups over the compositor's blur, which can't
+    // fade along with what we paint — the compositor fades those itself,
+    // blur included, as it does menus.
+    None,
+    // By painting with opacity (setPopupOpacity() fades a Clipped popup's
+    // shadow window along). Not by window opacity: Wayland has none.
+    Painted,
+    // By the window's opacity: Native popups, as QMenu's own fade does
+    // there. DWM's backdrop and shadow can't fade along with what we
+    // paint; this way the window is layered while it fades, without them,
+    // and gets them back once opaque.
+    Window,
+};
+PopupFade popupFade();
 
 // A popup's hand-painted shadow (paintSoftShadow()).
 struct PopupShadow {
@@ -60,8 +71,8 @@ struct PopupShadow {
 // Clipped, the shadow window under it. `radius`: the panel's corners.
 void setUpPopup(QWidget* popup, const QRect& panel, int radius, const PopupShadow& shadow);
 
-// The popup's opacity while it fades by painting: a Clipped popup's shadow
-// window fades along.
+// The popup's opacity while it fades: its window's own when the fade is
+// PopupFade::Window; a Clipped popup's shadow window fades along.
 void setPopupOpacity(QWidget* popup, qreal opacity);
 
 } // namespace Theme
