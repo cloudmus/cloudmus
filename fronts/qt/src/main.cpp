@@ -178,6 +178,13 @@ int main(int argc, char** argv)
     // Theme::font() builds on this font, so they all inherit it.
     if (fontSmoothing == FontSmoothing::Off)
         appFont.setStyleStrategy(QFont::NoAntialias);
+    // Qt's FreeType engine hints fully on Windows by default, which snaps
+    // every glyph's advance to whole pixels: letter gaps came out uneven
+    // and jumped by a pixel when a label turned bold (the sidebar's
+    // selected item). Vertical-only hinting keeps the font's own advances,
+    // placed at subpixel positions — as on Linux with fontconfig's
+    // hintslight.
+    appFont.setHintingPreference(QFont::PreferVerticalHinting);
 #endif
     QApplication::setFont(appFont);
     App::Core core;
