@@ -605,8 +605,9 @@ void setUpNativePopup(QWidget* popup, int radius, bool backdrop)
 }
 
 namespace {
-// Runs `apply` with `window`'s native window once it's on screen.
-void applyWhenShown(QWidget* window, std::function<void(QWindow*)> apply)
+// Runs `apply` with `window`'s native window once it's on screen — or right
+// away, before it shows, where the backend allows it and `beforeShow`.
+void applyWhenShown(QWidget* window, bool beforeShow, std::function<void(QWindow*)> apply)
 {
     if (window == nullptr || backend() == nullptr)
         return;
@@ -615,7 +616,7 @@ void applyWhenShown(QWidget* window, std::function<void(QWindow*)> apply)
     QWindow* handle = window->windowHandle();
     if (handle == nullptr)
         return;
-    if (backend()->appliesBeforeShow()) {
+    if (beforeShow && backend()->appliesBeforeShow()) {
         apply(handle);
         return;
     }
@@ -642,12 +643,17 @@ void applyWhenShown(QWidget* window, std::function<void(QWindow*)> apply)
 
 void enableBlurBehind(QWidget* window, const QRegion& region)
 {
-    applyWhenShown(window, [region](QWindow* target) { backend()->apply(target, region); });
+    // Not on Windows 10's accent: a frame first shown with it already on
+    // had its title bar blurred too, see-through, with the caption's text
+    // on a black box. Set once the window is up, it leaves the caption as
+    // DWM has already drawn it.
+    applyWhenShown(window, !backend() || !backend()->isFallback(),
+        [region](QWindow* target) { backend()->apply(target, region); });
 }
 
 void enableBlurBehindPanel(QWidget* window, const QRect& panel, qreal radius)
 {
-    applyWhenShown(window, [panel, radius](QWindow* target) { backend()->applyPanel(target, panel, radius); });
+    applyWhenShown(window, true, [panel, radius](QWindow* target) { backend()->applyPanel(target, panel, radius); });
 }
 
 QRegion roundedRegion(const QRect& rect, qreal radius)
