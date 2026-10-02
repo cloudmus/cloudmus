@@ -27,6 +27,8 @@
 #endif
 
 #if defined(Q_OS_WIN)
+#include <QAbstractNativeEventFilter>
+#include <QCoreApplication>
 #include <QOperatingSystemVersion>
 #include <QtMath>
 
@@ -304,6 +306,58 @@ private:
 #endif
 
 #if defined(Q_OS_WIN)
+// DWM draws its system backdrop only behind a window it takes for framed
+// and active. A popup is neither: Qt makes it a plain WS_POPUP, which got
+// no backdrop at all, and shows it without activating it, which would get
+// the backdrop's flat inactive tint. So a popup with a backdrop gets a
+// caption style with its non-client area collapsed to nothing, and its
+// frame is told it's active whenever it shows — for DWM only, focus stays
+// where it was.
+constexpr char kFramedBackdropProperty[] = "cloudmusFramedBackdrop";
+
+class FramedBackdropFilter : public QAbstractNativeEventFilter {
+public:
+    static void install()
+    {
+        static FramedBackdropFilter* filter = nullptr;
+        if (filter == nullptr) {
+            filter = new FramedBackdropFilter; // lives as long as the app
+            QCoreApplication::instance()->installNativeEventFilter(filter);
+        }
+    }
+
+    bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override
+    {
+        if (eventType != "windows_generic_MSG")
+            return false;
+        const auto* msg = static_cast<const MSG*>(message);
+        if (msg->message != WM_NCCALCSIZE && msg->message != WM_NCACTIVATE && msg->message != WM_WINDOWPOSCHANGED)
+            return false;
+        const QWidget* widget = QWidget::find(reinterpret_cast<WId>(msg->hwnd));
+        if (widget == nullptr || widget->windowHandle() == nullptr
+            || !widget->windowHandle()->property(kFramedBackdropProperty).toBool())
+            return false;
+        switch (msg->message) {
+            case WM_NCCALCSIZE:
+                // All of the window is client area: no caption, no border.
+                if (result != nullptr)
+                    *result = 0;
+                return true;
+            case WM_NCACTIVATE: {
+                // Never inactive, whatever activation does around it.
+                const LRESULT handled = DefWindowProcW(msg->hwnd, WM_NCACTIVATE, TRUE, msg->lParam);
+                if (result != nullptr)
+                    *result = handled;
+                return true;
+            }
+            default: // WM_WINDOWPOSCHANGED
+                if (reinterpret_cast<const WINDOWPOS*>(msg->lParam)->flags & SWP_SHOWWINDOW)
+                    SendMessageW(msg->hwnd, WM_NCACTIVATE, TRUE, 0);
+                return false;
+        }
+    }
+};
+
 // Windows: DWM blurs behind a whole window only, no region — a popup's
 // window is clipped to its panel instead (a window region), which the
 // accent's blur follows. Windows 11 22H2 and later: the documented system backdrop,
@@ -385,6 +439,18 @@ public:
     void setUpNativePopup(QWindow* window, int radius, bool backdrop) override
     {
         const auto hwnd = reinterpret_cast<HWND>(window->winId());
+        const bool framedBackdrop = systemBackdrop_ && backdrop;
+        if (framedBackdrop) {
+            FramedBackdropFilter::install();
+            window->setProperty(kFramedBackdropProperty, true);
+            const LONG_PTR style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+            if ((style & WS_CAPTION) != WS_CAPTION) {
+                SetWindowLongPtrW(hwnd, GWL_STYLE, style | WS_CAPTION);
+                // The frame is recalculated (to nothing) right away.
+                SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                    SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+        }
         const int corners = radius <= 4 ? 3 /* DWMWCP_ROUNDSMALL */ : 2 /* DWMWCP_ROUND */;
         DwmSetWindowAttribute(hwnd, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &corners, sizeof(corners));
         const COLORREF noBorder = 0xFFFFFFFE; // DWMWA_COLOR_NONE
@@ -396,6 +462,10 @@ public:
         if (systemBackdrop_) {
             const int type = backdrop ? 3 /* DWMSBT_TRANSIENTWINDOW */ : 1 /* DWMSBT_NONE */;
             DwmSetWindowAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &type, sizeof(type));
+            // Active from the start; FramedBackdropFilter repeats it as
+            // the window shows.
+            if (framedBackdrop)
+                SendMessageW(hwnd, WM_NCACTIVATE, TRUE, 0);
         } else if (backdrop) {
             // Windows 11 21H2 has no system backdrop: the acrylic accent
             // instead, fine for a popup that's never dragged or resized
