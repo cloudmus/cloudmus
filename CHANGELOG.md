@@ -1,3 +1,18 @@
+# 0.4.0 (2026-10-04)
+
+- Keyboard navigation: a rounded focus ring that follows each control's shape appears only while moving with the keyboard, Tab goes in reading order, and Enter/Space open or play playlists and tracks
+- YouTube Music: the sign-in box also accepts a cURL command copied from Chrome, and the login is checked right away instead of silently leaving the library empty
+- Sources: when a source's playlists fail to load, the sidebar shows a warning with the reason
+- Protocol 1.10: optional `network` capability; sources without a network (the local folder) have no Connection setting
+- Theme: hover, pressed and selected highlights let the glass blur through, disabled toolbar buttons look faded, dislike is a crossed-out heart, and the sign-in paste box uses the themed scrollbar
+- Tray: a white icon on GNOME's always-dark top bar, whatever the app theme
+- Dialogs: short notices keep their natural size instead of being resizable
+- Fix buttons looking disabled after switching between light and dark themes
+- Fix the settings dialog clipping sections when squeezed narrow, and a sidebar click stopping short of a section that was still loading
+- Fix a crash on Wayland when a menu was reopened quickly
+- Fix the main menu opening as an empty strip on a multi-monitor setup
+- Fix local tracks not playing when their source had a direct or proxy connection set (e.g. on Windows)
+
 # 0.3.0 (2026-10-03)
 
 - Windows: a native installer (with a visible-but-question-free update mode) and the same player as on Linux — glass behind the window, menus and popups on Windows 10 and 11, a tray icon that follows the system theme, a title bar in the app's color scheme, system media keys, the lock screen and the volume flyout's media card, Previous/Play-Pause/Next buttons on the taskbar thumbnail, silent notifications, and crisp text that follows the system's ClearType setting
