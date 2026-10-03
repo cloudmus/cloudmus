@@ -1,3 +1,17 @@
+# 0.3.0 (2026-10-03)
+
+- Windows: a native installer (with a visible-but-question-free update mode) and the same player as on Linux — glass behind the window, menus and popups on Windows 10 and 11, a tray icon that follows the system theme, a title bar in the app's color scheme, system media keys, the lock screen and the volume flyout's media card, Previous/Play-Pause/Next buttons on the taskbar thumbnail, silent notifications, and crisp text that follows the system's ClearType setting
+- Updates: CloudMus checks GitHub releases at startup and from the menu's "Check for Updates…", lists what's new since your version with release dates, and installs the update itself — download with progress and time left (the player stays usable), then a restart into the new version; a declined version isn't offered again, the next one is
+- Notifications: a setting to turn the track-change ones off
+- The About dialog links to the project on GitHub and describes the player for listeners
+- Multi-line text fields look like line edits, with the border lit on focus
+- Packaging: the installer and the AppImage are named with their version
+- Yandex Music and YouTube Music reuse one connection for all their requests
+- Glass: no dark band inside the edges of menus and popups, and tooltips and the hover card fade out together with their blur
+- Fix a disliked track playing on for a while: the skip happens first
+- Fix playback errors when seeking or switching tracks mid-stream
+- Fix a gap under the shadow of popups, and menus that jumped from their anchor when they flipped
+
 # 0.2.0 (2026-09-28)
 
 - Theme setting: follow the system, or force light or dark
