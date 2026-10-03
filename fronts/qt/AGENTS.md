@@ -37,3 +37,13 @@ into core (a service or view model) with a test, not into `MainWindow`.
   need no folder; `generated/` is exempt.
 - Format before committing (config: `fronts/qt/_clang-format`):
   `clang-format -i fronts/qt/src/**/*.{h,cpp}`
+- Don't hardcode sizes (pixel widths/heights, opening sizes, minimums)
+  without need — use Qt's own mechanisms: layouts, size policies, stretch
+  factors, layout size constraints (`QLayout::setSizeConstraint`), and
+  `sizeHint()`/`adjustSize()` for the opening size. To stop a window growing
+  one way, give its widgets a `Maximum`/`Fixed` size policy in that
+  direction and let the layout's constraint carry it to the window. Not
+  `setFixedSize`/`setFixedHeight`/`setMinimumSize`, a `resize()` to a
+  constant, or a hand-computed `sizeHint()` — only where truly unavoidable
+  (a square icon button, a progress bar's thickness), with a comment saying
+  why.
