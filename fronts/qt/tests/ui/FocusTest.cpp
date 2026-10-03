@@ -8,6 +8,7 @@
 
 #include "FocusRing.h"
 #include <QImage>
+#include <QKeyEvent>
 #include <QStyleFactory>
 
 #include "NowPlayingBar.h"
@@ -17,6 +18,17 @@
 #include "Tokens.h"
 
 namespace Tests {
+
+namespace {
+// What pressing Tab does, without moving focus by itself: the key goes
+// through the app-wide filter (FocusRing), then focus lands on `widget`.
+void tabTo(QWidget* widget)
+{
+    QKeyEvent tab(QEvent::ShortcutOverride, Qt::Key_Tab, Qt::NoModifier);
+    QApplication::sendEvent(widget, &tab);
+    widget->setFocus(Qt::TabFocusReason);
+}
+} // namespace
 
 class FocusTest : public QObject {
     Q_OBJECT
@@ -96,7 +108,7 @@ private slots:
 
         // Focus has to move for a FocusIn (the first widget already has it).
         other->setFocus(Qt::MouseFocusReason);
-        button->setFocus(Qt::TabFocusReason);
+        tabTo(button);
         QImage image = button->grab().toImage();
         const QColor accent = Theme::palette().accent;
         // On the ring at the left edge of the circle's middle, and not in the corner a square box would hit.
@@ -127,7 +139,7 @@ private slots:
         window.activateWindow();
         QVERIFY(QTest::qWaitForWindowActive(&window));
         other->setFocus(Qt::MouseFocusReason);
-        button->setFocus(Qt::TabFocusReason);
+        tabTo(button);
         const QImage image = button->grab().toImage();
         const QColor accent = Theme::palette().accent;
         QVERIFY(image.pixelColor(1, 18) == accent || image.pixelColor(2, 18) == accent);
@@ -149,12 +161,29 @@ private slots:
         QVERIFY(!Theme::focusVisible(&button));
 
         button.clearFocus();
-        button.setFocus(Qt::TabFocusReason);
+        tabTo(&button);
         QVERIFY(Theme::focusVisible(&button));
 
         QMouseEvent press(
             QEvent::MouseButtonPress, QPointF(1, 1), QPointF(1, 1), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
         QApplication::sendEvent(&button, &press);
+        QVERIFY(!Theme::focusVisible(&button));
+    }
+
+    void tabReasonWithoutAKeyPressShowsNoRing()
+    {
+        Theme::FocusRing ring;
+        QWidget probe;
+        QMouseEvent reset(
+            QEvent::MouseButtonPress, QPointF(1, 1), QPointF(1, 1), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&probe, &reset);
+        QPushButton button;
+        button.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&button));
+
+        // Qt hands focus on with this reason by itself when the focused
+        // widget is disabled — no one navigated.
+        button.setFocus(Qt::TabFocusReason);
         QVERIFY(!Theme::focusVisible(&button));
     }
 };

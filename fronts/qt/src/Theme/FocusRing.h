@@ -10,8 +10,9 @@ namespace Theme {
 
 // Keyboard focus is shown only while the user navigates by keyboard (like
 // CSS :focus-visible): a click on a button must not leave a ring behind.
-// One app-wide filter tracks that mode — Tab/Backtab/shortcut focus turns it
-// on, any mouse press turns it off — and repaints the focused widget when
+// One app-wide filter tracks that mode — Tab/Backtab/shortcut focus caused by
+// a key press turns it on (a focus move the program made on its own, such as
+// when the focused button gets disabled, doesn't), any mouse press turns it off — and repaints the focused widget when
 // it flips.
 class FocusRing : public QObject {
     Q_OBJECT

@@ -5,6 +5,7 @@
 #include <QEvent>
 #include <QFocusEvent>
 #include <QPainter>
+#include <QTimer>
 
 #include "Metrics.h"
 #include "Tokens.h"
@@ -14,6 +15,12 @@ namespace Theme {
 namespace {
 
 bool g_keyboardMode = false;
+// A key press is being delivered right now. Focus moves with Tab reason
+// that nobody asked for with the keyboard — the focused button got disabled
+// (Next at the end of the queue), a hidden widget gave up focus — so the
+// reason alone says nothing: only a focus change inside a key event's
+// delivery is the user navigating. Cleared once that event is done.
+bool g_keyInFlight = false;
 
 void repaintFocused()
 {
@@ -47,7 +54,8 @@ bool FocusRing::eventFilter(QObject* watched, QEvent* event)
                 case Qt::TabFocusReason:
                 case Qt::BacktabFocusReason:
                 case Qt::ShortcutFocusReason:
-                    setKeyboardMode(true);
+                    if (g_keyInFlight)
+                        setKeyboardMode(true);
                     break;
                 case Qt::MouseFocusReason:
                     setKeyboardMode(false);
@@ -57,6 +65,13 @@ bool FocusRing::eventFilter(QObject* watched, QEvent* event)
             }
             break;
         }
+        case QEvent::KeyPress:
+        case QEvent::ShortcutOverride:
+            if (!g_keyInFlight) {
+                g_keyInFlight = true;
+                QTimer::singleShot(0, qApp, []() { g_keyInFlight = false; });
+            }
+            break;
         case QEvent::MouseButtonPress:
             setKeyboardMode(false);
             break;
