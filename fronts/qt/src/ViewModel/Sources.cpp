@@ -92,19 +92,18 @@ Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
     const bool shouldFetch = browse.value(QStringLiteral("playlists")).toBool()
         || browse.value(QStringLiteral("likedTracks")).toBool() || browse.value(QStringLiteral("radio")).toBool();
     QList<Playlist> playlists;
-    // Set when the fetch failed with a client-side timeout (RpcClient's own
-    // local deadline, error code -1 — see RpcClient::registerPending) while
-    // otherwise looking fine — worth surfacing, unlike the routine
-    // "not-yet-authenticated" rejection below, which always fails fast with
-    // a proper error object rather than by timing out, so it can never hit
-    // this branch.
-    bool fetchTimedOut = false;
+    // Why the fetch failed, for the user. Left empty for the auth range
+    // (1000–1099, docs/protocol.md §9): a not-yet-signed-in source rejects
+    // this routinely at startup, and its sign-in prompt already says so.
+    QString fetchError;
     if (shouldFetch) {
         try {
             ListPlaylistsResult result = co_await Rpc::catalogListPlaylists(*client);
             playlists = result.playlists;
         } catch (const Rpc::RpcCallException& e) {
-            fetchTimedOut = e.error().code == -1;
+            const int code = e.error().code;
+            if (code < 1000 || code > 1099)
+                fetchError = code == -1 ? tr("timed out loading playlists") : QString::fromUtf8(e.what());
             qCWarning(lcSources) << "catalog.listPlaylists failed for" << sourceId << ":" << e.what();
         } catch (const std::exception& e) {
             // std::exception, not Rpc::RpcCallException — critically also
@@ -120,16 +119,9 @@ Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
             // appeared as a sidebar row at all, not just missing its
             // playlists.
             //
-            // No message to the user here — this runs automatically (not
-            // from a button) and RpcCallException specifically fires
-            // routinely for every not-yet-authenticated source at startup,
-            // which isn't worth interrupting the user for. But any failure
-            // here can also mean a real upstream problem for a source that
-            // IS authenticated, which used to be entirely invisible —
-            // console log it either way so that case is at least
-            // diagnosable without re-running the backend by hand. The
-            // sidebar itself simply won't show playlists for this source
-            // until it retries (e.g. after it signs in).
+            // Reported to the user below, like an RpcCallException — a
+            // silently empty source looks the same as one with no playlists.
+            fetchError = QString::fromUtf8(e.what());
             qCWarning(lcSources) << "catalog.listPlaylists failed for" << sourceId << ":" << e.what();
         }
     }
@@ -145,9 +137,9 @@ Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
     // case this call would otherwise silently wipe it back off.
     showAuthState(sourceId);
     model_.setSourceLoading(sourceId, client->sourceName(), false);
-    model_.setSourceFetchError(sourceId, client->sourceName(), fetchTimedOut);
-    if (fetchTimedOut)
-        messages_.error(tr("%1: timed out loading playlists").arg(client->sourceName()));
+    model_.setSourceFetchError(sourceId, client->sourceName(), !fetchError.isEmpty());
+    if (!fetchError.isEmpty())
+        messages_.error(tr("%1: %2").arg(client->sourceName(), fetchError));
     emit sourceChanged(sourceId);
     emit playlistsLoaded(sourceId, playlists);
 }
