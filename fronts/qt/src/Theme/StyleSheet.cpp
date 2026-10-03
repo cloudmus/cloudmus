@@ -290,7 +290,8 @@ QString trackListBlock(const Palette& p)
         .arg(css(background));
 }
 
-// Covers QLineEdit app-wide by widget TYPE (so any future one — dialog or
+// Covers QLineEdit (and the multi-line QTextEdit/QPlainTextEdit, a text
+// browser included — their inner margin is the document's) app-wide by widget TYPE (so any future one — dialog or
 // not — gets the design system's look for free). QCheckBox is scoped to
 // themed dialogs: in menus its indicator is drawn by Theme::CloudMusStyle
 // instead, which a matching ::indicator rule here would override. The dialog
@@ -316,16 +317,16 @@ QString dialogsBlock(const Palette& p)
     const QString checkIcon = iconAssetPath(QStringLiteral("check"), IconColor::OnAccent, 12);
 
     return QStringLiteral(R"(QDialog[themed="true"] { background: %1; color: %2; }
-QLineEdit {
+QLineEdit, QTextEdit, QPlainTextEdit {
     background: %3;
     border: 1px solid %4;
     border-radius: %5px;
-    padding: %6px %7px;
     color: %2;
     selection-background-color: %8;
     selection-color: %9;
 }
-QLineEdit:focus { border: 1px solid %8; }
+QLineEdit { padding: %6px %7px; }
+QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus { border: 1px solid %8; }
 QLineEdit[variant="filter"] { padding: %7px %7px; border-radius: %12px; }
 QDialog[themed="true"] QCheckBox { spacing: %7px; color: %2; }
 QDialog[themed="true"] QCheckBox::indicator {

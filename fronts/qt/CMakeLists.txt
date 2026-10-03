@@ -133,13 +133,17 @@ add_library(cloudmus-core STATIC
 
     src/Diagnostics/CrashReporter.cpp
 
+    src/Update/ReleaseFeed.cpp
+    src/Update/UpdateChecker.cpp
+    src/Update/UpdateDownloader.cpp
+
     ${GENERATED_DIR}/RpcMethods.cpp
 )
 add_dependencies(cloudmus-core protocol_codegen_cpp)
 if(WIN32)
-    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterWin.cpp)
+    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterWin.cpp src/Update/InstallerWin.cpp)
 else()
-    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp)
+    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerPosix.cpp)
 endif()
 
 # GCC needs this explicitly for C++20 coroutines (Rpc::Task<T>,
@@ -168,6 +172,7 @@ target_include_directories(cloudmus-core PUBLIC
     src/App
     src/ViewModel
     src/Diagnostics
+    src/Update
 )
 
 target_link_libraries(cloudmus-core PUBLIC
@@ -222,6 +227,8 @@ add_library(cloudmus-ui STATIC
     src/Ui/DownloadsPanel.cpp
     src/Ui/AboutDialog.cpp
     src/Ui/InfoDialog.cpp
+    src/Ui/UpdateDialog.cpp
+    src/Ui/UpdateFlow.cpp
     src/Ui/NavItemDelegate.cpp
     src/Ui/TrackListModel.cpp
     src/Ui/TrackRowDelegate.cpp
@@ -392,6 +399,7 @@ add_executable(cloudmus-qt-tests
     tests/AnalyticsTest.cpp
     tests/StreamRelayTest.cpp
     tests/CrashReporterTest.cpp
+    tests/UpdateTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

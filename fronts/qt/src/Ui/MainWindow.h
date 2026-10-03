@@ -82,6 +82,8 @@ public:
 
 signals:
     void aboutToReallyQuit();
+    // The menu's "Check for Updates…" (Ui::UpdateFlow answers it).
+    void checkForUpdatesRequested();
 
 protected:
     void closeEvent(QCloseEvent* event) override;

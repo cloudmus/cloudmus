@@ -99,6 +99,13 @@ cmake --build fronts/qt/build
 CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
 ```
 
+To try the updater, run with `--update-from=0.0.1`: it then checks (at startup
+too) as if that version were running, and offers the latest GitHub release.
+Installing works only from an AppImage (Linux) or an installed copy
+(Windows); from a build directory the dialog offers the release page instead.
+To test the Linux install itself, copy an old AppImage somewhere writable and
+run it with that flag: `CloudMus-0.2.0-x86_64.AppImage --update-from=0.0.1`.
+
 Build the AppImage (needs only Docker; the Debian 11 build container in
 `packaging/appimage/` sets the glibc 2.31 floor):
 

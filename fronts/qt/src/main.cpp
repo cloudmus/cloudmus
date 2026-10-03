@@ -33,6 +33,7 @@
 #include "Tokens.h"
 #include "TrayIcon.h"
 #include "Typography.h"
+#include "UpdateFlow.h"
 #include "Version.h"
 #include "WindowGlass.h"
 #include "WindowHost.h"
@@ -191,6 +192,15 @@ int main(int argc, char** argv)
     core.analytics().configure(QStringLiteral(CLOUDMUS_GA4_MEASUREMENT_ID), QStringLiteral(CLOUDMUS_VERSION));
     core.analytics().setDebugView(debugLoggingRequested());
     core.analytics().recordLaunch();
+    // --update-from=<x.y.z>: check for updates as if that version were
+    // running — to try the whole update flow from a dev build, which
+    // otherwise is neither checked at startup nor older than any release.
+    QString updateVersion = QStringLiteral(CLOUDMUS_VERSION);
+    for (const QString& argument : app.arguments()) {
+        if (argument.startsWith(QLatin1String("--update-from=")))
+            updateVersion = argument.mid(QLatin1String("--update-from=").size());
+    }
+    core.updates().configure(updateVersion);
     Config::Settings& settings = core.settings();
     Rpc::SourceManager& sourceManager = core.sourceManager();
     Playback::PlaybackController& playback = core.playback();
@@ -325,6 +335,8 @@ int main(int argc, char** argv)
         shutdownAll(sourceManager, done).detach();
     });
 
+    Ui::UpdateFlow updateFlow(core.updates(), windowHost);
+
     sourceManager.startAll();
 
     Integration::Autostart::refresh();
@@ -357,6 +369,7 @@ int main(int argc, char** argv)
     } else {
         windowHost.show();
     }
+    updateFlow.checkAtStartup();
 
     return QApplication::exec();
 }

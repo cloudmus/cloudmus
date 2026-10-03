@@ -18,6 +18,7 @@ Core::Core(QObject* parent)
     , browse_(sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_, activePlaylist_,
           playlistEditing_, messages_)
     , sourcePage_(sourceSession_)
+    , updates_(settings_)
 {
     // A source that stops leaves nothing to stream the rest of its track from.
     connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, [this](const QString& sourceId) {

@@ -23,6 +23,7 @@ void WindowHost::create()
 {
     window_ = std::make_unique<MainWindow>(core_);
     connect(window_.get(), &MainWindow::aboutToReallyQuit, this, &WindowHost::aboutToReallyQuit);
+    connect(window_.get(), &MainWindow::checkForUpdatesRequested, this, &WindowHost::checkForUpdatesRequested);
     emit windowCreated(window_.get());
 }
 

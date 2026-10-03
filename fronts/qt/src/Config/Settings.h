@@ -162,6 +162,11 @@ public:
     bool downloadsEnabled() const;
     void setDownloadsEnabled(bool on);
 
+    // The update the user declined (Update::UpdateChecker): not offered
+    // again at startup — a newer one is.
+    QString skippedUpdateVersion() const;
+    void setSkippedUpdateVersion(const QString& version);
+
     bool analyticsEnabled() const;
     void setAnalyticsEnabled(bool on);
     // Random installation identifier, kept when analytics is switched off.

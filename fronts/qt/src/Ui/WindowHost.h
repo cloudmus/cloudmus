@@ -43,6 +43,7 @@ public:
 
 signals:
     void aboutToReallyQuit();
+    void checkForUpdatesRequested();
     // A new window is up (the first one included).
     void windowCreated(Ui::MainWindow* window);
 

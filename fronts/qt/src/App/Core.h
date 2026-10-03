@@ -19,6 +19,7 @@
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TrackStates.h"
+#include "UpdateChecker.h"
 
 namespace App {
 
@@ -50,6 +51,7 @@ public:
     ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
     ViewModel::Browse& browse() { return browse_; }
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
+    Update::UpdateChecker& updates() { return updates_; }
 
 private:
     // Declaration order is construction order: playback_ needs
@@ -73,6 +75,7 @@ private:
     // playlist has restored itself.
     ViewModel::Browse browse_;
     ViewModel::SourcePage sourcePage_;
+    Update::UpdateChecker updates_;
 };
 
 } // namespace App

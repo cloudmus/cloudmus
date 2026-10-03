@@ -24,7 +24,7 @@ InfoDialog::InfoDialog(const QString& title, const QString& heading, const QStri
     setWindowModality(Qt::ApplicationModal);
 
     auto* headingLabel = new QLabel(heading, this);
-    headingLabel->setFont(Theme::font(Theme::TextStyle::Title));
+    headingLabel->setFont(Theme::font(Theme::TextStyle::Display)); // as UpdateDialog's
     headingLabel->setWordWrap(true);
 
     auto* textLabel = new QLabel(text, this);

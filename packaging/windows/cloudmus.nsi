@@ -1,6 +1,7 @@
 Unicode true
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
+!include "FileFunc.nsh"
 
 !ifndef VERSION
   !error "VERSION is required"
@@ -47,11 +48,17 @@ SetCompressor /SOLID lzma
 ; pixel-exact, and a static control stretches to fill whatever size it
 ; ended up at, distorting the picture. resizeWelcomeImage forces it back
 ; to the bitmap's own exact size once the page (and so the control) exists.
+; /UPDATE (an update the app downloaded itself, see Update::Installer):
+; every page but the progress one is skipped (skipWhenUpdating) — the
+; installer shows, but asks nothing.
+!define MUI_PAGE_CUSTOMFUNCTION_PRE skipWhenUpdating
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW resizeWelcomeImage
 !insertmacro MUI_PAGE_WELCOME
+!define MUI_PAGE_CUSTOMFUNCTION_PRE skipWhenUpdating
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\cloudmus-qt.exe"
+!define MUI_PAGE_CUSTOMFUNCTION_PRE skipWhenUpdating
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW resizeFinishImage
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
@@ -60,6 +67,8 @@ SetCompressor /SOLID lzma
 
 ; The bitmaps' scales, as make-installer-bitmaps.sh renders them.
 Var DpiScale
+; 1 when run with /UPDATE (by the app itself; .onInit).
+Var UpdateMode
 
 ; $DpiScale: the smallest scale at least the display's (system DPI).
 !macro PICK_DPI_SCALE
@@ -154,15 +163,46 @@ FunctionEnd
 
 Function .onInit
   SetShellVarContext current
+  StrCpy $UpdateMode 0
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/UPDATE" $1
+  ${IfNot} ${Errors}
+    StrCpy $UpdateMode 1
+  ${EndIf}
+FunctionEnd
+
+; A page's PRE callback: Abort there skips the page.
+Function skipWhenUpdating
+  ${If} $UpdateMode == 1
+    Abort
+  ${EndIf}
+FunctionEnd
+
+; The app quit to be updated: start the new version in its place.
+Function .onInstSuccess
+  ${If} $UpdateMode == 1
+    Exec '"$INSTDIR\cloudmus-qt.exe"'
+  ${EndIf}
 FunctionEnd
 
 Section "CloudMus" SEC_MAIN
   ; Windows will not rename a running executable. Check before replacing a
   ; previous installation so an update cannot leave a mixed DLL set.
   IfFileExists "$INSTDIR\cloudmus-qt.exe" 0 install_files
+  StrCpy $1 0
+try_rename:
   ClearErrors
   Rename "$INSTDIR\cloudmus-qt.exe" "$INSTDIR\cloudmus-qt.exe.updating"
-  IfErrors running
+  IfErrors 0 renamed
+  ; /UPDATE: the app started this just before quitting, and is still
+  ; shutting its backends down — wait for it, up to 30 s.
+  StrCmp $UpdateMode 1 0 running
+  IntCmp $1 60 running
+  IntOp $1 $1 + 1
+  Sleep 500
+  Goto try_rename
+renamed:
   Rename "$INSTDIR\cloudmus-qt.exe.updating" "$INSTDIR\cloudmus-qt.exe"
   Goto install_files
 running:
@@ -171,6 +211,9 @@ running:
   SetErrorLevel 1
   Abort
 install_files:
+  ${If} $UpdateMode == 1
+    SetAutoClose true
+  ${EndIf}
   RMDir /r "$INSTDIR"
   SetOutPath "$INSTDIR"
   File /r "${STAGING}/*.*"

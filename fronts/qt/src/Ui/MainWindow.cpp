@@ -158,6 +158,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     menuButton->setPopupMode(QToolButton::InstantPopup);
     auto* menu = new QMenu(menuButton);
     menu->addAction(tr("Settings…"), this, [this]() { showSettingsDialog(); });
+    menu->addAction(tr("Check for Updates…"), this, &MainWindow::checkForUpdatesRequested);
     menu->addAction(tr("About CloudMus"), this, &MainWindow::showAboutDialog);
     menu->addSeparator();
     menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);

@@ -193,6 +193,16 @@ bool Settings::trackNotifications() const
 
 void Settings::setTrackNotifications(bool on) { settings_.setValue(QStringLiteral("notifications/trackChange"), on); }
 
+QString Settings::skippedUpdateVersion() const
+{
+    return settings_.value(QStringLiteral("updates/skippedVersion")).toString();
+}
+
+void Settings::setSkippedUpdateVersion(const QString& version)
+{
+    settings_.setValue(QStringLiteral("updates/skippedVersion"), version);
+}
+
 bool Settings::closeMinimizesToTray() const
 {
     return settings_.value(QStringLiteral("window/closeMinimizesToTray"), true).toBool();

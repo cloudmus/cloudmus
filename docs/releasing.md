@@ -7,6 +7,13 @@ release with the tag's message as its release notes. The app's
 version (shown in the About dialog) comes from the same tag via
 `git describe` (`fronts/qt/cmake/Version.cmake`).
 
+The release notes are also what the app's updater shows users: at startup
+and from the menu's "Check for Updates…", it lists the notes of every
+release newer than the running version (so keep them as `- ` bullets), and
+downloads the release's AppImage or `-Setup.exe` asset — keep those names
+(`CloudMus-<v>-x86_64.AppImage`, `CloudMus-<v>-x86_64-Setup.exe`). Drafts
+and prereleases are never offered.
+
 ## Changelog
 
 `CHANGELOG.md` is seeded from git by `./update-changelog-from-git.sh`: it

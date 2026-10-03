@@ -5,6 +5,7 @@ __pycache__/
 downloads/
 *.mp3
 build/
+build-asan/
 build-appimage/
 build-windows/
 dist/
