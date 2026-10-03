@@ -62,6 +62,23 @@ void watchPersonalizeKey(QObject* owner, std::function<void()> changed)
 }
 
 } // namespace
+#else
+namespace {
+
+// GNOME's top bar (Ubuntu's included) is dark whatever the app theme is, so
+// the apps' scheme Qt reports says nothing about it. Other desktops' panels
+// follow the theme.
+bool panelIsAlwaysDark()
+{
+    const QString desktop = qEnvironmentVariable("XDG_CURRENT_DESKTOP");
+    for (const char* name : {"GNOME", "Unity", "ubuntu"}) {
+        if (desktop.contains(QLatin1String(name), Qt::CaseInsensitive))
+            return true;
+    }
+    return false;
+}
+
+} // namespace
 #endif
 
 TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
@@ -221,7 +238,8 @@ void TrayIcon::updateTrayIcon()
     // taskbar with light apps is Windows' default.
     const bool dark = !taskbarIsLight();
 #else
-    const bool dark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    const bool dark =
+        panelIsAlwaysDark() || QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
 #endif
     trayIcon_->setIcon(QIcon(dark ? QStringLiteral(":/icons/icons/tray_icon_dark.svg")
                                   : QStringLiteral(":/icons/icons/tray_icon_light.svg")));

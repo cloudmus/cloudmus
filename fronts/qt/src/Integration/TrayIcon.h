@@ -38,9 +38,10 @@ signals:
 
 private:
     // Picks tray_icon_dark.svg/tray_icon_light.svg (see icons.qrc) to match
-    // the current color scheme — a plain white glyph reads fine on a dark
-    // panel but disappears on a light one, and vice versa. Called once at
-    // construction and again whenever the desktop's scheme changes live.
+    // the panel's color — a plain white glyph reads fine on a dark panel but
+    // disappears on a light one, and vice versa. The panel's color is the
+    // taskbar setting on Windows, always dark on GNOME, and the color scheme
+    // elsewhere. Called once at construction and again whenever it changes live.
     void updateTrayIcon();
     // Like/Dislike/Playlists: shown for what the playing track's source
     // supports, labeled and iconed by its current state.
