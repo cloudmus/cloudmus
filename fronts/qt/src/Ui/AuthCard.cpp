@@ -16,7 +16,9 @@
 
 #include "Icons.h"
 #include "MiniHtml.h"
+#include "OverlayScrollBar.h"
 #include "PasswordReveal.h"
+#include "SmoothScroller.h"
 #include "Spacing.h"
 #include "TabOrder.h"
 #include "Tokens.h"
@@ -203,6 +205,8 @@ void AuthCard::showPrompt(const QJsonObject& params)
                 auto* edit = new QPlainTextEdit(this);
                 edit->setPlaceholderText(tr("Paste here"));
                 edit->setMinimumHeight(kMultilineFieldMinHeight);
+                SmoothScroller::attach(edit);
+                OverlayScrollBar::attach(edit);
                 multilineFieldsLayout_->addWidget(edit);
                 multilineFieldEdits_.insert(name, edit);
             } else {
