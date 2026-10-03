@@ -104,6 +104,21 @@ public:
             QGuiApplication::platformNativeInterface()->nativeResourceForWindow("surface", window));
         if (surface == nullptr)
             return;
+        if (!blurs_.contains(window)) {
+            QObject::connect(window, &QObject::destroyed, [this, window]() { forget(window); });
+            // Hiding the window destroys its surface, and the blur object
+            // goes with it — dropped here, not when the next apply() sees a
+            // new surface: that one can get the old one's address, and
+            // setting a region through the stale object was a protocol error
+            // that killed the connection (a menu opened again quickly).
+            QObject::connect(window, &QWindow::visibleChanged, [this, window](bool visible) {
+                if (!visible && blurs_.contains(window)) {
+                    Blur& blur = blurs_[window];
+                    release(blur);
+                    blur.surface = nullptr;
+                }
+            });
+        }
         Blur& blur = blurs_[window];
         if (blur.surface != surface) {
             // A new surface (the window was hidden and shown again): the
@@ -117,7 +132,6 @@ public:
                 blur.kde = org_kde_kwin_blur_manager_create(kdeManager_, surface);
                 wl_proxy_set_queue(reinterpret_cast<wl_proxy*>(blur.kde), queue_);
             }
-            QObject::connect(window, &QObject::destroyed, [this, window]() { forget(window); });
         }
         // The whole window if empty: a null region means that to KWin's
         // protocol, but no blur at all to the standard one — there, a
