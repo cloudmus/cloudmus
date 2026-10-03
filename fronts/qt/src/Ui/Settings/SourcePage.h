@@ -98,6 +98,8 @@ private:
     QCheckBox* enabledCheck_ = nullptr;
     QComboBox* connectionCombo_ = nullptr;
     QLabel* connectionHint_ = nullptr;
+    QWidget* connectionRow_ = nullptr;
+    bool usesNetwork_ = true;
     QList<Config::ProxyConfig> proxyChoices_;
     // The saved choice names a proxy no longer in proxyChoices_.
     bool connectionOrphaned_ = false;

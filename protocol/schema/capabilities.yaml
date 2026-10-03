@@ -47,6 +47,9 @@ properties:
   downloadControl: {type: boolean}
   # optional (1.4+): settings.describe / settings.update
   settings: {type: boolean}
+  # optional (1.10+): the source reaches the network, so the front's
+  # per-source Connection setting applies. Absent means true.
+  network: {type: boolean}
   auth:
     type: object
     required: [required, flow]

@@ -61,18 +61,25 @@ Core::Core(QObject* parent)
     // Each backend reaches the network the way its Settings page says:
     // through a proxy, directly, or as the environment has it.
     sourceManager_.setEnvironmentProvider(
-        [this](const QString& sourceId) { return Net::backendEnvironment(Net::connectionFor(settings_, sourceId)); });
+        [this](const QString& sourceId) { return Net::backendEnvironment(connectionOf(sourceId)); });
     // ...and so do the stream URLs and covers it hands out, which the
     // front fetches.
-    coverArtCache_.setProxyProvider([this](const QString& sourceId, const QUrl& url) {
-        return Net::networkProxy(Net::connectionFor(settings_, sourceId), url);
-    });
+    coverArtCache_.setProxyProvider(
+        [this](const QString& sourceId, const QUrl& url) { return Net::networkProxy(connectionOf(sourceId), url); });
     playback_.setStreamRouteProvider([this](const QString& sourceId) -> std::optional<QNetworkProxy> {
-        const Net::Connection connection = Net::connectionFor(settings_, sourceId);
+        const Net::Connection connection = connectionOf(sourceId);
         if (connection.mode == Net::Connection::Mode::System)
             return std::nullopt;
         return Net::networkProxy(connection, QUrl());
     });
+}
+
+Net::Connection Core::connectionOf(const QString& sourceId) const
+{
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client != nullptr && client->available() && !client->usesNetwork())
+        return { };
+    return Net::connectionFor(settings_, sourceId);
 }
 
 } // namespace App

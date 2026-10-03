@@ -103,6 +103,9 @@ public:
 
     bool available() const { return available_; }
     const QJsonObject& capabilities() const { return capabilities_; }
+    // Optional capability (1.10+), true when the source doesn't say: false
+    // for a source that only reads local files.
+    bool usesNetwork() const { return capabilities_.value(QStringLiteral("network")).toBool(true); }
     const QString& sourceId() const { return sourceId_; }
     const QString& sourceName() const { return sourceName_; }
     // Optional (protocol 1.2+) — empty if the source didn't supply one.

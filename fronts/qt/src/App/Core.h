@@ -13,6 +13,7 @@
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
 #include "PlaylistEditing.h"
+#include "ProxyRouting.h"
 #include "Settings.h"
 #include "SourceManager.h"
 #include "SourcePage.h"
@@ -54,6 +55,10 @@ public:
     Update::UpdateChecker& updates() { return updates_; }
 
 private:
+    // How a source reaches the network: its setting, except for a source
+    // that doesn't use the network at all (whatever an older setting says).
+    Net::Connection connectionOf(const QString& sourceId) const;
+
     // Declaration order is construction order: playback_ needs
     // sourceManager_.
     Config::Settings settings_;

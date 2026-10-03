@@ -84,12 +84,16 @@ QWidget* SourcePage::createWidget(QWidget* parent)
         updateConnectionHint();
         emit dirtyChanged();
     });
-    auto* connectionRow = new QHBoxLayout;
-    connectionRow->setSpacing(Theme::Spacing::space3);
-    auto* connectionLabel = new QLabel(tr("Connection:"), widget);
+    // A widget, not a bare layout: refresh() hides it for a source that
+    // doesn't use the network.
+    connectionRow_ = new QWidget(widget);
+    auto* connectionLayout = new QHBoxLayout(connectionRow_);
+    connectionLayout->setContentsMargins(0, 0, 0, 0);
+    connectionLayout->setSpacing(Theme::Spacing::space3);
+    auto* connectionLabel = new QLabel(tr("Connection:"), connectionRow_);
     connectionLabel->setFont(Theme::font(Theme::TextStyle::Body));
-    connectionRow->addWidget(connectionLabel);
-    connectionRow->addWidget(connectionCombo_, 1);
+    connectionLayout->addWidget(connectionLabel);
+    connectionLayout->addWidget(connectionCombo_, 1);
 
     accountSection_ = new QWidget(widget);
     auto* accountTitle = new QLabel(tr("Account").toUpper(), accountSection_);
@@ -137,7 +141,7 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     layout->addWidget(descriptionLabel_);
     layout->addWidget(enabledCheck_);
     layout->addWidget(offHint_);
-    layout->addLayout(connectionRow);
+    layout->addWidget(connectionRow_);
     layout->addWidget(connectionHint_);
     layout->addWidget(accountSection_);
     layout->addWidget(settingsSection_);
@@ -175,6 +179,11 @@ void SourcePage::refresh()
         offText = sourceManager_.isUnavailable(manifest_.id) ? tr("The source couldn't be started.") : tr("Starting…");
     offHint_->setText(offText);
     offHint_->setVisible(!offText.isEmpty());
+
+    // Not yet known while the source is starting: shown until it says so.
+    usesNetwork_ = !running || client->usesNetwork();
+    connectionRow_->setVisible(usesNetwork_);
+    updateConnectionHint();
 
     const bool hasSettings = running && client->capabilities().value(QStringLiteral("settings")).toBool();
     settingsSection_->setVisible(hasSettings);
@@ -409,7 +418,7 @@ void SourcePage::updateConnectionHint()
     else if (selectedConnection() == QLatin1String(Config::Settings::kSystemConnection))
         text = tr("Uses the system's proxy settings, if any.");
     connectionHint_->setText(text);
-    connectionHint_->setVisible(!text.isEmpty());
+    connectionHint_->setVisible(usesNetwork_ && !text.isEmpty());
 }
 
 QString SourcePage::selectedConnection() const { return connectionCombo_->currentData().toString(); }

@@ -1,6 +1,6 @@
 # cloudmus Source/Front RPC Protocol
 
-**Version:** `1.8` (see §12 for versioning rules)
+**Version:** `1.10` (see §12 for versioning rules)
 
 ## 1. Overview
 
@@ -224,8 +224,12 @@ defaults, since the front does not assume any implicit capability.
 | `download` | bool | `catalog.downloadTrack` (§7.5) is supported. |
 | `downloadControl` | bool | Optional (1.7+). Downloads report `download/progress` and can be stopped with `catalog.cancelDownload` (§7.5). |
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
+| `network` | bool | Optional (1.10+), **defaults to `true` when absent**: the source reaches the network, so the front offers its per-source Connection setting (system / direct / proxy) and routes the source's streams and covers through it. A source working only with local files declares `false`. |
 | `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
 | `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
+
+`network` is the one capability that is assumed when absent, so sources
+that predate it keep their Connection setting.
 
 The front should treat an absent/omitted nested object as "capability not
 declared, do not attempt" (defensive default), but conformant sources are

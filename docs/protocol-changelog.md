@@ -5,6 +5,13 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.10 — sources without a network
+
+- **Additive, backward-compatible**: optional capability `network` (§5),
+  `true` when absent. A source declaring `false` (local-folder) has no
+  Connection setting in the front, and its streams and covers are never
+  routed through a proxy.
+
 ## 1.9 — recommended client-side timeouts (no wire change)
 
 - **No wire change** (`protocolVersion` stays 1.8): bumped the *recommended

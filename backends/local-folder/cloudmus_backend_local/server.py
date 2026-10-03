@@ -20,6 +20,8 @@ CAPABILITIES = {
     "feedback": {"like": False, "dislike": False, "skip": False},
     "download": False,
     "auth": {"required": False, "flow": "none"},
+    # Files on disk: the front's Connection setting makes no sense here.
+    "network": False,
 }
 
 

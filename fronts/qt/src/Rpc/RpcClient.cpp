@@ -126,7 +126,7 @@ Task<void> RpcClient::start(QProcessEnvironment environment)
     transport_.start(manifest_.argv, environment);
 
     const QJsonObject params {
-        { QStringLiteral("protocolVersion"), QStringLiteral("1.8") },
+        { QStringLiteral("protocolVersion"), QStringLiteral("1.10") },
         { QStringLiteral("front"),
             QJsonObject { { QStringLiteral("name"), QStringLiteral("cloudmus-qt") },
                 { QStringLiteral("version"), QStringLiteral("0.1.0") } } },
