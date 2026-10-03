@@ -105,6 +105,8 @@ PageStack::PageStack(QWidget* parent)
     // Keeps a column shorter than the viewport top-aligned.
     columnLayout_->addStretch(1);
     setWidget(column_);
+    // Layout changes above a jump's destination move it.
+    column_->installEventFilter(this);
     // After setWidget(), which turns the widget's autoFillBackground on —
     // the column is transparent over the area's own QSS background.
     column_->setAutoFillBackground(false);
@@ -282,6 +284,42 @@ void PageStack::scrollToPage(int index, bool animated)
     }
     jumping_ = true;
     scroller_->scrollTo(jumpTarget_);
+}
+
+bool PageStack::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == column_ && pinned_ >= 0 && !reaimQueued_ && !adjusting_
+        && (event->type() == QEvent::Resize || event->type() == QEvent::LayoutRequest)) {
+        // Queued: the layout hasn't placed the sections yet, and a
+        // burst of changes needs only one re-aim.
+        reaimQueued_ = true;
+        QTimer::singleShot(0, this, &PageStack::reaimPinned);
+    }
+    return QScrollArea::eventFilter(watched, event);
+}
+
+void PageStack::reaimPinned()
+{
+    reaimQueued_ = false;
+    if (pinned_ < 0 || pendingPage_ >= 0 || !isVisible())
+        return;
+    syncGeometry();
+    const int target = qMin(scrollTargetFor(pinned_), verticalScrollBar()->maximum());
+    if (jumping_) {
+        if (target == jumpTarget_)
+            return;
+        jumpTarget_ = target;
+        scroller_->scrollTo(target);
+        return;
+    }
+    if (target == verticalScrollBar()->value())
+        return;
+    // Landed, and the user hasn't scrolled since: follow the section.
+    adjusting_ = true;
+    verticalScrollBar()->setValue(target);
+    adjusting_ = false;
+    landedValue_ = target;
+    materializeNearViewport();
 }
 
 void PageStack::onGlideFinished()

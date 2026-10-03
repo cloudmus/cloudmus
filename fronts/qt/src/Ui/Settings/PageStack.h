@@ -57,6 +57,7 @@ protected:
     // or sign-out button once pressed), that's typically back at the top of
     // the column: focus goes to the area itself instead, where it is.
     bool focusNextPrevChild(bool next) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     struct Section {
@@ -80,6 +81,10 @@ private:
     int scrollTargetFor(int index) const;
     void onScrolled();
     void onGlideFinished();
+    // The column changed size or layout while a jump's destination is still
+    // pinned (a source page filling in above it, say): re-aims at where the
+    // pinned section is now.
+    void reaimPinned();
     void flash(int index);
     void updateCurrentPage();
     void setCurrentPage(int index);
@@ -103,6 +108,8 @@ private:
     bool adjusting_ = false;
     // The section flash() last pointed out; -1 before the first.
     int flashing_ = -1;
+    // A reaimPinned() is queued.
+    bool reaimQueued_ = false;
     // scrollToPage() before the first show: geometry isn't real yet.
     int pendingPage_ = -1;
 };
