@@ -368,7 +368,9 @@ SourcePanel::SourcePanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     refreshButton_->setProperty("filled", true);
     refreshButton_->setProperty("compact", true); // radius from StyleSheet.cpp's buttonsBlock()
     refreshButton_->setToolTip(tr("Refresh playlists"));
-    refreshButton_->setIcon(Theme::icon(QStringLiteral("refresh"), Theme::IconColor::InkSecondary, 14));
+    Theme::followTheme(refreshButton_, [this]() {
+        refreshButton_->setIcon(Theme::icon(QStringLiteral("refresh"), Theme::IconColor::InkSecondary, 14));
+    });
     refreshButton_->setIconSize(QSize(14, 14));
     refreshButton_->setFixedSize(compactSide, compactSide);
     connect(refreshButton_, &QToolButton::clicked, this, [this]() { emit refreshRequested(currentSourceId_); });

@@ -4,6 +4,10 @@
 #include <QIcon>
 #include <QString>
 
+#include <functional>
+
+class QObject;
+
 namespace Theme {
 
 // The design-token colors an icon glyph can be recolored to. QSS/currentColor
@@ -24,6 +28,13 @@ enum class IconColor {
 // cleared on Tokens::notifier().changed() since a mode flip changes which
 // QColor a given IconColor resolves to.
 QIcon icon(const QString& name, IconColor color, int pixelSize = 16);
+
+// Runs `apply` now and again after every theme change, for as long as
+// `context` lives. A QIcon/QPixmap from icon() is tinted once, so whatever
+// holds one (a button, an action, a label) has to fetch it again after a
+// light/dark flip — `apply` is where it does. Painting code that calls
+// icon() on each paint needs only a repaint instead.
+void followTheme(QObject* context, std::function<void()> apply);
 
 // Same as icon(), for a monochrome SVG outside the bundled glyph set —
 // e.g. a backend's own sidebar icon from its manifest. Same cache and

@@ -102,17 +102,14 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     // asset, untouched below) — a QMenu popup gets the design system's
     // Panel treatment via Theme::StyleSheet's global QMenu rule.
     auto* menu = new QMenu();
-    auto* previousAction
-        = menu->addAction(Theme::icon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16), tr("Previous"));
-    playPauseAction_
-        = menu->addAction(Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"));
-    auto* nextAction = menu->addAction(Theme::icon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16), tr("Next"));
-    auto* stopAction = menu->addAction(Theme::icon(QStringLiteral("stop"), Theme::IconColor::Ink, 16), tr("Stop"));
+    auto* previousAction = menu->addAction(tr("Previous"));
+    playPauseAction_ = menu->addAction(tr("Play"));
+    auto* nextAction = menu->addAction(tr("Next"));
+    auto* stopAction = menu->addAction(tr("Stop"));
     feedbackSeparator_ = menu->addSeparator();
     likeAction_ = menu->addAction(QString());
     dislikeAction_ = menu->addAction(QString());
-    playlistsMenu_
-        = menu->addMenu(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Playlists"));
+    playlistsMenu_ = menu->addMenu(tr("Playlists"));
     menu->addSeparator();
     showHideAction_ = menu->addAction(QString());
     menu->addSeparator();
@@ -135,13 +132,20 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     connect(&nowPlaying_, &NowPlaying::feedbackChanged, this, &TrayIcon::refreshFeedbackActions);
     connect(&nowPlaying_, &NowPlaying::trackChanged, this, &TrayIcon::refreshTrack);
     connect(&nowPlaying_, &NowPlaying::playingChanged, this, &TrayIcon::refreshPlaying);
-    refreshFeedbackActions();
+    // The rest of the icons follow state, refreshed by the calls below.
+    Theme::followTheme(menu, [this, previousAction, nextAction, stopAction]() {
+        previousAction->setIcon(Theme::icon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16));
+        nextAction->setIcon(Theme::icon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16));
+        stopAction->setIcon(Theme::icon(QStringLiteral("stop"), Theme::IconColor::Ink, 16));
+        playlistsMenu_->setIcon(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16));
+        refreshFeedbackActions();
+        refreshPlaying();
+        refreshShowHideAction();
+    });
     refreshTrack();
-    refreshPlaying();
     // The window's state can change without the tray (minimized from its
     // title bar, closed to the tray) — relabel just before showing.
     connect(menu, &QMenu::aboutToShow, this, &TrayIcon::refreshShowHideAction);
-    refreshShowHideAction();
 
     trayIcon_->setContextMenu(menu);
 

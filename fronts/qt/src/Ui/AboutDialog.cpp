@@ -87,10 +87,12 @@ AboutDialog::AboutDialog(QWidget* parent)
     copyButton->setIconSize(QSize(12, 12));
     copyButton->setToolTip(tr("Copy version"));
     const auto setCopyIcon = [copyButton](bool copied) {
+        copyButton->setProperty("copied", copied);
         copyButton->setIcon(Theme::icon(copied ? QStringLiteral("check") : QStringLiteral("content_copy"),
             copied ? Theme::IconColor::Accent : Theme::IconColor::InkSecondary, 12));
     };
-    setCopyIcon(false);
+    Theme::followTheme(
+        copyButton, [copyButton, setCopyIcon]() { setCopyIcon(copyButton->property("copied").toBool()); });
     connect(copyButton, &QToolButton::clicked, this, [copyButton, version, setCopyIcon]() {
         QGuiApplication::clipboard()->setText(version);
         // Brief confirmation right on the button.

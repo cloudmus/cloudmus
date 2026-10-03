@@ -1,3 +1,4 @@
+#include <QAbstractButton>
 #include <QDir>
 #include <QFile>
 #include <QListView>
@@ -16,9 +17,11 @@
 #include "HeroPanel.h"
 #include "MainWindow.h"
 #include "MprisService.h"
+#include "NowPlayingBar.h"
 #include "PlaylistSheet.h"
 #include "RpcClient.h"
 #include "TestSupport.h"
+#include "Tokens.h"
 #include "TrackListModel.h"
 #include "WindowHost.h"
 
@@ -71,6 +74,41 @@ private slots:
 
         for (Rpc::RpcClient* client : core.sourceManager().clients())
             await(client->shutdown());
+    }
+
+    void toolbarIconsFollowAThemeFlip()
+    {
+        App::Core core;
+        Ui::WindowHost host(core);
+        host.show();
+        auto* bar = host.window()->findChild<Ui::NowPlayingBar*>();
+        QVERIFY(bar != nullptr);
+        // The color an icon's glyph is drawn in: its most opaque pixel.
+        const auto glyphColor = [](const QAbstractButton* button) {
+            const QImage image = button->icon().pixmap(button->iconSize()).toImage();
+            QColor best = Qt::transparent;
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = 0; x < image.width(); ++x)
+                    if (image.pixelColor(x, y).alpha() > best.alpha())
+                        best = image.pixelColor(x, y);
+            best.setAlpha(255);
+            return best.rgb();
+        };
+        const auto restingIcons = [&]() {
+            QList<QAbstractButton*> buttons;
+            for (QAbstractButton* button : bar->findChildren<QAbstractButton*>())
+                if (button->property("variant") == "icon" && !button->isChecked() && !button->icon().isNull())
+                    buttons.append(button);
+            return buttons;
+        };
+        QVERIFY(!restingIcons().isEmpty());
+
+        for (const Theme::Mode mode : { Theme::Mode::Dark, Theme::Mode::Light }) {
+            Theme::setModeOverride(mode);
+            for (QAbstractButton* button : restingIcons())
+                QCOMPARE(glyphColor(button), Theme::palette(mode).inkSecondary.rgb());
+        }
+        Theme::setModeOverride(std::nullopt);
     }
 
     void theDownloadsPanelListsWhatsUnderWay()

@@ -150,8 +150,10 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // via Theme::StyleSheet's QPushButton[variant="icon"] rule, which also
     // matches QToolButton, so it doesn't stand out as a native square
     // button next to the round transport row.
-    menuButton->setIcon(
-        Theme::icon(QStringLiteral("menu"), Theme::IconColor::InkSecondary, Theme::Metrics::iconGlyphSize));
+    Theme::followTheme(menuButton, [menuButton]() {
+        menuButton->setIcon(
+            Theme::icon(QStringLiteral("menu"), Theme::IconColor::InkSecondary, Theme::Metrics::iconGlyphSize));
+    });
     menuButton->setProperty("variant", "icon");
     menuButton->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
     menuButton->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));

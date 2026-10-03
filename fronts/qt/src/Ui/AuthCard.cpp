@@ -41,8 +41,10 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     const int iconSize = embedded ? kEmbeddedIconSize : kCardIconSize;
 
     auto* iconLabel = new QLabel(this);
-    iconLabel->setPixmap(
-        Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, iconSize).pixmap(iconSize, iconSize));
+    Theme::followTheme(iconLabel, [iconLabel, iconSize]() {
+        iconLabel->setPixmap(
+            Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, iconSize).pixmap(iconSize, iconSize));
+    });
 
     messageLabel_ = new QLabel(this);
     messageLabel_->setWordWrap(true);

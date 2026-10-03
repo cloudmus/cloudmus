@@ -59,7 +59,7 @@ public:
         setProperty("variant", scheme_ == Scheme::Accent ? "play" : "icon");
         setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
         setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
-        applyIcon(restColor());
+        Theme::followTheme(this, [this]() { applyIcon(underMouse() ? hoverColor() : restColor()); });
         // Checked buttons (like/dislike) need their glyph re-tinted on
         // toggle too — checked state can be set programmatically (see
         // setLikeState()/setDislikeState()) without a hover/leave event
@@ -344,8 +344,10 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // Matches the transport buttons (also Theme::icon) instead of an emoji
     // glyph, which looked out of place next to them and depended on the
     // font actually having a color-emoji glyph for it.
-    volumeIconLabel->setPixmap(
-        Theme::icon(QStringLiteral("volume_up"), Theme::IconColor::InkSecondary, 16).pixmap(16, 16));
+    Theme::followTheme(volumeIconLabel, [volumeIconLabel]() {
+        volumeIconLabel->setPixmap(
+            Theme::icon(QStringLiteral("volume_up"), Theme::IconColor::InkSecondary, 16).pixmap(16, 16));
+    });
     slidersRow->addWidget(volumeIconLabel);
     slidersRow->addWidget(volumeSlider_);
 

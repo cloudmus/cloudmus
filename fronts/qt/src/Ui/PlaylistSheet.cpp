@@ -193,9 +193,7 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
 
     headerInfo_ = new HeaderInfo(coverCache, this);
 
-    playAllButton_ = new QPushButton(
-        Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::OnAccent, Theme::Metrics::iconGlyphSize), QString(),
-        this);
+    playAllButton_ = new QPushButton(this);
     playAllButton_->setProperty("variant", "play");
     playAllButton_->setToolTip(tr("Play all"));
     playAllButton_->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
@@ -206,8 +204,6 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     downloadAllButton_->setProperty("variant", "icon");
     downloadAllButton_->setProperty("filled", true);
     downloadAllButton_->setToolTip(tr("Save playlist to Downloads"));
-    downloadAllButton_->setIcon(
-        Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, Theme::Metrics::iconGlyphSize));
     downloadAllButton_->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
     downloadAllButton_->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
     downloadAllButton_->hide();
@@ -220,8 +216,6 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     backButton_->setProperty("variant", "icon");
     backButton_->setProperty("filled", true);
     backButton_->setToolTip(tr("Back"));
-    backButton_->setIcon(
-        Theme::icon(QStringLiteral("arrow_back"), Theme::IconColor::Ink, Theme::Metrics::iconGlyphSize));
     backButton_->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
     backButton_->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
     connect(backButton_, &QToolButton::clicked, this, &PlaylistSheet::closeRequested);
@@ -237,9 +231,18 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     filterEdit_->setProperty("variant", "filter"); // see StyleSheet.cpp's inputsBlock()
     filterEdit_->setPlaceholderText(tr("Filter by title, artist or album"));
     filterEdit_->setClearButtonEnabled(true);
-    filterEdit_->addAction(
-        Theme::icon(QStringLiteral("search"), Theme::IconColor::InkTertiary, 16), QLineEdit::LeadingPosition);
+    auto* searchAction = filterEdit_->addAction(QIcon(), QLineEdit::LeadingPosition);
     filterEdit_->setFont(Theme::font(Theme::TextStyle::Body));
+
+    Theme::followTheme(this, [this, searchAction]() {
+        playAllButton_->setIcon(
+            Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::OnAccent, Theme::Metrics::iconGlyphSize));
+        downloadAllButton_->setIcon(
+            Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, Theme::Metrics::iconGlyphSize));
+        backButton_->setIcon(
+            Theme::icon(QStringLiteral("arrow_back"), Theme::IconColor::Ink, Theme::Metrics::iconGlyphSize));
+        searchAction->setIcon(Theme::icon(QStringLiteral("search"), Theme::IconColor::InkTertiary, 16));
+    });
 
     trackModel_ = new TrackListModel(this);
     filterProxy_ = new FilterProxy(this);

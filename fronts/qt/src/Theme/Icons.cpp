@@ -101,6 +101,14 @@ void ensureInvalidationConnected()
 
 } // namespace
 
+void followTheme(QObject* context, std::function<void()> apply)
+{
+    // Connected after the cache invalidation, so `apply` sees fresh tints.
+    ensureInvalidationConnected();
+    QObject::connect(&notifier(), &Notifier::changed, context, apply);
+    apply();
+}
+
 QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize)
 {
     ensureInvalidationConnected();

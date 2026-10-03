@@ -86,9 +86,7 @@ HeroPanel::HeroPanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     // drawn in paintEvent() like everything else. Not added to any
     // QLayout; relayout() positions it by hand via setGeometry(), so it
     // can never impose a size constraint on this widget either.
-    playButton_ = new QPushButton(
-        Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::OnAccent, Theme::Metrics::playGlyphSize), QString(),
-        this);
+    playButton_ = new QPushButton(this);
     playButton_->setToolTip(tr("Play"));
     playButton_->setObjectName(QStringLiteral("heroPlayButton")); // 40px — see StyleSheet's radius override
     playButton_->setProperty("variant", "play");
@@ -96,6 +94,8 @@ HeroPanel::HeroPanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     playButton_->setFixedSize(Theme::Metrics::playButtonSize, Theme::Metrics::playButtonSize);
     connect(playButton_, &QPushButton::clicked, this, &HeroPanel::playClicked);
     playButton_->hide(); // nothing to show until applyContent()
+    // Disabled only while busy — see setPlayBusy().
+    Theme::followTheme(playButton_, [this]() { setPlayBusy(!playButton_->isEnabled()); });
 
     // The background (always) and the cover overlay (when present) depend
     // on size() — debounced rather than regenerated on every single

@@ -417,6 +417,8 @@ add_executable(cloudmus-qt-ui-tests
     tests/ui/main.cpp
     tests/ui/WindowHostTest.cpp
     tests/FakeBackend.cpp
+    # Real glyphs, so a test can check what color an icon is tinted.
+    resources/icons.qrc
 )
 target_include_directories(cloudmus-qt-ui-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-ui-tests PRIVATE cloudmus-ui Qt6::Test)
