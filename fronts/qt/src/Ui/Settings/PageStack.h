@@ -48,6 +48,9 @@ public:
 
 signals:
     void currentPageChanged(int index);
+    // Widgets came or went somewhere in the column (a page built, a form
+    // loaded, a row added): coalesced to one signal per event-loop turn.
+    void contentChanged();
 
 protected:
     void resizeEvent(QResizeEvent* event) override;
@@ -110,6 +113,7 @@ private:
     int flashing_ = -1;
     // A reaimPinned() is queued.
     bool reaimQueued_ = false;
+    bool contentChangedQueued_ = false;
     // scrollToPage() before the first show: geometry isn't real yet.
     int pendingPage_ = -1;
 };

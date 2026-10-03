@@ -248,6 +248,8 @@ add_library(cloudmus-ui STATIC
     src/Ui/SmoothScroller.cpp
     src/Ui/OverlayScrollBar.cpp
     src/Ui/ThemedSlider.cpp
+    src/Ui/TabOrder.cpp
+    src/Ui/KeyActivation.cpp
     src/Ui/ThemeCrossfade.cpp
     src/Ui/Transition.cpp
     src/Ui/TrackHoverCard.cpp
@@ -276,6 +278,7 @@ add_library(cloudmus-ui STATIC
     src/Theme/CoverPlaceholder.cpp
     src/Theme/StyleSheet.cpp
     src/Theme/Style.cpp
+    src/Theme/FocusRing.cpp
     src/Theme/PopupWindow.cpp
 
     src/Integration/TrayIcon.cpp
@@ -416,6 +419,7 @@ add_test(NAME cloudmus-qt-tests COMMAND cloudmus-qt-tests)
 add_executable(cloudmus-qt-ui-tests
     tests/ui/main.cpp
     tests/ui/WindowHostTest.cpp
+    tests/ui/FocusTest.cpp
     tests/FakeBackend.cpp
     # Real glyphs, so a test can check what color an icon is tinted.
     resources/icons.qrc

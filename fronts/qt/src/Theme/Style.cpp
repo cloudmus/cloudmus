@@ -1,6 +1,8 @@
 #include "Style.h"
 
+#include <QAbstractButton>
 #include <QCursor>
+#include <QDialog>
 #include <QEvent>
 #include <QMenu>
 #include <QPainter>
@@ -11,6 +13,7 @@
 #include <QToolButton>
 #include <QWindow>
 
+#include "FocusRing.h"
 #include "Metrics.h"
 #include "PopupWindow.h"
 #include "Radius.h"
@@ -217,6 +220,36 @@ bool isThemedSplitter(const QWidget* widget)
     return splitter && splitter->property("themed").toBool();
 }
 
+// The ring for a button-like or check-like widget, in its own bounds.
+void paintWidgetFocusRing(QPainter* painter, const QStyleOption* option, const QWidget* widget)
+{
+    const QString variant = widget->property("variant").toString();
+    QRectF shape = widget->rect();
+    qreal radius = Radius::sm;
+    bool onAccent = false;
+    if (variant == QLatin1String("icon") || variant == QLatin1String("play")) {
+        radius = qMin(shape.width(), shape.height()) / 2.0;
+        if (widget->property("compact").toBool())
+            radius = 10;
+        onAccent = variant == QLatin1String("play");
+    } else if (variant == QLatin1String("filter")) {
+        radius = Radius::md;
+    } else if (variant == QLatin1String("primary")) {
+        onAccent = true;
+    } else if (!(qobject_cast<const QAbstractButton*>(widget) && variant.isEmpty())) {
+        // Check boxes and radio buttons: the whole row. Anything else: the
+        // rect the style was asked about.
+        if (option->rect.isValid())
+            shape = QRectF(option->rect);
+    }
+    if (onAccent) {
+        // Inside the fill, where the contrast is.
+        shape.adjust(2, 2, -2, -2);
+        radius = qMax<qreal>(0, radius - 2);
+    }
+    paintFocusRing(painter, shape, radius, onAccent);
+}
+
 } // namespace
 
 void CloudMusStyle::polish(QWidget* widget)
@@ -292,6 +325,18 @@ void CloudMusStyle::drawPrimitive(
         // pass — Fusion's own frame would otherwise draw a second,
         // rectangular border on top of it.
         return;
+    }
+
+    // Fusion's dotted rectangle (a square box around even the round
+    // buttons) gives way to a ring that follows the control's own shape,
+    // shown only while navigating by keyboard.
+    if (element == PE_FrameFocusRect && widget != nullptr && widget->window() != nullptr) {
+        const auto* dialog = qobject_cast<const QDialog*>(widget->window());
+        if (dialog == nullptr || dialog->property("themed").toBool()) {
+            if (focusVisible(widget))
+                paintWidgetFocusRing(painter, option, widget);
+            return;
+        }
     }
 
     QProxyStyle::drawPrimitive(element, option, painter, widget);

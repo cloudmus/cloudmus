@@ -18,4 +18,9 @@ constexpr int playGlyphSize = 16;
 // exactly the circle that gets painted.
 constexpr int sliderHandleDiameter = 12;
 
+// Keyboard focus ring (Theme::paintFocusRing()). Drawn inside the widget's
+// own bounds: a ring outside them would be clipped by tight parents (the
+// transport bar) and by neighbouring buttons.
+constexpr int focusRingWidth = 2;
+
 } // namespace Theme::Metrics

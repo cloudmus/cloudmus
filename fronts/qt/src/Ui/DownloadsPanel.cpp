@@ -279,6 +279,7 @@ DownloadsPanel::DownloadsPanel(ViewModel::Downloads& downloads, ViewModel::NowPl
     scroll_->setWidget(rows_);
     scroll_->setWidgetResizable(false);
     scroll_->setFrameShape(QFrame::NoFrame);
+    scroll_->setFocusPolicy(Qt::NoFocus);
     scroll_->setStyleSheet(QStringLiteral("background: transparent;"));
     scroll_->viewport()->setAutoFillBackground(false);
     OverlayScrollBar::attach(scroll_);

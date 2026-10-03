@@ -26,6 +26,7 @@
 #include "SmoothScroller.h"
 #include "SourceManager.h"
 #include "Spacing.h"
+#include "TabOrder.h"
 #include "ToastNotifier.h"
 #include "Tokens.h"
 
@@ -138,6 +139,16 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, App::Analytics& analy
     root->setSpacing(0);
     root->addLayout(body, 1);
     root->addLayout(buttonRow);
+
+    // Pages are built lazily and their forms load later, all after the
+    // buttons: left alone, Tab would reach Ok/Cancel before the settings.
+    // Sidebar, pages in order, then the buttons.
+    const auto chainTabs = [this]() {
+        QWidget* last = chainTabOrderAfter(sidebarView_, pageStack_);
+        chainTabOrderAfter(last, buttons_);
+    };
+    connect(pageStack_, &Settings::PageStack::contentChanged, this, chainTabs);
+    chainTabs();
 
     int openIndex = 0;
     for (int i = 0; i < int(pages_.size()); ++i) {

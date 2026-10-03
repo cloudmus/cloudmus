@@ -4,7 +4,9 @@
 #include <QPainter>
 #include <QWidget>
 
+#include "FocusRing.h"
 #include "Icons.h"
+#include "Radius.h"
 #include "SidebarModel.h"
 #include "Spacing.h"
 #include "Tokens.h"
@@ -65,6 +67,8 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     else if (hovered)
         painter->fillRect(fullRowRect, pal.surface300);
     painter->setRenderHint(QPainter::Antialiasing);
+    if ((option.state & QStyle::State_HasFocus) && Theme::focusVisible(option.widget))
+        Theme::paintFocusRing(painter, QRectF(fullRowRect).adjusted(2, 1, -2, -1), Theme::Radius::sm);
 
     // space2, not space4: rect.left() already includes Qt's own indentation
     // reservation for this row's branch/chevron column (QTreeView::

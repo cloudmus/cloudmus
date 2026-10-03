@@ -89,6 +89,10 @@ QPushButton[variant="icon"]:hover, QToolButton[variant="icon"]:hover { backgroun
 QPushButton[variant="icon"]:pressed, QPushButton[variant="icon"]:checked,
 QToolButton[variant="icon"]:pressed, QToolButton[variant="icon"]:checked { background: %3; }
 QToolButton[variant="icon"]::menu-indicator { image: none; }
+/* A QSS-styled QToolButton never asks the style for a focus rect, so its ring
+   is a border. Safe as a plain :focus: tool buttons take Tab focus only, never
+   a mouse click's, so this is keyboard-only like the ring on the others. */
+QToolButton[variant="icon"]:focus { border: %8px solid %9; }
 QPushButton[variant="icon"][filled="true"], QToolButton[variant="icon"][filled="true"] { background: %2; }
 QPushButton[variant="icon"][filled="true"]:hover, QToolButton[variant="icon"][filled="true"]:hover { background: %3; }
 QPushButton[variant="icon"][compact="true"], QToolButton[variant="icon"][compact="true"] { border-radius: 10px; }
@@ -102,7 +106,8 @@ QPushButton[variant="play"]:pressed { background: %6; }
 #heroPlayButton { border-radius: %7px; })")
         .arg(QString::number(Metrics::iconButtonSize / 2), hex(p.surface300), hex(p.surface400), hex(p.accent),
             hex(p.accentHover), hex(p.accentPressed))
-        .arg(QString::number(Metrics::playButtonSize / 2));
+        .arg(QString::number(Metrics::playButtonSize / 2))
+        .arg(QString::number(Metrics::focusRingWidth), hex(p.accent));
 }
 
 QString textButtonsBlock(const Palette& p)

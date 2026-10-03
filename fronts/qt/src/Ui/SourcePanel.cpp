@@ -30,6 +30,7 @@
 #include "ScrollEdgeFade.h"
 #include "SmoothScroller.h"
 #include "Spacing.h"
+#include "TabOrder.h"
 #include "Tokens.h"
 #include "TrackListModel.h"
 #include "Typography.h"
@@ -427,6 +428,8 @@ SourcePanel::SourcePanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->addWidget(scroll);
+    scroll->setFocusPolicy(Qt::NoFocus); // Tab goes to the buttons inside
+    chainTabOrder(this);
 
     connect(&Theme::notifier(), &Theme::Notifier::changed, this, [column]() { column->update(); });
     hide();

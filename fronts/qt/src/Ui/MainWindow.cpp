@@ -16,6 +16,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QProgressBar>
+#include <QPushButton>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSplitter>
@@ -40,6 +41,7 @@
 #include "HeroPanel.h"
 #include "Icons.h"
 #include "InfoDialog.h"
+#include "KeyActivation.h"
 #include "MenuCheckRow.h"
 #include "Metrics.h"
 #include "NavItemDelegate.h"
@@ -55,6 +57,7 @@
 #include "SourcePanel.h"
 #include "Spacing.h"
 #include "Style.h"
+#include "TabOrder.h"
 #include "ToastNotifier.h"
 #include "Tokens.h"
 #include "TrackFetch.h"
@@ -222,6 +225,20 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
         [this](const QModelIndex& index) { sources_.setCollapsed(ViewModel::SidebarModel::nodeKey(index), true); });
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
+    // Space opens the playlist's page, Enter plays it (a source header has
+    // nothing to play: Enter opens it too).
+    activateCurrentOnKey(sidebarView_, [this](const QModelIndex& index, Qt::Key key) {
+        if (key == Qt::Key_Space) {
+            onSidebarActivated(index);
+            return;
+        }
+        const auto kind
+            = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
+        if (kind == ViewModel::SidebarModel::Kind::SourceHeader)
+            onSidebarActivated(index);
+        else
+            onSidebarDoubleClicked(index);
+    });
     sidebarView_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(sidebarView_, &QTreeView::customContextMenuRequested, this, &MainWindow::onSidebarContextMenuRequested);
 
@@ -261,6 +278,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     });
     OverlayScrollBar::attach(trackListView_);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
+    activateCurrentOnKey(trackListView_, [this](const QModelIndex& index, Qt::Key) { onTrackDoubleClicked(index); });
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
     trackListView_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(trackListView_, &QListView::customContextMenuRequested, this, &MainWindow::onTrackContextMenuRequested);
@@ -400,6 +418,22 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     connect(&sources_, &ViewModel::Sources::playlistsLoaded, this, &MainWindow::syncSidebarSelection);
     connect(&sources_, &ViewModel::Sources::sourceRemoved, this, &MainWindow::syncSidebarSelection);
     connect(authStates_, &Rpc::AuthStates::changed, this, &MainWindow::updateSourceAuthIndicator);
+
+    // The track list is under the sheet while it's open: out of the way of Tab.
+    connect(sheet_, &PlaylistSheet::presentedChanged, this,
+        [this](bool presented) { trackListView_->setFocusPolicy(presented ? Qt::NoFocus : Qt::StrongFocus); });
+
+    // Sidebar, hero, list, sheet, then the transport bar at the bottom — the
+    // bar is created first, which would put it first in the chain. The bar's
+    // own widgets (menu button included) follow its layout.
+    QWidget* last = sidebarView_;
+    if (auto* heroPlay = heroPanel_->findChild<QPushButton*>()) {
+        setTabOrder(last, heroPlay);
+        last = heroPlay;
+    }
+    setTabOrder(last, trackListView_);
+    last = chainTabOrderAfter(trackListView_, sheet_);
+    chainTabOrderAfter(last, nowPlayingBar_);
 
     bindNowPlaying();
     bindActivePlaylist();

@@ -7,6 +7,7 @@
 #include <QStyleOptionSlider>
 #include <QVariantAnimation>
 
+#include "FocusRing.h"
 #include "Metrics.h"
 #include "Radius.h"
 #include "Shadow.h"
@@ -250,6 +251,7 @@ void ThemedSlider::paintEvent(QPaintEvent*)
 
     const Theme::Palette& pal = Theme::palette();
     const qreal t = engagedProgress_;
+    const bool focusRing = hasFocus() && Theme::focusVisible(this);
     const bool accent = scheme_ == Scheme::Accent;
     const QColor groove = mix(pal.border, pal.borderStrong, t);
     const QColor fill = accent ? mix(pal.accent, pal.accentHover, t) : mix(pal.inkSecondary, pal.ink, t);
@@ -289,7 +291,9 @@ void ThemedSlider::paintEvent(QPaintEvent*)
 
     // An OnHover handle grows in from nothing (and fades) as the slider
     // engages; an Always handle is simply there at full size.
-    const qreal handleScale = handleVisibility_ == HandleVisibility::Always ? 1.0 : t;
+    // Keyboard focus shows the handle even on an OnHover slider, so there is
+    // something to ring.
+    const qreal handleScale = (handleVisibility_ == HandleVisibility::Always || focusRing) ? 1.0 : t;
     if (handleScale <= 0.0)
         return;
     QColor handleColor = handle;
@@ -297,6 +301,11 @@ void ThemedSlider::paintEvent(QPaintEvent*)
     const qreal handleRadius = Theme::Metrics::sliderHandleDiameter / 2.0 * handleScale;
     painter.setBrush(handleColor);
     painter.drawEllipse(QPointF(handleX, centerY), handleRadius, handleRadius);
+    if (focusRing) {
+        const qreal ringRadius = handleRadius + 1; // the slider is only 16px tall
+        Theme::paintFocusRing(
+            &painter, QRectF(handleX - ringRadius, centerY - ringRadius, 2 * ringRadius, 2 * ringRadius), ringRadius);
+    }
 }
 
 void ThemedSlider::enterEvent(QEnterEvent* event)

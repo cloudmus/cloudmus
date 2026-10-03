@@ -80,6 +80,8 @@ signals:
     void closeRequested();
     // The slide-out animation finished (not emitted by a no-op dismiss()).
     void dismissed();
+    // present()/dismiss() called: the logical state changed, before any animation ends.
+    void presentedChanged(bool presented);
 
 protected:
     void paintEvent(QPaintEvent* event) override;

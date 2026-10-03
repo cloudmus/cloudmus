@@ -20,6 +20,7 @@
 #include "GeneratedCoverArt.h"
 #include "HeroPanel.h"
 #include "Icons.h"
+#include "KeyActivation.h"
 #include "Metrics.h"
 #include "OverlayScrollBar.h"
 #include "Radius.h"
@@ -27,6 +28,7 @@
 #include "SmoothScroller.h"
 #include "SourcePanel.h"
 #include "Spacing.h"
+#include "TabOrder.h"
 #include "Tokens.h"
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
@@ -272,6 +274,7 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
             emit trackActivated(sourceRow(index));
     };
     connect(trackView_, &QListView::doubleClicked, this, activate);
+    activateCurrentOnKey(trackView_, [activate](const QModelIndex& index, Qt::Key) { activate(index); });
     connect(trackDelegate_, &TrackRowDelegate::playRequested, this, activate);
     connect(trackView_, &QListView::customContextMenuRequested, this, [this](const QPoint& pos) {
         const QModelIndex index = trackView_->indexAt(pos);
@@ -339,6 +342,7 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
             setFocus();
     });
     connect(presenter_, &AnimatedPresenter::dismissed, this, &PlaylistSheet::dismissed);
+    chainTabOrder(this);
 }
 
 void PlaylistSheet::setHeader(const QString& title, const QString& subtitle, const QString& coverUrl,
@@ -399,12 +403,14 @@ void PlaylistSheet::present()
 {
     escapeShortcut_->setEnabled(true);
     presenter_->present();
+    emit presentedChanged(true);
 }
 
 void PlaylistSheet::dismiss()
 {
     escapeShortcut_->setEnabled(false);
     presenter_->dismiss();
+    emit presentedChanged(false);
 }
 
 bool PlaylistSheet::isPresented() const { return presenter_->isPresented(); }

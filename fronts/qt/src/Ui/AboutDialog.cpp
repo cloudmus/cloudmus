@@ -23,6 +23,7 @@
 #include "OverlayScrollBar.h"
 #include "SmoothScroller.h"
 #include "Spacing.h"
+#include "TabOrder.h"
 #include "Tokens.h"
 #include "Typography.h"
 #include "Version.h"
@@ -228,6 +229,7 @@ AboutDialog::AboutDialog(QWidget* parent)
     root->addWidget(pages, 1); // takes any extra height when resized
     root->addSpacing(Theme::Spacing::space4);
     root->addWidget(buttons);
+    chainTabOrder(this); // the license text is created before the tabs above it
 
     // Sized here, not left to show()'s adjustSize(): show() creates the
     // native window first, at QWidget's default 100×30, and on Wayland,

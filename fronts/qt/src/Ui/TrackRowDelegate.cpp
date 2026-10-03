@@ -10,6 +10,7 @@
 
 #include "CoverArtCache.h"
 #include "CoverPlaceholder.h"
+#include "FocusRing.h"
 #include "Icons.h"
 #include "Radius.h"
 #include "Spacing.h"
@@ -202,6 +203,9 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
         fillRoundedRect(painter, rect, pal.surface400, radius);
     else if (hovered)
         fillRoundedRect(painter, rect, pal.surface300, radius);
+
+    if ((option.state & QStyle::State_HasFocus) && Theme::focusVisible(option.widget))
+        Theme::paintFocusRing(painter, QRectF(rect).adjusted(1, 1, -1, -1), radius > 0 ? radius : Theme::Radius::sm);
 
     const int margin = (rect.height() - kThumbSize) / 2;
     const QRect thumb = thumbRect(rect);

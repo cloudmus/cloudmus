@@ -96,6 +96,9 @@ PageStack::PageStack(QWidget* parent)
     setFrameShape(QFrame::NoFrame);
     setWidgetResizable(true);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    // Tab goes to the controls inside, not to the bare scroll area (an
+    // invisible stop); a focused control still scrolls into view.
+    setFocusPolicy(Qt::NoFocus);
 
     column_ = new QWidget(this);
     columnLayout_ = new QVBoxLayout(column_);
@@ -294,6 +297,13 @@ bool PageStack::eventFilter(QObject* watched, QEvent* event)
         // sections' minimum would clip them with nothing to scroll. Handing
         // it the layout's minimum back as an explicit one restores the range.
         column_->setMinimumWidth(columnLayout_->minimumSize().width());
+        if (!contentChangedQueued_) {
+            contentChangedQueued_ = true;
+            QTimer::singleShot(0, this, [this]() {
+                contentChangedQueued_ = false;
+                emit contentChanged();
+            });
+        }
     }
     if (watched == column_ && pinned_ >= 0 && !reaimQueued_ && !adjusting_
         && (event->type() == QEvent::Resize || event->type() == QEvent::LayoutRequest)) {

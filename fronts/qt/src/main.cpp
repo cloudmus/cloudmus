@@ -15,6 +15,7 @@
 #include "Coro.h"
 #include "CoverArtCache.h"
 #include "CrashReporter.h"
+#include "FocusRing.h"
 #include "Fonts.h"
 #include "GA4Config.h"
 #include "GeneratedCoverArt.h"
@@ -212,6 +213,7 @@ int main(int argc, char** argv)
     Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())
         && Integration::WindowGlass::support() != Integration::WindowGlass::Support::None);
     Theme::applyGlobalStyleSheet(app);
+    new Theme::FocusRing(&app);
 #ifdef Q_OS_WIN
     static Integration::FirstFrameBackground firstFrameBackground;
     app.installNativeEventFilter(&firstFrameBackground);

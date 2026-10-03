@@ -18,6 +18,7 @@
 #include "MiniHtml.h"
 #include "PasswordReveal.h"
 #include "Spacing.h"
+#include "TabOrder.h"
 #include "Tokens.h"
 #include "Typography.h"
 
@@ -215,6 +216,7 @@ void AuthCard::showPrompt(const QJsonObject& params)
             }
         }
         submitButton_->show();
+        chainTabOrder(this); // the fields were created after the buttons
     } else if (flow == QStringLiteral("oauthRedirect")) {
         pendingOAuthUrl_ = params.value(QStringLiteral("url")).toString();
         QDesktopServices::openUrl(QUrl(pendingOAuthUrl_));

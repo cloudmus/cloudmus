@@ -17,6 +17,7 @@
 #include "Icons.h"
 #include "Metrics.h"
 #include "Spacing.h"
+#include "TabOrder.h"
 #include "ThemedSlider.h"
 #include "Tokens.h"
 #include "Typography.h"
@@ -366,6 +367,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     rootLayout->setSpacing(Theme::Spacing::space2);
     rootLayout->addLayout(buttonsRow_);
     rootLayout->addLayout(slidersRow);
+    chainTabOrder(this);
 }
 
 void NowPlayingBar::setTrackAvailable(bool available)
@@ -569,6 +571,10 @@ void NowPlayingBar::setVolume(int volume0To100)
     volumeSlider_->setValue(volume0To100);
 }
 
-void NowPlayingBar::setTrailingWidget(QWidget* widget) { buttonsRow_->addWidget(widget); }
+void NowPlayingBar::setTrailingWidget(QWidget* widget)
+{
+    buttonsRow_->addWidget(widget);
+    chainTabOrder(this);
+}
 
 } // namespace Ui
