@@ -39,11 +39,13 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+import shlex
 import time
+from pathlib import Path
 from typing import Any, Awaitable, Callable
 
 import requests
-from ytmusicapi import OAuthCredentials
+from ytmusicapi import OAuthCredentials, YTMusic
 from ytmusicapi.auth.browser import setup_browser
 from ytmusicapi.auth.oauth import RefreshingToken
 
@@ -79,6 +81,53 @@ def _timeout_session() -> requests.Session:
 # slow_down: polling too fast, back off but keep polling (we already poll at
 # the server-provided interval, so just treat it the same as pending).
 _PENDING_ERRORS = {"authorization_pending", "slow_down"}
+
+
+def curl_to_headers(text: str) -> str:
+    """Turn a pasted `curl ...` command (Chrome's "Copy as cURL (bash)") into
+    the "Name: value" lines setup_browser() expects; anything that doesn't
+    start with `curl` is returned unchanged, so Firefox's raw header block
+    keeps working.
+
+    Chrome has no raw-headers copy, only this — hence the second input form.
+    """
+    stripped = text.strip()
+    if not stripped.startswith("curl"):
+        return text
+    # Chrome splits the command over lines with a trailing backslash.
+    try:
+        tokens = shlex.split(stripped.replace("\\\n", " "))
+    except ValueError:
+        return text
+    lines: list[str] = []
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        if token in ("-H", "--header", "-b", "--cookie") and i + 1 < len(tokens):
+            value = tokens[i + 1]
+            lines.append(value if token in ("-H", "--header") else f"cookie: {value}")
+            i += 1
+        i += 1
+    return "\n".join(lines)
+
+
+def with_authorization_marker(raw: str) -> str:
+    """ytmusicapi picks browser auth over OAuth only when the saved headers
+    carry an `authorization: SAPISIDHASH ...` header, else it demands OAuth
+    credentials. Not every request has one (e.g. Firefox's/Chrome's
+    `ptracking` calls don't), but its value is recomputed from the cookie on
+    every call, so a bare marker is enough."""
+    if any(line.partition(":")[0].strip().lower() == "authorization" for line in raw.splitlines()):
+        return raw
+    return raw.rstrip("\n") + "\nauthorization: SAPISIDHASH placeholder\n"
+
+
+def _verify_login(path: Path) -> None:
+    """One authenticated library call with the just-saved headers: a pasted
+    set can parse fine yet be rejected by YouTube (expired or foreign
+    cookie, wrong account index), which would otherwise only show up as an
+    empty library later. Raises on any failure."""
+    YTMusic(auth=str(path)).get_library_playlists(limit=1)
 
 
 class BrowserAuthSession:
@@ -122,7 +171,8 @@ class BrowserAuthSession:
                 "message": (
                     'Open <a href="https://music.youtube.com">music.youtube.com</a> in your browser '
                     "while signed in, open <b>DevTools → Network</b>, click any request to "
-                    "<code>music.youtube.com</code>, and paste its <b>Request Headers</b> below."
+                    "<code>music.youtube.com</code>, and paste its <b>Request Headers</b> (Firefox) or "
+                    "<b>Copy as cURL (bash)</b> (Chrome) below."
                 ),
                 "fields": [{"name": "headers", "secret": False, "multiline": True}],
             },
@@ -143,10 +193,14 @@ class BrowserAuthSession:
             # YTMusicUserError (missing required header) or YTMusicError
             # (couldn't parse the pasted text at all) — both handled the
             # same way below, the message is informative either way.
-            setup_browser(str(path), fields.get("headers", ""))
+            setup_browser(str(path), with_authorization_marker(curl_to_headers(fields.get("headers", ""))))
             path.chmod(0o600)
+            await asyncio.to_thread(_verify_login, path)
         except Exception as e:
             logger.debug("browser auth submit failed: %s", e)
+            # Not left behind: has_browser_auth() would report a rejected
+            # paste as signed in.
+            config.browser_headers_path().unlink(missing_ok=True)
             self.status = "error"
             self.error_message = str(e)
             await emit_auth_status_changed(notify, StatusChangedParams(status="error", message=str(e)))

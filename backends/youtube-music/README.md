@@ -36,8 +36,8 @@ OAuth code is kept in `auth.py` for when that's fixed (see the comment on
 4. Copy its request headers as raw text:
    - **Firefox**: right-click the request → *Copy Value* → *Copy Request
      Headers*.
-   - **Chrome**: open the request's *Headers* panel and copy the raw
-     request headers block.
+   - **Chrome**: right-click the request → *Copy* → *Copy as cURL (bash)*.
+     The pasted `curl` command is converted to headers automatically.
 5. In CloudMus, open YouTube Music's page in **Settings**, paste the copied
    text into the sign-in box and submit.
 
