@@ -426,12 +426,21 @@ bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)
         //
         // A submenu is placed from scratch instead (see placeSubmenu()):
         // Qt put it by the parent's item, not at a point of the caller's.
+        //
+        // The size is put back after the move: a menu made at startup (the
+        // menu button's) can still think it's on the screen it was made on,
+        // and when the move takes it across to its real one, Qt 6.9 (the
+        // AppImage's) resets the window to QWidget's default 100x30 — an
+        // empty strip with no items.
         if (auto* menu = qobject_cast<QMenu*>(watched)) {
+            const QSize size = menu->size();
             const auto* parentMenu = qobject_cast<const QMenu*>(menu->parentWidget());
             if (parentMenu && parentMenu->isVisible() && parentMenu->actions().contains(menu->menuAction()))
                 placeSubmenu(menu, parentMenu);
             else
                 menu->move(menu->pos() + anchorShift(menu));
+            if (menu->size() != size)
+                menu->resize(size);
         }
     }
     return QProxyStyle::eventFilter(watched, event);
