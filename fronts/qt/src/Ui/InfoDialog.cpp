@@ -53,9 +53,13 @@ InfoDialog::InfoDialog(const QString& title, const QString& heading, const QStri
     root->addSpacing(Theme::Spacing::space3);
     root->addWidget(buttons);
 
-    // Sized here rather than by show() — see AboutDialog's constructor
-    // (Wayland replaying a stale 100×30 size with word-wrapped labels).
-    resize(sizeHint());
+    // Fixed at sizeHint(): a short notice sized to its text gains nothing
+    // from resizing, and narrower it would clip the wrapped paragraph.
+    // Not the layout's SetFixedSize constraint — that measures the
+    // word-wrapped labels at Qt's guessed width, not kDialogWidth. Set here
+    // rather than left to show() also because of the stale 100×30 size
+    // Wayland replays (see AboutDialog's constructor).
+    setFixedSize(sizeHint());
 }
 
 QSize InfoDialog::sizeHint() const { return { kDialogWidth, heightForWidth(kDialogWidth) }; }
