@@ -70,6 +70,9 @@ keep the original newest-first order.
 3. Tidy up the new section (see above).
 4. Pick the version: only bug fixes → patch (`0.1.0` → `0.1.1`); anything
    new → minor (`0.1.0` → `0.2.0`). Replace `X.X.X` in the heading with it.
+   **Stop here**: show the user the tidied section with the version and wait
+   for their approval — they may reword, drop or merge entries. Don't commit,
+   tag or push before that.
 5. Commit the changelog as `Release <x.y.z>`.
 6. Create an annotated tag on that commit whose message is the version
    followed by that release's changelog bullets, and push both:

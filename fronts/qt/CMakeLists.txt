@@ -50,11 +50,17 @@ endif()
 set(CLOUDMUS_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 get_filename_component(CLOUDMUS_REPO_ROOT ${CLOUDMUS_REPO_ROOT} ABSOLUTE)
 
-if(NOT PYTHON3_EXECUTABLE)
-    if(EXISTS ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
-        set(PYTHON3_EXECUTABLE ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
-    else()
-        find_program(PYTHON3_EXECUTABLE NAMES python3 python REQUIRED)
+option(CLOUDMUS_PREGENERATED_PROTOCOL "Use generated protocol sources already present in the checkout" OFF)
+# Python is only needed to generate the protocol sources; a build that uses
+# the pregenerated ones (the Windows one, under Wine's CMake with no Python
+# at all) must not require it.
+if(NOT CLOUDMUS_PREGENERATED_PROTOCOL)
+    if(NOT PYTHON3_EXECUTABLE)
+        if(EXISTS ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
+            set(PYTHON3_EXECUTABLE ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
+        else()
+            find_program(PYTHON3_EXECUTABLE NAMES python3 python REQUIRED)
+        endif()
     endif()
 endif()
 set(GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
@@ -65,7 +71,6 @@ file(GLOB_RECURSE PROTOCOL_SCHEMA_FILES ${CLOUDMUS_REPO_ROOT}/protocol/schema/*.
 # The generated sources are listed as outputs, not just the stamp: on a
 # fresh checkout they don't exist yet (gitignored), and CMake refuses to
 # configure with a missing source file unless it knows a rule produces it.
-option(CLOUDMUS_PREGENERATED_PROTOCOL "Use generated protocol sources already present in the checkout" OFF)
 if(NOT CLOUDMUS_PREGENERATED_PROTOCOL)
 add_custom_command(
     OUTPUT ${GENERATED_CPP_STAMP}
