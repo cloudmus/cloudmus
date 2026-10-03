@@ -46,7 +46,7 @@ echo "==> Configuring and building cloudmus-qt"
 # use the container's system python3 (which got them installed just
 # above) instead.
 cmake -S fronts/qt -B build-appimage -G Ninja -DCMAKE_BUILD_TYPE=Release \
-    -DPYTHON3_EXECUTABLE="$(command -v python3)"
+    -DBUILD_TESTING=OFF -DPYTHON3_EXECUTABLE="$(command -v python3)"
 cmake --build build-appimage
 
 # --- 3. Assemble the AppDir ---
