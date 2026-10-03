@@ -2,7 +2,7 @@
 
 A release is an annotated `x.y.z` tag. Pushing it runs
 `.github/workflows/release.yml`, which builds the AppImage and Windows NSIS
-installer, checks the Windows package, and publishes both on the GitHub
+installer, and publishes both on the GitHub
 release with the tag's message as its release notes. The app's
 version (shown in the About dialog) comes from the same tag via
 `git describe` (`fronts/qt/cmake/Version.cmake`).
