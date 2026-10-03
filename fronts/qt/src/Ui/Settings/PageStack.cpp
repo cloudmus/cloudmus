@@ -288,6 +288,13 @@ void PageStack::scrollToPage(int index, bool animated)
 
 bool PageStack::eventFilter(QObject* watched, QEvent* event)
 {
+    if (watched == column_ && event->type() == QEvent::LayoutRequest) {
+        // QScrollArea drops the widget's minimum width when its layout trades
+        // height for width (wrapping labels), so a viewport narrower than the
+        // sections' minimum would clip them with nothing to scroll. Handing
+        // it the layout's minimum back as an explicit one restores the range.
+        column_->setMinimumWidth(columnLayout_->minimumSize().width());
+    }
     if (watched == column_ && pinned_ >= 0 && !reaimQueued_ && !adjusting_
         && (event->type() == QEvent::Resize || event->type() == QEvent::LayoutRequest)) {
         // Queued: the layout hasn't placed the sections yet, and a
