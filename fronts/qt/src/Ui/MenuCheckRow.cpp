@@ -35,7 +35,7 @@ void MenuCheckRow::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(Theme::palette().surface400);
+    painter.setBrush(Theme::selectedFill(Theme::palette().surface200));
     painter.drawRoundedRect(QRectF(rect()), Theme::Radius::sm, Theme::Radius::sm);
 }
 

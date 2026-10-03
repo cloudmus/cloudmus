@@ -81,6 +81,16 @@ constexpr qreal kContentGlassLayer = 0.3;
 // `top` composited over `bottom` (source-over), both possibly see-through:
 // the one color a stack of translucent layers shows as.
 QColor over(const QColor& top, const QColor& bottom);
+// The most see-through color that, over the opaque `base`, shows exactly as
+// `target`: a highlight (hover, selection) painted as a tint rather than a
+// solid fill, so it reads the same over the opaque surface and lets the blur
+// through over glass. `base` is the opaque color the surface stands for, not
+// its glass version.
+QColor highlight(const QColor& target, const QColor& base);
+// highlight() of the hover (surface300) and selected/pressed (surface400)
+// tones over `base`, from the current palette.
+QColor hoverFill(const QColor& base);
+QColor selectedFill(const QColor& base);
 
 // Fires once, app-wide, whenever the desktop's light/dark scheme changes —
 // every theme-driven consumer (the generated stylesheet, the icon tint

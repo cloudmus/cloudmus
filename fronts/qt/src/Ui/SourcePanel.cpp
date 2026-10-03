@@ -194,7 +194,7 @@ protected:
             const QRect row(0, i * kPlaylistRowHeight, width(), kPlaylistRowHeight);
             if (i == hovered_) {
                 painter.setPen(Qt::NoPen);
-                painter.setBrush(pal.surface300);
+                painter.setBrush(Theme::hoverFill(pal.surface0));
                 painter.drawRoundedRect(row, Theme::Radius::md, Theme::Radius::md);
             }
             const int pad = (kPlaylistRowHeight - kPlaylistThumb) / 2;

@@ -359,7 +359,7 @@ void CloudMusStyle::drawControl(
             && item->menuItemType != QStyleOptionMenuItem::Separator) {
             painter->setRenderHint(QPainter::Antialiasing);
             painter->setPen(Qt::NoPen);
-            painter->setBrush(palette().surface400);
+            painter->setBrush(selectedFill(palette().surface200));
             // Full item width: PM_MenuHMargin/VMargin (see pixelMetric())
             // already inset every item equally from the panel's edges.
             painter->drawRoundedRect(QRectF(item->rect), Radius::sm, Radius::sm);

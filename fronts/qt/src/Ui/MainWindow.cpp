@@ -53,6 +53,7 @@
 #include "ScrollEdgeFade.h"
 #include "SettingsDialog.h"
 #include "SidebarModel.h"
+#include "SidebarTreeView.h"
 #include "SmoothScroller.h"
 #include "SourcePanel.h"
 #include "Spacing.h"
@@ -174,7 +175,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // --- sidebar + track list ---
     // Owned by ViewModel::Sources, which keeps it filled.
     sidebarModel_ = &sources_.model();
-    sidebarView_ = new QTreeView(this);
+    sidebarView_ = new SidebarTreeView(this);
     sidebarView_->setObjectName(QStringLiteral("sidebarView")); // see StyleSheet.cpp's sidebarTreeBlock()
     sidebarView_->setModel(sidebarModel_);
     sidebarDelegate_ = new NavItemDelegate(sidebarView_);
@@ -1003,7 +1004,7 @@ void MainWindow::showTrackMenu(
         if (dislikeSupported) {
             const bool disliked = trackStates_->state(sourceId, track.id).disliked.value_or(false);
             QAction* dislikeAction
-                = menu->addAction(Theme::icon(QStringLiteral("heart_broken"),
+                = menu->addAction(Theme::icon(disliked ? QStringLiteral("heart_off") : QStringLiteral("heart_off_outline"),
                                       disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16),
                     disliked ? tr("Remove Dislike") : tr("Dislike"));
             connect(dislikeAction, &QAction::triggered, this, [this, sourceId, id = track.id, disliked]() {

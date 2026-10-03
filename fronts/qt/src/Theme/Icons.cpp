@@ -29,6 +29,11 @@ QColor colorFor(IconColor color, const Palette& palette)
             return palette.inkTertiary;
         case IconColor::OnAccent:
             return palette.onAccent;
+        case IconColor::Disabled: {
+            QColor faded = palette.inkTertiary;
+            faded.setAlphaF(0.5);
+            return faded;
+        }
     }
     return palette.ink;
 }

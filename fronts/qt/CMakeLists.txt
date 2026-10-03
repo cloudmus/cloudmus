@@ -235,6 +235,7 @@ add_library(cloudmus-ui STATIC
     src/Ui/UpdateDialog.cpp
     src/Ui/UpdateFlow.cpp
     src/Ui/NavItemDelegate.cpp
+    src/Ui/SidebarTreeView.cpp
     src/Ui/TrackListModel.cpp
     src/Ui/TrackRowDelegate.cpp
     src/Ui/NowPlayingBar.cpp

@@ -200,9 +200,9 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     // corners — rounding them against the view's own edges looks chipped.
     const int radius = (insetLeft_ > 0 || insetRight_ > 0) ? Theme::Radius::md : 0;
     if (selected || isCurrentTrack)
-        fillRoundedRect(painter, rect, pal.surface400, radius);
+        fillRoundedRect(painter, rect, Theme::selectedFill(pal.surface0), radius);
     else if (hovered)
-        fillRoundedRect(painter, rect, pal.surface300, radius);
+        fillRoundedRect(painter, rect, Theme::hoverFill(pal.surface0), radius);
 
     if ((option.state & QStyle::State_HasFocus) && Theme::focusVisible(option.widget))
         Theme::paintFocusRing(painter, QRectF(rect).adjusted(1, 1, -1, -1), radius > 0 ? radius : Theme::Radius::sm);
@@ -270,7 +270,7 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
     if (liked || disliked) {
         const QRect badgeRect(rect.right() - margin - rightColumnWidth - equalizerReserve - badgeReserve + 1,
             rect.center().y() - kBadgeSize / 2, kBadgeSize, kBadgeSize);
-        Theme::icon(liked ? QStringLiteral("favorite") : QStringLiteral("heart_broken"),
+        Theme::icon(liked ? QStringLiteral("favorite") : QStringLiteral("heart_off"),
             liked ? Theme::IconColor::Accent : Theme::IconColor::InkTertiary, kBadgeSize)
             .paint(painter, badgeRect);
     }

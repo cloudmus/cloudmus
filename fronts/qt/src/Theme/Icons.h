@@ -18,7 +18,9 @@ enum class IconColor {
     Ink,
     Accent,
     InkTertiary,
-    OnAccent
+    OnAccent,
+    // A control that can't be used right now: fainter than any other glyph.
+    Disabled
 };
 
 // Loads ":/icons/symbols/<name>.svg" (see resources/icons.qrc — classic

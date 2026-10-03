@@ -60,13 +60,12 @@ public:
         setProperty("variant", scheme_ == Scheme::Accent ? "play" : "icon");
         setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
         setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
-        Theme::followTheme(this, [this]() { applyIcon(underMouse() ? hoverColor() : restColor()); });
+        Theme::followTheme(this, [this]() { refreshIcon(); });
         // Checked buttons (like/dislike) need their glyph re-tinted on
         // toggle too — checked state can be set programmatically (see
         // setLikeState()/setDislikeState()) without a hover/leave event
         // ever firing.
-        connect(
-            this, &QPushButton::toggled, this, [this](bool) { applyIcon(underMouse() ? hoverColor() : restColor()); });
+        connect(this, &QPushButton::toggled, this, [this](bool) { refreshIcon(); });
     }
 
     // Playback-state-driven icon changes (play/pause/refresh) go through
@@ -76,19 +75,26 @@ public:
     void setIconName(const QString& name)
     {
         iconName_ = name;
-        applyIcon(underMouse() ? hoverColor() : restColor());
+        refreshIcon();
     }
 
 protected:
     void enterEvent(QEnterEvent* event) override
     {
-        applyIcon(hoverColor());
+        refreshIcon();
         QPushButton::enterEvent(event);
     }
     void leaveEvent(QEvent* event) override
     {
-        applyIcon(restColor());
+        refreshIcon();
         QPushButton::leaveEvent(event);
+    }
+    // Enabling/disabling fires no enter/leave/toggled.
+    void changeEvent(QEvent* event) override
+    {
+        QPushButton::changeEvent(event);
+        if (event->type() == QEvent::EnabledChange)
+            refreshIcon();
     }
 
 private:
@@ -108,7 +114,17 @@ private:
             return Theme::IconColor::Accent;
         return scheme_ == Scheme::Accent ? Theme::IconColor::OnAccent : Theme::IconColor::Ink;
     }
-    void applyIcon(Theme::IconColor color) { setIcon(Theme::icon(iconName_, color, Theme::Metrics::iconGlyphSize)); }
+    // A disabled button never lights up under the mouse (Qt still sends it
+    // enter/leave) and shows no accent, even when checked.
+    void refreshIcon()
+    {
+        const int side = Theme::Metrics::iconGlyphSize;
+        QIcon icon = Theme::icon(iconName_, underMouse() ? hoverColor() : restColor(), side);
+        // Used while disabled, whatever the hover/checked state above: given
+        // explicitly so Qt doesn't substitute its own grey.
+        icon.addPixmap(Theme::icon(iconName_, Theme::IconColor::Disabled, side).pixmap(side), QIcon::Disabled);
+        setIcon(icon);
+    }
 
     QString iconName_;
     Scheme scheme_;
@@ -212,7 +228,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     likeButton_->setObjectName(QStringLiteral("likeButton"));
     likeButton_->setCheckable(true);
     likeButton_->setToolTip(tr("Like"));
-    dislikeButton_ = new IconHoverButton(QStringLiteral("heart_broken"), IconHoverButton::Scheme::Neutral, this);
+    dislikeButton_ = new IconHoverButton(QStringLiteral("heart_off_outline"), IconHoverButton::Scheme::Neutral, this);
     dislikeButton_->setCheckable(true);
     dislikeButton_->setToolTip(tr("Dislike"));
     // Not checkable, unlike like/dislike — a repeat download is a normal
@@ -472,7 +488,9 @@ void NowPlayingBar::refreshDislikeButton()
     dislikeButton_->setEnabled(dislikeSupported_ && !dislikeBusy_);
     dislikeButton_->setChecked(disliked_);
     static_cast<IconHoverButton*>(dislikeButton_)
-        ->setIconName(dislikeBusy_ ? QStringLiteral("refresh") : QStringLiteral("heart_broken"));
+        ->setIconName(dislikeBusy_ ? QStringLiteral("refresh")
+                : disliked_        ? QStringLiteral("heart_off") // filled once disliked, outline otherwise
+                                   : QStringLiteral("heart_off_outline"));
 }
 
 void NowPlayingBar::setPlaylistsState(bool capabilitySupported) { playlistsButton_->setEnabled(capabilitySupported); }

@@ -160,7 +160,7 @@ protected:
                     row.right() - kCancelSide, row.top() + (row.height() - kCancelSide) / 2, kCancelSide, kCancelSide);
                 if (cancel.contains(hover_)) {
                     painter.setPen(Qt::NoPen);
-                    painter.setBrush(pal.surface300);
+                    painter.setBrush(Theme::hoverFill(pal.surface200));
                     painter.drawEllipse(cancel);
                 }
                 Theme::icon(QStringLiteral("close"),

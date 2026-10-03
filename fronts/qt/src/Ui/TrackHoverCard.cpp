@@ -204,7 +204,7 @@ protected:
             if (data_.liked.toBool())
                 badge(QStringLiteral("favorite"), Theme::IconColor::Accent, pal.accent, tr("Liked"));
             else if (data_.disliked.toBool())
-                badge(QStringLiteral("heart_broken"), Theme::IconColor::InkTertiary, pal.inkSecondary, tr("Disliked"));
+                badge(QStringLiteral("heart_off"), Theme::IconColor::InkTertiary, pal.inkSecondary, tr("Disliked"));
             if (data_.track.explicit_.value_or(false))
                 badge(QString(), Theme::IconColor::Ink, pal.inkSecondary, tr("Explicit"));
             y += captionMetrics.height();

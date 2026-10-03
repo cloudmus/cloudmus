@@ -190,8 +190,9 @@ void TrayIcon::refreshFeedbackActions()
                                         : Theme::icon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16));
     dislikeAction_->setVisible(feedback.dislikeSupported);
     dislikeAction_->setText(feedback.disliked ? tr("Remove Dislike") : tr("Dislike"));
-    dislikeAction_->setIcon(Theme::icon(
-        QStringLiteral("heart_broken"), feedback.disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16));
+    dislikeAction_->setIcon(
+        Theme::icon(feedback.disliked ? QStringLiteral("heart_off") : QStringLiteral("heart_off_outline"),
+            feedback.disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16));
     playlistsMenu_->menuAction()->setVisible(feedback.playlistsSupported);
     feedbackSeparator_->setVisible(feedback.likeSupported || feedback.dislikeSupported || feedback.playlistsSupported);
 }

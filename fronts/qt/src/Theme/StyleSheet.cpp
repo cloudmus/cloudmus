@@ -96,6 +96,12 @@ QToolButton[variant="icon"]:focus { border: %8px solid %9; }
 QPushButton[variant="icon"][filled="true"], QToolButton[variant="icon"][filled="true"] { background: %2; }
 QPushButton[variant="icon"][filled="true"]:hover, QToolButton[variant="icon"][filled="true"]:hover { background: %3; }
 QPushButton[variant="icon"][compact="true"], QToolButton[variant="icon"][compact="true"] { border-radius: 10px; }
+/* Last of the icon rules so it wins over hover/pressed/checked/filled: a
+   disabled button shows no highlight at all. */
+QPushButton[variant="icon"]:disabled, QToolButton[variant="icon"]:disabled,
+QPushButton[variant="icon"][filled="true"]:disabled, QToolButton[variant="icon"][filled="true"]:disabled {
+    background: transparent;
+}
 QPushButton[variant="play"] {
     background: %4;
     border: 0px solid transparent;
@@ -103,9 +109,10 @@ QPushButton[variant="play"] {
 }
 QPushButton[variant="play"]:hover { background: %5; }
 QPushButton[variant="play"]:pressed { background: %6; }
+QPushButton[variant="play"]:disabled { background: %3; }
 #heroPlayButton { border-radius: %7px; })")
-        .arg(QString::number(Metrics::iconButtonSize / 2), hex(p.surface300), hex(p.surface400), hex(p.accent),
-            hex(p.accentHover), hex(p.accentPressed))
+        .arg(QString::number(Metrics::iconButtonSize / 2), css(hoverFill(p.surface100)),
+            css(selectedFill(p.surface100)), hex(p.accent), hex(p.accentHover), hex(p.accentPressed))
         .arg(QString::number(Metrics::playButtonSize / 2))
         .arg(QString::number(Metrics::focusRingWidth), hex(p.accent));
 }
@@ -236,9 +243,9 @@ QString sidebarTreeBlock(const Palette& p)
     // HighlightedText, which QSS never touched — left at its default,
     // that renders as a stray blue sliver over our surface-400 fill.
     // selection-background-color/selection-color map straight onto
-    // those two palette roles, so matching them to the same tone the
-    // delegate already paints makes that native decoration blend in
-    // instead of standing out as a different color.
+    // those two palette roles. The row's highlight is one translucent fill
+    // painted by Ui::SidebarTreeView::drawRow(), so Qt's own must paint
+    // nothing — a second translucent layer would double up.
     //
     // Explicit width/height, not just image: — without a fixed box,
     // Fusion sizes the branch indicator (and the gap it reserves
@@ -268,7 +275,7 @@ QTreeView#sidebarView::branch:selected:open:has-children {
     image: url("%5"); width: 12px; height: 12px;
 })")
         .arg(chromeBackground(p.surface100), chevronClosed, chevronOpen, chevronClosedSelected, chevronOpenSelected)
-        .arg(hex(p.surface400), hex(p.accent));
+        .arg(QStringLiteral("transparent"), hex(p.accent));
 }
 
 // trackListView_ is otherwise fully unstyled (TrackRowDelegate self-paints
@@ -368,8 +375,8 @@ QString settingsBlock(const Palette& p)
 }
 QScrollArea#settingsPages { background: %5; border: none; }
 QFrame#settingsSubCard { border: 1px solid %6; border-radius: %7px; })")
-        .arg(hex(p.surface100), hex(p.surface400), hex(p.accent), QString::number(Spacing::space2), hex(p.surface0),
-            hex(p.border), QString::number(Radius::md));
+        .arg(hex(p.surface100), css(selectedFill(p.surface100)), hex(p.accent), QString::number(Spacing::space2),
+            hex(p.surface0), hex(p.border), QString::number(Radius::md));
 }
 
 // Drop-down lists and number fields in themed dialogs, in the same

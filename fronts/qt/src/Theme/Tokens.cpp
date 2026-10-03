@@ -144,6 +144,30 @@ QColor over(const QColor& top, const QColor& bottom)
         float(channel(top.blueF(), bottom.blueF())), float(alpha));
 }
 
+QColor highlight(const QColor& target, const QColor& base)
+{
+    const qreal t[] = { target.redF(), target.greenF(), target.blueF() };
+    const qreal b[] = { base.redF(), base.greenF(), base.blueF() };
+    // Each channel needs at least this much coverage for some color in
+    // [0, 1] to reach its target: darkening is bounded by black, lightening
+    // by white. The most demanding channel sets the alpha.
+    qreal alpha = 0.0;
+    for (int i = 0; i < 3; ++i) {
+        if (t[i] < b[i])
+            alpha = qMax(alpha, (b[i] - t[i]) / b[i]);
+        else if (t[i] > b[i])
+            alpha = qMax(alpha, (t[i] - b[i]) / (1.0 - b[i]));
+    }
+    if (alpha <= 0.0)
+        return Qt::transparent;
+    const auto channel = [&](int i) { return float(qBound(0.0, (t[i] - (1.0 - alpha) * b[i]) / alpha, 1.0)); };
+    return QColor::fromRgbF(channel(0), channel(1), channel(2), float(alpha));
+}
+
+QColor hoverFill(const QColor& base) { return highlight(palette().surface300, base); }
+
+QColor selectedFill(const QColor& base) { return highlight(palette().surface400, base); }
+
 Mode currentMode()
 {
     if (modeOverride)

@@ -35,37 +35,20 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
     }
 
     const bool selected = option.state & QStyle::State_Selected;
-    // hoveredIndex_, not option.state & QStyle::State_MouseOver — see the
-    // class doc comment on why Qt's own hover tracking can't be trusted
-    // across a scroll and MainWindow drives this one directly instead.
-    const bool hovered = index == hoveredIndex_;
-    // Qt does NOT auto-paint a selection background before calling a fully
-    // overridden QStyledItemDelegate::paint() — that's only what
-    // QStyledItemDelegate's own *default* paint() does internally, which
-    // we've completely replaced. So this delegate has to paint its own
-    // background for both states; the QTreeView `selection-background-
-    // color`/`selection-color` QSS properties only affect the small native
-    // "current item" decoration outside the delegate's own item painting
-    // (see Theme::StyleSheet's QTreeView rule), not this fill.
+    // The row's highlight (hover, selection) is not painted here but by
+    // Ui::SidebarTreeView::drawRow(), once for the whole row: a translucent
+    // fill split between the view and this delegate would stack its alpha
+    // where they overlap. Hover comes from hoveredIndex_, not option.state &
+    // QStyle::State_MouseOver — see the class doc comment on why Qt's own
+    // hover tracking can't be trusted across a scroll and MainWindow drives
+    // this one directly instead.
     //
-    // Right edge only extends to the viewport's full width — option.rect's
-    // own right edge falls short of it (a bare column-width quirk on this
-    // single-column, header-hidden tree), which used to leave the highlight
-    // looking like a narrow box rather than spanning the row. The left edge
-    // stays at rect.left(), NOT 0: that would paint over the branch/chevron
-    // decoration to its left, which QTreeView draws separately (and first),
-    // so a full-width fill starting at 0 painted right over it.
+    // Right edge extends to the viewport's full width — option.rect's own
+    // right edge falls short of it (a bare column-width quirk on this
+    // single-column, header-hidden tree); the status/marker icons below
+    // are anchored to it.
     const int fullRowWidth = option.widget != nullptr ? option.widget->width() : rect.right();
     const QRect fullRowRect(rect.left(), rect.top(), fullRowWidth - rect.left(), rect.height());
-    // No antialiasing for this fill: it's a plain axis-aligned rect, and at
-    // a fractional display scale factor AA softens its edges into a
-    // partial-opacity blend — which, between two adjacent rows' fills (one
-    // freshly hovered, one just cleared), left a faint seam line neither
-    // repaint fully overwrote. Enabled below, only for the text/icon.
-    if (selected)
-        painter->fillRect(fullRowRect, pal.surface400);
-    else if (hovered)
-        painter->fillRect(fullRowRect, pal.surface300);
     painter->setRenderHint(QPainter::Antialiasing);
     if ((option.state & QStyle::State_HasFocus) && Theme::focusVisible(option.widget))
         Theme::paintFocusRing(painter, QRectF(fullRowRect).adjusted(2, 1, -2, -1), Theme::Radius::sm);
