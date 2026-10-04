@@ -47,9 +47,22 @@ QProcessEnvironment backendEnvironment(const Connection& connection);
 // can't reach it. Call once, before anything networks.
 void bypassProxyForLoopback();
 
-// For QNetworkAccessManager requests made for the source. System asks
-// Qt's view of the system configuration for `url`.
+// For QNetworkAccessManager requests made for the source. System is
+// systemProxy(url).
 QNetworkProxy networkProxy(const Connection& connection, const QUrl& url);
 QNetworkProxy networkProxy(const Config::ProxyConfig& proxy);
+
+// The proxy the environment names for `url` (an empty one counts as
+// https://), read the way Python's requests does — what a backend left with
+// the System connection uses: <scheme>_proxy, then all_proxy, lowercase
+// before uppercase, nothing for a host in no_proxy. None if unset.
+std::optional<QNetworkProxy> environmentProxy(const QUrl& url);
+
+// What the System connection means for the front's own requests:
+// environmentProxy(), else Qt's view of the system configuration. Qt alone
+// doesn't do: on Windows it reads only the WinINet settings, not the
+// variables the backend goes by, and a stream URL resolved through the
+// backend's proxy may point at a server that can't be reached without it.
+QNetworkProxy systemProxy(const QUrl& url);
 
 } // namespace Net

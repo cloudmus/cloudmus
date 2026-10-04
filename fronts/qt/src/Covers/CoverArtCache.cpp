@@ -8,6 +8,8 @@
 #include <QStandardPaths>
 #include <QUrl>
 
+#include "ProxyRouting.h"
+
 namespace Covers {
 
 namespace {
@@ -85,8 +87,7 @@ QNetworkProxy CoverArtCache::proxyFor(const QUrl& url) const
     const QString sourceId = sourceForUrl_.value(url.toString());
     if (!sourceId.isEmpty() && proxyProvider_)
         return proxyProvider_(sourceId, url);
-    const QList<QNetworkProxy> system = QNetworkProxyFactory::systemProxyForQuery(QNetworkProxyQuery(url));
-    return system.isEmpty() ? QNetworkProxy(QNetworkProxy::NoProxy) : system.constFirst();
+    return Net::systemProxy(url);
 }
 
 void CoverArtCache::fetch(const QString& url, QSize targetSize, const QUrl& requestUrl, int redirectsLeft)

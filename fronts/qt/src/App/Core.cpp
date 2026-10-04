@@ -68,8 +68,10 @@ Core::Core(QObject* parent)
         [this](const QString& sourceId, const QUrl& url) { return Net::networkProxy(connectionOf(sourceId), url); });
     playback_.setStreamRouteProvider([this](const QString& sourceId) -> std::optional<QNetworkProxy> {
         const Net::Connection connection = connectionOf(sourceId);
+        // System still routes the stream through the environment's proxy
+        // when it names one: the backend resolved the URL through it.
         if (connection.mode == Net::Connection::Mode::System)
-            return std::nullopt;
+            return Net::environmentProxy(QUrl());
         return Net::networkProxy(connection, QUrl());
     });
 }

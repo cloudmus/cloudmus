@@ -5,6 +5,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QRegularExpression>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -24,6 +25,48 @@ private slots:
     // As main() does: mpv must reach the local relay even with an
     // http_proxy in the environment.
     void initTestCase() { Net::bypassProxyForLoopback(); }
+
+    // The System connection must stream through the proxy the backend got
+    // from the environment: a URL resolved through it may only work there.
+    void systemConnectionTakesTheEnvironmentsProxy()
+    {
+        const char* const names[] = { "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY" };
+        QList<std::pair<const char*, std::optional<QByteArray>>> saved;
+        for (const char* name : names) {
+            saved.append({ name, qEnvironmentVariableIsSet(name) ? std::optional(qgetenv(name)) : std::nullopt });
+            qunsetenv(name);
+        }
+        const auto restore = qScopeGuard([&]() {
+            for (const auto& [name, value] : saved) {
+                if (value)
+                    qputenv(name, *value);
+                else
+                    qunsetenv(name);
+            }
+        });
+
+        QVERIFY(!Net::environmentProxy(QUrl()));
+
+        qputenv("HTTPS_PROXY", "http://user:p%40ss@proxy.example:4444");
+        const std::optional<QNetworkProxy> proxy = Net::environmentProxy(QUrl());
+        QVERIFY(proxy);
+        QCOMPARE(proxy->type(), QNetworkProxy::HttpProxy);
+        QCOMPARE(proxy->hostName(), QStringLiteral("proxy.example"));
+        QCOMPARE(proxy->port(), quint16(4444));
+        QCOMPARE(proxy->user(), QStringLiteral("user"));
+        QCOMPARE(proxy->password(), QStringLiteral("p@ss"));
+        QCOMPARE(Net::systemProxy(QUrl(QStringLiteral("https://strm.example/a.mp3"))).hostName(),
+            QStringLiteral("proxy.example"));
+
+        qputenv("NO_PROXY", "localhost,.example");
+        QVERIFY(!Net::environmentProxy(QUrl(QStringLiteral("https://strm.example/a.mp3"))));
+        QVERIFY(Net::environmentProxy(QUrl(QStringLiteral("https://strm.other/a.mp3"))));
+
+        qunsetenv("HTTPS_PROXY");
+        qputenv("all_proxy", "socks5h://proxy.example");
+        QCOMPARE(Net::environmentProxy(QUrl())->type(), QNetworkProxy::Socks5Proxy);
+        QCOMPARE(Net::environmentProxy(QUrl())->port(), quint16(1080));
+    }
 
     void oneMpvAdvancesToAnEnqueuedLocalTrack()
     {
