@@ -13,6 +13,8 @@ class CoverArtCache;
 
 namespace Ui {
 
+class FrameTicker;
+
 // Compact, one-line row: small inline cover thumbnail + title/artist
 // stacked + duration right-aligned — see the plan's UI/UX design (chosen
 // over a multi-column table). Colors/fonts come from Theme::Tokens/
@@ -69,7 +71,7 @@ private:
     mutable QHash<QString, qint64> fadeStartMs_; // URL -> when its fade-in began
     mutable QHash<QWidget*, QPointer<QWidget>> fadingViews_; // viewports to repaint while fading
     QElapsedTimer clock_;
-    QTimer* fadeTimer_ = nullptr;
+    FrameTicker* fadeTicker_ = nullptr;
 
     Covers::CoverArtCache* coverCache_;
     QString currentSourceId_;

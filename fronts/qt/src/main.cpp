@@ -17,6 +17,7 @@
 #include "CrashReporter.h"
 #include "FocusRing.h"
 #include "Fonts.h"
+#include "FrameClock.h"
 #include "GA4Config.h"
 #include "GeneratedCoverArt.h"
 #include "Logging.h"
@@ -133,6 +134,9 @@ int main(int argc, char** argv)
     }
 #endif
     QApplication app(argc, argv);
+    // Animations at the monitor's refresh rate instead of Qt's fixed 60 FPS.
+    Ui::DisplayAnimationDriver animationDriver;
+    animationDriver.install();
     // Fusion, not whatever native style the desktop provides (Breeze under
     // KDE): Breeze's own QCommonStyle-derived painting largely ignores QSS
     // properties like border-radius on QPushButton/QToolButton, which is

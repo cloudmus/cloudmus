@@ -256,6 +256,7 @@ add_library(cloudmus-ui STATIC
     src/Ui/TrackHoverCard.cpp
     src/Ui/TextLayout.cpp
     src/Ui/ScrollEdgeFade.cpp
+    src/Ui/FrameClock.cpp
     src/Ui/MenuCheckRow.cpp
     src/Theme/Shadow.cpp
     src/Ui/AnimatedPresenter.cpp

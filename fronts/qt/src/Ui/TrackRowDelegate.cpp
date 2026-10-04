@@ -6,11 +6,11 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
-#include <QTimer>
 
 #include "CoverArtCache.h"
 #include "CoverPlaceholder.h"
 #include "FocusRing.h"
+#include "FrameClock.h"
 #include "Icons.h"
 #include "Radius.h"
 #include "Spacing.h"
@@ -71,9 +71,8 @@ TrackRowDelegate::TrackRowDelegate(Covers::CoverArtCache* coverCache, QObject* p
     , coverCache_(coverCache)
 {
     clock_.start();
-    fadeTimer_ = new QTimer(this);
-    fadeTimer_->setInterval(16);
-    connect(fadeTimer_, &QTimer::timeout, this, &TrackRowDelegate::tickFades);
+    fadeTicker_ = new FrameTicker(this);
+    connect(fadeTicker_, &FrameTicker::frame, this, &TrackRowDelegate::tickFades);
 }
 
 void TrackRowDelegate::tickFades()
@@ -91,7 +90,7 @@ void TrackRowDelegate::tickFades()
             view->update();
     }
     if (fadeStartMs_.isEmpty()) {
-        fadeTimer_->stop();
+        fadeTicker_->stop();
         fadingViews_.clear();
     }
 }
@@ -112,8 +111,8 @@ void TrackRowDelegate::paintThumb(
     // never showed the placeholder and just appear.
     if (placeholderShown_.remove(coverUrl)) {
         fadeStartMs_.insert(coverUrl, clock_.elapsed());
-        if (!fadeTimer_->isActive())
-            fadeTimer_->start();
+        if (fadeTicker_->state() != QAbstractAnimation::Running)
+            fadeTicker_->start();
     }
     qreal opacity = 1.0;
     if (auto it = fadeStartMs_.constFind(coverUrl); it != fadeStartMs_.constEnd()) {
