@@ -93,27 +93,32 @@ void NotificationToast::onNotificationClosed(uint id, uint reason)
 
 void NotificationToast::updateCover(const QString& title, const QString& artist, const QPixmap& cover)
 {
-    if (lastNotificationId_ != 0)
+    // Same timeout as showTrackChange() — past it a late cover must not pop up again.
+    if (lastNotificationId_ != 0 && lastNotificationSent_.isValid() && !lastNotificationSent_.hasExpired(5000))
         showTrackChange(title, artist, cover);
 }
 
 void NotificationToast::showTrackChange(const QString& title, const QString& artist, const QPixmap& cover)
 {
-    send(lastNotificationId_, title, artist, cover, 5000);
+    send(lastNotificationId_, lastNotificationSent_, title, artist, cover, 5000);
 }
 
 void NotificationToast::showNotice(const QString& title, const QString& body, const QPixmap& cover)
 {
-    send(lastNoticeId_, title, body, cover, 2500);
+    send(lastNoticeId_, lastNoticeSent_, title, body, cover, 2500);
 }
 
-void NotificationToast::send(uint& id, const QString& title, const QString& body, const QPixmap& cover, int timeoutMs)
+void NotificationToast::send(
+    uint& id, QElapsedTimer& sentAt, const QString& title, const QString& body, const QPixmap& cover, int timeoutMs)
 {
     QDBusInterface iface(QStringLiteral("org.freedesktop.Notifications"),
         QStringLiteral("/org/freedesktop/Notifications"), QStringLiteral("org.freedesktop.Notifications"),
         QDBusConnection::sessionBus());
     if (!iface.isValid())
         return;
+
+    if (id != 0 && (!sentAt.isValid() || sentAt.hasExpired(timeoutMs)))
+        id = 0; // gone from the screen by now: a fresh popup, not a silent update
 
     QVariantMap hints;
     // Lets the server take the icon/name from the installed .desktop file
@@ -132,6 +137,7 @@ void NotificationToast::send(uint& id, const QString& title, const QString& body
         appIconName(), title, body, QStringList { QStringLiteral("default"), tr("Show player") }, hints, timeoutMs);
     if (reply.isValid()) {
         id = reply.value();
+        sentAt.start();
         ownIds_.insert(id);
     }
 }

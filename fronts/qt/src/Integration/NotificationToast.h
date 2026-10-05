@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QElapsedTimer>
 #include <QObject>
 #include <QPixmap>
 #include <QSet>
@@ -48,8 +49,13 @@ private:
     // notification that already expired only updates its entry in the
     // server's history (e.g. KDE Plasma) without popping up again — which
     // made every track after the first one silent.
+    // Also not replaced once its own timeout has passed, even if no
+    // NotificationClosed came: Plasma doesn't always send one for a popup
+    // that expired, and replacing that one stays silent.
     uint lastNotificationId_ = 0;
     uint lastNoticeId_ = 0;
+    QElapsedTimer lastNotificationSent_;
+    QElapsedTimer lastNoticeSent_;
     // Every notification of ours still around (to tell our clicks from
     // other apps' — the signals are broadcast), and the activation token
     // the server sent for the one about to be clicked.
@@ -58,7 +64,8 @@ private:
     QSystemTrayIcon* trayIcon_ = nullptr;
 #ifndef Q_OS_WIN
     // Sends one notification, replacing the one `id` names (and updating it).
-    void send(uint& id, const QString& title, const QString& body, const QPixmap& cover, int timeoutMs);
+    void send(uint& id, QElapsedTimer& sentAt, const QString& title, const QString& body, const QPixmap& cover,
+        int timeoutMs);
 #endif
 #ifdef Q_OS_WIN
     // Windows: sends the tray balloon itself, see NotificationToastWin.cpp.
