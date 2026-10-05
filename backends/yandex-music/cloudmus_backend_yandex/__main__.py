@@ -11,7 +11,7 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 # they're stdlib logging-based, so basicConfig(stream=sys.stderr) above
 # already routes them correctly.
 
-from cloudmus_backend_yandex import http_logging, http_session
+from cloudmus_backend_yandex import http_logging, http_session, model_compat
 from cloudmus_backend_yandex.server import build_server
 
 # Must happen before any Client()/get_client() call (auth.py's device-auth
@@ -20,6 +20,7 @@ from cloudmus_backend_yandex.server import build_server
 # The session patch goes first so the logging wrapper wraps it.
 http_session.install()
 http_logging.install()
+model_compat.install()
 
 
 def main() -> None:
