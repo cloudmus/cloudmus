@@ -1,19 +1,24 @@
 #include "Style.h"
 
 #include <QAbstractButton>
+#include <QAbstractItemView>
 #include <QCursor>
 #include <QDialog>
 #include <QEvent>
 #include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPointer>
 #include <QScreen>
 #include <QSplitter>
 #include <QStyleOption>
 #include <QToolButton>
+#include <QTreeView>
+#include <QVariantAnimation>
 #include <QWindow>
 
 #include "FocusRing.h"
+#include "Icons.h"
 #include "Metrics.h"
 #include "PopupWindow.h"
 #include "Radius.h"
@@ -47,6 +52,16 @@ PopupShadow menuShadow()
     // opaque, so the shadow has to carry its edge.
     return { kMenuShadowReach, kMenuShadowOffsetY, glassEnabled() ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha };
 }
+
+// Qt's own expand/collapse slide of a tree view lasts 250 ms (not
+// configurable); the chevron turns for as long, so the two end together.
+constexpr int kBranchTurnMs = 250;
+constexpr int kBranchGlyphSide = 20;
+constexpr char kBranchTurnProperty[] = "cloudmusBranchTurn";
+
+// The sidebar tree (Ui::SidebarTreeView), by class name so Theme doesn't
+// depend on Ui and a QFileDialog's tree stays plain Fusion.
+bool isSidebarTree(const QWidget* widget) { return widget && widget->inherits("Ui::SidebarTreeView"); }
 
 // Where popupMenu() keeps a menu's anchor, in global coordinates.
 constexpr char kMenuAnchorProperty[] = "cloudmusMenuAnchor";
@@ -256,6 +271,28 @@ void CloudMusStyle::polish(QWidget* widget)
 {
     QProxyStyle::polish(widget);
 
+    // Rows slide open and closed. QTreeView takes this from the style's
+    // SH_Widget_Animation_Duration once, in its constructor — too early
+    // for a subclass's name to match, hence here. QCommonStyle says no for
+    // every tree; opting in is the point.
+    if (auto* tree = qobject_cast<QTreeView*>(widget); tree && isSidebarTree(tree)) {
+        tree->setAnimated(true);
+        // The chevron turns from the view's own signals, not on noticing a
+        // changed state while painting: that would come a frame or more
+        // after the rows start sliding. Once only, polish() repeats.
+        if (!tree->property(kBranchTurnProperty).toBool()) {
+            tree->setProperty(kBranchTurnProperty, true);
+            connect(tree, &QTreeView::expanded, this,
+                [this, tree](const QModelIndex& index) { turnBranch(tree, index, true); });
+            connect(tree, &QTreeView::collapsed, this,
+                [this, tree](const QModelIndex& index) { turnBranch(tree, index, false); });
+            connect(tree, &QObject::destroyed, this, [this, tree] {
+                // Their finished() would reach into the dead view.
+                qDeleteAll(turns_.take(tree));
+            });
+        }
+    }
+
     if (qobject_cast<QMenu*>(widget)) {
         // Windows gives a top-level window per-pixel alpha only when it's
         // also frameless — Qt::Popup alone isn't, and the shadow margin
@@ -311,6 +348,11 @@ void CloudMusStyle::drawPrimitive(
         return;
     }
 
+    if (element == PE_IndicatorBranch && isSidebarTree(widget)) {
+        paintSidebarBranch(option, painter, qobject_cast<const QAbstractItemView*>(widget));
+        return;
+    }
+
     // Check boxes / radio buttons in menus: QCheckBox/QRadioButton rows,
     // and checkable menu items (Fusion draws those through the same
     // primitives).
@@ -340,6 +382,76 @@ void CloudMusStyle::drawPrimitive(
     }
 
     QProxyStyle::drawPrimitive(element, option, painter, widget);
+}
+
+void CloudMusStyle::paintSidebarBranch(
+    const QStyleOption* option, QPainter* painter, const QAbstractItemView* view) const
+{
+    // Nothing for the indentation columns of deeper rows, nor for rows
+    // without children (State_Children).
+    if (view == nullptr || !(option->state & State_Children))
+        return;
+    // Turning, if the row was just opened or closed (see turnBranch()),
+    // otherwise at rest. The option has no index: ask the view what is at
+    // the rect — its coordinates are the viewport's even while Qt paints
+    // the slide's snapshots of the tree.
+    qreal angle = (option->state & State_Open) ? 90.0 : 0.0;
+    const auto rows = turns_.constFind(view);
+    if (rows != turns_.constEnd()) {
+        const auto turn = rows->constFind(QPersistentModelIndex(view->indexAt(option->rect.center())));
+        if (turn != rows->constEnd())
+            angle = (*turn)->currentValue().toReal();
+    }
+
+    const QIcon glyph = icon(QStringLiteral("chevron_right"),
+        (option->state & State_Selected) ? IconColor::Accent : IconColor::InkSecondary, kBranchGlyphSide);
+    painter->save();
+    painter->setRenderHint(QPainter::SmoothPixmapTransform);
+    painter->translate(QRectF(option->rect).center());
+    // Mirrored in a right-to-left layout: closed points left.
+    if (option->direction == Qt::RightToLeft)
+        painter->scale(-1, 1);
+    painter->rotate(angle);
+    glyph.paint(painter, QRect(-kBranchGlyphSide / 2, -kBranchGlyphSide / 2, kBranchGlyphSide, kBranchGlyphSide));
+    painter->restore();
+}
+
+void CloudMusStyle::turnBranch(QTreeView* view, const QModelIndex& index, bool open)
+{
+    // Rows opened or closed in code (startup, a refresh) appear in place,
+    // like their slide: see MainWindow::restoreExpansion().
+    if (!view->isAnimated())
+        return;
+    auto& rows = turns_[view];
+    const QPersistentModelIndex key(index);
+    QVariantAnimation*& turn = rows[key];
+    // From wherever it is now, so a quick second click turns it back
+    // smoothly instead of jumping first.
+    const qreal from = turn != nullptr ? turn->currentValue().toReal() : (open ? 0.0 : 90.0);
+    if (turn == nullptr) {
+        turn = new QVariantAnimation(this);
+        turn->setEasingCurve(QEasingCurve::InOutQuad);
+        turn->setDuration(kBranchTurnMs);
+        // The row, not the whole tree: a repaint per frame.
+        connect(turn, &QVariantAnimation::valueChanged, turn, [view = QPointer(view), key] {
+            if (view && key.isValid()) {
+                const QRect row = view->visualRect(QModelIndex(key));
+                view->viewport()->update(0, row.y(), view->viewport()->width(), row.height());
+            }
+        });
+        // Back to State_Open's own angle once it is there.
+        connect(turn, &QVariantAnimation::finished, this, [this, view = QPointer(view), key, turn] {
+            if (view)
+                turns_[view.data()].remove(key);
+            turn->deleteLater();
+            if (view)
+                view->viewport()->update();
+        });
+    }
+    turn->stop();
+    turn->setStartValue(from);
+    turn->setEndValue(open ? 90.0 : 0.0);
+    turn->start();
 }
 
 void CloudMusStyle::drawControl(

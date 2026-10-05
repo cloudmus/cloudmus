@@ -227,15 +227,10 @@ QProgressBar[themed="true"]::chunk { background: %2; })")
 
 QString sidebarTreeBlock(const Palette& p)
 {
-    const QString chevronClosed = iconAssetPath(QStringLiteral("chevron_right"), IconColor::InkSecondary, 12);
-    const QString chevronOpen = iconAssetPath(QStringLiteral("expand_more"), IconColor::InkSecondary, 12);
-    const QString chevronClosedSelected = iconAssetPath(QStringLiteral("chevron_right"), IconColor::Accent, 12);
-    const QString chevronOpenSelected = iconAssetPath(QStringLiteral("expand_more"), IconColor::Accent, 12);
-
     // Scoped to #sidebarView, NOT a bare QTreeView type selector — a
     // QFileDialog's detail-view file listing is a QTreeView too, and a
-    // bare-type rule here was painting its background/branch chevrons the
-    // same as our own sidebar, inside a dialog meant to stay fully native.
+    // bare-type rule here was painting its background the same as our own
+    // sidebar, inside a dialog meant to stay fully native.
     //
     // NavItemDelegate::paint() already fully draws the selected row's
     // background/text itself, but Fusion separately paints its own
@@ -247,35 +242,16 @@ QString sidebarTreeBlock(const Palette& p)
     // painted by Ui::SidebarTreeView::drawRow(), so Qt's own must paint
     // nothing — a second translucent layer would double up.
     //
-    // Explicit width/height, not just image: — without a fixed box,
-    // Fusion sizes the branch indicator (and the gap it reserves
-    // before the row's text) from the image's own pixel dimensions,
-    // so iconAssetPath's 4x-oversampled source (needed for
-    // crispness at a fractional display scale, see Icons.cpp) blew
-    // the indicator up to 4x its intended 12px size instead of just
-    // supersampling it. Pinning the box to 12px makes Qt scale the
-    // oversampled image down into it instead.
+    // No ::branch rules: the chevrons rotate as a row opens and closes,
+    // which a static image can't do — Theme::CloudMusStyle paints them.
     return QStringLiteral(R"(QTreeView#sidebarView {
     background: %1;
     border: none;
     outline: 0;
-    selection-background-color: %6;
-    selection-color: %7;
-}
-QTreeView#sidebarView::branch:closed:has-children {
-    image: url("%2"); width: 12px; height: 12px;
-}
-QTreeView#sidebarView::branch:open:has-children {
-    image: url("%3"); width: 12px; height: 12px;
-}
-QTreeView#sidebarView::branch:selected:closed:has-children {
-    image: url("%4"); width: 12px; height: 12px;
-}
-QTreeView#sidebarView::branch:selected:open:has-children {
-    image: url("%5"); width: 12px; height: 12px;
+    selection-background-color: %2;
+    selection-color: %3;
 })")
-        .arg(chromeBackground(p.surface100), chevronClosed, chevronOpen, chevronClosedSelected, chevronOpenSelected)
-        .arg(QStringLiteral("transparent"), hex(p.accent));
+        .arg(chromeBackground(p.surface100), QStringLiteral("transparent"), hex(p.accent));
 }
 
 // trackListView_ is otherwise fully unstyled (TrackRowDelegate self-paints

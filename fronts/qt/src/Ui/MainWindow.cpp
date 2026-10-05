@@ -189,9 +189,8 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // editor on the row.
     sidebarView_->setEditTriggers(QAbstractItemView::NoEditTriggers);
     // Indent step per nesting level (source -> section -> playlist), per
-    // the design system's NavItem spec — the branch arrow's own color now
-    // comes from Theme::StyleSheet's QTreeView::branch image rules instead
-    // of the style's native rendering.
+    // the design system's NavItem spec. Theme::CloudMusStyle paints the
+    // branch chevrons and animates the rows opening and closing.
     sidebarView_->setIndentation(Theme::Spacing::space5);
     sidebarView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(sidebarView_);
@@ -932,6 +931,9 @@ void MainWindow::syncSidebarSelection()
 
 void MainWindow::restoreExpansion(const QModelIndex& parent, int first, int last)
 {
+    // Rows set up here appear in place; only the user's own clicks slide.
+    const bool animated = sidebarView_->isAnimated();
+    sidebarView_->setAnimated(false);
     const std::function<void(const QModelIndex&)> apply = [&](const QModelIndex& index) {
         const QString key = ViewModel::SidebarModel::nodeKey(index);
         if (!key.isEmpty())
@@ -946,6 +948,7 @@ void MainWindow::restoreExpansion(const QModelIndex& parent, int first, int last
     else
         for (int row = first; row <= last; ++row)
             apply(sidebarModel_->index(row, 0, parent));
+    sidebarView_->setAnimated(animated);
 }
 
 void MainWindow::onTrackDoubleClicked(const QModelIndex& index)
@@ -1018,10 +1021,10 @@ void MainWindow::showTrackMenu(
         }
         if (dislikeSupported) {
             const bool disliked = trackStates_->state(sourceId, track.id).disliked.value_or(false);
-            QAction* dislikeAction
-                = menu->addAction(Theme::icon(disliked ? QStringLiteral("heart_off") : QStringLiteral("heart_off_outline"),
-                                      disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16),
-                    disliked ? tr("Remove Dislike") : tr("Dislike"));
+            QAction* dislikeAction = menu->addAction(
+                Theme::icon(disliked ? QStringLiteral("heart_off") : QStringLiteral("heart_off_outline"),
+                    disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16),
+                disliked ? tr("Remove Dislike") : tr("Dislike"));
             connect(dislikeAction, &QAction::triggered, this, [this, sourceId, id = track.id, disliked]() {
                 nowPlaying_.setTrackDisliked(sourceId, id, !disliked, /*announce=*/true).detach();
             });
@@ -1245,8 +1248,7 @@ void MainWindow::changeEvent(QEvent* event)
     const Qt::WindowStates oldState = static_cast<QWindowStateChangeEvent*>(event)->oldState();
     // Maximized by the window system: the resize that came just before this
     // (see normalSize_) was to the maximized size, not a normal one.
-    if ((windowState() & kFilling) && !(oldState & kFilling) && normalSize_ == size()
-        && previousNormalSize_.isValid())
+    if ((windowState() & kFilling) && !(oldState & kFilling) && normalSize_ == size() && previousNormalSize_.isValid())
         normalSize_ = previousNormalSize_;
 }
 

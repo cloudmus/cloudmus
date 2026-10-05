@@ -55,9 +55,8 @@ QIcon iconWithColor(const QString& name, const QColor& color, int pixelSize = 16
 
 // Same recoloring as icon(), but writes the result to a small on-disk PNG
 // cache and returns its absolute path — needed because QSS `image:
-// url(...)` rules (QTreeView::branch's chevrons, QCheckBox::indicator's
-// checkmark) require a real file, not an in-memory QPixmap. Regenerated
-// once per (glyphName, color, pixelSize, mode); reused after.
+// url(...)` rules (QCheckBox::indicator's checkmark, QComboBox's arrow) require a real file, not an in-memory QPixmap.
+// Regenerated once per (glyphName, color, pixelSize, mode); reused after.
 QString iconAssetPath(const QString& glyphName, IconColor color, int pixelSize = 12);
 
 } // namespace Theme

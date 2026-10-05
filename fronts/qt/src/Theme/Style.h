@@ -1,10 +1,15 @@
 #pragma once
 
+#include <QHash>
+#include <QPersistentModelIndex>
 #include <QProxyStyle>
 
+class QAbstractItemView;
 class QMenu;
 class QPoint;
 class QStyleOptionMenuItem;
+class QTreeView;
+class QVariantAnimation;
 
 namespace Theme {
 
@@ -30,8 +35,9 @@ namespace Theme {
 // Scope is intentionally narrow: only QMenu's panel/frame drawing and
 // polish, plus the slider click behavior hint (see styleHint()),
 // Ui::ThemedSlider's handle length, themed QSplitters' 1px handle
-// (see pixelMetric()/drawControl()) and check box / radio indicators
-// inside menus (drawPrimitive()), are overridden here. Everything
+// (see pixelMetric()/drawControl()), check box / radio indicators
+// inside menus (drawPrimitive()) and the sidebar tree's animated branch
+// chevrons (see drawPrimitive()/polish()), are overridden here. Everything
 // else falls through to Fusion unchanged.
 class CloudMusStyle : public QProxyStyle {
 public:
@@ -71,6 +77,18 @@ public:
     // which leaves the visible rounded panel one margin away from it.
     // See Style.cpp.
     bool eventFilter(QObject* watched, QEvent* event) override;
+
+private:
+    // The sidebar tree's chevron: PE_IndicatorBranch, turned between closed
+    // (0°) and open (90°) by a per-row animation, started by turnBranch().
+    void paintSidebarBranch(const QStyleOption* option, QPainter* painter, const QAbstractItemView* view) const;
+
+    void turnBranch(QTreeView* view, const QModelIndex& index, bool open);
+
+    // The chevrons turning right now, per tree and row (the tree's branch
+    // option carries no index, so this can't live anywhere but here).
+    // Value = angle in degrees; each removes itself when done.
+    mutable QHash<const QAbstractItemView*, QHash<QPersistentModelIndex, QVariantAnimation*>> turns_;
 };
 
 // QMenu::popup(), remembering `globalPos` as the anchor — so
