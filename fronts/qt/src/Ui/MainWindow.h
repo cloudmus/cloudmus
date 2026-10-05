@@ -209,6 +209,8 @@ private:
     ViewModel::NowPlaying& nowPlaying_;
     // Saving tracks and playlists (the toolbar's button, its panel, menus).
     ViewModel::Downloads& downloads_;
+    // The keyboard shortcuts' settings (the Settings dialog's page).
+    Hotkeys::Registry& hotkeys_;
     App::PlaylistEditing& playlistEditing_;
     // The sources and their playlists; owns sidebarModel_.
     ViewModel::Sources& sources_;

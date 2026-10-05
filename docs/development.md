@@ -175,6 +175,7 @@ The root `pyproject.toml` isn't a package: it only sets pytest's
 |---|---|
 | `CLOUDMUS_DEV_BACKENDS=1` | Discover backends from this checkout |
 | `CLOUDMUS_QT_DEBUG=1` | Qt front debug log (`~/.config/cloudmus/fronts/qt/debug.log`), same as `--debug` |
+| `CLOUDMUS_HOTKEYS_BACKEND=kglobalaccel\|portal\|x11\|none` | Qt front: use one global-hotkeys mechanism whatever the desktop (to try the portal on KDE, say) |
 | `CLOUDMUS_TUI_DEBUG=1` | TUI debug log, `./cloudmus-tui-debug.log` |
 | `CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR` | Overrides the local-folder backend's music folder |
 

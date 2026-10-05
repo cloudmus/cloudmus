@@ -124,6 +124,23 @@ public:
     bool trackNotifications() const;
     void setTrackNotifications(bool on);
 
+    // One hotkey as the user set it (Hotkeys::actions() names them by id).
+    // `key` is a QKeySequence in portable text, empty for none.
+    struct HotkeyConfig {
+        QString key;
+        // Works with the window out of focus (where the desktop allows it),
+        // not just inside the app.
+        bool global = true;
+        // Says what the action did in a notification (for the actions that can).
+        bool notify = true;
+
+        bool operator==(const HotkeyConfig&) const = default;
+    };
+    // nullopt until the user changed it: the action's defaults apply.
+    std::optional<HotkeyConfig> hotkey(const QString& id) const;
+    void setHotkey(const QString& id, const HotkeyConfig& config);
+    void resetHotkey(const QString& id);
+
     bool closeMinimizesToTray() const;
     void setCloseMinimizesToTray(bool value);
 

@@ -87,6 +87,8 @@ void NotificationToast::onNotificationClosed(uint id, uint reason)
     ownIds_.remove(id);
     if (id == lastNotificationId_)
         lastNotificationId_ = 0;
+    if (id == lastNoticeId_)
+        lastNoticeId_ = 0;
 }
 
 void NotificationToast::updateCover(const QString& title, const QString& artist, const QPixmap& cover)
@@ -96,6 +98,16 @@ void NotificationToast::updateCover(const QString& title, const QString& artist,
 }
 
 void NotificationToast::showTrackChange(const QString& title, const QString& artist, const QPixmap& cover)
+{
+    send(lastNotificationId_, title, artist, cover, 5000);
+}
+
+void NotificationToast::showNotice(const QString& title, const QString& body, const QPixmap& cover)
+{
+    send(lastNoticeId_, title, body, cover, 2500);
+}
+
+void NotificationToast::send(uint& id, const QString& title, const QString& body, const QPixmap& cover, int timeoutMs)
 {
     QDBusInterface iface(QStringLiteral("org.freedesktop.Notifications"),
         QStringLiteral("/org/freedesktop/Notifications"), QStringLiteral("org.freedesktop.Notifications"),
@@ -115,12 +127,12 @@ void NotificationToast::showTrackChange(const QString& title, const QString& art
         hints.insert(QStringLiteral("image-data"), QVariant::fromValue(arg));
     }
 
-    QDBusReply<uint> reply = iface.call(QStringLiteral("Notify"), QStringLiteral("CloudMus"), lastNotificationId_,
+    QDBusReply<uint> reply = iface.call(QStringLiteral("Notify"), QStringLiteral("CloudMus"), id,
         // "default": the action for clicking the notification itself.
-        appIconName(), title, artist, QStringList { QStringLiteral("default"), tr("Show player") }, hints, 5000);
+        appIconName(), title, body, QStringList { QStringLiteral("default"), tr("Show player") }, hints, timeoutMs);
     if (reply.isValid()) {
-        lastNotificationId_ = reply.value();
-        ownIds_.insert(lastNotificationId_);
+        id = reply.value();
+        ownIds_.insert(id);
     }
 }
 

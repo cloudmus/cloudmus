@@ -127,6 +127,10 @@ add_library(cloudmus-core STATIC
     src/App/PlaylistEditing.cpp
     src/App/TrackFetch.cpp
 
+    src/Hotkeys/Actions.cpp
+    src/Hotkeys/Registry.cpp
+    src/Hotkeys/Dispatcher.cpp
+
     src/ViewModel/Messages.cpp
     src/ViewModel/NowPlaying.cpp
     src/ViewModel/SidebarModel.cpp
@@ -175,6 +179,7 @@ target_include_directories(cloudmus-core PUBLIC
     src/Library
     src/Covers
     src/App
+    src/Hotkeys
     src/ViewModel
     src/Diagnostics
     src/Update
@@ -217,13 +222,15 @@ if(WIN32)
         src/Integration/FirstFrameBackgroundWin.cpp
         src/Integration/NotificationToastWin.cpp
         src/Integration/SmtcService.cpp
-        src/Integration/TaskbarThumbButtons.cpp)
+        src/Integration/TaskbarThumbButtons.cpp
+        src/Integration/GlobalHotkeysWin.cpp)
 else()
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
         src/Integration/Autostart.cpp
         src/Integration/NotificationToast.cpp
         src/Integration/MprisService.cpp
-        src/Integration/GlobalShortcuts.cpp)
+        src/Integration/GlobalHotkeysKGlobalAccel.cpp
+        src/Integration/GlobalHotkeysPortal.cpp)
 endif()
 
 add_library(cloudmus-ui STATIC
@@ -272,6 +279,8 @@ add_library(cloudmus-ui STATIC
     src/Ui/Settings/SourcePage.cpp
     src/Ui/Settings/SettingsForm.cpp
     src/Ui/Settings/NetworkPage.cpp
+    src/Ui/Settings/HotkeysPage.cpp
+    src/Ui/AppShortcuts.cpp
 
     src/Theme/Tokens.cpp
     src/Theme/Typography.cpp
@@ -284,6 +293,8 @@ add_library(cloudmus-ui STATIC
     src/Theme/PopupWindow.cpp
 
     src/Integration/TrayIcon.cpp
+    src/Integration/GlobalHotkeys.cpp
+    src/Integration/KeyNames.cpp
     ${CLOUDMUS_PLATFORM_SOURCES}
     src/Integration/WindowGlass.cpp
 
@@ -356,9 +367,10 @@ if(NOT WIN32)
     pkg_check_modules(XCB QUIET IMPORTED_TARGET xcb)
 endif()
 if(XCB_FOUND)
-    target_compile_definitions(cloudmus-ui PRIVATE CLOUDMUS_BLUR_X11)
+    target_compile_definitions(cloudmus-ui PRIVATE CLOUDMUS_BLUR_X11 CLOUDMUS_HOTKEYS_X11)
+    target_sources(cloudmus-ui PRIVATE src/Integration/GlobalHotkeysX11.cpp)
     target_link_libraries(cloudmus-ui PRIVATE PkgConfig::XCB)
-    message(STATUS "Glass: KWin's X11 blur property, built in")
+    message(STATUS "Glass: KWin's X11 blur property, built in; global hotkeys: X11 key grabs, built in")
 endif()
 
 add_executable(cloudmus-qt
@@ -410,6 +422,7 @@ add_executable(cloudmus-qt-tests
     tests/StreamRelayTest.cpp
     tests/CrashReporterTest.cpp
     tests/UpdateTest.cpp
+    tests/HotkeysTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
@@ -422,6 +435,7 @@ add_executable(cloudmus-qt-ui-tests
     tests/ui/main.cpp
     tests/ui/WindowHostTest.cpp
     tests/ui/FocusTest.cpp
+    tests/ui/HotkeysPageTest.cpp
     tests/FakeBackend.cpp
     # Real glyphs, so a test can check what color an icon is tinted.
     resources/icons.qrc

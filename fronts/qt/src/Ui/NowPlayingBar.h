@@ -7,6 +7,10 @@
 class QHBoxLayout;
 class QLabel;
 class QPushButton;
+
+namespace Hotkeys {
+class Registry;
+}
 class QSlider;
 
 namespace Ui {
@@ -30,6 +34,10 @@ class NowPlayingBar : public QWidget {
 
 public:
     explicit NowPlayingBar(QWidget* parent = nullptr);
+
+    // The tooltips of the buttons that have a hotkey name it; they follow
+    // the settings.
+    void setHotkeys(Hotkeys::Registry& hotkeys);
 
     void setPlaying(bool playing);
     void setLoading(bool loading);
@@ -135,7 +143,10 @@ private:
     void refreshLikeButton();
     void refreshDislikeButton();
     void refreshDownloadButton();
+    // Every tooltip that names a hotkey, from the current state.
+    void refreshToolTips();
 
+    Hotkeys::Registry* hotkeys_ = nullptr;
     QPushButton* previousButton_ = nullptr;
     QPushButton* playPauseButton_ = nullptr;
     QPushButton* nextButton_ = nullptr;

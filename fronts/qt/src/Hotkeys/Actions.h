@@ -1,0 +1,41 @@
+#pragma once
+
+#include <QKeySequence>
+#include <QList>
+#include <QString>
+
+namespace Hotkeys {
+
+enum class Action {
+    ShowPlayer,
+    PlayPause,
+    Next,
+    Previous,
+    Stop,
+    VolumeUp,
+    VolumeDown,
+    Like,
+    Dislike,
+    Download,
+};
+
+// One thing a hotkey can do. Everything that varies per user (the key, global
+// or not, the notice) lives in Config::Settings under the `id`.
+struct ActionInfo {
+    Action action;
+    // Stable: the config key, and the action's name in kglobalaccel and the
+    // XDG portal. The first four are what the old fixed bindings were called.
+    QString id;
+    QString description;
+    QKeySequence defaultKey;
+    bool defaultGlobal = true;
+    // The action can say what it did in a notification.
+    bool hasNotice = false;
+};
+
+const QList<ActionInfo>& actions();
+const ActionInfo& info(Action action);
+// nullptr for an id no action has.
+const ActionInfo* infoById(const QString& id);
+
+} // namespace Hotkeys

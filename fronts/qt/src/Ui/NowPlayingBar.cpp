@@ -16,6 +16,7 @@
 
 #include "Icons.h"
 #include "Metrics.h"
+#include "Registry.h"
 #include "Spacing.h"
 #include "TabOrder.h"
 #include "ThemedSlider.h"
@@ -227,14 +228,11 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     likeButton_ = new IconHoverButton(QStringLiteral("favorite_border"), IconHoverButton::Scheme::Neutral, this);
     likeButton_->setObjectName(QStringLiteral("likeButton"));
     likeButton_->setCheckable(true);
-    likeButton_->setToolTip(tr("Like"));
     dislikeButton_ = new IconHoverButton(QStringLiteral("heart_off_outline"), IconHoverButton::Scheme::Neutral, this);
     dislikeButton_->setCheckable(true);
-    dislikeButton_->setToolTip(tr("Dislike"));
     // Not checkable, unlike like/dislike — a repeat download is a normal
     // thing to ask for again, not a state to toggle off.
     downloadButton_ = new DownloadButton(this);
-    downloadButton_->setToolTip(tr("Save to Downloads"));
     connect(previousButton_, &QPushButton::clicked, this, &NowPlayingBar::previousClicked);
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
     connect(nextButton_, &QPushButton::clicked, this, &NowPlayingBar::nextClicked);
@@ -279,6 +277,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     dislikeButton_->setEnabled(false);
     downloadButton_->setEnabled(false);
     playlistsButton_->setEnabled(false);
+    refreshToolTips();
     // Top row of the controls column below — the buttons in groups, then
     // whatever setTrailingWidget() appends (MainWindow's hamburger menu
     // button) pinned to the right by the stretch:
@@ -463,6 +462,7 @@ void NowPlayingBar::refreshLikeButton()
 {
     likeButton_->setEnabled(likeSupported_ && !likeBusy_);
     likeButton_->setChecked(liked_);
+    refreshToolTips();
     static_cast<IconHoverButton*>(likeButton_)
         ->setIconName(likeBusy_ ? QStringLiteral("refresh")
                 : liked_        ? QStringLiteral("favorite") // filled once liked, outline otherwise
@@ -487,6 +487,7 @@ void NowPlayingBar::refreshDislikeButton()
 {
     dislikeButton_->setEnabled(dislikeSupported_ && !dislikeBusy_);
     dislikeButton_->setChecked(disliked_);
+    refreshToolTips();
     static_cast<IconHoverButton*>(dislikeButton_)
         ->setIconName(dislikeBusy_ ? QStringLiteral("refresh")
                 : disliked_        ? QStringLiteral("heart_off") // filled once disliked, outline otherwise
@@ -514,7 +515,7 @@ void NowPlayingBar::refreshDownloadButton()
 {
     // While downloads run it opens their panel — clickable whatever plays.
     downloadButton_->setEnabled(downloadSupported_ || downloadsActive_);
-    downloadButton_->setToolTip(downloadsActive_ ? tr("Downloads") : tr("Save to Downloads"));
+    refreshToolTips();
 }
 
 void NowPlayingBar::setPlaying(bool playing)
@@ -556,8 +557,32 @@ void NowPlayingBar::fitTimeLabels(qint64 longestMs)
     durationLabel_->setFixedWidth(width);
 }
 
+void NowPlayingBar::setHotkeys(Hotkeys::Registry& hotkeys)
+{
+    hotkeys_ = &hotkeys;
+    connect(hotkeys_, &Hotkeys::Registry::bindingsChanged, this, &NowPlayingBar::refreshToolTips);
+    refreshToolTips();
+}
+
+void NowPlayingBar::refreshToolTips()
+{
+    using Hotkeys::Action;
+    const auto tip = [this](const QString& text, Action action) {
+        return hotkeys_ != nullptr ? hotkeys_->toolTip(text, action) : text;
+    };
+    previousButton_->setToolTip(tip(tr("Previous"), Action::Previous));
+    playPauseButton_->setToolTip(tip(playing_ ? tr("Pause") : tr("Play"), Action::PlayPause));
+    nextButton_->setToolTip(tip(tr("Next"), Action::Next));
+    stopButton_->setToolTip(tip(tr("Stop"), Action::Stop));
+    likeButton_->setToolTip(tip(liked_ ? tr("Unlike") : tr("Like"), Action::Like));
+    dislikeButton_->setToolTip(tip(disliked_ ? tr("Remove Dislike") : tr("Dislike"), Action::Dislike));
+    // While downloads run the button opens their panel, not a download.
+    downloadButton_->setToolTip(downloadsActive_ ? tr("Downloads") : tip(tr("Save to Downloads"), Action::Download));
+}
+
 void NowPlayingBar::updatePlayPauseIcon()
 {
+    refreshToolTips();
     static_cast<IconHoverButton*>(playPauseButton_)
         ->setIconName(playing_ ? QStringLiteral("pause") : QStringLiteral("play_arrow"));
 }

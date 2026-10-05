@@ -13,6 +13,9 @@ class WindowHost;
 namespace ViewModel {
 class NowPlaying;
 }
+namespace Hotkeys {
+class Registry;
+}
 namespace App {
 class PlaylistEditing;
 }
@@ -30,7 +33,7 @@ class TrayIcon : public QObject {
 
 public:
     TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
-        QObject* parent = nullptr);
+        Hotkeys::Registry& hotkeys, QObject* parent = nullptr);
     QSystemTrayIcon* systemTrayIcon() const { return trayIcon_; }
 
 signals:
@@ -55,12 +58,18 @@ private:
     // The playing track's playlists as checkable actions — a tray menu is
     // exported over D-Bus, where widget rows don't exist.
     void fillPlaylistsMenu();
+    // Each item shows the key of its action, as the settings have it.
+    void refreshHotkeys();
 
     Ui::WindowHost& windowHost_;
     ViewModel::NowPlaying& nowPlaying_;
     App::PlaylistEditing& playlistEditing_;
+    Hotkeys::Registry& hotkeys_;
     QSystemTrayIcon* trayIcon_ = nullptr;
+    QAction* previousAction_ = nullptr;
     QAction* playPauseAction_ = nullptr;
+    QAction* nextAction_ = nullptr;
+    QAction* stopAction_ = nullptr;
     QAction* feedbackSeparator_ = nullptr;
     QAction* likeAction_ = nullptr;
     QAction* dislikeAction_ = nullptr;

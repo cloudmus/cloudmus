@@ -126,6 +126,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , messages_(core.messages())
     , nowPlaying_(core.nowPlaying())
     , downloads_(core.downloads())
+    , hotkeys_(core.hotkeys())
     , playlistEditing_(core.playlistEditing())
     , sources_(core.sources())
     , activePlaylist_(core.activePlaylist())
@@ -158,6 +159,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // the hamburger menu. No cover art here — HeroPanel (below) shows
     // whatever's playing instead, so it isn't duplicated. ---
     nowPlayingBar_ = new NowPlayingBar(this);
+    nowPlayingBar_->setHotkeys(hotkeys_);
 
     auto* toolbar = new QToolBar(this);
     toolbar->setObjectName(QStringLiteral("transportToolBar")); // see StyleSheet.cpp's toolBarBlock()
@@ -992,6 +994,15 @@ void MainWindow::showTrackMenu(
     auto* menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
+    // The hotkeys act on what's playing: they're named only on its own menu.
+    const bool isCurrent
+        = nowPlaying_.hasTrack() && nowPlaying_.sourceId() == sourceId && nowPlaying_.track().id == track.id;
+    const auto withHotkey = [this, isCurrent](QAction* menuItem, Hotkeys::Action action) {
+        if (isCurrent)
+            Hotkeys::showKey(menuItem, hotkeys_.binding(action).key);
+        return menuItem;
+    };
+
     // Icon + text, Theme::IconColor::Ink at 16px — same convention
     // Integration::TrayIcon's menu already uses for its own QAction icons.
     menu->addAction(
@@ -1018,20 +1029,23 @@ void MainWindow::showTrackMenu(
             // State shown by the icon (filled accent heart), not a check box:
             // Fusion frames a checked item's icon, which reads as a stray border.
             const bool liked = trackStates_->state(sourceId, track.id).liked.value_or(false);
-            QAction* likeAction
-                = menu->addAction(liked ? Theme::icon(QStringLiteral("favorite"), Theme::IconColor::Accent, 16)
-                                        : Theme::icon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16),
-                    liked ? tr("Unlike") : tr("Like"));
+            QAction* likeAction = withHotkey(
+                menu->addAction(liked ? Theme::icon(QStringLiteral("favorite"), Theme::IconColor::Accent, 16)
+                                      : Theme::icon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16),
+                    liked ? tr("Unlike") : tr("Like")),
+                Hotkeys::Action::Like);
             connect(likeAction, &QAction::triggered, this, [this, sourceId, id = track.id, liked]() {
                 nowPlaying_.setTrackLiked(sourceId, id, !liked, /*announce=*/true).detach();
             });
         }
         if (dislikeSupported) {
             const bool disliked = trackStates_->state(sourceId, track.id).disliked.value_or(false);
-            QAction* dislikeAction = menu->addAction(
-                Theme::icon(disliked ? QStringLiteral("heart_off") : QStringLiteral("heart_off_outline"),
-                    disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16),
-                disliked ? tr("Remove Dislike") : tr("Dislike"));
+            QAction* dislikeAction = withHotkey(
+                menu->addAction(
+                    Theme::icon(disliked ? QStringLiteral("heart_off") : QStringLiteral("heart_off_outline"),
+                        disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16),
+                    disliked ? tr("Remove Dislike") : tr("Dislike")),
+                Hotkeys::Action::Dislike);
             connect(dislikeAction, &QAction::triggered, this, [this, sourceId, id = track.id, disliked]() {
                 nowPlaying_.setTrackDisliked(sourceId, id, !disliked, /*announce=*/true).detach();
             });
@@ -1067,8 +1081,11 @@ void MainWindow::showTrackMenu(
                 tr("Open Track Page"), this, [webUrl]() { QDesktopServices::openUrl(QUrl(webUrl)); });
         }
         if (downloadSupported) {
-            menu->addAction(Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, 16),
-                tr("Save to Downloads"), this,
+            QAction* downloadAction
+                = withHotkey(menu->addAction(Theme::icon(QStringLiteral("file_download"), Theme::IconColor::Ink, 16),
+                                 tr("Save to Downloads")),
+                    Hotkeys::Action::Download);
+            connect(downloadAction, &QAction::triggered, this,
                 [this, sourceId, track]() { downloads_.downloadTrack(sourceId, track); });
         }
     }
@@ -1191,7 +1208,7 @@ void MainWindow::showAboutDialog() { Ui::AboutDialog(this).exec(); }
 
 void MainWindow::showSettingsDialog(const QString& openAt)
 {
-    SettingsDialog dialog(settings_, analytics_, sourceManager_, *authStates_, downloads_, this, openAt);
+    SettingsDialog dialog(settings_, analytics_, sourceManager_, *authStates_, downloads_, hotkeys_, this, openAt);
     // While it's up, this window's toasts (an auth error from App::SourceSession,
     // a download finishing) go to the dialog instead: this window is
     // behind it, where they'd go unseen. Restored before the dialog, and

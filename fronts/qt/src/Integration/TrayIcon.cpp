@@ -14,6 +14,7 @@
 #include "Icons.h"
 #include "NowPlaying.h"
 #include "PlaylistEditing.h"
+#include "Registry.h"
 #include "WindowHost.h"
 
 #ifdef Q_OS_WIN
@@ -71,7 +72,7 @@ namespace {
 bool panelIsAlwaysDark()
 {
     const QString desktop = qEnvironmentVariable("XDG_CURRENT_DESKTOP");
-    for (const char* name : {"GNOME", "Unity", "ubuntu"}) {
+    for (const char* name : { "GNOME", "Unity", "ubuntu" }) {
         if (desktop.contains(QLatin1String(name), Qt::CaseInsensitive))
             return true;
     }
@@ -82,11 +83,12 @@ bool panelIsAlwaysDark()
 #endif
 
 TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
-    QObject* parent)
+    Hotkeys::Registry& hotkeys, QObject* parent)
     : QObject(parent)
     , windowHost_(windowHost)
     , nowPlaying_(nowPlaying)
     , playlistEditing_(playlistEditing)
+    , hotkeys_(hotkeys)
 {
     trayIcon_ = new QSystemTrayIcon(this);
     updateTrayIcon();
@@ -102,10 +104,10 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     // asset, untouched below) — a QMenu popup gets the design system's
     // Panel treatment via Theme::StyleSheet's global QMenu rule.
     auto* menu = new QMenu();
-    auto* previousAction = menu->addAction(tr("Previous"));
+    previousAction_ = menu->addAction(tr("Previous"));
     playPauseAction_ = menu->addAction(tr("Play"));
-    auto* nextAction = menu->addAction(tr("Next"));
-    auto* stopAction = menu->addAction(tr("Stop"));
+    nextAction_ = menu->addAction(tr("Next"));
+    stopAction_ = menu->addAction(tr("Stop"));
     feedbackSeparator_ = menu->addSeparator();
     likeAction_ = menu->addAction(QString());
     dislikeAction_ = menu->addAction(QString());
@@ -116,10 +118,10 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     auto* quitAction = menu->addAction(tr("Quit"));
 
     using ViewModel::NowPlaying;
-    connect(previousAction, &QAction::triggered, &nowPlaying_, &NowPlaying::previous);
+    connect(previousAction_, &QAction::triggered, &nowPlaying_, &NowPlaying::previous);
     connect(playPauseAction_, &QAction::triggered, &nowPlaying_, &NowPlaying::togglePause);
-    connect(nextAction, &QAction::triggered, &nowPlaying_, &NowPlaying::next);
-    connect(stopAction, &QAction::triggered, &nowPlaying_, &NowPlaying::stop);
+    connect(nextAction_, &QAction::triggered, &nowPlaying_, &NowPlaying::next);
+    connect(stopAction_, &QAction::triggered, &nowPlaying_, &NowPlaying::stop);
     connect(likeAction_, &QAction::triggered, this, [this]() { nowPlaying_.setLiked(!nowPlaying_.feedback().liked); });
     connect(dislikeAction_, &QAction::triggered, this,
         [this]() { nowPlaying_.setDisliked(!nowPlaying_.feedback().disliked); });
@@ -129,14 +131,16 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     connect(showHideAction_, &QAction::triggered, &windowHost_, &Ui::WindowHost::toggleShown);
     connect(quitAction, &QAction::triggered, this, &TrayIcon::quitRequested);
 
+    connect(&hotkeys_, &Hotkeys::Registry::bindingsChanged, this, &TrayIcon::refreshHotkeys);
+    refreshHotkeys();
     connect(&nowPlaying_, &NowPlaying::feedbackChanged, this, &TrayIcon::refreshFeedbackActions);
     connect(&nowPlaying_, &NowPlaying::trackChanged, this, &TrayIcon::refreshTrack);
     connect(&nowPlaying_, &NowPlaying::playingChanged, this, &TrayIcon::refreshPlaying);
     // The rest of the icons follow state, refreshed by the calls below.
-    Theme::followTheme(menu, [this, previousAction, nextAction, stopAction]() {
-        previousAction->setIcon(Theme::icon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16));
-        nextAction->setIcon(Theme::icon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16));
-        stopAction->setIcon(Theme::icon(QStringLiteral("stop"), Theme::IconColor::Ink, 16));
+    Theme::followTheme(menu, [this]() {
+        previousAction_->setIcon(Theme::icon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16));
+        nextAction_->setIcon(Theme::icon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16));
+        stopAction_->setIcon(Theme::icon(QStringLiteral("stop"), Theme::IconColor::Ink, 16));
         playlistsMenu_->setIcon(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16));
         refreshFeedbackActions();
         refreshPlaying();
@@ -170,6 +174,16 @@ void TrayIcon::refreshTrack()
         artists += track.artists[i].name;
     }
     trayIcon_->setToolTip(artists.isEmpty() ? track.title : QStringLiteral("%1 — %2").arg(track.title, artists));
+}
+
+void TrayIcon::refreshHotkeys()
+{
+    using Hotkeys::Action;
+    const std::pair<QAction*, Action> items[] = { { previousAction_, Action::Previous },
+        { playPauseAction_, Action::PlayPause }, { nextAction_, Action::Next }, { stopAction_, Action::Stop },
+        { likeAction_, Action::Like }, { dislikeAction_, Action::Dislike }, { showHideAction_, Action::ShowPlayer } };
+    for (const auto& [item, action] : items)
+        Hotkeys::showKey(item, hotkeys_.binding(action).key);
 }
 
 void TrayIcon::refreshPlaying()
@@ -243,8 +257,7 @@ void TrayIcon::updateTrayIcon()
     // taskbar with light apps is Windows' default.
     const bool dark = !taskbarIsLight();
 #else
-    const bool dark =
-        panelIsAlwaysDark() || QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    const bool dark = panelIsAlwaysDark() || QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
 #endif
     trayIcon_->setIcon(QIcon(dark ? QStringLiteral(":/icons/icons/tray_icon_dark.svg")
                                   : QStringLiteral(":/icons/icons/tray_icon_light.svg")));

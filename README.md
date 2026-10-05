@@ -46,8 +46,11 @@ Spotify, Apple Music, SoundCloud, TuneIn, VK Music, Zvuk (Sber) and others.
 - **Part of your desktop** — on Windows and Linux alike: tray icon with
   playback controls, media keys, track notifications, launch at login.
   On Windows the player shows up in the volume flyout and quick settings;
-  on Linux it speaks MPRIS (seek, volume, shuffle, repeat) and supports
-  KDE global shortcuts.
+  on Linux it speaks MPRIS (seek, volume, shuffle, repeat). Keyboard
+  shortcuts for play/pause, track and volume, like, dislike and download
+  are set in Settings and work with the window out of focus too: on KDE
+  Plasma, GNOME 48+ and other desktops with the global shortcuts portal,
+  X11 and Windows.
 - **Proxies per service** — HTTP and SOCKS5 proxies, chosen per source;
   streams and covers go through them too.
 - **Picks up where you left off** — the last playlist and track are
@@ -132,7 +135,7 @@ What works on Linux:
 - launch at login;
 - media keys and desktop media widgets through MPRIS (seek, volume,
   shuffle, repeat);
-- global shortcuts on KDE Plasma.
+- configurable global shortcuts (KDE Plasma, GNOME 48+, X11, Windows).
 
 ## First steps
 

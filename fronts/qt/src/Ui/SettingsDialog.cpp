@@ -19,6 +19,7 @@
 #include "Settings.h"
 #include "Settings/DownloadsPage.h"
 #include "Settings/GeneralPage.h"
+#include "Settings/HotkeysPage.h"
 #include "Settings/NetworkPage.h"
 #include "Settings/PageStack.h"
 #include "Settings/SourcePage.h"
@@ -40,7 +41,8 @@ constexpr int kPageIndexRole = Qt::UserRole + 100;
 } // namespace
 
 SettingsDialog::SettingsDialog(Config::Settings& settings, App::Analytics& analytics, Rpc::SourceManager& sourceManager,
-    Rpc::AuthStates& authStates, ViewModel::Downloads& downloads, QWidget* parent, const QString& openAt)
+    Rpc::AuthStates& authStates, ViewModel::Downloads& downloads, Hotkeys::Registry& hotkeys, QWidget* parent,
+    const QString& openAt)
     : QDialog(parent)
     , settings_(settings)
     , sourceManager_(sourceManager)
@@ -82,6 +84,7 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, App::Analytics& analy
     toastNotifier_ = new ToastNotifier(pageStack_);
     addPage(new Settings::GeneralPage(settings_, analytics, this));
     addPage(new Settings::DownloadsPage(settings_, downloads, this));
+    addPage(new Settings::HotkeysPage(hotkeys, this));
     // Ahead of the sources: applied first, so a proxy added and picked by
     // a source in the same Apply exists by the time the source saves it.
     auto* network = new Settings::NetworkPage(settings_, sourceManager, *toastNotifier_, restarts_, this);

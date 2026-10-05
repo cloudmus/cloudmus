@@ -237,6 +237,30 @@ bool Settings::trackNotifications() const
 
 void Settings::setTrackNotifications(bool on) { settings_.setValue(QStringLiteral("notifications/trackChange"), on); }
 
+std::optional<Settings::HotkeyConfig> Settings::hotkey(const QString& id) const
+{
+    const QString group = QStringLiteral("hotkeys/") + id + QLatin1Char('/');
+    if (!settings_.contains(group + QStringLiteral("key")))
+        return std::nullopt;
+    HotkeyConfig config;
+    config.key = settings_.value(group + QStringLiteral("key")).toString();
+    config.global = settings_.value(group + QStringLiteral("global"), true).toBool();
+    config.notify = settings_.value(group + QStringLiteral("notify"), true).toBool();
+    return config;
+}
+
+void Settings::setHotkey(const QString& id, const HotkeyConfig& config)
+{
+    const QString group = QStringLiteral("hotkeys/") + id + QLatin1Char('/');
+    // An empty key is stored too (it means "none", not "default"), which is
+    // why hotkey() looks for the key's presence.
+    settings_.setValue(group + QStringLiteral("key"), config.key);
+    settings_.setValue(group + QStringLiteral("global"), config.global);
+    settings_.setValue(group + QStringLiteral("notify"), config.notify);
+}
+
+void Settings::resetHotkey(const QString& id) { settings_.remove(QStringLiteral("hotkeys/") + id); }
+
 QString Settings::skippedUpdateVersion() const
 {
     return settings_.value(QStringLiteral("updates/skippedVersion")).toString();

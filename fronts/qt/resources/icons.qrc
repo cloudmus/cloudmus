@@ -38,6 +38,7 @@
         <file alias="file_download.svg">icons/symbols/file_download.svg</file>
         <file alias="history.svg">icons/symbols/history.svg</file>
         <file alias="tune.svg">icons/symbols/tune.svg</file>
+        <file alias="keyboard.svg">icons/symbols/keyboard.svg</file>
         <file alias="public.svg">icons/symbols/public.svg</file>
         <file alias="arrow_back.svg">icons/symbols/arrow_back.svg</file>
         <file alias="close.svg">icons/symbols/close.svg</file>

@@ -80,6 +80,11 @@ void NotificationToast::showTrackChange(const QString& title, const QString& art
     coverWait_->start();
 }
 
+void NotificationToast::showNotice(const QString& title, const QString& body, const QPixmap& cover)
+{
+    showBalloon(title, body, cover);
+}
+
 void NotificationToast::updateCover(const QString& title, const QString& artist, const QPixmap& cover)
 {
     if (!coverWait_->isActive() || title != waitingTitle_ || artist != waitingArtist_)

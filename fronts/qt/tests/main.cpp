@@ -20,6 +20,7 @@ QObject* makeAnalyticsTest();
 QObject* makeStreamRelayTest();
 QObject* makeCrashReporterTest();
 QObject* makeUpdateTest();
+QObject* makeHotkeysTest();
 int runCrashReporterChildIfAsked(int argc, char** argv);
 }
 
@@ -43,7 +44,7 @@ int main(int argc, char** argv)
     for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
              Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
              Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
-             Tests::makeCrashReporterTest, Tests::makeUpdateTest }) {
+             Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeHotkeysTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

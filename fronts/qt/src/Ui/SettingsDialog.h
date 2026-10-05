@@ -26,6 +26,9 @@ class SourceManager;
 namespace ViewModel {
 class Downloads;
 }
+namespace Hotkeys {
+class Registry;
+}
 
 namespace Ui {
 
@@ -40,18 +43,17 @@ class PageStack;
 // Settings… from the hamburger menu: a sidebar of setting groups on the
 // left, every group as one section of a single scrolling column on the
 // right (Settings::PageStack — built lazily as it scrolls), Ok/Apply/
-// Cancel below. Custom global-hotkey rebinding UI is not built yet
-// (Integration::GlobalShortcuts uses a fixed default binding set for now) —
-// hardware media keys work regardless via MPRIS (Linux) or SMTC (Windows),
-// neither of which needs any UI here.
+// Cancel below. Hardware media keys work regardless via MPRIS (Linux) or
+// SMTC (Windows), neither of which needs any UI here; the hotkeys of
+// Hotkeys::Registry have their own page.
 class SettingsDialog : public QDialog {
     Q_OBJECT
 
 public:
     // `openAt`: a Settings::Page::id() to show first instead of the top.
     SettingsDialog(Config::Settings& settings, App::Analytics& analytics, Rpc::SourceManager& sourceManager,
-        Rpc::AuthStates& authStates, ViewModel::Downloads& downloads, QWidget* parent = nullptr,
-        const QString& openAt = { });
+        Rpc::AuthStates& authStates, ViewModel::Downloads& downloads, Hotkeys::Registry& hotkeys,
+        QWidget* parent = nullptr, const QString& openAt = { });
 
     void done(int result) override;
 

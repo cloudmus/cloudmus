@@ -10,6 +10,7 @@
 #include <functional>
 #include <memory>
 
+#include "AppShortcuts.h"
 #include "Autostart.h"
 #include "Core.h"
 #include "Coro.h"
@@ -20,6 +21,7 @@
 #include "FrameClock.h"
 #include "GA4Config.h"
 #include "GeneratedCoverArt.h"
+#include "GlobalHotkeys.h"
 #include "Logging.h"
 #include "MainWindow.h"
 #include "NotificationToast.h"
@@ -49,7 +51,6 @@
 #include "SmtcService.h"
 #include "TaskbarThumbButtons.h"
 #else
-#include "GlobalShortcuts.h"
 #include "MprisService.h"
 #endif
 
@@ -243,7 +244,7 @@ int main(int argc, char** argv)
     core.coverArtCache().setFitter(&Ui::fitCover);
     Ui::WindowHost windowHost(core);
 
-    Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing());
+    Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing(), core.hotkeys());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &windowHost, &Ui::WindowHost::quit);
 
 #ifdef Q_OS_WIN
@@ -315,17 +316,55 @@ int main(int argc, char** argv)
             notificationToast.updateCover(pendingCover->title, pendingCover->artists, cover);
         });
 
-#ifndef Q_OS_WIN
-    Integration::GlobalShortcuts globalShortcuts;
-    QObject::connect(&globalShortcuts, &Integration::GlobalShortcuts::playPauseTriggered, &playback,
-        &Playback::PlaybackController::togglePause);
+    // Hotkeys: the ones inside the window (AppShortcuts) and, where the
+    // desktop has a way to, global ones. Both do their action through the
+    // same Dispatcher; the backend only tells which key was pressed.
+    Hotkeys::Registry& hotkeys = core.hotkeys();
+    Hotkeys::Dispatcher& hotkeyDispatcher = core.hotkeyDispatcher();
+    Ui::AppShortcuts appShortcuts(windowHost, hotkeys, hotkeyDispatcher);
+    const std::unique_ptr<Integration::GlobalHotkeys> globalHotkeys = Integration::createGlobalHotkeys();
+    const auto pushHotkeyEntries = [&hotkeys, &globalHotkeys]() {
+        QList<Integration::GlobalHotkeys::Entry> entries;
+        for (const Hotkeys::Binding& binding : hotkeys.bindings()) {
+            const Hotkeys::ActionInfo& info = Hotkeys::info(binding.action);
+            entries.append({ info.id, info.description, binding.key, binding.global });
+        }
+        globalHotkeys->setEntries(entries);
+    };
+    const auto pushHotkeyState = [&hotkeys, &globalHotkeys]() {
+        hotkeys.setGlobalState(
+            globalHotkeys->support(), globalHotkeys->unavailableReason(), globalHotkeys->canConfigureInSystem());
+    };
+    QObject::connect(&hotkeys, &Hotkeys::Registry::bindingsChanged, globalHotkeys.get(), pushHotkeyEntries);
+    QObject::connect(&hotkeys, &Hotkeys::Registry::configureInSystemRequested, globalHotkeys.get(),
+        [&globalHotkeys]() { globalHotkeys->configureInSystem(); });
+    QObject::connect(globalHotkeys.get(), &Integration::GlobalHotkeys::activated, &hotkeyDispatcher,
+        [&hotkeyDispatcher](const QString& id, const QString& token) { hotkeyDispatcher.trigger(id, token); });
     QObject::connect(
-        &globalShortcuts, &Integration::GlobalShortcuts::nextTriggered, &playback, &Playback::PlaybackController::next);
-    QObject::connect(&globalShortcuts, &Integration::GlobalShortcuts::previousTriggered, &playback,
-        &Playback::PlaybackController::previous);
-    QObject::connect(
-        &globalShortcuts, &Integration::GlobalShortcuts::stopTriggered, &playback, &Playback::PlaybackController::stop);
-#endif
+        globalHotkeys.get(), &Integration::GlobalHotkeys::failedChanged, &hotkeys, &Hotkeys::Registry::setFailedIds);
+    QObject::connect(globalHotkeys.get(), &Integration::GlobalHotkeys::systemKeyChanged, &hotkeys,
+        &Hotkeys::Registry::adoptSystemKey);
+    QObject::connect(globalHotkeys.get(), &Integration::GlobalHotkeys::systemTriggersChanged, &hotkeys,
+        &Hotkeys::Registry::setSystemTriggers);
+    QObject::connect(globalHotkeys.get(), &Integration::GlobalHotkeys::stateChanged, &hotkeys, pushHotkeyState);
+    pushHotkeyEntries();
+    pushHotkeyState();
+
+    // Out of the tray a window that is hidden or behind others, away a
+    // window that is in front.
+    QObject::connect(&hotkeyDispatcher, &Hotkeys::Dispatcher::showPlayerRequested, &windowHost,
+        [&windowHost](const QString& activationToken) {
+            if (windowHost.isOnScreen() && windowHost.window()->isActiveWindow())
+                windowHost.toggleShown();
+            else
+                windowHost.bringToFront(activationToken);
+        });
+    QObject::connect(&hotkeyDispatcher, &Hotkeys::Dispatcher::noticeRequested, &notificationToast,
+        [&notificationToast, coverCache, notificationCoverSize](const Hotkeys::Dispatcher::Notice& notice) {
+            const QPixmap cover
+                = notice.coverUrl.isEmpty() ? QPixmap() : coverCache->pixmap(notice.coverUrl, notificationCoverSize);
+            notificationToast.showNotice(notice.title, notice.body, cover);
+        });
 
     QObject::connect(&windowHost, &Ui::WindowHost::aboutToReallyQuit, &windowHost, [&sourceManager, &core]() {
         // Queued usage events go out while the backends shut down; the app
