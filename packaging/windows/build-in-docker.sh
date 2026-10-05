@@ -48,7 +48,7 @@ cp /opt/vulkan-rt/vulkan-1.dll "${stage_dir}/"
 cp /opt/vulkan-rt/VulkanRT-License.txt "${stage_dir}/"
 cp LICENSE "${stage_dir}/LICENSE.txt"
 cp packaging/windows/THIRD_PARTY.txt "${stage_dir}/"
-xvfb-run -a wine "${qt_deploy_exe}" --release --no-translations \
+xvfb-run -a wine "${qt_deploy_exe}" --release --translations ru,fr,es,de,it \
     --compiler-runtime --dir "${stage_win}" "${stage_win}\\cloudmus-qt.exe"
 
 echo '==> Bundling Python and backends'
