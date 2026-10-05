@@ -115,7 +115,7 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     menu->addSeparator();
     showHideAction_ = menu->addAction(QString());
     menu->addSeparator();
-    auto* quitAction = menu->addAction(tr("Quit"));
+    quitAction_ = menu->addAction(tr("Quit"));
 
     using ViewModel::NowPlaying;
     connect(previousAction_, &QAction::triggered, &nowPlaying_, &NowPlaying::previous);
@@ -129,7 +129,7 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     // app, or on the service itself).
     connect(playlistsMenu_, &QMenu::aboutToShow, this, &TrayIcon::fillPlaylistsMenu);
     connect(showHideAction_, &QAction::triggered, &windowHost_, &Ui::WindowHost::toggleShown);
-    connect(quitAction, &QAction::triggered, this, &TrayIcon::quitRequested);
+    connect(quitAction_, &QAction::triggered, this, &TrayIcon::quitRequested);
 
     connect(&hotkeys_, &Hotkeys::Registry::bindingsChanged, this, &TrayIcon::refreshHotkeys);
     refreshHotkeys();
@@ -152,6 +152,8 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     connect(menu, &QMenu::aboutToShow, this, &TrayIcon::refreshShowHideAction);
 
     trayIcon_->setContextMenu(menu);
+    // QCoreApplication posts LanguageChange to itself when a translator is installed.
+    qApp->installEventFilter(this);
 
     connect(trayIcon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger)
@@ -159,6 +161,27 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     });
 
     trayIcon_->show();
+}
+
+bool TrayIcon::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == qApp && event->type() == QEvent::LanguageChange)
+        retranslate();
+    return QObject::eventFilter(watched, event);
+}
+
+void TrayIcon::retranslate()
+{
+    previousAction_->setText(tr("Previous"));
+    nextAction_->setText(tr("Next"));
+    stopAction_->setText(tr("Stop"));
+    playlistsMenu_->setTitle(tr("Playlists"));
+    quitAction_->setText(tr("Quit"));
+    // The state-dependent labels, and the hotkeys shown next to them.
+    refreshPlaying();
+    refreshFeedbackActions();
+    refreshShowHideAction();
+    refreshHotkeys();
 }
 
 void TrayIcon::refreshTrack()

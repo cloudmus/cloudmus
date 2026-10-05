@@ -5,6 +5,7 @@
 
 class QSystemTrayIcon;
 class QAction;
+class QEvent;
 class QMenu;
 
 namespace Ui {
@@ -39,7 +40,13 @@ public:
 signals:
     void quitRequested();
 
+protected:
+    // The language changed: the menu's labels are read again.
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
+    // The labels that don't depend on the state.
+    void retranslate();
     // Picks tray_icon_dark.svg/tray_icon_light.svg (see icons.qrc) to match
     // the panel's color — a plain white glyph reads fine on a dark panel but
     // disappears on a light one, and vice versa. The panel's color is the
@@ -75,6 +82,7 @@ private:
     QAction* dislikeAction_ = nullptr;
     QMenu* playlistsMenu_ = nullptr;
     QAction* showHideAction_ = nullptr;
+    QAction* quitAction_ = nullptr;
 };
 
 } // namespace Integration

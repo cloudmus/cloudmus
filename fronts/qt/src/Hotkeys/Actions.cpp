@@ -1,7 +1,5 @@
 #include "Actions.h"
 
-#include <QCoreApplication>
-
 namespace Hotkeys {
 
 namespace {
@@ -9,25 +7,33 @@ namespace {
 // (Plasma, KWin and the screen reader take P, Left, Right and S).
 QKeySequence chord(Qt::Key key) { return QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | key); }
 
-QString tr(const char* text) { return QCoreApplication::translate("Hotkeys::Actions", text); }
 } // namespace
 
 const QList<ActionInfo>& actions()
 {
     static const QList<ActionInfo> list = {
-        { Action::ShowPlayer, QStringLiteral("showPlayer"), tr("Show or hide the player"), chord(Qt::Key_M), true,
+        { Action::ShowPlayer, QStringLiteral("showPlayer"), QT_TRANSLATE_NOOP("Hotkeys", "Show or hide the player"),
+            chord(Qt::Key_M), true, false },
+        { Action::PlayPause, QStringLiteral("playPause"), QT_TRANSLATE_NOOP("Hotkeys", "Play / pause"),
+            chord(Qt::Key_P), true, false },
+        { Action::Next, QStringLiteral("next"), QT_TRANSLATE_NOOP("Hotkeys", "Next track"), chord(Qt::Key_Right), true,
             false },
-        { Action::PlayPause, QStringLiteral("playPause"), tr("Play / pause"), chord(Qt::Key_P), true, false },
-        { Action::Next, QStringLiteral("next"), tr("Next track"), chord(Qt::Key_Right), true, false },
-        { Action::Previous, QStringLiteral("previous"), tr("Previous track"), chord(Qt::Key_Left), true, false },
-        { Action::Stop, QStringLiteral("stop"), tr("Stop"), chord(Qt::Key_S), true, false },
-        { Action::VolumeUp, QStringLiteral("volumeUp"), tr("Volume up"), chord(Qt::Key_Up), true, true },
-        { Action::VolumeDown, QStringLiteral("volumeDown"), tr("Volume down"), chord(Qt::Key_Down), true, true },
-        { Action::ToggleQuiet, QStringLiteral("toggleQuiet"), tr("Quiet mode on / off"), chord(Qt::Key_Q), true, true },
-        { Action::Like, QStringLiteral("like"), tr("Like or unlike the current track"), chord(Qt::Key_L), true, true },
-        { Action::Dislike, QStringLiteral("dislike"), tr("Dislike or undo dislike of the current track"),
-            chord(Qt::Key_D), true, true },
-        { Action::Download, QStringLiteral("download"), tr("Download the current track"), QKeySequence(), true, true },
+        { Action::Previous, QStringLiteral("previous"), QT_TRANSLATE_NOOP("Hotkeys", "Previous track"),
+            chord(Qt::Key_Left), true, false },
+        { Action::Stop, QStringLiteral("stop"), QT_TRANSLATE_NOOP("Hotkeys", "Stop"), chord(Qt::Key_S), true, false },
+        { Action::VolumeUp, QStringLiteral("volumeUp"), QT_TRANSLATE_NOOP("Hotkeys", "Volume up"), chord(Qt::Key_Up),
+            true, true },
+        { Action::VolumeDown, QStringLiteral("volumeDown"), QT_TRANSLATE_NOOP("Hotkeys", "Volume down"),
+            chord(Qt::Key_Down), true, true },
+        { Action::ToggleQuiet, QStringLiteral("toggleQuiet"), QT_TRANSLATE_NOOP("Hotkeys", "Quiet mode on / off"),
+            chord(Qt::Key_Q), true, true },
+        { Action::Like, QStringLiteral("like"), QT_TRANSLATE_NOOP("Hotkeys", "Like or unlike the current track"),
+            chord(Qt::Key_L), true, true },
+        { Action::Dislike, QStringLiteral("dislike"),
+            QT_TRANSLATE_NOOP("Hotkeys", "Dislike or undo dislike of the current track"), chord(Qt::Key_D), true,
+            true },
+        { Action::Download, QStringLiteral("download"), QT_TRANSLATE_NOOP("Hotkeys", "Download the current track"),
+            QKeySequence(), true, true },
     };
     return list;
 }

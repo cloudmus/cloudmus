@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QCoreApplication>
 #include <QKeySequence>
 #include <QList>
 #include <QString>
@@ -27,11 +28,15 @@ struct ActionInfo {
     // Stable: the config key, and the action's name in kglobalaccel and the
     // XDG portal. The first four are what the old fixed bindings were called.
     QString id;
-    QString description;
+    // The untranslated text (QT_TRANSLATE_NOOP, context "Hotkeys"); read
+    // through description(), so it follows the language in effect.
+    const char* descriptionSource;
     QKeySequence defaultKey;
     bool defaultGlobal = true;
     // The action can say what it did in a notification.
     bool hasNotice = false;
+
+    QString description() const { return QCoreApplication::translate("Hotkeys", descriptionSource); }
 };
 
 const QList<ActionInfo>& actions();

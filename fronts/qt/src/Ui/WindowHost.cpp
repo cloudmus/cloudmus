@@ -15,6 +15,9 @@ WindowHost::WindowHost(App::Core& core, QObject* parent)
     create();
     // Glass is set up as a window is created — switching it takes a new one.
     connect(&Theme::notifier(), &Theme::Notifier::glassChanged, this, &WindowHost::recreate);
+    // ...and so are its texts, built as the widgets are: a new window, in the
+    // new language, rather than every label told to read its text again.
+    connect(&core_.translator(), &I18n::Translator::languageChanged, this, &WindowHost::recreate);
 }
 
 WindowHost::~WindowHost() = default;

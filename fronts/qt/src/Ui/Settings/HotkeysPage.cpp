@@ -89,7 +89,7 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
         row.action = binding.action;
         const Hotkeys::ActionInfo& info = Hotkeys::info(binding.action);
 
-        row.description = new QLabel(info.description, widget);
+        row.description = new QLabel(info.description(), widget);
         row.description->setFont(Theme::font(Theme::TextStyle::Body));
         row.description->setWordWrap(true);
 
@@ -276,7 +276,7 @@ bool HotkeysPage::matchesFilter(const Row& row) const
     if (wanted.isEmpty())
         return true;
     const Hotkeys::ActionInfo& info = Hotkeys::info(row.action);
-    return squeeze(info.description).contains(wanted)
+    return squeeze(info.description()).contains(wanted)
         || squeeze(row.keyEdit->keySequence().toString(QKeySequence::NativeText)).contains(wanted)
         || squeeze(row.keyEdit->keySequence().toString(QKeySequence::PortableText)).contains(wanted);
 }
@@ -288,8 +288,8 @@ void HotkeysPage::updateStatuses()
     const QList<Hotkeys::Binding> bindings = collect();
     QHash<int, QString> conflictWith;
     for (const auto& [first, second] : Hotkeys::Registry::conflicts(bindings)) {
-        conflictWith.insert(int(first), Hotkeys::info(second).description);
-        conflictWith.insert(int(second), Hotkeys::info(first).description);
+        conflictWith.insert(int(first), Hotkeys::info(second).description());
+        conflictWith.insert(int(second), Hotkeys::info(first).description());
     }
     const QHash<QString, QString> triggers = registry_.systemTriggers();
     const QSet<QString> failed = registry_.failedIds();

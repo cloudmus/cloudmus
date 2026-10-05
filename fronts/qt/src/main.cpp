@@ -327,7 +327,7 @@ int main(int argc, char** argv)
         QList<Integration::GlobalHotkeys::Entry> entries;
         for (const Hotkeys::Binding& binding : hotkeys.bindings()) {
             const Hotkeys::ActionInfo& info = Hotkeys::info(binding.action);
-            entries.append({ info.id, info.description, binding.key, binding.global });
+            entries.append({ info.id, info.description(), binding.key, binding.global });
         }
         globalHotkeys->setEntries(entries);
     };
@@ -336,6 +336,8 @@ int main(int argc, char** argv)
             globalHotkeys->support(), globalHotkeys->unavailableReason(), globalHotkeys->canConfigureInSystem());
     };
     QObject::connect(&hotkeys, &Hotkeys::Registry::bindingsChanged, globalHotkeys.get(), pushHotkeyEntries);
+    // The system lists these by their descriptions.
+    QObject::connect(&core.translator(), &I18n::Translator::languageChanged, globalHotkeys.get(), pushHotkeyEntries);
     QObject::connect(&hotkeys, &Hotkeys::Registry::configureInSystemRequested, globalHotkeys.get(),
         [&globalHotkeys]() { globalHotkeys->configureInSystem(); });
     QObject::connect(globalHotkeys.get(), &Integration::GlobalHotkeys::activated, &hotkeyDispatcher,
