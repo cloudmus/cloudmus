@@ -22,6 +22,7 @@
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TrackStates.h"
+#include "Translator.h"
 #include "UpdateChecker.h"
 
 namespace App {
@@ -38,6 +39,7 @@ public:
     explicit Core(QObject* parent = nullptr);
 
     Config::Settings& settings() { return settings_; }
+    I18n::Translator& translator() { return translator_; }
     Analytics& analytics() { return analytics_; }
     Rpc::SourceManager& sourceManager() { return sourceManager_; }
     Playback::PlaybackController& playback() { return playback_; }
@@ -66,6 +68,7 @@ private:
     // Declaration order is construction order: playback_ needs
     // sourceManager_.
     Config::Settings settings_;
+    I18n::Translator translator_;
     Analytics analytics_;
     Rpc::SourceManager sourceManager_;
     Playback::PlaybackController playback_;

@@ -122,6 +122,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , analytics_(core.analytics())
     , playback_(core.playback())
     , settings_(core.settings())
+    , translator_(core.translator())
     , sourceSession_(core.sourceSession())
     , messages_(core.messages())
     , nowPlaying_(core.nowPlaying())
@@ -1220,6 +1221,9 @@ void MainWindow::showSettingsDialog(const QString& openAt)
     toastNotifier_ = dialog.toastNotifier();
     dialog.exec();
     toastNotifier_ = ownToasts;
+    // A language chosen on the General page, switched only now: every text
+    // of this window and of the dialog is rebuilt by it.
+    translator_.setLanguage(settings_.language());
     // A glass change from the General page, applied only now: switching
     // it replaces this window (Ui::WindowHost::recreate()), not something
     // to do under a modal dialog parented to it.

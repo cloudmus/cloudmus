@@ -21,7 +21,7 @@ public:
     QString id() const override { return QStringLiteral("general"); }
     QString title() const override;
     QString iconName() const override { return QStringLiteral("tune"); }
-    int estimatedHeight() const override { return 325; }
+    int estimatedHeight() const override { return 365; }
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;
@@ -43,6 +43,7 @@ private:
     QCheckBox* closeToTrayCheck_ = nullptr;
     QCheckBox* trackNotificationsCheck_ = nullptr;
     QComboBox* colorSchemeCombo_ = nullptr;
+    QComboBox* languageCombo_ = nullptr;
     QCheckBox* glassCheck_ = nullptr;
     QCheckBox* analyticsCheck_ = nullptr;
     // What launchAtLoginCheck_ started from / was last applied as — the

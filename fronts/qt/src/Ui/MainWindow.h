@@ -200,6 +200,7 @@ private:
     App::Analytics& analytics_;
     Playback::PlaybackController& playback_;
     Config::Settings& settings_;
+    I18n::Translator& translator_;
     App::SourceSession& sourceSession_;
     // What to tell the user goes here; posted() shows it as a toast on
     // toastNotifier_ (redirected while the Settings dialog is up).

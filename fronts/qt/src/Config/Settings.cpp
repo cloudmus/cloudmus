@@ -217,6 +217,17 @@ std::optional<bool> Settings::glassBackground() const
 
 void Settings::setGlassBackground(bool on) { settings_.setValue(QStringLiteral("window/glass"), on); }
 
+QString Settings::language() const { return settings_.value(QStringLiteral("ui/language")).toString(); }
+
+void Settings::setLanguage(const QString& code)
+{
+    const QString key = QStringLiteral("ui/language");
+    if (code.isEmpty())
+        settings_.remove(key);
+    else
+        settings_.setValue(key, code);
+}
+
 Settings::ColorScheme Settings::colorScheme() const
 {
     const QString value = settings_.value(QStringLiteral("window/colorScheme")).toString();

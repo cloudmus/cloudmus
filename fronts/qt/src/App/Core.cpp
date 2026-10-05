@@ -22,6 +22,13 @@ Core::Core(QObject* parent)
     , sourcePage_(sourceSession_)
     , updates_(settings_)
 {
+    // The language first: whatever is created or spawned below already
+    // speaks it.
+    translator_.setLanguage(settings_.language());
+    sourceManager_.setLocale(translator_.language());
+    // A later switch (the Settings dialog) reaches the running backends too.
+    connect(&translator_, &I18n::Translator::languageChanged, &sourceManager_, &Rpc::SourceManager::setLocale);
+
     // A source that stops leaves nothing to stream the rest of its track from.
     connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, [this](const QString& sourceId) {
         if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId)

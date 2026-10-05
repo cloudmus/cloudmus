@@ -122,6 +122,11 @@ public:
         Light,
         Dark
     };
+    // The language of the front's texts, a code from I18n::supportedLanguages();
+    // empty follows the system.
+    QString language() const;
+    void setLanguage(const QString& code);
+
     ColorScheme colorScheme() const;
     void setColorScheme(ColorScheme scheme);
 

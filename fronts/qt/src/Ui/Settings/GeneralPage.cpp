@@ -11,6 +11,7 @@
 
 #include "Analytics.h"
 #include "Autostart.h"
+#include "Languages.h"
 #include "Settings.h"
 #include "Spacing.h"
 #include "ThemeCrossfade.h"
@@ -70,6 +71,23 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     colorSchemeRow->addWidget(colorSchemeCombo_);
     colorSchemeRow->addStretch(1);
 
+    languageCombo_ = new QComboBox(widget);
+    languageCombo_->setFont(Theme::font(Theme::TextStyle::Body));
+    languageCombo_->setItemDelegate(new QStyledItemDelegate(languageCombo_));
+    languageCombo_->addItem(tr("Automatic"), QString());
+    // Each in its own language, so one can be found whatever is shown now.
+    for (const I18n::Language& language : I18n::supportedLanguages())
+        languageCombo_->addItem(language.nativeName, language.code);
+    languageCombo_->setCurrentIndex(languageCombo_->findData(settings_.language()));
+    connect(languageCombo_, &QComboBox::currentIndexChanged, this, &Page::dirtyChanged);
+    auto* languageRow = new QHBoxLayout;
+    languageRow->setSpacing(Theme::Spacing::space3);
+    auto* languageLabel = new QLabel(tr("Language:"), widget);
+    languageLabel->setFont(Theme::font(Theme::TextStyle::Body));
+    languageRow->addWidget(languageLabel);
+    languageRow->addWidget(languageCombo_);
+    languageRow->addStretch(1);
+
     glassCheck_ = makeCheck(tr("Glass background: blur what's behind the window"), glassWanted());
     // Where the app can't ask for the blur itself, the window can still be
     // made see-through for a desktop extension to blur — said so, since
@@ -107,6 +125,7 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addWidget(trackNotificationsCheck_);
     layout->addSpacing(Theme::Spacing::space3);
     layout->addLayout(colorSchemeRow);
+    layout->addLayout(languageRow);
     layout->addWidget(glassCheck_);
     layout->addWidget(glassHint);
     layout->addSpacing(Theme::Spacing::space3);
@@ -125,6 +144,7 @@ bool GeneralPage::isDirty() const
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
             || trackNotificationsCheck_->isChecked() != settings_.trackNotifications()
             || colorSchemeCombo_->currentData().toInt() != int(settings_.colorScheme())
+            || languageCombo_->currentData().toString() != settings_.language()
             || glassCheck_->isChecked() != glassWanted()
             || analyticsCheck_->isChecked() != settings_.analyticsEnabled());
 }
@@ -146,6 +166,9 @@ Rpc::Task<bool> GeneralPage::apply()
         settings_.setColorScheme(scheme);
         crossfadeThemeChange([scheme]() { applyColorScheme(scheme); });
     }
+    // Only stored: the language is switched once the Settings window
+    // closes — see Ui::MainWindow::showSettingsDialog().
+    settings_.setLanguage(languageCombo_->currentData().toString());
     // Stored only once the user goes against the default, so an untouched
     // setting keeps following the desktop's light/dark scheme.
     if (glassCheck_->isChecked() != glassWanted())

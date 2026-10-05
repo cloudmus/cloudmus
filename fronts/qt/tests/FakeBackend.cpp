@@ -60,6 +60,9 @@ QJsonObject capabilities()
                 { QStringLiteral("skip"), false } } },
         { QStringLiteral("download"), true },
         { QStringLiteral("downloadControl"), true },
+        { QStringLiteral("localization"),
+            QJsonObject { { QStringLiteral("locales"),
+                QJsonArray { QStringLiteral("en"), QStringLiteral("de"), QStringLiteral("ru") } } } },
         { QStringLiteral("auth"),
             QJsonObject { { QStringLiteral("required"), false }, { QStringLiteral("flow"), QStringLiteral("none") } } },
     };
@@ -94,6 +97,8 @@ int runFakeBackend()
 {
     // A catalog.downloadTrack of the track "slow" waits here, unanswered,
     // until a catalog.cancelDownload for it.
+    // The language the front asked for, in initialize or after.
+    QString locale = QStringLiteral("en");
     QJsonValue slowDownloadRequestId;
     QString slowDownloadId;
     std::string line;
@@ -105,12 +110,23 @@ int runFakeBackend()
             continue; // a notification from the front — nothing to answer
 
         if (method == QStringLiteral("initialize")) {
+            locale = request.value(QStringLiteral("params"))
+                         .toObject()
+                         .value(QStringLiteral("locale"))
+                         .toString(QStringLiteral("en"));
             reply(id,
                 { { QStringLiteral("protocolVersion"), QStringLiteral("1.6") },
                     { QStringLiteral("source"),
                         QJsonObject { { QStringLiteral("id"), QStringLiteral("fake") },
-                            { QStringLiteral("name"), QStringLiteral("Fake Source") } } },
+                            { QStringLiteral("name"), QStringLiteral("Fake Source") },
+                            { QStringLiteral("description"), QStringLiteral("locale=%1").arg(locale) } } },
                     { QStringLiteral("capabilities"), capabilities() } });
+        } else if (method == QStringLiteral("localization.setLanguage")) {
+            locale = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("locale")).toString();
+            reply(id, { { QStringLiteral("locale"), locale } });
+        } else if (method == QStringLiteral("fake.currentLocale")) {
+            // Not part of the protocol: lets a test see what the front set.
+            reply(id, { { QStringLiteral("locale"), locale } });
         } else if (method == QStringLiteral("catalog.listPlaylists")) {
             // A notification ahead of the reply, as a real backend may send
             // one at any time.

@@ -13,13 +13,13 @@ Q_LOGGING_CATEGORY(lcSourceManager, "cloudmus.rpc.sourcemanager")
 // SourceManager signals. A free coroutine (not a SourceManager method) so
 // it can be detach()ed cleanly from startOne() without SourceManager itself
 // needing to be a coroutine.
-Task<void> runStart(SourceManager& manager, RpcClient* client, QProcessEnvironment environment)
+Task<void> runStart(SourceManager& manager, RpcClient* client, QProcessEnvironment environment, QString locale)
 {
     // Switched off (SourceManager::setEnabled) while still handshaking:
     // its shutdown() was a no-op then, as nothing was up yet.
     const auto superseded = [&manager, client]() { return manager.client(client->manifest().id) != client; };
     try {
-        co_await client->start(std::move(environment));
+        co_await client->start(std::move(environment), std::move(locale));
         if (superseded()) {
             co_await client->shutdown();
             co_return;
@@ -36,6 +36,21 @@ Task<void> runStart(SourceManager& manager, RpcClient* client, QProcessEnvironme
     }
 }
 
+// Switches one running backend's language, then tells the front to read
+// what it shows from it again.
+Task<void> runSetLanguage(SourceManager& manager, RpcClient* client, QString locale)
+{
+    try {
+        co_await client->setLanguage(std::move(locale));
+    } catch (const std::exception& e) {
+        qCWarning(lcSourceManager) << client->manifest().id << "could not switch language:" << e.what();
+        co_return;
+    }
+    // Restarted or switched off meanwhile: not this client's to report.
+    if (manager.client(client->manifest().id) == client)
+        manager.notifySettingsChanged(client->manifest().id);
+}
+
 } // namespace
 
 SourceManager::SourceManager(QObject* parent)
@@ -50,6 +65,17 @@ const QList<BackendManifest>& SourceManager::manifests()
     if (!manifests_)
         manifests_ = discoverManifests();
     return *manifests_;
+}
+
+void SourceManager::setLocale(const QString& locale)
+{
+    if (locale == locale_)
+        return;
+    locale_ = locale;
+    for (RpcClient* client : std::as_const(clientsById_)) {
+        if (client->available())
+            runSetLanguage(*this, client, locale_).detach();
+    }
 }
 
 void SourceManager::setDisabledIds(const QStringList& ids) { disabledIds_ = QSet<QString>(ids.begin(), ids.end()); }
@@ -105,7 +131,7 @@ void SourceManager::startOne(const BackendManifest& manifest)
     // have changed since the last one.
     const QProcessEnvironment environment
         = environmentProvider_ ? environmentProvider_(manifest.id) : QProcessEnvironment::systemEnvironment();
-    runStart(*this, client, environment).detach();
+    runStart(*this, client, environment, locale_).detach();
 }
 
 void SourceManager::watch(RpcClient* client)

@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg LinguistTools)
 include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 REQUIRED COMPONENTS Test)
@@ -113,6 +113,8 @@ add_library(cloudmus-core STATIC
     src/Playback/PlaybackController.cpp
 
     src/Config/Settings.cpp
+    src/I18n/Languages.cpp
+    src/I18n/Translator.cpp
     src/Net/ProxyRouting.cpp
 
     src/History/PlaybackHistory.cpp
@@ -174,6 +176,7 @@ target_include_directories(cloudmus-core PUBLIC
     src/Rpc
     src/Playback
     src/Config
+    src/I18n
     src/Net
     src/History
     src/Library
@@ -392,6 +395,22 @@ if(WIN32)
     add_executable(cloudmus-yt-dlp WIN32 src/Playback/YtDlpLauncherWin.cpp)
     set_target_properties(cloudmus-yt-dlp PROPERTIES OUTPUT_NAME "yt-dlp")
 endif()
+# The app's own texts, one translations/cloudmus_<code>.ts per language
+# (English is the source language), compiled to .qm and embedded under
+# :/i18n — where I18n::Translator looks. After changing a text:
+# `cmake --build build --target update_translations`.
+qt_add_translations(cloudmus-qt
+    TS_FILES
+        translations/cloudmus_be.ts
+        translations/cloudmus_de.ts
+        translations/cloudmus_es.ts
+        translations/cloudmus_fr.ts
+        translations/cloudmus_it.ts
+        translations/cloudmus_ru.ts
+    SOURCE_TARGETS cloudmus-core cloudmus-ui cloudmus-qt
+    RESOURCE_PREFIX /i18n
+    LUPDATE_OPTIONS -no-obsolete -locations none -source-language en
+)
 target_include_directories(cloudmus-qt PRIVATE ${VERSION_DIR})
 add_dependencies(cloudmus-qt cloudmus_version)
 target_link_libraries(cloudmus-qt PRIVATE cloudmus-ui)
@@ -423,6 +442,7 @@ add_executable(cloudmus-qt-tests
     tests/CrashReporterTest.cpp
     tests/UpdateTest.cpp
     tests/HotkeysTest.cpp
+    tests/I18nTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

@@ -33,6 +33,13 @@ public:
         environmentProvider_ = std::move(provider);
     }
 
+    // The language backends answer in (docs/protocol.md §7.8): handed to
+    // each one at spawn, and switched live on the running ones. A source's
+    // settingsChanged() follows, so what the front lists from it is read
+    // again in the new language.
+    void setLocale(const QString& locale);
+    const QString& locale() const { return locale_; }
+
     // Backends the user switched off: never spawned, and not restarted.
     // Call before startAll().
     void setDisabledIds(const QStringList& ids);
@@ -86,6 +93,7 @@ private:
 
     std::optional<QList<BackendManifest>> manifests_;
     std::function<QProcessEnvironment(const QString&)> environmentProvider_;
+    QString locale_;
     QSet<QString> disabledIds_;
     QSet<QString> unavailableIds_;
     QHash<QString, RpcClient*> clientsById_;

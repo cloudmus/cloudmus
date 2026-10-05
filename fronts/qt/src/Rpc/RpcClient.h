@@ -48,7 +48,12 @@ public:
     explicit RpcClient(BackendManifest manifest, QObject* parent = nullptr);
 
     // `environment`: the backend process's — see NdjsonTransport::start().
-    Task<void> start(QProcessEnvironment environment);
+    // `locale`: the language the backend should answer in (BCP-47, say "ru";
+    // empty for its default, English), docs/protocol.md §7.8.
+    Task<void> start(QProcessEnvironment environment, QString locale = { });
+    // Switches a running backend's language. A no-op for one that doesn't
+    // declare the localization capability.
+    Task<void> setLanguage(QString locale);
     Task<void> shutdown();
 
     // Low-level primitives generated call-wrapper functions (and start())

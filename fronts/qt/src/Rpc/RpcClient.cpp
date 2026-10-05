@@ -1,5 +1,7 @@
 #include "RpcClient.h"
 
+#include "RpcMethods.h"
+
 #include <utility>
 
 #include <QLoggingCategory>
@@ -121,16 +123,18 @@ RpcClient::RpcClient(BackendManifest manifest, QObject* parent)
     });
 }
 
-Task<void> RpcClient::start(QProcessEnvironment environment)
+Task<void> RpcClient::start(QProcessEnvironment environment, QString locale)
 {
     transport_.start(manifest_.argv, environment);
 
-    const QJsonObject params {
-        { QStringLiteral("protocolVersion"), QStringLiteral("1.10") },
+    QJsonObject params {
+        { QStringLiteral("protocolVersion"), QStringLiteral("1.11") },
         { QStringLiteral("front"),
             QJsonObject { { QStringLiteral("name"), QStringLiteral("cloudmus-qt") },
                 { QStringLiteral("version"), QStringLiteral("0.1.0") } } },
     };
+    if (!locale.isEmpty())
+        params.insert(QStringLiteral("locale"), locale);
     QJsonObject result;
     try {
         result = co_await callRaw(QStringLiteral("initialize"), params, kInitializeTimeoutMs);
@@ -150,6 +154,13 @@ Task<void> RpcClient::start(QProcessEnvironment environment)
     sourceDescription_ = source.value(QStringLiteral("description")).toString();
     capabilities_ = result.value(QStringLiteral("capabilities")).toObject();
     available_ = true;
+}
+
+Task<void> RpcClient::setLanguage(QString locale)
+{
+    if (!available_ || !capabilities_.contains(QStringLiteral("localization")))
+        co_return;
+    co_await localizationSetLanguage(*this, SetLanguageParams { locale });
 }
 
 Task<void> RpcClient::shutdown()
