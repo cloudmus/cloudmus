@@ -50,6 +50,14 @@ properties:
   # optional (1.10+): the source reaches the network, so the front's
   # per-source Connection setting applies. Absent means true.
   network: {type: boolean}
+  # optional (1.11+): localization.setLanguage; `locales` lists the
+  # languages (BCP-47) the source can answer in, English being the default
+  localization:
+    type: object
+    required: [locales]
+    properties:
+      locales: {type: array, items: {type: string}}
+    additionalProperties: false
   auth:
     type: object
     required: [required, flow]

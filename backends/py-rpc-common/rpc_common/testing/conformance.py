@@ -99,6 +99,31 @@ async def _check_settings(writer: Any, reader: Any, ids: Any, passed: list[str])
     passed.append("settings.update rejects an unknown key")
 
 
+async def _check_localization(writer: Any, reader: Any, ids: Any, caps: dict, passed: list[str]) -> None:
+    locales = caps["localization"]["locales"]
+    if "en" not in locales:
+        raise ConformanceFailure(f"localization.locales must include en: {locales!r}")
+    # An unsupported language is not an error; it answers in English.
+    for requested in [*locales, "xx-YY"]:
+        request_id = next(ids)
+        await writer.send(jsonrpc.make_request(request_id, "localization.setLanguage", {"locale": requested}))
+        response = await reader.__anext__()
+        if response.get("id") != request_id or "result" not in response:
+            raise ConformanceFailure(f"localization.setLanguage {requested!r} failed: {response!r}")
+        applied = response["result"]["locale"]
+        expected = requested if requested in locales else "en"
+        if applied != expected:
+            raise ConformanceFailure(f"localization.setLanguage {requested!r} applied {applied!r}, expected {expected!r}")
+        if caps.get("settings"):
+            describe_id = next(ids)
+            await writer.send(jsonrpc.make_request(describe_id, "settings.describe", {}))
+            response = await reader.__anext__()
+            if response.get("id") != describe_id or "result" not in response:
+                raise ConformanceFailure(f"settings.describe in {requested!r} failed: {response!r}")
+            _validate("settings_description.yaml", response["result"])
+    passed.append("localization.setLanguage switches among declared locales and falls back to en")
+
+
 async def run_conformance(argv: list[str]) -> list[str]:
     """Spawns the backend, drives it through the checks below, returns a list
     of human-readable descriptions of checks that passed. Raises
@@ -161,6 +186,9 @@ async def run_conformance(argv: list[str]) -> list[str]:
             passed.append("catalog.listPlaylists results match schema")
         elif caps["browse"]["playlists"]:
             passed.append("catalog.listPlaylists skipped (backend requires auth, not authenticated)")
+
+        if "localization" in caps:
+            await _check_localization(writer, reader, ids, caps, passed)
 
         if caps.get("settings"):
             await _check_settings(writer, reader, ids, passed)

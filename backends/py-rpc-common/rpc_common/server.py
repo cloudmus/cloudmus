@@ -14,6 +14,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from . import jsonrpc, transport
+from .i18n import Translator
 
 logger = logging.getLogger(__name__)
 
@@ -58,18 +59,29 @@ class BackendServer:
         source_version: str,
         source_description: str,
         capabilities: dict[str, Any],
+        translator: Translator | None = None,
     ):
         self.source_id = source_id
         self.source_name = source_name
         self.source_version = source_version
         self.source_description = source_description
-        self.capabilities = capabilities
+        # The backend's own dictionaries; source_description is looked up
+        # in them as an English key. Without one everything stays English.
+        self.translator = translator or Translator()
+        self.capabilities = {**capabilities, "localization": {"locales": self.translator.locales()}}
         self._handlers: dict[str, RequestHandler] = {}
         # Methods run alongside the requests that come after them rather
         # than one at a time — see method()'s `concurrent`.
         self._concurrent: set[str] = set()
         self._tasks: set[asyncio.Task] = set()
         self._writer: transport.NdjsonWriter | None = None
+
+        @self.method("localization.setLanguage")
+        def handle_set_language(params: dict[str, Any], request_id: int) -> dict[str, Any]:
+            locale = params.get("locale")
+            if not isinstance(locale, str):
+                raise BackendError(-32602, "locale: expected text")
+            return {"locale": self.translator.set_locale(locale)}
 
     def method(self, name: str, *, concurrent: bool = False) -> Callable[[RequestHandler], RequestHandler]:
         """Decorator: registers a handler for a `namespace.methodName` request.
@@ -96,13 +108,15 @@ class BackendServer:
         await self._writer.send(jsonrpc.make_notification(method, params))
 
     def _handle_initialize(self, params: dict[str, Any], request_id: int) -> dict[str, Any]:
+        locale = params.get("locale")
+        self.translator.set_locale(locale if isinstance(locale, str) else None)
         return {
-            "protocolVersion": "1.10",
+            "protocolVersion": "1.11",
             "source": {
                 "id": self.source_id,
                 "name": self.source_name,
                 "version": self.source_version,
-                "description": self.source_description,
+                "description": self.translator.tr(self.source_description),
             },
             "capabilities": self.capabilities,
         }

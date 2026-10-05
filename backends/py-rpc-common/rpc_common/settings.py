@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
+from .i18n import Translator
 from .server import BackendError, BackendServer
 
 INVALID_PARAMS = -32602
@@ -42,10 +43,10 @@ class Group:
     title: str
     description: str | None = None
 
-    def to_dict(self) -> dict[str, Any]:
-        d: dict[str, Any] = {"id": self.id, "title": self.title}
+    def to_dict(self, tr: Callable[[str], str] = str) -> dict[str, Any]:
+        d: dict[str, Any] = {"id": self.id, "title": tr(self.title)}
         if self.description:
-            d["description"] = self.description
+            d["description"] = tr(self.description)
         return d
 
 
@@ -88,38 +89,40 @@ class Field:
     def path(cls, key: str, label: str, default: str = "", kind: str = "directory", **kw: Any) -> "Field":
         return cls(key, "path", label, default, path_kind=kind, **kw)
 
-    def validate(self, value: Any, check_path_exists: bool = True) -> str | None:
+    def validate(self, value: Any, check_path_exists: bool = True, tr: Translator | None = None) -> str | None:
         """None if `value` is acceptable, else a message for the user.
         `check_path_exists=False` skips whether a path points at anything —
         for reading back what was once accepted: a folder on a drive that
-        isn't mounted right now is still the user's choice."""
+        isn't mounted right now is still the user's choice. `tr` translates
+        the message (English without one)."""
+        t = (tr or Translator()).tr
         if self.type == "boolean":
-            return None if isinstance(value, bool) else "expected true or false"
+            return None if isinstance(value, bool) else t("expected true or false")
         if self.type == "integer":
             # bool is an int subclass in Python; not a valid integer here.
             if not isinstance(value, int) or isinstance(value, bool):
-                return "expected a whole number"
+                return t("expected a whole number")
             if self.min is not None and value < self.min:
-                return f"must be at least {self.min}"
+                return t("must be at least {n}", n=self.min)
             if self.max is not None and value > self.max:
-                return f"must be at most {self.max}"
+                return t("must be at most {n}", n=self.max)
             return None
         if not isinstance(value, str):
-            return "expected text"
+            return t("expected text")
         if self.type == "enum" and value not in {v for v, _ in self.options}:
-            return f"must be one of: {', '.join(v for v, _ in self.options)}"
+            return t("must be one of: {options}", options=", ".join(v for v, _ in self.options))
         if self.type == "path" and value and check_path_exists:
             path = Path(value).expanduser()
             if self.path_kind == "directory" and not path.is_dir():
-                return "no such folder"
+                return t("no such folder")
             if self.path_kind == "file" and not path.is_file():
-                return "no such file"
+                return t("no such file")
         return None
 
-    def to_dict(self, value: Any, is_set: bool) -> dict[str, Any]:
+    def to_dict(self, value: Any, is_set: bool, tr: Callable[[str], str] = str) -> dict[str, Any]:
         d: dict[str, Any] = {
             "key": self.key,
-            "label": self.label,
+            "label": tr(self.label),
             "type": self.type,
             "default": self.default,
             # A secret never leaves the backend — isSet says whether there is one.
@@ -127,15 +130,15 @@ class Field:
         }
         optional = {
             "group": self.group,
-            "description": self.description,
+            "description": tr(self.description) if self.description is not None else None,
             "min": self.min,
             "max": self.max,
             "pathKind": self.path_kind,
-            "placeholder": self.placeholder,
+            "placeholder": tr(self.placeholder) if self.placeholder is not None else None,
         }
         d.update({k: v for k, v in optional.items() if v is not None})
         if self.options:
-            d["options"] = [{"value": v, "label": label} for v, label in self.options]
+            d["options"] = [{"value": v, "label": tr(label)} for v, label in self.options]
         if self.type == "secret":
             d["isSet"] = is_set
         if self.restart_required:
@@ -151,6 +154,9 @@ class SettingsStore:
     # Called after settings.update saved, with {key: new value} for the
     # keys that changed — for applying what can be applied live.
     on_change: Callable[[dict[str, Any]], None] | None = None
+    # Replaced by the server's own in register(), so labels and messages
+    # follow the language the front asked for.
+    translator: Translator = field(default_factory=Translator)
 
     def __post_init__(self) -> None:
         self._by_key = {f.key: f for f in self.fields}
@@ -185,8 +191,8 @@ class SettingsStore:
 
     def describe(self) -> dict[str, Any]:
         return {
-            "groups": [g.to_dict() for g in self.groups],
-            "fields": [f.to_dict(self.get(f.key), self.is_set(f.key)) for f in self.fields],
+            "groups": [g.to_dict(self.translator.tr) for g in self.groups],
+            "fields": [f.to_dict(self.get(f.key), self.is_set(f.key), self.translator.tr) for f in self.fields],
         }
 
     def update(self, values: dict[str, Any]) -> dict[str, Any]:
@@ -196,10 +202,16 @@ class SettingsStore:
         for key, value in values.items():
             f = self._by_key.get(key)
             if f is None:
-                raise BackendError(INVALID_PARAMS, f"unknown setting: {key}", {"key": key, "message": "unknown setting"})
-            problem = f.validate(value)
+                raise BackendError(
+                    INVALID_PARAMS,
+                    self.translator.tr("unknown setting: {key}", key=key),
+                    {"key": key, "message": self.translator.tr("unknown setting")},
+                )
+            problem = f.validate(value, tr=self.translator)
             if problem is not None:
-                raise BackendError(INVALID_PARAMS, f"{f.label}: {problem}", {"key": key, "message": problem})
+                raise BackendError(
+                    INVALID_PARAMS, f"{self.translator.tr(f.label)}: {problem}", {"key": key, "message": problem}
+                )
 
         config = self._load_config()
         stored = config.get(_SETTINGS_KEY)
@@ -228,6 +240,7 @@ class SettingsStore:
 
     def register(self, server: BackendServer) -> None:
         server.capabilities["settings"] = True
+        self.translator = server.translator
 
         @server.method("settings.describe")
         def handle_describe(params: dict, request_id: int) -> dict:
@@ -237,6 +250,6 @@ class SettingsStore:
         def handle_update(params: dict, request_id: int) -> dict:
             values = params.get("values")
             if not isinstance(values, dict):
-                raise BackendError(INVALID_PARAMS, "values: expected an object")
+                raise BackendError(INVALID_PARAMS, self.translator.tr("values: expected an object"))
             self.update(values)
             return {}

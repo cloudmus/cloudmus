@@ -5,6 +5,14 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.11 — localization
+
+- **Additive, backward-compatible**: optional `initialize` param `locale`,
+  optional capability `localization` (`{locales: [...]}`) and method
+  `localization.setLanguage` (§7.8). Sources answer user-facing strings
+  (settings labels, error messages, auth prompts, self-made titles) in the
+  selected language, English when unsupported.
+
 ## 1.10 — sources without a network
 
 - **Additive, backward-compatible**: optional capability `network` (§5),

@@ -1,6 +1,6 @@
 # cloudmus Source/Front RPC Protocol
 
-**Version:** `1.10` (see §12 for versioning rules)
+**Version:** `1.11` (see §12 for versioning rules)
 
 ## 1. Overview
 
@@ -117,9 +117,15 @@ exists — see §10).
 ```json
 {
   "protocolVersion": "1.1",
-  "front": {"name": "cloudmus-tui", "version": "0.1.0"}
+  "front": {"name": "cloudmus-tui", "version": "0.1.0"},
+  "locale": "ru"
 }
 ```
+
+`locale` is optional (1.11+): the language the user wants, as a BCP-47
+tag (`ru`, `pt-BR`). A source that supports it sends every user-facing
+string (§7.8) in that language; an absent or unsupported locale means
+English. A source that doesn't know the field ignores it.
 
 **Result:**
 ```json
@@ -225,6 +231,7 @@ defaults, since the front does not assume any implicit capability.
 | `downloadControl` | bool | Optional (1.7+). Downloads report `download/progress` and can be stopped with `catalog.cancelDownload` (§7.5). |
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `network` | bool | Optional (1.10+), **defaults to `true` when absent**: the source reaches the network, so the front offers its per-source Connection setting (system / direct / proxy) and routes the source's streams and covers through it. A source working only with local files declares `false`. |
+| `localization` | object | Optional (1.11+). `{"locales": [string, ...]}`: the source can answer user-facing strings in these languages (BCP-47, English implied) and supports `localization.setLanguage` (§7.8). |
 | `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
 | `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
 
@@ -562,8 +569,30 @@ every front shares them.
   one saves nothing and replies `-32602` (invalid params) with
   `data: {"key": <the offending key>, "message": <for the user>}`, which a
   front shows next to that field. An unknown key is an error too.
-- Labels, descriptions and option labels are for display, in English, like
-  `source.name`.
+- Labels, descriptions and option labels are for display, in the language
+  in effect (§7.8; English by default). `source.name` is a brand name and
+  is not translated.
+
+### 7.8 Localization
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `localization.setLanguage` | `{"locale": "ru"}` | `{"locale": "ru"}` | `localization` |
+
+Switches the language of the source's user-facing strings without a
+restart; the front sends the same value in `initialize` at startup. The
+result names the language actually in effect: the closest match among
+`capabilities.localization.locales` (`pt-BR` falls back to `pt`), else
+`"en"`. An unsupported locale is not an error.
+
+What follows the language: `source.description` (at initialize), settings labels and
+validation messages (§7.7), error messages (§9), the text of an
+`auth/prompt` and titles the source makes up itself (such as the
+"Liked" playlist). Titles that come from the service (track, album and
+playlist names) are not translated. The source emits no notification on a
+switch; the front re-reads what it displays (`settings.describe`,
+`catalog.listPlaylists`). `source.description` only travels in the
+`initialize` result, so it keeps the language of that call.
 
 ---
 

@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.10"
+protocolVersion: "1.11"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -316,6 +316,22 @@ methods:
         # (docs/protocol.md §7.7).
         values: {type: object, additionalProperties: {}}
     result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
+  # --- 7.8 Localization ---
+  localization.setLanguage:
+    requiresCapability: localization
+    params:
+      type: object
+      required: [locale]
+      properties:
+        locale: {type: string}
+    result:
+      type: object
+      required: [locale]
+      properties:
+        # the language now in effect after fallback ("en" if unsupported)
+        locale: {type: string}
     timeoutMs: 5000
 
   # --- 10. Auth ---
