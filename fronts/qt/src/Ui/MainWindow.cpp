@@ -228,19 +228,15 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
         [this](const QModelIndex& index) { sources_.setCollapsed(ViewModel::SidebarModel::nodeKey(index), true); });
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
-    // Space opens the playlist's page, Enter plays it (a source header has
-    // nothing to play: Enter opens it too).
+    // A playlist has two actions: Enter opens its page, Space plays it. A
+    // source header has only one (open), so both keys do that.
     activateCurrentOnKey(sidebarView_, [this](const QModelIndex& index, Qt::Key key) {
-        if (key == Qt::Key_Space) {
-            onSidebarActivated(index);
-            return;
-        }
         const auto kind
             = static_cast<ViewModel::SidebarModel::Kind>(index.data(ViewModel::SidebarModel::KindRole).toInt());
-        if (kind == ViewModel::SidebarModel::Kind::SourceHeader)
-            onSidebarActivated(index);
-        else
+        if (key == Qt::Key_Space && kind != ViewModel::SidebarModel::Kind::SourceHeader)
             onSidebarDoubleClicked(index);
+        else
+            onSidebarActivated(index);
     });
     sidebarView_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(sidebarView_, &QTreeView::customContextMenuRequested, this, &MainWindow::onSidebarContextMenuRequested);
