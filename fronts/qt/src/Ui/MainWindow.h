@@ -88,6 +88,8 @@ signals:
 protected:
     void closeEvent(QCloseEvent* event) override;
     void showEvent(QShowEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    void changeEvent(QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
@@ -267,6 +269,21 @@ private:
     bool restoreTrackPositionPending_ = true;
     // saveGeometry() taken by hideToTray(); empty while the window is shown.
     QByteArray trayHiddenGeometry_;
+    // The size to unmaximize to, tracked here because Qt's own
+    // normalGeometry() goes wrong on Wayland: maximizing from the title bar
+    // delivers the new size before the new state, so Qt records the
+    // maximized size as the normal one. While the window stays mapped the
+    // compositor remembers the real size, but a window shown again from the
+    // tray (or at startup) is new to it and unmaximizes to Qt's value.
+    // previousNormalSize_ is the size before the latest normal-state
+    // resize — what normalSize_ goes back to when that resize turns out to
+    // have been the maximize.
+    QSize normalSize_;
+    QSize previousNormalSize_;
+    bool applyingNormalSize_ = false;
+    // Gives a hidden maximized/fullscreen window normalSize_ to unmaximize
+    // to, before it's shown.
+    void applyNormalSize();
 };
 
 } // namespace Ui

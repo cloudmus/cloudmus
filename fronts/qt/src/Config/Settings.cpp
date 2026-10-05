@@ -51,6 +51,10 @@ void Settings::setWindowGeometry(const QByteArray& geometry)
     settings_.setValue(QStringLiteral("window/geometry"), geometry);
 }
 
+QSize Settings::windowNormalSize() const { return settings_.value(QStringLiteral("window/normalSize")).toSize(); }
+
+void Settings::setWindowNormalSize(const QSize& size) { settings_.setValue(QStringLiteral("window/normalSize"), size); }
+
 QByteArray Settings::settingsDialogGeometry() const
 {
     return settings_.value(QStringLiteral("settingsDialog/geometry")).toByteArray();

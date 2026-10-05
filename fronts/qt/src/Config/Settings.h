@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QList>
 #include <QSettings>
+#include <QSize>
 #include <QString>
 #include <QStringList>
 
@@ -40,6 +41,11 @@ public:
 
     QByteArray windowGeometry() const;
     void setWindowGeometry(const QByteArray& geometry);
+    // The main window's unmaximized size, kept apart from windowGeometry():
+    // the normal geometry in that blob can't be trusted on Wayland (see
+    // Ui::MainWindow::normalSize_). Invalid when not saved yet.
+    QSize windowNormalSize() const;
+    void setWindowNormalSize(const QSize& size);
 
     QByteArray settingsDialogGeometry() const;
     void setSettingsDialogGeometry(const QByteArray& geometry);

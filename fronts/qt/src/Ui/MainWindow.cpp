@@ -17,6 +17,7 @@
 #include <QPainter>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QResizeEvent>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSplitter>
@@ -124,6 +125,8 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     setAttribute(Qt::WA_TranslucentBackground, Theme::glassEnabled());
     resize(960, 640);
     restoreGeometry(settings_.windowGeometry());
+    normalSize_ = settings_.windowNormalSize();
+    applyNormalSize();
     // QMainWindow's default behavior: right-clicking a toolbar/dock area
     // pops up a menu of toggle-visibility checkboxes for every toolbar
     // (createPopupMenu()). With only one toolbar here (the transport bar —
@@ -650,7 +653,12 @@ void MainWindow::showBrowseRows()
     sheet_->setSubtitle(trackCountText(browse_.isLoading() ? browse_.context().playlist.trackCount : int(rows.size())));
 }
 
-MainWindow::~MainWindow() { settings_.setWindowGeometry(saveGeometry()); }
+MainWindow::~MainWindow()
+{
+    settings_.setWindowGeometry(saveGeometry());
+    if (normalSize_.isValid())
+        settings_.setWindowNormalSize(normalSize_);
+}
 
 void MainWindow::updateSourceAuthIndicator(const QString& sourceId)
 {
@@ -1071,11 +1079,17 @@ void MainWindow::bringToFront(const QString& activationToken)
         qputenv("XDG_ACTIVATION_TOKEN", activationToken.toUtf8());
     // A window hidden to the tray is mapped anew, and the window manager
     // places it like a new one (centered on the screen under the mouse),
-    // so put it back on its own screen and spot. X11 only: on Wayland a
-    // client can't position its windows — that takes the compositor's
-    // session restore (xdg-session-management), which Qt doesn't speak yet.
-    if (!trayHiddenGeometry_.isEmpty() && !isVisible() && QGuiApplication::platformName() == QLatin1String("xcb"))
-        restoreGeometry(trayHiddenGeometry_);
+    // so put it back on its own screen and spot (X11 — on Wayland a client
+    // can't position its windows; that takes the compositor's session
+    // restore, xdg-session-management, which Qt doesn't speak yet). And a
+    // maximized one needs a size to unmaximize to: being new to the
+    // compositor, it takes whatever size the hidden window had — the
+    // maximized one, unless applyNormalSize() sets it first.
+    if (!isVisible()) {
+        if (!trayHiddenGeometry_.isEmpty())
+            restoreGeometry(trayHiddenGeometry_);
+        applyNormalSize();
+    }
     trayHiddenGeometry_.clear();
     setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
     show();
@@ -1210,6 +1224,44 @@ void MainWindow::showEvent(QShowEvent* event)
     // surface — and the blur set on it — away with it.
     if (Theme::glassEnabled())
         Integration::WindowGlass::enableBlurBehind(this);
+}
+
+void MainWindow::resizeEvent(QResizeEvent* event)
+{
+    QMainWindow::resizeEvent(event);
+    constexpr Qt::WindowStates kNotNormal = Qt::WindowMaximized | Qt::WindowFullScreen | Qt::WindowMinimized;
+    if (applyingNormalSize_ || (windowState() & kNotNormal) || event->size() == normalSize_)
+        return;
+    previousNormalSize_ = normalSize_;
+    normalSize_ = event->size();
+}
+
+void MainWindow::changeEvent(QEvent* event)
+{
+    QMainWindow::changeEvent(event);
+    if (event->type() != QEvent::WindowStateChange || applyingNormalSize_)
+        return;
+    constexpr Qt::WindowStates kFilling = Qt::WindowMaximized | Qt::WindowFullScreen;
+    const Qt::WindowStates oldState = static_cast<QWindowStateChangeEvent*>(event)->oldState();
+    // Maximized by the window system: the resize that came just before this
+    // (see normalSize_) was to the maximized size, not a normal one.
+    if ((windowState() & kFilling) && !(oldState & kFilling) && normalSize_ == size()
+        && previousNormalSize_.isValid())
+        normalSize_ = previousNormalSize_;
+}
+
+void MainWindow::applyNormalSize()
+{
+    if (!normalSize_.isValid() || !(windowState() & (Qt::WindowMaximized | Qt::WindowFullScreen)))
+        return;
+    // A hidden window takes a resize as its normal geometry only while not
+    // maximized — so step out of the state, resize, and step back in.
+    const Qt::WindowStates states = windowState();
+    applyingNormalSize_ = true;
+    setWindowState(states & ~(Qt::WindowMaximized | Qt::WindowFullScreen));
+    resize(normalSize_);
+    setWindowState(states);
+    applyingNormalSize_ = false;
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
