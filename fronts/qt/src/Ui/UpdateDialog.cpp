@@ -116,7 +116,7 @@ UpdateDialog::UpdateDialog(Update::UpdateChecker& checker, Update::PendingUpdate
     // The window's size limits follow the layout's. Everything but the
     // changes box has a fixed height (Maximum vertically: grows no further than its
     // hint), so without the box — the download — the window can't be
-    // stretched vertically (see setStep() for the Ready step).
+    // stretched vertically.
     root->setSizeConstraint(QLayout::SetMinAndMaxSize);
     for (QWidget* widget : { static_cast<QWidget*>(heading_), static_cast<QWidget*>(text_),
              static_cast<QWidget*>(progressBar_), static_cast<QWidget*>(progressLabel_) })
@@ -218,7 +218,11 @@ void UpdateDialog::startDownload()
     if (downloader_ == nullptr) {
         downloader_ = new Update::UpdateDownloader(*checker_.network(), this);
         connect(downloader_, &Update::UpdateDownloader::progress, this, &UpdateDialog::showProgress);
-        connect(downloader_, &Update::UpdateDownloader::finished, this, &UpdateDialog::showReady);
+        connect(downloader_, &Update::UpdateDownloader::finished, this, [this](const QString& filePath) {
+            // No second question: Install was already the answer.
+            downloadedPath_ = filePath;
+            install();
+        });
         connect(downloader_, &Update::UpdateDownloader::failed, this, &UpdateDialog::showFailure);
     }
     downloader_->start(latest.assetUrl, latest.assetSize, Update::Installer::downloadPath(latest));
@@ -240,18 +244,6 @@ void UpdateDialog::showProgress(qint64 received, qint64 total, int secondsLeft)
     if (!left.isEmpty())
         text += QStringLiteral(" · ") + left;
     progressLabel_->setText(text);
-}
-
-void UpdateDialog::showReady(const QString& filePath)
-{
-    downloadedPath_ = filePath;
-    setStep(Step::Ready, tr("Ready to install CloudMus %1").arg(update_.latest().name),
-        tr("CloudMus will now close to install the update, then start again."));
-    QPushButton* cancel = addButton(tr("Cancel"), "secondary");
-    connect(cancel, &QPushButton::clicked, this, &UpdateDialog::reject);
-    QPushButton* restart = addButton(tr("Install and Restart"), "primary");
-    connect(restart, &QPushButton::clicked, this, &UpdateDialog::install);
-    restart->setDefault(true);
 }
 
 void UpdateDialog::showFailure(const QString& error)
@@ -317,12 +309,6 @@ void UpdateDialog::setStep(Step step, const QString& heading, const QString& tex
         button->hide();
         button->deleteLater();
     }
-    // The Ready step is two unwrapped labels and buttons: nothing in it
-    // gains from a bigger window, so it's fixed at the layout's hint. Not
-    // the Downloading step, whose window would jump wider with each
-    // progress text. Switching back to SetMinAndMaxSize (a failed install)
-    // resets the limits from the layout again.
-    layout()->setSizeConstraint(step == Step::Ready ? QLayout::SetFixedSize : QLayout::SetMinAndMaxSize);
     layout()->activate();
     adjustSize(); // to the layout's hint
 }

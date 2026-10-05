@@ -19,8 +19,7 @@ namespace Ui {
 
 // The whole of installing an update, one step after another in the same
 // window: what's new (Install / Skip This Version), the download
-// (Cancel), then the warning that the app is about to close for the
-// install. Closing the window at any step backs out, and a download it
+// (Cancel), and the install starts as soon as it's done. Closing the window at any step backs out, and a download it
 // leaves unfinished is deleted.
 class UpdateDialog : public QDialog {
     Q_OBJECT
@@ -38,7 +37,6 @@ private:
     enum class Step {
         Offer,
         Downloading,
-        Ready,
         Failed,
     };
 
@@ -47,7 +45,6 @@ private:
     void showOffer();
     void startDownload();
     void showProgress(qint64 received, qint64 total, int secondsLeft);
-    void showReady(const QString& filePath);
     void showFailure(const QString& error);
     void install();
     void openReleasePage();
