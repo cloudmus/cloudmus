@@ -23,8 +23,8 @@ namespace Integration::WindowGlass {
 //     translucent, for a desktop extension to blur (on GNOME, Blur my
 //     Shell's per-application blur) — Support::SeeThrough.
 //   - Windows 11 22H2+: DWM's acrylic system backdrop, popups included
-//     (nativePopups()). Windows 11 21H2: native popups (acrylic accent),
-//     plain blur for the main window. Windows 10: DWM's blur through the
+//     (nativePopups()). Windows 11 21H2: native popups, the acrylic accent
+//     behind them and the main window. Windows 10: DWM's blur through the
 //     undocumented accent policy, whole windows only (fallbackBlur()) — a
 //     popup's window is clipped to its panel instead.
 //   - macOS: not yet — the place for an NSVisualEffectView behind the
@@ -59,7 +59,7 @@ void enableBlurBehind(QWidget* window, const QRegion& region = QRegion());
 void enableBlurBehindPanel(QWidget* window, const QRect& panel, qreal radius);
 
 // Whether the blur is a workaround: Windows 10's and Windows 11 21H2's
-// undocumented accent policy — plain blur, whole windows only. Glass isn't on by default then.
+// undocumented accent policy — whole windows only. Glass isn't on by default then.
 bool fallbackBlur();
 
 // Whether popups are the window system's own (any Windows 11): DWM

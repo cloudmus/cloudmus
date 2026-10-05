@@ -379,8 +379,9 @@ public:
 // it; its light/dark tint follows the frame's, which follows the app's
 // scheme (Ui::Settings::GeneralPage::applyColorScheme()). Before that
 // (Windows 10, Windows 11 21H2): the undocumented accent policy the shell
-// itself uses, with plain blur — weaker than the system apps' acrylic,
-// but its acrylic mode made windows lag badly while dragged or resized.
+// itself uses — acrylic on Windows 11 21H2; plain blur on Windows 10,
+// weaker than the system apps' acrylic, but its acrylic mode made windows
+// lag badly there while dragged or resized.
 // Popups: on any Windows 11 (22000+) DWM's own rounded corners and shadow
 // (setUpNativePopup()) — with the system backdrop on 22H2+, the acrylic
 // accent before it; on Windows 10 the accent on the popup's window clipped
@@ -417,6 +418,11 @@ public:
             DwmSetWindowAttribute(hwnd, 38 /* DWMWA_SYSTEMBACKDROP_TYPE */, &acrylic, sizeof(acrylic));
             return;
         }
+        // Windows 11 21H2: the acrylic accent, as on its popups — the drag
+        // and resize lag that keeps it off Windows 10 is gone on Windows 11.
+        // Plain blur if it's refused.
+        if (nativePopups_ && setAccent(hwnd, kAccentAcrylic, 0x01000000))
+            return;
         setAccent(hwnd);
     }
 
@@ -482,8 +488,7 @@ public:
                 SendMessageW(hwnd, WM_NCACTIVATE, TRUE, 0);
         } else if (backdrop) {
             // Windows 11 21H2 has no system backdrop: the acrylic accent
-            // instead, fine for a popup that's never dragged or resized
-            // (the lag that kept it off the main window). Plain blur if
+            // instead, as on the main window (apply()). Plain blur if
             // it's refused.
             if (!setAccent(hwnd, kAccentAcrylic, 0x01000000))
                 setAccent(hwnd, kAccentBlur, 0);
