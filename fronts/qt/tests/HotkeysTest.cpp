@@ -206,6 +206,19 @@ private slots:
             notices.last().first().value<Hotkeys::Dispatcher::Notice>().title, QStringLiteral("Removed from liked"));
     }
 
+    void aDislikeNoticeNamesTheDislikedTrackNotTheNextOne()
+    {
+        // A dislike moves on to t2 at once.
+        play({ track(QStringLiteral("t1")), track(QStringLiteral("t2")) });
+        QSignalSpy notices(dispatcher_.get(), &Hotkeys::Dispatcher::noticeRequested);
+
+        dispatcher_->trigger(Hotkeys::Action::Dislike);
+        QCOMPARE(notices.count(), 1);
+        const auto notice = notices.last().first().value<Hotkeys::Dispatcher::Notice>();
+        QCOMPARE(notice.title, QStringLiteral("Disliked"));
+        QCOMPARE(notice.body, QStringLiteral("Track t1"));
+    }
+
     void noticesCanBeTurnedOffPerAction()
     {
         play({ track(QStringLiteral("t1")) });

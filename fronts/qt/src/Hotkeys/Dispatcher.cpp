@@ -87,8 +87,9 @@ void Dispatcher::trigger(Action action, const QString& activationToken)
             }
             if (feedback.likeBusy)
                 break;
+            const Notice notice = trackNotice(feedback.liked ? tr("Removed from liked") : tr("Liked"));
             nowPlaying_.setLiked(!feedback.liked);
-            say(trackNotice(feedback.liked ? tr("Removed from liked") : tr("Liked")));
+            say(notice);
             break;
         }
         case Action::Dislike: {
@@ -99,8 +100,11 @@ void Dispatcher::trigger(Action action, const QString& activationToken)
             }
             if (feedback.dislikeBusy)
                 break;
+            // Before the call: a dislike moves on to the next track at once,
+            // and the notice is about the one that was disliked.
+            const Notice notice = trackNotice(feedback.disliked ? tr("Dislike removed") : tr("Disliked"));
             nowPlaying_.setDisliked(!feedback.disliked);
-            say(trackNotice(feedback.disliked ? tr("Dislike removed") : tr("Disliked")));
+            say(notice);
             break;
         }
         case Action::Download: {
@@ -111,8 +115,9 @@ void Dispatcher::trigger(Action action, const QString& activationToken)
             }
             if (feedback.downloadBusy)
                 break;
+            const Notice notice = trackNotice(tr("Downloading"));
             nowPlaying_.download();
-            say(trackNotice(tr("Downloading")));
+            say(notice);
             break;
         }
     }
