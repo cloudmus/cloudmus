@@ -32,6 +32,9 @@ public:
 signals:
     // The installer (or the new AppImage) is waiting for the app to exit.
     void quitRequested();
+    // A step taken, for statistics: "install" (the user chose to),
+    // "install_launched", "failed", "release_page".
+    void stepTaken(const QString& step);
 
 private:
     enum class Step {

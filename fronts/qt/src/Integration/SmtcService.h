@@ -34,6 +34,10 @@ public:
         Playback::PlaybackController& playback, Covers::CoverArtCache& covers, QObject* parent = nullptr);
     ~SmtcService() override;
 
+signals:
+    // A media key or the system's media card sent a playback command.
+    void commandReceived();
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

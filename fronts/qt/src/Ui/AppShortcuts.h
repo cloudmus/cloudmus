@@ -27,6 +27,10 @@ public:
     AppShortcuts(WindowHost& windowHost, Hotkeys::Registry& registry, Hotkeys::Dispatcher& dispatcher,
         QObject* parent = nullptr);
 
+signals:
+    // A hotkey fired inside the window.
+    void triggered();
+
 private:
     void rebuild();
 

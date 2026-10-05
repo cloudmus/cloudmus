@@ -120,6 +120,11 @@ signals:
     void seeked(qint64 positionMs);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
     void errorOccurred(QString message);
+    // The same failure, for statistics: the source it was on and a fixed
+    // reason — "unavailable" (the source is down), "rejected" (the source
+    // refused to play the track), "stream" (the audio didn't start),
+    // "timeout", "station_empty".
+    void failed(const QString& sourceId, const QString& reason);
     // Emitted whenever hasCurrentTrack() actually changes: true right
     // before trackChanged() when a play succeeds, false when stop()
     // clears the current track back to undefined. The single declarative
@@ -155,7 +160,8 @@ private:
     void advance(int delta, bool wasSkip);
     // The current track failed to load or start: resolved again a few
     // times, then left paused with Play loading it anew.
-    void handleStartFailure(const QString& message);
+    void handleStartFailure(const QString& message, const QString& reason);
+    void reportError(const QString& sourceId, const QString& reason, const QString& message);
     // The queue index `delta` steps from the current one in play order
     // (shuffled or not), wrapping around under RepeatMode::All; -1 past
     // either end otherwise.

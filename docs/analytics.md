@@ -7,13 +7,29 @@ it off stops new requests immediately; turning it back on keeps the same
 random installation ID, which is stored in the Qt front's `config.ini`
 along with a count of the app's runs (GA4's session number).
 
-Events cover app launches, playback starts, opening a source, completed
-downloads, adding or removing a track from a playlist, and the one-time
-GitHub star prompt (shown, then "star" or "dismiss"). Requests contain the
-app version, a category for built-in sources, and where relevant the
-download type/count, playlist action or star prompt answer. They do not contain track or playlist
-names or IDs, account details, or arbitrary backend data. Each request also
-carries the preferred system UI language (e.g. `ru-ru`), the primary
+Events and their parameters:
+
+| Event | Parameters |
+|---|---|
+| `app_launch` | `at_login`, `hidden` (started into the tray), `theme`, `glass`, `ui_language` (the one picked in Settings, or `system`) |
+| `app_crashed` | `count`: crash reports the previous runs left |
+| `playback_started`, `source_opened` | `source` |
+| `playback_failed` | `source`, `reason`: `unavailable`, `rejected`, `stream`, `timeout`, `station_empty` |
+| `backend_failed` | `source`, `reason`: `crashed` (restarted) or `gave_up` |
+| `sign_in` | `source`, `action`: `prompt`, `success`, `error` |
+| `download_completed` | `source`, `kind`, `saved_count` |
+| `playlist_changed` | `source`, `action`: `add`, `remove` |
+| `track_feedback` | `source`, `action`: `like`, `unlike`, `dislike`, `undislike` |
+| `control_used` | `trigger`: `global_hotkey`, `window_shortcut`, `tray`, `media_controls`, `taskbar` — once a run per trigger |
+| `update` | `action`: `offered` (with `kind` `auto`/`manual`), `install`, `install_launched`, `failed`, `release_page` |
+| `star_prompt` | `action`: `shown`, `star`, `dismiss` |
+| `listening_time` | `minutes` of actual playback, sent hourly and at quit |
+
+Every event also carries the app version. `source` is a category for
+built-in sources (`yandex_music`, `youtube_music`, `local_folder`) and
+`other` for the rest. Requests do not contain track or playlist names or
+IDs, error messages, account details, or arbitrary backend data. Each
+request also carries the preferred system UI language (e.g. `ru-ru`), the primary
 screen's size, and a `User-Agent` naming the OS and the app, e.g.
 `Mozilla/5.0 (X11; Linux x86_64) CloudMus/0.2.0`. Requests go directly
 from the app to Google over HTTPS; Google derives an approximate location
@@ -43,8 +59,10 @@ Create a GA4 property with a Web data stream and set its measurement ID in
 with that name and fails if it is missing. The ID ends up in the public
 AppImage, so anyone can send events to the property — as with any website's
 tag. In GA4 Custom definitions, register event-scoped dimensions for
-`source`, `kind`, `action`, and `app_version`, plus a custom metric for
-`saved_count`, to report on those event parameters.
+`source`, `kind`, `action`, `reason`, `trigger`, `theme`, `glass`,
+`ui_language`, `at_login`, `hidden` and `app_version`, plus custom metrics
+for `saved_count`, `count` and `minutes`, to report on those event
+parameters.
 
 ## Checking it
 

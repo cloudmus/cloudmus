@@ -130,7 +130,87 @@ QString Analytics::sourceCategory(const QString& sourceId)
     return QStringLiteral("other");
 }
 
-void Analytics::recordLaunch() { record(QStringLiteral("app_launch")); }
+void Analytics::recordLaunch() { recordLaunch(LaunchInfo()); }
+
+void Analytics::recordLaunch(const LaunchInfo& info)
+{
+    const auto flag = [](bool on) { return on ? QStringLiteral("1") : QStringLiteral("0"); };
+    QList<Param> params {
+        { QStringLiteral("at_login"), flag(info.atLogin) },
+        { QStringLiteral("hidden"), flag(info.hidden) },
+        { QStringLiteral("glass"), flag(info.glass) },
+    };
+    if (!info.theme.isEmpty())
+        params.append({ QStringLiteral("theme"), info.theme });
+    if (!info.uiLanguage.isEmpty())
+        params.append({ QStringLiteral("ui_language"), info.uiLanguage });
+    record(QStringLiteral("app_launch"), params);
+}
+
+void Analytics::recordCrashes(int count)
+{
+    if (count > 0)
+        record(QStringLiteral("app_crashed"), { { QStringLiteral("count"), QString::number(count), true } });
+}
+
+void Analytics::recordPlaybackFailure(const QString& sourceId, const QString& reason)
+{
+    record(QStringLiteral("playback_failed"),
+        { { QStringLiteral("source"), sourceCategory(sourceId) }, { QStringLiteral("reason"), reason } });
+}
+
+void Analytics::recordBackendFailure(const QString& sourceId, bool gaveUp)
+{
+    record(QStringLiteral("backend_failed"),
+        { { QStringLiteral("source"), sourceCategory(sourceId) },
+            { QStringLiteral("reason"), gaveUp ? QStringLiteral("gave_up") : QStringLiteral("crashed") } });
+}
+
+void Analytics::recordSignIn(const QString& sourceId, SignInStep step)
+{
+    QString action;
+    switch (step) {
+        case SignInStep::Prompt:
+            action = QStringLiteral("prompt");
+            break;
+        case SignInStep::Success:
+            action = QStringLiteral("success");
+            break;
+        case SignInStep::Error:
+            action = QStringLiteral("error");
+            break;
+    }
+    record(QStringLiteral("sign_in"),
+        { { QStringLiteral("source"), sourceCategory(sourceId) }, { QStringLiteral("action"), action } });
+}
+
+void Analytics::recordUpdate(const QString& action, bool manual)
+{
+    QList<Param> params { { QStringLiteral("action"), action } };
+    if (action == QLatin1String("offered"))
+        params.append({ QStringLiteral("kind"), manual ? QStringLiteral("manual") : QStringLiteral("auto") });
+    record(QStringLiteral("update"), params);
+}
+
+void Analytics::recordTrackFeedback(const QString& sourceId, const QString& action)
+{
+    record(QStringLiteral("track_feedback"),
+        { { QStringLiteral("source"), sourceCategory(sourceId) }, { QStringLiteral("action"), action } });
+}
+
+void Analytics::recordControlUsed(const QString& trigger)
+{
+    if (controlsUsed_.contains(trigger))
+        return;
+    controlsUsed_.insert(trigger);
+    record(QStringLiteral("control_used"), { { QStringLiteral("trigger"), trigger } });
+}
+
+void Analytics::recordListeningTime(int minutes)
+{
+    if (minutes > 0)
+        record(QStringLiteral("listening_time"), { { QStringLiteral("minutes"), QString::number(minutes), true } });
+}
 
 void Analytics::recordPlayback(const QString& sourceId)
 {

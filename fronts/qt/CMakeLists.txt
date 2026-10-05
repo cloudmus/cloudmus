@@ -132,6 +132,7 @@ add_library(cloudmus-core STATIC
     src/App/PlaylistEditing.cpp
     src/App/TrackFetch.cpp
     src/App/StarPrompt.cpp
+    src/App/ListeningTime.cpp
 
     src/Hotkeys/Actions.cpp
     src/Hotkeys/Registry.cpp

@@ -247,6 +247,7 @@ Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, boo
             co_await Rpc::feedbackUnlike(*client, UnlikeParams { trackId });
         if (isShownTrack(sourceId, trackId))
             pendingLiked_.reset();
+        emit feedbackSent(sourceId, liked ? QStringLiteral("like") : QStringLiteral("unlike"));
         // Cross-clears the dislike too (docs/protocol.md §7.4).
         trackStates_.setLiked(sourceId, trackId, liked);
         history_.markTrackLiked(sourceId, trackId, liked); // keeps the saved snapshot fresh
@@ -293,6 +294,7 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
             co_await Rpc::feedbackUndislike(*client, UndislikeParams { trackId });
         if (isShownTrack(sourceId, trackId))
             pendingDisliked_.reset();
+        emit feedbackSent(sourceId, disliked ? QStringLiteral("dislike") : QStringLiteral("undislike"));
         // Cross-clears the like too (docs/protocol.md §7.4).
         trackStates_.setDisliked(sourceId, trackId, disliked);
         if (disliked)

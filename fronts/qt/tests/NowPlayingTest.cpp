@@ -75,8 +75,11 @@ private slots:
     {
         QSignalSpy loading(playback_.get(), &Playback::PlaybackController::loadingChanged);
         QSignalSpy errors(playback_.get(), &Playback::PlaybackController::errorOccurred);
+        QSignalSpy failures(playback_.get(), &Playback::PlaybackController::failed);
         play({ track(QStringLiteral("refused")) });
         QTRY_COMPARE_WITH_TIMEOUT(errors.size(), 1, 20000);
+        QCOMPARE(failures.size(), 1);
+        QCOMPARE(failures.first().at(1).toString(), QStringLiteral("stream"));
         const auto starts = [&loading]() {
             return std::count_if(
                 loading.cbegin(), loading.cend(), [](const QList<QVariant>& args) { return args.first().toBool(); });

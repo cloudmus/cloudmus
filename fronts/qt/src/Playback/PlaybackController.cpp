@@ -36,7 +36,8 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
         emit playingChanged(true);
         prepareNext();
     });
-    connect(audioPlayer_, &AudioPlayer::failed, this, &PlaybackController::handleStartFailure);
+    connect(audioPlayer_, &AudioPlayer::failed, this,
+        [this](const QString& message) { handleStartFailure(message, QStringLiteral("stream")); });
     connect(audioPlayer_, &AudioPlayer::positionChanged, this, [this](qint64 posMs, qint64 durMs) {
         lastKnownPositionMs_ = posMs;
         emit positionChanged(posMs, durMs);
@@ -47,8 +48,9 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
     playTimeoutTimer_ = new QTimer(this);
     playTimeoutTimer_->setSingleShot(true);
     playTimeoutTimer_->setInterval(kPlayTimeoutMs);
-    connect(playTimeoutTimer_, &QTimer::timeout, this,
-        [this]() { handleStartFailure(QStringLiteral("Timed out waiting for the track to start")); });
+    connect(playTimeoutTimer_, &QTimer::timeout, this, [this]() {
+        handleStartFailure(QStringLiteral("Timed out waiting for the track to start"), QStringLiteral("timeout"));
+    });
 }
 
 PlaybackController::~PlaybackController() = default;
@@ -80,7 +82,13 @@ void PlaybackController::loadQueue(const QVector<QueueEntry>& entries, int start
     playIndex(startIndex);
 }
 
-void PlaybackController::handleStartFailure(const QString& message)
+void PlaybackController::reportError(const QString& sourceId, const QString& reason, const QString& message)
+{
+    emit failed(sourceId, reason);
+    emit errorOccurred(message);
+}
+
+void PlaybackController::handleStartFailure(const QString& message, const QString& reason)
 {
     preparedStartPending_ = false;
     // Also an expired prefetched URL: resolving the track again gets a
@@ -101,7 +109,7 @@ void PlaybackController::handleStartFailure(const QString& message)
         playing_ = false;
         emit playingChanged(false);
     }
-    emit errorOccurred(message);
+    reportError(hasCurrentTrack() ? currentSourceId() : QString(), reason, message);
 }
 
 void PlaybackController::playAt(int index)
@@ -230,7 +238,7 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
     Rpc::RpcClient* client = sourceManager_.client(queue_[index].sourceId);
     if (client == nullptr || !client->available()) {
         emit loadingChanged(false);
-        emit errorOccurred(QStringLiteral("Source is unavailable"));
+        reportError(queue_[index].sourceId, QStringLiteral("unavailable"), QStringLiteral("Source is unavailable"));
         co_return;
     }
 
@@ -265,7 +273,8 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
             startingIndex_ = -1;
             playTimeoutTimer_->stop();
             emit loadingChanged(false);
-            emit errorOccurred(QString::fromStdString(e.error().message.toStdString()));
+            reportError(
+                entry.sourceId, QStringLiteral("rejected"), QString::fromStdString(e.error().message.toStdString()));
         }
         co_return;
     }
@@ -367,7 +376,8 @@ void PlaybackController::advance(int delta, bool wasSkip)
                 return;
             awaitingRadioTracks_ = false;
             emit loadingChanged(false);
-            emit errorOccurred(QStringLiteral("The station sent no more tracks"));
+            reportError(hasCurrentTrack() ? currentSourceId() : QString(), QStringLiteral("station_empty"),
+                QStringLiteral("The station sent no more tracks"));
         });
         return;
     }

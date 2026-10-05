@@ -75,6 +75,7 @@ RpcClient::RpcClient(BackendManifest manifest, QObject* parent)
     auto onTransportDown = [this]() {
         if (!available_ && pending_.isEmpty())
             return; // never started, or already torn down
+        exitedUnexpectedly_ = available_;
         available_ = false;
         failAllPending(RpcError { -1, QStringLiteral("backend disconnected"), { } });
         emit becameUnavailable();

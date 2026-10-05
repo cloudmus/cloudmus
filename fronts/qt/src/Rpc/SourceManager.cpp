@@ -138,6 +138,8 @@ void SourceManager::watch(RpcClient* client)
 {
     const QString id = client->manifest().id;
     connect(client, &RpcClient::becameUnavailable, this, [this, client, id]() {
+        if (client->exitedUnexpectedly())
+            emit sourceCrashed(id);
         int attempt = restartAttempts_.value(id, 0);
         if (attempt >= kMaxRestartAttempts) {
             qCWarning(lcSourceManager) << id << "exhausted" << kMaxRestartAttempts

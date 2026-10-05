@@ -7,6 +7,9 @@
 
 #include "ReleaseFeed.h"
 
+namespace App {
+class Analytics;
+}
 namespace Update {
 class UpdateChecker;
 }
@@ -25,7 +28,8 @@ class UpdateFlow : public QObject {
     Q_OBJECT
 
 public:
-    UpdateFlow(Update::UpdateChecker& checker, WindowHost& windowHost, QObject* parent = nullptr);
+    UpdateFlow(
+        Update::UpdateChecker& checker, WindowHost& windowHost, App::Analytics& analytics, QObject* parent = nullptr);
 
     // A while after startup, so as not to compete with it — and not for a
     // dev build at all (see UpdateChecker::isDevBuild()).
@@ -41,6 +45,7 @@ private:
 
     Update::UpdateChecker& checker_;
     WindowHost& windowHost_;
+    App::Analytics& analytics_;
     QPointer<UpdateDialog> dialog_;
     std::optional<Update::PendingUpdate> deferred_;
 };

@@ -322,6 +322,7 @@ private:
 
     void onButtonPressed(Abi::SystemMediaTransportControlsButton button)
     {
+        emit owner_->commandReceived();
         switch (button) {
             case Abi::SystemMediaTransportControlsButton::Play:
                 if (!playback_.isPlaying())

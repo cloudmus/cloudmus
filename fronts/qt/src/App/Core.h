@@ -11,6 +11,7 @@
 #include "CuePlayer.h"
 #include "Dispatcher.h"
 #include "Downloads.h"
+#include "ListeningTime.h"
 #include "Messages.h"
 #include "NowPlaying.h"
 #include "PlaybackController.h"
@@ -64,6 +65,7 @@ public:
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
     Update::UpdateChecker& updates() { return updates_; }
     StarPrompt& starPrompt() { return starPrompt_; }
+    ListeningTime& listeningTime() { return listeningTime_; }
 
 private:
     // How a source reaches the network: its setting, except for a source
@@ -98,6 +100,7 @@ private:
     ViewModel::SourcePage sourcePage_;
     Update::UpdateChecker updates_;
     StarPrompt starPrompt_;
+    ListeningTime listeningTime_;
 };
 
 } // namespace App

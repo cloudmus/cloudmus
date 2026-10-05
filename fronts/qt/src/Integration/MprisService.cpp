@@ -94,26 +94,41 @@ void MprisPlayerAdaptor::setLoopStatus(const QString& status)
         playback_.setRepeatMode(Playback::RepeatMode::Off);
 }
 
-void MprisPlayerAdaptor::Next() { playback_.next(); }
+void MprisPlayerAdaptor::Next()
+{
+    onCommand();
+    playback_.next();
+}
 
-void MprisPlayerAdaptor::Previous() { playback_.previous(); }
+void MprisPlayerAdaptor::Previous()
+{
+    onCommand();
+    playback_.previous();
+}
 
 void MprisPlayerAdaptor::Pause()
 {
+    onCommand();
     if (playback_.isPlaying())
         playback_.togglePause();
 }
 
-void MprisPlayerAdaptor::PlayPause() { playback_.togglePause(); }
+void MprisPlayerAdaptor::PlayPause()
+{
+    onCommand();
+    playback_.togglePause();
+}
 
 void MprisPlayerAdaptor::Play()
 {
+    onCommand();
     if (!playback_.isPlaying())
         playback_.togglePause();
 }
 
 void MprisPlayerAdaptor::Stop()
 {
+    onCommand();
     // No dedicated "stop" concept in PlaybackController yet; pausing is the
     // closest equivalent available without extending the playback API.
     if (playback_.isPlaying())
@@ -188,6 +203,7 @@ MprisService::MprisService(Playback::PlaybackController& playback, ViewModel::No
     auto* host = new QObject(this);
     root_ = new MprisRootAdaptor(host);
     player_ = new MprisPlayerAdaptor(playback, nowPlaying, host);
+    player_->onCommand = [this]() { emit commandReceived(); };
     connect(root_, &MprisRootAdaptor::quitRequested, this, &MprisService::quitRequested);
     connect(root_, &MprisRootAdaptor::raiseRequested, this, &MprisService::raiseRequested);
 

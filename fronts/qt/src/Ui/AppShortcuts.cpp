@@ -37,8 +37,10 @@ void AppShortcuts::rebuild()
         auto* shortcut = new QShortcut(binding.key, window);
         shortcut->setContext(Qt::ApplicationShortcut);
         shortcut->setAutoRepeat(false);
-        connect(
-            shortcut, &QShortcut::activated, this, [this, action = binding.action]() { dispatcher_.trigger(action); });
+        connect(shortcut, &QShortcut::activated, this, [this, action = binding.action]() {
+            emit triggered();
+            dispatcher_.trigger(action);
+        });
         shortcuts_.push_back(shortcut);
     }
 }

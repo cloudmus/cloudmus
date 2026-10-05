@@ -4,6 +4,7 @@
 #include <QLocale>
 #include <QTimer>
 
+#include "Analytics.h"
 #include "InfoDialog.h"
 #include "MainWindow.h"
 #include "UpdateChecker.h"
@@ -16,10 +17,12 @@ namespace {
 constexpr int kStartupCheckDelayMs = 5000;
 } // namespace
 
-UpdateFlow::UpdateFlow(Update::UpdateChecker& checker, WindowHost& windowHost, QObject* parent)
+UpdateFlow::UpdateFlow(
+    Update::UpdateChecker& checker, WindowHost& windowHost, App::Analytics& analytics, QObject* parent)
     : QObject(parent)
     , checker_(checker)
     , windowHost_(windowHost)
+    , analytics_(analytics)
 {
     connect(&windowHost_, &WindowHost::checkForUpdatesRequested, this, [this]() {
         // One is open already, maybe mid-download: that's the answer.
@@ -79,6 +82,7 @@ void UpdateFlow::offer(const Update::PendingUpdate& update, bool manual)
 {
     if (dialog_)
         return;
+    analytics_.recordUpdate(QStringLiteral("offered"), manual);
     if (!manual && !windowHost_.window()->isVisible()) {
         deferred_ = update;
         return;
@@ -92,6 +96,7 @@ void UpdateFlow::showDialog(const Update::PendingUpdate& update)
         return;
     dialog_ = new UpdateDialog(checker_, update, windowHost_.window());
     connect(dialog_, &UpdateDialog::quitRequested, &windowHost_, &WindowHost::quit, Qt::QueuedConnection);
+    connect(dialog_, &UpdateDialog::stepTaken, this, [this](const QString& step) { analytics_.recordUpdate(step); });
     dialog_->show();
 }
 

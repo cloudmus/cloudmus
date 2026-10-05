@@ -37,6 +37,10 @@ public:
 
     bool nativeEventFilter(const QByteArray& eventType, void* message, qintptr* result) override;
 
+signals:
+    // One of the thumbnail's buttons was clicked.
+    void buttonClicked();
+
 private:
     void attachToWindow(Ui::MainWindow* window);
     void registerButtons();

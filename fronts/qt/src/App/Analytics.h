@@ -3,6 +3,7 @@
 #include <QList>
 #include <QNetworkAccessManager>
 #include <QPointer>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QTimer>
@@ -45,7 +46,38 @@ public:
     // after timeoutMs, whichever comes first.
     void flush(int timeoutMs, std::function<void()> done);
 
+    // How the app was started and set up, sent with app_launch.
+    struct LaunchInfo {
+        bool atLogin = false; // started by autostart
+        bool hidden = false; // ...straight into the tray
+        QString theme; // "system", "light", "dark"
+        bool glass = false; // the translucent window in effect
+        QString uiLanguage; // the language picked in Settings, or "system"
+    };
     void recordLaunch();
+    void recordLaunch(const LaunchInfo& info);
+    // Crash reports the previous runs left (Diagnostics::CrashReporter).
+    void recordCrashes(int count);
+    // `reason`: see Playback::PlaybackController::failed().
+    void recordPlaybackFailure(const QString& sourceId, const QString& reason);
+    // A backend went down by itself; `gaveUp` once no restarts are left.
+    void recordBackendFailure(const QString& sourceId, bool gaveUp);
+    enum class SignInStep {
+        Prompt,
+        Success,
+        Error
+    };
+    void recordSignIn(const QString& sourceId, SignInStep step);
+    // `action`: "offered", "install", "install_launched", "failed",
+    // "release_page"; `manual` tells a check the user asked for.
+    void recordUpdate(const QString& action, bool manual = false);
+    // `action`: "like", "unlike", "dislike", "undislike".
+    void recordTrackFeedback(const QString& sourceId, const QString& action);
+    // Where the player was controlled from — "global_hotkey",
+    // "window_shortcut", "tray", "media_controls", "taskbar"; sent once a
+    // run per place, to count who uses it, not how often.
+    void recordControlUsed(const QString& trigger);
+    void recordListeningTime(int minutes);
     void recordPlayback(const QString& sourceId);
     void recordSourceOpened(const QString& sourceId);
     void recordDownload(const QString& sourceId, bool playlist, int savedCount);
@@ -84,6 +116,7 @@ private:
     int sessionNumber_ = 0;
     int hitNumber_ = 0;
     QList<QUrlQuery> pending_;
+    QSet<QString> controlsUsed_;
     QTimer flushTimer_;
     std::function<void()> flushDone_;
     bool debugView_ = false;

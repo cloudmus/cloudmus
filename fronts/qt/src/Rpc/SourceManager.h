@@ -83,6 +83,9 @@ signals:
     // Emitted when a source is unavailable and has exhausted its restart
     // attempts for this session (or failed its very first start).
     void sourceUnavailable(const QString& manifestId, const QString& name, QStringList stderrTail);
+    // A running backend's process went down on its own (it is restarted,
+    // if any attempts are left).
+    void sourceCrashed(const QString& sourceId);
 
 private:
     void startOne(const BackendManifest& manifest);

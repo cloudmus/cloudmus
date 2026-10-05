@@ -6,6 +6,8 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <functional>
+
 namespace Playback {
 class PlaybackController;
 }
@@ -91,6 +93,10 @@ public:
     bool canTrue() const { return true; }
     bool canSeek() const;
 
+    // Called on each playback command — a callback, not a signal, which
+    // the adaptor would put on the bus.
+    std::function<void()> onCommand;
+
 public slots:
     void Next();
     void Previous();
@@ -127,6 +133,8 @@ public:
 signals:
     void quitRequested();
     void raiseRequested();
+    // The desktop's media controls sent a playback command.
+    void commandReceived();
 
 private:
     MprisRootAdaptor* root_;

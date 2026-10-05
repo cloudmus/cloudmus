@@ -132,6 +132,9 @@ signals:
     void volumeChanged(int volume0To100);
     void quietChanged(bool quiet);
     void feedbackChanged();
+    // The source took a like/dislike from the user: `action` is "like",
+    // "unlike", "dislike" or "undislike".
+    void feedbackSent(const QString& sourceId, const QString& action);
 
 private:
     bool isCurrent(const QString& sourceId, const QString& trackId) const;

@@ -2,11 +2,13 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QRegularExpression>
+#include <QSignalSpy>
 #include <QTest>
 #include <QTimer>
 #include <QUrlQuery>
 
 #include "Analytics.h"
+#include "AuthStates.h"
 #include "Settings.h"
 
 namespace Tests {
@@ -151,6 +153,77 @@ private slots:
         QCOMPARE(events[5].queryItemValue(QStringLiteral("ep.action")), QStringLiteral("star"));
         QVERIFY(!request.body.contains("personal-source-id"));
         QVERIFY(!request.url.toString().contains(QStringLiteral("personal-source-id")));
+    }
+
+    void sendsHealthAndUsageEvents()
+    {
+        Config::Settings settings;
+        settings.setAnalyticsEnabled(true);
+        FakeNetwork network;
+        App::Analytics analytics(settings, nullptr, &network);
+        analytics.configure(QStringLiteral("G-TEST123"), QStringLiteral("1.2.3"));
+        App::Analytics::LaunchInfo launch;
+        launch.atLogin = true;
+        launch.theme = QStringLiteral("dark");
+        launch.uiLanguage = QStringLiteral("system");
+        analytics.recordLaunch(launch);
+        analytics.recordCrashes(0); // nothing to say
+        analytics.recordCrashes(2);
+        analytics.recordPlaybackFailure(QStringLiteral("youtube-music"), QStringLiteral("timeout"));
+        analytics.recordBackendFailure(QStringLiteral("yandex-music"), true);
+        analytics.recordSignIn(QStringLiteral("yandex-music"), App::Analytics::SignInStep::Success);
+        analytics.recordUpdate(QStringLiteral("offered"), true);
+        analytics.recordTrackFeedback(QStringLiteral("local-folder"), QStringLiteral("dislike"));
+        analytics.recordControlUsed(QStringLiteral("tray"));
+        analytics.recordControlUsed(QStringLiteral("tray")); // once a run
+        analytics.recordListeningTime(0); // nothing to say
+        analytics.recordListeningTime(42);
+        QTRY_COMPARE(network.requests.size(), 1);
+
+        const QList<QUrlQuery> events = network.requests.first().bodyEvents();
+        const auto value = [&events](int i, const char* key) { return events[i].queryItemValue(QLatin1String(key)); };
+        QCOMPARE(events.size(), 9);
+        QCOMPARE(value(0, "ep.at_login"), QStringLiteral("1"));
+        QCOMPARE(value(0, "ep.hidden"), QStringLiteral("0"));
+        QCOMPARE(value(0, "ep.theme"), QStringLiteral("dark"));
+        QCOMPARE(value(0, "ep.ui_language"), QStringLiteral("system"));
+        QCOMPARE(value(1, "en"), QStringLiteral("app_crashed"));
+        QCOMPARE(value(1, "epn.count"), QStringLiteral("2"));
+        QCOMPARE(value(2, "en"), QStringLiteral("playback_failed"));
+        QCOMPARE(value(2, "ep.reason"), QStringLiteral("timeout"));
+        QCOMPARE(value(3, "ep.reason"), QStringLiteral("gave_up"));
+        QCOMPARE(value(4, "ep.action"), QStringLiteral("success"));
+        QCOMPARE(value(5, "ep.kind"), QStringLiteral("manual"));
+        QCOMPARE(value(6, "ep.action"), QStringLiteral("dislike"));
+        QCOMPARE(value(7, "ep.trigger"), QStringLiteral("tray"));
+        QCOMPARE(value(8, "epn.minutes"), QStringLiteral("42"));
+    }
+
+    // Only a sign-in the user went through counts — not being signed in
+    // already at startup.
+    void authStatesTellTheStepsOfASignIn()
+    {
+        Rpc::AuthStates states;
+        QSignalSpy prompted(&states, &Rpc::AuthStates::signInPrompted);
+        QSignalSpy completed(&states, &Rpc::AuthStates::signInCompleted);
+        QSignalSpy failed(&states, &Rpc::AuthStates::signInFailed);
+        const QString source = QStringLiteral("yandex-music");
+
+        states.setAuthenticated(source);
+        QCOMPARE(completed.size(), 0);
+
+        states.setPrompt(source, { });
+        states.setPrompt(source, { }); // a refreshed code, the same sign-in
+        QCOMPARE(prompted.size(), 1);
+        states.setAuthenticated(source);
+        QCOMPARE(completed.size(), 1);
+
+        states.setPrompt(source, { });
+        states.setError(source, QStringLiteral("denied"));
+        QCOMPARE(prompted.size(), 2);
+        QCOMPARE(failed.size(), 1);
+        states.setAuthenticated(source);
+        QCOMPARE(completed.size(), 1);
     }
 
     void loneEventGoesInTheUrlAndSessionStartsOnce()

@@ -107,6 +107,9 @@ public:
         int id, int timeoutMs, std::function<void(const QJsonObject&)> onResult, std::function<void(RpcError)> onError);
 
     bool available() const { return available_; }
+    // The process went down while it was in use — not by our shutdown()
+    // nor in a failed start.
+    bool exitedUnexpectedly() const { return exitedUnexpectedly_; }
     const QJsonObject& capabilities() const { return capabilities_; }
     // Optional capability (1.10+), true when the source doesn't say: false
     // for a source that only reads local files.
@@ -148,6 +151,7 @@ private:
     int nextId_ = 1;
     QHash<int, PendingEntry> pending_;
     bool available_ = false;
+    bool exitedUnexpectedly_ = false;
     QString sourceId_;
     QString sourceName_;
     QString sourceDescription_;

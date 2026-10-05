@@ -208,6 +208,7 @@ void UpdateDialog::showOffer()
 
 void UpdateDialog::startDownload()
 {
+    emit stepTaken(QStringLiteral("install"));
     const Update::Release& latest = update_.latest();
     setStep(Step::Downloading, tr("Downloading CloudMus %1").arg(latest.name), QString());
     progressBar_->setRange(0, 0); // until the size is known
@@ -248,6 +249,7 @@ void UpdateDialog::showProgress(qint64 received, qint64 total, int secondsLeft)
 
 void UpdateDialog::showFailure(const QString& error)
 {
+    emit stepTaken(QStringLiteral("failed"));
     setStep(Step::Failed, tr("The update didn't work out"), QString());
     notes_->setPlainText(tr("%1\n\nYou can try again later or download the new version yourself.").arg(error));
     QPushButton* open = addButton(tr("Open Release Page"), "secondary");
@@ -268,6 +270,7 @@ void UpdateDialog::install()
         showFailure(error);
         return;
     }
+    emit stepTaken(QStringLiteral("install_launched"));
     emit quitRequested();
     accept();
 }
@@ -277,6 +280,7 @@ void UpdateDialog::openReleasePage()
     // The dialog stays open: the desktop's portal opens the page for this
     // window asynchronously, and closing (deleting) it right away can
     // cancel the request before the browser has been asked.
+    emit stepTaken(QStringLiteral("release_page"));
     const QUrl url = update_.latest().pageUrl;
     if (!QDesktopServices::openUrl(url)) {
         qWarning() << "Update: couldn't open" << url;

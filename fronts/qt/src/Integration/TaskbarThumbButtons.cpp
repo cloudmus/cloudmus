@@ -226,6 +226,7 @@ bool TaskbarThumbButtons::nativeEventFilter(const QByteArray& eventType, void* m
     if (reinterpret_cast<quintptr>(msg->hwnd) != hwnd_)
         return false;
     if (msg->message == WM_COMMAND && HIWORD(msg->wParam) == THBN_CLICKED) {
+        emit buttonClicked();
         switch (LOWORD(msg->wParam)) {
             case kButtonPrevious:
                 playback_.previous();

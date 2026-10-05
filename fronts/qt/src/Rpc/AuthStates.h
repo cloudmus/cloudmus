@@ -3,6 +3,7 @@
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
+#include <QSet>
 #include <QString>
 
 namespace Rpc {
@@ -39,9 +40,15 @@ public:
 signals:
     void changed(const QString& sourceId);
     void signedOut(const QString& sourceId);
+    // For statistics, the steps of a sign-in: asked to sign in (once until
+    // it ends), then signed in after being asked, or an error.
+    void signInPrompted(const QString& sourceId);
+    void signInCompleted(const QString& sourceId);
+    void signInFailed(const QString& sourceId);
 
 private:
     QHash<QString, State> states_;
+    QSet<QString> prompted_; // a sign-in under way
 };
 
 } // namespace Rpc

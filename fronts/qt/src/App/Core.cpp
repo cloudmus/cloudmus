@@ -23,6 +23,7 @@ Core::Core(QObject* parent)
     , sourcePage_(sourceSession_)
     , updates_(settings_)
     , starPrompt_(settings_, analytics_)
+    , listeningTime_(playback_, analytics_)
 {
     // The language first: whatever is created or spawned below already
     // speaks it.
@@ -52,6 +53,20 @@ Core::Core(QObject* parent)
             analytics_.recordPlaylistChange(sourceId, added);
         });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
+
+    // What goes wrong, and the sign-in and like steps, for statistics.
+    connect(&playback_, &Playback::PlaybackController::failed, &analytics_, &Analytics::recordPlaybackFailure);
+    connect(&sourceManager_, &Rpc::SourceManager::sourceCrashed, &analytics_,
+        [this](const QString& sourceId) { analytics_.recordBackendFailure(sourceId, false); });
+    connect(&sourceManager_, &Rpc::SourceManager::sourceUnavailable, &analytics_,
+        [this](const QString& sourceId) { analytics_.recordBackendFailure(sourceId, true); });
+    connect(&authStates_, &Rpc::AuthStates::signInPrompted, &analytics_,
+        [this](const QString& sourceId) { analytics_.recordSignIn(sourceId, Analytics::SignInStep::Prompt); });
+    connect(&authStates_, &Rpc::AuthStates::signInCompleted, &analytics_,
+        [this](const QString& sourceId) { analytics_.recordSignIn(sourceId, Analytics::SignInStep::Success); });
+    connect(&authStates_, &Rpc::AuthStates::signInFailed, &analytics_,
+        [this](const QString& sourceId) { analytics_.recordSignIn(sourceId, Analytics::SignInStep::Error); });
+    connect(&nowPlaying_, &ViewModel::NowPlaying::feedbackSent, &analytics_, &Analytics::recordTrackFeedback);
     const auto syncPreview = [this]() {
         const std::optional<Playback::QueueEntry> entry = activePlaylist_.savedEntry();
         nowPlaying_.setPreviewTrack(entry ? entry->sourceId : QString(), entry ? entry->track.id : QString());

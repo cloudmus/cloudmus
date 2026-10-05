@@ -1,6 +1,8 @@
 #include <QApplication>
 #include <QFont>
 #include <QIcon>
+#include <QMenu>
+#include <QMenu>
 #include <QSize>
 #include <QStandardPaths>
 #include <QStyleFactory>
@@ -167,7 +169,8 @@ int main(int argc, char** argv)
             + QStringLiteral("/cloudmus/fronts/qt/crashes"),
         QStringLiteral(CLOUDMUS_VERSION),
     });
-    for (const QString& report : Diagnostics::CrashReporter::takeNewReports())
+    const QStringList crashReports = Diagnostics::CrashReporter::takeNewReports();
+    for (const QString& report : crashReports)
         qWarning() << "cloudmus-qt: the last run crashed, report:" << report;
     // Must happen before anything builds a Theme::Typography::font(): Qt
     // resolves/caches a family's available faces the first time a QFont
@@ -198,7 +201,6 @@ int main(int argc, char** argv)
     App::Core core;
     core.analytics().configure(QStringLiteral(CLOUDMUS_GA4_MEASUREMENT_ID), QStringLiteral(CLOUDMUS_VERSION));
     core.analytics().setDebugView(debugLoggingRequested());
-    core.analytics().recordLaunch();
     // --update-from=<x.y.z>: check for updates as if that version were
     // running — to try the whole update flow from a dev build, which
     // otherwise is neither checked at startup nor older than any release.
@@ -247,6 +249,10 @@ int main(int argc, char** argv)
 
     Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing(), core.hotkeys());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &windowHost, &Ui::WindowHost::quit);
+    const auto trayUsed = [&core]() { core.analytics().recordControlUsed(QStringLiteral("tray")); };
+    QObject::connect(tray.systemTrayIcon(), &QSystemTrayIcon::activated, &core.analytics(), trayUsed);
+    if (QMenu* trayMenu = tray.systemTrayIcon()->contextMenu())
+        QObject::connect(trayMenu, &QMenu::triggered, &core.analytics(), trayUsed);
 
 #ifdef Q_OS_WIN
     // Deferred to the event loop's first idle turn, not constructed here
@@ -264,10 +270,16 @@ int main(int argc, char** argv)
     QTimer::singleShot(0, &windowHost, [&]() {
         smtc = std::make_unique<Integration::SmtcService>(playback, core.coverArtCache());
         taskbarThumbButtons = std::make_unique<Integration::TaskbarThumbButtons>(windowHost, playback);
+        QObject::connect(smtc.get(), &Integration::SmtcService::commandReceived, &core.analytics(),
+            [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
+        QObject::connect(taskbarThumbButtons.get(), &Integration::TaskbarThumbButtons::buttonClicked, &core.analytics(),
+            [&core]() { core.analytics().recordControlUsed(QStringLiteral("taskbar")); });
     });
 #else
     Integration::MprisService mpris(playback, core.nowPlaying());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
+    QObject::connect(&mpris, &Integration::MprisService::commandReceived, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
     QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,
         [&windowHost]() { windowHost.bringToFront(); });
 #endif
@@ -323,6 +335,8 @@ int main(int argc, char** argv)
     Hotkeys::Registry& hotkeys = core.hotkeys();
     Hotkeys::Dispatcher& hotkeyDispatcher = core.hotkeyDispatcher();
     Ui::AppShortcuts appShortcuts(windowHost, hotkeys, hotkeyDispatcher);
+    QObject::connect(&appShortcuts, &Ui::AppShortcuts::triggered, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("window_shortcut")); });
     const std::unique_ptr<Integration::GlobalHotkeys> globalHotkeys = Integration::createGlobalHotkeys();
     const auto pushHotkeyEntries = [&hotkeys, &globalHotkeys]() {
         QList<Integration::GlobalHotkeys::Entry> entries;
@@ -342,7 +356,10 @@ int main(int argc, char** argv)
     QObject::connect(&hotkeys, &Hotkeys::Registry::configureInSystemRequested, globalHotkeys.get(),
         [&globalHotkeys]() { globalHotkeys->configureInSystem(); });
     QObject::connect(globalHotkeys.get(), &Integration::GlobalHotkeys::activated, &hotkeyDispatcher,
-        [&hotkeyDispatcher](const QString& id, const QString& token) { hotkeyDispatcher.trigger(id, token); });
+        [&hotkeyDispatcher, &core](const QString& id, const QString& token) {
+            core.analytics().recordControlUsed(QStringLiteral("global_hotkey"));
+            hotkeyDispatcher.trigger(id, token);
+        });
     QObject::connect(
         globalHotkeys.get(), &Integration::GlobalHotkeys::failedChanged, &hotkeys, &Hotkeys::Registry::setFailedIds);
     QObject::connect(globalHotkeys.get(), &Integration::GlobalHotkeys::systemKeyChanged, &hotkeys,
@@ -377,11 +394,12 @@ int main(int argc, char** argv)
             if (--*remaining == 0)
                 qApp->quit();
         };
+        core.listeningTime().finish();
         core.analytics().flush(2000, done);
         shutdownAll(sourceManager, done).detach();
     });
 
-    Ui::UpdateFlow updateFlow(core.updates(), windowHost);
+    Ui::UpdateFlow updateFlow(core.updates(), windowHost, core.analytics());
     // --star-prompt: show the GitHub star prompt right away, to try it,
     // without counting days or remembering it was shown.
     Ui::StarPromptFlow starPromptFlow(
@@ -392,6 +410,26 @@ int main(int argc, char** argv)
     Integration::Autostart::refresh();
     const bool launchedAtLogin
         = app.arguments().contains(QLatin1String(Integration::Autostart::kLaunchedAtLoginArgument));
+    {
+        App::Analytics::LaunchInfo launch;
+        launch.atLogin = launchedAtLogin;
+        launch.hidden = launchedAtLogin && settings.startHiddenAtLogin();
+        switch (settings.colorScheme()) {
+            case Config::Settings::ColorScheme::System:
+                launch.theme = QStringLiteral("system");
+                break;
+            case Config::Settings::ColorScheme::Light:
+                launch.theme = QStringLiteral("light");
+                break;
+            case Config::Settings::ColorScheme::Dark:
+                launch.theme = QStringLiteral("dark");
+                break;
+        }
+        launch.glass = Theme::glassEnabled();
+        launch.uiLanguage = settings.language().isEmpty() ? QStringLiteral("system") : settings.language();
+        core.analytics().recordLaunch(launch);
+        core.analytics().recordCrashes(int(crashReports.size()));
+    }
     if (launchedAtLogin && settings.startHiddenAtLogin()) {
         // At login the panel hosting the tray may come up after us. Wait a
         // while for it rather than showing the window right away — but
