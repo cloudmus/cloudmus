@@ -5,1418 +5,1430 @@
     <name>App::PlaylistEditing</name>
     <message>
         <source>Added to &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation>Zu „%1“ hinzugefügt</translation>
     </message>
     <message>
         <source>Removed from &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus „%1“ entfernt</translation>
     </message>
     <message>
         <source>%1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2</translation>
     </message>
 </context>
 <context>
     <name>App::SourceSession</name>
     <message>
         <source>%1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2</translation>
     </message>
 </context>
 <context>
     <name>Hotkeys</name>
     <message>
         <source>Show or hide the player</source>
-        <translation type="unfinished"></translation>
+        <translation>Player ein- oder ausblenden</translation>
     </message>
     <message>
         <source>Play / pause</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiedergabe / Pause</translation>
     </message>
     <message>
         <source>Next track</source>
-        <translation type="unfinished"></translation>
+        <translation>Nächster Titel</translation>
     </message>
     <message>
         <source>Previous track</source>
-        <translation type="unfinished"></translation>
+        <translation>Vorheriger Titel</translation>
     </message>
     <message>
         <source>Stop</source>
-        <translation type="unfinished"></translation>
+        <translation>Stopp</translation>
     </message>
     <message>
         <source>Volume up</source>
-        <translation type="unfinished"></translation>
+        <translation>Lauter</translation>
     </message>
     <message>
         <source>Volume down</source>
-        <translation type="unfinished"></translation>
+        <translation>Leiser</translation>
     </message>
     <message>
         <source>Quiet mode on / off</source>
-        <translation type="unfinished"></translation>
+        <translation>Leisemodus an / aus</translation>
     </message>
     <message>
         <source>Like or unlike the current track</source>
-        <translation type="unfinished"></translation>
+        <translation>Aktuellen Titel mit „Gefällt mir“ markieren oder die Markierung entfernen</translation>
     </message>
     <message>
         <source>Dislike or undo dislike of the current track</source>
-        <translation type="unfinished"></translation>
+        <translation>Aktuellen Titel mit „Gefällt mir nicht“ markieren oder die Markierung entfernen</translation>
     </message>
     <message>
         <source>Download the current track</source>
-        <translation type="unfinished"></translation>
+        <translation>Aktuellen Titel herunterladen</translation>
     </message>
 </context>
 <context>
     <name>Hotkeys::Dispatcher</name>
     <message>
         <source>Volume</source>
-        <translation type="unfinished"></translation>
+        <translation>Lautstärke</translation>
     </message>
     <message>
         <source>%1%</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 %</translation>
     </message>
     <message>
         <source>Quiet mode</source>
-        <translation type="unfinished"></translation>
+        <translation>Leisemodus</translation>
     </message>
     <message>
         <source>On</source>
-        <translation type="unfinished"></translation>
+        <translation>An</translation>
     </message>
     <message>
         <source>Off</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus</translation>
     </message>
     <message>
         <source>Like</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir</translation>
     </message>
     <message>
         <source>Nothing to like</source>
-        <translation type="unfinished"></translation>
+        <translation>Nichts zum Markieren</translation>
     </message>
     <message>
         <source>Removed from liked</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus den Gefällt-mir-Titeln entfernt</translation>
     </message>
     <message>
         <source>Liked</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir</translation>
     </message>
     <message>
         <source>Dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir nicht</translation>
     </message>
     <message>
         <source>Nothing to dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>Nichts zum Markieren</translation>
     </message>
     <message>
         <source>Dislike removed</source>
-        <translation type="unfinished"></translation>
+        <translation>„Gefällt mir nicht“ entfernt</translation>
     </message>
     <message>
         <source>Disliked</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir nicht</translation>
     </message>
     <message>
         <source>Download</source>
-        <translation type="unfinished"></translation>
+        <translation>Download</translation>
     </message>
     <message>
         <source>Nothing to download</source>
-        <translation type="unfinished"></translation>
+        <translation>Nichts herunterzuladen</translation>
     </message>
     <message>
         <source>Downloading</source>
-        <translation type="unfinished"></translation>
+        <translation>Wird heruntergeladen</translation>
     </message>
 </context>
 <context>
     <name>Integration::GlobalHotkeys</name>
     <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
-        <translation type="unfinished"></translation>
+        <translation>Auf diesem Desktop können Anwendungen keine globalen Tastenkürzel verwenden.</translation>
     </message>
 </context>
 <context>
     <name>Integration::GlobalHotkeysPortal</name>
     <message>
         <source>The desktop did not open a global shortcuts session.</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Desktop hat keine Sitzung für globale Tastenkürzel geöffnet.</translation>
     </message>
     <message>
         <source>The desktop refused global shortcuts: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Desktop hat globale Tastenkürzel abgelehnt: %1</translation>
     </message>
     <message>
         <source>This copy of CloudMus isn&apos;t installed (there is no %1.desktop file), so the desktop won&apos;t give it global shortcuts.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Kopie von CloudMus ist nicht installiert (es gibt keine Datei %1.desktop); der Desktop gewährt ihr daher keine globalen Tastenkürzel.</translation>
     </message>
     <message>
         <source>The desktop could not set up the global shortcuts.</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Desktop konnte die globalen Tastenkürzel nicht einrichten.</translation>
     </message>
     <message>
         <source>The desktop could not set up the global shortcuts: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Desktop konnte die globalen Tastenkürzel nicht einrichten: %1</translation>
     </message>
 </context>
 <context>
     <name>Integration::NotificationToast</name>
     <message>
         <source>Show player</source>
-        <translation type="unfinished"></translation>
+        <translation>Player anzeigen</translation>
     </message>
 </context>
 <context>
     <name>Integration::TrayIcon</name>
     <message>
         <source>Previous</source>
-        <translation type="unfinished"></translation>
+        <translation>Zurück</translation>
     </message>
     <message>
         <source>Play</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiedergabe</translation>
     </message>
     <message>
         <source>Next</source>
-        <translation type="unfinished"></translation>
+        <translation>Weiter</translation>
     </message>
     <message>
         <source>Stop</source>
-        <translation type="unfinished"></translation>
+        <translation>Stopp</translation>
     </message>
     <message>
         <source>Playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlists</translation>
     </message>
     <message>
         <source>Quit</source>
-        <translation type="unfinished"></translation>
+        <translation>Beenden</translation>
     </message>
     <message>
         <source>Pause</source>
-        <translation type="unfinished"></translation>
+        <translation>Pause</translation>
     </message>
     <message>
         <source>Unlike</source>
-        <translation type="unfinished"></translation>
+        <translation>„Gefällt mir“ entfernen</translation>
     </message>
     <message>
         <source>Like</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir</translation>
     </message>
     <message>
         <source>Remove Dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>„Gefällt mir nicht“ entfernen</translation>
     </message>
     <message>
         <source>Dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir nicht</translation>
     </message>
     <message>
         <source>Loading…</source>
-        <translation type="unfinished"></translation>
+        <translation>Wird geladen …</translation>
     </message>
     <message>
         <source>No playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Keine Playlists</translation>
     </message>
     <message>
         <source>Couldn&apos;t load playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlists konnten nicht geladen werden</translation>
     </message>
     <message>
         <source>Hide</source>
-        <translation type="unfinished"></translation>
+        <translation>Ausblenden</translation>
     </message>
     <message>
         <source>Show</source>
-        <translation type="unfinished"></translation>
+        <translation>Anzeigen</translation>
     </message>
 </context>
 <context>
     <name>QLineEdit</name>
     <message>
         <source>Hide</source>
-        <translation type="unfinished"></translation>
+        <translation>Ausblenden</translation>
     </message>
     <message>
         <source>Show</source>
-        <translation type="unfinished"></translation>
+        <translation>Anzeigen</translation>
     </message>
 </context>
 <context>
     <name>QObject</name>
     <message>
         <source>Unknown Artist</source>
-        <translation type="unfinished"></translation>
+        <translation>Unbekannter Künstler</translation>
     </message>
     <message>
         <source>Unknown Source</source>
-        <translation type="unfinished"></translation>
+        <translation>Unbekannte Quelle</translation>
     </message>
     <message>
         <source>Unknown Album</source>
-        <translation type="unfinished"></translation>
+        <translation>Unbekanntes Album</translation>
     </message>
     <message>
         <source>%1 of %2 KB</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 KB</translation>
     </message>
     <message>
         <source>%1 of %2 MB</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 MB</translation>
     </message>
     <message>
         <source>Waiting</source>
-        <translation type="unfinished"></translation>
+        <translation>Wartet</translation>
     </message>
     <message>
         <source>Saved %1 of %2 tracks</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 Titeln gespeichert</translation>
     </message>
     <message>
         <source>Saved</source>
-        <translation type="unfinished"></translation>
+        <translation>Gespeichert</translation>
     </message>
     <message>
         <source>Failed</source>
-        <translation type="unfinished"></translation>
+        <translation>Fehlgeschlagen</translation>
     </message>
     <message>
         <source>Cancelled</source>
-        <translation type="unfinished"></translation>
+        <translation>Abgebrochen</translation>
     </message>
     <message>
         <source>Listing tracks…</source>
-        <translation type="unfinished"></translation>
+        <translation>Titel werden aufgelistet …</translation>
     </message>
     <message>
         <source>%1 of %2 tracks</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 Titeln</translation>
     </message>
     <message>
         <source>Saving…</source>
-        <translation type="unfinished"></translation>
+        <translation>Wird gespeichert …</translation>
     </message>
     <message>
         <source>Remove from sidebar</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus der Seitenleiste entfernen</translation>
     </message>
     <message>
         <source>Add to sidebar</source>
-        <translation type="unfinished"></translation>
+        <translation>Zur Seitenleiste hinzufügen</translation>
     </message>
     <message>
         <source>Radio</source>
-        <translation type="unfinished"></translation>
+        <translation>Radio</translation>
     </message>
 </context>
 <context>
     <name>Ui::AboutDialog</name>
     <message>
         <source>About CloudMus</source>
-        <translation type="unfinished"></translation>
+        <translation>Über CloudMus</translation>
     </message>
     <message>
         <source>Version %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Version %1</translation>
     </message>
     <message>
         <source>Copy version</source>
-        <translation type="unfinished"></translation>
+        <translation>Version kopieren</translation>
     </message>
     <message>
         <source>A beautiful desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ein schöner Desktop-Musikplayer für alle Ihre Musikdienste auf einmal. Streamingdienste und Ihr lokaler Musikordner in einer schnellen App, mit denselben Bedienelementen für jeden Dienst.</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>
-        <translation type="unfinished"></translation>
+        <translation>KI-Programmierpartner von Anthropic</translation>
     </message>
     <message>
         <source>Authors</source>
-        <translation type="unfinished"></translation>
+        <translation>Autoren</translation>
     </message>
     <message>
         <source>License</source>
-        <translation type="unfinished"></translation>
+        <translation>Lizenz</translation>
     </message>
 </context>
 <context>
     <name>Ui::AuthCard</name>
     <message>
         <source>Copy code</source>
-        <translation type="unfinished"></translation>
+        <translation>Code kopieren</translation>
     </message>
     <message>
         <source>Submit</source>
-        <translation type="unfinished"></translation>
+        <translation>Absenden</translation>
     </message>
     <message>
         <source>Open Browser</source>
-        <translation type="unfinished"></translation>
+        <translation>Browser öffnen</translation>
     </message>
     <message>
         <source>Retry</source>
-        <translation type="unfinished"></translation>
+        <translation>Erneut versuchen</translation>
     </message>
     <message>
         <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
-        <translation type="unfinished"></translation>
+        <translation>Öffnen Sie &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; und geben Sie den folgenden Code ein</translation>
     </message>
     <message>
         <source>Sign in by pasting what&apos;s asked for below.</source>
-        <translation type="unfinished"></translation>
+        <translation>Melden Sie sich an, indem Sie unten das Verlangte einfügen.</translation>
     </message>
     <message>
         <source>Sign in</source>
-        <translation type="unfinished"></translation>
+        <translation>Anmelden</translation>
     </message>
     <message>
         <source>Paste here</source>
-        <translation type="unfinished"></translation>
+        <translation>Hier einfügen</translation>
     </message>
     <message>
         <source>Continue in your browser</source>
-        <translation type="unfinished"></translation>
+        <translation>Im Browser fortfahren</translation>
     </message>
     <message>
         <source>Sign-in required</source>
-        <translation type="unfinished"></translation>
+        <translation>Anmeldung erforderlich</translation>
     </message>
     <message>
         <source>Not signed in</source>
-        <translation type="unfinished"></translation>
+        <translation>Nicht angemeldet</translation>
     </message>
 </context>
 <context>
     <name>Ui::CardPopup</name>
     <message>
         <source>Liked</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir</translation>
     </message>
     <message>
         <source>Disliked</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir nicht</translation>
     </message>
     <message>
         <source>Explicit</source>
-        <translation type="unfinished"></translation>
+        <translation>Explizit</translation>
     </message>
     <message>
         <source>Album</source>
-        <translation type="unfinished"></translation>
+        <translation>Album</translation>
     </message>
     <message>
         <source>Duration</source>
-        <translation type="unfinished"></translation>
+        <translation>Dauer</translation>
     </message>
     <message>
         <source>Source</source>
-        <translation type="unfinished"></translation>
+        <translation>Quelle</translation>
     </message>
     <message>
         <source>Last played</source>
-        <translation type="unfinished"></translation>
+        <translation>Zuletzt gespielt</translation>
     </message>
     <message>
         <source>Never</source>
-        <translation type="unfinished"></translation>
+        <translation>Nie</translation>
     </message>
 </context>
 <context>
     <name>Ui::DownloadsPanel</name>
     <message>
         <source>Downloads</source>
-        <translation type="unfinished"></translation>
+        <translation>Downloads</translation>
     </message>
     <message>
         <source>Save Playing Track</source>
-        <translation type="unfinished"></translation>
+        <translation>Aktuellen Titel speichern</translation>
     </message>
 </context>
 <context>
     <name>Ui::EmptyStatePlaceholder</name>
     <message>
         <source>CloudMus</source>
-        <translation type="unfinished"></translation>
+        <translation>CloudMus</translation>
     </message>
     <message>
         <source>Select a playlist</source>
-        <translation type="unfinished"></translation>
+        <translation>Wählen Sie eine Playlist</translation>
     </message>
 </context>
 <context>
     <name>Ui::HeroPanel</name>
     <message>
         <source>Play</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiedergabe</translation>
     </message>
 </context>
 <context>
     <name>Ui::MainWindow</name>
     <message>
         <source>A continuous radio station</source>
-        <translation type="unfinished"></translation>
+        <translation>Ein durchgehender Radiosender</translation>
     </message>
     <message>
         <source>Settings…</source>
-        <translation type="unfinished"></translation>
+        <translation>Einstellungen …</translation>
     </message>
     <message>
         <source>Check for Updates…</source>
-        <translation type="unfinished"></translation>
+        <translation>Nach Updates suchen …</translation>
     </message>
     <message>
         <source>About CloudMus</source>
-        <translation type="unfinished"></translation>
+        <translation>Über CloudMus</translation>
     </message>
     <message>
         <source>Quit</source>
-        <translation type="unfinished"></translation>
+        <translation>Beenden</translation>
     </message>
     <message>
         <source>Code copied</source>
-        <translation type="unfinished"></translation>
+        <translation>Code kopiert</translation>
     </message>
     <message>
         <source>History</source>
-        <translation type="unfinished"></translation>
+        <translation>Verlauf</translation>
     </message>
     <message>
         <source>Force Refresh Playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlists erzwungen aktualisieren</translation>
     </message>
     <message>
         <source>Play</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiedergabe</translation>
     </message>
     <message>
         <source>Remove from Favorites</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus Favoriten entfernen</translation>
     </message>
     <message>
         <source>Add to Favorites</source>
-        <translation type="unfinished"></translation>
+        <translation>Zu Favoriten hinzufügen</translation>
     </message>
     <message>
         <source>Save Playlist to Downloads</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlist in Downloads speichern</translation>
     </message>
     <message>
         <source>Removed from Favorites</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus Favoriten entfernt</translation>
     </message>
     <message>
         <source>“%1” is no longer in the sidebar</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ ist nicht mehr in der Seitenleiste</translation>
     </message>
     <message>
         <source>Only favorites are shown in the sidebar, apart from a source&apos;s regular playlists. Everything else — stations, mixes, liked tracks — is listed on the source&apos;s page: click “%1” in the sidebar, and use the star next to an entry to bring it back.</source>
-        <translation type="unfinished"></translation>
+        <translation>In der Seitenleiste erscheinen nur Favoriten sowie die regulären Playlists einer Quelle. Alles andere – Sender, Mixe, Titel mit „Gefällt mir“ – steht auf der Seite der Quelle: Klicken Sie in der Seitenleiste auf „%1“ und nutzen Sie den Stern neben einem Eintrag, um ihn zurückzuholen.</translation>
     </message>
     <message>
         <source>Open %1</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 öffnen</translation>
     </message>
     <message>
         <source>Play Next</source>
-        <translation type="unfinished"></translation>
+        <translation>Als Nächstes spielen</translation>
     </message>
     <message>
         <source>Add to Queue</source>
-        <translation type="unfinished"></translation>
+        <translation>Zur Warteschlange hinzufügen</translation>
     </message>
     <message>
         <source>Playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlists</translation>
     </message>
     <message>
         <source>Unlike</source>
-        <translation type="unfinished"></translation>
+        <translation>„Gefällt mir“ entfernen</translation>
     </message>
     <message>
         <source>Like</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir</translation>
     </message>
     <message>
         <source>Remove Dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>„Gefällt mir nicht“ entfernen</translation>
     </message>
     <message>
         <source>Dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir nicht</translation>
     </message>
     <message>
         <source>Start Radio from This Track</source>
-        <translation type="unfinished"></translation>
+        <translation>Radio zu diesem Titel starten</translation>
     </message>
     <message>
         <source>Radio: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Radio: %1</translation>
     </message>
     <message>
         <source>Open Track Page</source>
-        <translation type="unfinished"></translation>
+        <translation>Titelseite öffnen</translation>
     </message>
     <message>
         <source>Save to Downloads</source>
-        <translation type="unfinished"></translation>
+        <translation>In Downloads speichern</translation>
     </message>
     <message>
         <source>Loading…</source>
-        <translation type="unfinished"></translation>
+        <translation>Wird geladen …</translation>
     </message>
     <message>
         <source>Couldn&apos;t load playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlists konnten nicht geladen werden</translation>
     </message>
     <message>
         <source>No playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Keine Playlists</translation>
     </message>
 </context>
 <context>
     <name>Ui::NowPlayingBar</name>
     <message>
         <source>Open track page</source>
-        <translation type="unfinished"></translation>
+        <translation>Titelseite öffnen</translation>
     </message>
     <message>
         <source>Add to playlist</source>
-        <translation type="unfinished"></translation>
+        <translation>Zu Playlist hinzufügen</translation>
     </message>
     <message>
         <source>Quiet mode</source>
-        <translation type="unfinished"></translation>
+        <translation>Leisemodus</translation>
     </message>
     <message>
         <source>Shuffle isn&apos;t available for radio</source>
-        <translation type="unfinished"></translation>
+        <translation>Zufallswiedergabe ist für Radio nicht verfügbar</translation>
     </message>
     <message>
         <source>Shuffle: on</source>
-        <translation type="unfinished"></translation>
+        <translation>Zufallswiedergabe: an</translation>
     </message>
     <message>
         <source>Shuffle: off</source>
-        <translation type="unfinished"></translation>
+        <translation>Zufallswiedergabe: aus</translation>
     </message>
     <message>
         <source>Repeat: list</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiederholen: Liste</translation>
     </message>
     <message>
         <source>Repeat: track</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiederholen: Titel</translation>
     </message>
     <message>
         <source>Repeat: off</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiederholen: aus</translation>
     </message>
     <message>
         <source>Previous</source>
-        <translation type="unfinished"></translation>
+        <translation>Zurück</translation>
     </message>
     <message>
         <source>Pause</source>
-        <translation type="unfinished"></translation>
+        <translation>Pause</translation>
     </message>
     <message>
         <source>Play</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiedergabe</translation>
     </message>
     <message>
         <source>Next</source>
-        <translation type="unfinished"></translation>
+        <translation>Weiter</translation>
     </message>
     <message>
         <source>Stop</source>
-        <translation type="unfinished"></translation>
+        <translation>Stopp</translation>
     </message>
     <message>
         <source>Unlike</source>
-        <translation type="unfinished"></translation>
+        <translation>„Gefällt mir“ entfernen</translation>
     </message>
     <message>
         <source>Like</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir</translation>
     </message>
     <message>
         <source>Remove Dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>„Gefällt mir nicht“ entfernen</translation>
     </message>
     <message>
         <source>Dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir nicht</translation>
     </message>
     <message>
         <source>Downloads</source>
-        <translation type="unfinished"></translation>
+        <translation>Downloads</translation>
     </message>
     <message>
         <source>Save to Downloads</source>
-        <translation type="unfinished"></translation>
+        <translation>In Downloads speichern</translation>
     </message>
 </context>
 <context>
     <name>Ui::PlaylistSheet</name>
     <message>
         <source>Play all</source>
-        <translation type="unfinished"></translation>
+        <translation>Alle abspielen</translation>
     </message>
     <message>
         <source>Save playlist to Downloads</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlist in Downloads speichern</translation>
     </message>
     <message>
         <source>Back</source>
-        <translation type="unfinished"></translation>
+        <translation>Zurück</translation>
     </message>
     <message>
         <source>Filter by title, artist or album</source>
-        <translation type="unfinished"></translation>
+        <translation>Nach Titel, Künstler oder Album filtern</translation>
     </message>
 </context>
 <context>
     <name>Ui::Rows</name>
     <message>
         <source>%1 — %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 – %2</translation>
     </message>
 </context>
 <context>
     <name>Ui::Settings::DownloadsPage</name>
     <message>
         <source>Downloads</source>
-        <translation type="unfinished"></translation>
+        <translation>Downloads</translation>
     </message>
     <message>
         <source>Allow saving tracks to this computer</source>
-        <translation type="unfinished"></translation>
+        <translation>Das Speichern von Titeln auf diesem Computer erlauben</translation>
     </message>
     <message>
         <source>Browse…</source>
-        <translation type="unfinished"></translation>
+        <translation>Durchsuchen …</translation>
     </message>
     <message>
         <source>Download folder</source>
-        <translation type="unfinished"></translation>
+        <translation>Download-Ordner</translation>
     </message>
     <message>
         <source>None</source>
-        <translation type="unfinished"></translation>
+        <translation>Keine</translation>
     </message>
     <message>
         <source>By source</source>
-        <translation type="unfinished"></translation>
+        <translation>Nach Quelle</translation>
     </message>
     <message>
         <source>By artist</source>
-        <translation type="unfinished"></translation>
+        <translation>Nach Künstler</translation>
     </message>
     <message>
         <source>By artist and album</source>
-        <translation type="unfinished"></translation>
+        <translation>Nach Künstler und Album</translation>
     </message>
     <message>
         <source>Download folder:</source>
-        <translation type="unfinished"></translation>
+        <translation>Download-Ordner:</translation>
     </message>
     <message>
         <source>Subfolders:</source>
-        <translation type="unfinished"></translation>
+        <translation>Unterordner:</translation>
     </message>
     <message>
         <source>Downloads are for your own listening</source>
-        <translation type="unfinished"></translation>
+        <translation>Downloads sind nur für Ihr eigenes Hören gedacht</translation>
     </message>
     <message>
         <source>Piracy hurts the artists whose music you love. Tracks you save with CloudMus are for your personal listening only — not for sharing, uploading, selling or passing on to anyone else. Saving music may also be against your music service&apos;s terms of use.
 
 Do you agree to use downloads only this way?</source>
-        <translation type="unfinished"></translation>
+        <translation>Piraterie schadet den Künstlern, deren Musik Sie lieben. Titel, die Sie mit CloudMus speichern, sind nur für Ihr persönliches Hören bestimmt – nicht zum Teilen, Hochladen, Verkaufen oder Weitergeben an andere. Das Speichern von Musik kann außerdem gegen die Nutzungsbedingungen Ihres Musikdienstes verstoßen.
+
+Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
     </message>
     <message>
         <source>I Agree</source>
-        <translation type="unfinished"></translation>
+        <translation>Ich stimme zu</translation>
     </message>
     <message>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation>Abbrechen</translation>
     </message>
     <message>
         <source>/&lt;source&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>/&lt;source&gt;</translation>
     </message>
     <message>
         <source>/&lt;artist&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>/&lt;artist&gt;</translation>
     </message>
     <message>
         <source>/&lt;artist&gt;/&lt;album&gt;</source>
-        <translation type="unfinished"></translation>
+        <translation>/&lt;artist&gt;/&lt;album&gt;</translation>
     </message>
     <message>
         <source>Tracks are saved to %1/</source>
-        <translation type="unfinished"></translation>
+        <translation>Titel werden in %1/ gespeichert</translation>
     </message>
 </context>
 <context>
     <name>Ui::Settings::GeneralPage</name>
     <message>
         <source>General</source>
-        <translation type="unfinished"></translation>
+        <translation>Allgemein</translation>
     </message>
     <message>
         <source>Launch CloudMus when you log in</source>
-        <translation type="unfinished"></translation>
+        <translation>CloudMus bei der Anmeldung starten</translation>
     </message>
     <message>
         <source>Start hidden in the tray</source>
-        <translation type="unfinished"></translation>
+        <translation>Ausgeblendet im Infobereich starten</translation>
     </message>
     <message>
         <source>Resume playback on start if it was playing at exit</source>
-        <translation type="unfinished"></translation>
+        <translation>Wiedergabe beim Start fortsetzen, wenn sie beim Beenden lief</translation>
     </message>
     <message>
         <source>Closing the window minimizes to the tray instead of quitting</source>
-        <translation type="unfinished"></translation>
+        <translation>Das Schließen des Fensters minimiert in den Infobereich, statt zu beenden</translation>
     </message>
     <message>
         <source>Show a notification when the track changes</source>
-        <translation type="unfinished"></translation>
+        <translation>Benachrichtigung beim Titelwechsel anzeigen</translation>
     </message>
     <message>
         <source>System</source>
-        <translation type="unfinished"></translation>
+        <translation>System</translation>
     </message>
     <message>
         <source>Light</source>
-        <translation type="unfinished"></translation>
+        <translation>Hell</translation>
     </message>
     <message>
         <source>Dark</source>
-        <translation type="unfinished"></translation>
+        <translation>Dunkel</translation>
     </message>
     <message>
         <source>Theme:</source>
-        <translation type="unfinished"></translation>
+        <translation>Design:</translation>
+    </message>
+    <message>
+        <source>Automatic</source>
+        <translation>Automatisch</translation>
+    </message>
+    <message>
+        <source>Language:</source>
+        <translation>Sprache:</translation>
     </message>
     <message>
         <source>Glass background: blur what&apos;s behind the window</source>
-        <translation type="unfinished"></translation>
+        <translation>Glasoptik: Das, was hinter dem Fenster liegt, weichzeichnen</translation>
     </message>
     <message>
         <source>This desktop doesn&apos;t blur behind windows by itself, so without help the window is just see-through. On GNOME, install the Blur my Shell extension and add &quot;cloudmus-qt&quot; to its application blur list.</source>
-        <translation type="unfinished"></translation>
+        <translation>Dieser Desktop weichzeichnet den Hintergrund hinter Fenstern nicht von selbst, daher ist das Fenster ohne Hilfe nur durchsichtig. Installieren Sie unter GNOME die Erweiterung Blur my Shell und fügen Sie „cloudmus-qt“ zu deren Liste der weichgezeichneten Anwendungen hinzu.</translation>
     </message>
     <message>
         <source>Not supported by this desktop.</source>
-        <translation type="unfinished"></translation>
+        <translation>Wird von diesem Desktop nicht unterstützt.</translation>
     </message>
     <message>
         <source>Send usage statistics to Google Analytics</source>
-        <translation type="unfinished"></translation>
+        <translation>Nutzungsstatistiken an Google Analytics senden</translation>
     </message>
 </context>
 <context>
     <name>Ui::Settings::HotkeysPage</name>
     <message>
         <source>Keyboard shortcuts</source>
-        <translation type="unfinished"></translation>
+        <translation>Tastenkürzel</translation>
     </message>
     <message>
         <source>Filter by action or shortcut</source>
-        <translation type="unfinished"></translation>
+        <translation>Nach Aktion oder Kürzel filtern</translation>
     </message>
     <message>
         <source>No shortcuts match the filter.</source>
-        <translation type="unfinished"></translation>
+        <translation>Kein Kürzel entspricht dem Filter.</translation>
     </message>
     <message>
         <source>Change in the system settings…</source>
-        <translation type="unfinished"></translation>
+        <translation>In den Systemeinstellungen ändern …</translation>
     </message>
     <message>
         <source>Action</source>
-        <translation type="unfinished"></translation>
+        <translation>Aktion</translation>
     </message>
     <message>
         <source>Shortcut</source>
-        <translation type="unfinished"></translation>
+        <translation>Kürzel</translation>
     </message>
     <message>
         <source>Global</source>
-        <translation type="unfinished"></translation>
+        <translation>Global</translation>
     </message>
     <message>
         <source>Notify</source>
-        <translation type="unfinished"></translation>
+        <translation>Melden</translation>
     </message>
     <message>
         <source>Works with the window out of focus</source>
-        <translation type="unfinished"></translation>
+        <translation>Funktioniert, auch wenn das Fenster nicht im Fokus ist</translation>
     </message>
     <message>
         <source>Says what it did in a notification</source>
-        <translation type="unfinished"></translation>
+        <translation>Meldet in einer Benachrichtigung, was getan wurde</translation>
     </message>
     <message>
         <source>Reset</source>
-        <translation type="unfinished"></translation>
+        <translation>Zurücksetzen</translation>
     </message>
     <message>
         <source>Restore this shortcut&apos;s defaults</source>
-        <translation type="unfinished"></translation>
+        <translation>Standardwerte dieses Kürzels wiederherstellen</translation>
     </message>
     <message>
         <source>Restore defaults</source>
-        <translation type="unfinished"></translation>
+        <translation>Standardwerte wiederherstellen</translation>
     </message>
     <message>
         <source>Global shortcuts aren&apos;t available on this desktop: the shortcuts work only while the CloudMus window is in front.</source>
-        <translation type="unfinished"></translation>
+        <translation>Globale Tastenkürzel sind auf diesem Desktop nicht verfügbar: Die Kürzel funktionieren nur, solange das CloudMus-Fenster im Vordergrund ist.</translation>
     </message>
     <message>
         <source>Global shortcuts aren&apos;t available: %1 The shortcuts work only while the CloudMus window is in front.</source>
-        <translation type="unfinished"></translation>
+        <translation>Globale Tastenkürzel sind nicht verfügbar: %1 Die Kürzel funktionieren nur, solange das CloudMus-Fenster im Vordergrund ist.</translation>
     </message>
     <message>
         <source>A global shortcut works even when the CloudMus window isn&apos;t in front.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ein globales Kürzel funktioniert auch, wenn das CloudMus-Fenster nicht im Vordergrund ist.</translation>
     </message>
     <message>
         <source>This desktop decides the keys of global shortcuts: the key here is what CloudMus asks for the first time, and it is what works while the window is in front. To change a global one afterwards, use the desktop&apos;s own settings.</source>
-        <translation type="unfinished"></translation>
+        <translation>Dieser Desktop bestimmt die Tasten globaler Kürzel: Die hier angegebene Taste fordert CloudMus beim ersten Mal an, und sie gilt, solange das Fenster im Vordergrund ist. Um ein globales Kürzel später zu ändern, nutzen Sie die Einstellungen des Desktops.</translation>
     </message>
     <message>
         <source>The same shortcut as “%1”.</source>
-        <translation type="unfinished"></translation>
+        <translation>Dasselbe Kürzel wie „%1“.</translation>
     </message>
     <message>
         <source>Another program already has this shortcut, so it works only while the window is in front.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ein anderes Programm belegt dieses Kürzel bereits; es funktioniert daher nur, solange das Fenster im Vordergrund ist.</translation>
     </message>
     <message>
         <source>The desktop hasn&apos;t set a global shortcut for this yet.</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Desktop hat hierfür noch kein globales Kürzel festgelegt.</translation>
     </message>
     <message>
         <source>Global shortcut set by the desktop: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Vom Desktop festgelegtes globales Kürzel: %1</translation>
     </message>
 </context>
 <context>
     <name>Ui::Settings::NetworkPage</name>
     <message>
         <source>Network</source>
-        <translation type="unfinished"></translation>
+        <translation>Netzwerk</translation>
     </message>
     <message>
         <source>Proxies a source can connect through — choose one on the source&apos;s own page, under Sources. Everything of that source goes through it: the source itself, its streams and its covers.</source>
-        <translation type="unfinished"></translation>
+        <translation>Proxys, über die sich eine Quelle verbinden kann – wählen Sie einen auf der Seite der Quelle unter „Quellen“. Alles von dieser Quelle läuft darüber: die Quelle selbst, ihre Streams und ihre Cover.</translation>
     </message>
     <message>
         <source>Add proxy</source>
-        <translation type="unfinished"></translation>
+        <translation>Proxy hinzufügen</translation>
     </message>
     <message>
         <source>Every proxy needs a host</source>
-        <translation type="unfinished"></translation>
+        <translation>Jeder Proxy braucht einen Host</translation>
     </message>
 </context>
 <context>
     <name>Ui::Settings::ProxyEditor</name>
     <message>
         <source>e.g. Home SOCKS</source>
-        <translation type="unfinished"></translation>
+        <translation>z. B. SOCKS zu Hause</translation>
     </message>
     <message>
         <source>host or IP</source>
-        <translation type="unfinished"></translation>
+        <translation>Host oder IP</translation>
     </message>
     <message>
         <source>optional</source>
-        <translation type="unfinished"></translation>
+        <translation>optional</translation>
     </message>
     <message>
         <source>Check</source>
-        <translation type="unfinished"></translation>
+        <translation>Prüfen</translation>
     </message>
     <message>
         <source>Remove</source>
-        <translation type="unfinished"></translation>
+        <translation>Entfernen</translation>
     </message>
     <message>
         <source>Name:</source>
-        <translation type="unfinished"></translation>
+        <translation>Name:</translation>
     </message>
     <message>
         <source>Type:</source>
-        <translation type="unfinished"></translation>
+        <translation>Typ:</translation>
     </message>
     <message>
         <source>Host:</source>
-        <translation type="unfinished"></translation>
+        <translation>Host:</translation>
     </message>
     <message>
         <source>Port:</source>
-        <translation type="unfinished"></translation>
+        <translation>Port:</translation>
     </message>
     <message>
         <source>Username:</source>
-        <translation type="unfinished"></translation>
+        <translation>Benutzername:</translation>
     </message>
     <message>
         <source>Password:</source>
-        <translation type="unfinished"></translation>
+        <translation>Passwort:</translation>
     </message>
     <message>
         <source>%1: enter the proxy&apos;s host first</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: Geben Sie zuerst den Host des Proxys ein</translation>
     </message>
     <message>
         <source>%1 works</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 funktioniert</translation>
     </message>
     <message>
         <source>%1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2</translation>
     </message>
 </context>
 <context>
     <name>Ui::Settings::SettingsForm</name>
     <message>
         <source>Saved — type to replace</source>
-        <translation type="unfinished"></translation>
+        <translation>Gespeichert – zum Ersetzen eingeben</translation>
     </message>
     <message>
         <source>Browse…</source>
-        <translation type="unfinished"></translation>
+        <translation>Durchsuchen …</translation>
     </message>
 </context>
 <context>
     <name>Ui::Settings::SourcePage</name>
     <message>
         <source>Sources</source>
-        <translation type="unfinished"></translation>
+        <translation>Quellen</translation>
     </message>
     <message>
         <source>Enabled</source>
-        <translation type="unfinished"></translation>
+        <translation>Aktiviert</translation>
     </message>
     <message>
         <source>Connection:</source>
-        <translation type="unfinished"></translation>
+        <translation>Verbindung:</translation>
     </message>
     <message>
         <source>Account</source>
-        <translation type="unfinished"></translation>
+        <translation>Konto</translation>
     </message>
     <message>
         <source>Sign out</source>
-        <translation type="unfinished"></translation>
+        <translation>Abmelden</translation>
     </message>
     <message>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation>Abbrechen</translation>
     </message>
     <message>
         <source>Code copied</source>
-        <translation type="unfinished"></translation>
+        <translation>Code kopiert</translation>
     </message>
     <message>
         <source>A switched-off source doesn&apos;t start and isn&apos;t shown in the sidebar.</source>
-        <translation type="unfinished"></translation>
+        <translation>Eine deaktivierte Quelle wird nicht gestartet und nicht in der Seitenleiste angezeigt.</translation>
     </message>
     <message>
         <source>The source couldn&apos;t be started.</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Quelle konnte nicht gestartet werden.</translation>
     </message>
     <message>
         <source>Starting…</source>
-        <translation type="unfinished"></translation>
+        <translation>Wird gestartet …</translation>
     </message>
     <message>
         <source>Signing in…</source>
-        <translation type="unfinished"></translation>
+        <translation>Anmeldung läuft …</translation>
     </message>
     <message>
         <source>Couldn&apos;t sign in</source>
-        <translation type="unfinished"></translation>
+        <translation>Anmeldung nicht möglich</translation>
     </message>
     <message>
         <source>Signed in</source>
-        <translation type="unfinished"></translation>
+        <translation>Angemeldet</translation>
     </message>
     <message>
         <source>Sign-in failed</source>
-        <translation type="unfinished"></translation>
+        <translation>Anmeldung fehlgeschlagen</translation>
     </message>
     <message>
         <source>Couldn&apos;t sign out: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Abmeldung nicht möglich: %1</translation>
     </message>
     <message>
         <source>Loading settings…</source>
-        <translation type="unfinished"></translation>
+        <translation>Einstellungen werden geladen …</translation>
     </message>
     <message>
         <source>Couldn&apos;t load the settings: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Einstellungen konnten nicht geladen werden: %1</translation>
     </message>
     <message>
         <source>System</source>
-        <translation type="unfinished"></translation>
+        <translation>System</translation>
     </message>
     <message>
         <source>Direct</source>
-        <translation type="unfinished"></translation>
+        <translation>Direkt</translation>
     </message>
     <message>
         <source>Its proxy was removed — it uses the system connection.</source>
-        <translation type="unfinished"></translation>
+        <translation>Der zugehörige Proxy wurde entfernt – es wird die Systemverbindung verwendet.</translation>
     </message>
     <message>
         <source>Uses the system&apos;s proxy settings, if any.</source>
-        <translation type="unfinished"></translation>
+        <translation>Verwendet die Proxy-Einstellungen des Systems, falls vorhanden.</translation>
     </message>
     <message>
         <source>%1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2</translation>
     </message>
 </context>
 <context>
     <name>Ui::SettingsDialog</name>
     <message>
         <source>Settings</source>
-        <translation type="unfinished"></translation>
+        <translation>Einstellungen</translation>
     </message>
 </context>
 <context>
     <name>Ui::SourcePanel</name>
     <message>
         <source>Connected</source>
-        <translation type="unfinished"></translation>
+        <translation>Verbunden</translation>
     </message>
     <message>
         <source>Playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlists</translation>
     </message>
     <message>
         <source>Refresh playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlists aktualisieren</translation>
     </message>
     <message>
         <source>Status</source>
-        <translation type="unfinished"></translation>
+        <translation>Status</translation>
     </message>
     <message>
         <source>Settings…</source>
-        <translation type="unfinished"></translation>
+        <translation>Einstellungen …</translation>
     </message>
     <message>
         <source>Features</source>
-        <translation type="unfinished"></translation>
+        <translation>Funktionen</translation>
     </message>
     <message>
         <source>Liked songs</source>
-        <translation type="unfinished"></translation>
+        <translation>Titel mit „Gefällt mir“</translation>
     </message>
     <message>
         <source>Radio</source>
-        <translation type="unfinished"></translation>
+        <translation>Radio</translation>
     </message>
     <message>
         <source>Search</source>
-        <translation type="unfinished"></translation>
+        <translation>Suche</translation>
     </message>
     <message>
         <source>Downloads</source>
-        <translation type="unfinished"></translation>
+        <translation>Downloads</translation>
     </message>
     <message>
         <source>Sign-in</source>
-        <translation type="unfinished"></translation>
+        <translation>Anmeldung</translation>
     </message>
     <message>
         <source>Sign in to see playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Melden Sie sich an, um Playlists zu sehen</translation>
     </message>
     <message>
         <source>Loading…</source>
-        <translation type="unfinished"></translation>
+        <translation>Wird geladen …</translation>
     </message>
     <message>
         <source>No playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Keine Playlists</translation>
     </message>
 </context>
 <context>
     <name>Ui::TrackRowDelegate</name>
     <message>
         <source>Today</source>
-        <translation type="unfinished"></translation>
+        <translation>Heute</translation>
     </message>
     <message>
         <source>Yesterday</source>
-        <translation type="unfinished"></translation>
+        <translation>Gestern</translation>
     </message>
 </context>
 <context>
     <name>Ui::UpdateDialog</name>
     <message>
         <source>No description.</source>
-        <translation type="unfinished"></translation>
+        <translation>Keine Beschreibung.</translation>
     </message>
     <message numerus="yes">
         <source>about %n s left</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>noch etwa %n s</numerusform>
+            <numerusform>noch etwa %n s</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <source>about %n min left</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>noch etwa %n min</numerusform>
+            <numerusform>noch etwa %n min</numerusform>
         </translation>
     </message>
     <message>
         <source>CloudMus Update</source>
-        <translation type="unfinished"></translation>
+        <translation>CloudMus-Update</translation>
     </message>
     <message>
         <source>%1 of %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2</translation>
     </message>
     <message>
         <source>A new version of CloudMus is available</source>
-        <translation type="unfinished"></translation>
+        <translation>Eine neue Version von CloudMus ist verfügbar</translation>
     </message>
     <message>
         <source>Version &lt;b&gt;%1&lt;/b&gt; is out — you have &lt;b&gt;%2&lt;/b&gt;.</source>
-        <translation type="unfinished"></translation>
+        <translation>Version &lt;b&gt;%1&lt;/b&gt; ist erschienen – Sie haben &lt;b&gt;%2&lt;/b&gt;.</translation>
     </message>
     <message>
         <source>Skip This Version</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Version überspringen</translation>
     </message>
     <message>
         <source>Install</source>
-        <translation type="unfinished"></translation>
+        <translation>Installieren</translation>
     </message>
     <message>
         <source>Open Release Page</source>
-        <translation type="unfinished"></translation>
+        <translation>Release-Seite öffnen</translation>
     </message>
     <message>
         <source>Downloading CloudMus %1</source>
-        <translation type="unfinished"></translation>
+        <translation>CloudMus %1 wird heruntergeladen</translation>
     </message>
     <message>
         <source>Connecting…</source>
-        <translation type="unfinished"></translation>
+        <translation>Verbindung wird hergestellt …</translation>
     </message>
     <message>
         <source>Cancel</source>
-        <translation type="unfinished"></translation>
+        <translation>Abbrechen</translation>
     </message>
     <message>
         <source>The update didn&apos;t work out</source>
-        <translation type="unfinished"></translation>
+        <translation>Das Update hat nicht geklappt</translation>
     </message>
     <message>
         <source>%1
 
 You can try again later or download the new version yourself.</source>
-        <translation type="unfinished"></translation>
+        <translation>%1
+
+Sie können es später erneut versuchen oder die neue Version selbst herunterladen.</translation>
     </message>
     <message>
         <source>Close</source>
-        <translation type="unfinished"></translation>
+        <translation>Schließen</translation>
     </message>
     <message>
         <source>Couldn&apos;t open %1 in a browser</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 konnte nicht im Browser geöffnet werden</translation>
     </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
     <message>
         <source>Version %1 is the latest one.</source>
-        <translation type="unfinished"></translation>
+        <translation>Version %1 ist die neueste.</translation>
     </message>
     <message>
         <source> It&apos;s built on %1, released on %2.</source>
-        <translation type="unfinished"></translation>
+        <translation> Sie wurde am %1 gebaut und am %2 veröffentlicht.</translation>
     </message>
     <message>
         <source> Released on %1.</source>
-        <translation type="unfinished"></translation>
+        <translation> Veröffentlicht am %1.</translation>
     </message>
     <message>
         <source>Check for Updates</source>
-        <translation type="unfinished"></translation>
+        <translation>Nach Updates suchen</translation>
     </message>
     <message>
         <source>CloudMus is up to date</source>
-        <translation type="unfinished"></translation>
+        <translation>CloudMus ist auf dem neuesten Stand</translation>
     </message>
     <message>
         <source>Couldn&apos;t check for updates</source>
-        <translation type="unfinished"></translation>
+        <translation>Die Suche nach Updates ist fehlgeschlagen</translation>
     </message>
 </context>
 <context>
     <name>Update::Installer</name>
     <message>
         <source>This copy of CloudMus can&apos;t update itself: only the AppImage can.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Kopie von CloudMus kann sich nicht selbst aktualisieren: Das kann nur das AppImage.</translation>
     </message>
     <message>
         <source>CloudMus can&apos;t update itself: the folder %1 is not writable.</source>
-        <translation type="unfinished"></translation>
+        <translation>CloudMus kann sich nicht selbst aktualisieren: Der Ordner %1 ist nicht beschreibbar.</translation>
     </message>
     <message>
         <source>Can&apos;t make %1 executable</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 kann nicht ausführbar gemacht werden</translation>
     </message>
     <message>
         <source>This copy of CloudMus can&apos;t update itself: only an installed one can.</source>
-        <translation type="unfinished"></translation>
+        <translation>Diese Kopie von CloudMus kann sich nicht selbst aktualisieren: Das kann nur eine installierte.</translation>
     </message>
     <message>
         <source>Can&apos;t rename %1</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 kann nicht umbenannt werden</translation>
     </message>
 </context>
 <context>
     <name>Update::UpdateChecker</name>
     <message>
         <source>The server answered with HTTP %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Server antwortete mit HTTP %1</translation>
     </message>
     <message>
         <source>Unexpected answer from GitHub</source>
-        <translation type="unfinished"></translation>
+        <translation>Unerwartete Antwort von GitHub</translation>
     </message>
     <message>
         <source>Unknown version of this build: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Unbekannte Version dieses Builds: %1</translation>
     </message>
 </context>
 <context>
     <name>Update::UpdateDownloader</name>
     <message>
         <source>The server answered with HTTP %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Server antwortete mit HTTP %1</translation>
     </message>
     <message>
         <source>Downloaded %1 bytes of %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 Bytes heruntergeladen</translation>
     </message>
 </context>
 <context>
     <name>ViewModel::ActivePlaylist</name>
     <message>
         <source>History</source>
-        <translation type="unfinished"></translation>
+        <translation>Verlauf</translation>
     </message>
 </context>
 <context>
     <name>ViewModel::Downloads</name>
     <message>
         <source>%1 isn&apos;t running</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 läuft nicht</translation>
     </message>
     <message>
         <source>Can&apos;t create the folder %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Der Ordner %1 kann nicht erstellt werden</translation>
     </message>
     <message>
         <source>%1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2</translation>
     </message>
     <message>
         <source>Saved &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ gespeichert</translation>
     </message>
     <message>
         <source>Couldn&apos;t save &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ konnte nicht gespeichert werden</translation>
     </message>
     <message>
         <source>&quot;%1&quot; has no tracks to save</source>
-        <translation type="unfinished"></translation>
+        <translation>„%1“ enthält keine Titel zum Speichern</translation>
     </message>
     <message>
         <source>Saved %1 tracks of &quot;%2&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 Titel aus „%2“ gespeichert</translation>
     </message>
     <message>
         <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 von %2 Titeln aus „%3“ gespeichert – %4</translation>
     </message>
 </context>
 <context>
     <name>ViewModel::NowPlaying</name>
     <message>
         <source>Added to Liked</source>
-        <translation type="unfinished"></translation>
+        <translation>Zu „Gefällt mir“ hinzugefügt</translation>
     </message>
     <message>
         <source>Removed from Liked</source>
-        <translation type="unfinished"></translation>
+        <translation>Aus „Gefällt mir“ entfernt</translation>
     </message>
     <message>
         <source>%1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2</translation>
     </message>
     <message>
         <source>Disliked</source>
-        <translation type="unfinished"></translation>
+        <translation>Gefällt mir nicht</translation>
     </message>
     <message>
         <source>Removed dislike</source>
-        <translation type="unfinished"></translation>
+        <translation>„Gefällt mir nicht“ entfernt</translation>
     </message>
 </context>
 <context>
     <name>ViewModel::SidebarModel</name>
     <message>
         <source>Playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Playlists</translation>
     </message>
     <message>
         <source>History</source>
-        <translation type="unfinished"></translation>
+        <translation>Verlauf</translation>
     </message>
 </context>
 <context>
     <name>ViewModel::Sources</name>
     <message>
         <source>%1 is unavailable</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 ist nicht verfügbar</translation>
     </message>
     <message>
         <source>timed out loading playlists</source>
-        <translation type="unfinished"></translation>
+        <translation>Zeitüberschreitung beim Laden der Playlists</translation>
     </message>
     <message>
         <source>%1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1: %2</translation>
     </message>
 </context>
 </TS>
