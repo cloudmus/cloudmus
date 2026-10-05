@@ -2,6 +2,9 @@
 
 #include <QAbstractButton>
 #include <QAbstractItemView>
+#include <QAbstractSpinBox>
+#include <QComboBox>
+#include <QCoreApplication>
 #include <QCursor>
 #include <QDialog>
 #include <QEvent>
@@ -316,6 +319,12 @@ void CloudMusStyle::polish(QWidget* widget)
         // PM_MenuPanelWidth's enlarged window causes.
         widget->installEventFilter(this);
     }
+    if (qobject_cast<QComboBox*>(widget) || qobject_cast<QAbstractSpinBox*>(widget)) {
+        // The wheel only reaches one that has the focus (see eventFilter()),
+        // so it must not take it from the wheel itself, as WheelFocus does.
+        widget->setFocusPolicy(Qt::StrongFocus);
+        widget->installEventFilter(this);
+    }
 }
 
 void CloudMusStyle::drawPrimitive(
@@ -560,6 +569,18 @@ int CloudMusStyle::styleHint(
 
 bool CloudMusStyle::eventFilter(QObject* watched, QEvent* event)
 {
+    // Scrolling a page with the wheel must not change a combo box or a spin
+    // box the pointer happens to pass over: only one that has the focus
+    // takes the wheel, the rest hand it to their parent to scroll.
+    if (event->type() == QEvent::Wheel) {
+        auto* widget = qobject_cast<QWidget*>(watched);
+        if (widget && !widget->hasFocus() && widget->parentWidget()
+            && (qobject_cast<QComboBox*>(widget) || qobject_cast<QAbstractSpinBox*>(widget))) {
+            event->ignore();
+            QCoreApplication::sendEvent(widget->parentWidget(), event);
+            return true;
+        }
+    }
     // The menu's glass and shadow (setUpPopup()), again as its size
     // changes. On Show, before the menu is on screen: Windows 11's own
     // popup look must be set by then; blur waits for the surface by itself.
