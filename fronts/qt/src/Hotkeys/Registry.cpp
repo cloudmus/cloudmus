@@ -9,7 +9,7 @@ namespace Hotkeys {
 namespace {
 Binding defaultBinding(const ActionInfo& entry)
 {
-    return { entry.action, entry.defaultKey, entry.defaultGlobal, entry.hasNotice };
+    return { entry.action, entry.defaultKey, entry.defaultGlobal, entry.hasNotice && entry.defaultNotify };
 }
 
 Binding fromConfig(const ActionInfo& entry, const Config::Settings::HotkeyConfig& config)

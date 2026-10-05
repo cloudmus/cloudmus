@@ -35,6 +35,8 @@ struct ActionInfo {
     bool defaultGlobal = true;
     // The action can say what it did in a notification.
     bool hasNotice = false;
+    // Whether that notification is on until the user turns it off.
+    bool defaultNotify = true;
 
     QString description() const { return QCoreApplication::translate("Hotkeys", descriptionSource); }
 };

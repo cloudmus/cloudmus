@@ -156,6 +156,14 @@ private slots:
         nowPlaying_->setVolume(98);
         dispatcher_->trigger(Hotkeys::Action::VolumeUp);
         QCOMPARE(nowPlaying_->volume(), 100);
+        // Quiet by default: the slider already shows the level.
+        QCOMPARE(notices.count(), 0);
+
+        QList<Hotkeys::Binding> bindings = registry_->bindings();
+        bindingOf(bindings, Hotkeys::Action::VolumeUp).notify = true;
+        registry_->setBindings(bindings);
+        nowPlaying_->setVolume(98);
+        dispatcher_->trigger(Hotkeys::Action::VolumeUp);
         QCOMPARE(notices.count(), 1);
         QCOMPARE(notices.last().first().value<Hotkeys::Dispatcher::Notice>().body, QStringLiteral("100%"));
 
