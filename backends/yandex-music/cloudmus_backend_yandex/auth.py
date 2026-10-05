@@ -57,6 +57,10 @@ class DeviceAuthSession:
 
     def cancel(self) -> None:
         self._cancel_event.set()
+        # The flow resets this too, but only once it notices — the front
+        # asks for the status right after auth.cancel returns.
+        if self.status == "pending":
+            self.status = "unauthenticated"
 
     async def _run(self, notify: NotifyFn) -> None:
         loop = asyncio.get_event_loop()

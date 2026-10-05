@@ -137,8 +137,8 @@ class BrowserAuthSession:
     Unlike DeviceOAuthSession, this has no background polling task —
     auth.start just emits the auth/prompt asking for the paste, and
     auth.submit does the (synchronous, no-network) work of validating and
-    saving it. cancel() is a no-op for the same reason: there's nothing
-    in-flight between start() and submit() to cancel.
+    saving it. cancel() only drops the "pending" status: there's nothing
+    in-flight between start() and submit() to stop.
     """
 
     def __init__(self) -> None:
@@ -179,7 +179,10 @@ class BrowserAuthSession:
         )
 
     def cancel(self) -> None:
-        pass
+        # Left "pending", the front's next auth.getStatus would show a
+        # sign-in that no longer exists, with no way to start another.
+        if self.status == "pending":
+            self.status = "unauthenticated"
 
     async def submit(self, fields: dict[str, str], notify: NotifyFn) -> None:
         try:
@@ -245,6 +248,10 @@ class DeviceOAuthSession:
 
     def cancel(self) -> None:
         self._cancel_event.set()
+        # The polling task resets this too, but only once it wakes up — the
+        # front asks for the status right after auth.cancel returns.
+        if self.status == "pending":
+            self.status = "unauthenticated"
 
     async def _run(self, notify: NotifyFn) -> None:
         creds_pair = config.get_client_credentials()
