@@ -7,6 +7,7 @@ from rpc_common.generated.methods import emit_track_stream_ready
 from rpc_common.generated.models import StreamReadyParams
 from rpc_common.server import BackendError, BackendServer
 
+from .i18n import tr, translator
 from . import catalog, config, playback
 
 CAPABILITIES = {
@@ -32,6 +33,7 @@ def build_server() -> BackendServer:
         source_version="0.1.0",
         source_description="Music files from a folder on this computer",
         capabilities=CAPABILITIES,
+        translator=translator,
     )
 
     # Nothing to apply on change: every call reads the folder anew.
@@ -48,7 +50,7 @@ def build_server() -> BackendServer:
         except KeyError:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,
-                "Playlist not found",
+                tr("Playlist not found"),
                 errors.app_error_data(retryable=False, detail=f"playlistId={params['playlistId']}"),
             )
 
@@ -59,7 +61,7 @@ def build_server() -> BackendServer:
         if stream is None:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,
-                "Track not found",
+                tr("Track not found"),
                 errors.app_error_data(retryable=False, detail=f"trackId={track_id}"),
             )
         asyncio.create_task(
@@ -74,7 +76,7 @@ def build_server() -> BackendServer:
     def handle_resolve_stream(params: dict, request_id: int) -> dict:
         stream = playback.resolve_stream(config.get_music_dir(), params["trackId"])
         if stream is None:
-            raise BackendError(errors.RESOURCE_NOT_FOUND, "Track not found")
+            raise BackendError(errors.RESOURCE_NOT_FOUND, tr("Track not found"))
         return {"stream": stream.to_dict()}
 
     @server.method("playback.cancel")

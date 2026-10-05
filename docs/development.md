@@ -168,6 +168,17 @@ The root `pyproject.toml` isn't a package: it only sets pytest's
 3. Implement the protocol methods (`initialize`, `catalog.*`, `playback.*`,
    …) on top of `backends/py-rpc-common`.
 4. Make it pass the conformance suite.
+5. Translate what it sends to the front (docs/protocol.md §7.8). Each
+   backend has its own dictionaries, `<package>/locales/<lang>.py`
+   (`STRINGS = {english text: translation}`, for ru, fr, es, de, it, be),
+   collected into a `Translator` (`<package>/i18n.py`) that is passed to
+   `BackendServer`. Wrap user-visible text in `tr("English text")`; settings
+   labels, groups and option labels are looked up in the dictionary by the
+   settings store. The dictionary must also hold the strings `rpc_common`
+   produces itself: the settings validation messages (`expected a whole
+   number`, `must be at most {n}`, …), `unknown setting`, and `Download
+   cancelled` — copy them from an existing backend. A missing entry shows
+   English.
 
 ## Environment variables
 

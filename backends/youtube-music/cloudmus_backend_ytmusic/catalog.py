@@ -9,6 +9,8 @@ from ytmusicapi import YTMusic
 
 from rpc_common.generated.models import Album, Artist, Playlist, Track
 
+from .i18n import tr
+
 LIKED_PLAYLIST_ID = "__liked__"
 LIKED_PLAYLIST_TITLE = "Liked Songs"
 
@@ -88,7 +90,7 @@ def to_track(song: dict) -> Track:
 def to_playlist(playlist: dict) -> Playlist:
     return Playlist(
         id=playlist["playlistId"],
-        title=playlist.get("title") or "(untitled)",
+        title=playlist.get("title") or tr("(untitled)"),
         trackCount=_as_int(playlist.get("count")),
         kind="playlist",
         coverUrl=_cover_url(playlist.get("thumbnails")),
@@ -100,7 +102,7 @@ def to_playlist(playlist: dict) -> Playlist:
 def _liked_playlist(track_count: int, cover_url: str | None = None) -> Playlist:
     return Playlist(
         id=LIKED_PLAYLIST_ID,
-        title=LIKED_PLAYLIST_TITLE,
+        title=tr(LIKED_PLAYLIST_TITLE),
         trackCount=track_count,
         kind="liked",
         coverUrl=cover_url,
@@ -120,7 +122,7 @@ def _find_mixes(home: list[dict]) -> list[dict]:
 
 
 def _mix_playlist(mix: dict) -> Playlist:
-    title = mix.get("title") or "(untitled)"
+    title = mix.get("title") or tr("(untitled)")
     # trackCount=0 — same "not applicable" convention as Yandex's My Wave
     # (a continuous radio, not a fixed-length list; see docs/protocol.md's
     # kind: radioStation note).

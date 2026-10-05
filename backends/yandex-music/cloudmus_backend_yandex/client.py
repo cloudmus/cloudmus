@@ -4,6 +4,7 @@ from rpc_common import errors
 from rpc_common.server import BackendError
 
 from . import config
+from .i18n import tr
 
 _client: Client | None = None
 
@@ -19,7 +20,7 @@ def get_client() -> Client:
     if not token:
         raise BackendError(
             errors.AUTH_NOT_AUTHENTICATED,
-            "Not authenticated: call auth.start first",
+            tr("Not authenticated: call auth.start first"),
             errors.app_error_data(retryable=False),
         )
 

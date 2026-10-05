@@ -11,6 +11,8 @@ from yandex_music import Client, Playlist as YPlaylist, Track as YTrack
 
 from rpc_common.generated.models import Album, Artist, Playlist, Track
 
+from .i18n import tr
+
 COVER_SIZE = "400x400"
 
 T = TypeVar("T")
@@ -85,7 +87,7 @@ WAVE_STATION_ID = "user:onyourwave"
 # rotor_stations_list() never includes the personal wave station, so there
 # is no description for it via the API — a static one. Its picture comes
 # from rotor_stations_dashboard(), which does list it (see _stations()).
-WAVE_DESCRIPTION = "Персональная станция на основе ваших вкусов и истории прослушиваний"
+WAVE_DESCRIPTION = "A personal station based on your tastes and listening history"
 LIKED_PLAYLIST_ID = "__liked__"
 # The account's "Мне нравится" as a regular playlist — only its cover is
 # used; its tracks come from users_likes_tracks() (see list_liked()).
@@ -158,7 +160,7 @@ def to_playlist(p: YPlaylist, *, editable: bool = True, featured: bool | None = 
     # personal playlist, which belongs to a Yandex system user.
     return Playlist(
         id=p.playlist_id,
-        title=p.title or "(untitled)",
+        title=p.title or tr("(untitled)"),
         description=getattr(p, "description", None) or None,
         coverUrl=_playlist_cover(p),
         trackCount=p.track_count or 0,
@@ -214,8 +216,8 @@ def _stations(dashboard: object) -> list[Playlist]:
 def _wave_playlist(cover_url: str | None = None) -> Playlist:
     return Playlist(
         id=WAVE_STATION_ID,
-        title="Моя волна",
-        description=WAVE_DESCRIPTION,
+        title=tr("My Wave"),
+        description=tr(WAVE_DESCRIPTION),
         coverUrl=cover_url,
         # Continuous, not a fixed-length list — see docs/protocol.md's
         # kind: radioStation note; 0 signals "not applicable" here.
@@ -228,7 +230,7 @@ def _wave_playlist(cover_url: str | None = None) -> Playlist:
 def _liked_playlist(track_count: int, cover_url: str | None = None) -> Playlist:
     return Playlist(
         id=LIKED_PLAYLIST_ID,
-        title="Мне нравится",
+        title=tr("Liked"),
         coverUrl=cover_url,
         trackCount=track_count,
         kind="liked",

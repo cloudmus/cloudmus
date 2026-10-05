@@ -8,6 +8,7 @@ from rpc_common.generated.models import StreamReadyParams
 from rpc_common.downloads import Downloads, serve as serve_downloads
 from rpc_common.server import BackendError, BackendServer
 
+from .i18n import tr, translator
 from . import catalog, client as client_module, config, download, playback
 from .auth import DeviceAuthSession
 from .radio import RadioSession
@@ -34,6 +35,7 @@ def build_server() -> BackendServer:
         source_version="0.1.0",
         source_description="Yandex Music streaming service",
         capabilities=CAPABILITIES,
+        translator=translator,
     )
 
     # Read at use (each play/download), so a change applies from the next
@@ -41,7 +43,7 @@ def build_server() -> BackendServer:
     settings = config.settings_store()
     settings.register(server)
     # download/progress and catalog.cancelDownload (docs/protocol.md §7.5).
-    downloads = Downloads(server.notify)
+    downloads = Downloads(server.notify, translator)
     serve_downloads(server, downloads)
 
     auth_session = DeviceAuthSession()
@@ -94,13 +96,13 @@ def build_server() -> BackendServer:
         except LookupError:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,
-                "Playlist not found",
+                tr("Playlist not found"),
                 errors.app_error_data(retryable=False, detail=f"playlistId={params['playlistId']}"),
             )
 
-    def not_found(what: str, detail: str) -> BackendError:
+    def not_found(message: str, detail: str) -> BackendError:
         return BackendError(
-            errors.RESOURCE_NOT_FOUND, f"{what} not found", errors.app_error_data(retryable=False, detail=detail)
+            errors.RESOURCE_NOT_FOUND, message, errors.app_error_data(retryable=False, detail=detail)
         )
 
     @server.method("catalog.getTrackPlaylists")
@@ -112,7 +114,7 @@ def build_server() -> BackendServer:
         try:
             return await catalog.add_to_playlist(client_module.get_client(), params["playlistId"], params["trackId"])
         except LookupError as e:
-            raise not_found("Playlist or track", f"{e}")
+            raise not_found(tr("Playlist or track not found"), f"{e}")
 
     @server.method("catalog.removeFromPlaylist")
     async def handle_remove_from_playlist(params: dict, request_id: int) -> dict:
@@ -121,7 +123,7 @@ def build_server() -> BackendServer:
                 client_module.get_client(), params["playlistId"], params["trackId"]
             )
         except LookupError as e:
-            raise not_found("Track in playlist", f"{e}")
+            raise not_found(tr("Track in playlist not found"), f"{e}")
 
     @server.method("catalog.listLiked")
     async def handle_list_liked(params: dict, request_id: int) -> dict:
@@ -147,7 +149,7 @@ def build_server() -> BackendServer:
         except LookupError:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,
-                "Track not found",
+                tr("Track not found"),
                 errors.app_error_data(retryable=False, detail=f"trackId={params['trackId']}"),
             )
 
@@ -164,11 +166,11 @@ def build_server() -> BackendServer:
                 client_module.get_client(), params["trackId"], cancel_event, settings.get("streamQuality")
             )
         except asyncio.CancelledError:
-            raise BackendError(errors.STATE_INVALID, "Stream resolution cancelled")
+            raise BackendError(errors.STATE_INVALID, tr("Stream resolution cancelled"))
         except Exception as e:
             raise BackendError(
                 errors.UPSTREAM_UNREACHABLE,
-                f"Failed to resolve stream for {params['trackId']}: {e}",
+                tr("Failed to resolve stream for {track}: {error}", track=params["trackId"], error=e),
                 errors.app_error_data(retryable=True),
             ) from e
         finally:
@@ -193,7 +195,7 @@ def build_server() -> BackendServer:
                     "error",
                     {
                         "code": errors.UPSTREAM_UNREACHABLE,
-                        "message": f"Failed to resolve stream for {track_id}: {e}",
+                        "message": tr("Failed to resolve stream for {track}: {error}", track=track_id, error=e),
                         "data": errors.app_error_data(retryable=True),
                     },
                 )

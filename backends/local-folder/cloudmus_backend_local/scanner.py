@@ -17,6 +17,7 @@ from mutagen import File as MutagenFile
 from rpc_common.generated.models import Album, Artist, Track
 
 from . import cover_art
+from .i18n import tr
 
 AUDIO_EXTENSIONS = {".mp3", ".flac", ".ogg", ".m4a", ".wav", ".opus", ".wma", ".aac"}
 
@@ -51,9 +52,9 @@ def scan(root: Path) -> list[PlaylistInfo]:
                     PlaylistInfo(id=subdir.relative_to(root).as_posix(), title=subdir.name, files=files)
                 )
         if loose_files:
-            playlists.append(PlaylistInfo(id=ROOT_PLAYLIST_ID, title=root.name or "Root", files=loose_files))
+            playlists.append(PlaylistInfo(id=ROOT_PLAYLIST_ID, title=root.name or tr("Root"), files=loose_files))
     elif loose_files:
-        playlists.append(PlaylistInfo(id=ROOT_PLAYLIST_ID, title=root.name or "Library", files=loose_files))
+        playlists.append(PlaylistInfo(id=ROOT_PLAYLIST_ID, title=root.name or tr("Library"), files=loose_files))
 
     return playlists
 

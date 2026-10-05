@@ -19,6 +19,7 @@ from typing import Any, Awaitable, Callable, Iterator
 from . import errors
 from .generated.methods import emit_download_progress
 from .generated.models import DownloadProgressParams
+from .i18n import Translator
 from .server import BackendError
 
 NotifyFn = Callable[[str, dict[str, Any]], Awaitable[None]]
@@ -76,8 +77,9 @@ class Tracker:
 class Downloads:
     """The downloads in flight, by the front's downloadId."""
 
-    def __init__(self, notify: NotifyFn):
+    def __init__(self, notify: NotifyFn, translator: Translator | None = None):
         self._notify = notify
+        self._tr = (translator or Translator()).tr
         self._trackers: dict[str, Tracker] = {}
 
     @contextmanager
@@ -91,7 +93,7 @@ class Downloads:
             yield tracker
         except Cancelled:
             raise BackendError(
-                errors.DOWNLOAD_CANCELLED, "Download cancelled", errors.app_error_data(retryable=False)
+                errors.DOWNLOAD_CANCELLED, self._tr("Download cancelled"), errors.app_error_data(retryable=False)
             )
         finally:
             if download_id is not None and self._trackers.get(download_id) is tracker:

@@ -10,6 +10,7 @@ from rpc_common.generated.models import StreamReadyParams
 from rpc_common.downloads import Downloads, serve as serve_downloads
 from rpc_common.server import BackendError, BackendServer
 
+from .i18n import tr, translator
 from . import catalog, client as client_module, download, playback
 from .auth import BrowserAuthSession
 from .radio import RadioSession
@@ -43,11 +44,12 @@ def build_server() -> BackendServer:
         source_version="0.1.0",
         source_description="YouTube Music streaming service",
         capabilities=CAPABILITIES,
+        translator=translator,
     )
 
     auth_session = BrowserAuthSession()
     # download/progress and catalog.cancelDownload (docs/protocol.md §7.5).
-    downloads = Downloads(server.notify)
+    downloads = Downloads(server.notify, translator)
     serve_downloads(server, downloads)
     radio_session: RadioSession | None = None
     inflight_plays: dict[int, tuple[asyncio.Task, asyncio.Event]] = {}
@@ -98,7 +100,7 @@ def build_server() -> BackendServer:
         except LookupError:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,
-                "Playlist not found",
+                tr("Playlist not found"),
                 errors.app_error_data(retryable=False, detail=f"playlistId={params['playlistId']}"),
             )
 
@@ -119,7 +121,7 @@ def build_server() -> BackendServer:
         except LookupError as e:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,
-                "Track in playlist not found",
+                tr("Track in playlist not found"),
                 errors.app_error_data(retryable=False, detail=f"{e}"),
             )
 
@@ -144,7 +146,7 @@ def build_server() -> BackendServer:
         except LookupError:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,
-                "Track not found",
+                tr("Track not found"),
                 errors.app_error_data(retryable=False, detail=f"trackId={params['trackId']}"),
             )
 
@@ -159,7 +161,7 @@ def build_server() -> BackendServer:
         try:
             stream = await playback.resolve_stream_with_retry(params["trackId"], cancel_event)
         except asyncio.CancelledError:
-            raise BackendError(errors.STATE_INVALID, "Stream resolution cancelled")
+            raise BackendError(errors.STATE_INVALID, tr("Stream resolution cancelled"))
         except LookupError as e:
             raise BackendError(errors.RESOURCE_NOT_FOUND, str(e), errors.app_error_data(retryable=False)) from e
         except Exception as e:
@@ -187,7 +189,7 @@ def build_server() -> BackendServer:
                     "error",
                     {
                         "code": errors.RESOURCE_NOT_FOUND,
-                        "message": f"Track not playable: {e}",
+                        "message": tr("Track not playable: {error}", error=e),
                         "data": errors.app_error_data(retryable=False),
                     },
                 )
@@ -197,7 +199,7 @@ def build_server() -> BackendServer:
                     "error",
                     {
                         "code": errors.UPSTREAM_UNREACHABLE,
-                        "message": f"Failed to resolve stream for {track_id}: {e}",
+                        "message": tr("Failed to resolve stream for {track}: {error}", track=track_id, error=e),
                         "data": errors.app_error_data(retryable=True),
                     },
                 )
