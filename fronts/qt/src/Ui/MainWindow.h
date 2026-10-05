@@ -199,6 +199,7 @@ private:
     Rpc::SourceManager& sourceManager_;
     App::Analytics& analytics_;
     Playback::PlaybackController& playback_;
+    ViewModel::AudioPulse& audioPulse_;
     Config::Settings& settings_;
     I18n::Translator& translator_;
     App::SourceSession& sourceSession_;

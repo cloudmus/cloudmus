@@ -4,6 +4,7 @@
 
 #include "ActivePlaylist.h"
 #include "Analytics.h"
+#include "AudioPulse.h"
 #include "AuthStates.h"
 #include "Browse.h"
 #include "CoverArtCache.h"
@@ -43,6 +44,7 @@ public:
     Analytics& analytics() { return analytics_; }
     Rpc::SourceManager& sourceManager() { return sourceManager_; }
     Playback::PlaybackController& playback() { return playback_; }
+    ViewModel::AudioPulse& audioPulse() { return audioPulse_; }
     Rpc::AuthStates& authStates() { return authStates_; }
     History::PlaybackHistory& playbackHistory() { return playbackHistory_; }
     Library::TrackStates& trackStates() { return trackStates_; }
@@ -72,6 +74,7 @@ private:
     Analytics analytics_;
     Rpc::SourceManager sourceManager_;
     Playback::PlaybackController playback_;
+    ViewModel::AudioPulse audioPulse_;
     Rpc::AuthStates authStates_;
     History::PlaybackHistory playbackHistory_;
     Library::TrackStates trackStates_;

@@ -111,6 +111,8 @@ add_library(cloudmus-core STATIC
     src/Playback/AudioPlayer.cpp
     src/Playback/StreamRelay.cpp
     src/Playback/PlaybackController.cpp
+    src/Playback/BeatDetector.cpp
+    src/Playback/LevelFeed.cpp
 
     src/Config/Settings.cpp
     src/I18n/Languages.cpp
@@ -133,6 +135,7 @@ add_library(cloudmus-core STATIC
     src/Hotkeys/Registry.cpp
     src/Hotkeys/Dispatcher.cpp
 
+    src/ViewModel/AudioPulse.cpp
     src/ViewModel/Messages.cpp
     src/ViewModel/NowPlaying.cpp
     src/ViewModel/SidebarModel.cpp
@@ -241,6 +244,8 @@ add_library(cloudmus-ui STATIC
     src/Ui/WindowHost.cpp
     src/Ui/DownloadsPanel.cpp
     src/Ui/AboutDialog.cpp
+    src/Ui/CloudsBackdrop.cpp
+    src/Ui/PulsingLogo.cpp
     src/Ui/InfoDialog.cpp
     src/Ui/UpdateDialog.cpp
     src/Ui/UpdateFlow.cpp
@@ -443,6 +448,7 @@ add_executable(cloudmus-qt-tests
     tests/UpdateTest.cpp
     tests/HotkeysTest.cpp
     tests/I18nTest.cpp
+    tests/AudioPulseTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
@@ -456,6 +462,7 @@ add_executable(cloudmus-qt-ui-tests
     tests/ui/WindowHostTest.cpp
     tests/ui/FocusTest.cpp
     tests/ui/HotkeysPageTest.cpp
+    tests/ui/AboutDialogTest.cpp
     tests/FakeBackend.cpp
     # Real glyphs, so a test can check what color an icon is tinted.
     resources/icons.qrc

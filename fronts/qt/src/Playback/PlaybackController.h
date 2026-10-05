@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "Coro.h"
+#include "LevelFeed.h"
 #include "Models.h"
 #include "PlayMode.h"
 #include "RpcClient.h"
@@ -100,6 +101,9 @@ public:
     }
 
     bool isPlaying() const { return playing_; }
+    // See AudioPlayer::setLevelsEnabled()/takeLevels(); none while paused.
+    void setLevelsEnabled(bool enabled);
+    QVector<LevelReading> takeLevels();
     qint64 positionMs() const;
     bool hasCurrentTrack() const { return index_ >= 0 && index_ < queue_.size(); }
     bool hasQueue() const { return !queue_.isEmpty(); }

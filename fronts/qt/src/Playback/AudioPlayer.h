@@ -5,8 +5,11 @@
 #include <QNetworkProxy>
 #include <QObject>
 #include <QString>
+#include <QVector>
 
 #include <optional>
+
+#include "LevelFeed.h"
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -53,6 +56,14 @@ public:
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
 
+    // Loudness readings of what plays (before the volume control), for
+    // views that move with the music. Off by default: they cost a stream of
+    // log lines from mpv while on.
+    void setLevelsEnabled(bool enabled);
+    // The readings the speakers have got to since the last call, oldest
+    // first; none while off.
+    QVector<LevelReading> takeLevels();
+
 signals:
     // Playback has actually begun producing audio (mirrors
     // MPV_EVENT_PLAYBACK_RESTART).
@@ -97,6 +108,8 @@ private:
     QString preparedTitle_;
     bool preparedQueued_ = false;
     bool preparedPromoting_ = false;
+    LevelFeed levelFeed_;
+    bool levelsEnabled_ = false;
 };
 
 } // namespace Playback

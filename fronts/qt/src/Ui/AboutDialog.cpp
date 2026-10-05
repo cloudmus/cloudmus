@@ -18,9 +18,12 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include "AudioPulse.h"
+#include "CloudsBackdrop.h"
 #include "DialogButtons.h"
 #include "Icons.h"
 #include "OverlayScrollBar.h"
+#include "PulsingLogo.h"
 #include "SmoothScroller.h"
 #include "Spacing.h"
 #include "TabOrder.h"
@@ -55,7 +58,7 @@ QString link(const QString& href, const QString& text)
 
 } // namespace
 
-AboutDialog::AboutDialog(QWidget* parent)
+AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("About CloudMus"));
@@ -65,9 +68,7 @@ AboutDialog::AboutDialog(QWidget* parent)
     setWindowModality(Qt::ApplicationModal);
 
     // --- header: logo, name, version (copyable)
-    auto* logoLabel = new QLabel(this);
-    logoLabel->setPixmap(QIcon(QStringLiteral(":/icons/icons/logo.svg")).pixmap(kLogoSide, kLogoSide));
-    logoLabel->setFixedSize(kLogoSide, kLogoSide);
+    auto* logoLabel = new PulsingLogo(pulse, kLogoSide, this);
 
     QFont titleFont = Theme::font(Theme::TextStyle::Display);
     titleFont.setPixelSize(32);
@@ -129,12 +130,11 @@ AboutDialog::AboutDialog(QWidget* parent)
     description_->setAlignment(Qt::AlignCenter);
 
     // What sets it apart, in a few words.
-    auto* advantagesLabel
-        = makeLabel(QStringLiteral("•  %1<br>•  %2<br>•  %3")
-                        .arg(tr("All music services in one place").toHtmlEscaped(),
-                            tr("Beautiful multilingual interface").toHtmlEscaped(),
-                            tr("Unique features and tight desktop integration").toHtmlEscaped()),
-            Theme::TextStyle::Body, this);
+    auto* advantagesLabel = makeLabel(QStringLiteral("•  %1<br>•  %2<br>•  %3")
+                                          .arg(tr("All music services in one place").toHtmlEscaped(),
+                                              tr("Beautiful multilingual interface").toHtmlEscaped(),
+                                              tr("Unique features and tight desktop integration").toHtmlEscaped()),
+        Theme::TextStyle::Body, this);
     advantagesLabel->setTextFormat(Qt::RichText);
     advantagesLabel->setAlignment(Qt::AlignCenter);
 
@@ -242,6 +242,12 @@ AboutDialog::AboutDialog(QWidget* parent)
     root->addWidget(buttons);
     chainTabOrder(this); // the license text is created before the tabs above it
 
+    // Behind everything else, over the whole dialog; the clouds fly out of
+    // the logo.
+    backdrop_ = new CloudsBackdrop(pulse, logoLabel, this);
+    backdrop_->lower();
+    backdrop_->setGeometry(rect());
+
     // Sized here, not left to show()'s adjustSize(): show() creates the
     // native window first, at QWidget's default 100×30, and on Wayland,
     // when the dialog opens on a screen with another scale than the one Qt
@@ -263,6 +269,8 @@ QSize AboutDialog::sizeHint() const
 void AboutDialog::resizeEvent(QResizeEvent* event)
 {
     QDialog::resizeEvent(event);
+    if (backdrop_ != nullptr)
+        backdrop_->setGeometry(rect());
     // A narrower window wraps the description onto more lines.
     updateMinimumHeight();
 }

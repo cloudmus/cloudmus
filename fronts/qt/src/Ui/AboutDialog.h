@@ -4,7 +4,13 @@
 
 class QLabel;
 
+namespace ViewModel {
+class AudioPulse;
+}
+
 namespace Ui {
+
+class CloudsBackdrop;
 
 // Replaces the native QMessageBox::about(...) this used to be — a
 // QMessageBox is a stock Qt dialog with no styling hook the app's QSS can
@@ -15,7 +21,8 @@ class AboutDialog : public QDialog {
     Q_OBJECT
 
 public:
-    explicit AboutDialog(QWidget* parent = nullptr);
+    // `pulse`: the music the clouds and the logo move with.
+    explicit AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent = nullptr);
 
     QSize sizeHint() const override;
 
@@ -30,6 +37,7 @@ private:
     void updateMinimumHeight();
 
     QLabel* description_ = nullptr;
+    CloudsBackdrop* backdrop_ = nullptr;
 };
 
 } // namespace Ui

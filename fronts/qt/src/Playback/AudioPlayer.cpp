@@ -21,6 +21,23 @@ namespace Playback {
 
 namespace {
 Q_LOGGING_CATEGORY(lcAudioPlayer, "cloudmus.playback.audio")
+
+// A loudness analyzer on a side branch: what's played goes through `anull`
+// untouched (checked bit-exact), a copy is mixed to mono, split into the
+// full band (channel 1) and the bass below 150 Hz (channel 2), cut into
+// 1024-sample frames (~23 ms) and measured; ametadata prints each frame's
+// timestamp and levels to mpv's log, where LevelFeed picks them up (see
+// takeLevels()). Only options ffmpeg 4.3 already has — what the AppImage's
+// Debian 11 libmpv links. "@cmlevel" labels it for `af remove`.
+constexpr char kLevelFilterLabel[] = "@cmlevel";
+constexpr char kLevelFilter[] = "@cmlevel:lavfi=[asplit[play][an];"
+                                "[an]pan=mono|c0=0.5*c0+0.5*c1,asplit[full][low];"
+                                "[low]lowpass=f=150[bass];"
+                                "[full][bass]join=inputs=2:channel_layout=stereo,asetnsamples=n=1024:p=0,"
+                                "astats=metadata=1:reset=1,"
+                                "ametadata=mode=print:key=lavfi.astats.1.RMS_level,"
+                                "ametadata=mode=print:key=lavfi.astats.2.RMS_level,anullsink;"
+                                "[play]anull]";
 }
 
 AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
@@ -42,7 +59,6 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
     mpv_set_option_string(mpv_, "vid", "no");
     mpv_set_option_string(mpv_, "ao", audioOutput.constData());
     mpv_set_option_string(mpv_, "gapless-audio", "yes");
-
     // Without these, mpv reports itself to PipeWire/Pulse (and thus to the
     // desktop's per-stream volume widget) as "mpv" playing a title derived
     // from the raw stream URL, with mpv's default "${media-title} - mpv"
@@ -196,6 +212,13 @@ void AudioPlayer::handleEvent(const mpv_event& event)
 
         case MPV_EVENT_LOG_MESSAGE: {
             const auto* msg = static_cast<mpv_event_log_message*>(event.data);
+            if (std::strcmp(msg->level, "v") == 0) {
+                // Asked for only for the analyzer's lines (setLevelsEnabled());
+                // the rest of mpv's verbose chatter stays out of our log.
+                if (std::strcmp(msg->prefix, "ffmpeg") == 0)
+                    levelFeed_.addLogLine(QByteArrayView(msg->text));
+                break;
+            }
             const QString text = QString::fromUtf8(msg->text).trimmed();
             if (text.isEmpty())
                 break;
@@ -393,6 +416,7 @@ void AudioPlayer::loadUrl(const QString& url)
     // hands mpv the raw stream URL directly against the same CDN without
     // that problem, so this follows suit.
     qCDebug(lcAudioPlayer) << "loading URL:" << url;
+    levelFeed_.clear();
 
     // Right before loadfile, not in play(): mpv's "pause" property isn't
     // reset by loadfile, so a new track must clear it to always start
@@ -431,6 +455,7 @@ void AudioPlayer::stop()
     }
     const char* args[] = { "stop", nullptr };
     mpv_command_async(mpv_, 0, args);
+    levelFeed_.clear();
 }
 
 void AudioPlayer::seek(qint64 positionMs)
@@ -438,12 +463,39 @@ void AudioPlayer::seek(qint64 positionMs)
     const QByteArray posSeconds = QByteArray::number(positionMs / 1000.0, 'f', 3);
     const char* args[] = { "seek", posSeconds.constData(), "absolute", nullptr };
     mpv_command_async(mpv_, 0, args);
+    levelFeed_.clear();
 }
 
 void AudioPlayer::setVolume(int volume0To100)
 {
     int64_t vol = volume0To100;
     mpv_set_property(mpv_, "volume", MPV_FORMAT_INT64, &vol);
+}
+
+void AudioPlayer::setLevelsEnabled(bool enabled)
+{
+    if (levelsEnabled_ == enabled)
+        return;
+    levelsEnabled_ = enabled;
+    levelFeed_.clear();
+    // The analyzer is in mpv's filter chain only while someone reads the
+    // levels: with nobody to show them it would just burn CPU (~0.8% of a
+    // core). Adding and removing it mid-track is seamless — checked
+    // bit-exact against playback without it, over dozens of toggles.
+    const char* args[] = { "af", enabled ? "add" : "remove", enabled ? kLevelFilter : kLevelFilterLabel, nullptr };
+    if (mpv_command(mpv_, args) < 0)
+        qCWarning(lcAudioPlayer) << "couldn't" << (enabled ? "add" : "remove") << "the level analyzer";
+    // It prints at ffmpeg's INFO, which mpv logs at "v": asked for only
+    // while it runs, the rest of the time it's just mpv's chatter.
+    mpv_request_log_messages(mpv_, enabled ? "v" : "info");
+}
+
+QVector<LevelReading> AudioPlayer::takeLevels()
+{
+    double audioPts = 0;
+    if (!levelsEnabled_ || mpv_get_property(mpv_, "audio-pts", MPV_FORMAT_DOUBLE, &audioPts) < 0)
+        return { };
+    return levelFeed_.take(audioPts);
 }
 
 } // namespace Playback

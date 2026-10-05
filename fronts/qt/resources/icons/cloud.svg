@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="160" viewBox="0 0 64 40">
+  <!-- The logo's cloud, simplified to its silhouette: a small hump on the
+       left, a big one in the middle, a middle-sized one on the right, and a
+       flat bottom. White: the backdrop tints it. -->
+  <g fill="#ffffff">
+    <circle cx="14" cy="27" r="9"/>
+    <circle cx="29" cy="19" r="15"/>
+    <circle cx="47" cy="25" r="11"/>
+    <rect x="14" y="27" width="33" height="9"/>
+  </g>
+</svg>

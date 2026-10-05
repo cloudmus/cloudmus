@@ -660,4 +660,11 @@ void PlaybackController::seek(qint64 positionMs)
 
 void PlaybackController::setVolume(int volume0To100) { audioPlayer_->setVolume(volume0To100); }
 
+void PlaybackController::setLevelsEnabled(bool enabled) { audioPlayer_->setLevelsEnabled(enabled); }
+
+QVector<LevelReading> PlaybackController::takeLevels()
+{
+    return playing_ ? audioPlayer_->takeLevels() : QVector<LevelReading> { };
+}
+
 } // namespace Playback
