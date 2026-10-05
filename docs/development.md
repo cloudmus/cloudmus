@@ -180,6 +180,21 @@ The root `pyproject.toml` isn't a package: it only sets pytest's
    cancelled` — copy them from an existing backend. A missing entry shows
    English.
 
+## Translations
+
+The languages are ru, fr, es, de, it and be, besides English (the source
+language). The language follows the system or the Language setting, and
+reaches the backends too (docs/protocol.md §7.8).
+
+- **Qt front**: texts are `tr("…")` in the code; the catalogs are
+  `fronts/qt/translations/cloudmus_<lang>.ts`, compiled into the app by the
+  build. After adding or changing a text, run
+  `cmake --build fronts/qt/build --target update_translations` and translate
+  the new entries (`linguist`, or edit the `.ts`). Text built once in a
+  constructor is fine: a language change replaces the main window; but never
+  cache a translated string in a `static`.
+- **Backends**: each has its own dictionaries, see *Adding a new backend*.
+
 ## Environment variables
 
 | Variable | Effect |
