@@ -372,7 +372,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // them instead of a bare icon.
     quietButton_ = new IconHoverButton(QStringLiteral("volume_up"), IconHoverButton::Scheme::Neutral, this);
     quietButton_->setCheckable(true);
-    quietButton_->setToolTip(tr("Quiet mode"));
+    refreshToolTips();
     quietButton_->setAccessibleName(tr("Quiet mode"));
     connect(quietButton_, &QPushButton::clicked, this, &NowPlayingBar::quietToggled);
     slidersRow->addWidget(quietButton_);
@@ -588,6 +588,10 @@ void NowPlayingBar::refreshToolTips()
     likeButton_->setToolTip(tip(liked_ ? tr("Unlike") : tr("Like"), Action::Like));
     dislikeButton_->setToolTip(tip(disliked_ ? tr("Remove Dislike") : tr("Dislike"), Action::Dislike));
     // While downloads run the button opens their panel, not a download.
+    // Built after the first refresh in the constructor.
+    if (quietButton_ != nullptr) {
+        quietButton_->setToolTip(tip(tr("Quiet mode"), Action::ToggleQuiet));
+    }
     downloadButton_->setToolTip(downloadsActive_ ? tr("Downloads") : tip(tr("Save to Downloads"), Action::Download));
 }
 
