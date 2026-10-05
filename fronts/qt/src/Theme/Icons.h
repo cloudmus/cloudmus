@@ -10,6 +10,8 @@ class QObject;
 
 namespace Theme {
 
+enum class Mode;
+
 // The design-token colors an icon glyph can be recolored to. QSS/currentColor
 // don't work on SVG icon *content* in Qt — only a real pixel-level recolor
 // (see icon()'s implementation) produces the right color per state.
@@ -30,6 +32,9 @@ enum class IconColor {
 // cleared on Tokens::notifier().changed() since a mode flip changes which
 // QColor a given IconColor resolves to.
 QIcon icon(const QString& name, IconColor color, int pixelSize = 16);
+// Same, tinted for the given mode rather than the app's current one — for
+// what the desktop draws in its own colors (the tray menu on Linux).
+QIcon icon(const QString& name, IconColor color, int pixelSize, Mode mode);
 
 // Runs `apply` now and again after every theme change, for as long as
 // `context` lives. A QIcon/QPixmap from icon() is tinted once, so whatever
@@ -42,6 +47,7 @@ void followTheme(QObject* context, std::function<void()> apply);
 // e.g. a backend's own sidebar icon from its manifest. Same cache and
 // same invalidation on a theme flip, keyed by the path.
 QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize = 16);
+QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize, Mode mode);
 // Same, tinted to an explicit color (e.g. white over a generated cover).
 QIcon iconFromFile(const QString& svgPath, const QColor& color, int pixelSize = 16);
 

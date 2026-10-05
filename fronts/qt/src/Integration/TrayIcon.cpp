@@ -15,6 +15,7 @@
 #include "NowPlaying.h"
 #include "PlaylistEditing.h"
 #include "Registry.h"
+#include "Tokens.h"
 #include "WindowHost.h"
 
 #ifdef Q_OS_WIN
@@ -82,6 +83,30 @@ bool panelIsAlwaysDark()
 } // namespace
 #endif
 
+namespace {
+
+// The context menu's own scheme. On Linux the menu is exported over D-Bus
+// and drawn by the desktop in its colors, whatever the app's theme
+// override is — so its glyphs follow the panel's scheme, like the tray
+// glyph. On Windows it's our own QMenu, styled like the rest of the app.
+Theme::Mode menuMode()
+{
+#ifdef Q_OS_WIN
+    return Theme::currentMode();
+#else
+    return panelIsAlwaysDark() || QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark
+        ? Theme::Mode::Dark
+        : Theme::Mode::Light;
+#endif
+}
+
+QIcon menuIcon(const QString& name, Theme::IconColor color, int pixelSize)
+{
+    return Theme::icon(name, color, pixelSize, menuMode());
+}
+
+} // namespace
+
 TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying, App::PlaylistEditing& playlistEditing,
     Hotkeys::Registry& hotkeys, QObject* parent)
     : QObject(parent)
@@ -138,10 +163,10 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     connect(&nowPlaying_, &NowPlaying::playingChanged, this, &TrayIcon::refreshPlaying);
     // The rest of the icons follow state, refreshed by the calls below.
     Theme::followTheme(menu, [this]() {
-        previousAction_->setIcon(Theme::icon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16));
-        nextAction_->setIcon(Theme::icon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16));
-        stopAction_->setIcon(Theme::icon(QStringLiteral("stop"), Theme::IconColor::Ink, 16));
-        playlistsMenu_->setIcon(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16));
+        previousAction_->setIcon(menuIcon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16));
+        nextAction_->setIcon(menuIcon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16));
+        stopAction_->setIcon(menuIcon(QStringLiteral("stop"), Theme::IconColor::Ink, 16));
+        playlistsMenu_->setIcon(menuIcon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16));
         refreshFeedbackActions();
         refreshPlaying();
         refreshShowHideAction();
@@ -214,7 +239,7 @@ void TrayIcon::refreshPlaying()
     const bool playing = nowPlaying_.playing();
     playPauseAction_->setText(playing ? tr("Pause") : tr("Play"));
     playPauseAction_->setIcon(
-        Theme::icon(playing ? QStringLiteral("pause") : QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16));
+        menuIcon(playing ? QStringLiteral("pause") : QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16));
 }
 
 void TrayIcon::refreshFeedbackActions()
@@ -223,12 +248,12 @@ void TrayIcon::refreshFeedbackActions()
     // Same look as the track context menu's: state by the icon, not a check.
     likeAction_->setVisible(feedback.likeSupported);
     likeAction_->setText(feedback.liked ? tr("Unlike") : tr("Like"));
-    likeAction_->setIcon(feedback.liked ? Theme::icon(QStringLiteral("favorite"), Theme::IconColor::Accent, 16)
-                                        : Theme::icon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16));
+    likeAction_->setIcon(feedback.liked ? menuIcon(QStringLiteral("favorite"), Theme::IconColor::Accent, 16)
+                                        : menuIcon(QStringLiteral("favorite_border"), Theme::IconColor::Ink, 16));
     dislikeAction_->setVisible(feedback.dislikeSupported);
     dislikeAction_->setText(feedback.disliked ? tr("Remove Dislike") : tr("Dislike"));
     dislikeAction_->setIcon(
-        Theme::icon(feedback.disliked ? QStringLiteral("heart_off") : QStringLiteral("heart_off_outline"),
+        menuIcon(feedback.disliked ? QStringLiteral("heart_off") : QStringLiteral("heart_off_outline"),
             feedback.disliked ? Theme::IconColor::Accent : Theme::IconColor::Ink, 16));
     playlistsMenu_->menuAction()->setVisible(feedback.playlistsSupported);
     feedbackSeparator_->setVisible(feedback.likeSupported || feedback.dislikeSupported || feedback.playlistsSupported);
@@ -266,7 +291,7 @@ void TrayIcon::refreshShowHideAction()
 {
     const bool onScreen = windowHost_.isOnScreen();
     showHideAction_->setText(onScreen ? tr("Hide") : tr("Show"));
-    showHideAction_->setIcon(Theme::icon(
+    showHideAction_->setIcon(menuIcon(
         onScreen ? QStringLiteral("visibility_off") : QStringLiteral("visibility"), Theme::IconColor::Ink, 16));
 }
 

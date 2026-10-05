@@ -114,10 +114,9 @@ void followTheme(QObject* context, std::function<void()> apply)
     apply();
 }
 
-QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize)
+QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize, Mode mode)
 {
     ensureInvalidationConnected();
-    const Mode mode = currentMode();
     const qreal dpr = devicePixelRatio();
     const QString key = cacheKey(svgPath, color, pixelSize, dpr, mode);
 
@@ -141,9 +140,19 @@ QIcon iconFromFile(const QString& svgPath, const QColor& color, int pixelSize)
     return QIcon(it.value());
 }
 
+QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize)
+{
+    return iconFromFile(svgPath, color, pixelSize, currentMode());
+}
+
 QIcon icon(const QString& name, IconColor color, int pixelSize)
 {
-    return iconFromFile(glyphPath(name), color, pixelSize);
+    return iconFromFile(glyphPath(name), color, pixelSize, currentMode());
+}
+
+QIcon icon(const QString& name, IconColor color, int pixelSize, Mode mode)
+{
+    return iconFromFile(glyphPath(name), color, pixelSize, mode);
 }
 
 QIcon iconWithColor(const QString& name, const QColor& color, int pixelSize)
