@@ -65,16 +65,38 @@ void Settings::setSettingsDialogGeometry(const QByteArray& geometry)
     settings_.setValue(QStringLiteral("settingsDialog/geometry"), geometry);
 }
 
-int Settings::sidebarWidth() const { return settings_.value(QStringLiteral("window/sidebarWidth"), 240).toInt(); }
+namespace {
+// A hand-edited or broken value can't shut a pane or push it past the other.
+double splitFraction(const QSettings& settings, const QString& key, double fallback)
+{
+    bool ok = false;
+    const double value = settings.value(key, fallback).toDouble(&ok);
+    return ok && value > 0.0 && value < 1.0 ? value : fallback;
+}
+} // namespace
 
-void Settings::setSidebarWidth(int width) { settings_.setValue(QStringLiteral("window/sidebarWidth"), width); }
+// Default a quarter: 240px of the default 960px window.
+double Settings::sidebarFraction() const
+{
+    return splitFraction(settings_, QStringLiteral("window/sidebarFraction"), 0.25);
+}
 
-// Default 430px favors the hero panel over the track list (~60/40 of the
-// ~720px content area left after the default 960px window width and 240px
-// sidebar), per the UI design.
-int Settings::heroPanelWidth() const { return settings_.value(QStringLiteral("window/heroPanelWidth"), 430).toInt(); }
+void Settings::setSidebarFraction(double fraction)
+{
+    settings_.setValue(QStringLiteral("window/sidebarFraction"), fraction);
+}
 
-void Settings::setHeroPanelWidth(int width) { settings_.setValue(QStringLiteral("window/heroPanelWidth"), width); }
+// Default 60/40 in favor of the hero panel over the track list, per the UI
+// design.
+double Settings::heroPanelFraction() const
+{
+    return splitFraction(settings_, QStringLiteral("window/heroPanelFraction"), 0.6);
+}
+
+void Settings::setHeroPanelFraction(double fraction)
+{
+    settings_.setValue(QStringLiteral("window/heroPanelFraction"), fraction);
+}
 
 Settings::ActivePlaylistRef Settings::lastActivePlaylist() const
 {

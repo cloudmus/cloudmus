@@ -50,11 +50,14 @@ public:
     QByteArray settingsDialogGeometry() const;
     void setSettingsDialogGeometry(const QByteArray& geometry);
 
-    int sidebarWidth() const;
-    void setSidebarWidth(int width);
+    // The share of its splitter the sidebar / hero panel takes, in (0, 1) —
+    // a fraction rather than pixels, so it comes back right at any window
+    // size and the panes keep scaling with the window.
+    double sidebarFraction() const;
+    void setSidebarFraction(double fraction);
 
-    int heroPanelWidth() const;
-    void setHeroPanelWidth(int width);
+    double heroPanelFraction() const;
+    void setHeroPanelFraction(double fraction);
 
     // The sidebar's collapsed rows, by ViewModel::SidebarModel::nodeKey() — every
     // other row starts expanded.

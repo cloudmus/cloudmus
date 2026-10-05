@@ -86,6 +86,24 @@ constexpr int kSidebarMinWidth = 134;
 constexpr int kHeroMinWidth = 260;
 constexpr int kTrackListMinWidth = 214;
 
+// The splitters keep QSplitter's default of scaling both panes with the
+// window, so the split is saved as the first pane's share. setSizes() takes
+// sizes that don't add up to the splitter's width (or come before it's laid
+// out) as a ratio, so any total works to restore it.
+QList<int> splitSizes(double fraction)
+{
+    constexpr int kTotal = 10000;
+    const int first = qRound(fraction * kTotal);
+    return { first, kTotal - first };
+}
+
+double firstPaneFraction(const QSplitter* splitter)
+{
+    const QList<int> sizes = splitter->sizes();
+    const int total = sizes.value(0) + sizes.value(1);
+    return total > 0 ? double(sizes.value(0)) / total : 0.5;
+}
+
 // A station as a HeroPanel promotes it (the sheet's radio page, and the
 // main screen before it starts): one without a description of its own
 // (YouTube's "My Supermix") says what it is, instead of a bare title.
@@ -308,14 +326,9 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     contentSplitter_->setChildrenCollapsible(false);
     heroPanel_->setMinimumWidth(kHeroMinWidth);
     trackListPane_->setMinimumWidth(kTrackListMinWidth);
-    // Only the list absorbs resizes, so the hero keeps its saved pixel width
-    // — with no stretch factor set QSplitter scales every pane by ratio, and
-    // a width saved in a maximized window came back wrong at any other size
-    // (and vice versa). Hence the list's 1 below: it gets the rest anyway.
-    contentSplitter_->setStretchFactor(1, 1);
-    contentSplitter_->setSizes({ settings_.heroPanelWidth(), 1 });
+    contentSplitter_->setSizes(splitSizes(settings_.heroPanelFraction()));
     connect(contentSplitter_, &QSplitter::splitterMoved, this,
-        [this]() { settings_.setHeroPanelWidth(contentSplitter_->sizes().first()); });
+        [this]() { settings_.setHeroPanelFraction(firstPaneFraction(contentSplitter_)); });
     trackListContainerLayout->addWidget(contentSplitter_, 1);
 
     // Shown instead of contentSplitter_ until there's an active playlist
@@ -387,11 +400,9 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // rows' icon + title + status icon need.
     splitter->setChildrenCollapsible(false);
     sidebarView_->setMinimumWidth(kSidebarMinWidth);
-    // Same as contentSplitter_: the sidebar keeps its saved pixel width.
-    splitter->setStretchFactor(1, 1);
-    splitter->setSizes({ settings_.sidebarWidth(), 1 });
+    splitter->setSizes(splitSizes(settings_.sidebarFraction()));
     connect(splitter, &QSplitter::splitterMoved, this,
-        [this, splitter]() { settings_.setSidebarWidth(splitter->sizes().first()); });
+        [this, splitter]() { settings_.setSidebarFraction(firstPaneFraction(splitter)); });
 
     toastNotifier_ = new ToastNotifier(this);
     // Whatever the core has to tell the user shows as a toast — on
@@ -1319,11 +1330,10 @@ void MainWindow::setTrackListVisible(bool visible)
 {
     trackListPane_->setVisible(visible);
     if (visible) {
-        // Restore the persisted hero width — exact in pixels, since only the
-        // list has a stretch factor and takes whatever is left. Correct
-        // whether this is the very first show or a restore right after a
-        // My Wave collapse.
-        contentSplitter_->setSizes({ settings_.heroPanelWidth(), 1 });
+        // Restore the persisted hero share of the splitter. Correct whether
+        // this is the very first show or a restore right after a My Wave
+        // collapse.
+        contentSplitter_->setSizes(splitSizes(settings_.heroPanelFraction()));
     } else {
         // Collapse: hand the whole splitter width to heroPanel_ — the
         // radioStation (My Wave) case, where there's no track list at all.
