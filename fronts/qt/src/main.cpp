@@ -223,20 +223,18 @@ int main(int argc, char** argv)
     app.installNativeEventFilter(&firstFrameBackground);
 #endif
     new Ui::ThemedToolTip(&app); // global service, not tied to any specific widget — see its own class doc
-    // A bare-SVG QIcon lets Qt's SVG engine render sharply at whatever
-    // size is *requested*, but under X11 (including XWayland) Qt still
-    // has to bake a handful of concrete raster sizes into the
-    // _NET_WM_ICON property — Alt+Tab/Present Windows-style switchers
-    // commonly read that property directly, unlike the taskbar/task
-    // manager widget (which resolves the icon via the .desktop file's
-    // Icon= key instead, matched through StartupWMClass/setDesktopFileName
-    // above) — confirmed in practice: the taskbar icon updated correctly
-    // on its own, but Alt+Tab kept showing a soft/blurry one. Without an
-    // explicit large size, whatever modest default Qt bakes in gets
-    // upscaled for Alt+Tab's bigger preview. Adding the already-bundled
-    // 512px PNG explicitly guarantees a genuinely sharp large variant.
-    QIcon appIcon(QStringLiteral(":/icons/icons/logo.svg"));
-    appIcon.addFile(QStringLiteral(":/icons/icons/logo.png"), QSize(512, 512));
+    // The window icon goes to the compositor as rasters — X11's
+    // _NET_WM_ICON, Wayland's xdg-toplevel-icon — in exactly the sizes
+    // QIcon::availableSizes() lists. Alt+Tab-style switchers show those
+    // rasters, unlike the taskbar (which takes the .desktop file's Icon=).
+    // A bare SVG lists no sizes, so Qt sends one modest default that gets
+    // upscaled blurry; a single 512px one gets downscaled by KWin with
+    // jagged edges. A ladder of sizes rendered from the SVG lets the
+    // compositor pick one close to what it draws.
+    const QIcon logo(QStringLiteral(":/icons/icons/logo.svg"));
+    QIcon appIcon;
+    for (int side : { 16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512 })
+        appIcon.addPixmap(logo.pixmap(QSize(side, side), 1.0));
     QApplication::setWindowIcon(appIcon);
     QApplication::setQuitOnLastWindowClosed(false); // closing to tray must not exit the app
 
