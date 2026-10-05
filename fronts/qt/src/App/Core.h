@@ -23,6 +23,7 @@
 #include "SourcePage.h"
 #include "SourceSession.h"
 #include "Sources.h"
+#include "StarPrompt.h"
 #include "TrackStates.h"
 #include "Translator.h"
 #include "UpdateChecker.h"
@@ -62,6 +63,7 @@ public:
     ViewModel::Browse& browse() { return browse_; }
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
     Update::UpdateChecker& updates() { return updates_; }
+    StarPrompt& starPrompt() { return starPrompt_; }
 
 private:
     // How a source reaches the network: its setting, except for a source
@@ -95,6 +97,7 @@ private:
     ViewModel::Browse browse_;
     ViewModel::SourcePage sourcePage_;
     Update::UpdateChecker updates_;
+    StarPrompt starPrompt_;
 };
 
 } // namespace App

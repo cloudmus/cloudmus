@@ -157,6 +157,23 @@ void Analytics::recordPlaylistChange(const QString& sourceId, bool added)
             { QStringLiteral("action"), added ? QStringLiteral("add") : QStringLiteral("remove") } });
 }
 
+void Analytics::recordStarPrompt(StarPromptAction action)
+{
+    QString value;
+    switch (action) {
+        case StarPromptAction::Shown:
+            value = QStringLiteral("shown");
+            break;
+        case StarPromptAction::Star:
+            value = QStringLiteral("star");
+            break;
+        case StarPromptAction::Dismiss:
+            value = QStringLiteral("dismiss");
+            break;
+    }
+    record(QStringLiteral("star_prompt"), { { QStringLiteral("action"), value } });
+}
+
 void Analytics::record(const QString& name, const QList<Param>& params)
 {
     if (!settings_.analyticsEnabled()) {

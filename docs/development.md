@@ -106,6 +106,10 @@ Installing works only from an AppImage (Linux) or an installed copy
 To test the Linux install itself, copy an old AppImage somewhere writable and
 run it with that flag: `CloudMus-0.2.0-x86_64.AppImage --update-from=0.0.1`.
 
+The GitHub star prompt normally shows once, on the third day the player is
+used. To try it, run with `--star-prompt`: it opens a couple of seconds after
+the window, and nothing is saved, so it comes back on every such run.
+
 Build the AppImage (needs only Docker; the Debian 11 build container in
 `packaging/appimage/` sets the glibc 2.31 floor):
 

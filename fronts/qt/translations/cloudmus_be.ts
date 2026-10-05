@@ -1181,6 +1181,29 @@ Do you agree to use downloads only this way?</source>
     </message>
 </context>
 <context>
+    <name>Ui::StarPromptFlow</name>
+    <message>
+        <source>Support CloudMus</source>
+        <translation>Падтрымаць CloudMus</translation>
+    </message>
+    <message>
+        <source>Enjoying CloudMus?</source>
+        <translation>Падабаецца CloudMus?</translation>
+    </message>
+    <message>
+        <source>If the player has found a place in your day, please give it a star on GitHub. It&apos;s easy for you and it makes the author happy.</source>
+        <translation>Калі плэер прыйшоўся вам даспадобы, пастаўце яму зорачку на GitHub. Вам няцяжка, а аўтару прыемна.</translation>
+    </message>
+    <message>
+        <source>Star on GitHub</source>
+        <translation>Паставіць зорачку</translation>
+    </message>
+    <message>
+        <source>No, thanks</source>
+        <translation>Не, дзякуй</translation>
+    </message>
+</context>
+<context>
     <name>Ui::TrackRowDelegate</name>
     <message>
         <source>Today</source>

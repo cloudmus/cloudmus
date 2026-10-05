@@ -50,6 +50,12 @@ public:
     void recordSourceOpened(const QString& sourceId);
     void recordDownload(const QString& sourceId, bool playlist, int savedCount);
     void recordPlaylistChange(const QString& sourceId, bool added);
+    enum class StarPromptAction {
+        Shown,
+        Star,
+        Dismiss
+    };
+    void recordStarPrompt(StarPromptAction action);
 
 private:
     struct Param {

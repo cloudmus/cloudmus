@@ -430,6 +430,23 @@ bool Settings::hiddenFavoriteHintShown() const
 
 void Settings::setHiddenFavoriteHintShown() { settings_.setValue(QStringLiteral("hints/hiddenFavorite"), true); }
 
+int Settings::starPromptUsageDays() const { return settings_.value(QStringLiteral("starPrompt/usageDays")).toInt(); }
+
+QDate Settings::starPromptLastUsageDay() const
+{
+    return QDate::fromString(settings_.value(QStringLiteral("starPrompt/lastUsageDay")).toString(), Qt::ISODate);
+}
+
+void Settings::setStarPromptUsage(int days, QDate lastDay)
+{
+    settings_.setValue(QStringLiteral("starPrompt/usageDays"), days);
+    settings_.setValue(QStringLiteral("starPrompt/lastUsageDay"), lastDay.toString(Qt::ISODate));
+}
+
+bool Settings::starPromptDone() const { return settings_.value(QStringLiteral("starPrompt/done")).toBool(); }
+
+void Settings::setStarPromptDone() { settings_.setValue(QStringLiteral("starPrompt/done"), true); }
+
 QList<ProxyConfig> Settings::proxies() const
 {
     QList<ProxyConfig> result;

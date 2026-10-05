@@ -13,10 +13,11 @@ namespace Ui {
 
 namespace {
 constexpr int kDialogWidth = 460;
+constexpr int kIconSize = 56;
 } // namespace
 
 InfoDialog::InfoDialog(const QString& title, const QString& heading, const QString& text, const QString& actionText,
-    QWidget* parent, const QString& closeText)
+    QWidget* parent, const QString& closeText, const QIcon& icon)
     : QDialog(parent)
 {
     setWindowTitle(title);
@@ -48,6 +49,14 @@ InfoDialog::InfoDialog(const QString& title, const QString& heading, const QStri
     root->setContentsMargins(
         Theme::Spacing::space6, Theme::Spacing::space6, Theme::Spacing::space6, Theme::Spacing::space5);
     root->setSpacing(Theme::Spacing::space3);
+    if (!icon.isNull()) {
+        auto* iconLabel = new QLabel(this);
+        iconLabel->setPixmap(icon.pixmap(kIconSize, kIconSize));
+        iconLabel->setAlignment(Qt::AlignCenter);
+        headingLabel->setAlignment(Qt::AlignCenter);
+        textLabel->setAlignment(Qt::AlignCenter);
+        root->addWidget(iconLabel);
+    }
     root->addWidget(headingLabel);
     root->addWidget(textLabel);
     root->addSpacing(Theme::Spacing::space3);

@@ -31,6 +31,7 @@
 #include "Settings.h"
 #include "Settings/GeneralPage.h"
 #include "SourceManager.h"
+#include "StarPromptFlow.h"
 #include "Style.h"
 #include "StyleSheet.h"
 #include "ThemedToolTip.h"
@@ -381,6 +382,10 @@ int main(int argc, char** argv)
     });
 
     Ui::UpdateFlow updateFlow(core.updates(), windowHost);
+    // --star-prompt: show the GitHub star prompt right away, to try it,
+    // without counting days or remembering it was shown.
+    Ui::StarPromptFlow starPromptFlow(
+        core.starPrompt(), windowHost, app.arguments().contains(QLatin1String("--star-prompt")));
 
     sourceManager.startAll();
 

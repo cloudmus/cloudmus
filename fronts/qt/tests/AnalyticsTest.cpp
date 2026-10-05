@@ -125,6 +125,7 @@ private slots:
         analytics.recordSourceOpened(QStringLiteral("youtube-music"));
         analytics.recordDownload(QStringLiteral("local-folder"), true, 3);
         analytics.recordPlaylistChange(QStringLiteral("yandex-music"), false);
+        analytics.recordStarPrompt(App::Analytics::StarPromptAction::Star);
         QTRY_COMPARE(network.requests.size(), 1);
         const auto& request = network.requests.first();
         QCOMPARE(request.url.path(), QStringLiteral("/g/collect"));
@@ -138,7 +139,7 @@ private slots:
         QVERIFY(request.userAgent.endsWith(") CloudMus/1.2.3"));
 
         const QList<QUrlQuery> events = request.bodyEvents();
-        QCOMPARE(events.size(), 5);
+        QCOMPARE(events.size(), 6);
         QCOMPARE(events[0].queryItemValue(QStringLiteral("en")), QStringLiteral("app_launch"));
         QCOMPARE(events[0].queryItemValue(QStringLiteral("ep.app_version")), QStringLiteral("1.2.3"));
         QCOMPARE(events[1].queryItemValue(QStringLiteral("ep.source")), QStringLiteral("other"));
@@ -146,6 +147,8 @@ private slots:
         QCOMPARE(events[3].queryItemValue(QStringLiteral("ep.kind")), QStringLiteral("playlist"));
         QCOMPARE(events[3].queryItemValue(QStringLiteral("epn.saved_count")), QStringLiteral("3"));
         QCOMPARE(events[4].queryItemValue(QStringLiteral("ep.action")), QStringLiteral("remove"));
+        QCOMPARE(events[5].queryItemValue(QStringLiteral("en")), QStringLiteral("star_prompt"));
+        QCOMPARE(events[5].queryItemValue(QStringLiteral("ep.action")), QStringLiteral("star"));
         QVERIFY(!request.body.contains("personal-source-id"));
         QVERIFY(!request.url.toString().contains(QStringLiteral("personal-source-id")));
     }

@@ -8,9 +8,10 @@ random installation ID, which is stored in the Qt front's `config.ini`
 along with a count of the app's runs (GA4's session number).
 
 Events cover app launches, playback starts, opening a source, completed
-downloads, and adding or removing a track from a playlist. Requests contain
-the app version, a category for built-in sources, and where relevant the
-download type/count or playlist action. They do not contain track or playlist
+downloads, adding or removing a track from a playlist, and the one-time
+GitHub star prompt (shown, then "star" or "dismiss"). Requests contain the
+app version, a category for built-in sources, and where relevant the
+download type/count, playlist action or star prompt answer. They do not contain track or playlist
 names or IDs, account details, or arbitrary backend data. Each request also
 carries the preferred system UI language (e.g. `ru-ru`), the primary
 screen's size, and a `User-Agent` naming the OS and the app, e.g.

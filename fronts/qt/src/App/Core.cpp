@@ -22,6 +22,7 @@ Core::Core(QObject* parent)
           playlistEditing_, messages_)
     , sourcePage_(sourceSession_)
     , updates_(settings_)
+    , starPrompt_(settings_, analytics_)
 {
     // The language first: whatever is created or spawned below already
     // speaks it.
@@ -42,6 +43,7 @@ Core::Core(QObject* parent)
             playbackHistory_.record(sourceId, track);
             trackStates_.setLastPlayed(sourceId, track.id, QDateTime::currentDateTimeUtc());
             analytics_.recordPlayback(sourceId);
+            starPrompt_.recordUsage();
         });
     connect(&downloads_, &ViewModel::Downloads::completed, &analytics_, &Analytics::recordDownload);
     connect(&hotkeyDispatcher_, &Hotkeys::Dispatcher::cueRequested, &cuePlayer_, &Playback::CuePlayer::play);

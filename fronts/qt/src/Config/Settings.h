@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QDate>
 #include <QList>
 #include <QSettings>
 #include <QSize>
@@ -189,6 +190,14 @@ public:
     // favorites went (MainWindow::toggleFavorite()).
     bool hiddenFavoriteHintShown() const;
     void setHiddenFavoriteHintShown();
+
+    // The GitHub star prompt (App::StarPrompt): how many distinct days the
+    // player was used on, the last of them, and whether it was shown.
+    int starPromptUsageDays() const;
+    QDate starPromptLastUsageDay() const;
+    void setStarPromptUsage(int days, QDate lastDay);
+    bool starPromptDone() const;
+    void setStarPromptDone();
 
     // Subfolders of the download folder a track is saved into — see
     // Library::downloadDirectoryFor().

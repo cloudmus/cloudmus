@@ -1181,6 +1181,29 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
     </message>
 </context>
 <context>
+    <name>Ui::StarPromptFlow</name>
+    <message>
+        <source>Support CloudMus</source>
+        <translation>Soutenir CloudMus</translation>
+    </message>
+    <message>
+        <source>Enjoying CloudMus?</source>
+        <translation>CloudMus vous plaît ?</translation>
+    </message>
+    <message>
+        <source>If the player has found a place in your day, please give it a star on GitHub. It&apos;s easy for you and it makes the author happy.</source>
+        <translation>Si le lecteur a trouvé sa place dans votre quotidien, donnez-lui une étoile sur GitHub. C’est facile pour vous et ça fait plaisir à l’auteur.</translation>
+    </message>
+    <message>
+        <source>Star on GitHub</source>
+        <translation>Mettre une étoile sur GitHub</translation>
+    </message>
+    <message>
+        <source>No, thanks</source>
+        <translation>Non, merci</translation>
+    </message>
+</context>
+<context>
     <name>Ui::TrackRowDelegate</name>
     <message>
         <source>Today</source>

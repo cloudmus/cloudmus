@@ -23,6 +23,7 @@ QObject* makeUpdateTest();
 QObject* makeHotkeysTest();
 QObject* makeI18nTest();
 QObject* makeAudioPulseTest();
+QObject* makeStarPromptTest();
 int runCrashReporterChildIfAsked(int argc, char** argv);
 }
 
@@ -47,7 +48,7 @@ int main(int argc, char** argv)
              Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
              Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
              Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeHotkeysTest, Tests::makeI18nTest,
-             Tests::makeAudioPulseTest }) {
+             Tests::makeAudioPulseTest, Tests::makeStarPromptTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

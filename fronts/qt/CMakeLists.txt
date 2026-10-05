@@ -131,6 +131,7 @@ add_library(cloudmus-core STATIC
     src/App/SourceSession.cpp
     src/App/PlaylistEditing.cpp
     src/App/TrackFetch.cpp
+    src/App/StarPrompt.cpp
 
     src/Hotkeys/Actions.cpp
     src/Hotkeys/Registry.cpp
@@ -250,6 +251,7 @@ add_library(cloudmus-ui STATIC
     src/Ui/InfoDialog.cpp
     src/Ui/UpdateDialog.cpp
     src/Ui/UpdateFlow.cpp
+    src/Ui/StarPromptFlow.cpp
     src/Ui/NavItemDelegate.cpp
     src/Ui/SidebarTreeView.cpp
     src/Ui/TrackListModel.cpp
@@ -475,6 +477,7 @@ add_executable(cloudmus-qt-tests
     tests/HotkeysTest.cpp
     tests/I18nTest.cpp
     tests/AudioPulseTest.cpp
+    tests/StarPromptTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
