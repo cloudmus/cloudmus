@@ -58,16 +58,16 @@
         <translation>Modo silencioso activado / desactivado</translation>
     </message>
     <message>
-        <source>Like or unlike the current track</source>
-        <translation>Marcar o quitar «Me gusta» de la pista actual</translation>
+        <source>Like / unlike</source>
+        <translation>Marcar / quitar «Me gusta»</translation>
     </message>
     <message>
-        <source>Dislike or undo dislike of the current track</source>
-        <translation>Marcar o quitar «No me gusta» de la pista actual</translation>
+        <source>Dislike / remove dislike</source>
+        <translation>Marcar / quitar «No me gusta»</translation>
     </message>
     <message>
-        <source>Download the current track</source>
-        <translation>Descargar la pista actual</translation>
+        <source>Download track</source>
+        <translation>Descargar pista</translation>
     </message>
 </context>
 <context>
@@ -334,8 +334,20 @@
         <translation>Copiar la versión</translation>
     </message>
     <message>
-        <source>A beautiful desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation>Un bonito reproductor de música de escritorio para todos tus servicios musicales a la vez. Servicios de streaming y tu carpeta de música local en una sola aplicación rápida, con los mismos controles para cada servicio.</translation>
+        <source>A desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
+        <translation>Un reproductor de música de escritorio para todos tus servicios musicales a la vez. Servicios de streaming y tu carpeta de música local en una sola aplicación rápida, con los mismos controles para cada servicio.</translation>
+    </message>
+    <message>
+        <source>Beautiful interface</source>
+        <translation>Interfaz atractiva</translation>
+    </message>
+    <message>
+        <source>Unique features of its own</source>
+        <translation>Funciones únicas</translation>
+    </message>
+    <message>
+        <source>Tight desktop integration</source>
+        <translation>Estrecha integración con el escritorio</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

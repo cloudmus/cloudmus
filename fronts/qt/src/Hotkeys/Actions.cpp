@@ -27,13 +27,12 @@ const QList<ActionInfo>& actions()
             chord(Qt::Key_Down), true, true },
         { Action::ToggleQuiet, QStringLiteral("toggleQuiet"), QT_TRANSLATE_NOOP("Hotkeys", "Quiet mode on / off"),
             chord(Qt::Key_Q), true, true },
-        { Action::Like, QStringLiteral("like"), QT_TRANSLATE_NOOP("Hotkeys", "Like or unlike the current track"),
-            chord(Qt::Key_L), true, true },
-        { Action::Dislike, QStringLiteral("dislike"),
-            QT_TRANSLATE_NOOP("Hotkeys", "Dislike or undo dislike of the current track"), chord(Qt::Key_D), true,
+        { Action::Like, QStringLiteral("like"), QT_TRANSLATE_NOOP("Hotkeys", "Like / unlike"), chord(Qt::Key_L), true,
             true },
-        { Action::Download, QStringLiteral("download"), QT_TRANSLATE_NOOP("Hotkeys", "Download the current track"),
-            QKeySequence(), true, true },
+        { Action::Dislike, QStringLiteral("dislike"), QT_TRANSLATE_NOOP("Hotkeys", "Dislike / remove dislike"),
+            chord(Qt::Key_D), true, true },
+        { Action::Download, QStringLiteral("download"), QT_TRANSLATE_NOOP("Hotkeys", "Download track"), QKeySequence(),
+            true, true },
     };
     return list;
 }

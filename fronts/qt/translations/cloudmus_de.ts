@@ -58,16 +58,16 @@
         <translation>Leisemodus an / aus</translation>
     </message>
     <message>
-        <source>Like or unlike the current track</source>
-        <translation>Aktuellen Titel mit „Gefällt mir“ markieren oder die Markierung entfernen</translation>
+        <source>Like / unlike</source>
+        <translation>„Gefällt mir“ setzen/entfernen</translation>
     </message>
     <message>
-        <source>Dislike or undo dislike of the current track</source>
-        <translation>Aktuellen Titel mit „Gefällt mir nicht“ markieren oder die Markierung entfernen</translation>
+        <source>Dislike / remove dislike</source>
+        <translation>„Gefällt mir nicht“ setzen/entfernen</translation>
     </message>
     <message>
-        <source>Download the current track</source>
-        <translation>Aktuellen Titel herunterladen</translation>
+        <source>Download track</source>
+        <translation>Titel herunterladen</translation>
     </message>
 </context>
 <context>
@@ -334,8 +334,20 @@
         <translation>Version kopieren</translation>
     </message>
     <message>
-        <source>A beautiful desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation>Ein schöner Desktop-Musikplayer für alle Ihre Musikdienste auf einmal. Streamingdienste und Ihr lokaler Musikordner in einer schnellen App, mit denselben Bedienelementen für jeden Dienst.</translation>
+        <source>A desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
+        <translation>Ein Desktop-Musikplayer für alle Ihre Musikdienste auf einmal. Streamingdienste und Ihr lokaler Musikordner in einer schnellen App, mit denselben Bedienelementen für jeden Dienst.</translation>
+    </message>
+    <message>
+        <source>Beautiful interface</source>
+        <translation>Schöne Oberfläche</translation>
+    </message>
+    <message>
+        <source>Unique features of its own</source>
+        <translation>Einzigartige Funktionen</translation>
+    </message>
+    <message>
+        <source>Tight desktop integration</source>
+        <translation>Enge Desktop-Integration</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

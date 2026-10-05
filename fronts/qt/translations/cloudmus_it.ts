@@ -58,16 +58,16 @@
         <translation>Modalità silenziosa on / off</translation>
     </message>
     <message>
-        <source>Like or unlike the current track</source>
-        <translation>Metti o togli «Mi piace» al brano corrente</translation>
+        <source>Like / unlike</source>
+        <translation>Metti/togli «Mi piace»</translation>
     </message>
     <message>
-        <source>Dislike or undo dislike of the current track</source>
-        <translation>Metti o togli «Non mi piace» al brano corrente</translation>
+        <source>Dislike / remove dislike</source>
+        <translation>Metti/togli «Non mi piace»</translation>
     </message>
     <message>
-        <source>Download the current track</source>
-        <translation>Scarica il brano corrente</translation>
+        <source>Download track</source>
+        <translation>Scarica brano</translation>
     </message>
 </context>
 <context>
@@ -334,8 +334,20 @@
         <translation>Copia la versione</translation>
     </message>
     <message>
-        <source>A beautiful desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation>Un bel lettore musicale desktop per tutti i tuoi servizi musicali in una volta. Servizi di streaming e la tua cartella di musica locale in un’unica app veloce, con gli stessi controlli per ogni servizio.</translation>
+        <source>A desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
+        <translation>Un lettore musicale desktop per tutti i tuoi servizi musicali in una volta. Servizi di streaming e la tua cartella di musica locale in un’unica app veloce, con gli stessi controlli per ogni servizio.</translation>
+    </message>
+    <message>
+        <source>Beautiful interface</source>
+        <translation>Interfaccia curata</translation>
+    </message>
+    <message>
+        <source>Unique features of its own</source>
+        <translation>Funzionalità uniche</translation>
+    </message>
+    <message>
+        <source>Tight desktop integration</source>
+        <translation>Stretta integrazione con il desktop</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

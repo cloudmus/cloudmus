@@ -58,16 +58,16 @@
         <translation>Ціхі рэжым укл. / выкл.</translation>
     </message>
     <message>
-        <source>Like or unlike the current track</source>
-        <translation>Паставіць або зняць «Падабаецца» бягучаму трэку</translation>
+        <source>Like / unlike</source>
+        <translation>Паставіць/зняць «Падабаецца»</translation>
     </message>
     <message>
-        <source>Dislike or undo dislike of the current track</source>
-        <translation>Паставіць або зняць «Не падабаецца» бягучаму трэку</translation>
+        <source>Dislike / remove dislike</source>
+        <translation>Паставіць/зняць «Не падабаецца»</translation>
     </message>
     <message>
-        <source>Download the current track</source>
-        <translation>Спампаваць бягучы трэк</translation>
+        <source>Download track</source>
+        <translation>Спампаваць трэк</translation>
     </message>
 </context>
 <context>
@@ -334,8 +334,20 @@
         <translation>Скапіяваць версію</translation>
     </message>
     <message>
-        <source>A beautiful desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation>Прыгожы настольны музычны плэер для ўсіх вашых музычных сэрвісаў адначасова. Стрымінгавыя сэрвісы і ваша лакальная тэчка з музыкай у адной хуткай праграме з аднолькавым кіраваннем для кожнага сэрвісу.</translation>
+        <source>A desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
+        <translation>Музычны плэер для ўсіх вашых сэрвісаў адначасова. Стрымінгавыя сэрвісы і лакальная тэчка з музыкай — у адной хуткай праграме з аднолькавым кіраваннем.</translation>
+    </message>
+    <message>
+        <source>Beautiful interface</source>
+        <translation>Прыгожы інтэрфейс</translation>
+    </message>
+    <message>
+        <source>Unique features of its own</source>
+        <translation>Унікальныя магчымасці</translation>
+    </message>
+    <message>
+        <source>Tight desktop integration</source>
+        <translation>Цесная інтэграцыя з працоўным сталом</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

@@ -70,7 +70,7 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
 
     auto* grid = new QGridLayout;
     grid->setHorizontalSpacing(Theme::Spacing::space3);
-    grid->setVerticalSpacing(Theme::Spacing::space1);
+    grid->setVerticalSpacing(Theme::Spacing::space2);
     grid->setColumnStretch(0, 1);
     const auto heading = [&](const QString& text, int column) {
         auto* label = new QLabel(text.toUpper(), widget);

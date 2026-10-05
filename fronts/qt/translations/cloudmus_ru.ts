@@ -58,16 +58,16 @@
         <translation>Тихий режим вкл. / выкл.</translation>
     </message>
     <message>
-        <source>Like or unlike the current track</source>
-        <translation>Поставить или снять «Нравится» текущему треку</translation>
+        <source>Like / unlike</source>
+        <translation>Поставить/снять «Нравится»</translation>
     </message>
     <message>
-        <source>Dislike or undo dislike of the current track</source>
-        <translation>Поставить или снять «Не нравится» текущему треку</translation>
+        <source>Dislike / remove dislike</source>
+        <translation>Поставить/снять «Не нравится»</translation>
     </message>
     <message>
-        <source>Download the current track</source>
-        <translation>Скачать текущий трек</translation>
+        <source>Download track</source>
+        <translation>Скачать трек</translation>
     </message>
 </context>
 <context>
@@ -334,8 +334,20 @@
         <translation>Копировать версию</translation>
     </message>
     <message>
-        <source>A beautiful desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation>Красивый настольный музыкальный плеер для всех ваших музыкальных сервисов сразу. Стриминговые сервисы и ваша локальная папка с музыкой в одном быстром приложении, с одинаковым управлением для каждого сервиса.</translation>
+        <source>A desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
+        <translation>Музыкальный плеер для всех ваших сервисов сразу. Стриминговые сервисы и локальная папка с музыкой — в одном быстром приложении с единым управлением.</translation>
+    </message>
+    <message>
+        <source>Beautiful interface</source>
+        <translation>Красивый интерфейс</translation>
+    </message>
+    <message>
+        <source>Unique features of its own</source>
+        <translation>Уникальные возможности</translation>
+    </message>
+    <message>
+        <source>Tight desktop integration</source>
+        <translation>Тесная интеграция с рабочим столом</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

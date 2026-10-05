@@ -21,7 +21,7 @@ namespace Ui::Settings {
 
 namespace {
 constexpr int kColumnTopMargin = Theme::Spacing::space5;
-constexpr int kSectionMaxWidth = 640;
+constexpr int kSectionMaxWidth = 720;
 constexpr int kFlashMs = 1400;
 } // namespace
 

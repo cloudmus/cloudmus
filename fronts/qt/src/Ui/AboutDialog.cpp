@@ -123,10 +123,19 @@ AboutDialog::AboutDialog(QWidget* parent)
 
     // --- description
     description_
-        = makeLabel(tr("A beautiful desktop music player for all your music services at once. Streaming services "
+        = makeLabel(tr("A desktop music player for all your music services at once. Streaming services "
                        "and your local music folder in one fast app, with the same controls for every service."),
             Theme::TextStyle::Body, this);
     description_->setAlignment(Qt::AlignCenter);
+
+    // What sets it apart, in a few words.
+    auto* advantagesLabel = makeLabel(
+        QStringLiteral("•  %1<br>•  %2<br>•  %3")
+            .arg(tr("Beautiful interface").toHtmlEscaped(), tr("Unique features of its own").toHtmlEscaped(),
+                tr("Tight desktop integration").toHtmlEscaped()),
+        Theme::TextStyle::Body, this);
+    advantagesLabel->setTextFormat(Qt::RichText);
+    advantagesLabel->setAlignment(Qt::AlignCenter);
 
     auto* projectLabel = makeLabel(
         link(QStringLiteral("https://github.com/cloudmus/cloudmus"), QStringLiteral("github.com/cloudmus/cloudmus")),
@@ -223,6 +232,7 @@ AboutDialog::AboutDialog(QWidget* parent)
     root->addLayout(header);
     root->addSpacing(Theme::Spacing::space4);
     root->addWidget(description_);
+    root->addWidget(advantagesLabel);
     root->addWidget(projectLabel);
     root->addSpacing(Theme::Spacing::space4);
     root->addLayout(tabRow);

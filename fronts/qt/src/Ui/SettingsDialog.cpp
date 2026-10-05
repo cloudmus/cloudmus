@@ -35,6 +35,8 @@ namespace Ui {
 
 namespace {
 constexpr int kSidebarWidth = 200;
+// Wide enough for the longest translations of the shortcuts' table.
+constexpr int kOpenWidth = 960;
 // A sidebar row's index into pages_ — rows and pages differ once section
 // headings are in (see addPage()). Past ViewModel::SidebarModel's own roles.
 constexpr int kPageIndexRole = Qt::UserRole + 100;
@@ -51,7 +53,9 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, App::Analytics& analy
     setProperty("themed", true); // see StyleSheet.cpp's dialogsBlock() for why
     setMinimumSize(640, 420);
     if (!restoreGeometry(settings_.settingsDialogGeometry()))
-        resize(820, 600);
+        resize(kOpenWidth, 600);
+    else if (width() < kOpenWidth) // saved before the dialog grew
+        resize(kOpenWidth, height());
 
     // --- sidebar
     sidebarModel_ = new QStandardItemModel(this);
