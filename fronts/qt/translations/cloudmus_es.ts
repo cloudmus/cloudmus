@@ -334,24 +334,8 @@
         <translation>Copiar la versión</translation>
     </message>
     <message>
-        <source>A modern music player for all your services and your local collection.</source>
-        <translation>Un reproductor de música moderno para todos tus servicios y tu colección local.</translation>
-    </message>
-    <message>
-        <source>Brings streaming and local files together in a lightweight app with a striking translucent interface and advanced controls.</source>
-        <translation>Reúne el streaming y los archivos locales en una aplicación ligera con una llamativa interfaz translúcida y funciones de control avanzadas.</translation>
-    </message>
-    <message>
-        <source>Modern translucent design and deep desktop integration</source>
-        <translation>Diseño moderno translúcido e integración profunda con el escritorio</translation>
-    </message>
-    <message>
-        <source>Autostart, volume ducking, many languages, and a minimal system footprint</source>
-        <translation>Inicio automático, atenuación del volumen, muchos idiomas y un consumo mínimo de recursos</translation>
-    </message>
-    <message>
-        <source>Streaming services and local music in one window</source>
-        <translation>Servicios de streaming y música local en una sola ventana</translation>
+        <source>A lightweight music player for all your services and your local collection, with a striking translucent interface and advanced controls.</source>
+        <translation>Un reproductor de música ligero para todos tus servicios y tu colección local, con una llamativa interfaz translúcida y controles avanzados.</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

@@ -123,25 +123,10 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
     header->addStretch(1);
 
     // --- description
-    // A tagline, then what it does — a blank line apart.
-    description_ = makeLabel(tr("A modern music player for all your services and your local collection.")
-            + QStringLiteral("\n\n")
-            + tr("Brings streaming and local files together in a lightweight app with a striking translucent "
-                 "interface and advanced controls."),
+    description_ = makeLabel(tr("A lightweight music player for all your services and your local collection, with a "
+                                 "striking translucent interface and advanced controls."),
         Theme::TextStyle::Body, this);
     description_->setAlignment(Qt::AlignCenter);
-
-    // What sets it apart, in a few words.
-    auto* advantagesLabel
-        = makeLabel(QStringLiteral("•  %1<br>•  %2<br>•  %3")
-                        .arg(tr("Modern translucent design and deep desktop integration").toHtmlEscaped(),
-                            tr("Streaming services and local music in one window").toHtmlEscaped(),
-                            tr("Autostart, volume ducking, many languages, and a minimal system "
-                               "footprint")
-                                .toHtmlEscaped()),
-            Theme::TextStyle::Body, this);
-    advantagesLabel->setTextFormat(Qt::RichText);
-    advantagesLabel->setAlignment(Qt::AlignCenter);
 
     auto* projectLabel = makeLabel(
         link(QStringLiteral("https://github.com/cloudmus/cloudmus"), QStringLiteral("github.com/cloudmus/cloudmus")),
@@ -238,7 +223,6 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
     root->addLayout(header);
     root->addSpacing(Theme::Spacing::space4);
     root->addWidget(description_);
-    root->addWidget(advantagesLabel);
     root->addWidget(projectLabel);
     root->addSpacing(Theme::Spacing::space4);
     root->addLayout(tabRow);

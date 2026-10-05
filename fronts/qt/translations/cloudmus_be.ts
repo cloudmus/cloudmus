@@ -334,24 +334,8 @@
         <translation>Скапіяваць версію</translation>
     </message>
     <message>
-        <source>A modern music player for all your services and your local collection.</source>
-        <translation>Сучасны музычны плэер для ўсіх вашых сэрвісаў і лакальнай калекцыі.</translation>
-    </message>
-    <message>
-        <source>Brings streaming and local files together in a lightweight app with a striking translucent interface and advanced controls.</source>
-        <translation>Аб’ядноўвае стрымінгі і лакальныя файлы ў лёгкай праграме з эфектным напаўпразрыстым інтэрфейсам і прасунутымі функцыямі кіравання.</translation>
-    </message>
-    <message>
-        <source>Modern translucent design and deep desktop integration</source>
-        <translation>Напаўпразрысты сучасны дызайн і глыбокая інтэграцыя з працоўным сталом</translation>
-    </message>
-    <message>
-        <source>Autostart, volume ducking, many languages, and a minimal system footprint</source>
-        <translation>Аўтазапуск, прыглушэнне гуку, падтрымка мноства моў і мінімальная нагрузка на сістэму</translation>
-    </message>
-    <message>
-        <source>Streaming services and local music in one window</source>
-        <translation>Стрымінгавыя сэрвісы і лакальная музыка ў адным акне</translation>
+        <source>A lightweight music player for all your services and your local collection, with a striking translucent interface and advanced controls.</source>
+        <translation>Лёгкі музычны плэер для ўсіх вашых сэрвісаў і лакальнай калекцыі, з эфектным паўпразрыстым інтэрфейсам і пашыранымі функцыямі кіравання.</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>
