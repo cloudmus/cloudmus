@@ -195,7 +195,8 @@ private slots:
         nowPlaying_->setVolume(80);
         dispatcher_->trigger(Hotkeys::Action::ToggleQuiet);
         QVERIFY(nowPlaying_->quiet());
-        QCOMPARE(notices.count(), 1);
+        // Quiet by default: the slider already shows the change.
+        QCOMPARE(notices.count(), 0);
         // The slider now shows the quiet level, and editing it leaves the normal one alone.
         QCOMPARE(nowPlaying_->volume(), settings_->quietVolume());
         nowPlaying_->setVolume(15);
@@ -208,6 +209,13 @@ private slots:
         QCOMPARE(nowPlaying_->volume(), 80);
         QCOMPARE(settings_->quietVolume(), 15);
         QVERIFY(!settings_->quiet());
+
+        // Turned on in the settings, it says so.
+        QList<Hotkeys::Binding> bindings = registry_->bindings();
+        bindingOf(bindings, Hotkeys::Action::ToggleQuiet).notify = true;
+        registry_->setBindings(bindings);
+        dispatcher_->trigger(Hotkeys::Action::ToggleQuiet);
+        QCOMPARE(notices.count(), 1);
     }
 
     void aLikeKeyLikesThenUnlikes()
@@ -235,6 +243,11 @@ private slots:
         // A dislike moves on to t2 at once.
         play({ track(QStringLiteral("t1")), track(QStringLiteral("t2")) });
         QSignalSpy notices(dispatcher_.get(), &Hotkeys::Dispatcher::noticeRequested);
+        // Off by default: the sound and the track moving on already say it.
+        QVERIFY(!registry_->binding(Hotkeys::Action::Dislike).notify);
+        QList<Hotkeys::Binding> bindings = registry_->bindings();
+        bindingOf(bindings, Hotkeys::Action::Dislike).notify = true;
+        registry_->setBindings(bindings);
 
         dispatcher_->trigger(Hotkeys::Action::Dislike);
         QCOMPARE(notices.count(), 1);
