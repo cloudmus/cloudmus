@@ -37,7 +37,7 @@ public:
 #ifdef Q_OS_WIN
     explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "wasapi");
 #else
-    explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "pulse,alsa");
+    explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "pipewire,pulse,alsa");
 #endif
     ~AudioPlayer() override;
 

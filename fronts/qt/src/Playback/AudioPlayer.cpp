@@ -53,11 +53,20 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
 
     // Audio only: no video output means no GPU context ever gets created
     // for it (see git log for why that matters on hybrid Intel+NVIDIA
-    // laptops). ao=pulse,alsa mirrors fronts/tui/playback_engine.py — mpv's
-    // native PipeWire output was unreliable there; route through
-    // pulse/pipewire-pulse or alsa instead.
+    // laptops). Native PipeWire first: through pipewire-pulse the same
+    // playback costs ~3x the CPU (7.8% vs 2.6% of a core, measured on
+    // libmpv 0.41 with a Bluetooth sink) — libpulse wakes ~400 times a
+    // second. It was dropped once (commit 322cd07): a libpipewire bundled
+    // with the app and a system server of another version break locking
+    // inside pw_stream_*. A build against the system's libmpv is safe; a
+    // bundle isn't, so the AppImage keeps to pulse/alsa — its libmpv 0.32
+    // has no pipewire output yet, this guards a future base image. A libmpv
+    // without pipewire skips the unknown entry anyway.
+    QByteArray output = audioOutput;
+    if (qEnvironmentVariableIsSet("APPIMAGE") && output.startsWith("pipewire,"))
+        output.remove(0, int(sizeof("pipewire,")) - 1);
     mpv_set_option_string(mpv_, "vid", "no");
-    mpv_set_option_string(mpv_, "ao", audioOutput.constData());
+    mpv_set_option_string(mpv_, "ao", output.constData());
     mpv_set_option_string(mpv_, "gapless-audio", "yes");
     // Without these, mpv reports itself to PipeWire/Pulse (and thus to the
     // desktop's per-stream volume widget) as "mpv" playing a title derived
