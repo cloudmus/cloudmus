@@ -338,16 +338,16 @@
         <translation>Музыкальный плеер для всех ваших сервисов сразу. Стриминговые сервисы и локальная папка с музыкой — в одном быстром приложении с единым управлением.</translation>
     </message>
     <message>
-        <source>Beautiful interface</source>
-        <translation>Красивый интерфейс</translation>
+        <source>All music services in one place</source>
+        <translation>Все музыкальные сервисы в одном месте</translation>
     </message>
     <message>
-        <source>Unique features of its own</source>
-        <translation>Уникальные возможности</translation>
+        <source>Unique features and tight desktop integration</source>
+        <translation>Уникальные возможности и тесная интеграция с рабочим столом</translation>
     </message>
     <message>
-        <source>Tight desktop integration</source>
-        <translation>Тесная интеграция с рабочим столом</translation>
+        <source>Beautiful multilingual interface</source>
+        <translation>Красивый многоязычный интерфейс</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

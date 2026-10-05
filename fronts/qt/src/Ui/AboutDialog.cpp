@@ -129,11 +129,12 @@ AboutDialog::AboutDialog(QWidget* parent)
     description_->setAlignment(Qt::AlignCenter);
 
     // What sets it apart, in a few words.
-    auto* advantagesLabel = makeLabel(
-        QStringLiteral("•  %1<br>•  %2<br>•  %3")
-            .arg(tr("Beautiful interface").toHtmlEscaped(), tr("Unique features of its own").toHtmlEscaped(),
-                tr("Tight desktop integration").toHtmlEscaped()),
-        Theme::TextStyle::Body, this);
+    auto* advantagesLabel
+        = makeLabel(QStringLiteral("•  %1<br>•  %2<br>•  %3")
+                        .arg(tr("All music services in one place").toHtmlEscaped(),
+                            tr("Beautiful multilingual interface").toHtmlEscaped(),
+                            tr("Unique features and tight desktop integration").toHtmlEscaped()),
+            Theme::TextStyle::Body, this);
     advantagesLabel->setTextFormat(Qt::RichText);
     advantagesLabel->setAlignment(Qt::AlignCenter);
 

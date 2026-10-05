@@ -338,16 +338,16 @@
         <translation>Un lecteur de musique de bureau pour tous vos services musicaux à la fois. Services de streaming et dossier de musique local dans une seule application rapide, avec les mêmes commandes pour chaque service.</translation>
     </message>
     <message>
-        <source>Beautiful interface</source>
-        <translation>Une belle interface</translation>
+        <source>All music services in one place</source>
+        <translation>Tous vos services musicaux au même endroit</translation>
     </message>
     <message>
-        <source>Unique features of its own</source>
-        <translation>Des fonctions uniques</translation>
+        <source>Unique features and tight desktop integration</source>
+        <translation>Fonctions uniques et intégration poussée au bureau</translation>
     </message>
     <message>
-        <source>Tight desktop integration</source>
-        <translation>Intégration poussée au bureau</translation>
+        <source>Beautiful multilingual interface</source>
+        <translation>Belle interface multilingue</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

@@ -338,16 +338,16 @@
         <translation>Un lettore musicale desktop per tutti i tuoi servizi musicali in una volta. Servizi di streaming e la tua cartella di musica locale in un’unica app veloce, con gli stessi controlli per ogni servizio.</translation>
     </message>
     <message>
-        <source>Beautiful interface</source>
-        <translation>Interfaccia curata</translation>
+        <source>All music services in one place</source>
+        <translation>Tutti i servizi musicali in un unico posto</translation>
     </message>
     <message>
-        <source>Unique features of its own</source>
-        <translation>Funzionalità uniche</translation>
+        <source>Unique features and tight desktop integration</source>
+        <translation>Funzionalità uniche e stretta integrazione con il desktop</translation>
     </message>
     <message>
-        <source>Tight desktop integration</source>
-        <translation>Stretta integrazione con il desktop</translation>
+        <source>Beautiful multilingual interface</source>
+        <translation>Interfaccia curata e multilingue</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

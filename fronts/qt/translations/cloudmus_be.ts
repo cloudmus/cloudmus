@@ -338,16 +338,16 @@
         <translation>Музычны плэер для ўсіх вашых сэрвісаў адначасова. Стрымінгавыя сэрвісы і лакальная тэчка з музыкай — у адной хуткай праграме з аднолькавым кіраваннем.</translation>
     </message>
     <message>
-        <source>Beautiful interface</source>
-        <translation>Прыгожы інтэрфейс</translation>
+        <source>All music services in one place</source>
+        <translation>Усе музычныя сэрвісы ў адным месцы</translation>
     </message>
     <message>
-        <source>Unique features of its own</source>
-        <translation>Унікальныя магчымасці</translation>
+        <source>Unique features and tight desktop integration</source>
+        <translation>Унікальныя магчымасці і цесная інтэграцыя з працоўным сталом</translation>
     </message>
     <message>
-        <source>Tight desktop integration</source>
-        <translation>Цесная інтэграцыя з працоўным сталом</translation>
+        <source>Beautiful multilingual interface</source>
+        <translation>Прыгожы шматмоўны інтэрфейс</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>
