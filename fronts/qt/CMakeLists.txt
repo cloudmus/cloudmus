@@ -416,6 +416,30 @@ qt_add_translations(cloudmus-qt
     RESOURCE_PREFIX /i18n
     LUPDATE_OPTIONS -no-obsolete -locations none -source-language en
 )
+# Qt's own catalogs (the Ok/Cancel/Yes/No of its stock dialogs) are embedded
+# next to ours: a bundled Qt (AppImage) may ship none, and
+# I18n::Translator falls back to :/i18n. Belarusian has no Qt catalog.
+set(_qt_tr_dir "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}")
+set(_qt_tr_files)
+foreach(_lang de es fr it ru)
+    if(EXISTS "${_qt_tr_dir}/qtbase_${_lang}.qm")
+        list(APPEND _qt_tr_files "${_qt_tr_dir}/qtbase_${_lang}.qm")
+    else()
+        message(WARNING "No qtbase_${_lang}.qm in ${_qt_tr_dir}: Qt's own dialogs stay English for ${_lang}")
+    endif()
+endforeach()
+if(_qt_tr_files)
+    set(_qt_tr_qrc "${CMAKE_CURRENT_BINARY_DIR}/qt_translations.qrc")
+    set(_qrc_body "<RCC><qresource prefix=\"/i18n\">\n")
+    foreach(_f ${_qt_tr_files})
+        get_filename_component(_n "${_f}" NAME)
+        string(APPEND _qrc_body "<file alias=\"${_n}\">${_f}</file>\n")
+    endforeach()
+    string(APPEND _qrc_body "</qresource></RCC>\n")
+    file(GENERATE OUTPUT "${_qt_tr_qrc}" CONTENT "${_qrc_body}")
+    set_source_files_properties("${_qt_tr_qrc}" PROPERTIES GENERATED TRUE)
+    target_sources(cloudmus-qt PRIVATE "${_qt_tr_qrc}")
+endif()
 target_include_directories(cloudmus-qt PRIVATE ${VERSION_DIR})
 add_dependencies(cloudmus-qt cloudmus_version)
 target_link_libraries(cloudmus-qt PRIVATE cloudmus-ui)
