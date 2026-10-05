@@ -23,7 +23,7 @@ Core::Core(QObject* parent)
     // A source that stops leaves nothing to stream the rest of its track from.
     connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, [this](const QString& sourceId) {
         if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId)
-            playback_.stop();
+            playback_.dropCurrentTrack();
     });
     // Every track that starts playing goes into History, and its "last
     // played" with it.

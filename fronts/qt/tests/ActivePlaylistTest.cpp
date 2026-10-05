@@ -136,6 +136,39 @@ private slots:
         QCOMPARE(active_->entries()[1].track.id, QStringLiteral("fresh"));
     }
 
+    void playbackGoingAtQuitResumesFromTheSameSong()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        settings_->setLastActiveTrack(QStringLiteral("t2"), 1);
+        settings_->setWasPlaying(true);
+        settings_->setResumePlaybackAtStartup(true);
+        start();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+    }
+
+    void noResumeWhenItsOffOrPlaybackWasHalted()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        settings_->setWasPlaying(true);
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        QVERIFY(!playback_->hasQueue());
+
+        // Stopping is what the next run goes by.
+        active_->play();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        playback_->stop();
+        QVERIFY(!settings_->wasPlaying());
+
+        resetApp();
+        settings_ = std::make_unique<Config::Settings>(temp_->filePath(QStringLiteral("config.ini")));
+        settings_->setResumePlaybackAtStartup(true);
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        QVERIFY(!playback_->hasQueue());
+    }
+
     void anEditToTheActivePlaylistShowsInItsTracks()
     {
         settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });

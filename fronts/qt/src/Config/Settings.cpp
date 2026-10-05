@@ -133,6 +133,24 @@ void Settings::setLastActiveTrack(const QString& trackId, int index)
     settings_.setValue(QStringLiteral("playback/activeTrackIndex"), index);
 }
 
+bool Settings::resumePlaybackAtStartup() const
+{
+    return settings_.value(QStringLiteral("playback/resumeAtStartup"), false).toBool();
+}
+
+void Settings::setResumePlaybackAtStartup(bool on)
+{
+    settings_.setValue(QStringLiteral("playback/resumeAtStartup"), on);
+}
+
+bool Settings::wasPlaying() const { return settings_.value(QStringLiteral("playback/wasPlaying"), false).toBool(); }
+
+void Settings::setWasPlaying(bool playing)
+{
+    if (playing != wasPlaying())
+        settings_.setValue(QStringLiteral("playback/wasPlaying"), playing);
+}
+
 QStringList Settings::sidebarCollapsed() const
 {
     return settings_.value(QStringLiteral("sidebar/collapsed")).toStringList();

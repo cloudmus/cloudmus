@@ -485,9 +485,17 @@ void PlaybackController::togglePause()
         playing_ = true;
     }
     emit playingChanged(playing_);
+    if (!playing_)
+        emit halted();
 }
 
 void PlaybackController::stop()
+{
+    dropCurrentTrack();
+    emit halted();
+}
+
+void PlaybackController::dropCurrentTrack()
 {
     stopForTransition();
     // Discards any in-flight playback.play this stop() interrupts —

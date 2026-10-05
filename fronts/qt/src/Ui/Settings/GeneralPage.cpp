@@ -45,6 +45,8 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     startHiddenCheck_ = makeCheck(tr("Start hidden in the tray"), settings_.startHiddenAtLogin());
     startHiddenCheck_->setEnabled(launchAtLogin_);
     connect(launchAtLoginCheck_, &QCheckBox::toggled, startHiddenCheck_, &QCheckBox::setEnabled);
+    resumePlaybackCheck_
+        = makeCheck(tr("Resume playback on start if it was playing at exit"), settings_.resumePlaybackAtStartup());
     closeToTrayCheck_ = makeCheck(
         tr("Closing the window minimizes to the tray instead of quitting"), settings_.closeMinimizesToTray());
     trackNotificationsCheck_
@@ -100,6 +102,7 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->setSpacing(Theme::Spacing::space2);
     layout->addWidget(launchAtLoginCheck_);
     layout->addLayout(startHiddenRow);
+    layout->addWidget(resumePlaybackCheck_);
     layout->addWidget(closeToTrayCheck_);
     layout->addWidget(trackNotificationsCheck_);
     layout->addSpacing(Theme::Spacing::space3);
@@ -118,6 +121,7 @@ bool GeneralPage::isDirty() const
     return launchAtLoginCheck_
         && (launchAtLoginCheck_->isChecked() != launchAtLogin_
             || startHiddenCheck_->isChecked() != settings_.startHiddenAtLogin()
+            || resumePlaybackCheck_->isChecked() != settings_.resumePlaybackAtStartup()
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
             || trackNotificationsCheck_->isChecked() != settings_.trackNotifications()
             || colorSchemeCombo_->currentData().toInt() != int(settings_.colorScheme())
@@ -133,6 +137,7 @@ Rpc::Task<bool> GeneralPage::apply()
         && Integration::Autostart::setEnabled(launchAtLoginCheck_->isChecked()))
         launchAtLogin_ = launchAtLoginCheck_->isChecked();
     settings_.setStartHiddenAtLogin(startHiddenCheck_->isChecked());
+    settings_.setResumePlaybackAtStartup(resumePlaybackCheck_->isChecked());
     settings_.setCloseMinimizesToTray(closeToTrayCheck_->isChecked());
     if (trackNotificationsCheck_->isChecked() != settings_.trackNotifications())
         settings_.setTrackNotifications(trackNotificationsCheck_->isChecked());

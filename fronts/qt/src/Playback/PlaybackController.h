@@ -75,6 +75,9 @@ public:
 
     void togglePause();
     void stop();
+    // Stops like stop(), but not by choice: the current track's source went
+    // away. No halted() — playback was still wanted.
+    void dropCurrentTrack();
     void next();
     void previous();
     void seek(qint64 positionMs);
@@ -126,6 +129,9 @@ signals:
     // Emitted whenever queue() changes content — replaced, inserted into,
     // or extended by a radio's tracksAdded. The main track list mirrors it.
     void queueChanged();
+    // Playback was paused or stopped on purpose (by the user, or at the
+    // end of the queue) — not a track change, a failure or a lost source.
+    void halted();
     // Shuffle/repeat changed, or a radio started or ended (which changes
     // what's available — see isRadio()).
     void playModeChanged();

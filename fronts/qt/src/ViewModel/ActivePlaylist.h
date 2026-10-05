@@ -32,7 +32,8 @@ class Sources;
 // The playlist the main area has active — what it shows, and what the
 // queue came from: making one active (and playing it, or starting its
 // radio), its tracks until they're queued, marking it in the sidebar, and
-// bringing the last one back at startup (without playing it).
+// bringing the last one back at startup — playing it again only if it was
+// playing at quit and Settings::resumePlaybackAtStartup() is on.
 class ActivePlaylist : public QObject {
     Q_OBJECT
 
@@ -84,6 +85,9 @@ private:
     Rpc::Task<void> loadTracks(PlaylistContext context);
     Rpc::Task<void> refreshRadioLikes(QString sourceId, QString playlistId);
     void restoreFrom(const QString& sourceId, const QList<Playlist>& playlists);
+    // Plays the restored playlist from its saved song, once, if a resume
+    // is still pending and nothing else has started meanwhile.
+    void resumePlayback();
     void applyPlaylistEdit(
         const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
     void loadCachedTracks();
@@ -104,6 +108,8 @@ private:
     bool startingRadio_ = false;
     // The active playlist saved last run, until its source lists it.
     Config::Settings::ActivePlaylistRef pendingRestore_;
+    // The restored playlist is to play once it's back (resumePlayback()).
+    bool resumePending_ = false;
     quint64 likesRefreshGeneration_ = 0;
     quint64 feedbackRevision_ = 0;
 };

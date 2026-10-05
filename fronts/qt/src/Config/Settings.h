@@ -91,6 +91,15 @@ public:
     int lastActiveTrackIndex() const;
     void setLastActiveTrack(const QString& trackId, int index);
 
+    // Start playing the restored playlist at startup if it was playing
+    // when the app last quit (ViewModel::ActivePlaylist). Off by default.
+    bool resumePlaybackAtStartup() const;
+    void setResumePlaybackAtStartup(bool on);
+    // Whether playback was going, as the user left it — kept up to date
+    // while it plays, so a logout or a kill counts too.
+    bool wasPlaying() const;
+    void setWasPlaying(bool playing);
+
     QString lastSourceId() const;
     void setLastSourceId(const QString& sourceId);
 

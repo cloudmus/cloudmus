@@ -63,6 +63,13 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
             settings_.setLastActiveTrack(track.id, playback_.currentIndex());
         });
     connect(&playlistEditing, &App::PlaylistEditing::playlistEdited, this, &ActivePlaylist::applyPlaylistEdit);
+    // What resumePlayback() goes by next run: on whenever a track starts,
+    // off only when the user pauses or stops — not when quitting stops it.
+    connect(&playback_, &Playback::PlaybackController::playingChanged, this, [this](bool playing) {
+        if (playing)
+            settings_.setWasPlaying(true);
+    });
+    connect(&playback_, &Playback::PlaybackController::halted, this, [this]() { settings_.setWasPlaying(false); });
 
     // Restore the last active playlist (without playing it). History is
     // local, so it's restored right away; a source's playlist has to wait
@@ -92,6 +99,18 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
     } else if (!saved.sourceId.isEmpty() && !saved.playlistId.isEmpty()) {
         pendingRestore_ = saved;
         connect(&sources_, &Sources::playlistsLoaded, this, &ActivePlaylist::restoreFrom);
+    }
+
+    resumePending_ = settings_.resumePlaybackAtStartup() && settings_.wasPlaying()
+        && (context_.isValid() || !pendingRestore_.playlistId.isEmpty());
+    if (resumePending_ && context_.isHistory) {
+        // History is back already, but its saved song can only play once
+        // the source it came from is up.
+        connect(&sources_, &Sources::playlistsLoaded, this, [this](const QString& sourceId, const QList<Playlist>&) {
+            if (resumePending_ && context_.isHistory && !tracks_.isEmpty()
+                && tracks_[resumeIndex()].sourceId == sourceId)
+                resumePlayback();
+        });
     }
 }
 
@@ -226,6 +245,8 @@ void ActivePlaylist::setContext(const PlaylistContext& context)
     }
     // Something the user made active wins over what's still to restore.
     pendingRestore_ = Config::Settings::ActivePlaylistRef();
+    if (changed)
+        resumePending_ = false;
     emit contextChanged();
     emit entriesChanged();
 }
@@ -354,11 +375,16 @@ Rpc::Task<void> ActivePlaylist::loadTracks(PlaylistContext context)
         emit loadingChanged(false);
     }
     // Only if it's still the active playlist.
-    if (!context_.sameAs(context) || !loaded)
+    if (!context_.sameAs(context))
         co_return;
-    tracks_ = entries;
-    saveCachedTracks();
-    emit entriesChanged();
+    if (loaded) {
+        tracks_ = entries;
+        saveCachedTracks();
+        emit entriesChanged();
+    }
+    // History resumes once its song's source is up (see the constructor).
+    if (!context.isHistory)
+        resumePlayback(); // the cached tracks, if the fresh ones failed
 }
 
 Rpc::Task<void> ActivePlaylist::refreshRadioLikes(QString sourceId, QString playlistId)
@@ -417,14 +443,34 @@ void ActivePlaylist::restoreFrom(const QString& sourceId, const QList<Playlist>&
     // Unless something else became active in the meantime.
     if (context_.isValid() && (context_.sourceId != sourceId || context_.playlist.id != playlistId))
         return;
+    const bool resume = resumePending_;
     for (const Playlist& playlist : playlists) {
         if (playlist.id != playlistId)
             continue;
         setContext(PlaylistContext { sourceId, playlist });
+        // The restore itself isn't something else made active.
+        resumePending_ = resume;
         if (!context_.isRadio())
             loadTracks(context_).detach();
-        break;
+        else
+            resumePlayback();
+        return;
     }
+    resumePending_ = false; // the playlist is gone
+}
+
+void ActivePlaylist::resumePlayback()
+{
+    if (!resumePending_)
+        return;
+    resumePending_ = false;
+    // The user got something playing first.
+    if (playback_.hasQueue())
+        return;
+    if (!context_.isRadio() && tracks_.isEmpty())
+        return;
+    qCInfo(lcActivePlaylist) << "resuming playback of" << context_.playlist.id;
+    play();
 }
 
 void ActivePlaylist::applyPlaylistEdit(
