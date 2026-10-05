@@ -310,7 +310,12 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     contentSplitter_->setChildrenCollapsible(false);
     heroPanel_->setMinimumWidth(kHeroMinWidth);
     trackListPane_->setMinimumWidth(kTrackListMinWidth);
-    contentSplitter_->setSizes({ settings_.heroPanelWidth(), 290 });
+    // Only the list absorbs resizes, so the hero keeps its saved pixel width
+    // — with no stretch factor set QSplitter scales every pane by ratio, and
+    // a width saved in a maximized window came back wrong at any other size
+    // (and vice versa). Hence the list's 1 below: it gets the rest anyway.
+    contentSplitter_->setStretchFactor(1, 1);
+    contentSplitter_->setSizes({ settings_.heroPanelWidth(), 1 });
     connect(contentSplitter_, &QSplitter::splitterMoved, this,
         [this]() { settings_.setHeroPanelWidth(contentSplitter_->sizes().first()); });
     trackListContainerLayout->addWidget(contentSplitter_, 1);
@@ -384,7 +389,9 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // rows' icon + title + status icon need.
     splitter->setChildrenCollapsible(false);
     sidebarView_->setMinimumWidth(kSidebarMinWidth);
-    splitter->setSizes({ settings_.sidebarWidth(), 720 });
+    // Same as contentSplitter_: the sidebar keeps its saved pixel width.
+    splitter->setStretchFactor(1, 1);
+    splitter->setSizes({ settings_.sidebarWidth(), 1 });
     connect(splitter, &QSplitter::splitterMoved, this,
         [this, splitter]() { settings_.setSidebarWidth(splitter->sizes().first()); });
 
@@ -1262,11 +1269,11 @@ void MainWindow::setTrackListVisible(bool visible)
 {
     trackListPane_->setVisible(visible);
     if (visible) {
-        // Restore the persisted/current hero-vs-list ratio. QSplitter
-        // interprets setSizes() by ratio, not absolute sum, so re-asserting
-        // settings_.heroPanelWidth() here is correct whether this is the
-        // very first show or a restore right after a My Wave collapse.
-        contentSplitter_->setSizes({ settings_.heroPanelWidth(), 290 });
+        // Restore the persisted hero width — exact in pixels, since only the
+        // list has a stretch factor and takes whatever is left. Correct
+        // whether this is the very first show or a restore right after a
+        // My Wave collapse.
+        contentSplitter_->setSizes({ settings_.heroPanelWidth(), 1 });
     } else {
         // Collapse: hand the whole splitter width to heroPanel_ — the
         // radioStation (My Wave) case, where there's no track list at all.
