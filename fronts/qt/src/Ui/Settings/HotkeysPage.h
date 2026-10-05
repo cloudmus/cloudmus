@@ -32,7 +32,15 @@ public:
     bool isDirty() const override;
     Rpc::Task<bool> apply() override;
 
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
+    // A wrapped label's height depends on its width, which the grid only
+    // learns after laying out: without this, a description that needs
+    // two or three lines is cut off to one.
+    void fitDescription(QLabel* label);
+
     struct Row {
         Hotkeys::Action action = Hotkeys::Action::PlayPause;
         QLabel* description = nullptr;

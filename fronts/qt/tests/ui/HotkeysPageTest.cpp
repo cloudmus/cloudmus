@@ -1,5 +1,6 @@
 #include <QCheckBox>
 #include <QKeySequenceEdit>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTemporaryDir>
@@ -39,6 +40,22 @@ private slots:
         QVERIFY(!page_->isDirty());
         QCOMPARE(edits().size(), Hotkeys::actions().size());
         QCOMPARE(edits().first()->keySequence(), registry_->bindings().first().key);
+    }
+
+    void aWrappedDescriptionGetsTheHeightItNeeds()
+    {
+        // Narrow, as with a long translation: the descriptions wrap.
+        widget_->resize(420, 800);
+        widget_->show();
+        QTest::qWait(50);
+        int wrapped = 0;
+        for (QLabel* label : widget_->findChildren<QLabel*>()) {
+            if (!label->wordWrap() || label->width() <= 0)
+                continue;
+            QVERIFY2(label->height() >= label->heightForWidth(label->width()), qPrintable(label->text()));
+            wrapped += label->heightForWidth(label->width()) > label->fontMetrics().height() * 3 / 2;
+        }
+        QVERIFY(wrapped > 0);
     }
 
     void aChangedKeyIsSavedOnApply()

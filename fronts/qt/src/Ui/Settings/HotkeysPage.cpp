@@ -1,6 +1,7 @@
 #include "Settings/HotkeysPage.h"
 
 #include <QCheckBox>
+#include <QEvent>
 #include <QGridLayout>
 #include <QKeySequenceEdit>
 #include <QLabel>
@@ -92,6 +93,7 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
         row.description = new QLabel(info.description(), widget);
         row.description->setFont(Theme::font(Theme::TextStyle::Body));
         row.description->setWordWrap(true);
+        row.description->installEventFilter(this);
 
         row.keyEdit = new QKeySequenceEdit(widget);
         row.keyEdit->setMaximumSequenceLength(1);
@@ -170,6 +172,24 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
     connect(&registry_, &Hotkeys::Registry::globalStateChanged, widget, [this]() { updateGlobalState(); });
     updateGlobalState();
     return widget;
+}
+
+bool HotkeysPage::eventFilter(QObject* watched, QEvent* event)
+{
+    // The label's own resize: its new width is known by now, the grid's
+    // pass over its rows is not done.
+    if (event->type() == QEvent::Resize)
+        fitDescription(static_cast<QLabel*>(watched));
+    return Page::eventFilter(watched, event);
+}
+
+void HotkeysPage::fitDescription(QLabel* label)
+{
+    if (label->width() <= 0)
+        return;
+    const int height = label->heightForWidth(label->width());
+    if (label->minimumHeight() != height)
+        label->setMinimumHeight(height);
 }
 
 void HotkeysPage::showBinding(const Row& row, const Hotkeys::Binding& binding)
