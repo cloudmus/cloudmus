@@ -14,6 +14,7 @@ enum class Action {
     Stop,
     VolumeUp,
     VolumeDown,
+    ToggleQuiet,
     Like,
     Dislike,
     Download,

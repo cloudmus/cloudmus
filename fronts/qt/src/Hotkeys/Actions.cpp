@@ -23,6 +23,7 @@ const QList<ActionInfo>& actions()
         { Action::Stop, QStringLiteral("stop"), tr("Stop"), chord(Qt::Key_S), true, false },
         { Action::VolumeUp, QStringLiteral("volumeUp"), tr("Volume up"), chord(Qt::Key_Up), true, true },
         { Action::VolumeDown, QStringLiteral("volumeDown"), tr("Volume down"), chord(Qt::Key_Down), true, true },
+        { Action::ToggleQuiet, QStringLiteral("toggleQuiet"), tr("Quiet mode on / off"), chord(Qt::Key_Q), true, true },
         { Action::Like, QStringLiteral("like"), tr("Like or unlike the current track"), chord(Qt::Key_L), true, true },
         { Action::Dislike, QStringLiteral("dislike"), tr("Dislike or undo dislike of the current track"),
             chord(Qt::Key_D), true, true },

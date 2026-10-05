@@ -68,8 +68,14 @@ public:
     QString sidebarSelection() const;
     void setSidebarSelection(const QString& key);
 
+    // Normal and quiet mode each keep their own level; `quiet` is which one
+    // is in effect.
     int volume() const;
     void setVolume(int volume0To100);
+    int quietVolume() const;
+    void setQuietVolume(int volume0To100);
+    bool quiet() const;
+    void setQuiet(bool on);
 
     // The play modes as the user last set them (Playback::PlaybackController).
     bool shuffle() const;

@@ -169,6 +169,17 @@ int Settings::volume() const { return settings_.value(QStringLiteral("playback/v
 
 void Settings::setVolume(int volume0To100) { settings_.setValue(QStringLiteral("playback/volume"), volume0To100); }
 
+int Settings::quietVolume() const { return settings_.value(QStringLiteral("playback/quietVolume"), 30).toInt(); }
+
+void Settings::setQuietVolume(int volume0To100)
+{
+    settings_.setValue(QStringLiteral("playback/quietVolume"), volume0To100);
+}
+
+bool Settings::quiet() const { return settings_.value(QStringLiteral("playback/quiet")).toBool(); }
+
+void Settings::setQuiet(bool on) { settings_.setValue(QStringLiteral("playback/quiet"), on); }
+
 bool Settings::shuffle() const { return settings_.value(QStringLiteral("playback/shuffle")).toBool(); }
 
 void Settings::setShuffle(bool on) { settings_.setValue(QStringLiteral("playback/shuffle"), on); }

@@ -75,6 +75,10 @@ void Dispatcher::trigger(Action action, const QString& activationToken)
             say({ tr("Volume"), tr("%1%").arg(nowPlaying_.volume()), { } });
             break;
         }
+        case Action::ToggleQuiet:
+            nowPlaying_.setQuiet(!nowPlaying_.quiet());
+            say({ tr("Quiet mode"), nowPlaying_.quiet() ? tr("On") : tr("Off"), { } });
+            break;
         case Action::Like: {
             const ViewModel::NowPlaying::Feedback feedback = nowPlaying_.feedback();
             if (!feedback.likeSupported) {

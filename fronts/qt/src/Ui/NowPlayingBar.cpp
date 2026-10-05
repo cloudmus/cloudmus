@@ -10,12 +10,14 @@
 #include <QPainter>
 #include <QPushButton>
 #include <QSlider>
+#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QVariantAnimation>
 
 #include "Icons.h"
 #include "Metrics.h"
+#include "NowPlaying.h"
 #include "Registry.h"
 #include "Spacing.h"
 #include "TabOrder.h"
@@ -346,6 +348,15 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     volumeSlider_->setRange(0, 100);
     volumeSlider_->setFixedWidth(100);
     connect(volumeSlider_, &QSlider::valueChanged, this, &NowPlayingBar::volumeChanged);
+    volumeAnim_ = new QVariantAnimation(this);
+    volumeAnim_->setDuration(ViewModel::NowPlaying::fadeMs);
+    volumeAnim_->setEasingCurve(QEasingCurve::OutCubic); // as the audio fade
+    connect(volumeAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
+        QSignalBlocker blocker(volumeSlider_);
+        volumeSlider_->setValue(value.toInt());
+    });
+    // Grabbing the handle takes over from the glide.
+    connect(volumeSlider_, &QSlider::sliderPressed, volumeAnim_, &QVariantAnimation::stop);
 
     // Bottom row of the controls column: seek slider (with elapsed/duration
     // labels) gets the stretch, volume trails after it — was its own
@@ -356,15 +367,15 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     slidersRow->addWidget(seekSlider_, 1);
     slidersRow->addWidget(durationLabel_);
     slidersRow->addSpacing(12);
-    auto* volumeIconLabel = new QLabel(this);
-    // Matches the transport buttons (also Theme::icon) instead of an emoji
-    // glyph, which looked out of place next to them and depended on the
-    // font actually having a color-emoji glyph for it.
-    Theme::followTheme(volumeIconLabel, [volumeIconLabel]() {
-        volumeIconLabel->setPixmap(
-            Theme::icon(QStringLiteral("volume_up"), Theme::IconColor::InkSecondary, 16).pixmap(16, 16));
-    });
-    slidersRow->addWidget(volumeIconLabel);
+    // The speaker doubles as the quiet mode switch: lit (accent) while the
+    // sound is ducked. Same button as the transport controls, so it matches
+    // them instead of a bare icon.
+    quietButton_ = new IconHoverButton(QStringLiteral("volume_up"), IconHoverButton::Scheme::Neutral, this);
+    quietButton_->setCheckable(true);
+    quietButton_->setToolTip(tr("Quiet mode"));
+    quietButton_->setAccessibleName(tr("Quiet mode"));
+    connect(quietButton_, &QPushButton::clicked, this, &NowPlayingBar::quietToggled);
+    slidersRow->addWidget(quietButton_);
     slidersRow->addWidget(volumeSlider_);
 
     // Buttons above the sliders instead of everything crammed into one row
@@ -610,8 +621,25 @@ void NowPlayingBar::setBuffered(qint64 bufferedMs)
 
 void NowPlayingBar::setVolume(int volume0To100)
 {
+    volumeAnim_->stop();
+    if (quietSwitching_ && volumeSlider_->value() != volume0To100) {
+        volumeAnim_->setStartValue(volumeSlider_->value());
+        volumeAnim_->setEndValue(volume0To100);
+        volumeAnim_->start();
+        return;
+    }
     QSignalBlocker blocker(volumeSlider_);
     volumeSlider_->setValue(volume0To100);
+}
+
+void NowPlayingBar::setQuiet(bool on)
+{
+    // The level for the new mode follows right away (NowPlaying emits it
+    // next); that one glides instead of jumping.
+    quietSwitching_ = true;
+    QTimer::singleShot(0, this, [this]() { quietSwitching_ = false; });
+    quietButton_->setChecked(on);
+    static_cast<IconHoverButton*>(quietButton_)->setIconName(QStringLiteral("volume_%1").arg(on ? "down" : "up"));
 }
 
 void NowPlayingBar::setTrailingWidget(QWidget* widget)

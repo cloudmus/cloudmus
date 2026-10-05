@@ -164,6 +164,28 @@ private slots:
         QCOMPARE(nowPlaying_->volume(), 0);
     }
 
+    void quietModeKeepsItsOwnLevelAndTheKeyTogglesIt()
+    {
+        QSignalSpy notices(dispatcher_.get(), &Hotkeys::Dispatcher::noticeRequested);
+        nowPlaying_->setQuiet(false);
+        nowPlaying_->setVolume(80);
+        dispatcher_->trigger(Hotkeys::Action::ToggleQuiet);
+        QVERIFY(nowPlaying_->quiet());
+        QCOMPARE(notices.count(), 1);
+        // The slider now shows the quiet level, and editing it leaves the normal one alone.
+        QCOMPARE(nowPlaying_->volume(), settings_->quietVolume());
+        nowPlaying_->setVolume(15);
+        QCOMPARE(settings_->quietVolume(), 15);
+        QCOMPARE(settings_->volume(), 80);
+        QVERIFY(settings_->quiet());
+
+        dispatcher_->trigger(Hotkeys::Action::ToggleQuiet);
+        QVERIFY(!nowPlaying_->quiet());
+        QCOMPARE(nowPlaying_->volume(), 80);
+        QCOMPARE(settings_->quietVolume(), 15);
+        QVERIFY(!settings_->quiet());
+    }
+
     void aLikeKeyLikesThenUnlikes()
     {
         play({ track(QStringLiteral("t1")) });

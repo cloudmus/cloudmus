@@ -7,6 +7,7 @@
 class QHBoxLayout;
 class QLabel;
 class QPushButton;
+class QVariantAnimation;
 
 namespace Hotkeys {
 class Registry;
@@ -45,6 +46,7 @@ public:
     // Shown on the seek slider behind the played part; -1 hides it.
     void setBuffered(qint64 bufferedMs);
     void setVolume(int volume0To100);
+    void setQuiet(bool on);
 
     // Stop and seek require a current track. Without one, reset the seek
     // position and labels; Play can still start an available playlist.
@@ -121,6 +123,7 @@ signals:
     void repeatClicked(Playback::RepeatMode mode);
     void seekRequested(qint64 positionMs);
     void volumeChanged(int volume0To100);
+    void quietToggled(bool on);
     // Carries the user's requested new state — QPushButton::clicked(bool
     // checked) already reflects it (Qt flips isChecked() before emitting
     // clicked() for a checkable button), so MainWindow doesn't need to
@@ -162,6 +165,11 @@ private:
     QLabel* elapsedLabel_ = nullptr;
     QLabel* durationLabel_ = nullptr;
     QSlider* volumeSlider_ = nullptr;
+    QPushButton* quietButton_ = nullptr;
+    // Carries the slider to the other mode's level, in step with the fade.
+    QVariantAnimation* volumeAnim_ = nullptr;
+    // Set by setQuiet() until the volume it comes with has arrived.
+    bool quietSwitching_ = false;
     // Transport buttons' row — setTrailingWidget() appends into this, after
     // the stretch already placed there in the constructor.
     QHBoxLayout* buttonsRow_ = nullptr;

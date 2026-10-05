@@ -474,6 +474,7 @@ void MainWindow::bindNowPlaying()
     connect(nowPlayingBar_, &NowPlayingBar::stopClicked, &nowPlaying_, &NowPlaying::stop);
     connect(nowPlayingBar_, &NowPlayingBar::seekRequested, &nowPlaying_, &NowPlaying::seek);
     connect(nowPlayingBar_, &NowPlayingBar::volumeChanged, &nowPlaying_, &NowPlaying::setVolume);
+    connect(nowPlayingBar_, &NowPlayingBar::quietToggled, &nowPlaying_, &NowPlaying::setQuiet);
     connect(nowPlayingBar_, &NowPlayingBar::shuffleClicked, &nowPlaying_, &NowPlaying::setShuffle);
     connect(nowPlayingBar_, &NowPlayingBar::repeatClicked, &nowPlaying_, &NowPlaying::setRepeatMode);
     connect(nowPlayingBar_, &NowPlayingBar::likeClicked, &nowPlaying_, &NowPlaying::setLiked);
@@ -547,11 +548,13 @@ void MainWindow::bindNowPlaying()
     connect(&nowPlaying_, &NowPlaying::positionChanged, nowPlayingBar_, &NowPlayingBar::setPosition);
     connect(&nowPlaying_, &NowPlaying::bufferedChanged, nowPlayingBar_, &NowPlayingBar::setBuffered);
     connect(&nowPlaying_, &NowPlaying::volumeChanged, nowPlayingBar_, &NowPlayingBar::setVolume);
+    connect(&nowPlaying_, &NowPlaying::quietChanged, nowPlayingBar_, &NowPlayingBar::setQuiet);
     connect(&nowPlaying_, &NowPlaying::queueAvailabilityChanged, nowPlayingBar_, &NowPlayingBar::setQueueAvailable);
 
     // Whatever state it's in already — a window created while something
     // plays shows it at once, not from the next change on.
     nowPlayingBar_->setVolume(nowPlaying_.volume());
+    nowPlayingBar_->setQuiet(nowPlaying_.quiet());
     nowPlayingBar_->setPlaying(nowPlaying_.playing());
     if (nowPlaying_.loading())
         nowPlayingBar_->setLoading(true);

@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariantAnimation>
 
 #include <optional>
 
@@ -46,8 +47,14 @@ class NowPlaying : public QObject {
     Q_PROPERTY(bool shuffle READ shuffle WRITE setShuffle NOTIFY playModesChanged)
     Q_PROPERTY(bool radio READ isRadio NOTIFY playModesChanged)
     Q_PROPERTY(int volume READ volume WRITE setVolume NOTIFY volumeChanged)
+    Q_PROPERTY(bool quiet READ quiet WRITE setQuiet NOTIFY quietChanged)
 
 public:
+    // How long the volume glides between normal and quiet. A full second: a
+    // shorter fade was a jolt to the ears, not a fade. The volume slider
+    // follows the same course.
+    static constexpr int fadeMs = 1000;
+
     NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
         Library::TrackStates& trackStates, History::PlaybackHistory& history, Config::Settings& settings,
         Downloads& downloads, Messages& messages, QObject* parent = nullptr);
@@ -70,8 +77,13 @@ public:
     void previous();
     void stop();
     void seek(qint64 positionMs);
-    int volume() const { return volume_; }
+    // The level of the mode in effect: the quiet one while quiet(), else the
+    // normal one. Quiet mode ducks the sound without pausing or muting, and
+    // the playback volume glides between the two levels.
+    int volume() const { return quiet_ ? quietVolume_ : volume_; }
     void setVolume(int volume0To100);
+    bool quiet() const { return quiet_; }
+    void setQuiet(bool on);
 
     // --- play modes, as in effect for the current queue (a radio can't
     // shuffle or repeat its whole list — see PlaybackController)
@@ -115,7 +127,10 @@ signals:
     void bufferedChanged(qint64 bufferedMs); // -1: not cached (a local file)
     void queueAvailabilityChanged(bool available);
     void playModesChanged();
+    // The level shown for the mode in effect — also emitted when quiet mode
+    // switches it.
     void volumeChanged(int volume0To100);
+    void quietChanged(bool quiet);
     void feedbackChanged();
 
 private:
@@ -123,6 +138,7 @@ private:
     bool isShownTrack(const QString& sourceId, const QString& trackId) const;
     QJsonObject capabilities(const QString& sourceId) const;
     void resetBusy();
+    void applyVolume(bool animated);
 
     Playback::PlaybackController& playback_;
     Rpc::SourceManager& sourceManager_;
@@ -134,6 +150,10 @@ private:
 
     bool loading_ = false;
     int volume_ = 100;
+    int quietVolume_ = 30;
+    bool quiet_ = false;
+    // Drives the volume mpv gets, so switching modes fades instead of jumping.
+    QVariantAnimation fade_;
     // In-flight requests for the current track, with the state asked for.
     std::optional<bool> pendingLiked_;
     std::optional<bool> pendingDisliked_;

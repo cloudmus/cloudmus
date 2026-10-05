@@ -1,6 +1,9 @@
 #include "NowPlaying.h"
 
+#include <algorithm>
+
 #include <QDir>
+#include <QEasingCurve>
 #include <QJsonObject>
 #include <QLoggingCategory>
 
@@ -35,7 +38,15 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
     // The saved volume and play modes, applied to playback itself — mpv
     // otherwise starts at its own default (max) volume.
     volume_ = settings_.volume();
-    playback_.setVolume(volume_);
+    quietVolume_ = settings_.quietVolume();
+    quiet_ = settings_.quiet();
+    fade_.setDuration(fadeMs);
+    fade_.setEasingCurve(QEasingCurve::OutCubic);
+    connect(&fade_, &QVariantAnimation::valueChanged, this,
+        [this](const QVariant& value) { playback_.setVolume(value.toInt()); });
+    fade_.setStartValue(volume());
+    fade_.setEndValue(volume());
+    playback_.setVolume(volume());
     playback_.setShuffle(settings_.shuffle());
     playback_.setRepeatMode(settings_.repeatMode());
 
@@ -117,12 +128,48 @@ void NowPlaying::seek(qint64 positionMs) { playback_.seek(positionMs); }
 
 void NowPlaying::setVolume(int volume0To100)
 {
-    if (volume_ == volume0To100)
+    const int level = std::clamp(volume0To100, 0, 100);
+    int& current = quiet_ ? quietVolume_ : volume_;
+    if (current == level)
         return;
-    volume_ = volume0To100;
-    playback_.setVolume(volume_);
-    settings_.setVolume(volume_);
-    emit volumeChanged(volume_);
+    current = level;
+    if (quiet_)
+        settings_.setQuietVolume(level);
+    else
+        settings_.setVolume(level);
+    // A slider drag or a key press is heard at once, not faded.
+    applyVolume(false);
+    emit volumeChanged(level);
+}
+
+void NowPlaying::setQuiet(bool on)
+{
+    if (quiet_ == on)
+        return;
+    quiet_ = on;
+    settings_.setQuiet(on);
+    applyVolume(true);
+    emit quietChanged(on);
+    emit volumeChanged(volume());
+}
+
+void NowPlaying::applyVolume(bool animated)
+{
+    const int target = volume();
+    // Start from what is playing now, so a toggle in mid-fade turns around
+    // smoothly.
+    const int from
+        = fade_.state() == QAbstractAnimation::Running ? fade_.currentValue().toInt() : fade_.endValue().toInt();
+    fade_.stop();
+    if (!animated || from == target) {
+        fade_.setStartValue(target);
+        fade_.setEndValue(target);
+        playback_.setVolume(target);
+        return;
+    }
+    fade_.setStartValue(from);
+    fade_.setEndValue(target);
+    fade_.start();
 }
 
 bool NowPlaying::shuffle() const { return playback_.shuffleActive(); }
