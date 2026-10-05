@@ -334,20 +334,24 @@
         <translation>Version kopieren</translation>
     </message>
     <message>
-        <source>A desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation>Ein Desktop-Musikplayer für alle Ihre Musikdienste auf einmal. Streamingdienste und Ihr lokaler Musikordner in einer schnellen App, mit denselben Bedienelementen für jeden Dienst.</translation>
+        <source>A modern music player for all your services and your local collection.</source>
+        <translation>Ein moderner Musikplayer für all deine Dienste und deine lokale Sammlung.</translation>
     </message>
     <message>
-        <source>All music services in one place</source>
-        <translation>Alle Musikdienste an einem Ort</translation>
+        <source>Brings streaming and local files together in a lightweight app with a striking translucent interface and advanced controls.</source>
+        <translation>Vereint Streaming und lokale Dateien in einer schlanken App mit einer eindrucksvollen, halbtransparenten Oberfläche und fortschrittlichen Steuerungsfunktionen.</translation>
     </message>
     <message>
-        <source>Unique features and tight desktop integration</source>
-        <translation>Einzigartige Funktionen und enge Desktop-Integration</translation>
+        <source>Modern translucent design and deep desktop integration</source>
+        <translation>Modernes, halbtransparentes Design und tiefe Desktop-Integration</translation>
     </message>
     <message>
-        <source>Beautiful multilingual interface</source>
-        <translation>Schöne, mehrsprachige Oberfläche</translation>
+        <source>Autostart, volume ducking, many languages, and a minimal system footprint</source>
+        <translation>Autostart, Lautstärkeabsenkung, viele Sprachen und minimale Systemlast</translation>
+    </message>
+    <message>
+        <source>Streaming services and local music in one window</source>
+        <translation>Streamingdienste und lokale Musik in einem Fenster</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

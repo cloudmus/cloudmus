@@ -123,18 +123,23 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
     header->addStretch(1);
 
     // --- description
-    description_
-        = makeLabel(tr("A desktop music player for all your music services at once. Streaming services "
-                       "and your local music folder in one fast app, with the same controls for every service."),
-            Theme::TextStyle::Body, this);
+    // A tagline, then what it does — a blank line apart.
+    description_ = makeLabel(tr("A modern music player for all your services and your local collection.")
+            + QStringLiteral("\n\n")
+            + tr("Brings streaming and local files together in a lightweight app with a striking translucent "
+                 "interface and advanced controls."),
+        Theme::TextStyle::Body, this);
     description_->setAlignment(Qt::AlignCenter);
 
     // What sets it apart, in a few words.
-    auto* advantagesLabel = makeLabel(QStringLiteral("•  %1<br>•  %2<br>•  %3")
-                                          .arg(tr("All music services in one place").toHtmlEscaped(),
-                                              tr("Beautiful multilingual interface").toHtmlEscaped(),
-                                              tr("Unique features and tight desktop integration").toHtmlEscaped()),
-        Theme::TextStyle::Body, this);
+    auto* advantagesLabel
+        = makeLabel(QStringLiteral("•  %1<br>•  %2<br>•  %3")
+                        .arg(tr("Modern translucent design and deep desktop integration").toHtmlEscaped(),
+                            tr("Streaming services and local music in one window").toHtmlEscaped(),
+                            tr("Autostart, volume ducking, many languages, and a minimal system "
+                               "footprint")
+                                .toHtmlEscaped()),
+            Theme::TextStyle::Body, this);
     advantagesLabel->setTextFormat(Qt::RichText);
     advantagesLabel->setAlignment(Qt::AlignCenter);
 

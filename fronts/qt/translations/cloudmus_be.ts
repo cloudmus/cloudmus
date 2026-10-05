@@ -334,20 +334,24 @@
         <translation>Скапіяваць версію</translation>
     </message>
     <message>
-        <source>A desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation>Музычны плэер для ўсіх вашых сэрвісаў адначасова. Стрымінгавыя сэрвісы і лакальная тэчка з музыкай — у адной хуткай праграме з аднолькавым кіраваннем.</translation>
+        <source>A modern music player for all your services and your local collection.</source>
+        <translation>Сучасны музычны плэер для ўсіх вашых сэрвісаў і лакальнай калекцыі.</translation>
     </message>
     <message>
-        <source>All music services in one place</source>
-        <translation>Усе музычныя сэрвісы ў адным месцы</translation>
+        <source>Brings streaming and local files together in a lightweight app with a striking translucent interface and advanced controls.</source>
+        <translation>Аб’ядноўвае стрымінгі і лакальныя файлы ў лёгкай праграме з эфектным напаўпразрыстым інтэрфейсам і прасунутымі функцыямі кіравання.</translation>
     </message>
     <message>
-        <source>Unique features and tight desktop integration</source>
-        <translation>Унікальныя магчымасці і цесная інтэграцыя з працоўным сталом</translation>
+        <source>Modern translucent design and deep desktop integration</source>
+        <translation>Напаўпразрысты сучасны дызайн і глыбокая інтэграцыя з працоўным сталом</translation>
     </message>
     <message>
-        <source>Beautiful multilingual interface</source>
-        <translation>Прыгожы шматмоўны інтэрфейс</translation>
+        <source>Autostart, volume ducking, many languages, and a minimal system footprint</source>
+        <translation>Аўтазапуск, прыглушэнне гуку, падтрымка мноства моў і мінімальная нагрузка на сістэму</translation>
+    </message>
+    <message>
+        <source>Streaming services and local music in one window</source>
+        <translation>Стрымінгавыя сэрвісы і лакальная музыка ў адным акне</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

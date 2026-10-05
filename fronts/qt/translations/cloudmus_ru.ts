@@ -334,20 +334,24 @@
         <translation>Копировать версию</translation>
     </message>
     <message>
-        <source>A desktop music player for all your music services at once. Streaming services and your local music folder in one fast app, with the same controls for every service.</source>
-        <translation>Музыкальный плеер для всех ваших сервисов сразу. Стриминговые сервисы и локальная папка с музыкой — в одном быстром приложении с единым управлением.</translation>
+        <source>A modern music player for all your services and your local collection.</source>
+        <translation>Современный музыкальный плеер для всех ваших сервисов и локальной коллекции.</translation>
     </message>
     <message>
-        <source>All music services in one place</source>
-        <translation>Все музыкальные сервисы в одном месте</translation>
+        <source>Brings streaming and local files together in a lightweight app with a striking translucent interface and advanced controls.</source>
+        <translation>Объединяет стриминги и локальные файлы в лёгком приложении с эффектным полупрозрачным интерфейсом и продвинутыми функциями управления.</translation>
     </message>
     <message>
-        <source>Unique features and tight desktop integration</source>
-        <translation>Уникальные возможности и тесная интеграция с рабочим столом</translation>
+        <source>Modern translucent design and deep desktop integration</source>
+        <translation>Полупрозрачный современный дизайн и глубокая интеграция с рабочим столом</translation>
     </message>
     <message>
-        <source>Beautiful multilingual interface</source>
-        <translation>Красивый многоязычный интерфейс</translation>
+        <source>Autostart, volume ducking, many languages, and a minimal system footprint</source>
+        <translation>Автозапуск, приглушение звука, поддержка множества языков и минимальная нагрузка на систему</translation>
+    </message>
+    <message>
+        <source>Streaming services and local music in one window</source>
+        <translation>Стриминговые сервисы и локальная музыка в едином окне</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>
