@@ -11,6 +11,7 @@ import asyncio
 import itertools
 import json
 import logging
+import os
 from typing import Any, Awaitable, Callable
 
 from .discovery import BackendManifest
@@ -29,6 +30,15 @@ class RpcError(Exception):
         super().__init__(message)
         self.code = code
         self.data = data or {}
+
+
+def _system_locale() -> str | None:
+    """The POSIX locale name ('ru_RU.UTF-8'), None for C/POSIX or unset."""
+    for var in ("LC_ALL", "LC_MESSAGES", "LANG"):
+        value = os.environ.get(var, "")
+        if value:
+            return None if value in ("C", "POSIX") else value
+    return None
 
 
 class BackendClient:
@@ -58,7 +68,12 @@ class BackendClient:
         asyncio.create_task(self._drain_stderr())
         result = await self.request(
             "initialize",
-            {"protocolVersion": "1.0", "front": {"name": "cloudmus-tui", "version": "0.1.0"}},
+            {
+                "protocolVersion": "1.0",
+                "front": {"name": "cloudmus-tui", "version": "0.1.0"},
+                # Backends answer in the user's language (docs/protocol.md §7.8)
+                **({"locale": locale} if (locale := _system_locale()) else {}),
+            },
             timeout=10.0,
         )
         self.capabilities = result["capabilities"]
