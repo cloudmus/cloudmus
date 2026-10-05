@@ -4,6 +4,7 @@
 #include <QString>
 
 #include "Actions.h"
+#include "CuePlayer.h"
 
 namespace ViewModel {
 class NowPlaying;
@@ -37,6 +38,7 @@ signals:
     // The window is the UI's: it decides whether to show or hide.
     void showPlayerRequested(const QString& activationToken);
     void noticeRequested(const Hotkeys::Dispatcher::Notice& notice);
+    void cueRequested(Playback::Cue cue);
 
 private:
     Notice trackNotice(const QString& title) const;

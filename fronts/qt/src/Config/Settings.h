@@ -144,6 +144,8 @@ public:
         bool global = true;
         // Says what the action did in a notification (for the actions that can).
         bool notify = true;
+        // Plays a sound saying what it did (for the actions that can).
+        bool sound = true;
 
         bool operator==(const HotkeyConfig&) const = default;
     };

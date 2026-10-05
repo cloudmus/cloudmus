@@ -113,6 +113,7 @@ add_library(cloudmus-core STATIC
     src/Playback/PlaybackController.cpp
     src/Playback/BeatDetector.cpp
     src/Playback/LevelFeed.cpp
+    src/Playback/CuePlayer.cpp
 
     src/Config/Settings.cpp
     src/I18n/Languages.cpp
@@ -388,6 +389,7 @@ add_executable(cloudmus-qt
     resources/icons.qrc
     resources/fonts.qrc
     resources/about.qrc
+    resources/sounds.qrc
 )
 if(WIN32)
     set_target_properties(cloudmus-qt PROPERTIES WIN32_EXECUTABLE TRUE)

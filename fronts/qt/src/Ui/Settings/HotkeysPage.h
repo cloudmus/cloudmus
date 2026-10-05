@@ -47,6 +47,7 @@ private:
         QKeySequenceEdit* keyEdit = nullptr;
         QCheckBox* globalCheck = nullptr;
         QCheckBox* notifyCheck = nullptr;
+        QCheckBox* soundCheck = nullptr;
         QLabel* status = nullptr;
         QPushButton* resetButton = nullptr;
     };

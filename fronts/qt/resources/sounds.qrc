@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/sounds">
+        <file alias="like.oga">sounds/like.oga</file>
+        <file alias="unlike.oga">sounds/unlike.oga</file>
+        <file alias="dislike.oga">sounds/dislike.oga</file>
+        <file alias="undislike.oga">sounds/undislike.oga</file>
+        <file alias="download.oga">sounds/download.oga</file>
+    </qresource>
+</RCC>

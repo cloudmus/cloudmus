@@ -874,12 +874,20 @@ Do you agree to use downloads only this way?</source>
         <translation>Notificar</translation>
     </message>
     <message>
+        <source>Sound</source>
+        <translation>Sonido</translation>
+    </message>
+    <message>
         <source>Works with the window out of focus</source>
         <translation>Funciona con la ventana sin foco</translation>
     </message>
     <message>
         <source>Says what it did in a notification</source>
         <translation>Dice lo que hizo en una notificación</translation>
+    </message>
+    <message>
+        <source>Plays a sound saying what it did</source>
+        <translation>Reproduce un sonido que indica lo que hizo</translation>
     </message>
     <message>
         <source>Reset</source>

@@ -8,6 +8,7 @@
 #include "AuthStates.h"
 #include "Browse.h"
 #include "CoverArtCache.h"
+#include "CuePlayer.h"
 #include "Dispatcher.h"
 #include "Downloads.h"
 #include "Messages.h"
@@ -85,6 +86,7 @@ private:
     ViewModel::NowPlaying nowPlaying_;
     Hotkeys::Registry hotkeys_;
     Hotkeys::Dispatcher hotkeyDispatcher_;
+    Playback::CuePlayer cuePlayer_;
     PlaylistEditing playlistEditing_;
     ViewModel::Sources sources_;
     ViewModel::ActivePlaylist activePlaylist_;

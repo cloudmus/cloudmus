@@ -82,6 +82,7 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
     heading(tr("Shortcut"), 1);
     heading(tr("Global"), 2);
     heading(tr("Notify"), 3);
+    heading(tr("Sound"), 4);
 
     loaded_ = registry_.bindings();
     int gridRow = 1;
@@ -106,6 +107,9 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
         row.notifyCheck->setToolTip(tr("Says what it did in a notification"));
         // Not every action has something to say.
         row.notifyCheck->setVisible(info.hasNotice);
+        row.soundCheck = new QCheckBox(widget);
+        row.soundCheck->setToolTip(tr("Plays a sound saying what it did"));
+        row.soundCheck->setVisible(info.hasSound);
 
         row.status = new QLabel(widget);
         row.status->setProperty("hint", true);
@@ -136,13 +140,18 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
             updateStatuses();
             emit dirtyChanged();
         });
+        connect(row.soundCheck, &QCheckBox::toggled, this, [this]() {
+            updateStatuses();
+            emit dirtyChanged();
+        });
 
         grid->addWidget(row.description, gridRow, 0);
         grid->addWidget(row.keyEdit, gridRow, 1);
         grid->addWidget(row.globalCheck, gridRow, 2, Qt::AlignCenter);
         grid->addWidget(row.notifyCheck, gridRow, 3, Qt::AlignCenter);
-        grid->addWidget(row.resetButton, gridRow, 4);
-        grid->addWidget(row.status, gridRow + 1, 0, 1, 5);
+        grid->addWidget(row.soundCheck, gridRow, 4, Qt::AlignCenter);
+        grid->addWidget(row.resetButton, gridRow, 5);
+        grid->addWidget(row.status, gridRow + 1, 0, 1, 6);
         gridRow += 2;
         rows_.append(row);
     }
@@ -197,9 +206,11 @@ void HotkeysPage::showBinding(const Row& row, const Hotkeys::Binding& binding)
     const QSignalBlocker keyBlocker(row.keyEdit);
     const QSignalBlocker globalBlocker(row.globalCheck);
     const QSignalBlocker notifyBlocker(row.notifyCheck);
+    const QSignalBlocker soundBlocker(row.soundCheck);
     row.keyEdit->setKeySequence(binding.key);
     row.globalCheck->setChecked(binding.global);
     row.notifyCheck->setChecked(binding.notify);
+    row.soundCheck->setChecked(binding.sound);
 }
 
 QList<Hotkeys::Binding> HotkeysPage::collect() const
@@ -211,7 +222,8 @@ QList<Hotkeys::Binding> HotkeysPage::collect() const
         QKeySequence key = row.keyEdit->keySequence();
         if (key.count() > 1)
             key = QKeySequence(key[0]);
-        result.append({ row.action, key, row.globalCheck->isChecked(), row.notifyCheck->isChecked() });
+        result.append({ row.action, key, row.globalCheck->isChecked(), row.notifyCheck->isChecked(),
+            row.soundCheck->isChecked() });
     }
     return result;
 }
@@ -278,6 +290,7 @@ void HotkeysPage::applyFilter()
         row.keyEdit->setVisible(visible);
         row.globalCheck->setVisible(visible);
         row.notifyCheck->setVisible(visible && Hotkeys::info(row.action).hasNotice);
+        row.soundCheck->setVisible(visible && Hotkeys::info(row.action).hasSound);
         row.resetButton->setVisible(visible);
     }
     noMatches_->setVisible(!any);

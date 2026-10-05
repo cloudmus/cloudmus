@@ -874,12 +874,20 @@ Do you agree to use downloads only this way?</source>
         <translation>Апавяшчаць</translation>
     </message>
     <message>
+        <source>Sound</source>
+        <translation>Гук</translation>
+    </message>
+    <message>
         <source>Works with the window out of focus</source>
         <translation>Працуе, калі акно не ў фокусе</translation>
     </message>
     <message>
         <source>Says what it did in a notification</source>
         <translation>Паведамляе пра зробленае ў апавяшчэнні</translation>
+    </message>
+    <message>
+        <source>Plays a sound saying what it did</source>
+        <translation>Прайгравае гук пра зробленае</translation>
     </message>
     <message>
         <source>Reset</source>

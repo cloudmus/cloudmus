@@ -123,6 +123,22 @@ private slots:
         QVERIFY(registry_->binding(Hotkeys::Action::Like).notify);
     }
 
+    void onlyFeedbackActionsPlaySounds()
+    {
+        QVERIFY(!registry_->binding(Hotkeys::Action::Next).sound);
+        QVERIFY(registry_->binding(Hotkeys::Action::Like).sound);
+        QVERIFY(registry_->binding(Hotkeys::Action::Dislike).sound);
+        QVERIFY(registry_->binding(Hotkeys::Action::Download).sound);
+
+        QList<Hotkeys::Binding> bindings = registry_->bindings();
+        bindingOf(bindings, Hotkeys::Action::Like).sound = false;
+        bindingOf(bindings, Hotkeys::Action::Next).sound = true;
+        registry_->setBindings(bindings);
+        QVERIFY(!registry_->binding(Hotkeys::Action::Like).sound);
+        QVERIFY(registry_->binding(Hotkeys::Action::Like).notify);
+        QVERIFY(!registry_->binding(Hotkeys::Action::Next).sound);
+    }
+
     void theSameKeyOnTwoActionsIsAConflict()
     {
         QList<Hotkeys::Binding> bindings = registry_->bindings();
@@ -238,6 +254,53 @@ private slots:
         dispatcher_->trigger(Hotkeys::Action::Like);
         QTRY_VERIFY(nowPlaying_->feedback().liked && !nowPlaying_->feedback().likeBusy);
         QCOMPARE(notices.count(), 0);
+    }
+
+    void likeKeysSoundWhatTheyDid()
+    {
+        play({ track(QStringLiteral("t1")) });
+        QSignalSpy cues(dispatcher_.get(), &Hotkeys::Dispatcher::cueRequested);
+
+        dispatcher_->trigger(Hotkeys::Action::Like);
+        QTRY_VERIFY(!nowPlaying_->feedback().likeBusy);
+        QCOMPARE(cues.count(), 1);
+        QCOMPARE(cues.last().first().value<Playback::Cue>(), Playback::Cue::Like);
+
+        dispatcher_->trigger(Hotkeys::Action::Like);
+        QTRY_VERIFY(!nowPlaying_->feedback().likeBusy);
+        QCOMPARE(cues.count(), 2);
+        QCOMPARE(cues.last().first().value<Playback::Cue>(), Playback::Cue::Unlike);
+    }
+
+    void aDislikeKeySoundsADislike()
+    {
+        play({ track(QStringLiteral("t1")), track(QStringLiteral("t2")) });
+        QSignalSpy cues(dispatcher_.get(), &Hotkeys::Dispatcher::cueRequested);
+        dispatcher_->trigger(Hotkeys::Action::Dislike);
+        QCOMPARE(cues.count(), 1);
+        QCOMPARE(cues.last().first().value<Playback::Cue>(), Playback::Cue::Dislike);
+    }
+
+    void soundsCanBeTurnedOffPerAction()
+    {
+        play({ track(QStringLiteral("t1")) });
+        QList<Hotkeys::Binding> bindings = registry_->bindings();
+        bindingOf(bindings, Hotkeys::Action::Like).sound = false;
+        registry_->setBindings(bindings);
+
+        QSignalSpy cues(dispatcher_.get(), &Hotkeys::Dispatcher::cueRequested);
+        QSignalSpy notices(dispatcher_.get(), &Hotkeys::Dispatcher::noticeRequested);
+        dispatcher_->trigger(Hotkeys::Action::Like);
+        QTRY_VERIFY(nowPlaying_->feedback().liked && !nowPlaying_->feedback().likeBusy);
+        QCOMPARE(cues.count(), 0);
+        QCOMPARE(notices.count(), 1);
+    }
+
+    void withNothingPlayingALikeKeyIsSilent()
+    {
+        QSignalSpy cues(dispatcher_.get(), &Hotkeys::Dispatcher::cueRequested);
+        dispatcher_->trigger(Hotkeys::Action::Like);
+        QCOMPARE(cues.count(), 0);
     }
 
     void withNothingPlayingALikeKeySaysSo()

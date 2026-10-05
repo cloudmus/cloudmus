@@ -874,12 +874,20 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Notifier</translation>
     </message>
     <message>
+        <source>Sound</source>
+        <translation>Son</translation>
+    </message>
+    <message>
         <source>Works with the window out of focus</source>
         <translation>Fonctionne quand la fenêtre n’a pas le focus</translation>
     </message>
     <message>
         <source>Says what it did in a notification</source>
         <translation>Indique ce qui a été fait dans une notification</translation>
+    </message>
+    <message>
+        <source>Plays a sound saying what it did</source>
+        <translation>Joue un son indiquant ce qui a été fait</translation>
     </message>
     <message>
         <source>Reset</source>

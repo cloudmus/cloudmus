@@ -44,6 +44,7 @@ Core::Core(QObject* parent)
             analytics_.recordPlayback(sourceId);
         });
     connect(&downloads_, &ViewModel::Downloads::completed, &analytics_, &Analytics::recordDownload);
+    connect(&hotkeyDispatcher_, &Hotkeys::Dispatcher::cueRequested, &cuePlayer_, &Playback::CuePlayer::play);
     connect(&playlistEditing_, &PlaylistEditing::playlistEdited, &analytics_,
         [this](const QString& sourceId, const Track&, const QString&, bool added, int) {
             analytics_.recordPlaylistChange(sourceId, added);

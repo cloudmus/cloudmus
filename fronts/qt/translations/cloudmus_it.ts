@@ -874,12 +874,20 @@ Accetti di usare i download solo in questo modo?</translation>
         <translation>Notifica</translation>
     </message>
     <message>
+        <source>Sound</source>
+        <translation>Suono</translation>
+    </message>
+    <message>
         <source>Works with the window out of focus</source>
         <translation>Funziona anche con la finestra non a fuoco</translation>
     </message>
     <message>
         <source>Says what it did in a notification</source>
         <translation>Dice cosa ha fatto in una notifica</translation>
+    </message>
+    <message>
+        <source>Plays a sound saying what it did</source>
+        <translation>Riproduce un suono che indica cosa ha fatto</translation>
     </message>
     <message>
         <source>Reset</source>

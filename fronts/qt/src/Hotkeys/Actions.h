@@ -37,6 +37,9 @@ struct ActionInfo {
     bool hasNotice = false;
     // Whether that notification is on until the user turns it off.
     bool defaultNotify = true;
+    // The action can say what it did with a sound — for the ones whose
+    // outcome isn't obvious without seeing the window.
+    bool hasSound = false;
 
     QString description() const { return QCoreApplication::translate("Hotkeys", descriptionSource); }
 };

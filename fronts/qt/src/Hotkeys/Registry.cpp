@@ -9,13 +9,14 @@ namespace Hotkeys {
 namespace {
 Binding defaultBinding(const ActionInfo& entry)
 {
-    return { entry.action, entry.defaultKey, entry.defaultGlobal, entry.hasNotice && entry.defaultNotify };
+    return { entry.action, entry.defaultKey, entry.defaultGlobal, entry.hasNotice && entry.defaultNotify,
+        entry.hasSound };
 }
 
 Binding fromConfig(const ActionInfo& entry, const Config::Settings::HotkeyConfig& config)
 {
     return { entry.action, QKeySequence::fromString(config.key, QKeySequence::PortableText), config.global,
-        entry.hasNotice && config.notify };
+        entry.hasNotice && config.notify, entry.hasSound && config.sound };
 }
 } // namespace
 
@@ -59,8 +60,8 @@ void Registry::setBindings(const QList<Binding>& bindings)
             settings_.resetHotkey(entry.id);
             continue;
         }
-        settings_.setHotkey(
-            entry.id, { binding.key.toString(QKeySequence::PortableText), binding.global, binding.notify });
+        settings_.setHotkey(entry.id,
+            { binding.key.toString(QKeySequence::PortableText), binding.global, binding.notify, binding.sound });
     }
     if (this->bindings() != before)
         emit bindingsChanged();

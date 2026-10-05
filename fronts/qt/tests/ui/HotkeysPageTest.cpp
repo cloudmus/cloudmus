@@ -154,7 +154,7 @@ private slots:
         QTRY_VERIFY(shown() < Hotkeys::actions().size());
     }
 
-    void actionsWithoutNoticesHaveNoNoticeBox()
+    void actionsWithoutNoticesOrSoundsHaveNoBoxForThem()
     {
         const auto checks = widget_->findChildren<QCheckBox*>();
         int visible = 0;
@@ -163,10 +163,14 @@ private slots:
                 ++visible;
         }
         int withNotice = 0;
-        for (const Hotkeys::ActionInfo& info : Hotkeys::actions())
+        int withSound = 0;
+        for (const Hotkeys::ActionInfo& info : Hotkeys::actions()) {
             withNotice += info.hasNotice ? 1 : 0;
-        // A "global" box for every action, a "notify" one for those that can.
-        QCOMPARE(visible, Hotkeys::actions().size() + withNotice);
+            withSound += info.hasSound ? 1 : 0;
+        }
+        // A "global" box for every action, "notify" and "sound" ones for
+        // those that can.
+        QCOMPARE(visible, Hotkeys::actions().size() + withNotice + withSound);
     }
 
 private:

@@ -268,6 +268,7 @@ std::optional<Settings::HotkeyConfig> Settings::hotkey(const QString& id) const
     config.key = settings_.value(group + QStringLiteral("key")).toString();
     config.global = settings_.value(group + QStringLiteral("global"), true).toBool();
     config.notify = settings_.value(group + QStringLiteral("notify"), true).toBool();
+    config.sound = settings_.value(group + QStringLiteral("sound"), true).toBool();
     return config;
 }
 
@@ -279,6 +280,7 @@ void Settings::setHotkey(const QString& id, const HotkeyConfig& config)
     settings_.setValue(group + QStringLiteral("key"), config.key);
     settings_.setValue(group + QStringLiteral("global"), config.global);
     settings_.setValue(group + QStringLiteral("notify"), config.notify);
+    settings_.setValue(group + QStringLiteral("sound"), config.sound);
 }
 
 void Settings::resetHotkey(const QString& id) { settings_.remove(QStringLiteral("hotkeys/") + id); }

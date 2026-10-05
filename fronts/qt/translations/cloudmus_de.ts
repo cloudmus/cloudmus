@@ -874,12 +874,20 @@ Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
         <translation>Melden</translation>
     </message>
     <message>
+        <source>Sound</source>
+        <translation>Ton</translation>
+    </message>
+    <message>
         <source>Works with the window out of focus</source>
         <translation>Funktioniert, auch wenn das Fenster nicht im Fokus ist</translation>
     </message>
     <message>
         <source>Says what it did in a notification</source>
         <translation>Meldet in einer Benachrichtigung, was getan wurde</translation>
+    </message>
+    <message>
+        <source>Plays a sound saying what it did</source>
+        <translation>Spielt einen Ton ab, der sagt, was getan wurde</translation>
     </message>
     <message>
         <source>Reset</source>

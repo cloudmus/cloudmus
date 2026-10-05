@@ -46,10 +46,14 @@ Dispatcher::Notice Dispatcher::trackNotice(const QString& title) const
 
 void Dispatcher::trigger(Action action, const QString& activationToken)
 {
-    const bool wantNotice = registry_.binding(action).notify;
+    const Binding binding = registry_.binding(action);
     const auto say = [&](const Notice& notice) {
-        if (wantNotice)
+        if (binding.notify)
             emit noticeRequested(notice);
+    };
+    const auto sound = [&](Playback::Cue cue) {
+        if (binding.sound)
+            emit cueRequested(cue);
     };
 
     switch (action) {
@@ -90,6 +94,7 @@ void Dispatcher::trigger(Action action, const QString& activationToken)
             const Notice notice = trackNotice(feedback.liked ? tr("Removed from liked") : tr("Liked"));
             nowPlaying_.setLiked(!feedback.liked);
             say(notice);
+            sound(feedback.liked ? Playback::Cue::Unlike : Playback::Cue::Like);
             break;
         }
         case Action::Dislike: {
@@ -105,6 +110,7 @@ void Dispatcher::trigger(Action action, const QString& activationToken)
             const Notice notice = trackNotice(feedback.disliked ? tr("Dislike removed") : tr("Disliked"));
             nowPlaying_.setDisliked(!feedback.disliked);
             say(notice);
+            sound(feedback.disliked ? Playback::Cue::Undislike : Playback::Cue::Dislike);
             break;
         }
         case Action::Download: {
@@ -118,6 +124,7 @@ void Dispatcher::trigger(Action action, const QString& activationToken)
             const Notice notice = trackNotice(tr("Downloading"));
             nowPlaying_.download();
             say(notice);
+            sound(Playback::Cue::Download);
             break;
         }
     }

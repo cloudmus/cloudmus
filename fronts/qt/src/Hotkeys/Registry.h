@@ -26,6 +26,7 @@ struct Binding {
     QKeySequence key;
     bool global = true;
     bool notify = true;
+    bool sound = true;
 
     bool operator==(const Binding&) const = default;
 };
