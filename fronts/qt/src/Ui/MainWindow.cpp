@@ -1120,7 +1120,13 @@ void MainWindow::bringToFront(const QString& activationToken)
     if (!isVisible()) {
         if (!trayHiddenGeometry_.isEmpty())
             restoreGeometry(trayHiddenGeometry_);
+#ifndef Q_OS_WIN
+        // Not on Windows: there restoreGeometry() already carries the normal
+        // geometry, and stepping out of and back into the maximized state
+        // while hidden leaves the window maximized with its content still at
+        // the normal size.
         applyNormalSize();
+#endif
     }
     trayHiddenGeometry_.clear();
     setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
