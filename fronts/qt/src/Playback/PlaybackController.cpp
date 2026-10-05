@@ -88,7 +88,7 @@ void PlaybackController::handleStartFailure(const QString& message)
     if (hasCurrentTrack() && startRetries_ < kMaxStartRetries) {
         ++startRetries_;
         qCDebug(lcPlayback) << "track didn't start, resolving it again:" << message;
-        playIndex(index_);
+        playIndex(index_, /*isRetry=*/true);
         return;
     }
     startRetries_ = 0;
@@ -216,9 +216,9 @@ void PlaybackController::handleTracksAdded(const QString& sourceId, const Tracks
     }
 }
 
-void PlaybackController::playIndex(int index) { playIndexAsync(index).detach(); }
+void PlaybackController::playIndex(int index, bool isRetry) { playIndexAsync(index, isRetry).detach(); }
 
-Rpc::Task<void> PlaybackController::playIndexAsync(int index)
+Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
 {
     if (index < 0 || index >= queue_.size())
         co_return;
@@ -287,7 +287,8 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index)
         TrackStartedParams started { entry.track.id };
         Rpc::feedbackTrackStarted(*client, started).detach();
     }
-    emit trackChanged(entry.track, entry.sourceId);
+    if (!isRetry)
+        emit trackChanged(entry.track, entry.sourceId);
     if (earlyStreamReady_) {
         const StreamReadyParams ready = *earlyStreamReady_;
         earlyStreamReady_.reset();

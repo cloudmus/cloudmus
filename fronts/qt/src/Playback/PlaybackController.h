@@ -141,8 +141,11 @@ signals:
     void playModeChanged();
 
 private:
-    void playIndex(int index);
-    Rpc::Task<void> playIndexAsync(int index);
+    void playIndex(int index, bool isRetry = false);
+    // isRetry: re-resolving the track that just failed to start — it was
+    // already announced (trackChanged), so history and notifications must
+    // not see it again.
+    Rpc::Task<void> playIndexAsync(int index, bool isRetry);
     void stopForTransition();
     void prepareNext();
     Rpc::Task<void> prepareNextAsync(int generation, int nextIndex, QueueEntry entry);
