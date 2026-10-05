@@ -39,7 +39,7 @@ def test_languages_have_the_same_entries():
 def test_server_switches_language():
     built = server.build_server()
     handler = built._handlers["localization.setLanguage"]
-    assert handler({"locale": "ru"}, 1) == {"locale": "ru"}
+    assert handler({"locale": "ru"}, 1)["locale"] == "ru"
     assert built.translator is translator
     assert translator.tr("unknown setting") == CATALOGS["ru"]["unknown setting"]
     handler({"locale": "en"}, 2)

@@ -81,7 +81,8 @@ class BackendServer:
             locale = params.get("locale")
             if not isinstance(locale, str):
                 raise BackendError(-32602, "locale: expected text")
-            return {"locale": self.translator.set_locale(locale)}
+            applied = self.translator.set_locale(locale)
+            return {"locale": applied, "description": self.translator.tr(self.source_description)}
 
     def method(self, name: str, *, concurrent: bool = False) -> Callable[[RequestHandler], RequestHandler]:
         """Decorator: registers a handler for a `namespace.methodName` request.

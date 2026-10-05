@@ -332,6 +332,9 @@ methods:
       properties:
         # the language now in effect after fallback ("en" if unsupported)
         locale: {type: string}
+        # source.description in that language (it is otherwise only sent
+        # in initialize)
+        description: {type: string}
     timeoutMs: 5000
 
   # --- 10. Auth ---

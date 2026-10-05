@@ -123,7 +123,9 @@ int runFakeBackend()
                     { QStringLiteral("capabilities"), capabilities() } });
         } else if (method == QStringLiteral("localization.setLanguage")) {
             locale = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("locale")).toString();
-            reply(id, { { QStringLiteral("locale"), locale } });
+            reply(id,
+                { { QStringLiteral("locale"), locale },
+                    { QStringLiteral("description"), QStringLiteral("locale=%1").arg(locale) } });
         } else if (method == QStringLiteral("fake.currentLocale")) {
             // Not part of the protocol: lets a test see what the front set.
             reply(id, { { QStringLiteral("locale"), locale } });

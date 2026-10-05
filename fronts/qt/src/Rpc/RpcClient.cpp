@@ -160,7 +160,10 @@ Task<void> RpcClient::setLanguage(QString locale)
 {
     if (!available_ || !capabilities_.contains(QStringLiteral("localization")))
         co_return;
-    co_await localizationSetLanguage(*this, SetLanguageParams { locale });
+    const SetLanguageResult result = co_await localizationSetLanguage(*this, SetLanguageParams { locale });
+    // The description travels in initialize otherwise.
+    if (result.description)
+        sourceDescription_ = *result.description;
 }
 
 Task<void> RpcClient::shutdown()

@@ -38,10 +38,17 @@ def test_server_advertises_localization_and_switches():
     server = make_server(Translator(CATALOGS))
     assert server.capabilities["localization"] == {"locales": ["en", "pt", "ru"]}
     handler = server._handlers["localization.setLanguage"]
-    assert handler({"locale": "ru"}, 1) == {"locale": "ru"}
-    assert handler({"locale": "xx"}, 2) == {"locale": "en"}
+    assert handler({"locale": "ru"}, 1)["locale"] == "ru"
+    assert handler({"locale": "xx"}, 2)["locale"] == "en"
     with pytest.raises(BackendError):
         handler({}, 3)
+
+
+def test_set_language_returns_the_description_in_that_language():
+    server = make_server(Translator({"ru": {"A source": "Источник"}}))
+    handler = server._handlers["localization.setLanguage"]
+    assert handler({"locale": "ru"}, 1)["description"] == "Источник"
+    assert handler({"locale": "en"}, 2)["description"] == "A source"
 
 
 def test_initialize_applies_locale_and_translates_description():

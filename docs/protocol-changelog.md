@@ -11,7 +11,8 @@ meaning.
   optional capability `localization` (`{locales: [...]}`) and method
   `localization.setLanguage` (§7.8). Sources answer user-facing strings
   (settings labels, error messages, auth prompts, self-made titles) in the
-  selected language, English when unsupported.
+  selected language, English when unsupported. `setLanguage` answers with the
+  source's description in that language too.
 
 ## 1.10 — sources without a network
 

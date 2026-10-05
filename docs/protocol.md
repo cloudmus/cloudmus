@@ -577,7 +577,7 @@ every front shares them.
 
 | Method | Params | Result | Requires capability |
 |---|---|---|---|
-| `localization.setLanguage` | `{"locale": "ru"}` | `{"locale": "ru"}` | `localization` |
+| `localization.setLanguage` | `{"locale": "ru"}` | `{"locale": "ru", "description"?: string}` | `localization` |
 
 Switches the language of the source's user-facing strings without a
 restart; the front sends the same value in `initialize` at startup. The
@@ -585,14 +585,15 @@ result names the language actually in effect: the closest match among
 `capabilities.localization.locales` (`pt-BR` falls back to `pt`), else
 `"en"`. An unsupported locale is not an error.
 
-What follows the language: `source.description` (at initialize), settings labels and
+What follows the language: `source.description`, settings labels and
 validation messages (§7.7), error messages (§9), the text of an
 `auth/prompt` and titles the source makes up itself (such as the
 "Liked" playlist). Titles that come from the service (track, album and
 playlist names) are not translated. The source emits no notification on a
 switch; the front re-reads what it displays (`settings.describe`,
-`catalog.listPlaylists`). `source.description` only travels in the
-`initialize` result, so it keeps the language of that call.
+`catalog.listPlaylists`). `source.description` is otherwise only sent
+in `initialize`, so the result carries it again (`description`, optional)
+in the new language.
 
 ---
 

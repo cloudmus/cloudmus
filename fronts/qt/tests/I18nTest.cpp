@@ -79,6 +79,7 @@ private slots:
         QCOMPARE(client.sourceDescription(), QStringLiteral("locale=ru"));
 
         await(client.setLanguage(QStringLiteral("de")));
+        QCOMPARE(client.sourceDescription(), QStringLiteral("locale=de"));
         const QJsonObject current = await(client.callRaw(QStringLiteral("fake.currentLocale"), { }, 5000));
         QCOMPARE(current.value(QStringLiteral("locale")).toString(), QStringLiteral("de"));
         await(client.shutdown());
