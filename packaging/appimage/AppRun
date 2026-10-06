@@ -27,6 +27,17 @@ PYTHON3="$HERE/usr/bin/python3"
 # rather than clobbering it).
 export QT_QPA_PLATFORMTHEME="${QT_QPA_PLATFORMTHEME:-xdgdesktopportal}"
 
+# The ASan build (build-appimage.sh --asan): reports go next to the crash
+# reports, as asan.log.<pid>. Leak checking is off — Qt and the bundled
+# libraries keep plenty alive until exit on purpose, which would bury a
+# real report. An explicit ASAN_OPTIONS wins.
+if [ -e "$HERE/usr/share/cloudmus/asan" ]; then
+    ASAN_LOG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cloudmus/fronts/qt"
+    mkdir -p "$ASAN_LOG_DIR"
+    export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:alloc_dealloc_mismatch=0:abort_on_error=1:log_path=$ASAN_LOG_DIR/asan.log}"
+    echo "cloudmus-qt: ASan build, reports go to $ASAN_LOG_DIR/asan.log.<pid>" >&2
+fi
+
 # Without this, the mouse cursor looks visually foreign on KDE Plasma
 # Wayland sessions specifically: unlike most other desktops, Plasma's own
 # Wayland session does not export XCURSOR_THEME/XCURSOR_SIZE at all

@@ -45,14 +45,29 @@ echo "==> Configuring and building cloudmus-qt"
 # host's Python and can't see jinja2/pyyaml from inside this container —
 # use the container's system python3 (which got them installed just
 # above) instead.
-cmake -S fronts/qt -B build-appimage -G Ninja -DCMAKE_BUILD_TYPE=Release \
+#
+# The ASan variant (build-appimage.sh --asan) keeps everything else the
+# same — compiler, Qt, libmpv — so a bug that only the AppImage shows
+# still shows; it only instruments cloudmus-qt itself and keeps symbols.
+build_dir=build-appimage
+cmake_extra=(-DCMAKE_BUILD_TYPE=Release)
+if [ "${CLOUDMUS_APPIMAGE_ASAN:-}" = 1 ]; then
+    build_dir=build-appimage-asan
+    cmake_extra=(-DCMAKE_BUILD_TYPE=RelWithDebInfo
+        "-DCMAKE_CXX_FLAGS=-fsanitize=address -fno-omit-frame-pointer"
+        "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address")
+    # linuxdeploy strips what it bundles; the reports need the symbols.
+    export NO_STRIP=1
+    version="${version}-asan"
+fi
+cmake -S fronts/qt -B "${build_dir}" -G Ninja "${cmake_extra[@]}" \
     -DBUILD_TESTING=OFF -DPYTHON3_EXECUTABLE="$(command -v python3)"
-cmake --build build-appimage
+cmake --build "${build_dir}"
 
 # --- 3. Assemble the AppDir ---
 echo "==> Assembling AppDir"
 mkdir -p "${APPDIR}/usr/bin"
-cp build-appimage/bin/cloudmus-qt "${APPDIR}/usr/bin/cloudmus-qt"
+cp "${build_dir}/bin/cloudmus-qt" "${APPDIR}/usr/bin/cloudmus-qt"
 
 # Bundled Python runtime: built from $BUNDLED_PYTHON3 (a portable
 # CPython 3.11 from python-build-standalone, set up in the Dockerfile),
@@ -413,6 +428,10 @@ find "${APPDIR}/usr/lib" -maxdepth 1 -type f -name '*.so*' -print0 | \
 mv "${APPDIR}/AppRun" "${APPDIR}/AppRun.real"
 cp packaging/appimage/AppRun "${APPDIR}/AppRun"
 chmod +x "${APPDIR}/AppRun"
+# AppRun sets up ASan's options when it finds this marker.
+if [ "${CLOUDMUS_APPIMAGE_ASAN:-}" = 1 ]; then
+    touch "${APPDIR}/usr/share/cloudmus/asan"
+fi
 
 # --- 7. Package the final AppImage ---
 echo "==> Running appimagetool"

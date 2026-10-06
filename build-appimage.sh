@@ -6,8 +6,21 @@
 #
 # Also run unmodified by .github/workflows/release.yml on an
 # ubuntu-latest runner (Docker is preinstalled there).
+#
+# --asan builds a diagnostic variant instead (CloudMus-<version>-asan-
+# x86_64.AppImage): cloudmus-qt under AddressSanitizer, with the same
+# compiler and bundled libraries as the release — for memory bugs that
+# only the AppImage shows. Never for publishing.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
+
+asan_run_envs=()
+for arg in "$@"; do
+    case "$arg" in
+        --asan) asan_run_envs=(-e CLOUDMUS_APPIMAGE_ASAN=1) ;;
+        *) echo "usage: $0 [--asan]" >&2; exit 2 ;;
+    esac
+done
 
 # Forward the invoking shell's own proxy settings into both the image
 # build and the build-in-docker.sh run — several hosts this build needs
@@ -44,6 +57,7 @@ mkdir -p dist
 docker run --rm \
     "${proxy_run_envs[@]}" \
     "${ga4_run_envs[@]}" \
+    "${asan_run_envs[@]}" \
     -v "$PWD":/workspace:z \
     -w /workspace \
     cloudmus-appimage-builder \
