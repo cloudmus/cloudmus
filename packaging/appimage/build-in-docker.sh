@@ -60,7 +60,9 @@ if [ "${CLOUDMUS_APPIMAGE_ASAN:-}" = 1 ]; then
     export NO_STRIP=1
     version="${version}-asan"
 fi
+# Clang, not the image's GCC 10: see the Dockerfile.
 cmake -S fronts/qt -B "${build_dir}" -G Ninja "${cmake_extra[@]}" \
+    -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 \
     -DBUILD_TESTING=OFF -DPYTHON3_EXECUTABLE="$(command -v python3)"
 cmake --build "${build_dir}"
 

@@ -163,12 +163,20 @@ else()
     target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerPosix.cpp)
 endif()
 
+# GCC 10 miscompiles our coroutines: a braced temporary inside a co_await
+# expression (`co_await f(Params { a, b })`) is destroyed twice, which
+# over-releases the QStrings in it and corrupts the heap much later, far
+# from the cause. Builds fine and passes most tests, so refuse it outright.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+    message(FATAL_ERROR "GCC ${CMAKE_CXX_COMPILER_VERSION} miscompiles C++20 coroutines; "
+        "use GCC 11+ or Clang (the AppImage build uses clang-19, see packaging/appimage/Dockerfile)")
+endif()
+
 # GCC needs this explicitly for C++20 coroutines (Rpc::Task<T>,
-# co_await/co_return in RpcClient/PlaybackController/etc.) on the GCC
-# versions older, still-widely-deployed distros ship (e.g. GCC 10 on
-# Debian 11, used for the AppImage build — see packaging/appimage/) — a
-# no-op on toolchains where coroutines are already enabled unconditionally
-# under -std=c++20. PUBLIC: every user of Rpc::Task needs it too.
+# co_await/co_return in RpcClient/PlaybackController/etc.) on older
+# versions — a no-op on toolchains where coroutines are already enabled
+# unconditionally under -std=c++20. PUBLIC: every user of Rpc::Task needs
+# it too.
 target_compile_options(cloudmus-core PUBLIC
     $<$<CXX_COMPILER_ID:GNU>:-fcoroutines>
 )

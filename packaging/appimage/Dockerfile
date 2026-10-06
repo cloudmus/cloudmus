@@ -300,6 +300,19 @@ RUN apt-get install -y --no-install-recommends \
 # apt repo just for this.
 RUN python3 -m pip install --no-cache-dir "cmake>=3.21"
 
+# The compiler for cloudmus-qt: Clang from apt.llvm.org, not bullseye's
+# GCC 10, which miscompiles our coroutines — a braced temporary inside a
+# co_await expression (`co_await f(Params { a, b })`) is destroyed twice,
+# over-releasing the QStrings in it, and the app later crashes on a
+# corrupted heap. Clang builds against the same system libstdc++ 10, so
+# the AppImage still needs nothing newer from the target machine.
+RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
+    && echo "deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-19 main" \
+        > /etc/apt/sources.list.d/llvm.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends clang-19 libclang-rt-19-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Deliberately no COPY of the repo here — it's bind-mounted at `docker
 # run` time by build-appimage.sh, so editing app code never invalidates
 # any layer in this image.
