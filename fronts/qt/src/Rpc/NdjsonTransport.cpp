@@ -1,7 +1,10 @@
 #include "NdjsonTransport.h"
 
+#include <QDir>
+#include <QFile>
 #include <QJsonDocument>
 #include <QLoggingCategory>
+#include <QTemporaryFile>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -11,6 +14,18 @@ namespace Rpc {
 
 namespace {
 Q_LOGGING_CATEGORY(lcTransport, "cloudmus.rpc.transport")
+
+constexpr int kStderrFilePollMs = 200;
+
+bool runningUnderWine()
+{
+#ifdef Q_OS_WIN
+    static const bool wine = GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "wine_get_version") != nullptr;
+    return wine;
+#else
+    return false;
+#endif
+}
 }
 
 NdjsonTransport::NdjsonTransport(QObject* parent)
@@ -18,8 +33,16 @@ NdjsonTransport::NdjsonTransport(QObject* parent)
 {
     connect(&process_, &QProcess::readyReadStandardOutput, this, &NdjsonTransport::onReadyReadStdout);
     connect(&process_, &QProcess::readyReadStandardError, this, &NdjsonTransport::onReadyReadStderr);
-    connect(&process_, &QProcess::finished, this,
-        [this](int exitCode, QProcess::ExitStatus status) { emit finished(exitCode, status); });
+    connect(&process_, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus status) {
+        // The tail must be complete before anyone reads stderrTail().
+        readStderrFile();
+        stderrFileTimer_.stop();
+        stderrFile_.reset();
+        if (!stderrFilePath_.isEmpty())
+            QFile::remove(stderrFilePath_);
+        stderrFilePath_.clear();
+        emit finished(exitCode, status);
+    });
     connect(&process_, &QProcess::errorOccurred, this, &NdjsonTransport::errorOccurred);
     // QProcess::start() is asynchronous: writeMessage() can be (and is,
     // for the very first `initialize` request — see RpcClient::start())
@@ -32,6 +55,15 @@ NdjsonTransport::NdjsonTransport(QObject* parent)
         }
         pendingWrites_.clear();
     });
+    stderrFileTimer_.setInterval(kStderrFilePollMs);
+    connect(&stderrFileTimer_, &QTimer::timeout, this, &NdjsonTransport::readStderrFile);
+}
+
+NdjsonTransport::~NdjsonTransport()
+{
+    stderrFile_.reset();
+    if (!stderrFilePath_.isEmpty())
+        QFile::remove(stderrFilePath_);
 }
 
 void NdjsonTransport::start(const QStringList& argv, const QProcessEnvironment& environment)
@@ -47,10 +79,35 @@ void NdjsonTransport::start(const QStringList& argv, const QProcessEnvironment& 
     // one, i.e. a conhost.exe per backend. Backends talk over the pipes
     // QProcess sets up and start no console programs (one started from a
     // detached process would get a visible console window).
-    process_.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* args) {
-        args->flags |= DETACHED_PROCESS;
-    });
+    process_.setCreateProcessArgumentsModifier(
+        [](QProcess::CreateProcessArguments* args) { args->flags |= DETACHED_PROCESS; });
 #endif
+    // Under Wine, QProcess loses stdout data when the backend also writes to
+    // stderr: after an idle pause the reply to a request never arrives (every
+    // request "times out", even local-folder's), while stderr keeps coming.
+    // Reproduced with a bare QProcess and a ten-line Python child, on Wine
+    // 9.0 and 11.19; never on real Windows, and never once the child's stderr
+    // isn't a pipe. So there it goes to a file, read on a timer.
+    stderrFile_.reset();
+    stderrPartialLine_.clear();
+    if (!stderrFilePath_.isEmpty())
+        QFile::remove(stderrFilePath_);
+    stderrFilePath_.clear();
+    if (runningUnderWine()) {
+        QTemporaryFile file(QDir::tempPath() + QStringLiteral("/cloudmus-backend-stderr-XXXXXX.log"));
+        file.setAutoRemove(false);
+        if (file.open()) {
+            stderrFilePath_ = file.fileName();
+            file.close();
+            stderrFile_ = std::make_unique<QFile>(stderrFilePath_);
+            if (stderrFile_->open(QIODevice::ReadOnly | QIODevice::Unbuffered)) {
+                process_.setStandardErrorFile(stderrFilePath_);
+                stderrFileTimer_.start();
+            } else {
+                stderrFile_.reset();
+            }
+        }
+    }
     process_.start();
 }
 
@@ -128,14 +185,34 @@ void NdjsonTransport::onReadyReadStderr()
     QByteArray chunk = process_.readAllStandardError();
     const QList<QByteArray> lines = chunk.split('\n');
     for (const QByteArray& line : lines) {
-        if (line.isEmpty())
-            continue;
-        stderrTail_.append(line);
-        while (stderrTail_.size() > kStderrTailLines) {
-            stderrTail_.removeFirst();
-        }
-        emit stderrLine(QString::fromUtf8(line));
+        if (!line.isEmpty())
+            handleStderrLine(line);
     }
+}
+
+void NdjsonTransport::readStderrFile()
+{
+    if (!stderrFile_)
+        return;
+    stderrPartialLine_.append(stderrFile_->readAll());
+    qsizetype newline;
+    while ((newline = stderrPartialLine_.indexOf('\n')) >= 0) {
+        QByteArray line = stderrPartialLine_.left(newline);
+        stderrPartialLine_.remove(0, newline + 1);
+        if (line.endsWith('\r'))
+            line.chop(1);
+        if (!line.trimmed().isEmpty())
+            handleStderrLine(line);
+    }
+}
+
+void NdjsonTransport::handleStderrLine(const QByteArray& line)
+{
+    stderrTail_.append(line);
+    while (stderrTail_.size() > kStderrTailLines) {
+        stderrTail_.removeFirst();
+    }
+    emit stderrLine(QString::fromUtf8(line));
 }
 
 } // namespace Rpc

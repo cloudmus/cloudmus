@@ -7,6 +7,11 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QStringList>
+#include <QTimer>
+
+#include <memory>
+
+class QFile;
 
 namespace Rpc {
 
@@ -21,6 +26,7 @@ public:
     static constexpr int kStderrTailLines = 50;
 
     explicit NdjsonTransport(QObject* parent = nullptr);
+    ~NdjsonTransport() override;
 
     // `environment`: the backend's (e.g. with a proxy set — see
     // Net::backendEnvironment()).
@@ -51,6 +57,9 @@ private slots:
     void onReadyReadStderr();
 
 private:
+    void handleStderrLine(const QByteArray& line);
+    void readStderrFile();
+
     QProcess process_;
     QByteArray stdoutBuffer_;
     QList<QByteArray> stderrTail_;
@@ -61,6 +70,12 @@ private:
     // reaches Running are queued here and flushed on QProcess::started,
     // instead of being silently dropped.
     QList<QByteArray> pendingWrites_;
+    // Under Wine only: stderr goes to this file instead of a pipe, read on
+    // a timer (see start()).
+    QString stderrFilePath_;
+    std::unique_ptr<QFile> stderrFile_;
+    QByteArray stderrPartialLine_;
+    QTimer stderrFileTimer_;
 };
 
 } // namespace Rpc
