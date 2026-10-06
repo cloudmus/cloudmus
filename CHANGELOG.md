@@ -1,3 +1,13 @@
+# 0.5.0 (2026-10-06)
+
+- Configurable keyboard shortcuts, working on all platforms
+- Multilingual support: Russian, French, Spanish, German, Italian and Belarusian
+- Quiet mode: a button next to the volume slider and a hotkey glide the volume down to a second, remembered level without pausing
+- Resume playback at startup if it was playing at exit (off by default; meant for launching at login)
+- About: a new description, and clouds flying out of the logo that pulse to the music
+- Animations run at the display's refresh rate instead of 60 FPS, and sidebar rows slide open and closed
+- Fixes and polish: tray menu, Windows 11 glass, sidebar keys, settings, updates, window size, track history, Yandex Music playlists, notifications, sign-in, proxy
+
 # 0.4.0 (2026-10-04)
 
 - Keyboard navigation: a rounded focus ring that follows each control's shape appears only while moving with the keyboard, Tab goes in reading order, and Enter/Space open or play playlists and tracks
