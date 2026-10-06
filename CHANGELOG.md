@@ -1,3 +1,8 @@
+# 0.5.1 (2026-10-06)
+
+- Fix the AppImage crashing at random moments, often on a track change
+- Fix every source timing out after an idle pause when the Windows build runs under Wine
+
 # 0.5.0 (2026-10-06)
 
 - Configurable keyboard shortcuts, working on all platforms
