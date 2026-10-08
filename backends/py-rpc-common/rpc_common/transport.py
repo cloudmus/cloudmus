@@ -135,6 +135,14 @@ def install_stdout_purity_guard() -> Any:
     import logging
     import sys
 
+    # On Windows a pipe's text encoding is the system code page (cp1251, ...),
+    # while the front reads this stream as UTF-8: every non-ASCII character
+    # of a log line (track titles, say) came out as U+FFFD.
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass  # not a text stream (a test's replacement): nothing to fix
+
     rpc_out = sys.stdout
     sys.stdout = sys.stderr
     logging.basicConfig(stream=sys.stderr, level=logging.INFO)

@@ -101,3 +101,27 @@ async def test_self_playback_fixture():
     await front_writer.send(jsonrpc.make_request(3, "shutdown", {}))
     await front_reader.__anext__()
     await asyncio.wait_for(serve_task, timeout=1)
+
+
+def test_stderr_is_utf8_whatever_the_system_code_page():
+    # The front reads a backend's stderr as UTF-8; on Windows Python would
+    # write the code page's encoding (here forced to cp1251) instead.
+    import os
+    import subprocess
+    import sys
+
+    script = (
+        "import logging\n"
+        "from rpc_common.transport import install_stdout_purity_guard\n"
+        "install_stdout_purity_guard()\n"
+        "logging.getLogger('x').info('Моя волна ✓')\n"
+        "print('Плейлист')\n"
+    )
+    env = {**os.environ, "PYTHONIOENCODING": "cp1251", "PYTHONUTF8": "0"}
+    result = subprocess.run(
+        [sys.executable, "-c", script], env=env, capture_output=True, check=True
+    )
+    text = result.stderr.decode("utf-8")  # raises on a code page's bytes
+    assert "Моя волна ✓" in text
+    assert "Плейлист" in text
+    assert result.stdout == b""
