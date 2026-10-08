@@ -2,13 +2,19 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdarg>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
 
 #include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QLoggingCategory>
 #include <QRegularExpression>
 #include <QSysInfo>
+#include <QUrl>
 
 #ifdef CLOUDMUS_HAS_SENTRY
 #include <sentry.h>
@@ -19,6 +25,8 @@
 namespace Diagnostics::CrashReporter {
 
 namespace {
+
+Q_LOGGING_CATEGORY(lcSentry, "cloudmus.diagnostics.sentry")
 
 // How many reports taken by takeNewReports() stay on disk.
 constexpr int kKeptReports = 10;
@@ -64,20 +72,122 @@ QByteArray scrubbed(const QString& message)
     return result.toUtf8();
 }
 
+// The SDK's own log lines, forwarded to ours (shown with --debug, warnings
+// always). Inside the crash handler nothing may allocate, which Qt's logging
+// does: the SDK's first line there is "entering signal handler", and from it
+// on lines go straight to stderr.
+std::atomic<bool> g_inCrashHandler { false };
+// Set while an SDK line is being logged: it must not come back through
+// Logging as a breadcrumb, into the SDK that may be holding its own lock.
+thread_local bool t_inSdkLog = false;
+
+void sdkLog(sentry_level_t level, const char* format, va_list args, void*)
+{
+    char text[512];
+    std::vsnprintf(text, sizeof text, format, args);
+    if (g_inCrashHandler.load(std::memory_order_relaxed) || std::strncmp(text, "entering signal handler", 23) == 0) {
+        g_inCrashHandler.store(true, std::memory_order_relaxed);
+        std::fputs("sentry: ", stderr);
+        std::fputs(text, stderr);
+        std::fputc('\n', stderr);
+        return;
+    }
+    t_inSdkLog = true;
+    switch (level) {
+        case SENTRY_LEVEL_DEBUG:
+            qCDebug(lcSentry).noquote() << "sdk:" << text;
+            break;
+        case SENTRY_LEVEL_INFO:
+            qCInfo(lcSentry).noquote() << "sdk:" << text;
+            break;
+        case SENTRY_LEVEL_WARNING:
+            qCWarning(lcSentry).noquote() << "sdk:" << text;
+            break;
+        default:
+            qCCritical(lcSentry).noquote() << "sdk:" << text;
+            break;
+    }
+    t_inSdkLog = false;
+}
+
+#ifndef Q_OS_WIN
+// libcurl looks for the CA bundle where the distribution it was built on
+// keeps it (Debian: /etc/ssl/certs/ca-certificates.crt), and fails every
+// request when the file isn't there — as on openSUSE or Fedora. The
+// AppImage's libcurl is Debian's, so look for the bundle ourselves.
+QString findCaBundle()
+{
+    QStringList candidates;
+    if (const QByteArray fromEnvironment = qgetenv("SSL_CERT_FILE"); !fromEnvironment.isEmpty())
+        candidates.append(QString::fromLocal8Bit(fromEnvironment));
+    candidates << QStringLiteral("/etc/ssl/certs/ca-certificates.crt") // Debian, Ubuntu, Arch
+               << QStringLiteral("/etc/pki/tls/certs/ca-bundle.crt") // Fedora, RHEL
+               << QStringLiteral("/etc/ssl/ca-bundle.pem") // openSUSE
+               << QStringLiteral("/var/lib/ca-certificates/ca-bundle.pem") // openSUSE
+               << QStringLiteral("/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem")
+               << QStringLiteral("/etc/ssl/cert.pem"); // Alpine, others
+    for (const QString& candidate : candidates) {
+        const QFileInfo info(candidate);
+        if (info.isFile() && info.isReadable())
+            return candidate;
+    }
+    return { };
+}
+#endif
+
+int countUnsentEvents(const QString& database)
+{
+    int count = 0;
+    QDirIterator it(database, { QStringLiteral("*.envelope") }, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        ++count;
+    }
+    return count;
+}
+
 void startSentry(const Options& options)
 {
     const QString database = QDir::toNativeSeparators(options.reportDir + QStringLiteral("/sentry"));
+    const char* environment = sentryEnvironment(options.release);
     sentry_options_t* sentry = sentry_options_new();
     sentry_options_set_dsn(sentry, options.sentryDsn.toUtf8().constData());
     sentry_options_set_release(sentry, (QStringLiteral("cloudmus-qt@") + options.release).toUtf8().constData());
-    sentry_options_set_environment(sentry, sentryEnvironment(options.release));
+    sentry_options_set_environment(sentry, environment);
     sentry_options_set_database_path(sentry, database.toUtf8().constData());
     sentry_options_set_max_breadcrumbs(sentry, int(kBreadcrumbCount));
     // Crashes only: no session health, nothing about a user.
     sentry_options_set_auto_session_tracking(sentry, 0);
     sentry_options_set_require_user_consent(sentry, 0);
-    if (sentry_init(sentry) == 0)
+    // The SDK logs, and its libcurl prints every request to stderr, only
+    // when asked: it is also the only place a failed send shows up.
+    sentry_options_set_debug(sentry, options.sentryDebug ? 1 : 0);
+    sentry_options_set_logger(sentry, &sdkLog, nullptr);
+
+    QString caBundle;
+#ifndef Q_OS_WIN
+    caBundle = findCaBundle();
+    if (!caBundle.isEmpty())
+        sentry_options_set_ca_certs(sentry, caBundle.toUtf8().constData());
+    else
+        qCWarning(lcSentry) << "no CA certificate bundle found: sending to Sentry may fail";
+#endif
+
+    qCInfo(lcSentry).noquote() << QStringLiteral("starting: release cloudmus-qt@%1, environment %2, server %3, "
+                                                 "database %4, CA bundle %5, %6 unsent event(s) from earlier runs")
+                                      .arg(options.release, QString::fromLatin1(environment),
+                                          QUrl(options.sentryDsn).host(), database,
+                                          caBundle.isEmpty() ? QStringLiteral("(library default)") : caBundle)
+                                      .arg(countUnsentEvents(database));
+    // Sends the events of earlier runs in the background; failures are
+    // logged by the SDK's transport as warnings.
+    const int result = sentry_init(sentry);
+    if (result == 0) {
         g_sentryActive.store(true, std::memory_order_release);
+        qCInfo(lcSentry) << "started; a crash is stored and sent at the next start";
+    } else {
+        qCWarning(lcSentry) << "sentry_init failed with code" << result << "- crashes stay local";
+    }
 }
 #endif
 
@@ -128,12 +238,17 @@ void install(const Options& options)
     // After our own handlers: Sentry's inproc handler remembers the ones
     // installed before it and calls them once its event is stored, so the
     // local report is still written.
-    if (!options.sentryDsn.isEmpty())
+    if (!options.sentryDsn.isEmpty()) {
         startSentry(options);
-    else
+    } else {
         // Switched off: events stored earlier must not be sent by a later
         // run that has it on again.
-        QDir(options.reportDir + QStringLiteral("/sentry")).removeRecursively();
+        const bool removed = QDir(options.reportDir + QStringLiteral("/sentry")).removeRecursively();
+        qCInfo(lcSentry) << "off:" << (removed ? "events stored earlier were deleted" : "nothing stored");
+    }
+#else
+    if (!options.sentryDsn.isEmpty())
+        qCInfo(lcSentry) << "off: this build has no sentry-native";
 #endif
 }
 
@@ -150,8 +265,11 @@ void crashOnPurpose()
 void shutdown()
 {
 #ifdef CLOUDMUS_HAS_SENTRY
-    if (g_sentryActive.exchange(false))
+    if (g_sentryActive.exchange(false)) {
+        qCInfo(lcSentry) << "closing: waiting for what is still being sent";
         sentry_close();
+        qCInfo(lcSentry) << "closed";
+    }
 #endif
 }
 
@@ -160,7 +278,7 @@ void addBreadcrumb(const QString& message)
     const std::uint64_t index = g_breadcrumbNext.fetch_add(1, std::memory_order_relaxed);
     copyTruncated(g_breadcrumbs[index % kBreadcrumbCount], kBreadcrumbBytes, message.toUtf8());
 #ifdef CLOUDMUS_HAS_SENTRY
-    if (g_sentryActive.load(std::memory_order_acquire))
+    if (g_sentryActive.load(std::memory_order_acquire) && !t_inSdkLog)
         sentry_add_breadcrumb(sentry_value_new_breadcrumb("default", scrubbed(message).constData()));
 #endif
 }

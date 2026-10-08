@@ -165,13 +165,20 @@ int main(int argc, char** argv)
     installLogging(); // reads --debug / CLOUDMUS_QT_DEBUG — see Logging.h
     // Next to debug.log. Right after logging, so the report of even an
     // early crash carries the log lines before it.
+    // Why Sentry is off, if it is: the one thing a tester can't see otherwise.
+    const bool crashReportsOn = Config::Settings::crashReportsEnabledOnDisk();
+    if (QStringLiteral(CLOUDMUS_SENTRY_DSN).isEmpty())
+        qInfo() << "cloudmus-qt: this build has no Sentry DSN, crashes stay local";
+    else if (!crashReportsOn)
+        qInfo() << "cloudmus-qt: crash reports are switched off in Settings";
     Diagnostics::CrashReporter::install({
         QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
             + QStringLiteral("/cloudmus/fronts/qt/crashes"),
         QStringLiteral(CLOUDMUS_VERSION),
         // Read from the file: Settings doesn't exist yet. The setting
         // applies from the next start.
-        Config::Settings::crashReportsEnabledOnDisk() ? QStringLiteral(CLOUDMUS_SENTRY_DSN) : QString(),
+        crashReportsOn ? QStringLiteral(CLOUDMUS_SENTRY_DSN) : QString(),
+        debugLoggingRequested(),
     });
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &Diagnostics::CrashReporter::shutdown);
     // Ctrl+Shift+Alt+F12 three times: crashes on purpose, to try a build's

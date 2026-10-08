@@ -21,6 +21,8 @@ struct Options {
     QString release;
     // Empty: nothing leaves the machine (also when the build lacks Sentry).
     QString sentryDsn;
+    // The SDK's own log, with libcurl's chatter on stderr: only for --debug.
+    bool sentryDebug = false;
 };
 
 // As early as possible in main(), once: installs the platform handlers.
