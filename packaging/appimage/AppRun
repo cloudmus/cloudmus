@@ -28,11 +28,11 @@ PYTHON3="$HERE/usr/bin/python3"
 export QT_QPA_PLATFORMTHEME="${QT_QPA_PLATFORMTHEME:-xdgdesktopportal}"
 
 # The ASan build (build-appimage.sh --asan): reports go next to the crash
-# reports, as asan.log.<pid>. Leak checking is off — Qt and the bundled
+# reports (the XDG state dir, see Config::stateDir()), as asan.log.<pid>. Leak checking is off — Qt and the bundled
 # libraries keep plenty alive until exit on purpose, which would bury a
 # real report. An explicit ASAN_OPTIONS wins.
 if [ -e "$HERE/usr/share/cloudmus/asan" ]; then
-    ASAN_LOG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cloudmus/fronts/qt"
+    ASAN_LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/cloudmus/fronts/qt"
     mkdir -p "$ASAN_LOG_DIR"
     export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:alloc_dealloc_mismatch=0:abort_on_error=1:log_path=$ASAN_LOG_DIR/asan.log}"
     echo "cloudmus-qt: ASan build, reports go to $ASAN_LOG_DIR/asan.log.<pid>" >&2
@@ -122,8 +122,12 @@ fi
 #      did not. Safe to do unconditionally: this points at our own
 #      empty-except-for-youtube-dl directory, never the user's real mpv
 #      config, so nothing else ends up read from it.
-MPV_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cloudmus/mpv-appimage"
+# In the cache, not the config dir: all that is ever in it is the wrapper
+# generated below, on every start.
+MPV_CONFIG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/cloudmus/mpv-appimage"
 mkdir -p "$MPV_CONFIG_DIR"
+# Where earlier versions put it.
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/cloudmus/mpv-appimage"
 
 # A plain symlink to usr/bin/yt-dlp doesn't work: that file is pip's own
 # generated console-script wrapper, and pip bakes the *build-time*
