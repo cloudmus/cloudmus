@@ -14,46 +14,14 @@ permissions:
   contents: write
 
 jobs:
-  appimage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Full history + tags for cmake/Version.cmake's `git describe`.
-          fetch-depth: 0
-
-      - name: Build AppImage
-        env:
-          CLOUDMUS_GA4_MEASUREMENT_ID: ${{ secrets.CLOUDMUS_GA4_MEASUREMENT_ID }}
-        # A release must contain working analytics, not silently omit it.
-        run: |
-          test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"
-          ./build-appimage.sh
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: appimage
-          path: dist/CloudMus-*-x86_64.AppImage
-
-  windows:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Build Windows installer
-        env:
-          CLOUDMUS_GA4_MEASUREMENT_ID: ${{ secrets.CLOUDMUS_GA4_MEASUREMENT_ID }}
-        run: |
-          test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"
-          ./build-windows.sh
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: dist/CloudMus-*-x86_64-Setup.exe
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      release: true
 
   publish:
-    needs: [appimage, windows]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,6 +46,11 @@ jobs:
           # exactly for a clean tagged checkout like this one.
           appimage_asset="$(ls dist/CloudMus-*-x86_64.AppImage)"
           windows_asset="$(ls dist/CloudMus-*-x86_64-Setup.exe)"
+          # Only the builds of this very tag: a name with a commit count or
+          # hash (0.5.1-12-gabc1234, -dirty) is an intermediate build and
+          # never goes to a release.
+          test "$appimage_asset" = "dist/CloudMus-${TAG}-x86_64.AppImage"
+          test "$windows_asset" = "dist/CloudMus-${TAG}-x86_64-Setup.exe"
           # Release notes = the annotated tag's message minus its first
           # line (the version), see docs/releasing.md. Re-fetched
           # explicitly: checkout can leave the tag as a lightweight one.

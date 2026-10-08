@@ -1,0 +1,80 @@
+# The AppImage and the Windows installer, built the same way for a release
+# (release.yml) and for every push to stage (stage.yml). Uploads them as
+# workflow artifacts, and the debug symbols to Sentry.
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      release:
+        description: Release build, with usage statistics (a stage build leaves them out)
+        type: boolean
+        default: false
+      retention-days:
+        description: How long the artifacts stay (0 = the repository's default)
+        type: number
+        default: 0
+
+jobs:
+  appimage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history + tags for cmake/Version.cmake's `git describe`.
+          fetch-depth: 0
+
+      - name: Build AppImage
+        env:
+          # Test builds send no usage statistics: they would only skew the
+          # numbers of real users.
+          CLOUDMUS_GA4_MEASUREMENT_ID: ${{ inputs.release && secrets.CLOUDMUS_GA4_MEASUREMENT_ID || '' }}
+          CLOUDMUS_SENTRY_DSN: ${{ secrets.CLOUDMUS_SENTRY_DSN }}
+          RELEASE: ${{ inputs.release }}
+        # A build must contain working crash reports, and a release working
+        # analytics too, not silently omit them.
+        run: |
+          if [ "$RELEASE" = true ]; then test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"; fi
+          test -n "$CLOUDMUS_SENTRY_DSN"
+          ./build-appimage.sh
+
+      - name: Upload debug symbols to Sentry
+        uses: ./.github/actions/upload-symbols
+        with:
+          auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          org: ${{ secrets.SENTRY_ORG }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: dist/CloudMus-*-x86_64.AppImage
+          retention-days: ${{ inputs.retention-days }}
+
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Windows installer
+        env:
+          CLOUDMUS_GA4_MEASUREMENT_ID: ${{ inputs.release && secrets.CLOUDMUS_GA4_MEASUREMENT_ID || '' }}
+          CLOUDMUS_SENTRY_DSN: ${{ secrets.CLOUDMUS_SENTRY_DSN }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          if [ "$RELEASE" = true ]; then test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"; fi
+          test -n "$CLOUDMUS_SENTRY_DSN"
+          ./build-windows.sh
+
+      - name: Upload debug symbols to Sentry
+        uses: ./.github/actions/upload-symbols
+        with:
+          auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          org: ${{ secrets.SENTRY_ORG }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/CloudMus-*-x86_64-Setup.exe
+          retention-days: ${{ inputs.retention-days }}

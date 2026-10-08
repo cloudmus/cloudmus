@@ -250,7 +250,7 @@ backends/            py-rpc-common/ and one folder per service
 fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, AppRun, build script)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)
-.github/workflows/   Release build
+.github/workflows/   Release and stage builds (build.yml is shared)
 docs/                Protocol spec, this guide, Windows, releasing, analytics
 art/                 Logo and screenshots
 ```

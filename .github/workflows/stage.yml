@@ -1,0 +1,23 @@
+# Test builds: the AppImage and the Windows installer of every commit pushed
+# to the stage branch, as workflow artifacts (Actions → the run → Artifacts).
+# The file names carry `git describe` (e.g. 0.5.1-12-gabc1234). Crashes of
+# these builds go to Sentry like a release's do, marked as "development".
+name: Stage
+
+on:
+  push:
+    branches:
+      - stage
+
+# A newer push makes the build of the one before it pointless.
+concurrency:
+  group: stage
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      release: false
+      retention-days: 14
