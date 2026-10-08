@@ -103,9 +103,11 @@ async def test_self_playback_fixture():
     await asyncio.wait_for(serve_task, timeout=1)
 
 
-def test_stderr_is_utf8_whatever_the_system_code_page():
+@pytest.mark.parametrize("code_page", ["cp1251", "cp1252", "cp932", "cp936", "cp437"])
+def test_stderr_is_utf8_whatever_the_system_code_page(code_page):
     # The front reads a backend's stderr as UTF-8; on Windows Python would
-    # write the code page's encoding (here forced to cp1251) instead.
+    # write the code page's encoding (forced here) instead: Cyrillic,
+    # Western, Japanese, Chinese, the old console one.
     import os
     import subprocess
     import sys
@@ -117,7 +119,7 @@ def test_stderr_is_utf8_whatever_the_system_code_page():
         "logging.getLogger('x').info('Моя волна ✓')\n"
         "print('Плейлист')\n"
     )
-    env = {**os.environ, "PYTHONIOENCODING": "cp1251", "PYTHONUTF8": "0"}
+    env = {**os.environ, "PYTHONIOENCODING": code_page, "PYTHONUTF8": "0"}
     result = subprocess.run(
         [sys.executable, "-c", script], env=env, capture_output=True, check=True
     )
