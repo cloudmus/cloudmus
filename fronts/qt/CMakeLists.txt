@@ -115,6 +115,7 @@ add_library(cloudmus-core STATIC
     src/Playback/LevelFeed.cpp
     src/Playback/CuePlayer.cpp
 
+    src/Config/Paths.cpp
     src/Config/Settings.cpp
     src/I18n/Languages.cpp
     src/I18n/Translator.cpp
@@ -528,6 +529,7 @@ add_executable(cloudmus-qt-tests
     tests/I18nTest.cpp
     tests/AudioPulseTest.cpp
     tests/StarPromptTest.cpp
+    tests/PathsTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

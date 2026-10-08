@@ -8,10 +8,10 @@
 #include <QDir>
 #include <QFile>
 #include <QProcessEnvironment>
-#include <QStandardPaths>
 #include <QTextStream>
 
 #include "CrashReporter.h"
+#include "Paths.h"
 
 namespace {
 
@@ -48,7 +48,7 @@ void messageHandler(QtMsgType type, const QMessageLogContext& context, const QSt
 
     const QString line = QStringLiteral("%1 [%2] %3%4")
                              .arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs),
-                                  QString::fromLatin1(levelName(type)), categoryPrefix, msg);
+                                 QString::fromLatin1(levelName(type)), categoryPrefix, msg);
 
     // Every message, verbose or not: a crash report carries the last ones,
     // and the crash that needs them rarely happens with --debug on.
@@ -91,8 +91,7 @@ void installLogging()
 {
     g_debugEnabled = debugLoggingRequested();
     if (g_debugEnabled) {
-        const QString dir = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
-            + QStringLiteral("/cloudmus/fronts/qt");
+        const QString dir = Config::stateDir();
         QDir().mkpath(dir);
         g_logFile = new QFile(dir + QStringLiteral("/debug.log"));
         if (!g_logFile->open(QIODevice::Append | QIODevice::Text)) {

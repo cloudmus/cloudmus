@@ -204,7 +204,7 @@ reaches the backends too (docs/protocol.md §7.8).
 | Variable | Effect |
 |---|---|
 | `CLOUDMUS_DEV_BACKENDS=1` | Discover backends from this checkout |
-| `CLOUDMUS_QT_DEBUG=1` | Qt front debug log (`~/.config/cloudmus/fronts/qt/debug.log`), same as `--debug` |
+| `CLOUDMUS_QT_DEBUG=1` | Qt front debug log (`~/.local/state/cloudmus/fronts/qt/debug.log`), same as `--debug` |
 | `CLOUDMUS_HOTKEYS_BACKEND=kglobalaccel\|portal\|x11\|none` | Qt front: use one global-hotkeys mechanism whatever the desktop (to try the portal on KDE, say) |
 | `CLOUDMUS_TUI_DEBUG=1` | TUI debug log, `./cloudmus-tui-debug.log` |
 | `CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR` | Overrides the local-folder backend's music folder |
@@ -212,8 +212,11 @@ reaches the backends too (docs/protocol.md §7.8).
 ## Crash reports
 
 When the Qt front crashes, it writes `crash-<unix time>.txt` to
-`~/.config/cloudmus/fronts/qt/crashes/`
-(`%LOCALAPPDATA%\cloudmus\fronts\qt\crashes\` on Windows). The report holds
+`$XDG_STATE_HOME/cloudmus/fronts/qt/crashes/` (`~/.local/state/…` by default;
+`%LOCALAPPDATA%\cloudmus\fronts\qt\crashes\` on Windows). Logs and crash
+reports are state, not configuration, so they are not under `~/.config`;
+earlier versions kept them there, and the first start moves them
+(`Config::migrateLegacyState`). The report holds
 the reason, the stack and the last 40 log lines, whether or not debug
 logging is on. On Windows a minidump (`.dmp`) is written next to it. The
 next start logs the report's path and renames it to `*.reported.txt`, and

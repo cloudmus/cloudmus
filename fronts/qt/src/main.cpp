@@ -27,6 +27,7 @@
 #include "Logging.h"
 #include "MainWindow.h"
 #include "NotificationToast.h"
+#include "Paths.h"
 #include "PlaybackController.h"
 #include "ProxyRouting.h"
 #include "RpcClient.h"
@@ -162,6 +163,8 @@ int main(int argc, char** argv)
     // in the AppImage predates the xdg-toplevel-icon-v1 protocol) have no
     // way to resolve one from a .desktop file's Icon= key at all.
     QApplication::setDesktopFileName(QStringLiteral("cloudmus-qt"));
+    // Before anything opens debug.log or the crash directory.
+    Config::migrateLegacyState();
     installLogging(); // reads --debug / CLOUDMUS_QT_DEBUG — see Logging.h
     // Next to debug.log. Right after logging, so the report of even an
     // early crash carries the log lines before it.
@@ -172,8 +175,7 @@ int main(int argc, char** argv)
     else if (!crashReportsOn)
         qInfo() << "cloudmus-qt: crash reports are switched off in Settings";
     Diagnostics::CrashReporter::install({
-        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
-            + QStringLiteral("/cloudmus/fronts/qt/crashes"),
+        Config::stateDir() + QStringLiteral("/crashes"),
         QStringLiteral(CLOUDMUS_VERSION),
         // Read from the file: Settings doesn't exist yet. The setting
         // applies from the next start.

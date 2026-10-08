@@ -67,7 +67,7 @@ parameters.
 ## Checking it
 
 Start the Qt front with `CLOUDMUS_QT_DEBUG=1` (or `--debug`). Its
-`~/.config/cloudmus/fronts/qt/debug.log` records analytics initialization
+`~/.local/state/cloudmus/fronts/qt/debug.log` records analytics initialization
 with the `User-Agent`, each request's parameters and events, and the HTTP
 status or network error; the installation ID is redacted. In this mode
 events are also marked for GA4's DebugView (**Admin → DebugView**), which

@@ -122,8 +122,9 @@ If the AppImage refuses to start with a FUSE error, install `libfuse2`
 **Uninstalling:** delete the AppImage,
 `~/.local/share/applications/cloudmus-qt.desktop` and the
 `cloudmus-qt.png`/`cloudmus-qt.svg` icons under `~/.local/share/icons/hicolor/`.
-Settings, sign-in tokens and history live in `~/.config/cloudmus/`, cached
-covers in `~/.cache/cloudmus/` — delete them too to remove everything.
+Settings, sign-in tokens and history live in `~/.config/cloudmus/`, logs and
+crash reports in `~/.local/state/cloudmus/`, cached covers in
+`~/.cache/cloudmus/` — delete them too to remove everything.
 
 What works on Linux:
 
@@ -166,10 +167,11 @@ Search isn't available yet. More services are planned — see above.
 
 ## Settings and troubleshooting
 
-- Settings, sign-in tokens and history: `~/.config/cloudmus/`; cached
-  covers: `~/.cache/cloudmus/`.
+- Settings, sign-in tokens and history: `~/.config/cloudmus/`; logs and
+  crash reports: `~/.local/state/cloudmus/`; cached covers:
+  `~/.cache/cloudmus/`.
 - To report a bug, run the app with `--debug` (or `CLOUDMUS_QT_DEBUG=1`)
-  and attach `~/.config/cloudmus/fronts/qt/debug.log`.
+  and attach `~/.local/state/cloudmus/fronts/qt/debug.log`.
 - CloudMus sends anonymous usage statistics, which can be turned off in
   **Settings → General** — see [what is sent](docs/analytics.md).
 
