@@ -31,12 +31,19 @@ ninja_win="$(winepath -w /opt/windows-ninja/ninja.exe)"
 mkdir -p "${build_dir}"
 xvfb-run -a wine "${cmake_exe}" -S "${repo_win}\\fronts\\qt" -B "${build_win}" \
     -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+    -DCMAKE_C_FLAGS=-g1 -DCMAKE_CXX_FLAGS=-g1 \
+    "-DFETCHCONTENT_SOURCE_DIR_SENTRY-NATIVE=$(winepath -w /opt/sentry-native)" \
     -DCMAKE_MAKE_PROGRAM="${ninja_win}" \
     -DCMAKE_PREFIX_PATH="${qt_win}" \
     -DCLOUDMUS_MPV_ROOT="${mpv_win}" \
     -DCLOUDMUS_PREGENERATED_PROTOCOL=ON \
     -DCLOUDMUS_VERSION_OVERRIDE="${version}"
 xvfb-run -a wine "${cmake_exe}" --build "${build_win}" --target cloudmus-qt cloudmus-yt-dlp --parallel 4
+
+# The exe that ships is this one, unstripped; the copy is for CI to upload
+# to Sentry (-g1 DWARF, matched by build id).
+mkdir -p "${repo_dir}/dist/symbols"
+cp "${build_dir}/bin/cloudmus-qt.exe" "${repo_dir}/dist/symbols/cloudmus-qt.exe"
 
 echo '==> Bundling Qt and libmpv'
 rm -rf "${stage_dir}"

@@ -73,6 +73,16 @@ RUN curl -fL --retry 3 -o /opt/python-embed.zip \
 
 RUN mkdir -p "${WINEPREFIX}" && xvfb-run -a wineboot --init && wineserver -w
 
+# sentry-native for crash reports, here rather than fetched by CMake: under
+# Wine its downloader would need the proxy too. The release archive has the
+# submodules in it.
+ARG SENTRY_NATIVE_VERSION=0.9.1
+RUN curl -fL --retry 3 -o /tmp/sentry-native.zip \
+        "https://github.com/getsentry/sentry-native/releases/download/${SENTRY_NATIVE_VERSION}/sentry-native.zip" \
+    && mkdir -p /opt/sentry-native \
+    && unzip -q /tmp/sentry-native.zip -d /opt/sentry-native \
+    && rm /tmp/sentry-native.zip
+
 # The installer's banners, rendered from SVG (make-installer-bitmaps.sh).
 # Last, so adding it didn't invalidate the layers above.
 RUN apt-get update && apt-get install -y --no-install-recommends \

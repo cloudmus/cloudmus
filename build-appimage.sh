@@ -46,6 +46,12 @@ for var in CLOUDMUS_GA4_MEASUREMENT_ID; do
     fi
 done
 
+# The DSN ends up in the binary too (it is a public client key).
+sentry_run_envs=()
+if [ -n "${CLOUDMUS_SENTRY_DSN:-}" ]; then
+    sentry_run_envs+=(-e CLOUDMUS_SENTRY_DSN)
+fi
+
 docker build \
     "${proxy_build_args[@]}" \
     -t cloudmus-appimage-builder \
@@ -57,6 +63,7 @@ mkdir -p dist
 docker run --rm \
     "${proxy_run_envs[@]}" \
     "${ga4_run_envs[@]}" \
+    "${sentry_run_envs[@]}" \
     "${asan_run_envs[@]}" \
     -v "$PWD":/workspace:z \
     -w /workspace \

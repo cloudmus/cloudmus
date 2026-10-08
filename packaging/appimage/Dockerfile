@@ -313,6 +313,13 @@ RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o /etc/apt/trusted.gp
     && apt-get install -y --no-install-recommends clang-19 libclang-rt-19-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# sentry-native's HTTP transport (crash reports, see fronts/qt/CMakeLists.txt).
+# linuxdeploy bundles libcurl and what it needs along with the other
+# libraries cloudmus-qt links.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libcurl4-openssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Deliberately no COPY of the repo here — it's bind-mounted at `docker
 # run` time by build-appimage.sh, so editing app code never invalidates
 # any layer in this image.

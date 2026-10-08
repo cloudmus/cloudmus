@@ -1,0 +1,19 @@
+name: Upload debug symbols to Sentry
+description: Sends dist/symbols/ (the unstripped executables of this build) to the cloudmus-qt project.
+inputs:
+  auth-token:
+    required: true
+  org:
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        SENTRY_AUTH_TOKEN: ${{ inputs.auth-token }}
+        SENTRY_ORG: ${{ inputs.org }}
+        SENTRY_PROJECT: cloudmus-qt
+      run: |
+        test -n "$SENTRY_AUTH_TOKEN" && test -n "$SENTRY_ORG"
+        pip install --quiet sentry-cli
+        sentry-cli debug-files upload dist/symbols

@@ -50,7 +50,10 @@ echo "==> Configuring and building cloudmus-qt"
 # same — compiler, Qt, libmpv — so a bug that only the AppImage shows
 # still shows; it only instruments cloudmus-qt itself and keeps symbols.
 build_dir=build-appimage
-cmake_extra=(-DCMAKE_BUILD_TYPE=Release)
+# -g1: enough debug info for Sentry to name functions and lines in a crash
+# stack. linuxdeploy strips the copy that ships; the unstripped one goes to
+# dist/symbols/ below, for CI to upload.
+cmake_extra=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS=-g1 -DCMAKE_CXX_FLAGS=-g1)
 if [ "${CLOUDMUS_APPIMAGE_ASAN:-}" = 1 ]; then
     build_dir=build-appimage-asan
     cmake_extra=(-DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -65,6 +68,10 @@ cmake -S fronts/qt -B "${build_dir}" -G Ninja "${cmake_extra[@]}" \
     -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 \
     -DBUILD_TESTING=OFF -DPYTHON3_EXECUTABLE="$(command -v python3)"
 cmake --build "${build_dir}"
+if [ "${CLOUDMUS_APPIMAGE_ASAN:-}" != 1 ]; then
+    mkdir -p "${DIST_DIR}/symbols"
+    cp "${build_dir}/bin/cloudmus-qt" "${DIST_DIR}/symbols/cloudmus-qt"
+fi
 
 # --- 3. Assemble the AppDir ---
 echo "==> Assembling AppDir"
