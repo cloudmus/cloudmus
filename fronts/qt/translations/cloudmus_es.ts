@@ -838,6 +838,14 @@ Do you agree to use downloads only this way?</source>
         <source>Send usage statistics to Google Analytics</source>
         <translation>Enviar estadísticas de uso a Google Analytics</translation>
     </message>
+    <message>
+        <source>Send crash reports to Sentry</source>
+        <translation>Enviar informes de fallos a Sentry</translation>
+    </message>
+    <message>
+        <source>Takes effect the next time CloudMus starts.</source>
+        <translation>Se aplica la próxima vez que se inicie CloudMus.</translation>
+    </message>
 </context>
 <context>
     <name>Ui::Settings::HotkeysPage</name>
@@ -1335,14 +1343,6 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
     <message>
         <source>Can&apos;t make %1 executable</source>
         <translation>No se puede hacer ejecutable %1</translation>
-    </message>
-    <message>
-        <source>This copy of CloudMus can&apos;t update itself: only an installed one can.</source>
-        <translation>Esta copia de CloudMus no puede actualizarse sola: solo una instalada puede.</translation>
-    </message>
-    <message>
-        <source>Can&apos;t rename %1</source>
-        <translation>No se puede cambiar el nombre de %1</translation>
     </message>
 </context>
 <context>

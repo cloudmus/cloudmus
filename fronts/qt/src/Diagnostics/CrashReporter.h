@@ -10,18 +10,28 @@
 // next to it. Everything the crash handler needs is prepared up front,
 // since the handler itself may not allocate or touch Qt.
 //
-// Local only for now. The API mirrors what a crash service's SDK
-// (sentry-native: init, breadcrumbs, pending reports) needs, so it can be
-// swapped in behind it later without touching the callers.
+// With a Sentry DSN (and a build that has sentry-native), crashes are also
+// sent there: the inproc backend stores the event under reportDir/sentry
+// and uploads it on the next start. The local report stays either way —
+// it is what a run without a DSN, or with reporting switched off, has.
 namespace Diagnostics::CrashReporter {
 
 struct Options {
     QString reportDir;
     QString release;
+    // Empty: nothing leaves the machine (also when the build lacks Sentry).
+    QString sentryDsn;
 };
 
 // As early as possible in main(), once: installs the platform handlers.
 void install(const Options& options);
+
+// Crashes the process with a real segmentation fault, the way a bug would —
+// for checking the whole path (see CrashShortcut). Never returns.
+[[noreturn]] void crashOnPurpose();
+
+// Flushes what Sentry has pending; before the process exits normally.
+void shutdown();
 
 // One line of recent activity. The last few go into the report; Logging
 // feeds every log message here, whether debug logging is on or not.

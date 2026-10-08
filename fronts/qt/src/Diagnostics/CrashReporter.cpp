@@ -10,6 +10,10 @@
 #include <QRegularExpression>
 #include <QSysInfo>
 
+#ifdef CLOUDMUS_HAS_SENTRY
+#include <sentry.h>
+#endif
+
 #include "CrashReporterDetail.h"
 
 namespace Diagnostics::CrashReporter {
@@ -38,6 +42,44 @@ void copyTruncated(char* destination, std::size_t size, const QByteArray& source
     std::memcpy(destination, source.constData(), length);
     destination[length] = '\0';
 }
+
+#ifdef CLOUDMUS_HAS_SENTRY
+std::atomic<bool> g_sentryActive { false };
+
+// A tagged release (x.y.z) is "production"; anything git describe adds
+// (-5-gabc, -dirty) is somebody's own build.
+const char* sentryEnvironment(const QString& release)
+{
+    static const QRegularExpression tagged(QStringLiteral(R"(^\d+\.\d+\.\d+$)"));
+    return tagged.match(release).hasMatch() ? "production" : "development";
+}
+
+// Log lines go up as breadcrumbs; a URL's query string (signed stream
+// links, tokens) must not.
+QByteArray scrubbed(const QString& message)
+{
+    static const QRegularExpression query(QStringLiteral(R"((https?://[^\s?#"']+)\?[^\s"']*)"));
+    QString result = message;
+    result.replace(query, QStringLiteral("\\1?…"));
+    return result.toUtf8();
+}
+
+void startSentry(const Options& options)
+{
+    const QString database = QDir::toNativeSeparators(options.reportDir + QStringLiteral("/sentry"));
+    sentry_options_t* sentry = sentry_options_new();
+    sentry_options_set_dsn(sentry, options.sentryDsn.toUtf8().constData());
+    sentry_options_set_release(sentry, (QStringLiteral("cloudmus-qt@") + options.release).toUtf8().constData());
+    sentry_options_set_environment(sentry, sentryEnvironment(options.release));
+    sentry_options_set_database_path(sentry, database.toUtf8().constData());
+    sentry_options_set_max_breadcrumbs(sentry, int(kBreadcrumbCount));
+    // Crashes only: no session health, nothing about a user.
+    sentry_options_set_auto_session_tracking(sentry, 0);
+    sentry_options_set_require_user_consent(sentry, 0);
+    if (sentry_init(sentry) == 0)
+        g_sentryActive.store(true, std::memory_order_release);
+}
+#endif
 
 void onTerminate()
 {
@@ -82,12 +124,45 @@ void install(const Options& options)
             .toUtf8());
     Detail::installPlatformHandlers();
     std::set_terminate(onTerminate);
+#ifdef CLOUDMUS_HAS_SENTRY
+    // After our own handlers: Sentry's inproc handler remembers the ones
+    // installed before it and calls them once its event is stored, so the
+    // local report is still written.
+    if (!options.sentryDsn.isEmpty())
+        startSentry(options);
+    else
+        // Switched off: events stored earlier must not be sent by a later
+        // run that has it on again.
+        QDir(options.reportDir + QStringLiteral("/sentry")).removeRecursively();
+#endif
+}
+
+void crashOnPurpose()
+{
+    // A write through a null pointer, not abort(): that is the signal a real
+    // bug raises, and what the reporter's handlers are for. volatile keeps
+    // the compiler from reasoning the undefined behaviour away.
+    volatile int* nowhere = nullptr;
+    *nowhere = 1;
+    std::abort();
+}
+
+void shutdown()
+{
+#ifdef CLOUDMUS_HAS_SENTRY
+    if (g_sentryActive.exchange(false))
+        sentry_close();
+#endif
 }
 
 void addBreadcrumb(const QString& message)
 {
     const std::uint64_t index = g_breadcrumbNext.fetch_add(1, std::memory_order_relaxed);
     copyTruncated(g_breadcrumbs[index % kBreadcrumbCount], kBreadcrumbBytes, message.toUtf8());
+#ifdef CLOUDMUS_HAS_SENTRY
+    if (g_sentryActive.load(std::memory_order_acquire))
+        sentry_add_breadcrumb(sentry_value_new_breadcrumb("default", scrubbed(message).constData()));
+#endif
 }
 
 QStringList takeNewReports()

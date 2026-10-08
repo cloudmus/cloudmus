@@ -219,6 +219,20 @@ logging is on. On Windows a minidump (`.dmp`) is written next to it. The
 next start logs the report's path and renames it to `*.reported.txt`, and
 only the newest ten are kept.
 
+This local report is written whether or not Sentry is on. A build made with
+`CLOUDMUS_SENTRY_DSN` also sends the crash to Sentry (sentry-native, inproc
+backend: the event is stored in `crashes/sentry/` and sent at the next
+start); the setting and what is sent are in `docs/analytics.md`. Set the
+variable when configuring CMake to try it; the tests that need it
+(`aCrashWithSentryOnStillLeavesTheLocalReport`, ...) skip in a build without.
+
+To try crash reporting on a release build (an AppImage, an installed
+Windows build), press **Ctrl+Shift+Alt+F12 three times** within three
+seconds in any window of the app: it crashes on purpose with a real
+segmentation fault. Start the app again and the event goes to Sentry; the
+local report is in `crashes/`. A desktop that takes the combination for
+itself never delivers it to the app.
+
 Stack frames read `module+offset`. To resolve one of the app's own frames,
 pass `addr2line` the offset plus the module's image base, from the build
 that shipped (the Windows exe is not stripped):

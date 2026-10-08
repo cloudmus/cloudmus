@@ -1,4 +1,4 @@
-# Usage statistics in the Qt front
+# Usage statistics and crash reports in the Qt front
 
 The Qt front sends usage events to Google Analytics when built with a GA4
 measurement ID. This is on by default and can be turned off under
@@ -74,3 +74,46 @@ events are also marked for GA4's DebugView (**Admin → DebugView**), which
 shows them live. An HTTP 2xx means Google's endpoint received the request,
 not that GA4 accepted every event, so check DebugView or the Realtime
 report.
+
+# Crash reports (Sentry)
+
+When the Qt front crashes, a build made with a Sentry DSN also sends the
+crash to Sentry. This is on by default and can be turned off under
+**Settings → General → Send crash reports to Sentry**; the change applies
+from the next start. Builds without a DSN, and runs with the setting off,
+send nothing and keep only the local report (see `docs/development.md`).
+
+A report holds the crash's stack (module and function names, offsets), the
+app version, the OS and CPU, the loaded libraries, and the last 40 log lines
+(a URL's query string is cut from them). It carries no account details or
+user ID, and session tracking is off. The crash is stored on disk when it
+happens and goes out at the next start, so nothing is sent from a process
+that is already failing. Sentry sees the sender's network address; turn on
+**Prevent Storing of IP Addresses** in the project's Security & Privacy
+settings to drop it.
+
+Turning the setting off also deletes events stored but not yet sent
+(`crashes/sentry/` next to the local reports).
+
+## Setting up a build
+
+Set `CLOUDMUS_SENTRY_DSN` (the project's client key, from **Settings →
+Client Keys**) before configuring CMake or running `build-appimage.sh` /
+`build-windows.sh`; without it sentry-native is neither fetched nor linked.
+The DSN ends up in the public binary, as the GA4 ID does. The release
+workflow reads the secret of that name and fails if it is missing.
+
+The release builds carry `-g1` debug info, and each build leaves its
+unstripped executable in `dist/symbols/`. The workflow uploads it with
+`sentry-cli debug-files upload`, so stacks in Sentry get function names and
+lines. That needs the GitHub secrets `SENTRY_AUTH_TOKEN` (an organization
+token with the `project:releases` scope) and `SENTRY_ORG` (the organization
+slug); the project is `cloudmus-qt`. Symbols are matched by build id, so
+upload them for every release build.
+
+## Checking it
+
+Crash a build that has a DSN — `kill -SEGV <pid>` of a running
+`cloudmus-qt` — then start it again and look for the event in the project's
+Issues. The release is `cloudmus-qt@<version>`; the environment is
+`production` for a tagged release and `development` for any other build.

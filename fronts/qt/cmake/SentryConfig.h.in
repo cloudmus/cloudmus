@@ -1,0 +1,3 @@
+#pragma once
+
+#define CLOUDMUS_SENTRY_DSN "@CLOUDMUS_SENTRY_DSN@"

@@ -109,6 +109,9 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     glassHint->setVisible(glassSupport != Support::Blur);
 
     analyticsCheck_ = makeCheck(tr("Send usage statistics to Google Analytics"), settings_.analyticsEnabled());
+    crashReportsCheck_ = makeCheck(tr("Send crash reports to Sentry"), settings_.crashReportsEnabled());
+    // Sentry is started once, at launch.
+    crashReportsCheck_->setToolTip(tr("Takes effect the next time CloudMus starts."));
 
     // "Start hidden" only applies to a login launch — indented under it.
     auto* startHiddenRow = new QHBoxLayout;
@@ -130,6 +133,7 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addWidget(glassHint);
     layout->addSpacing(Theme::Spacing::space3);
     layout->addWidget(analyticsCheck_);
+    layout->addWidget(crashReportsCheck_);
     return widget;
 }
 
@@ -145,8 +149,8 @@ bool GeneralPage::isDirty() const
             || trackNotificationsCheck_->isChecked() != settings_.trackNotifications()
             || colorSchemeCombo_->currentData().toInt() != int(settings_.colorScheme())
             || languageCombo_->currentData().toString() != settings_.language()
-            || glassCheck_->isChecked() != glassWanted()
-            || analyticsCheck_->isChecked() != settings_.analyticsEnabled());
+            || glassCheck_->isChecked() != glassWanted() || analyticsCheck_->isChecked() != settings_.analyticsEnabled()
+            || crashReportsCheck_->isChecked() != settings_.crashReportsEnabled());
 }
 
 Rpc::Task<bool> GeneralPage::apply()
@@ -175,6 +179,8 @@ Rpc::Task<bool> GeneralPage::apply()
         settings_.setGlassBackground(glassCheck_->isChecked());
     if (analyticsCheck_->isChecked() != settings_.analyticsEnabled())
         analytics_.setEnabled(analyticsCheck_->isChecked());
+    if (crashReportsCheck_->isChecked() != settings_.crashReportsEnabled())
+        settings_.setCrashReportsEnabled(crashReportsCheck_->isChecked());
     // Switched once the Settings window closes — see
     // Ui::MainWindow::showSettingsDialog().
     co_return true;

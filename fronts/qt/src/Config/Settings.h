@@ -226,6 +226,15 @@ public:
 
     bool analyticsEnabled() const;
     void setAnalyticsEnabled(bool on);
+
+    // Crash reports go to Sentry (see Diagnostics::CrashReporter). Applied
+    // at the next start.
+    bool crashReportsEnabled() const;
+    void setCrashReportsEnabled(bool on);
+    // The same, read straight from the config file: the crash reporter starts
+    // before Core (and so Settings) exists.
+    static bool crashReportsEnabledOnDisk();
+
     // Random installation identifier, kept when analytics is switched off.
     QString analyticsClientId();
     // Numbers this run's analytics session: 1 for the installation's first.

@@ -46,6 +46,7 @@ private:
     QComboBox* languageCombo_ = nullptr;
     QCheckBox* glassCheck_ = nullptr;
     QCheckBox* analyticsCheck_ = nullptr;
+    QCheckBox* crashReportsCheck_ = nullptr;
     // What launchAtLoginCheck_ started from / was last applied as — the
     // autostart entry lives outside Config::Settings, so isDirty() would
     // otherwise re-read the file every time it's asked.

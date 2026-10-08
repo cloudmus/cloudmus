@@ -340,6 +340,25 @@ void Settings::setAnalyticsEnabled(bool on)
     restrictPermissions();
 }
 
+bool Settings::crashReportsEnabled() const
+{
+    return settings_.value(QStringLiteral("crashReports/enabled"), true).toBool();
+}
+
+void Settings::setCrashReportsEnabled(bool on)
+{
+    settings_.setValue(QStringLiteral("crashReports/enabled"), on);
+    settings_.sync();
+    restrictPermissions();
+}
+
+bool Settings::crashReportsEnabledOnDisk()
+{
+    return QSettings(configFilePath(), QSettings::IniFormat)
+        .value(QStringLiteral("crashReports/enabled"), true)
+        .toBool();
+}
+
 QString Settings::analyticsClientId()
 {
     const QString key = QStringLiteral("analytics/clientId");

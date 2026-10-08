@@ -2,7 +2,6 @@
 #include <QFont>
 #include <QIcon>
 #include <QMenu>
-#include <QMenu>
 #include <QSize>
 #include <QStandardPaths>
 #include <QStyleFactory>
@@ -18,6 +17,7 @@
 #include "Coro.h"
 #include "CoverArtCache.h"
 #include "CrashReporter.h"
+#include "CrashShortcut.h"
 #include "FocusRing.h"
 #include "Fonts.h"
 #include "FrameClock.h"
@@ -30,6 +30,7 @@
 #include "PlaybackController.h"
 #include "ProxyRouting.h"
 #include "RpcClient.h"
+#include "SentryConfig.h"
 #include "Settings.h"
 #include "Settings/GeneralPage.h"
 #include "SourceManager.h"
@@ -168,7 +169,15 @@ int main(int argc, char** argv)
         QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
             + QStringLiteral("/cloudmus/fronts/qt/crashes"),
         QStringLiteral(CLOUDMUS_VERSION),
+        // Read from the file: Settings doesn't exist yet. The setting
+        // applies from the next start.
+        Config::Settings::crashReportsEnabledOnDisk() ? QStringLiteral(CLOUDMUS_SENTRY_DSN) : QString(),
     });
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, &Diagnostics::CrashReporter::shutdown);
+    // Ctrl+Shift+Alt+F12 three times: crashes on purpose, to try a build's
+    // crash reporting.
+    Diagnostics::CrashShortcut crashShortcut;
+    app.installEventFilter(&crashShortcut);
     const QStringList crashReports = Diagnostics::CrashReporter::takeNewReports();
     for (const QString& report : crashReports)
         qWarning() << "cloudmus-qt: the last run crashed, report:" << report;

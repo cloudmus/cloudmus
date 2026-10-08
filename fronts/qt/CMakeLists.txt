@@ -149,6 +149,7 @@ add_library(cloudmus-core STATIC
     src/ViewModel/Downloads.cpp
 
     src/Diagnostics/CrashReporter.cpp
+    src/Diagnostics/CrashShortcut.cpp
 
     src/Update/ReleaseFeed.cpp
     src/Update/UpdateChecker.cpp
@@ -221,6 +222,41 @@ if(CLOUDMUS_GA4_MEASUREMENT_ID AND NOT CLOUDMUS_GA4_MEASUREMENT_ID MATCHES "^G-[
     message(FATAL_ERROR "Invalid GA4 Measurement ID")
 endif()
 configure_file(cmake/GA4Config.h.in ${VERSION_DIR}/GA4Config.h @ONLY)
+
+# Sentry crash reports: only in a build that was given a DSN (the release
+# builds; see cmake/SentryConfig.h.in). Without one nothing is fetched or
+# linked, and the crash reporter stays local.
+set(CLOUDMUS_SENTRY_DSN "$ENV{CLOUDMUS_SENTRY_DSN}")
+if(CLOUDMUS_SENTRY_DSN AND NOT CLOUDMUS_SENTRY_DSN MATCHES "^https://[A-Za-z0-9]+(:[A-Za-z0-9]+)?@[A-Za-z0-9.-]+/[0-9]+$")
+    message(FATAL_ERROR "Invalid Sentry DSN")
+endif()
+if(CLOUDMUS_SENTRY_DSN)
+    set(CLOUDMUS_SENTRY_DEFAULT ON)
+else()
+    set(CLOUDMUS_SENTRY_DEFAULT OFF)
+endif()
+option(CLOUDMUS_SENTRY "Link sentry-native for crash reports" ${CLOUDMUS_SENTRY_DEFAULT})
+configure_file(cmake/SentryConfig.h.in ${VERSION_DIR}/SentryConfig.h @ONLY)
+if(CLOUDMUS_SENTRY)
+    find_package(sentry CONFIG QUIET)
+    if(NOT sentry_FOUND)
+        include(FetchContent)
+        # inproc: no crashpad_handler process to ship next to the exe, and
+        # it builds with both clang on Debian 11 and MinGW.
+        set(SENTRY_BACKEND inproc CACHE STRING "" FORCE)
+        set(SENTRY_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(SENTRY_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+        set(SENTRY_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(SENTRY_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(sentry-native
+            # The release archive has the submodules in it, and needs no git.
+            URL https://github.com/getsentry/sentry-native/releases/download/0.9.1/sentry-native.zip
+            DOWNLOAD_EXTRACT_TIMESTAMP ON)
+        FetchContent_MakeAvailable(sentry-native)
+    endif()
+    target_link_libraries(cloudmus-core PUBLIC sentry::sentry)
+    target_compile_definitions(cloudmus-core PUBLIC CLOUDMUS_HAS_SENTRY)
+endif()
 add_custom_target(cloudmus_version
     COMMAND ${CMAKE_COMMAND} -DBASE=${PROJECT_VERSION} -DSRC=${CLOUDMUS_REPO_ROOT} -DOUT=${VERSION_DIR}/Version.h
             -DVERSION_OVERRIDE=${CLOUDMUS_VERSION_OVERRIDE}
@@ -464,6 +500,11 @@ endif()
 # the dynamic symbol table (backtrace_symbols_fd reads that, not debug info).
 if(NOT WIN32)
     set_target_properties(cloudmus-qt PROPERTIES ENABLE_EXPORTS ON)
+endif()
+# Sentry finds the symbols for a crash by the executable's build id, so the
+# one in the release must match the unstripped copy uploaded from CI.
+if(CLOUDMUS_SENTRY)
+    target_link_options(cloudmus-qt PRIVATE -Wl,--build-id)
 endif()
 
 # --- tests (QtTest): `ctest --test-dir build`, or run build/bin/cloudmus-qt-tests.
