@@ -1,6 +1,7 @@
 //! Just enough of Sentry's wire format to send an event with attachments, or
 //! to forward an envelope the app's own SDK left on disk.
 
+use crate::log::debug;
 use serde_json::{json, Value};
 use std::time::Duration;
 
@@ -98,6 +99,7 @@ pub fn build_envelope(event_id: &str, dsn: &str, items: Vec<Item>) -> Vec<u8> {
 
 /// Ok once Sentry accepted the envelope (any 2xx).
 pub fn send(dsn: &Dsn, envelope: &[u8]) -> Result<(), String> {
+    debug!("POST {} ({} bytes)", dsn.envelope_url(), envelope.len());
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(10)))
         .http_status_as_error(false)
@@ -110,6 +112,7 @@ pub fn send(dsn: &Dsn, envelope: &[u8]) -> Result<(), String> {
         .send(envelope)
         .map_err(|e| e.to_string())?;
     let status = response.status();
+    debug!("Sentry answered {status}");
     if status.is_success() {
         Ok(())
     } else {

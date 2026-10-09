@@ -14,10 +14,12 @@
 
 mod child;
 mod env_setup;
+mod log;
 mod report;
 mod sentry;
 
 use child::Exit;
+use log::debug;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -28,29 +30,44 @@ fn main() -> ExitCode {
         eprintln!("cloudmus-apprun: can't find out where the AppImage is mounted");
         return ExitCode::from(127);
     };
+    log::enable(args.iter().any(|a| a == "--debug") || std::env::var_os("CLOUDMUS_QT_DEBUG").is_some_and(|v| !v.is_empty()));
     let dirs = env_setup::Dirs::from_env();
     let appimage = std::env::var_os("APPIMAGE");
+    debug!("version {}, mounted at {}, APPIMAGE {:?}", env!("CARGO_PKG_VERSION"), appdir.display(), appimage);
+    debug!("config {}, cache {}, data {}, state {}", dirs.config.display(), dirs.cache.display(), dirs.data.display(), dirs.state.display());
 
     let prepared = env_setup::prepare(&appdir, &dirs, appimage.as_ref());
     // The app removes it once its crash reporter is up; still there after the
     // app has exited, it never got that far. Without a marker we can't tell.
     let marker = create_marker();
+    debug!("startup marker: {:?}", marker);
 
     let outcome = child::run(&appdir.join("usr/bin/cloudmus-qt"), &args, &prepared.env, marker.as_deref());
 
-    let reporter = report::Reporter::new(&appdir, &dirs);
     let failed = outcome.exit != Some(Exit::Code(0));
     let stopped_by_user = outcome.exit.is_some_and(report::is_user_stop);
+    debug!(
+        "cloudmus-qt finished: {:?}, failed {failed}, stopped by the user {stopped_by_user}, marker {}",
+        outcome.exit,
+        if marker.as_deref().is_some_and(Path::exists) { "still there: never got to its crash reporter" } else { "gone" }
+    );
     if failed && !stopped_by_user {
-        if let Some(reporter) = &reporter {
-            match marker.as_deref() {
+        // Always say what was seen and what is done about it: this is the
+        // only place that shows why a report did or did not go out.
+        if let Some(exit) = outcome.exit {
+            eprintln!("cloudmus-apprun: cloudmus-qt {}", report::describe_exit(exit));
+        }
+        match report::Reporter::new(&appdir, &dirs) {
+            Err(reason) => eprintln!("cloudmus-apprun: not reporting: {reason}"),
+            Ok(reporter) => match marker.as_deref() {
                 Some(marker) if marker.exists() => reporter.startup_failure(&appdir, &outcome),
                 Some(_) => reporter.stored_crashes(&dirs.app_state().join("crashes/sentry")),
-                None => {}
-            }
+                None => eprintln!("cloudmus-apprun: not reporting: no startup marker, can't tell how far the app got"),
+            },
         }
     }
 
+    debug!("removing {} backend manifest(s)", prepared.manifests.len());
     for manifest in &prepared.manifests {
         let _ = fs::remove_file(manifest);
     }

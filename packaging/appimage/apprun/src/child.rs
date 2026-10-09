@@ -1,6 +1,7 @@
 //! Runs cloudmus-qt as a child: output goes through to our own stdout/stderr
 //! as it comes, while the start of each stream is kept for a report.
 
+use crate::log::debug;
 use signal_hook::consts::{SIGHUP, SIGINT, SIGTERM};
 use signal_hook::iterator::Signals;
 use std::ffi::OsString;
@@ -54,6 +55,7 @@ pub fn run(program: &Path, args: &[OsString], env: &[(&str, OsString)], marker: 
     if let Some(marker) = marker {
         command.env("CLOUDMUS_STARTUP_MARKER", marker);
     }
+    debug!("starting {} {:?}", program.display(), args);
     let mut child = match command.spawn() {
         Ok(child) => child,
         Err(e) => return Outcome { exit: None, spawn_error: Some(e), stdout: Vec::new(), stderr: Vec::new() },
@@ -62,11 +64,13 @@ pub fn run(program: &Path, args: &[OsString], env: &[(&str, OsString)], marker: 
     // A stop request is for the app, not for us: we have to outlive it to
     // clean up and report.
     let pid = child.id() as libc::pid_t;
+    debug!("cloudmus-qt runs as pid {pid}");
     let signals = Signals::new([SIGINT, SIGTERM, SIGHUP]).ok();
     let signals_handle = signals.as_ref().map(|s| s.handle());
     let forwarder = signals.map(|mut signals| {
         thread::spawn(move || {
             for signal in signals.forever() {
+                debug!("signal {signal} for the app, passing it on");
                 // SAFETY: plain kill(2) on our own child.
                 unsafe { libc::kill(pid, signal) };
             }
@@ -84,6 +88,7 @@ pub fn run(program: &Path, args: &[OsString], env: &[(&str, OsString)], marker: 
         let _ = forwarder.join();
     }
 
+    debug!("pid {pid} is gone: {status:?}");
     let deadline = Instant::now() + DRAIN_WAIT;
     let outcome = Outcome {
         exit: status.ok().map(|s| match (s.code(), s.signal()) {

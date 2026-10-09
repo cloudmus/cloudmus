@@ -3,6 +3,7 @@
 
 use crate::child::{Exit, Outcome};
 use crate::env_setup::Dirs;
+use crate::log::debug;
 use crate::sentry::{self, Dsn, Item};
 use serde_json::{json, Map, Value};
 use std::ffi::OsStr;
@@ -26,13 +27,22 @@ pub struct Reporter {
 }
 
 impl Reporter {
-    pub fn new(appdir: &Path, dirs: &Dirs) -> Option<Reporter> {
+    /// Err: why nothing will be sent, for the log.
+    pub fn new(appdir: &Path, dirs: &Dirs) -> Result<Reporter, String> {
         let share = appdir.join("usr/share/cloudmus");
-        let dsn_text = fs::read_to_string(share.join("sentry-dsn")).ok()?.trim().to_string();
-        let dsn = Dsn::parse(&dsn_text)?;
+        let Ok(dsn_text) = fs::read_to_string(share.join("sentry-dsn")) else {
+            return Err("this build has no Sentry DSN".into());
+        };
+        let dsn_text = dsn_text.trim().to_string();
+        let Some(dsn) = Dsn::parse(&dsn_text) else {
+            return Err("the Sentry DSN of this build is invalid".into());
+        };
         let release = fs::read_to_string(share.join("version")).map_or_else(|_| "unknown".into(), |v| v.trim().into());
-        let enabled = fs::read_to_string(dirs.app_config_file()).map_or(true, |ini| crash_reports_enabled(&ini));
-        enabled.then_some(Reporter { dsn_text, dsn, release })
+        if !fs::read_to_string(dirs.app_config_file()).map_or(true, |ini| crash_reports_enabled(&ini)) {
+            return Err("crash reports are switched off in Settings".into());
+        }
+        debug!("reporting to {} (project {}), release {release}", dsn.host, dsn.project);
+        Ok(Reporter { dsn_text, dsn, release })
     }
 
     /// The app was started but died before it installed its own crash
@@ -40,6 +50,7 @@ impl Reporter {
     pub fn startup_failure(&self, appdir: &Path, outcome: &Outcome) {
         let event_id = sentry::new_event_id();
         let event = self.startup_event(&event_id, appdir, outcome);
+        debug!("startup failure event {event_id}: {event}");
         let envelope = sentry::build_envelope(
             &event_id,
             &self.dsn_text,
@@ -57,18 +68,19 @@ impl Reporter {
 
     /// sentry-native stores a crash and sends it at the next start; the user
     /// may not start the app again. A run directory is `<uuid>.run` with
-    /// `<uuid>.run.lock` next to it, which its process holds locked while it
-    /// lives, so a locked one is still in use and left alone. Deleted only
-    /// once Sentry has it, as the SDK does, so a failed send is retried by
-    /// the next start.
+    /// `<uuid>.run.lock` next to it, which every process holding the
+    /// descriptor keeps locked. That includes the backends the app started:
+    /// they inherit it and outlive a crashed app for a moment, so a run is
+    /// waited for, and only left to the next start if something still holds
+    /// it after `LOCK_WAIT`. A run without an envelope is a healthy one (maybe
+    /// another instance) and is not touched. Deleted only once Sentry has the
+    /// envelopes, as the SDK does, so a failed send is retried by the next
+    /// start.
     pub fn stored_crashes(&self, database: &Path) {
-        let Ok(entries) = fs::read_dir(database) else { return };
-        for run in entries.flatten().map(|e| e.path()) {
-            if run.extension() != Some(OsStr::new("run")) || !run.is_dir() {
-                continue;
-            }
-            let lock_path = PathBuf::from(format!("{}.lock", run.display()));
-            let Some(_lock) = try_lock(&lock_path) else { continue };
+        let mut found = false;
+        debug!("looking for stored crash reports in {}", database.display());
+        let runs = fs::read_dir(database).into_iter().flatten().flatten().map(|e| e.path());
+        for run in runs.filter(|p| p.extension() == Some(OsStr::new("run")) && p.is_dir()) {
             let mut envelopes: Vec<PathBuf> = fs::read_dir(&run)
                 .into_iter()
                 .flatten()
@@ -76,7 +88,20 @@ impl Reporter {
                 .map(|e| e.path())
                 .filter(|p| p.extension() == Some(OsStr::new("envelope")))
                 .collect();
+            debug!("{}: {} envelope(s)", run.display(), envelopes.len());
+            if envelopes.is_empty() {
+                continue;
+            }
+            found = true;
             envelopes.sort();
+            let lock_path = PathBuf::from(format!("{}.lock", run.display()));
+            let Some(_lock) = lock_run(&lock_path, LOCK_WAIT) else {
+                eprintln!(
+                    "cloudmus-apprun: {} is still in use by a running process; the app sends it at its next start",
+                    run.display()
+                );
+                continue;
+            };
             let mut all_sent = true;
             for path in &envelopes {
                 let Ok(bytes) = fs::read(path) else { continue };
@@ -92,6 +117,9 @@ impl Reporter {
                 let _ = fs::remove_dir_all(&run);
                 let _ = fs::remove_file(&lock_path);
             }
+        }
+        if !found {
+            eprintln!("cloudmus-apprun: the app left no crash report to send (it died before it could write one)");
         }
     }
 
@@ -173,6 +201,14 @@ fn describe(outcome: &Outcome) -> (String, &'static str, String) {
             (format!("cloudmus-qt did not start: {e}"), "exit_code", code.to_string())
         }
         (None, None) => ("cloudmus-qt did not start".into(), "exit_code", "unknown".into()),
+    }
+}
+
+/// "exited with code 3" / "was killed by signal 11 (SIGSEGV)".
+pub fn describe_exit(exit: Exit) -> String {
+    match exit {
+        Exit::Code(code) => format!("exited with code {code}"),
+        Exit::Signal(n) => format!("was killed by signal {n} ({})", signal_name(n)),
     }
 }
 
@@ -307,16 +343,31 @@ fn run_for_text(mut command: Command, limit: Duration) -> Option<String> {
     Some(String::from_utf8_lossy(&reader.join().ok()?).into_owned())
 }
 
-/// Holds the flock for as long as it lives; None if somebody else holds it
-/// (or there is no lock file: not a run directory of this SDK).
-#[allow(dead_code)] // held for its Drop
-struct Lock(fs::File);
+/// How long to wait for the backends of a crashed app to let go of its lock.
+const LOCK_WAIT: Duration = Duration::from_secs(5);
 
-fn try_lock(path: &Path) -> Option<Lock> {
-    let file = fs::OpenOptions::new().read(true).write(true).open(path).ok()?;
-    // SAFETY: flock(2) on a file descriptor we own.
-    let locked = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0;
-    locked.then_some(Lock(file))
+/// Holds the flock for as long as it lives.
+#[allow(dead_code)] // held for its Drop
+struct Lock(Option<fs::File>);
+
+/// The lock of a run, once nobody else holds it; None if somebody still does
+/// after `wait`. With no lock file there is nothing to wait for.
+fn lock_run(path: &Path, wait: Duration) -> Option<Lock> {
+    let Ok(file) = fs::OpenOptions::new().read(true).write(true).open(path) else {
+        return Some(Lock(None));
+    };
+    let deadline = std::time::Instant::now() + wait;
+    loop {
+        // SAFETY: flock(2) on a file descriptor we own.
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0 {
+            return Some(Lock(Some(file)));
+        }
+        if std::time::Instant::now() >= deadline {
+            return None;
+        }
+        debug!("{} is locked by another process, waiting", path.display());
+        std::thread::sleep(Duration::from_millis(50));
+    }
 }
 
 #[cfg(test)]

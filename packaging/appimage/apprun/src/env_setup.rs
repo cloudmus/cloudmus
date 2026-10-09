@@ -3,6 +3,7 @@
 //! paths, and the desktop entry. Nothing here may stop the app from
 //! starting: a step that fails is reported on stderr and skipped.
 
+use crate::log::debug;
 use serde_json::json;
 use std::ffi::OsString;
 use std::fs;
@@ -122,6 +123,10 @@ pub fn prepare(appdir: &Path, dirs: &Dirs, appimage: Option<&OsString>) -> Prepa
         install_desktop_entry(appdir, &dirs.data, appimage);
     }
 
+    for (name, value) in &env {
+        debug!("child environment: {name}={}", value.to_string_lossy());
+    }
+    debug!("backend manifests: {:?}", manifests);
     Prepared { env, manifests }
 }
 
@@ -202,6 +207,7 @@ fn install_desktop_entry(appdir: &Path, data: &Path, appimage: &OsString) {
         warn("can't install the desktop entry", &e);
         return;
     }
+    debug!("desktop entry installed under {} with Exec={}", data.display(), appimage.to_string_lossy());
     // Best effort: KDE rescans on its own eventually, just maybe not before
     // this launch's window asks for its icon. Not every desktop has it.
     for tool in ["kbuildsycoca6", "kbuildsycoca5"] {

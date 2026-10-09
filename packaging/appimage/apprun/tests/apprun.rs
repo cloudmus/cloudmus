@@ -330,3 +330,85 @@ fn a_stop_request_goes_to_the_app_and_the_cleanup_still_happens() {
     assert!(!Path::new(&h.root.join("home/.config/cloudmus/backends.d/yandex-music.json")).exists());
     assert!(h.bodies().is_empty());
 }
+
+fn stderr_of(out: &Output) -> String {
+    String::from_utf8_lossy(&out.stderr).into_owned()
+}
+
+#[test]
+fn waits_for_the_backends_of_a_crashed_app_to_let_go_of_the_lock() {
+    let h = Harness::new("lock-released-late");
+    let envelope = b"{\"event_id\":\"abc\"}\n{\"type\":\"event\",\"length\":2}\n{}\n";
+    let (run, lock) = store_crash(&h, "11111111-2222-3333-4444-555555555555", envelope);
+    // What the app's backends do: hold the descriptor a moment longer.
+    let held = fs::File::open(&lock).unwrap();
+    // SAFETY: flock(2) on a descriptor we own.
+    assert_eq!(unsafe { libc::flock(held.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) }, 0);
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(1200));
+        drop(held);
+    });
+    h.child(r#"rm "$CLOUDMUS_STARTUP_MARKER"; kill -SEGV $$"#);
+    let out = h.run();
+    assert_eq!(h.bodies(), vec![envelope.to_vec()]);
+    assert!(!run.exists());
+    let log = stderr_of(&out);
+    assert!(log.contains("cloudmus-qt was killed by signal 11 (SIGSEGV)"), "{log}");
+    assert!(log.contains("sent the crash report"), "{log}");
+}
+
+#[test]
+fn says_why_nothing_was_sent() {
+    let h = Harness::new("explains");
+    fs::remove_file(h.root.join("AppDir/usr/share/cloudmus/sentry-dsn")).unwrap();
+    h.child("exit 3");
+    let log = stderr_of(&h.run());
+    assert!(log.contains("cloudmus-qt exited with code 3"), "{log}");
+    assert!(log.contains("not reporting: this build has no Sentry DSN"), "{log}");
+    drop(h);
+
+    let h = Harness::new("explains-opt-out");
+    let config = h.root.join("home/.config/cloudmus/fronts/qt");
+    fs::create_dir_all(&config).unwrap();
+    fs::write(config.join("config.ini"), "[crashReports]\nenabled=false\n").unwrap();
+    h.child("exit 3");
+    assert!(stderr_of(&h.run()).contains("not reporting: crash reports are switched off in Settings"));
+    drop(h);
+
+    let h = Harness::new("explains-no-report");
+    h.child(r#"rm "$CLOUDMUS_STARTUP_MARKER"; kill -SEGV $$"#);
+    let log = stderr_of(&h.run());
+    assert!(log.contains("the app left no crash report to send"), "{log}");
+}
+
+#[test]
+fn a_run_still_locked_after_the_wait_is_left_for_the_next_start() {
+    let h = Harness::new("lock-never-released");
+    let (run, lock) = store_crash(&h, "11111111-2222-3333-4444-555555555555", b"{}\n");
+    let held = fs::File::open(&lock).unwrap();
+    // SAFETY: flock(2) on a descriptor we own.
+    assert_eq!(unsafe { libc::flock(held.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) }, 0);
+    h.child(r#"rm "$CLOUDMUS_STARTUP_MARKER"; kill -SEGV $$"#);
+    let log = stderr_of(&h.run());
+    assert!(log.contains("is still in use by a running process"), "{log}");
+    assert!(run.join("e1.envelope").exists());
+    drop(held);
+}
+
+#[test]
+fn debug_output_only_with_the_debug_flag() {
+    let h = Harness::new("debug");
+    h.child(r#"rm "$CLOUDMUS_STARTUP_MARKER"; echo "args: $@""#);
+    let quiet = h.run();
+    assert!(!stderr_of(&quiet).contains("debug:"));
+
+    let out = h.command().arg("--debug").output().unwrap();
+    assert!(String::from_utf8_lossy(&out.stdout).contains("args: --debug"), "the flag reaches the app");
+    let log = stderr_of(&out);
+    for expected in ["debug: version", "debug: child environment: QT_QPA_PLATFORMTHEME=", "debug: starting", "debug: cloudmus-qt finished"] {
+        assert!(log.contains(expected), "{expected} missing in {log}");
+    }
+
+    let by_env = h.command().env("CLOUDMUS_QT_DEBUG", "1").output().unwrap();
+    assert!(stderr_of(&by_env).contains("debug: version"));
+}
