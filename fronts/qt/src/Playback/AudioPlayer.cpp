@@ -75,28 +75,6 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
     mpv_set_option_string(mpv_, "audio-client-name", "CloudMus");
     mpv_set_option_string(mpv_, "title", "${media-title}");
 
-    // Lets the AppImage build point mpv's ytdl_hook script at its own
-    // bundled yt-dlp, without which every stream URL that hook doesn't
-    // immediately recognize fails ("youtube-dl failed: not found or not
-    // enough permissions", then a much less obvious "unrecognized file
-    // format" from mpv's own top-level error) — see
-    // packaging/appimage/AppRun's own comments for why the script-opts
-    // route mpv 0.32.0 (Debian 11's libmpv, what the AppImage bundles)
-    // doesn't support at all, and why an isolated MPV_HOME wasn't
-    // sufficient on its own either: embedded libmpv defaults "config" to
-    // "no" specifically to avoid touching *any* user files unless asked,
-    // which turns out to also gate mp.find_config_file() in
-    // ytdl_hook.lua, not just mpv.conf/input.conf loading — confirmed by
-    // this still failing with only MPV_HOME set. Setting the config
-    // directory through mpv's own C API instead of trusting it to notice
-    // the env var is deliberate, not just belt-and-suspenders: it's the
-    // one mechanism actually confirmed to work. Harmless when unset
-    // (plain dev/system runs): "config" stays at its default "no".
-    const QByteArray mpvConfigDir = qgetenv("CLOUDMUS_MPV_CONFIG_DIR");
-    if (!mpvConfigDir.isEmpty()) {
-        mpv_set_option_string(mpv_, "config-dir", mpvConfigDir.constData());
-        mpv_set_option_string(mpv_, "config", "yes");
-    }
 #ifdef Q_OS_WIN
     // The packaged helper passes mpv's yt-dlp request to our bundled Python.
     // Current Windows libmpv supports this hook option directly.
