@@ -52,6 +52,21 @@ if [ -n "${CLOUDMUS_SENTRY_DSN:-}" ]; then
     sentry_run_envs+=(-e CLOUDMUS_SENTRY_DSN)
 fi
 
+# AppRun is a static Rust binary (packaging/appimage/apprun), built apart from
+# the rest: the builder image's Debian 11 has a Rust too old for the crates
+# and no musl target, while the official rust:alpine image is musl-native, so
+# a plain release build comes out fully static. The tag is pinned exactly.
+mkdir -p build-apprun
+docker run --rm \
+    "${proxy_run_envs[@]}" \
+    --user "$(id -u):$(id -g)" \
+    -e CARGO_HOME=/workspace/build-apprun/cargo-home \
+    -e CARGO_TARGET_DIR=/workspace/build-apprun/target \
+    -v "$PWD":/workspace:z \
+    -w /workspace/packaging/appimage/apprun \
+    rust:1.98.0-alpine \
+    cargo build --release --locked
+
 docker build \
     "${proxy_build_args[@]}" \
     -t cloudmus-appimage-builder \

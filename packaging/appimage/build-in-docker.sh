@@ -113,14 +113,6 @@ cp -a "$(dirname "$(dirname "${BUNDLED_PYTHON3}")")" "${APPDIR}/usr/python-runti
     ./backends/youtube-music
 ln -s ../python-runtime/bin/python3 "${APPDIR}/usr/bin/python3"
 
-# No usr/bin/yt-dlp symlink here (unlike python3 above): mpv's ytdl_hook
-# needs to find yt-dlp too (see packaging/appimage/AppRun's own, much
-# longer comment on this), but AppRun ends up generating a small wrapper
-# script for it at runtime instead of using pip's own console-script
-# entry point directly — that file's shebang bakes in *this build
-# container's* path, which doesn't exist wherever the AppImage actually
-# ends up running.
-
 # Desktop integration: .desktop + icon, under the standard FHS paths
 # linuxdeploy actually scans (usr/share/applications, usr/share/icons) —
 # NOT AppDir root. Root-level copies (plus AppRun) are what linuxdeploy
@@ -428,15 +420,22 @@ done
 find "${APPDIR}/usr/lib" -maxdepth 1 -type f -name '*.so*' -print0 | \
     xargs -0 -I{} patchelf --set-rpath '$ORIGIN' {}
 
-# --- 6. Wrap linuxdeploy's generated AppRun (it correctly sets up
-# QT_PLUGIN_PATH and friends for the bundled Qt6 — not something worth
-# reimplementing by hand) with ours, which seeds backend manifests
-# *before* handing off to it. See packaging/appimage/AppRun's own
-# comments for why manifest-seeding can't just be done once at build
-# time (an AppImage's $APPDIR is a fresh mount path every launch). ---
+# --- 6. Our AppRun in place of linuxdeploy's generated one (for Qt6 that is
+# just a link to the binary): the static Rust program from
+# packaging/appimage/apprun, built by build-appimage.sh before this
+# container started. It seeds the backend manifests with this run's paths
+# (an AppImage's $APPDIR is a fresh mount path every launch), runs the app
+# and reports failures to Sentry. ---
 mv "${APPDIR}/AppRun" "${APPDIR}/AppRun.real"
-cp packaging/appimage/AppRun "${APPDIR}/AppRun"
+cp build-apprun/target/release/cloudmus-apprun "${APPDIR}/AppRun"
 chmod +x "${APPDIR}/AppRun"
+# What AppRun reads at run time: the version for Sentry's release field, and
+# the DSN when the build has one (a build without it reports nothing).
+mkdir -p "${APPDIR}/usr/share/cloudmus"
+echo "${version}" > "${APPDIR}/usr/share/cloudmus/version"
+if [ -n "${CLOUDMUS_SENTRY_DSN:-}" ]; then
+    echo "${CLOUDMUS_SENTRY_DSN}" > "${APPDIR}/usr/share/cloudmus/sentry-dsn"
+fi
 # AppRun sets up ASan's options when it finds this marker.
 if [ "${CLOUDMUS_APPIMAGE_ASAN:-}" = 1 ]; then
     touch "${APPDIR}/usr/share/cloudmus/asan"

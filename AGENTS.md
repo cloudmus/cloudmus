@@ -16,6 +16,7 @@ Details: `docs/development.md`. Before touching `fronts/qt/`, read
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
 | `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
 | `packaging/appimage/`, `build-appimage.sh` | AppImage build in Docker | |
+| `packaging/appimage/apprun/` | The AppImage's `AppRun`: static launcher that reports failed starts to Sentry | Rust (built in `rust:alpine`) |
 
 ## Generated code
 
@@ -48,6 +49,8 @@ python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local  # pe
 
 `CLOUDMUS_DEV_BACKENDS=1` makes fronts use backends from this checkout.
 `./build-appimage.sh` needs Docker and is slow — only for packaging changes.
+`AppRun` tests: `cargo test` in `packaging/appimage/apprun/` (command for the
+pinned `rust:alpine` image: `docs/development.md`).
 
 Windows: before building or checking anything for Windows (any `Q_OS_WIN` /
 `*Win.cpp` change), read `docs/windows.md`. It covers the quick compile check

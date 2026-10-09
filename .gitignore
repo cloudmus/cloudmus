@@ -8,6 +8,7 @@ build/
 build-asan/
 build-appimage/
 build-appimage-asan/
+build-apprun/
 build-windows/
 dist/
 
@@ -22,3 +23,6 @@ fronts/qt/.qtcreator/
 
 # VS Code workspace settings (machine-specific)
 .vscode/
+
+# The AppRun crate's own cargo output (the AppImage build uses build-apprun/)
+packaging/appimage/apprun/target/
