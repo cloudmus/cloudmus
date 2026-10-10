@@ -306,11 +306,17 @@ RUN python3 -m pip install --no-cache-dir "cmake>=3.21"
 # over-releasing the QStrings in it, and the app later crashes on a
 # corrupted heap. Clang builds against the same system libstdc++ 10, so
 # the AppImage still needs nothing newer from the target machine.
+#
+# Also here: lld, which links the executables several times faster than
+# bullseye's GNU ld (fronts/qt/CMakeLists.txt picks it up from PATH), and
+# ccache, whose cache directory build-in-docker.sh keeps in the workspace so
+# CI can restore it between runs.
 RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
     && echo "deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-19 main" \
         > /etc/apt/sources.list.d/llvm.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends clang-19 libclang-rt-19-dev \
+    && apt-get install -y --no-install-recommends clang-19 libclang-rt-19-dev lld-19 ccache \
+    && ln -s /usr/lib/llvm-19/bin/ld.lld /usr/local/bin/ld.lld \
     && rm -rf /var/lib/apt/lists/*
 
 # sentry-native's HTTP transport (crash reports, see fronts/qt/CMakeLists.txt).

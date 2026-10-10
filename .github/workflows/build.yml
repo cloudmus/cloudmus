@@ -24,6 +24,17 @@ jobs:
           # Full history + tags for cmake/Version.cmake's `git describe`.
           fetch-depth: 0
 
+      # The compiler cache of the previous builds (build-in-docker.sh keeps it
+      # in .ccache/): a build recompiles only what the commits changed. The
+      # key is new every run so the cache is saved again; the newest older
+      # one is restored.
+      - name: Restore the compiler cache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-appimage-${{ github.run_id }}
+          restore-keys: ccache-appimage-
+
       - name: Build AppImage
         env:
           # Test builds send no usage statistics: they would only skew the

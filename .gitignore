@@ -10,6 +10,7 @@ build-appimage/
 build-appimage-asan/
 build-apprun/
 build-windows/
+.ccache/
 dist/
 
 # protocol/codegen output — regenerate with:

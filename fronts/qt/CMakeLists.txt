@@ -8,6 +8,47 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+# --- Build speed. ccache and a faster linker are used when they are
+# installed (none is required), and the Qt headers are precompiled; each has
+# an option to switch it off. Set before any target exists: the launcher and
+# the linker type are read when a target is created.
+option(CLOUDMUS_CCACHE "Compile through ccache when it is installed" ON)
+if(CLOUDMUS_CCACHE AND NOT CMAKE_CXX_COMPILER_LAUNCHER)
+    find_program(CLOUDMUS_CCACHE_PROGRAM ccache)
+    if(CLOUDMUS_CCACHE_PROGRAM)
+        # Precompiled headers are only cacheable with these; an explicit
+        # CCACHE_SLOPPINESS of the user wins.
+        set(_launcher ${CLOUDMUS_CCACHE_PROGRAM})
+        if(NOT DEFINED ENV{CCACHE_SLOPPINESS})
+            set(_launcher ${CMAKE_COMMAND} -E env CCACHE_SLOPPINESS=pch_defines,time_macros
+                ${CLOUDMUS_CCACHE_PROGRAM})
+        endif()
+        set(CMAKE_C_COMPILER_LAUNCHER ${_launcher})
+        set(CMAKE_CXX_COMPILER_LAUNCHER ${_launcher})
+        message(STATUS "Build speed: compiling through ${CLOUDMUS_CCACHE_PROGRAM}")
+    endif()
+endif()
+
+option(CLOUDMUS_FAST_LINKER "Link with mold or lld when one is installed" ON)
+if(CLOUDMUS_FAST_LINKER AND UNIX AND NOT APPLE)
+    find_program(CLOUDMUS_MOLD_PROGRAM mold)
+    find_program(CLOUDMUS_LLD_PROGRAM NAMES ld.lld lld)
+    if(CLOUDMUS_MOLD_PROGRAM)
+        set(_fast_linker MOLD)
+    elseif(CLOUDMUS_LLD_PROGRAM)
+        set(_fast_linker LLD)
+    endif()
+    if(_fast_linker)
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.29)
+            set(CMAKE_LINKER_TYPE ${_fast_linker})
+        else()
+            string(TOLOWER ${_fast_linker} _fast_linker_name)
+            add_link_options(-fuse-ld=${_fast_linker_name})
+        endif()
+        message(STATUS "Build speed: linking with ${_fast_linker}")
+    endif()
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network Svg LinguistTools)
 include(CTest)
 if(BUILD_TESTING)
@@ -370,6 +411,32 @@ target_link_libraries(cloudmus-ui PUBLIC
     Qt6::Widgets
     Qt6::Svg
 )
+
+# Precompiled headers: most of a translation unit's compile time is the Qt
+# and standard headers every file pulls in, so they are parsed once per
+# library. Only system headers go in — nothing that changes with a commit —
+# so a PCH is the same bytes on every machine and ccache can reuse objects.
+# The core list has no Widgets (see fronts/qt/AGENTS.md).
+option(CLOUDMUS_PCH "Precompile the Qt and standard headers" ON)
+if(CLOUDMUS_PCH)
+    set(CLOUDMUS_PCH_CORE
+        <QByteArray> <QCoreApplication> <QDateTime> <QDir> <QFile> <QFileInfo>
+        <QHash> <QJsonArray> <QJsonDocument> <QJsonObject> <QList> <QLoggingCategory>
+        <QMap> <QObject> <QPointer> <QSet> <QString> <QStringList> <QTimer> <QUrl>
+        <QVariant> <QVector>
+        <algorithm> <functional> <memory> <optional> <utility> <vector>)
+    set(CLOUDMUS_PCH_UI
+        <QApplication> <QColor> <QDialog> <QFont> <QGuiApplication> <QHBoxLayout>
+        <QIcon> <QLabel> <QMouseEvent> <QPainter> <QPainterPath> <QPixmap>
+        <QPushButton> <QRect> <QVBoxLayout> <QWidget>)
+    target_precompile_headers(cloudmus-core PRIVATE ${CLOUDMUS_PCH_CORE})
+    target_precompile_headers(cloudmus-ui PRIVATE ${CLOUDMUS_PCH_CORE} ${CLOUDMUS_PCH_UI})
+    if(CLOUDMUS_CCACHE_PROGRAM AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # Keeps the PCH's bytes independent of when it was written.
+        target_compile_options(cloudmus-core PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
+        target_compile_options(cloudmus-ui PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
+    endif()
+endif()
 if(TARGET Qt6::DBus)
     target_link_libraries(cloudmus-ui PUBLIC Qt6::DBus)
 endif()

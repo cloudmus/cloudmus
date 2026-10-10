@@ -99,6 +99,17 @@ cmake --build fronts/qt/build
 CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
 ```
 
+The build is faster with `ccache` and `mold` (or `lld`) installed: CMake uses
+them when it finds them, with no flags. The Qt and standard headers are
+precompiled either way. Each can be switched off with
+`-DCLOUDMUS_CCACHE=OFF`, `-DCLOUDMUS_FAST_LINKER=OFF` or `-DCLOUDMUS_PCH=OFF`.
+ccache keys on the build directory's path, so a clean rebuild in the same
+directory is almost free, while a new directory starts cold (set
+`CCACHE_BASEDIR` to the checkout's parent to share between directories).
+`./build-appimage.sh` keeps its cache in `.ccache/` (gitignored) and CI
+restores it between runs; the Windows build runs under Wine, where ccache
+can't be used, and gets only the precompiled headers.
+
 To try the updater, run with `--update-from=0.0.1`: it then checks (at startup
 too) as if that version were running, and offers the latest GitHub release.
 Installing works only from an AppImage (Linux) or an installed copy
