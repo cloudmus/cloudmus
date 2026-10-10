@@ -298,9 +298,74 @@ async def test_track_started_drops_everything_up_to_it_from_upcoming():
     client = _FakeClient()
     session = RadioSession(client, _NotifyRecorder())
     await session.start(seed=None)
-    session._upcoming = ["a", "b", "c", "d"]
+    session._upcoming = ["a", "b", "c", "d", "e", "f", "g"]
     await session.track_started("c")  # jumped past a, b
-    assert session._upcoming == ["d"]
+    assert session._upcoming == ["d", "e", "f", "g"]
+
+
+@pytest.mark.asyncio
+async def test_a_jump_near_the_end_of_the_queue_appends_more_at_once():
+    # The user picked a track further down the queue: not a skip, so nothing
+    # is replaced — but with little left after it, more comes now rather
+    # than when it ends.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    session._upcoming = ["a", "b", "c", "d"]
+
+    await session.track_started("c")  # past a and b; only d is left
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1
+    assert "replaceUpcoming" not in added[0]
+    assert session._upcoming == ["d"] + [t["id"] for t in added[0]["tracks"]]
+
+
+@pytest.mark.asyncio
+async def test_a_jump_that_leaves_plenty_queued_fetches_nothing():
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    session._upcoming = ["a", "b", "c", "d", "e", "f"]
+
+    await session.track_started("b")
+    await session.track_started("x")  # back to one played before: no jump ahead
+    assert not any(url.endswith("/tracks") for url, _ in client.calls)
+    assert not [p for m, p in notifier.events if m == "radio/tracksAdded"]
+
+
+@pytest.mark.asyncio
+async def test_a_track_reached_in_order_is_topped_up_only_once_played():
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)  # serves "1", "2"
+
+    await session.track_started("1")  # the head of the queue: no jump
+    assert not [p for m, p in notifier.events if m == "radio/tracksAdded"]
+
+
+@pytest.mark.asyncio
+async def test_an_append_overtaken_by_a_skip_adds_nothing():
+    # Started, then skipped before the append it set off came back: the skip
+    # replaced the queue, and the late batch has nothing to follow.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    session._upcoming = ["a", "b"]
+    real_post = session._post
+
+    def post_after_a_skip(path, payload):
+        result = real_post(path, payload)
+        session._replacements += 1  # what a skip's replacement does meanwhile
+        return result
+
+    session._post = post_after_a_skip
+    await session._top_up("a", replace=False)
+    assert session._upcoming == ["a", "b"]
+    assert not [p for m, p in notifier.events if m == "radio/tracksAdded"]
 
 
 @pytest.mark.asyncio

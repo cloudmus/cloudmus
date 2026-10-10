@@ -173,6 +173,57 @@ private slots:
                 QStringLiteral("y") }));
     }
 
+    // However much of the queue the cache holds, a replacement lands no
+    // further ahead than tracks are preloaded.
+    void aRadioKeepsNoMoreDownloadedTracksThanItPreloads()
+    {
+        playback_->setPreloadDepth(3, 3);
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("station"),
+            { track(QStringLiteral("a")), track(QStringLiteral("b")), track(QStringLiteral("c")),
+                track(QStringLiteral("d")) });
+        QTRY_VERIFY(cached(QStringLiteral("d")));
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        // Set lower since: b, c and d are all there, but only one is wanted.
+        playback_->setPreloadDepth(3, 1);
+        TracksAddedParams added;
+        added.stationId = QStringLiteral("station");
+        added.tracks = { track(QStringLiteral("x")) };
+        added.replaceUpcoming = true;
+        playback_->handleTracksAdded(QStringLiteral("fake"), added);
+        QCOMPARE(queueNames(), (QStringList { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("x") }));
+    }
+
+    // A radio replaces what's queued when the listener rejects the playing
+    // track — Next. Picking another track of the queue, ahead or behind,
+    // and going back are not that: the queue stays as it is.
+    void onlyNextMakesARadioReplaceItsQueue()
+    {
+        playback_->setPreloadDepth(0, 0); // nothing downloaded ahead to be kept for that reason
+        const QStringList queued { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d") };
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("station"),
+            { track(QStringLiteral("a")), track(QStringLiteral("b")), track(QStringLiteral("c")),
+                track(QStringLiteral("d")) });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        playback_->playAt(2);
+        QTRY_COMPARE(playback_->currentIndex(), 2);
+        playback_->previous();
+        QTRY_COMPARE(playback_->currentIndex(), 1);
+        playback_->playAt(0);
+        QTRY_COMPARE(playback_->currentIndex(), 0);
+        QTest::qWait(300); // time for a replacement to arrive, had one been asked for
+        QCOMPARE(queueNames(), queued);
+
+        // "Not this": the station's new pick replaces what was queued after
+        // b, which comes next. c is in the cache (it played a moment ago),
+        // but nothing is preloaded ahead here, so it isn't held on to.
+        playback_->next();
+        QTRY_COMPARE(
+            queueNames(), (QStringList { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("after-skip-1") }));
+        QCOMPARE(playback_->currentIndex(), 1);
+    }
+
 private:
     Rpc::AuthStates authStates_;
     Library::TrackStates trackStates_;

@@ -384,6 +384,16 @@ than growing by a full batch per track. Tracks the user queued explicitly
 (Play Next / Add to Queue) are kept, and incoming tracks already in the
 played part of the queue are dropped by the front.
 
+A skip is the user rejecting the track that plays, and nothing else: the
+front sends `feedback.skip` for Next on the playing track (and so for a
+dislike that moves on from it), **not** when the user picks another track
+of the queue — ahead or behind — or goes back to the previous one. Those
+leave the queue as it is. The source learns where the queue stands from
+the `feedback.trackStarted` of the track picked: everything it had queued
+up to that track counts as passed, and when a jump ahead leaves little
+queued after it, the source appends more right then (a `radio/tracksAdded`
+without `replaceUpcoming`) rather than waiting for the track to end.
+
 ### 7.2 Playback — `providesStream` sources
 
 | Method | Params | Result |

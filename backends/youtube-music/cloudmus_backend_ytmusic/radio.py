@@ -112,6 +112,8 @@ class RadioSession:
         self._upcoming: list[str] = []
         # Keeps the fire-and-forget history reports alive until they finish.
         self._reports: set[asyncio.Task] = set()
+        # How many times a skip has replaced the queue — see _top_up().
+        self._replacements = 0
 
     async def start(self, seed: str | None) -> dict:
         if not seed:
@@ -147,18 +149,25 @@ class RadioSession:
             tracks.append(_normalize_watch_track(t))
         return tracks
 
-    def _fetch_batch(self) -> dict:
-        anchor = self.last_good
+    def _fetch_batch(self, anchor: str | None = None) -> dict:
+        anchor = anchor or self.last_good
         if self.mix_id is not None:
             if anchor is None:
                 return self.client.get_watch_playlist(playlistId=self.mix_id, radio=True)
             return self.client.get_watch_playlist(videoId=anchor, playlistId=self.mix_id, radio=True)
         return self.client.get_watch_playlist(videoId=anchor or self.station_id, radio=True)
 
-    async def _top_up(self, *, replace: bool) -> None:
+    async def _top_up(self, *, replace: bool, anchor: str | None = None) -> None:
         if self.station_id is None:
             return
-        result = await asyncio.to_thread(self._fetch_batch)
+        replacements = self._replacements
+        result = await asyncio.to_thread(self._fetch_batch, anchor)
+        if replace:
+            self._replacements += 1
+        elif replacements != self._replacements:
+            # A skip replaced the queue while this was on its way: what it
+            # brought belongs after a queue that is no more.
+            return
         tracks = self._fresh(result)
         if replace:
             # The new batch supersedes everything still queued.
@@ -194,8 +203,16 @@ class RadioSession:
     async def track_started(self, track_id: str) -> None:
         self._played.add(track_id)
         # Everything queued up to it has been played or jumped past.
+        jumped = track_id in self._upcoming and self._upcoming.index(track_id) > 0
         if track_id in self._upcoming:
             del self._upcoming[: self._upcoming.index(track_id) + 1]
+        # The front jumped ahead in the queue (the user picked a track
+        # further down — not a skip, nothing to replace) and little is left
+        # after it: more is appended now rather than when it ends, following
+        # the track picked. A track reached in order is topped up after as
+        # ever, once it has played.
+        if jumped and len(self._upcoming) < UPCOMING_LOW_WATER:
+            await self._top_up(replace=False, anchor=track_id)
 
     async def track_finished(self, track_id: str, played_ms: int) -> None:
         self._report_listen(track_id)

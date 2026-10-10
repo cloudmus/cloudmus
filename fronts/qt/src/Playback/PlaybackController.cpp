@@ -180,11 +180,11 @@ void PlaybackController::playAt(int index)
 {
     startRetries_ = 0;
     awaitingRadioTracks_ = false;
-    // Jumping away from the current track is a skip as far as a radio is
-    // concerned — and its feedback is what makes the station send the next
-    // tracks, so without it jumping to the last queued track dead-ends.
-    if (index != index_)
-        sendFeedbackFinishedOrSkip(/*wasSkip=*/true);
+    // Picking another track of the queue is not a skip, whichever way it
+    // goes: a skip tells a radio "not this", and the station answers by
+    // replacing what's queued. Where the queue stands now the station
+    // learns from the picked track's feedback.trackStarted — which is also
+    // what makes it send more once little is left after it.
     playIndex(index);
 }
 
@@ -262,9 +262,13 @@ void PlaybackController::handleTracksAdded(const QString& sourceId, const Tracks
         // sequence minus anything already in the played part.
         // What's already downloaded right after it stays too: it's there
         // to be played, the listener can skip it — and it's what is left to
-        // listen to once the network is gone.
+        // listen to once the network is gone. Only as far ahead as tracks
+        // are preloaded, though: the cache may hold many more of the queue
+        // (played before, or fetched under a larger setting), and a "not
+        // this" must not take that long to show.
         int keep = qMin(qMax(index_, startingIndex_), int(queue_.size()) - 1);
-        while (keep >= 0 && keep + 1 < queue_.size()
+        const int furthest = keep + radioPreloadDepth_;
+        while (keep >= 0 && keep < furthest && keep + 1 < queue_.size()
             && preloader_->isCached(queue_[keep + 1].sourceId, queue_[keep + 1].track.id))
             ++keep;
         QSet<QString> playedIds;
@@ -456,7 +460,9 @@ void PlaybackController::advance(int delta, bool wasSkip)
     startRetries_ = 0;
     if (queue_.isEmpty())
         return;
-    sendFeedbackFinishedOrSkip(wasSkip);
+    // Next rejects the playing track; Previous doesn't — see playAt().
+    if (delta > 0 || !wasSkip)
+        sendFeedbackFinishedOrSkip(wasSkip);
     if (!wasSkip && effectiveRepeatMode() == RepeatMode::One && hasCurrentTrack()) {
         if (preparedReady_ && preparedIndex_ == index_)
             promotePrepared(index_, false);

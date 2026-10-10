@@ -103,6 +103,7 @@ int runFakeBackend()
     QString locale = QStringLiteral("en");
     QJsonValue slowDownloadRequestId;
     QString slowDownloadId;
+    int skipCount = 0;
     std::string line;
     while (std::getline(std::cin, line)) {
         const QJsonObject request = QJsonDocument::fromJson(QByteArray::fromStdString(line)).object();
@@ -226,6 +227,19 @@ int runFakeBackend()
                 replyError(id, 1200, QStringLiteral("service down"));
             else
                 reply(id, { });
+            // A skip makes a radio recompute what comes next — here, for
+            // the tracks that are streams (ids that are URLs): one new
+            // track, a different one each time.
+            if (method == QStringLiteral("feedback.skip") && trackId.startsWith(QStringLiteral("http://"))) {
+                const QString name = QStringLiteral("after-skip-%1").arg(++skipCount);
+                notify(QStringLiteral("radio/tracksAdded"),
+                    { { QStringLiteral("stationId"), QStringLiteral("station") },
+                        { QStringLiteral("replaceUpcoming"), true },
+                        { QStringLiteral("tracks"),
+                            QJsonArray { QJsonObject { { QStringLiteral("id"), name },
+                                { QStringLiteral("title"), name }, { QStringLiteral("artists"), QJsonArray { } },
+                                { QStringLiteral("durationMs"), 180000 } } } } });
+            }
         } else if (method == QStringLiteral("catalog.downloadTrack")) {
             const QJsonObject params = request.value(QStringLiteral("params")).toObject();
             const QString trackId = params.value(QStringLiteral("trackId")).toString();

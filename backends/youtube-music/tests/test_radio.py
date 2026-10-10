@@ -276,3 +276,77 @@ async def test_station_id_stays_fixed_across_top_ups():
 
     assert len(capture.emitted) == 2
     assert all(p["stationId"] == seed for p in capture.emitted)
+
+
+@pytest.mark.asyncio
+async def test_a_jump_near_the_end_of_the_queue_appends_more_at_once():
+    # The user picked a track further down the queue: not a skip, so nothing
+    # is replaced — but with little left after it, more comes now, following
+    # the track picked.
+    ids = [_vid(f"t{i}") for i in range(4)]
+    n1, n2 = _vid("n1"), _vid("n2")
+    client = _FakeClient({
+        (None, MIX, False): _batch(*ids),
+        (ids[2], MIX, True): _batch(ids[2], ids[3], n1, n2),
+    })
+    capture = _Capture()
+    session = RadioSession(client, capture)
+    await session.start(MIX)
+
+    await session.track_started(ids[2])  # past t0 and t1; only t3 is left
+
+    assert client.calls[-1] == (ids[2], MIX, True)
+    assert len(capture.emitted) == 1
+    assert "replaceUpcoming" not in capture.emitted[0]
+    assert [t["id"] for t in capture.emitted[0]["tracks"]] == [n1, n2]
+    assert session._upcoming == [ids[3], n1, n2]
+
+
+@pytest.mark.asyncio
+async def test_a_jump_that_leaves_plenty_queued_fetches_nothing():
+    ids = [_vid(f"t{i}") for i in range(8)]
+    client = _FakeClient({(None, MIX, False): _batch(*ids)})
+    capture = _Capture()
+    session = RadioSession(client, capture)
+    await session.start(MIX)
+
+    await session.track_started(ids[2])
+    await session.track_started(ids[0])  # back to one jumped past: no jump ahead
+
+    assert client.calls == [(None, MIX, False)]
+    assert capture.emitted == []
+
+
+@pytest.mark.asyncio
+async def test_a_track_reached_in_order_is_topped_up_only_once_played():
+    t1, t2 = _vid("t1"), _vid("t2")
+    client = _FakeClient({(None, MIX, False): _batch(t1, t2)})
+    capture = _Capture()
+    session = RadioSession(client, capture)
+    await session.start(MIX)
+
+    await session.track_started(t1)  # the head of the queue: no jump
+
+    assert client.calls == [(None, MIX, False)]
+    assert capture.emitted == []
+
+
+@pytest.mark.asyncio
+async def test_an_append_overtaken_by_a_skip_adds_nothing():
+    # Started, then skipped before the append it set off came back: the skip
+    # replaced the queue, and the late batch has nothing to follow.
+    t1, t2, n1 = _vid("t1"), _vid("t2"), _vid("n1")
+    client = _FakeClient({(None, MIX, False): _batch(t1, t2)})
+    capture = _Capture()
+    session = RadioSession(client, capture)
+    await session.start(MIX)
+
+    def fetch_after_a_skip(anchor=None):
+        session._replacements += 1  # what a skip's replacement does meanwhile
+        return _batch(n1)
+
+    session._fetch_batch = fetch_after_a_skip
+    await session._top_up(replace=False)
+
+    assert session._upcoming == [t1, t2]
+    assert capture.emitted == []

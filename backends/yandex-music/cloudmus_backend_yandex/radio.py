@@ -90,6 +90,8 @@ class RadioSession:
         # Tracks served to the front that haven't started yet, in queue
         # order — the station's own part of the front's upcoming queue.
         self._upcoming: list[str] = []
+        # How many times a skip has replaced the queue — see _top_up().
+        self._replacements = 0
 
     def _post(self, path: str, payload: dict) -> dict:
         result = self.client._request.post(f"{self.client.base_url}{path}", json=payload)
@@ -179,12 +181,19 @@ class RadioSession:
         # batch_id — feedback events for the *next* batch must reference it.
         if not self.radio_session_id:
             return
+        replacements = self._replacements
         result = await asyncio.to_thread(
             self._post,
             f"/rotor/session/{self.radio_session_id}/tracks",
             {"queue": [played_track_id]},
         )
         if not result:
+            return
+        if replace:
+            self._replacements += 1
+        elif replacements != self._replacements:
+            # A skip replaced the queue while this was on its way: what it
+            # brought belongs after a queue that is no more.
             return
         self.batch_id = result.get("batchId", self.batch_id)
         tracks = self._tracks_from(result)
@@ -214,9 +223,16 @@ class RadioSession:
         tid = catalog._bare_id(track_id)
         self._played.add(tid)
         # Everything queued up to it has been played or jumped past.
+        jumped = tid in self._upcoming and self._upcoming.index(tid) > 0
         if tid in self._upcoming:
             del self._upcoming[: self._upcoming.index(tid) + 1]
         await self._send_feedback("trackStarted", trackId=track_id)
+        # The front jumped ahead in the queue (the user picked a track
+        # further down — not a skip, nothing to replace) and little is left
+        # after it: more is appended now rather than when it ends. A track
+        # reached in order is topped up after as ever, once it has played.
+        if jumped and len(self._upcoming) < UPCOMING_LOW_WATER:
+            await self._top_up(track_id, replace=False)
 
     async def track_finished(self, track_id: str, played_ms: int) -> None:
         await self._send_feedback(

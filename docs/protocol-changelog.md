@@ -13,6 +13,12 @@ meaning.
   and the source saves from it — named and tagged as usual — instead of
   transferring the track a second time. The source may decline and
   download as before.
+- **Clarified, no wire change**: `feedback.skip` means the user rejected
+  the playing track (Next, a dislike that moves on) — a front does not send
+  it for picking another queued track or going back, so a radio's queue is
+  only replaced when asked for. A source appends more tracks on the
+  `feedback.trackStarted` of a track jumped ahead to, when little is left
+  queued after it (§7.1).
 
 ## 1.11 — localization
 
