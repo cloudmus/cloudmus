@@ -137,7 +137,9 @@ signals:
     void trackChanged(const Track& track, const QString& sourceId);
     void playingChanged(bool playing);
     void positionChanged(qint64 positionMs, qint64 durationMs);
-    void bufferedChanged(qint64 bufferedMs); // -1: not cached (a local file)
+    // How far into the track it is downloaded — all of it for one that
+    // plays from the cache; -1: nothing to show (a source's own local file).
+    void bufferedChanged(qint64 bufferedMs);
     void seeked(qint64 positionMs);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
     void errorOccurred(QString message);
@@ -181,6 +183,10 @@ private:
     // Tells the Preloader what's wanted now: the playing (or starting)
     // track and the ones after it.
     void updatePreloadWindow();
+    // Works out how much of the playing track to show as downloaded, and
+    // says so if that changed (bufferedChanged()). `force`: say it anyway —
+    // for a new track, whose bar starts over.
+    void updateBuffered(bool force = false);
     // Queues the next track in mpv once it's all downloaded, so it starts
     // without a gap.
     void prepareNext();
@@ -243,6 +249,11 @@ private:
     QString latestRequestSourceId_;
     QTimer* playTimeoutTimer_ = nullptr;
     qint64 lastKnownPositionMs_ = 0;
+    qint64 lastKnownDurationMs_ = 0;
+    // What mpv has read ahead: all there is to show for a stream it
+    // fetches itself (no download of ours).
+    qint64 mpvBufferedMs_ = -1;
+    qint64 shownBufferedMs_ = -1;
 
     bool shuffle_ = false;
     RepeatMode repeatMode_ = RepeatMode::Off;

@@ -54,6 +54,7 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
                                           } };
         });
     connect(preloader_, &Preloader::ready, this, &PlaybackController::prepareNext);
+    connect(preloader_, &Preloader::progressChanged, this, [this]() { updateBuffered(); });
 
     connect(audioPlayer_, &AudioPlayer::endOfFile, this, [this]() { advance(1, /*wasSkip=*/false); });
     connect(audioPlayer_, &AudioPlayer::started, this, [this]() {
@@ -70,9 +71,16 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
         [this](const QString& message) { handleStartFailure(message, QStringLiteral("stream")); });
     connect(audioPlayer_, &AudioPlayer::positionChanged, this, [this](qint64 posMs, qint64 durMs) {
         lastKnownPositionMs_ = posMs;
+        const bool newDuration = durMs != lastKnownDurationMs_;
+        lastKnownDurationMs_ = durMs;
         emit positionChanged(posMs, durMs);
+        if (newDuration)
+            updateBuffered();
     });
-    connect(audioPlayer_, &AudioPlayer::bufferedChanged, this, &PlaybackController::bufferedChanged);
+    connect(audioPlayer_, &AudioPlayer::bufferedChanged, this, [this](qint64 bufferedMs) {
+        mpvBufferedMs_ = bufferedMs;
+        updateBuffered();
+    });
     connect(audioPlayer_, &AudioPlayer::prepared, this, [this]() { preparedReady_ = true; });
 
     playTimeoutTimer_ = new QTimer(this);
@@ -391,6 +399,8 @@ void PlaybackController::becomeCurrent(int index, const QueueEntry& entry, bool 
     }
     if (!isRetry)
         emit trackChanged(entry.track, entry.sourceId);
+    mpvBufferedMs_ = -1;
+    updateBuffered(/*force=*/true);
 }
 
 void PlaybackController::handleStreamReady(const QString& sourceId, const StreamReadyParams& params)
@@ -723,6 +733,40 @@ void PlaybackController::updatePreloadWindow()
     prepareNext();
 }
 
+void PlaybackController::updateBuffered(bool force)
+{
+    if (!hasCurrentTrack())
+        return;
+    const QueueEntry& entry = queue_[index_];
+    // The track's own length where it says one: mpv's is still the previous
+    // track's for a moment after a change.
+    const qint64 durationMs = entry.track.durationMs > 0 ? qint64(entry.track.durationMs) : lastKnownDurationMs_;
+
+    // What our own download has got — not what mpv has read ahead of the
+    // playhead, which for a file on disk is a second or two however much of
+    // the track is there.
+    qint64 bufferedMs = mpvBufferedMs_;
+    if (preloader_->isCached(entry.sourceId, entry.track.id)) {
+        bufferedMs = durationMs;
+    } else if (const StreamDownload* download = preloader_->download(entry.sourceId, entry.track.id)) {
+        // Bytes for time: close enough for a mark on the seek bar.
+        bufferedMs = download->totalLength() > 0
+            ? qint64(double(durationMs) * double(download->bytesAvailable()) / double(download->totalLength()))
+            : 0;
+    } else if (!preloader_->readyPath(entry.sourceId, entry.track.id).isEmpty()) {
+        bufferedMs = -1; // the source's own file: nothing is downloaded
+    }
+
+    // It moves with every packet; a quarter second is finer than a slider
+    // pixel anyway. The end is always told, so the bar fills up whole.
+    const bool reachedEnd = bufferedMs >= durationMs && shownBufferedMs_ < durationMs;
+    if (!force && !reachedEnd && (bufferedMs < 0) == (shownBufferedMs_ < 0)
+        && qAbs(bufferedMs - shownBufferedMs_) < 250)
+        return;
+    shownBufferedMs_ = bufferedMs;
+    emit bufferedChanged(bufferedMs);
+}
+
 void PlaybackController::prepareNext()
 {
     // Only behind a track mpv actually has: a file appended to an empty
@@ -767,6 +811,8 @@ void PlaybackController::promotePrepared(int nextIndex, bool manual)
         }
     }
     emit trackChanged(entry.track, entry.sourceId);
+    mpvBufferedMs_ = -1;
+    updateBuffered(/*force=*/true);
 }
 
 void PlaybackController::next() { advance(1, /*wasSkip=*/true); }

@@ -30,6 +30,7 @@ private:
         Track t;
         t.id = upstream_->url(QLatin1Char('/') + name);
         t.title = name;
+        t.durationMs = 30000; // what FakeUpstream::silence(30) plays for
         return t;
     }
 
@@ -119,6 +120,34 @@ private slots:
         QCOMPARE(changed.size(), 1);
         QCOMPARE(playback_->currentTrack().title, QStringLiteral("b"));
         QCOMPARE(upstream_->requests.count(QStringLiteral("/b@0")), 1);
+    }
+
+    // The mark on the seek bar is how much of the track is downloaded —
+    // not how far ahead of the playhead mpv happens to have read.
+    void theSeekBarShowsHowMuchIsDownloaded()
+    {
+        QSignalSpy buffered(playback_.get(), &Playback::PlaybackController::bufferedChanged);
+        const auto last = [&buffered]() { return buffered.isEmpty() ? -2 : buffered.last().first().toLongLong(); };
+        // Half of it arrives, and then no more.
+        upstream_->stallAfter.insert(QStringLiteral("/a"), upstream_->bodies.value(QStringLiteral("/a")).size() / 2);
+        playback_->loadQueue(QStringLiteral("fake"), { track(QStringLiteral("a")) }, 0);
+        QTRY_VERIFY2(last() > 14000 && last() < 16000, qPrintable(QString::number(last())));
+        QTest::qWait(500); // it plays on meanwhile
+        QVERIFY2(last() > 14000 && last() < 16000, qPrintable(QString::number(last())));
+
+        // All of it there: the whole bar.
+        playback_->loadQueue(QStringLiteral("fake"), { track(QStringLiteral("b")), track(QStringLiteral("c")) }, 0);
+        QTRY_COMPARE(last(), qint64(30000));
+        QTRY_VERIFY(cached(QStringLiteral("c")));
+        QTest::qWait(300);
+        QCOMPARE(last(), qint64(30000));
+
+        // A track played from the cache has it from the start.
+        buffered.clear();
+        playback_->next();
+        QCOMPARE(last(), qint64(30000));
+        QTest::qWait(500);
+        QCOMPARE(last(), qint64(30000));
     }
 
     // A skip makes a radio replace what's coming — after what's already
