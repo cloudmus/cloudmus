@@ -12,6 +12,7 @@ QObject* makeWindowHostTest();
 QObject* makeFocusTest();
 QObject* makeHotkeysPageTest();
 QObject* makeAboutDialogTest();
+QObject* makeCoverArtCacheTest();
 }
 
 // The window's tests: a QApplication, run offscreen (see CMakeLists.txt's
@@ -28,8 +29,8 @@ int main(int argc, char** argv)
     // Anything a test saves goes to throwaway locations, not the user's.
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
-    for (auto make :
-        { Tests::makeWindowHostTest, Tests::makeFocusTest, Tests::makeHotkeysPageTest, Tests::makeAboutDialogTest }) {
+    for (auto make : { Tests::makeWindowHostTest, Tests::makeFocusTest, Tests::makeHotkeysPageTest,
+             Tests::makeAboutDialogTest, Tests::makeCoverArtCacheTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

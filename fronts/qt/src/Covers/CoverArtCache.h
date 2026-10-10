@@ -18,9 +18,11 @@
 
 namespace Covers {
 
-// Async cover-art fetch + decode-and-downscale-immediately + small
-// in-memory LRU, backed by a QNetworkDiskCache so repeat plays don't
-// re-download art. Callers (the track-row delegate, the now-playing bar)
+// Async cover-art fetch + small in-memory LRU, backed by a
+// QNetworkDiskCache so repeat plays don't re-download art. A cover is
+// fetched once however many sizes of it are asked for, and its decoded
+// source stays around for a while, so a cover a track row has already
+// loaded is there at once for the hero, a notification, MPRIS. Callers (the track-row delegate, the now-playing bar)
 // call pixmap() for an immediate (possibly null) result and connect to
 // pixmapReady() to repaint once a background fetch completes — this is what
 // makes track-list thumbnails "fetch lazily for visible rows only": a
@@ -59,13 +61,19 @@ private:
 
     // `requestUrl`: where to fetch from — `url` itself, or where it
     // redirected to (followed by hand, so the hop keeps the source's proxy).
-    void fetch(const QString& url, QSize targetSize, const QUrl& requestUrl, int redirectsLeft);
+    void fetch(const QString& url, const QUrl& requestUrl, int redirectsLeft);
     QNetworkProxy proxyFor(const QUrl& url) const;
     static QString cacheKey(const QString& url, QSize targetSize);
+    // Fits `source` to `targetSize` and remembers the result.
+    QPixmap store(const QString& url, QSize targetSize, const QImage& source);
 
     QNetworkAccessManager network_;
     QCache<QString, QPixmap> memoryCache_;
-    QSet<QString> inFlight_;
+    // Decoded covers by url, costed in bytes: what other sizes of a cover
+    // are made from without fetching it again.
+    QCache<QString, QImage> sourceCache_;
+    // Url being fetched -> the sizes asked for meanwhile.
+    QHash<QString, QList<QSize>> inFlight_;
     QHash<QString, QString> sourceForUrl_;
     ProxyProvider proxyProvider_;
     Fitter fitter_;

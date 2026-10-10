@@ -623,6 +623,8 @@ add_executable(cloudmus-qt-ui-tests
     tests/ui/FocusTest.cpp
     tests/ui/HotkeysPageTest.cpp
     tests/ui/AboutDialogTest.cpp
+    # Covers are QPixmaps, which need a GUI application.
+    tests/ui/CoverArtCacheTest.cpp
     tests/FakeBackend.cpp
     # Real glyphs, so a test can check what color an icon is tinted.
     resources/icons.qrc

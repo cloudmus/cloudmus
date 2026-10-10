@@ -14,6 +14,9 @@ namespace Covers {
 
 namespace {
 constexpr int kMaxRedirects = 5;
+// Enough for a screenful of ordinary covers; a huge one (embedded art of a
+// local file can be tens of megabytes decoded) is simply not kept.
+constexpr int kSourceCacheBytes = 24 * 1024 * 1024;
 } // namespace
 
 // Asks the cache, per request, which proxy that URL's source uses —
@@ -44,6 +47,7 @@ CoverArtCache::CoverArtCache(QObject* parent)
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/covers"));
     network_.setCache(diskCache);
     memoryCache_.setMaxCost(64);
+    sourceCache_.setMaxCost(kSourceCacheBytes);
 }
 
 QString CoverArtCache::cacheKey(const QString& url, QSize targetSize)
@@ -56,15 +60,31 @@ QPixmap CoverArtCache::pixmap(const QString& url, QSize targetSize)
 {
     if (url.isEmpty())
         return { };
-    const QString key = cacheKey(url, targetSize);
-    if (QPixmap* cached = memoryCache_.object(key)) {
+    if (QPixmap* cached = memoryCache_.object(cacheKey(url, targetSize)))
         return *cached;
+    if (const QImage* source = sourceCache_.object(url))
+        return store(url, targetSize, *source);
+    const auto flight = inFlight_.find(url);
+    if (flight != inFlight_.end()) {
+        if (!flight->contains(targetSize))
+            flight->append(targetSize);
+        return { };
     }
-    if (!inFlight_.contains(key)) {
-        inFlight_.insert(key);
-        fetch(url, targetSize, QUrl(url), kMaxRedirects);
-    }
+    inFlight_.insert(url, { targetSize });
+    fetch(url, QUrl(url), kMaxRedirects);
     return { };
+}
+
+QPixmap CoverArtCache::store(const QString& url, QSize targetSize, const QImage& source)
+{
+    // Downscaled to exactly targetSize, with a non-square cover fitted
+    // rather than stretched by whoever draws it into a square (see
+    // setFitter()).
+    const QPixmap fitted = fitter_
+        ? fitter_(source, targetSize)
+        : QPixmap::fromImage(source.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    memoryCache_.insert(cacheKey(url, targetSize), new QPixmap(fitted));
+    return fitted;
 }
 
 void CoverArtCache::assignSource(const QString& sourceId, const QString& url)
@@ -90,14 +110,13 @@ QNetworkProxy CoverArtCache::proxyFor(const QUrl& url) const
     return Net::systemProxy(url);
 }
 
-void CoverArtCache::fetch(const QString& url, QSize targetSize, const QUrl& requestUrl, int redirectsLeft)
+void CoverArtCache::fetch(const QString& url, const QUrl& requestUrl, int redirectsLeft)
 {
-    const QString key = cacheKey(url, targetSize);
     QNetworkRequest request { requestUrl };
     request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
     QNetworkReply* reply = network_.get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, url, targetSize, key, redirectsLeft]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, url, redirectsLeft]() {
         reply->deleteLater();
         const QUrl redirect = reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl();
         if (redirect.isValid() && redirectsLeft > 0) {
@@ -106,24 +125,20 @@ void CoverArtCache::fetch(const QString& url, QSize targetSize, const QUrl& requ
             const QString sourceId = sourceForUrl_.value(reply->url().toString());
             if (!sourceId.isEmpty())
                 assignSource(sourceId, next.toString());
-            fetch(url, targetSize, next, redirectsLeft - 1);
+            fetch(url, next, redirectsLeft - 1);
             return;
         }
-        inFlight_.remove(key);
+        const QList<QSize> sizes = inFlight_.take(url);
         if (reply->error() != QNetworkReply::NoError)
             return;
 
         QImage full;
         if (!full.loadFromData(reply->readAll()))
             return;
-        // Decode-and-downscale immediately so the in-memory cache never
-        // holds a full-resolution image — and to exactly targetSize, with
-        // a non-square cover fitted rather than stretched by whoever draws
-        // it into a square (see setFitter()).
-        const QPixmap fitted = fitter_
-            ? fitter_(full, targetSize)
-            : QPixmap::fromImage(full.scaled(targetSize, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-        memoryCache_.insert(key, new QPixmap(fitted));
+        for (const QSize& size : sizes)
+            store(url, size, full);
+        // After the sizes above: an insert that doesn't fit deletes the image.
+        sourceCache_.insert(url, new QImage(full), static_cast<int>(full.sizeInBytes()));
         emit pixmapReady(url);
     });
 }
