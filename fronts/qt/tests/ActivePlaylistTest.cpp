@@ -1,3 +1,4 @@
+#include <QDir>
 #include <QFile>
 #include <QJsonDocument>
 #include <QSignalSpy>
@@ -8,6 +9,7 @@
 #include "AuthStates.h"
 #include "CoverArtCache.h"
 #include "FakeBackend.h"
+#include "FakeUpstream.h"
 #include "Messages.h"
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
@@ -18,6 +20,7 @@
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TestSupport.h"
+#include "TrackCache.h"
 #include "TrackStates.h"
 
 namespace Tests {
@@ -169,6 +172,91 @@ private slots:
         QVERIFY(!playback_->hasQueue());
     }
 
+    // The song is on disk, so nothing needs its source: it plays before the
+    // source has even started, and goes on playing when it is up.
+    void aDownloadedSongResumesBeforeItsSourceStarts()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        active_->playRow(1);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(settings_->lastActiveTrackId(), QStringLiteral("t2"));
+
+        restartApp();
+        seedCached(QStringLiteral("t2"));
+        start(false);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+        QVERIFY(!playback_->isRadio());
+
+        QSignalSpy changed(playback_.get(), &Playback::PlaybackController::trackChanged);
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        QTRY_COMPARE(active_->entries().size(), 2);
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+        QCOMPARE(changed.size(), 0); // not started over
+    }
+
+    void aSongThatIsNotDownloadedWaitsForItsSource()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        active_->playRow(1);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        restartApp();
+        start(false);
+        QTest::qWait(300);
+        QVERIFY(!playback_->hasQueue());
+
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+    }
+
+    // The old station's tracks play from disk; once its source is up a
+    // station is started behind them and keeps the queue filling.
+    void aDownloadedRadioSongResumesAndGetsItsStationLater()
+    {
+        start();
+        Playlist station = playlist(QStringLiteral("wave"));
+        station.kind = QStringLiteral("radioStation");
+        active_->setContext({ QStringLiteral("fake"), station });
+        Track first;
+        first.id = QStringLiteral("old-1");
+        first.title = QStringLiteral("Old track 1");
+        Track second;
+        second.id = QStringLiteral("old-2");
+        second.title = QStringLiteral("Old track 2");
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("old-station"), { first, second });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        playback_->playAt(1);
+        QTRY_COMPARE(settings_->lastActiveTrackId(), QStringLiteral("old-2"));
+
+        restartApp();
+        seedCached(QStringLiteral("old-2"));
+        start(false);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("old-2"));
+        QVERIFY(playback_->isRadio());
+        QVERIFY(playback_->awaitsStation());
+
+        QSignalSpy changed(playback_.get(), &Playback::PlaybackController::trackChanged);
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        QTRY_VERIFY(!playback_->awaitsStation());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("old-2"));
+        QCOMPARE(changed.size(), 0);
+        QTRY_VERIFY(playback_->queue().size() > 2);
+        QCOMPARE(playback_->queue().last().track.id, QStringLiteral("fresh"));
+    }
+
     void anEditToTheActivePlaylistShowsInItsTracks()
     {
         settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
@@ -198,6 +286,25 @@ private:
         settings_.reset();
     }
 
+    // Starts over from what is on disk: settings and the track cache.
+    void restartApp()
+    {
+        resetApp();
+        settings_ = std::make_unique<Config::Settings>(temp_->filePath(QStringLiteral("config.ini")));
+        settings_->setResumePlaybackAtStartup(true);
+        settings_->setWasPlaying(true);
+    }
+
+    void seedCached(const QString& trackId) const
+    {
+        QDir().mkpath(cacheDir());
+        QFile file(cacheDir() + QLatin1Char('/') + Playback::TrackCache::keyFor(QStringLiteral("fake"), trackId));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(FakeUpstream::silence(30));
+    }
+
+    QString cacheDir() const { return temp_->filePath(QStringLiteral("tracks")); }
+
     static Playlist playlist(const QString& id)
     {
         Playlist p;
@@ -212,7 +319,7 @@ private:
     void start(bool startSources = true)
     {
         sourceManager_ = std::make_unique<Rpc::SourceManager>();
-        playback_ = std::make_unique<Playback::PlaybackController>(*sourceManager_);
+        playback_ = std::make_unique<Playback::PlaybackController>(*sourceManager_, nullptr, cacheDir());
         session_ = std::make_unique<App::SourceSession>(
             *sourceManager_, *playback_, authStates_, trackStates_, coverArtCache_, messages_);
         editing_ = std::make_unique<App::PlaylistEditing>(*sourceManager_, messages_);

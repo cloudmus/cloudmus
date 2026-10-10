@@ -13,6 +13,7 @@
 #include "Messages.h"
 #include "PlaybackHistory.h"
 #include "PlaylistEditing.h"
+#include "Preloader.h"
 #include "ProtocolParseError.h"
 #include "RpcClient.h"
 #include "RpcMethods.h"
@@ -89,6 +90,11 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
             }
         });
     connect(&sources_, &Sources::playlistsLoaded, this, [this](const QString& sourceId, const QList<Playlist>&) {
+        // What played before its source was up gets going: downloads
+        // behind it, and a radio's station.
+        playback_.sourceCameUp(sourceId);
+        if (context_.isRadio() && context_.sourceId == sourceId && playback_.awaitsStation())
+            attachStation(sourceId, context_.playlist.id).detach();
         if (context_.isRadio() && context_.sourceId == sourceId && !tracks_.isEmpty())
             refreshRadioLikes(sourceId, context_.playlist.id).detach();
     });
@@ -103,9 +109,14 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
 
     resumePending_ = settings_.resumePlaybackAtStartup() && settings_.wasPlaying()
         && (context_.isValid() || !pendingRestore_.playlistId.isEmpty());
+    if (resumePending_) {
+        // The saved song plays from disk, if it is there. Later, so that
+        // whoever listens to playback is connected by then.
+        QMetaObject::invokeMethod(this, &ActivePlaylist::resumeFromCache, Qt::QueuedConnection);
+    }
     if (resumePending_ && context_.isHistory) {
-        // History is back already, but its saved song can only play once
-        // the source it came from is up.
+        // History is back already, but a saved song that is not on disk
+        // can only play once the source it came from is up.
         connect(&sources_, &Sources::playlistsLoaded, this, [this](const QString& sourceId, const QList<Playlist>&) {
             if (resumePending_ && context_.isHistory && !tracks_.isEmpty()
                 && tracks_[resumeIndex()].sourceId == sourceId)
@@ -471,6 +482,49 @@ void ActivePlaylist::resumePlayback()
         return;
     qCInfo(lcActivePlaylist) << "resuming playback of" << context_.playlist.id;
     play();
+}
+
+void ActivePlaylist::resumeFromCache()
+{
+    if (!resumePending_ || !context_.isValid() || tracks_.isEmpty() || playback_.hasQueue())
+        return;
+    const int index = resumeIndex();
+    const Playback::QueueEntry& entry = tracks_[index];
+    if (!playback_.preloader().isCached(entry.sourceId, entry.track.id))
+        return;
+    resumePending_ = false;
+    qCInfo(lcActivePlaylist) << "resuming playback of" << context_.playlist.id << "from the cache";
+    // Not play()/activate(): the restore of the playlist (pendingRestore_)
+    // is still to come, and freshens its tracks behind the playing queue.
+    if (context_.isRadio()) {
+        QList<Track> tracks;
+        for (const Playback::QueueEntry& e : tracks_)
+            tracks.append(e.track);
+        playback_.startRadio(context_.sourceId, QString(), tracks, index);
+    } else {
+        playback_.loadQueue(tracks_, index);
+    }
+}
+
+Rpc::Task<void> ActivePlaylist::attachStation(QString sourceId, QString seed)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return;
+    try {
+        StartRadioParams params { seed };
+        StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
+        // Unless something else has been started meanwhile.
+        if (!context_.isRadio() || context_.sourceId != sourceId || context_.playlist.id != seed
+            || !playback_.awaitsStation())
+            co_return;
+        trackStates_.observe(sourceId, result.initialTracks);
+        coverArtCache_.assignSource(sourceId, result.initialTracks);
+        playback_.attachStation(sourceId, result.stationId, result.initialTracks);
+    } catch (const std::exception& e) {
+        // Tried again when the source lists its playlists next.
+        qCWarning(lcActivePlaylist) << "starting the resumed radio failed for" << sourceId << ":" << e.what();
+    }
 }
 
 void ActivePlaylist::applyPlaylistEdit(

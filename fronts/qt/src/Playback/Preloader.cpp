@@ -89,6 +89,21 @@ void Preloader::restart(const QString& key)
     setState(key, State::Waiting);
 }
 
+void Preloader::retryFailed(const QString& sourceId)
+{
+    bool any = false;
+    for (auto it = entries_.begin(); it != entries_.end(); ++it) {
+        if (it->state != State::Failed || it->item.sourceId != sourceId)
+            continue;
+        restart(it.key());
+        any = true;
+    }
+    if (!any)
+        return;
+    schedule();
+    emit progressChanged();
+}
+
 QVector<QString> Preloader::sequence() const
 {
     QVector<QString> result;

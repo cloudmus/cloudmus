@@ -78,7 +78,19 @@ public:
     void loadQueue(const QVector<QueueEntry>& entries, int startIndex);
     // Jumps to `index` within the current queue without replacing it.
     void playAt(int index);
-    void startRadio(const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks);
+    // An empty `stationId`: the station's tracks as they were last run,
+    // played before the source is there to run it — see attachStation().
+    void startRadio(
+        const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks, int startIndex = 0);
+    // A radio playing without a station behind it yet.
+    bool awaitsStation() const { return waveMode_ && waveStationId_.isEmpty(); }
+    // Puts a started station behind the radio that awaitsStation(): what
+    // plays goes on playing, and `tracks` replace the old upcoming ones
+    // like a radio/tracksAdded with replaceUpcoming.
+    void attachStation(const QString& sourceId, const QString& stationId, const QList<Track>& tracks);
+    // The source answers now: what couldn't be preloaded while it was
+    // still starting gets another try.
+    void sourceCameUp(const QString& sourceId);
 
     // Insert a single track without disturbing the rest of the queue
     // (unlike loadQueue/startRadio, which replace it wholesale) — for the

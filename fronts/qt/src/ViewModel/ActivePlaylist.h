@@ -33,7 +33,9 @@ class Sources;
 // queue came from: making one active (and playing it, or starting its
 // radio), its tracks until they're queued, marking it in the sidebar, and
 // bringing the last one back at startup — playing it again only if it was
-// playing at quit and Settings::resumePlaybackAtStartup() is on.
+// playing at quit and Settings::resumePlaybackAtStartup() is on. That
+// needs nothing from the source when the saved song is downloaded: it plays
+// at once, and the source catches up behind it.
 class ActivePlaylist : public QObject {
     Q_OBJECT
 
@@ -88,6 +90,11 @@ private:
     // Plays the restored playlist from its saved song, once, if a resume
     // is still pending and nothing else has started meanwhile.
     void resumePlayback();
+    // At startup: plays the saved song from what is on disk already, with
+    // no wait for its source — see the constructor.
+    void resumeFromCache();
+    // A radio resumed without its station gets one, once its source is up.
+    Rpc::Task<void> attachStation(QString sourceId, QString seed);
     void applyPlaylistEdit(
         const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
     void loadCachedTracks();

@@ -101,6 +101,9 @@ public:
     StreamDownload* download(const QString& sourceId, const QString& trackId) const;
     // Forgets a track that turned out unplayable, cached file included.
     void discard(const QString& sourceId, const QString& trackId);
+    // Another try for a source's wanted tracks that failed — it wasn't
+    // there to ask when they were first wanted, and is now.
+    void retryFailed(const QString& sourceId);
 
     // A track to fetch because it is to be saved, whether or not it is in
     // the window. Told by ready() or failed() as for any other; asking for

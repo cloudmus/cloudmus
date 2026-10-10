@@ -189,7 +189,7 @@ void PlaybackController::playAt(int index)
 }
 
 void PlaybackController::startRadio(
-    const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks)
+    const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks, int startIndex)
 {
     invalidatePrepared();
     setWaveMode(true);
@@ -203,7 +203,31 @@ void PlaybackController::startRadio(
     }
     emit queueAvailabilityChanged(hasQueue());
     emit queueChanged();
-    playIndex(0);
+    playIndex(startIndex);
+}
+
+void PlaybackController::attachStation(const QString& sourceId, const QString& stationId, const QList<Track>& tracks)
+{
+    if (!awaitsStation() || sourceId != waveSourceId_ || stationId.isEmpty())
+        return;
+    waveStationId_ = stationId;
+    preloader_->retryFailed(sourceId);
+    handleTracksAdded(sourceId, TracksAddedParams { stationId, tracks, true });
+    // Where the listener is, which is also what makes the station send
+    // more once little is left after it.
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (hasCurrentTrack() && currentSourceId() == sourceId && client != nullptr && client->available()) {
+        TrackStartedParams started { currentTrack().id };
+        Rpc::feedbackTrackStarted(*client, started).detach();
+    }
+}
+
+void PlaybackController::sourceCameUp(const QString& sourceId)
+{
+    if (!hasCurrentTrack() && startingIndex_ < 0)
+        return;
+    preloader_->retryFailed(sourceId);
+    updatePreloadWindow();
 }
 
 void PlaybackController::enqueueNext(const QString& sourceId, const Track& track)
