@@ -255,6 +255,62 @@ private slots:
         QCOMPARE(stateOf(QStringLiteral("a")), State::Waiting);
     }
 
+    // Saving is fetched after what plays and before what is only preloaded.
+    void aDemandedTrackGoesAfterThePlayingOneAndBeforeTheWindow()
+    {
+        upstream_->held.insert(QStringLiteral("/a"));
+        QStringList readied;
+        connect(preloader_.get(), &Playback::Preloader::ready, this,
+            [&](const QString&, const QString& id) { readied.append(id); });
+        preloader_->setWindow({ playing(QStringLiteral("a")), upcoming(QStringLiteral("b")) });
+        QTRY_COMPARE(upstream_->requests, QStringList { QStringLiteral("/a@0") });
+
+        // Asked for while a is still coming, c is not part of the window.
+        preloader_->demand(upcoming(QStringLiteral("c")));
+        QTest::qWait(100);
+        QCOMPARE(upstream_->requests.size(), 1); // still one at a time
+
+        upstream_->release(QStringLiteral("/a"));
+        QTRY_COMPARE(readied.size(), 3);
+        QCOMPARE(readied, (QStringList { QStringLiteral("a"), QStringLiteral("c"), QStringLiteral("b") }));
+        QCOMPARE(preloader_->transferOf(QStringLiteral("src"), QStringLiteral("c")).received,
+            upstream_->bodies.value(QStringLiteral("/c")).size());
+    }
+
+    // Once saved, a track nobody plays leaves the cache; one that is part
+    // of the window stays.
+    void aReleasedTrackLeavesTheCacheUnlessItIsInTheWindow()
+    {
+        QSignalSpy ready(preloader_.get(), &Playback::Preloader::ready);
+        preloader_->setWindow({ playing(QStringLiteral("a")) });
+        preloader_->demand(upcoming(QStringLiteral("b")));
+        preloader_->demand(upcoming(QStringLiteral("a"))); // the playing one, too
+        QTRY_COMPARE(ready.size(), 2);
+        QVERIFY(preloader_->isCached(QStringLiteral("src"), QStringLiteral("b")));
+
+        preloader_->release(QStringLiteral("src"), QStringLiteral("b"));
+        QVERIFY(!preloader_->isCached(QStringLiteral("src"), QStringLiteral("b")));
+        QCOMPARE(cache_->totalBytes(), qint64(upstream_->bodies.value(QStringLiteral("/a")).size()));
+        preloader_->release(QStringLiteral("src"), QStringLiteral("a"));
+        QVERIFY(preloader_->isCached(QStringLiteral("src"), QStringLiteral("a")));
+    }
+
+    void aDemandCanBeCancelledWhileItDownloads()
+    {
+        upstream_->stallAfter.insert(QStringLiteral("/b"), 100 * 1024);
+        preloader_->demand(upcoming(QStringLiteral("b")));
+        const QString part = cache_->partPath(Playback::TrackCache::keyFor(QStringLiteral("src"), QStringLiteral("b")));
+        QTRY_VERIFY(QFileInfo(part).size() >= 100 * 1024);
+
+        preloader_->release(QStringLiteral("src"), QStringLiteral("b"));
+        QVERIFY(!QFileInfo::exists(part));
+        QCOMPARE(stateOf(QStringLiteral("b")), State::Waiting);
+        // Nothing is left going: the next demand starts afresh.
+        QSignalSpy ready(preloader_.get(), &Playback::Preloader::ready);
+        preloader_->demand(upcoming(QStringLiteral("c")));
+        QTRY_COMPARE(ready.size(), 1);
+    }
+
 private:
     std::unique_ptr<QTemporaryDir> dir_;
     std::unique_ptr<FakeUpstream> upstream_;

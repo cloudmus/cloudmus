@@ -326,6 +326,10 @@
         <source>Radio</source>
         <translation>Radio</translation>
     </message>
+    <message>
+        <source>Unknown track</source>
+        <translation>Pista desconocida</translation>
+    </message>
 </context>
 <context>
     <name>Ui::AboutDialog</name>
@@ -1433,8 +1437,20 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
         <translation>No se puede crear la carpeta %1</translation>
     </message>
     <message>
+        <source>%1 can&apos;t save tracks</source>
+        <translation>%1 no puede guardar pistas</translation>
+    </message>
+    <message>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>The track couldn&apos;t be downloaded</source>
+        <translation>No se pudo descargar la pista</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t write the file to %1</source>
+        <translation>No se pudo escribir el archivo en %1</translation>
     </message>
     <message>
         <source>Saved &quot;%1&quot;</source>

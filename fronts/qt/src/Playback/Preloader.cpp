@@ -56,23 +56,99 @@ void Preloader::setWindow(const QVector<Item>& items)
         if (!item.stream)
             continue;
         it->item.stream = item.stream;
-        if (it->state == State::Failed) {
-            // A fresh URL is another chance, from the start.
-            delete it->download;
-            it->download = nullptr;
-            QFile::remove(cache_.partPath(key));
-            it->freshUrls = 0;
-            setState(key, State::Waiting);
-        }
+        // A fresh URL is another chance.
+        if (it->state == State::Failed)
+            restart(key);
     }
     for (const QString& key : entries_.keys()) {
-        if (!order.contains(key))
+        if (!order.contains(key) && !demanded_.contains(key))
             dropEntry(key);
     }
     order_ = order;
-    cache_.setPinned(QSet<QString>(order_.cbegin(), order_.cend()));
+    pinWanted();
     schedule();
     emit progressChanged();
+}
+
+void Preloader::pinWanted()
+{
+    QSet<QString> wanted(order_.cbegin(), order_.cend());
+    wanted.unite(QSet<QString>(demanded_.cbegin(), demanded_.cend()));
+    cache_.setPinned(wanted);
+}
+
+void Preloader::restart(const QString& key)
+{
+    Entry& entry = entries_[key];
+    // From the start: whatever was fetched before the failure is dropped.
+    delete entry.download;
+    entry.download = nullptr;
+    QFile::remove(cache_.partPath(key));
+    entry.freshUrls = 0;
+    setState(key, State::Waiting);
+}
+
+QVector<QString> Preloader::sequence() const
+{
+    QVector<QString> result;
+    if (!order_.isEmpty())
+        result.append(order_.first());
+    for (const QString& key : demanded_) {
+        if (!result.contains(key))
+            result.append(key);
+    }
+    for (qsizetype i = 1; i < order_.size(); ++i) {
+        if (!result.contains(order_.at(i)))
+            result.append(order_.at(i));
+    }
+    return result;
+}
+
+void Preloader::demand(const Item& item)
+{
+    const QString key = TrackCache::keyFor(item.sourceId, item.trackId);
+    auto it = entries_.find(key);
+    if (it == entries_.end()) {
+        Entry entry;
+        entry.item = item;
+        entry.item.resolve = true;
+        const QString cached = cache_.path(key);
+        if (!cached.isEmpty()) {
+            entry.state = State::Ready;
+            entry.readyPath = cached;
+        }
+        entries_.insert(key, entry);
+    } else if (it->state == State::Failed) {
+        it->item.stream = item.stream ? item.stream : it->item.stream;
+        restart(key); // asked for again: another try
+    }
+    if (!demanded_.contains(key))
+        demanded_.append(key);
+    pinWanted();
+    schedule();
+    emit progressChanged();
+}
+
+void Preloader::release(const QString& sourceId, const QString& trackId)
+{
+    const QString key = TrackCache::keyFor(sourceId, trackId);
+    if (!demanded_.removeOne(key))
+        return;
+    pinWanted();
+    if (!order_.contains(key)) {
+        cache_.remove(key);
+        dropEntry(key);
+    }
+    schedule();
+    emit progressChanged();
+}
+
+Preloader::Transfer Preloader::transferOf(const QString& sourceId, const QString& trackId) const
+{
+    const auto it = entries_.constFind(TrackCache::keyFor(sourceId, trackId));
+    if (it == entries_.constEnd() || it->download == nullptr)
+        return { };
+    return { it->download->bytesAvailable(), it->download->totalLength() };
 }
 
 void Preloader::scheduleLater()
@@ -93,7 +169,7 @@ void Preloader::schedule()
 {
     // Over a copy: what a signal emitted on the way leads to may change
     // the window.
-    const QVector<QString> order = order_;
+    const QVector<QString> order = sequence();
     QString active;
     for (const QString& key : order) {
         const auto it = entries_.constFind(key);

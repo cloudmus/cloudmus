@@ -326,6 +326,10 @@
         <source>Radio</source>
         <translation>Radio</translation>
     </message>
+    <message>
+        <source>Unknown track</source>
+        <translation>Titre inconnu</translation>
+    </message>
 </context>
 <context>
     <name>Ui::AboutDialog</name>
@@ -1433,8 +1437,20 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
         <translation>Impossible de créer le dossier %1</translation>
     </message>
     <message>
+        <source>%1 can&apos;t save tracks</source>
+        <translation>%1 ne peut pas enregistrer de titres</translation>
+    </message>
+    <message>
         <source>%1: %2</source>
         <translation>%1 : %2</translation>
+    </message>
+    <message>
+        <source>The track couldn&apos;t be downloaded</source>
+        <translation>Le titre n’a pas pu être téléchargé</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t write the file to %1</source>
+        <translation>Le fichier n’a pas pu être écrit dans %1</translation>
     </message>
     <message>
         <source>Saved &quot;%1&quot;</source>

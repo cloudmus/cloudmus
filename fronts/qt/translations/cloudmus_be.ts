@@ -326,6 +326,10 @@
         <source>Radio</source>
         <translation>Радыё</translation>
     </message>
+    <message>
+        <source>Unknown track</source>
+        <translation>Невядомы трэк</translation>
+    </message>
 </context>
 <context>
     <name>Ui::AboutDialog</name>
@@ -1435,8 +1439,20 @@ You can try again later or download the new version yourself.</source>
         <translation>Не атрымалася стварыць тэчку %1</translation>
     </message>
     <message>
+        <source>%1 can&apos;t save tracks</source>
+        <translation>%1 не ўмее захоўваць трэкі</translation>
+    </message>
+    <message>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>The track couldn&apos;t be downloaded</source>
+        <translation>Не ўдалося спампаваць трэк</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t write the file to %1</source>
+        <translation>Не ўдалося запісаць файл у %1</translation>
     </message>
     <message>
         <source>Saved &quot;%1&quot;</source>

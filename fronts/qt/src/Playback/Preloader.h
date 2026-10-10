@@ -27,6 +27,10 @@ class TrackCache;
 // first, then the upcoming ones — and works out the rest itself. A track
 // that leaves the window stops downloading; one that stays keeps what it
 // has; whatever is complete stays in the cache whether wanted or not.
+//
+// Tracks the listener asked to save are fetched the same way (demand()):
+// after the playing one and before the upcoming ones, so saving neither
+// holds up what plays nor competes with it.
 class Preloader : public QObject {
     Q_OBJECT
 
@@ -90,6 +94,23 @@ public:
     // Forgets a track that turned out unplayable, cached file included.
     void discard(const QString& sourceId, const QString& trackId);
 
+    // A track to fetch because it is to be saved, whether or not it is in
+    // the window. Told by ready() or failed() as for any other; asking for
+    // one that is there already tells nothing — see stateOf().
+    void demand(const Item& item);
+    // The demand is over — the file was saved, or no longer wanted. A track
+    // outside the window is dropped (cached file included): saving a
+    // playlist mustn't fill the playback cache with it.
+    void release(const QString& sourceId, const QString& trackId);
+
+    // How much of a track has been fetched, and of how much; total -1
+    // while the length is not known.
+    struct Transfer {
+        qint64 received = 0;
+        qint64 total = -1;
+    };
+    Transfer transferOf(const QString& sourceId, const QString& trackId) const;
+
 signals:
     void ready(const QString& sourceId, const QString& trackId);
     void failed(const QString& sourceId, const QString& trackId);
@@ -111,6 +132,12 @@ private:
         int freshUrls = 0; // resolved again after the URL expired
     };
 
+    // The keys in the order they are fetched: the playing track, what was
+    // demanded, then the rest of the window.
+    QVector<QString> sequence() const;
+    void pinWanted();
+    // A fresh start for a track that failed (a stream known now, or asked for).
+    void restart(const QString& key);
     void schedule();
     void scheduleLater();
     // False: it can't even be started — failed on the spot.
@@ -133,6 +160,7 @@ private:
     Resolver resolver_;
     RouteProvider routeProvider_;
     QVector<QString> order_; // keys, in play order
+    QVector<QString> demanded_; // keys, in the order they were asked for
     QHash<QString, Entry> entries_;
     bool schedulePending_ = false;
 };

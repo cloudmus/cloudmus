@@ -326,6 +326,10 @@
         <source>Radio</source>
         <translation>Radio</translation>
     </message>
+    <message>
+        <source>Unknown track</source>
+        <translation>Brano sconosciuto</translation>
+    </message>
 </context>
 <context>
     <name>Ui::AboutDialog</name>
@@ -1433,8 +1437,20 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
         <translation>Impossibile creare la cartella %1</translation>
     </message>
     <message>
+        <source>%1 can&apos;t save tracks</source>
+        <translation>%1 non può salvare brani</translation>
+    </message>
+    <message>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>The track couldn&apos;t be downloaded</source>
+        <translation>Impossibile scaricare il brano</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t write the file to %1</source>
+        <translation>Impossibile scrivere il file in %1</translation>
     </message>
     <message>
         <source>Saved &quot;%1&quot;</source>

@@ -813,7 +813,7 @@ bool MainWindow::canDownloadPlaylist(const QString& sourceId, const Playlist& pl
     if (!downloads_.isEnabled() || sourceId.isEmpty() || playlist.kind == QStringLiteral("radioStation"))
         return false;
     const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    return client != nullptr && client->capabilities().value(QStringLiteral("download")).toBool();
+    return client != nullptr && ViewModel::Downloads::canSave(client->capabilities());
 }
 
 void MainWindow::onHeroContextMenuRequested(const QPoint& pos)
@@ -997,7 +997,7 @@ void MainWindow::showTrackMenu(
     const bool radioSupported
         = capabilities.value(QStringLiteral("browse")).toObject().value(QStringLiteral("radio")).toBool();
     // Only while downloads are on (Settings → Downloads).
-    const bool downloadSupported = downloads_.isEnabled() && capabilities.value(QStringLiteral("download")).toBool();
+    const bool downloadSupported = downloads_.isEnabled() && ViewModel::Downloads::canSave(capabilities);
     const QString webUrl = track.webUrl.value_or(QString());
 
     auto* menu = new QMenu(this);

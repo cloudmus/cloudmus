@@ -35,6 +35,14 @@ public:
 
     QPixmap pixmap(const QString& url, QSize targetSize);
 
+    // The cover as it was fetched, full size — for what isn't painted (a
+    // saved track's picture). Null unless it is at hand already: nothing
+    // is fetched for this; request() does that.
+    QImage source(const QString& url) const;
+    // Fetches a cover that isn't at hand, to be had from source() once
+    // pixmapReady() names it. Nothing happens for one that is, or on its way.
+    void request(const QString& url);
+
     // Covers are fetched the way their source connects (its proxy, see
     // Net::ProxyRouting): the cache learns which source a cover URL came
     // from as the source's tracks and playlists arrive, and asks
@@ -54,6 +62,7 @@ public:
     void assignSource(const QString& sourceId, const QList<Track>& tracks);
 
 signals:
+    // `url` can now be had from pixmap() (and source()).
     void pixmapReady(QString url);
 
 private:

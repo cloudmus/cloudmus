@@ -75,6 +75,21 @@ QPixmap CoverArtCache::pixmap(const QString& url, QSize targetSize)
     return { };
 }
 
+QImage CoverArtCache::source(const QString& url) const
+{
+    const QImage* image = sourceCache_.object(url);
+    return image != nullptr ? *image : QImage();
+}
+
+void CoverArtCache::request(const QString& url)
+{
+    if (url.isEmpty() || sourceCache_.contains(url) || inFlight_.contains(url))
+        return;
+    // No size asked for yet: only the decoded source is wanted.
+    inFlight_.insert(url, { });
+    fetch(url, QUrl(url), kMaxRedirects);
+}
+
 QPixmap CoverArtCache::store(const QString& url, QSize targetSize, const QImage& source)
 {
     // Downscaled to exactly targetSize, with a non-square cover fitted

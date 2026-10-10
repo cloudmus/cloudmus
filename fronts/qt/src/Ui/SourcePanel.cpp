@@ -1,4 +1,5 @@
 #include "SourcePanel.h"
+#include "Downloads.h"
 
 #include <QClipboard>
 #include <QDesktopServices>
@@ -455,7 +456,7 @@ void SourcePanel::setSource(const QString& sourceId, const QJsonObject& capabili
         chips.append(tr("Radio"));
     if (browse.value(QStringLiteral("search")).toBool())
         chips.append(tr("Search"));
-    if (capabilities.value(QStringLiteral("download")).toBool())
+    if (ViewModel::Downloads::canSave(capabilities))
         chips.append(tr("Downloads"));
     if (auth.value(QStringLiteral("required")).toBool())
         chips.append(tr("Sign-in"));

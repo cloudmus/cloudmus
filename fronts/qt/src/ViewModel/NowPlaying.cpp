@@ -201,7 +201,7 @@ NowPlaying::Feedback NowPlaying::feedback() const
     result.dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
     result.disliked = pendingDisliked_.value_or(state.disliked.value_or(false));
     result.dislikeBusy = pendingDisliked_.has_value();
-    result.downloadSupported = current && downloads_.isEnabled() && caps.value(QStringLiteral("download")).toBool();
+    result.downloadSupported = current && downloads_.isEnabled() && Downloads::canSave(caps);
     result.downloadBusy = current && downloads_.isDownloading(source, trackId);
     result.playlistsSupported
         = current && caps.value(QStringLiteral("browse")).toObject().value(QStringLiteral("editPlaylists")).toBool();

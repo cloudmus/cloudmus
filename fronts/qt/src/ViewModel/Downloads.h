@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QHash>
+#include <QJsonObject>
 #include <QList>
 #include <QObject>
 #include <QString>
@@ -20,8 +21,13 @@ class Settings;
 namespace Covers {
 class CoverArtCache;
 }
+class QTimer;
+
 namespace Library {
 class TrackStates;
+}
+namespace Playback {
+class Preloader;
 }
 namespace Rpc {
 class SourceManager;
@@ -32,10 +38,16 @@ namespace ViewModel {
 class Messages;
 
 // Saving tracks to the download folder: single tracks and whole playlists,
-// queued and downloaded one track at a time, with their progress and a way
-// to cancel — for the toolbar's download button and its panel. Progress in
-// bytes comes from sources that declare downloadControl (docs/protocol.md
-// §7.5); others' downloads just show as under way.
+// queued and saved one track at a time, with their progress and a way to
+// cancel — for the toolbar's download button and its panel.
+//
+// A source that declares downloadFromStream is saved from by the front
+// itself: the track comes from the playback cache when it is there, else
+// it is fetched like a track about to play (Playback::Preloader), and the
+// file is named and tagged here (Library::saveTrackFile). Other sources
+// that declare download are asked with catalog.downloadTrack; progress in
+// bytes comes from those that declare downloadControl (docs/protocol.md
+// §7.5), others' downloads just show as under way (docs/protocol.md §7.5).
 class Downloads : public QObject {
     Q_OBJECT
 
@@ -81,11 +93,17 @@ public:
     // Turning them off cancels whatever is under way.
     void setEnabled(bool on);
 
-    // Where a track's audio already is on disk, if it is (the playback
-    // cache): a source that can (capability downloadFromFile) then saves
-    // from that file instead of downloading the track a second time.
-    using CachedFileProvider = std::function<QString(const QString& sourceId, const QString& trackId)>;
-    void setCachedFileProvider(CachedFileProvider provider) { cachedFileProvider_ = std::move(provider); }
+    // Where tracks to save come from: the playback cache, and downloads
+    // of the ones that aren't there. Without one a source is only asked
+    // with catalog.downloadTrack.
+    void setPreloader(Playback::Preloader* preloader) { preloader_ = preloader; }
+
+    // Whether tracks of a source with these capabilities can be saved at
+    // all — by the front (downloadFromStream, with a stream to resolve) or
+    // by the source itself (download).
+    static bool canSave(const QJsonObject& capabilities);
+    // ...by the front.
+    static bool savesFromStream(const QJsonObject& capabilities);
 
     void downloadTrack(const QString& sourceId, const Track& track);
     // A radio station has no fixed list to save — not accepted.
@@ -114,7 +132,11 @@ private:
     Job* find(int jobId);
     void startNext();
     Rpc::Task<void> run(int jobId);
+    // One track by the front: from the cache or fetched, then written to
+    // `destDir`. Throws with the reason when it can't.
+    Rpc::Task<void> saveFromStream(int jobId, QString sourceId, Track track, QString destDir);
     void finish(Job& job, const QString& lastError);
+    void reportFetchProgress();
     void onProgress(const QString& sourceId, const QString& downloadId, qint64 received, std::optional<qint64> total);
 
     Rpc::SourceManager& sourceManager_;
@@ -122,7 +144,16 @@ private:
     Covers::CoverArtCache& coverArtCache_;
     Config::Settings& settings_;
     Messages& messages_;
-    CachedFileProvider cachedFileProvider_;
+    Playback::Preloader* preloader_ = nullptr;
+    // A track being saved by the front: told by cancel() so it stops
+    // waiting for it.
+    std::function<void()> wakePlayerSave_;
+    // The track the front is fetching, and how often its progress reaches
+    // the jobs: at once, then at most every so often, the latest last.
+    QString fetchSource_;
+    QString fetchTrack_;
+    QTimer* progressTimer_ = nullptr;
+    bool progressPending_ = false;
 
     QList<Job> jobs_;
     // Playlist jobs' playlists, until run() has listed their tracks.
