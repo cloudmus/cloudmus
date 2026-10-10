@@ -1,5 +1,5 @@
 name: Upload debug symbols to Sentry
-description: Sends dist/symbols/ (the unstripped executables of this build) to the cloudmus-qt project.
+description: Sends dist/symbols/ (the unstripped executables of this build) and the sources they were built from to the cloudmus-qt project.
 inputs:
   auth-token:
     required: true
@@ -16,4 +16,12 @@ runs:
       run: |
         test -n "$SENTRY_AUTH_TOKEN" && test -n "$SENTRY_ORG"
         pip install --quiet sentry-cli
-        sentry-cli debug-files upload dist/symbols
+        # The builds run in a container where the checkout is /workspace, and
+        # the debug info names the sources by those paths (the Windows one
+        # is rewritten to /workspace/... at build time). Make them resolve
+        # here, so that --include-sources can bundle the files.
+        sudo ln -sfn "$GITHUB_WORKSPACE" /workspace
+        # Without it the upload still succeeds, just with no source in the
+        # stacks: fail here instead of finding out from a crash.
+        test -f /workspace/fronts/qt/src/main.cpp
+        sentry-cli debug-files upload --include-sources dist/symbols

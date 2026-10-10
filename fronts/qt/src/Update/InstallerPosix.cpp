@@ -23,7 +23,7 @@ QString tr(const char* text) { return QCoreApplication::translate("Update::Insta
 // $APPIMAGE: set by the AppImage runtime to the .AppImage file itself.
 QString currentAppImage() { return qEnvironmentVariable("APPIMAGE"); }
 
-// The AppImage's AppRun (packaging/appimage/AppRun) runs the app as its
+// The AppImage's AppRun (packaging/appimage/apprun) runs the app as its
 // child and cleans up after it once it exits — the new version must start
 // only after that, or the old run's cleanup removes what the new one just
 // set up (the backend manifests).

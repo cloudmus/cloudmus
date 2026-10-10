@@ -110,7 +110,7 @@ public:
         });
     }
 
-    void showCard(const CardData& data, const QPoint& globalPos)
+    void showCard(const CardData& data, const QPoint& globalPos, const QWidget* anchor)
     {
         data_ = data;
         coverUrl_ = coverUrlOf(data.track);
@@ -125,6 +125,7 @@ public:
         // Shown at the fade's current opacity, not one opaque frame first.
         Theme::setPopupOpacity(this, opacity_);
         animateOpacityTo(1.0);
+        Theme::attachToWindow(this, anchor);
         show();
         raise();
     }
@@ -414,7 +415,7 @@ void TrackHoverCard::showFor(const QModelIndex& index, const QPoint& globalPos)
     if (popup_ == nullptr)
         popup_ = new CardPopup(coverCache_);
     shownIndex_ = index;
-    static_cast<CardPopup*>(popup_)->showCard(data, globalPos);
+    static_cast<CardPopup*>(popup_)->showCard(data, globalPos, view_);
 }
 
 void TrackHoverCard::hideCard()

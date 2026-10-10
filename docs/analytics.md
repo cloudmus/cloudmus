@@ -105,10 +105,16 @@ workflow reads the secret of that name and fails if it is missing.
 
 The release builds carry `-g1` debug info, and each build leaves its
 unstripped executable in `dist/symbols/`. The workflow uploads it with
-`sentry-cli debug-files upload`, so stacks in Sentry get function names and
-lines. That needs the GitHub secrets `SENTRY_AUTH_TOKEN` (an organization
-token with the `project:releases` scope) and `SENTRY_ORG` (the organization
-slug); the project is `cloudmus-qt`. Symbols are matched by build id, so
+`sentry-cli debug-files upload --include-sources`, so stacks in Sentry get
+function names and lines, and each frame shows the source around its line
+(our own code and sentry-native's). The sources are found by the paths in the
+debug info, `/workspace/...` — the checkout's place in the build container;
+the Windows build rewrites its `Z:/workspace` to that
+(`-ffile-prefix-map` in `packaging/windows/build-in-docker.sh`), and the
+upload step symlinks `/workspace` to the runner's checkout. That needs the
+GitHub secrets `SENTRY_AUTH_TOKEN` (an organization token with the
+`project:releases` scope) and `SENTRY_ORG` (the organization slug); the
+project is `cloudmus-qt`. Symbols are matched by build id, so
 upload them for every release build.
 
 ## Checking it

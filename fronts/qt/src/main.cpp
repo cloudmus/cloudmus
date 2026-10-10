@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QFile>
 #include <QFont>
 #include <QIcon>
 #include <QMenu>
@@ -157,7 +158,7 @@ int main(int argc, char** argv)
     QApplication::setApplicationName(QStringLiteral("cloudmus-qt"));
     QApplication::setApplicationVersion(QStringLiteral(CLOUDMUS_VERSION));
     // Must match the "cloudmus-qt.desktop" basename AppRun installs to
-    // ~/.local/share/applications/ (see AppRun's own comment) — without a
+    // ~/.local/share/applications/ (see packaging/appimage/apprun) — without a
     // consistent app_id tying the two together, Wayland compositors that
     // can't take a window icon directly from the client (the bundled Qt6
     // in the AppImage predates the xdg-toplevel-icon-v1 protocol) have no
@@ -182,8 +183,16 @@ int main(int argc, char** argv)
         crashReportsOn ? QStringLiteral(CLOUDMUS_SENTRY_DSN) : QString(),
         debugLoggingRequested(),
     });
+    // The AppImage's AppRun reports an app that dies before this point (the
+    // linker, Qt's platform plugin) and learns it got this far from the marker
+    // file going away; from here the crash reporter is responsible. Not
+    // inherited by the backends.
+    if (const QString marker = qEnvironmentVariable("CLOUDMUS_STARTUP_MARKER"); !marker.isEmpty()) {
+        QFile::remove(marker);
+        qunsetenv("CLOUDMUS_STARTUP_MARKER");
+    }
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &Diagnostics::CrashReporter::shutdown);
-    // Ctrl+Shift+Alt+F12 three times: crashes on purpose, to try a build's
+    // Ctrl+Shift+Alt+F12 five times in three seconds: crashes on purpose, to try a build's
     // crash reporting.
     Diagnostics::CrashShortcut crashShortcut;
     app.installEventFilter(&crashShortcut);

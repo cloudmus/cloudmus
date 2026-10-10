@@ -7,7 +7,7 @@
 namespace Diagnostics {
 
 namespace {
-constexpr int kPresses = 3;
+constexpr int kPresses = 5;
 constexpr quint64 kWindowMs = 3000;
 constexpr Qt::KeyboardModifiers kModifiers = Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier;
 } // namespace
@@ -25,6 +25,15 @@ bool CrashShortcut::eventFilter(QObject*, QEvent* event)
     const auto* key = static_cast<QKeyEvent*>(event);
     if (key->isAutoRepeat() || key->key() != Qt::Key_F12 || key->modifiers() != kModifiers)
         return false;
+
+    // An event the widgets don't accept goes up the parent chain, and an
+    // application-wide filter sees it once per widget: one key press must
+    // count once. (The address alone isn't enough, the next press may reuse
+    // it; the time tells them apart.)
+    if (event == lastEvent_ && key->timestamp() == lastTimestamp_)
+        return false;
+    lastEvent_ = event;
+    lastTimestamp_ = key->timestamp();
 
     // The event's own time, not the clock's: the presses are what is timed.
     const quint64 now = key->timestamp();

@@ -31,7 +31,8 @@ ninja_win="$(winepath -w /opt/windows-ninja/ninja.exe)"
 mkdir -p "${build_dir}"
 xvfb-run -a wine "${cmake_exe}" -S "${repo_win}\\fronts\\qt" -B "${build_win}" \
     -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
-    -DCMAKE_C_FLAGS=-g1 -DCMAKE_CXX_FLAGS=-g1 \
+    "-DCMAKE_C_FLAGS=-g1 -ffile-prefix-map=Z:/workspace=/workspace" \
+    "-DCMAKE_CXX_FLAGS=-g1 -ffile-prefix-map=Z:/workspace=/workspace" \
     "-DFETCHCONTENT_SOURCE_DIR_SENTRY-NATIVE=$(winepath -w /opt/sentry-native)" \
     -DCMAKE_MAKE_PROGRAM="${ninja_win}" \
     -DCMAKE_PREFIX_PATH="${qt_win}" \

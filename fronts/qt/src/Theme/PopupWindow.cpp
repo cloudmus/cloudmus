@@ -7,6 +7,7 @@
 #include <QPointer>
 #include <QTimer>
 #include <QWidget>
+#include <QWindow>
 
 #include "Shadow.h"
 #include "Tokens.h"
@@ -124,8 +125,13 @@ private:
             return;
         const int reach = shadow_.reach;
         setGeometry(target_->geometry().adjusted(-reach, -reach, reach, reach));
-        if (isHidden())
+        if (isHidden()) {
+            // Same transient parent as the popup it sits under (see attachToWindow()).
+            winId();
+            if (windowHandle() != nullptr && target_->windowHandle() != nullptr)
+                windowHandle()->setTransientParent(target_->windowHandle()->transientParent());
             show();
+        }
         // Right under the popup, once both windows are up.
         QTimer::singleShot(0, this, [this]() {
 #ifdef Q_OS_WIN
@@ -223,6 +229,18 @@ void setUpPopup(QWidget* popup, const QRect& panel, int radius, const PopupShado
                 Integration::WindowGlass::enableBlurBehindPanel(popup, panel, radius);
             break;
     }
+}
+
+void attachToWindow(QWidget* popup, const QWidget* anchor)
+{
+    if (anchor == nullptr)
+        return;
+    const QWidget* top = anchor->window();
+    popup->winId(); // creates the native window, so windowHandle() exists
+    QWindow* handle = popup->windowHandle();
+    QWindow* parent = top->windowHandle();
+    if (handle != nullptr && parent != nullptr && handle != parent && handle->transientParent() != parent)
+        handle->setTransientParent(parent);
 }
 
 void setPopupOpacity(QWidget* popup, qreal opacity)

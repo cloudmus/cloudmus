@@ -117,6 +117,19 @@ Build the AppImage (needs only Docker; the Debian 11 build container in
 ./build-appimage.sh   # -> dist/CloudMus-<version>-x86_64.AppImage
 ```
 
+The AppImage's entry point (`AppRun`) is a static Rust program,
+`packaging/appimage/apprun/`, built by that script in an
+`rust:alpine` container (musl, so nothing it needs can be missing on the
+host). Its tests, which run it against a fake AppDir and a local stand-in for
+Sentry:
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -e CARGO_HOME=/workspace/build-apprun/cargo-home \
+    -e CARGO_TARGET_DIR=/workspace/build-apprun/target -v "$PWD":/workspace:z \
+    -w /workspace/packaging/appimage/apprun rust:1.98.0-alpine cargo test --locked
+```
+(or plain `cargo test` in that directory with a local Rust).
+
 Build the Windows x64 NSIS installer from Linux with Docker:
 
 ```bash
@@ -229,8 +242,20 @@ start); the setting and what is sent are in `docs/analytics.md`. Set the
 variable when configuring CMake to try it; the tests that need it
 (`aCrashWithSentryOnStillLeavesTheLocalReport`, ...) skip in a build without.
 
+In the AppImage, `AppRun` also covers what the app can't: it runs
+`cloudmus-qt` as a child and, when that dies before it has installed its crash
+reporter (the dynamic linker missing a library, Qt's platform plugin, a
+library's constructor), sends one event right away: exit code or signal,
+the host's OS, glibc and session, the libraries the linker can't find, and the
+start of stdout and stderr as attachments. The app tells it how far it got by
+removing the file named in `CLOUDMUS_STARTUP_MARKER`. After an ordinary crash
+`AppRun` uploads the event sentry-native stored, so it doesn't wait for the
+next start. Both respect the same setting and need a build with
+`CLOUDMUS_SENTRY_DSN` (`AppDir/usr/share/cloudmus/sentry-dsn`). To try the
+first: `QT_QPA_PLATFORM=nonexistent ./CloudMus-….AppImage`.
+
 To try crash reporting on a release build (an AppImage, an installed
-Windows build), press **Ctrl+Shift+Alt+F12 three times** within three
+Windows build), press **Ctrl+Shift+Alt+F12 five times** within three
 seconds in any window of the app: it crashes on purpose with a real
 segmentation fault. Start the app again and the event goes to Sentry; the
 local report is in `crashes/`. A desktop that takes the combination for
@@ -251,7 +276,7 @@ x86_64-w64-mingw32-addr2line -f -C -e build-windows/bin/cloudmus-qt.exe $(printf
 protocol/            Protocol schemas (schema/, methods.yaml) + codegen/
 backends/            py-rpc-common/ and one folder per service
 fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
-packaging/appimage/  AppImage build (Dockerfile, AppRun, build script)
+packaging/appimage/  AppImage build (Dockerfile, build script, apprun/: the Rust AppRun)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)
 .github/workflows/   Release and stage builds (build.yml is shared)
 docs/                Protocol spec, this guide, Windows, releasing, analytics
