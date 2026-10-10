@@ -42,6 +42,14 @@
         <translation>Vorheriger Titel</translation>
     </message>
     <message>
+        <source>Rewind</source>
+        <translation>Zurückspulen</translation>
+    </message>
+    <message>
+        <source>Fast forward</source>
+        <translation>Vorspulen</translation>
+    </message>
+    <message>
         <source>Stop</source>
         <translation>Stopp</translation>
     </message>

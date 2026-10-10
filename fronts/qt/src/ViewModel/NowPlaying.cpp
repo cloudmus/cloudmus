@@ -126,6 +126,8 @@ void NowPlaying::stop() { playback_.stop(); }
 
 void NowPlaying::seek(qint64 positionMs) { playback_.seek(positionMs); }
 
+qint64 NowPlaying::positionMs() const { return playback_.positionMs(); }
+
 void NowPlaying::setVolume(int volume0To100)
 {
     const int level = std::clamp(volume0To100, 0, 100);

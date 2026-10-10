@@ -42,6 +42,14 @@
         <translation>Brano precedente</translation>
     </message>
     <message>
+        <source>Rewind</source>
+        <translation>Indietro</translation>
+    </message>
+    <message>
+        <source>Fast forward</source>
+        <translation>Avanti</translation>
+    </message>
+    <message>
         <source>Stop</source>
         <translation>Stop</translation>
     </message>

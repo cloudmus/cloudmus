@@ -42,6 +42,14 @@
         <translation>Piste précédente</translation>
     </message>
     <message>
+        <source>Rewind</source>
+        <translation>Reculer</translation>
+    </message>
+    <message>
+        <source>Fast forward</source>
+        <translation>Avancer</translation>
+    </message>
+    <message>
         <source>Stop</source>
         <translation>Arrêter</translation>
     </message>

@@ -77,6 +77,7 @@ public:
     void previous();
     void stop();
     void seek(qint64 positionMs);
+    qint64 positionMs() const;
     // The level of the mode in effect: the quiet one while quiet(), else the
     // normal one. Quiet mode ducks the sound without pausing or muting, and
     // the playback volume glides between the two levels.

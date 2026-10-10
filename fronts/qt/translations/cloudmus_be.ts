@@ -42,6 +42,14 @@
         <translation>Папярэдні трэк</translation>
     </message>
     <message>
+        <source>Rewind</source>
+        <translation>Перамотаць назад</translation>
+    </message>
+    <message>
+        <source>Fast forward</source>
+        <translation>Перамотаць наперад</translation>
+    </message>
+    <message>
         <source>Stop</source>
         <translation>Стоп</translation>
     </message>

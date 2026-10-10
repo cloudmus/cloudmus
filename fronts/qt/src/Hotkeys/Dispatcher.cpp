@@ -9,6 +9,7 @@ namespace Hotkeys {
 
 namespace {
 constexpr int kVolumeStep = 5;
+constexpr qint64 kSeekStepMs = 10'000;
 } // namespace
 
 Dispatcher::Dispatcher(ViewModel::NowPlaying& nowPlaying, Registry& registry, QObject* parent)
@@ -68,6 +69,12 @@ void Dispatcher::trigger(Action action, const QString& activationToken)
             break;
         case Action::Previous:
             nowPlaying_.previous();
+            break;
+        case Action::SeekBackward:
+            nowPlaying_.seek(nowPlaying_.positionMs() - kSeekStepMs);
+            break;
+        case Action::SeekForward:
+            nowPlaying_.seek(nowPlaying_.positionMs() + kSeekStepMs);
             break;
         case Action::Stop:
             nowPlaying_.stop();

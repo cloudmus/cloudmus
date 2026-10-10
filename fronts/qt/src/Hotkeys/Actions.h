@@ -12,6 +12,8 @@ enum class Action {
     PlayPause,
     Next,
     Previous,
+    SeekBackward,
+    SeekForward,
     Stop,
     VolumeUp,
     VolumeDown,

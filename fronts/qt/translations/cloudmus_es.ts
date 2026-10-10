@@ -42,6 +42,14 @@
         <translation>Pista anterior</translation>
     </message>
     <message>
+        <source>Rewind</source>
+        <translation>Retroceder</translation>
+    </message>
+    <message>
+        <source>Fast forward</source>
+        <translation>Avanzar</translation>
+    </message>
+    <message>
         <source>Stop</source>
         <translation>Detener</translation>
     </message>

@@ -42,6 +42,14 @@
         <translation>Предыдущий трек</translation>
     </message>
     <message>
+        <source>Rewind</source>
+        <translation>Перемотать назад</translation>
+    </message>
+    <message>
+        <source>Fast forward</source>
+        <translation>Перемотать вперёд</translation>
+    </message>
+    <message>
         <source>Stop</source>
         <translation>Стоп</translation>
     </message>
