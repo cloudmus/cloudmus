@@ -11,6 +11,7 @@
 #include <QTimer>
 
 #include "CoverArtCache.h"
+#include "CoverPlaceholder.h"
 #include "GeneratedCoverArt.h"
 #include "Icons.h"
 #include "Metrics.h"
@@ -39,6 +40,9 @@ constexpr qreal kCoverFraction = 0.75 / 1.2;
 // Below this the cover is left out rather than shown as a postage stamp —
 // the title and subtitle get the room instead (see overlayTargetSide()).
 constexpr int kMinCoverSide = 64;
+
+// How long a cover may take before the placeholder tile stands in for it.
+constexpr int kPlaceholderDelayMs = 300;
 
 // New cover grows in from 150%, a leaving one shrinks away to 50% —
 // both fading. The exit is shorter and accelerates (InCubic) so the old
@@ -106,6 +110,11 @@ HeroPanel::HeroPanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     regenerateTimer_->setInterval(200);
     connect(regenerateTimer_, &QTimer::timeout, this, &HeroPanel::regenerateSizedLayers);
 
+    placeholderTimer_ = new QTimer(this);
+    placeholderTimer_->setSingleShot(true);
+    placeholderTimer_->setInterval(kPlaceholderDelayMs);
+    connect(placeholderTimer_, &QTimer::timeout, this, &HeroPanel::showCoverPlaceholder);
+
     // pixmap() below may return a null placeholder while the cover fetches
     // in the background (see Covers::CoverArtCache) — repaint once it's ready.
     connect(coverCache_, &Covers::CoverArtCache::pixmapReady, this, [this](const QString& url) {
@@ -150,6 +159,7 @@ void HeroPanel::setTrack(const Track& track, bool showPlayButton)
 void HeroPanel::clearNowPlaying()
 {
     regenerateTimer_->stop();
+    placeholderTimer_->stop();
     isPromo_ = true;
     currentCoverUrl_.clear();
     titleText_.clear();
@@ -310,13 +320,43 @@ void HeroPanel::refreshCoverOverlay()
     // to show, not when its URL arrives.
     const QPixmap pixmap = coverCache_->pixmap(currentCoverUrl_, QSize(side, side));
     if (!pixmap.isNull()) {
+        placeholderTimer_->stop();
         CoverLayer* current = coverLayer_.current();
-        if (current && current->url == currentCoverUrl_)
+        if (current && current->url == currentCoverUrl_ && !current->placeholder)
             current->pixmap = pixmap; // same cover re-rendered for a new size — no animation
         else
             coverLayer_.show(CoverLayer { currentCoverUrl_, pixmap, coverRect_ });
+    } else {
+        CoverLayer* current = coverLayer_.current();
+        if (current && current->placeholder)
+            showCoverPlaceholder(); // re-render at the new size, in place
+        else if (!current && !placeholderTimer_->isActive())
+            placeholderTimer_->start();
     }
     relayout();
+}
+
+void HeroPanel::showCoverPlaceholder()
+{
+    const int side = overlayTargetSide();
+    if (currentCoverUrl_.isEmpty() || side <= 0)
+        return;
+    const qreal dpr = devicePixelRatioF();
+    QPixmap pixmap(QSize(side, side) * dpr);
+    pixmap.setDevicePixelRatio(dpr);
+    pixmap.fill(Qt::transparent);
+    {
+        QPainter painter(&pixmap);
+        Theme::paintCoverPlaceholder(&painter, QRect(0, 0, side, side), currentCoverUrl_);
+    }
+    CoverLayer* current = coverLayer_.current();
+    if (current && current->placeholder) {
+        current->pixmap = pixmap;
+        update();
+    } else {
+        coverLayer_.show(CoverLayer { currentCoverUrl_, pixmap, coverRect_, /*placeholder=*/true });
+        relayout();
+    }
 }
 
 void HeroPanel::regenerateSizedLayers()

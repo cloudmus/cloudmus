@@ -102,6 +102,7 @@ private:
         QString url;
         QPixmap pixmap;
         QRect rect;
+        bool placeholder = false; // the "no artwork" tile, not the real cover
     };
     struct TextLayer {
         QString text;
@@ -113,6 +114,9 @@ private:
     void setTrack(const Track& track, bool showPlayButton);
     void regenerateSizedLayers();
     void refreshCoverOverlay();
+    // The "no artwork" tile as a cover layer, shown when a cover is slow
+    // to arrive (see placeholderTimer_).
+    void showCoverPlaceholder();
     // The cover's side: 0 when the panel is too short to fit it above the
     // text (then it's left out).
     int overlayTargetSide() const;
@@ -132,6 +136,10 @@ private:
     QPushButton* playButton_ = nullptr; // the only real child widget — see the class doc
 
     QTimer* regenerateTimer_ = nullptr;
+    // Fires when the current cover has been loading for a while: only then
+    // is the placeholder shown, so a cover that arrives right away doesn't
+    // flash it first.
+    QTimer* placeholderTimer_ = nullptr;
 
     // Each keeps drawing a previous value while it animates out, so the
     // old cover/text stays at its old geometry even after relayout()
