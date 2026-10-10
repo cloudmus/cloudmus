@@ -289,6 +289,7 @@ void PlaybackController::handleTracksAdded(const QString& sourceId, const Tracks
         for (const Track& t : params.tracks)
             queue_.append(QueueEntry { sourceId, t });
     }
+    trimRadioQueue();
     emit queueChanged();
     if (awaitingRadioTracks_ && index_ + 1 < queue_.size()) {
         awaitingRadioTracks_ = false;
@@ -391,6 +392,9 @@ void PlaybackController::becomeCurrent(int index, const QueueEntry& entry, bool 
 {
     const bool wasCurrentTrack = hasCurrentTrack();
     index_ = index;
+    // The queue may have grown while playback.play was in flight; the
+    // trim waited for it (see trimRadioQueue()).
+    trimRadioQueue();
     lastKnownPositionMs_ = 0;
     if (!wasCurrentTrack)
         emit currentTrackAvailabilityChanged(true);
@@ -703,6 +707,20 @@ void PlaybackController::invalidatePrepared()
     preparedIndex_ = -1;
     preparedReady_ = false;
     audioPlayer_->clearPrepared();
+}
+
+void PlaybackController::trimRadioQueue()
+{
+    // While a track is starting, playIndexAsync() holds its index across a
+    // suspension: shifting the queue now would make it land on another track.
+    if (!waveMode_ || startingIndex_ >= 0 || index_ < 0)
+        return;
+    const int drop = qMin(int(queue_.size()) - kMaxRadioQueue, index_);
+    if (drop <= 0)
+        return;
+    invalidatePrepared();
+    queue_.remove(0, drop);
+    index_ -= drop;
 }
 
 void PlaybackController::updatePreloadWindow()

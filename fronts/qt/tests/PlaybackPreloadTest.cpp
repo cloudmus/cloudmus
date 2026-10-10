@@ -10,10 +10,10 @@
 #include "Preloader.h"
 #include "ProxyRouting.h"
 #include "RpcClient.h"
-#include "TrackCache.h"
 #include "SourceManager.h"
 #include "SourceSession.h"
 #include "TestSupport.h"
+#include "TrackCache.h"
 #include "TrackStates.h"
 
 namespace Tests {
@@ -219,6 +219,36 @@ private slots:
         added.replaceUpcoming = true;
         playback_->handleTracksAdded(QStringLiteral("fake"), added);
         QCOMPARE(queueNames(), (QStringList { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("x") }));
+    }
+
+    // A radio's queue doesn't grow for ever: as it plays on, the oldest
+    // played tracks go and the playing one stays.
+    void aRadioQueueDropsItsOldestTracksPastTheLimit()
+    {
+        playback_->setPreloadDepth(0, 0);
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("station"),
+            { track(QStringLiteral("a")), track(QStringLiteral("b")) });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        TracksAddedParams added;
+        added.stationId = QStringLiteral("station");
+        for (int i = 0; i < Playback::PlaybackController::kMaxRadioQueue + 20; ++i)
+            added.tracks.append(track(QStringLiteral("t%1").arg(i)));
+        playback_->handleTracksAdded(QStringLiteral("fake"), added);
+        // Nothing is played yet: nothing to drop.
+        QCOMPARE(playback_->queue().size(), Playback::PlaybackController::kMaxRadioQueue + 22);
+
+        // playAt(), not next(): a skip would make the fake station replace
+        // what's upcoming.
+        for (int step = 1; step <= 25; ++step) {
+            playback_->playAt(playback_->currentIndex() + 1);
+            const QString expected = step == 1 ? QStringLiteral("b") : QStringLiteral("t%1").arg(step - 2);
+            QTRY_COMPARE(playback_->currentTrack().title, expected);
+            QTest::qWait(300); // let it load: cutting a load short makes the player retry it
+        }
+        QCOMPARE(playback_->queue().size(), Playback::PlaybackController::kMaxRadioQueue);
+        QCOMPARE(playback_->currentTrack().title, QStringLiteral("t23"));
+        QCOMPARE(playback_->currentIndex(), 3);
     }
 
     // A radio replaces what's queued when the listener rejects the playing

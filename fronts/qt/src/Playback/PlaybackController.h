@@ -62,6 +62,8 @@ public:
     // 0: only the playing track.
     void setPreloadDepth(int playlistTracks, int radioTracks);
     int playlistPreloadDepth() const { return playlistPreloadDepth_; }
+    // Longest a radio's queue (and the list showing it) may get.
+    static constexpr int kMaxRadioQueue = 100;
     int radioPreloadDepth() const { return radioPreloadDepth_; }
 
     // How a source's stream URLs are fetched — see AudioPlayer::play()'s
@@ -191,6 +193,9 @@ private:
     // without a gap.
     void prepareNext();
     void invalidatePrepared();
+    // A radio's queue only grows; drops its oldest played tracks past
+    // kMaxRadioQueue (never the current one, nor anything after it).
+    void trimRadioQueue();
     Rpc::Task<StreamDescriptor> resolveStreamAsync(QPointer<Rpc::RpcClient> client, int requestId, QString trackId);
     void promotePrepared(int nextIndex, bool manual);
     QString titleFor(const Track& track) const;
