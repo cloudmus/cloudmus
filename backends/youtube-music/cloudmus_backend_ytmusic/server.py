@@ -7,11 +7,10 @@ from ytmusicapi import LikeStatus
 from rpc_common import errors
 from rpc_common.generated.methods import emit_track_stream_ready
 from rpc_common.generated.models import StreamReadyParams
-from rpc_common.downloads import Downloads, serve as serve_downloads
 from rpc_common.server import BackendError, BackendServer
 
 from .i18n import tr, translator
-from . import catalog, client as client_module, download, playback
+from . import catalog, client as client_module, playback
 from .auth import BrowserAuthSession
 from .radio import RadioSession
 
@@ -24,9 +23,10 @@ CAPABILITIES = {
     },
     "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False, "editPlaylists": True},
     "feedback": {"like": True, "dislike": True, "skip": True},
-    "download": True,
-    "downloadControl": True,
-    "downloadFromFile": True,
+    # Saved by the front from the stream playback.resolveStream returns
+    # (docs/protocol.md §7.5).
+    "download": False,
+    "downloadFromStream": True,
     # usernamePassword, not deviceCode: device-code OAuth login itself still
     # works, but every data call made with the resulting token currently
     # 400s due to a confirmed upstream break (see auth.py's module
@@ -49,9 +49,6 @@ def build_server() -> BackendServer:
     )
 
     auth_session = BrowserAuthSession()
-    # download/progress and catalog.cancelDownload (docs/protocol.md §7.5).
-    downloads = Downloads(server.notify, translator)
-    serve_downloads(server, downloads)
     radio_session: RadioSession | None = None
     inflight_plays: dict[int, tuple[asyncio.Task, asyncio.Event]] = {}
 
@@ -136,22 +133,6 @@ def build_server() -> BackendServer:
             return await get_radio_session().start(params.get("seed"))
         except ValueError as e:
             raise BackendError(errors.STATE_INVALID, str(e), errors.app_error_data(retryable=False))
-
-    # Concurrent: a big file takes minutes — playback, browsing and a
-    # catalog.cancelDownload for it must not wait meanwhile.
-    @server.method("catalog.downloadTrack", concurrent=True)
-    async def handle_download_track(params: dict, request_id: int) -> dict:
-        try:
-            with downloads.track(params.get("downloadId")) as tracker:
-                return await download.download_track(
-                    params["trackId"], params["destDir"], tracker, params.get("sourceFile")
-                )
-        except LookupError:
-            raise BackendError(
-                errors.RESOURCE_NOT_FOUND,
-                tr("Track not found"),
-                errors.app_error_data(retryable=False, detail=f"trackId={params['trackId']}"),
-            )
 
     # --- playback ---
 

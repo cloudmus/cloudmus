@@ -9,7 +9,6 @@ dependencies = [
     # Pinned, bumped by hand when YouTube breaks stream extraction. A
     # pre-release version in the specifier lets pip install this nightly.
     "yt-dlp==2026.9.27.232945.dev0",
-    "mutagen>=1.47",
     # SOCKS proxies for requests (ALL_PROXY=socks5h://..., set by the front
     # per source — see docs/protocol.md §4.3).
     "PySocks>=1.7",

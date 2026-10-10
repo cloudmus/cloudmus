@@ -229,7 +229,7 @@ defaults, since the front does not assume any implicit capability.
 | `feedback.like` / `.dislike` / `.skip` | bool | Corresponding `feedback.*` methods (§7.4) are accepted. |
 | `download` | bool | `catalog.downloadTrack` (§7.5) is supported. |
 | `downloadControl` | bool | Optional (1.7+). Downloads report `download/progress` and can be stopped with `catalog.cancelDownload` (§7.5). |
-| `downloadFromFile` | bool | Optional (1.12+). `catalog.downloadTrack` accepts a `sourceFile` — the track's audio the front already has on disk — and saves from it instead of downloading again (§7.5). |
+| `downloadFromStream` | bool | Optional (1.12+). The front may save a track from the stream `playback.resolveStream` returns, downloading, naming and tagging the file itself; the source needs no `catalog.downloadTrack` (§7.5). |
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `network` | bool | Optional (1.10+), **defaults to `true` when absent**: the source reaches the network, so the front offers its per-source Connection setting (system / direct / proxy) and routes the source's streams and covers through it. A source working only with local files declares `false`. |
 | `localization` | object | Optional (1.11+). `{"locales": [string, ...]}`: the source can answer user-facing strings in these languages (BCP-47, English implied) and supports `localization.setLanguage` (§7.8). |
@@ -477,7 +477,7 @@ mirror that locally rather than showing both states lit up at once.
 
 | Method | Params | Result | Requires capability |
 |---|---|---|---|
-| `catalog.downloadTrack` | `{"trackId": string, "destDir": string, "downloadId"?: string, "sourceFile"?: string}` | `{"path": string}` | `download` |
+| `catalog.downloadTrack` | `{"trackId": string, "destDir": string, "downloadId"?: string}` | `{"path": string}` | `download` |
 | `catalog.cancelDownload` | `{"downloadId": string}` | `{}` | `downloadControl` (1.7+) |
 
 - `destDir` is an absolute path to an existing directory, supplied by the
@@ -518,26 +518,16 @@ Since progress shows the download is alive, a front may give a named
 download a much longer timeout than the 60 seconds above. A source without
 `downloadControl` ignores `downloadId`.
 
-**Saving from a file the front already has (1.12+, capability
-`downloadFromFile`).** A front that downloads tracks for playback (to play
-them without stalls, or ahead of time) may already hold a track's audio on
-disk when the user asks to save it. It then passes that file's absolute
-path as `sourceFile`, and only to a source declaring `downloadFromFile`:
-
-- the file holds the bytes of the stream the source itself resolved for
-  this track (`playback.play` / `playback.resolveStream`), unchanged — no
-  name or extension to go by, so the source tells the format from the
-  content;
-- the source saves from it instead of transferring the track again: the
-  file name, the tags and the returned `path` are what they would be for
-  an ordinary download. It copies; `sourceFile` is the front's and stays
-  where it is;
-- `sourceFile` is an offer, not an order. A source downloads as usual when
-  the file is missing, unreadable or of a format it doesn't recognise — or
-  when it isn't what the download should be (a source with separate
-  qualities for listening and for saving, set differently).
-
-A source without the capability never sees the field.
+**Saving from the stream (1.12+, capability `downloadFromStream`).** A
+source that returns a `StreamDescriptor` for `playback.resolveStream` and
+declares `downloadFromStream` lets the front save a track itself: it
+downloads the stream the same way it does for playback (or takes it from its
+playback cache when it is already there), names the file after the track's
+title and artists, and writes the tags and cover from the `Track` it has.
+The source takes no part and needs no `catalog.downloadTrack`; what is
+saved is the stream it resolves, so its audio quality is the one set for
+listening. A source without `downloadFromStream` is saved from by
+`catalog.downloadTrack`, as above — if it declares `download`.
 
 ### 7.7 Settings
 

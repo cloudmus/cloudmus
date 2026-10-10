@@ -5,14 +5,15 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
-## 1.12 — saving a track from a file the front already has
+## 1.12 — saving a track from its stream
 
-- **Additive, backward-compatible**: optional capability `downloadFromFile`
-  and optional `catalog.downloadTrack` param `sourceFile` (§7.5). A front
-  that already downloaded a track's audio for playback offers that file,
-  and the source saves from it — named and tagged as usual — instead of
-  transferring the track a second time. The source may decline and
-  download as before.
+- **Additive, backward-compatible**: optional capability
+  `downloadFromStream` (§5, §7.5). The front saves a track itself from the
+  stream `playback.resolveStream` returns — downloading it as it does for
+  playback, or taking it from its playback cache, and writing the file name,
+  tags and cover — so a source needs no `catalog.downloadTrack` of its own
+  and a track already played is saved at once. `catalog.downloadTrack`
+  stays for sources that declare `download`.
 - **Clarified, no wire change**: `feedback.skip` means the user rejected
   the playing track (Next, a dislike that moves on) — a front does not send
   it for picking another queued track or going back, so a radio's queue is

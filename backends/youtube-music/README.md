@@ -3,7 +3,7 @@
 CloudMus backend for YouTube Music (package `cloudmus_backend_ytmusic`),
 built on [`ytmusicapi`](https://ytmusicapi.readthedocs.io/) for the
 catalog and library, and [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) to
-resolve stream URLs and download tracks.
+resolve stream URLs.
 
 ## What it supports
 
@@ -12,8 +12,9 @@ resolve stream URLs and download tracks.
   My Mix 1–7, Discover, Replay…) played like My Wave — see `radio.py`.
   Listened tracks are added to the account's YouTube history, which feeds
   its recommendations; there's no other radio feedback on YouTube's side.
-- Streams (`providesStream`, with preloading) and downloads (`bestaudio`,
-  no `ffmpeg`; tags written for `.m4a`/`.opus` only).
+- Streams (`providesStream`, with preloading), `bestaudio`, no `ffmpeg`.
+  Saving a track is the front's job (`downloadFromStream`): it downloads
+  the stream and writes the tags and cover itself.
 - No search yet.
 
 ## Authentication
@@ -61,8 +62,7 @@ In `~/.config/cloudmus/backends/youtube-music/`, all written `chmod 0600`:
 ## Dependencies
 
 - `ytmusicapi>=1.8,<2` — catalog and library, both auth mechanisms.
-- `yt-dlp` (pinned in `pyproject.toml`, bumped by hand) — stream URLs (`playback.py`) and downloads (`download.py`).
-- `mutagen>=1.47` — best-effort tags on downloaded files.
+- `yt-dlp` (pinned in `pyproject.toml`, bumped by hand) — stream URLs (`playback.py`).
 - `cloudmus-rpc-common` — shared transport (`backends/py-rpc-common`).
 
 Tests and the conformance suite: see [`docs/development.md`](../../docs/development.md#tests).

@@ -11,11 +11,9 @@ Server."""
 from __future__ import annotations
 
 import asyncio
-import shutil
 import threading
 import time
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Any, Awaitable, Callable, Iterator
 
 from . import errors
@@ -74,53 +72,6 @@ class Tracker:
             totalBytes=int(total) if total else None,
         )
         asyncio.run_coroutine_threadsafe(emit_download_progress(self._notify, params), self._loop)
-
-
-def audio_extension(path: Path) -> str | None:
-    """The file extension for the audio in `path`, told from its first
-    bytes; None if it isn't a format a backend here saves. A sourceFile
-    (docs/protocol.md §7.5, 1.12+) has no name to go by."""
-    try:
-        with open(path, "rb") as f:
-            head = f.read(12)
-    except OSError:
-        return None
-    if head[4:8] == b"ftyp":
-        return ".m4a"
-    if head[:4] == b"\x1a\x45\xdf\xa3":
-        return ".webm"
-    if head[:4] == b"OggS":
-        return ".opus"
-    if head[:4] == b"fLaC":
-        return ".flac"
-    if head[:3] == b"ID3" or (len(head) >= 2 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0):
-        return ".mp3"
-    return None
-
-
-def save_from_source_file(source_file: str | None, dest_stem: Path, tracker: Tracker) -> Path | None:
-    """Saves a track from the audio the front already has (catalog.
-    downloadTrack's sourceFile, capability downloadFromFile): copies it to
-    `dest_stem` plus the extension its content calls for, and returns that
-    path — or None when there is nothing usable to copy, for the caller to
-    download as usual. The copy is the front's file byte for byte; naming
-    it and tagging the result stay the caller's."""
-    if not source_file:
-        return None
-    source = Path(source_file)
-    extension = audio_extension(source)
-    if extension is None:
-        return None
-    tracker.check()
-    path = dest_stem.with_name(dest_stem.name + extension)
-    try:
-        shutil.copyfile(source, path)
-    except OSError:
-        path.unlink(missing_ok=True)
-        return None
-    size = path.stat().st_size
-    tracker.progress(size, size, final=True)
-    return path
 
 
 class Downloads:

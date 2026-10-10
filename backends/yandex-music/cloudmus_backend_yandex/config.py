@@ -44,22 +44,17 @@ def settings_store() -> SettingsStore:
     section intact, and SettingsStore keeps "token"."""
     return SettingsStore(
         CONFIG_FILE,
-        groups=[Group("playback", "Playback"), Group("downloads", "Downloads")],
+        groups=[Group("playback", "Playback")],
         fields=[
+            # The front saves the stream it plays (docs/protocol.md §7.5),
+            # so one setting covers listening and saving.
             Field.enum(
                 "streamQuality",
-                "Stream quality",
+                "Quality",
                 default=quality.BEST,
                 options=quality.OPTIONS,
                 group="playback",
-                description="Applies from the next track.",
-            ),
-            Field.enum(
-                "downloadQuality",
-                "Download quality",
-                default=quality.BEST,
-                options=quality.OPTIONS,
-                group="downloads",
+                description="Applies from the next track, and to the tracks you save.",
             ),
         ],
     )

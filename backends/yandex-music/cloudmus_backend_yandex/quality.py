@@ -1,9 +1,10 @@
-"""Stream/download quality: which of a track's download infos to use.
+"""Stream quality: which of a track's download infos to use.
 
 Yandex offers each track in a few codec/bitrate variants (typically mp3 at
-320/192/128 kbps, sometimes aac). The "streamQuality"/"downloadQuality"
-settings (see config.settings_store()) cap the bitrate; mp3 is preferred as
-the most widely playable and taggable.
+320/192/128 kbps, sometimes aac). The "streamQuality" setting (see
+config.settings_store()) caps the bitrate — for listening, and for the
+tracks the front saves from the stream; mp3 is preferred as the most widely
+playable.
 """
 from __future__ import annotations
 
