@@ -71,6 +71,13 @@ struct PopupShadow {
 // Clipped, the shadow window under it. `radius`: the panel's corners.
 void setUpPopup(QWidget* popup, const QRect& panel, int radius, const PopupShadow& shadow);
 
+// Makes `anchor`'s top-level window the popup's transient parent. Call
+// before show(). A parentless Qt::ToolTip window is an xdg_popup on
+// Wayland and Qt then picks the *active* window as its parent — after a
+// dialog closes there is none, creation fails and the popup never shows
+// until the main window is clicked.
+void attachToWindow(QWidget* popup, const QWidget* anchor);
+
 // The popup's opacity while it fades: its window's own when the fade is
 // PopupFade::Window; a Clipped popup's shadow window fades along.
 void setPopupOpacity(QWidget* popup, qreal opacity);

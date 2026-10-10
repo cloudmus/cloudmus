@@ -87,7 +87,7 @@ public:
         });
     }
 
-    void showWithText(const QString& text, const QPoint& globalPos)
+    void showWithText(const QString& text, const QPoint& globalPos, const QWidget* anchor)
     {
         text_ = text;
         const QFontMetrics metrics(font());
@@ -104,6 +104,7 @@ public:
         // Shown at the fade's current opacity, not one opaque frame first.
         Theme::setPopupOpacity(this, opacity_);
         animateOpacityTo(1.0);
+        Theme::attachToWindow(this, anchor);
         show();
         raise();
     }
@@ -245,7 +246,7 @@ void ThemedToolTip::showFor(QWidget* watched)
     if (!popup_)
         popup_ = new ThemedToolTipPopup; // no parent: a genuine top-level window, cleaned up by QApplication at exit
     activeWidget_ = watched;
-    static_cast<ThemedToolTipPopup*>(popup_)->showWithText(watched->toolTip(), QCursor::pos());
+    static_cast<ThemedToolTipPopup*>(popup_)->showWithText(watched->toolTip(), QCursor::pos(), watched);
     safetyTimer_.start();
 }
 
