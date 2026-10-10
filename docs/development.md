@@ -255,7 +255,7 @@ next start. Both respect the same setting and need a build with
 first: `QT_QPA_PLATFORM=nonexistent ./CloudMus-….AppImage`.
 
 To try crash reporting on a release build (an AppImage, an installed
-Windows build), press **Ctrl+Shift+Alt+F12 three times** within three
+Windows build), press **Ctrl+Shift+Alt+F12 five times** within three
 seconds in any window of the app: it crashes on purpose with a real
 segmentation fault. Start the app again and the event goes to Sentry; the
 local report is in `crashes/`. A desktop that takes the combination for

@@ -192,7 +192,7 @@ int main(int argc, char** argv)
         qunsetenv("CLOUDMUS_STARTUP_MARKER");
     }
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &Diagnostics::CrashReporter::shutdown);
-    // Ctrl+Shift+Alt+F12 three times: crashes on purpose, to try a build's
+    // Ctrl+Shift+Alt+F12 five times in three seconds: crashes on purpose, to try a build's
     // crash reporting.
     Diagnostics::CrashShortcut crashShortcut;
     app.installEventFilter(&crashShortcut);

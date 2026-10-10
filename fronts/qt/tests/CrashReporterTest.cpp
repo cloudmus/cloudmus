@@ -149,7 +149,7 @@ private slots:
         QVERIFY(report.contains("reason: SIGSEGV"));
     }
 
-    void theCrashShortcutNeedsThreePressesInTime()
+    void theCrashShortcutNeedsFivePressesInTime()
     {
         int crashes = 0;
         Diagnostics::CrashShortcut shortcut([&crashes] { ++crashes; });
@@ -161,24 +161,46 @@ private slots:
         };
         const Qt::KeyboardModifiers chord = Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier;
 
-        press(Qt::Key_F12, chord, 1000);
-        press(Qt::Key_F12, chord, 1500);
+        for (quint64 at : { 1000, 1300, 1600, 1900 })
+            press(Qt::Key_F12, chord, at);
         QCOMPARE(crashes, 0);
-        press(Qt::Key_F12, chord, 2000);
+        press(Qt::Key_F12, chord, 2200);
         QCOMPARE(crashes, 1);
 
-        // Too slow: the run starts over.
-        press(Qt::Key_F12, chord, 10000);
-        press(Qt::Key_F12, chord, 11000);
-        press(Qt::Key_F12, chord, 14000);
+        // Too slow: the run starts over, and four presses are not enough.
+        for (quint64 at : { 10000, 11000, 12000, 14000, 14500 })
+            press(Qt::Key_F12, chord, at);
         QCOMPARE(crashes, 1);
 
         // Other keys, missing modifiers and a held key don't count.
         press(Qt::Key_F11, chord, 20000);
         press(Qt::Key_F12, Qt::ControlModifier | Qt::ShiftModifier, 20100);
-        press(Qt::Key_F12, chord, 20200, true);
-        press(Qt::Key_F12, chord, 20300);
-        press(Qt::Key_F12, chord, 20400);
+        for (quint64 at : { 20200, 20300, 20400, 20500 })
+            press(Qt::Key_F12, chord, at, true);
+        press(Qt::Key_F12, chord, 20600);
+        QCOMPARE(crashes, 1);
+    }
+
+    void aPressSeenByEveryWidgetOnTheWayUpCountsOnce()
+    {
+        // What an application-wide filter gets for one key press nobody
+        // accepted: the same event, once per widget up the parent chain.
+        int crashes = 0;
+        Diagnostics::CrashShortcut shortcut([&crashes] { ++crashes; });
+        QObject target;
+        const Qt::KeyboardModifiers chord = Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier;
+        for (int press = 0; press < 4; ++press) {
+            QKeyEvent event(QEvent::KeyPress, Qt::Key_F12, chord);
+            event.setTimestamp(1000 + 200 * press);
+            for (int widget = 0; widget < 4; ++widget)
+                shortcut.eventFilter(&target, &event);
+        }
+        QCOMPARE(crashes, 0);
+
+        QKeyEvent fifth(QEvent::KeyPress, Qt::Key_F12, chord);
+        fifth.setTimestamp(1800);
+        for (int widget = 0; widget < 4; ++widget)
+            shortcut.eventFilter(&target, &fifth);
         QCOMPARE(crashes, 1);
     }
 
