@@ -10,6 +10,7 @@
 #include "Preloader.h"
 #include "ProxyRouting.h"
 #include "RpcClient.h"
+#include "TrackCache.h"
 #include "SourceManager.h"
 #include "SourceSession.h"
 #include "TestSupport.h"
@@ -56,6 +57,8 @@ private slots:
 
     void init()
     {
+        // Tests named aLocal... run against a source without a network.
+        qputenv("CLOUDMUS_FAKE_NETWORK", QByteArray(QTest::currentTestFunction()).startsWith("aLocal") ? "0" : "1");
         upstream_ = std::make_unique<FakeUpstream>();
         for (const char* name : { "a", "b", "c", "d" })
             upstream_->bodies.insert(QLatin1Char('/') + QLatin1String(name), FakeUpstream::silence(30));
@@ -148,6 +151,30 @@ private slots:
         QCOMPARE(last(), qint64(30000));
         QTest::qWait(500);
         QCOMPARE(last(), qint64(30000));
+    }
+
+    // A source's own files take nothing of the preload depth and are not
+    // fetched — only the next one is kept ready for a start without a gap.
+    void aLocalSourcesNextTrackIsPreparedAndNoMoreIsPreloaded()
+    {
+        playback_->setPreloadDepth(3, 3);
+        QList<Track> tracks;
+        for (const char* name : { "a", "b", "c", "d", "e" }) {
+            Track t;
+            t.id = QStringLiteral("file:///music/%1.mp3").arg(QLatin1String(name));
+            t.title = QLatin1String(name);
+            tracks.append(t);
+        }
+        playback_->loadQueue(QStringLiteral("fake"), tracks, 0);
+        QTRY_VERIFY(playback_->preloader().isLocal(QStringLiteral("fake"), tracks.at(1).id));
+        QTRY_VERIFY(!playback_->preloader().readyPath(QStringLiteral("fake"), tracks.at(1).id).isEmpty());
+        QTest::qWait(200);
+        // Not the ones after it.
+        QVERIFY(!playback_->preloader().isLocal(QStringLiteral("fake"), tracks.at(2).id));
+        QCOMPARE(playback_->preloader().window().size(), 2);
+        // Nothing was fetched from anywhere.
+        QCOMPARE(upstream_->requests.size(), 0);
+        QCOMPARE(playback_->trackCache().totalBytes(), qint64(0));
     }
 
     // A skip makes a radio replace what's coming — after what's already

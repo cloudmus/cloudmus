@@ -716,7 +716,11 @@ void PlaybackController::updatePreloadWindow()
     }
     const auto itemFor = [this](int index) {
         const QueueEntry& entry = queue_[index];
-        return Preloader::Item { entry.sourceId, entry.track.id, titleFor(entry.track), std::nullopt, true };
+        // A source without a network has files of its own: nothing to
+        // download for them.
+        const Rpc::RpcClient* client = sourceManager_.client(entry.sourceId);
+        const bool local = client != nullptr && client->available() && !client->usesNetwork();
+        return Preloader::Item { entry.sourceId, entry.track.id, titleFor(entry.track), std::nullopt, true, local };
     };
     QVector<Preloader::Item> items;
     Preloader::Item current = itemFor(head);
@@ -726,14 +730,31 @@ void PlaybackController::updatePreloadWindow()
         current.stream = currentStream_;
     items.append(current);
 
-    const int depth = effectiveRepeatMode() == RepeatMode::One ? 0
-        : waveMode_                                            ? radioPreloadDepth_
-                                                               : playlistPreloadDepth_;
+    const int depth = waveMode_ ? radioPreloadDepth_ : playlistPreloadDepth_;
+    // A source's own files are not preloaded and take nothing of `depth`.
+    // Only the one that follows is kept in the window — so that it is queued
+    // in mpv for a start without a gap — and the walk is bounded, as a
+    // queue of them is as long as a library.
     QSet<int> seen { head };
-    for (int index = peekNext(head); index >= 0 && items.size() <= depth && !seen.contains(index);
-        index = peekNext(index)) {
-        seen.insert(index);
-        items.append(itemFor(index));
+    int networked = 0;
+    int examined = 0;
+    const int maxExamined = 2 * depth + 2;
+    if (effectiveRepeatMode() != RepeatMode::One) {
+        for (int index = peekNext(head); index >= 0 && examined < maxExamined && !seen.contains(index);
+            index = peekNext(index)) {
+            seen.insert(index);
+            ++examined;
+            const Preloader::Item item = itemFor(index);
+            if (item.local) {
+                if (examined == 1)
+                    items.append(item);
+                continue;
+            }
+            if (networked >= depth)
+                break;
+            ++networked;
+            items.append(item);
+        }
     }
     preloader_->setWindow(items);
     prepareNext();

@@ -45,6 +45,10 @@ public:
         // Without a stream: ask the resolver for one. The playing track is
         // not resolved here — until its stream arrives nothing downloads.
         bool resolve = true;
+        // A source's own file, as of a source that has no network: there is
+        // nothing to download, and nothing to show of it as preloaded. It is
+        // still resolved, to be queued in mpv for a start without a gap.
+        bool local = false;
     };
 
     enum class State {
@@ -61,6 +65,7 @@ public:
         QString title;
         State state = State::Waiting;
         double fraction = 0; // downloaded, 0..1
+        bool local = false; // see Item::local
     };
 
     // A stream being resolved, and how to tell the source to stop.
@@ -83,6 +88,9 @@ public:
     QVector<Slot> window() const;
     // Any track, wanted or not.
     State stateOf(const QString& sourceId, const QString& trackId) const;
+
+    // The track is one of a source's own files (Item::local).
+    bool isLocal(const QString& sourceId, const QString& trackId) const;
 
     // The whole track is on disk.
     bool isCached(const QString& sourceId, const QString& trackId) const;

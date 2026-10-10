@@ -221,6 +221,22 @@ private slots:
         QTRY_COMPARE(stateOf(QStringLiteral("a")), State::Ready);
     }
 
+    void aSourcesOwnFileIsReadyButNotShownAsPreloaded()
+    {
+        Item item = upcoming(QStringLiteral("a"));
+        item.local = true;
+        item.stream = playing(QStringLiteral("a")).stream;
+        item.stream->url = QUrl::fromLocalFile(dir_->filePath(QStringLiteral("song.mp3"))).toString();
+        preloader_->setWindow({ playing(QStringLiteral("b")), item });
+        QTRY_VERIFY(preloader_->isLocal(QStringLiteral("src"), QStringLiteral("a")));
+        QCOMPARE(stateOf(QStringLiteral("a")), State::Ready); // it is, for queueing in mpv
+        QVERIFY(!preloader_->readyPath(QStringLiteral("src"), QStringLiteral("a")).isEmpty());
+        const auto window = preloader_->window();
+        QCOMPARE(window.size(), 2);
+        QVERIFY(window.at(1).local);
+        QVERIFY(!window.at(0).local);
+    }
+
     void aLocalFileNeedsNoDownload()
     {
         QSignalSpy ready(preloader_.get(), &Playback::Preloader::ready);

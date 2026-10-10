@@ -53,6 +53,7 @@ void Preloader::setWindow(const QVector<Item>& items)
         }
         it->item.title = item.title;
         it->item.resolve = item.resolve;
+        it->item.local = item.local;
         if (!item.stream)
             continue;
         it->item.stream = item.stream;
@@ -170,10 +171,21 @@ void Preloader::schedule()
     // Over a copy: what a signal emitted on the way leads to may change
     // the window.
     const QVector<QString> order = sequence();
+    // A source's own file takes no part in the queue for the link: only
+    // where it is gets found out, which is quick and costs the link nothing.
+    for (const QString& key : order) {
+        const auto it = entries_.constFind(key);
+        if (it != entries_.constEnd() && it->item.local && it->state == State::Waiting
+            && (it->item.stream || it->item.resolve))
+            start(key);
+    }
     QString active;
     for (const QString& key : order) {
         const auto it = entries_.constFind(key);
         if (it == entries_.constEnd() || it->state == State::Ready || it->state == State::Failed)
+            continue;
+        // Found out above, and nothing to wait for.
+        if (it->item.local)
             continue;
         if (it->state == State::Downloading) {
             active = key;
@@ -190,7 +202,7 @@ void Preloader::schedule()
     }
     for (const QString& key : entries_.keys()) {
         const auto it = entries_.find(key);
-        if (key != active && it != entries_.end() && it->state == State::Downloading)
+        if (key != active && it != entries_.end() && it->state == State::Downloading && !it->item.local)
             suspend(*it);
     }
 }
@@ -381,7 +393,7 @@ QVector<Preloader::Slot> Preloader::window() const
         const auto it = entries_.constFind(key);
         if (it == entries_.constEnd())
             continue;
-        Slot slot { it->item.sourceId, it->item.trackId, it->item.title, it->state, 0 };
+        Slot slot { it->item.sourceId, it->item.trackId, it->item.title, it->state, 0, it->item.local };
         if (it->state == State::Ready)
             slot.fraction = 1;
         else if (it->download != nullptr && it->download->totalLength() > 0)
@@ -398,6 +410,12 @@ Preloader::State Preloader::stateOf(const QString& sourceId, const QString& trac
     if (it != entries_.constEnd())
         return it->state;
     return cache_.contains(key) ? State::Ready : State::Waiting;
+}
+
+bool Preloader::isLocal(const QString& sourceId, const QString& trackId) const
+{
+    const auto it = entries_.constFind(TrackCache::keyFor(sourceId, trackId));
+    return it != entries_.constEnd() && it->item.local;
 }
 
 bool Preloader::isCached(const QString& sourceId, const QString& trackId) const

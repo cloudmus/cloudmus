@@ -220,6 +220,8 @@ QString Preload::describe(const Slot& slot)
 
 Preload::State Preload::stateFor(const QString& sourceId, const QString& trackId) const
 {
+    if (playback_.preloader().isLocal(sourceId, trackId))
+        return State::Waiting;
     return stateOf(playback_.preloader().stateOf(sourceId, trackId));
 }
 
@@ -258,6 +260,9 @@ void Preload::refresh()
     const QVector<Playback::Preloader::Slot> window = playback_.preloader().window();
     for (qsizetype i = 0; i < window.size(); ++i) {
         const Playback::Preloader::Slot& from = window.at(i);
+        // A source's own files: nothing is downloaded, so nothing shows.
+        if (from.local)
+            continue;
         const Slot slot { from.sourceId, from.trackId, from.title, stateOf(from.state), reported(from.fraction) };
         if (i == 0)
             playing = slot;

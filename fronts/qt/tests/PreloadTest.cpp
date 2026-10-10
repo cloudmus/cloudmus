@@ -67,6 +67,9 @@ private slots:
 
     void init()
     {
+        // Tests named aSourcesOwn... run against a source without a network.
+        qputenv(
+            "CLOUDMUS_FAKE_NETWORK", QByteArray(QTest::currentTestFunction()).startsWith("aSourcesOwn") ? "0" : "1");
         // The defaults, whatever an earlier test or run left.
         settings_.setPreloadPlaylistTracks(3);
         settings_.setPreloadRadioTracks(2);
@@ -132,6 +135,28 @@ private slots:
         };
         QVERIFY(told(QStringLiteral("b")));
         QVERIFY(told(QStringLiteral("c")));
+    }
+
+    // A source without a network has files of its own: nothing downloads,
+    // so there is nothing to show as preloaded.
+    void aSourcesOwnFilesAreNotShownAsPreloaded()
+    {
+        const auto local = [](const QString& name) {
+            Track t;
+            t.id = QStringLiteral("file:///music/%1.mp3").arg(name);
+            t.title = name;
+            return t;
+        };
+        playback_->loadQueue(QStringLiteral("fake"),
+            { local(QStringLiteral("a")), local(QStringLiteral("b")), local(QStringLiteral("c")) }, 0);
+        // The playing track and the one after it are resolved: for a start
+        // without a gap.
+        QTRY_VERIFY(playback_->preloader().isLocal(QStringLiteral("fake"), local(QStringLiteral("b")).id));
+        QTRY_VERIFY(playback_->preloader().isCached(QStringLiteral("fake"), local(QStringLiteral("b")).id) == false);
+        QCOMPARE(preload_->total(), 0);
+        QCOMPARE(preload_->upcoming()->rowCount(), 0);
+        QVERIFY(preload_->summaryText().isEmpty());
+        QCOMPARE(preload_->stateFor(QStringLiteral("fake"), local(QStringLiteral("b")).id), Preload::State::Waiting);
     }
 
     void theSettingsApplyAtOnceAndAreKept()

@@ -45,7 +45,7 @@ void notify(const QString& method, const QJsonObject& params)
 
 QJsonObject capabilities()
 {
-    return {
+    QJsonObject caps = {
         { QStringLiteral("playback"),
             QJsonObject { { QStringLiteral("providesStream"), true }, { QStringLiteral("resolveStream"), true },
                 { QStringLiteral("selfPlayback"), false },
@@ -68,6 +68,10 @@ QJsonObject capabilities()
         { QStringLiteral("auth"),
             QJsonObject { { QStringLiteral("required"), false }, { QStringLiteral("flow"), QStringLiteral("none") } } },
     };
+    // Switched by a test: a source that only reads local files.
+    if (qEnvironmentVariable("CLOUDMUS_FAKE_NETWORK") == QStringLiteral("0"))
+        caps.insert(QStringLiteral("network"), false);
+    return caps;
 }
 
 } // namespace
@@ -198,8 +202,9 @@ int runFakeBackend()
             const QString trackId
                 = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
             const QString url = trackId == QStringLiteral("refused") ? QStringLiteral("http://127.0.0.1:9/refused")
-                : trackId.startsWith(QStringLiteral("http://"))      ? trackId
-                                                                     : QString();
+                : trackId.startsWith(QStringLiteral("http://")) || trackId.startsWith(QStringLiteral("file://"))
+                ? trackId
+                : QString();
             if (!url.isEmpty())
                 notify(QStringLiteral("track/streamReady"),
                     { { QStringLiteral("requestId"), id }, { QStringLiteral("trackId"), trackId },
@@ -211,7 +216,7 @@ int runFakeBackend()
             // Only a track whose id is a URL has a stream to resolve.
             const QString trackId
                 = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
-            if (trackId.startsWith(QStringLiteral("http://")))
+            if (trackId.startsWith(QStringLiteral("http://")) || trackId.startsWith(QStringLiteral("file://")))
                 reply(id,
                     { { QStringLiteral("stream"),
                         QJsonObject { { QStringLiteral("kind"), QStringLiteral("url") },
