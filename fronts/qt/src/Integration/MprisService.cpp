@@ -4,14 +4,24 @@
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusObjectPath>
+#include <QFile>
+#include <QPixmap>
+#include <QUrl>
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
+#include "CoverArtCache.h"
 #include "NowPlaying.h"
 #include "PlaybackController.h"
 
 namespace Integration {
+
+namespace {
+// Large enough for a lock screen; the desktop scales it down elsewhere.
+constexpr QSize kCoverSize { 512, 512 };
+} // namespace
 
 MprisRootAdaptor::MprisRootAdaptor(QObject* host)
     : QDBusAbstractAdaptor(host)
@@ -22,12 +32,14 @@ void MprisRootAdaptor::Quit() { emit quitRequested(); }
 
 void MprisRootAdaptor::Raise() { emit raiseRequested(); }
 
-MprisPlayerAdaptor::MprisPlayerAdaptor(
-    Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying, QObject* parent)
+MprisPlayerAdaptor::MprisPlayerAdaptor(Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying,
+    Covers::CoverArtCache& covers, QObject* parent)
     : QDBusAbstractAdaptor(parent)
     , playback_(playback)
     , nowPlaying_(nowPlaying)
+    , covers_(covers)
 {
+    connect(&covers_, &Covers::CoverArtCache::pixmapReady, this, &MprisPlayerAdaptor::onCoverReady);
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, &MprisPlayerAdaptor::onTrackChanged);
     connect(&playback_, &Playback::PlaybackController::playingChanged, this, &MprisPlayerAdaptor::onPlayingChanged);
     connect(&playback_, &Playback::PlaybackController::playModeChanged, this,
@@ -161,6 +173,7 @@ void MprisPlayerAdaptor::onTrackChanged()
 {
     if (!playback_.hasCurrentTrack()) {
         metadata_.clear();
+        artUrlFor(QString());
         emitPropertiesChanged(
             { QStringLiteral("Metadata"), QStringLiteral("PlaybackStatus"), QStringLiteral("CanSeek") });
         return;
@@ -175,10 +188,58 @@ void MprisPlayerAdaptor::onTrackChanged()
     for (const Artist& a : track.artists)
         artists.append(a.name);
     metadata.insert(QStringLiteral("xesam:artist"), artists);
-    if (track.coverUrl)
-        metadata.insert(QStringLiteral("mpris:artUrl"), *track.coverUrl);
+    QString coverUrl = track.coverUrl.value_or(QString());
+    if (coverUrl.isEmpty() && track.album.has_value())
+        coverUrl = track.album->coverUrl.value_or(QString());
+    if (const QString artUrl = artUrlFor(coverUrl); !artUrl.isEmpty())
+        metadata.insert(QStringLiteral("mpris:artUrl"), artUrl);
     metadata_ = metadata;
     emitPropertiesChanged({ QStringLiteral("Metadata"), QStringLiteral("PlaybackStatus"), QStringLiteral("CanSeek") });
+}
+
+QString MprisPlayerAdaptor::artUrlFor(const QString& url)
+{
+    // The same cover again (the next track off the album) stays as published.
+    if (url == coverUrl_ && !artUrl_.isEmpty())
+        return artUrl_;
+    coverUrl_ = url;
+    artUrl_.clear();
+    const QString previousFile = std::exchange(coverFile_, QString());
+    if (QUrl(url).isLocalFile()) {
+        artUrl_ = url;
+    } else if (!url.isEmpty()) {
+        // Null while it loads: onCoverReady() below picks it up.
+        if (const QPixmap cover = covers_.pixmap(url, kCoverSize); !cover.isNull())
+            artUrl_ = saveCover(cover);
+    }
+    if (!previousFile.isEmpty())
+        QFile::remove(previousFile);
+    return artUrl_;
+}
+
+void MprisPlayerAdaptor::onCoverReady(const QString& url)
+{
+    if (url != coverUrl_ || !artUrl_.isEmpty() || metadata_.isEmpty())
+        return;
+    const QPixmap cover = covers_.pixmap(url, kCoverSize);
+    if (cover.isNull())
+        return;
+    artUrl_ = saveCover(cover);
+    if (artUrl_.isEmpty())
+        return;
+    // Same mpris:trackid: the track hasn't changed, its cover has arrived.
+    metadata_.insert(QStringLiteral("mpris:artUrl"), artUrl_);
+    emitPropertiesChanged({ QStringLiteral("Metadata") });
+}
+
+QString MprisPlayerAdaptor::saveCover(const QPixmap& cover)
+{
+    // A new name each time: desktops cache art by its URL.
+    const QString path = coverDir_.filePath(QStringLiteral("cover-%1.png").arg(++coverSerial_));
+    if (!coverDir_.isValid() || !cover.save(path, "PNG"))
+        return { };
+    coverFile_ = path;
+    return QUrl::fromLocalFile(path).toString();
 }
 
 void MprisPlayerAdaptor::onPlayingChanged(bool) { emitPropertiesChanged({ QStringLiteral("PlaybackStatus") }); }
@@ -195,14 +256,15 @@ void MprisPlayerAdaptor::emitPropertiesChanged(const QStringList& properties)
     QDBusConnection::sessionBus().send(signal);
 }
 
-MprisService::MprisService(Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying, QObject* parent)
+MprisService::MprisService(Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying,
+    Covers::CoverArtCache& covers, QObject* parent)
     : QObject(parent)
 {
     // Its own object on the bus, not the main window: that one can be
     // replaced (Ui::WindowHost) while this stays registered.
     auto* host = new QObject(this);
     root_ = new MprisRootAdaptor(host);
-    player_ = new MprisPlayerAdaptor(playback, nowPlaying, host);
+    player_ = new MprisPlayerAdaptor(playback, nowPlaying, covers, host);
     player_->onCommand = [this]() { emit commandReceived(); };
     connect(root_, &MprisRootAdaptor::quitRequested, this, &MprisService::quitRequested);
     connect(root_, &MprisRootAdaptor::raiseRequested, this, &MprisService::raiseRequested);

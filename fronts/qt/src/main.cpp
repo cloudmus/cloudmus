@@ -303,7 +303,7 @@ int main(int argc, char** argv)
             [&core]() { core.analytics().recordControlUsed(QStringLiteral("taskbar")); });
     });
 #else
-    Integration::MprisService mpris(playback, core.nowPlaying());
+    Integration::MprisService mpris(playback, core.nowPlaying(), core.coverArtCache());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
     QObject::connect(&mpris, &Integration::MprisService::commandReceived, &core.analytics(),
         [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });

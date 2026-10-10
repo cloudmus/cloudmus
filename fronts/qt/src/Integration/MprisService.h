@@ -4,10 +4,14 @@
 #include <QDBusObjectPath>
 #include <QObject>
 #include <QString>
+#include <QTemporaryDir>
 #include <QVariantMap>
 
 #include <functional>
 
+namespace Covers {
+class CoverArtCache;
+}
 namespace Playback {
 class PlaybackController;
 }
@@ -78,8 +82,8 @@ class MprisPlayerAdaptor : public QDBusAbstractAdaptor {
     Q_PROPERTY(bool CanControl READ canTrue CONSTANT)
 
 public:
-    explicit MprisPlayerAdaptor(
-        Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying, QObject* parent);
+    explicit MprisPlayerAdaptor(Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying,
+        Covers::CoverArtCache& covers, QObject* parent);
 
     QString playbackStatus() const;
     QVariantMap metadata() const { return metadata_; }
@@ -114,11 +118,26 @@ private:
     void emitPropertiesChanged(const QStringList& properties);
     void onTrackChanged();
     void onPlayingChanged(bool playing);
+    // mpris:artUrl for the cover at `url`: empty until the cover is loaded
+    // (onCoverReady() then adds it to the metadata).
+    QString artUrlFor(const QString& url);
+    void onCoverReady(const QString& url);
+    QString saveCover(const QPixmap& cover);
 
     Playback::PlaybackController& playback_;
     ViewModel::NowPlaying& nowPlaying_;
+    Covers::CoverArtCache& covers_;
     QVariantMap metadata_;
     quint64 trackSerial_ = 0;
+    // The desktop is never handed an http(s) cover to fetch by itself: it
+    // would download again what the app already has, and not the way the
+    // source connects (its proxy, Net::ProxyRouting). It gets a file the
+    // cover is saved to instead.
+    QTemporaryDir coverDir_;
+    QString coverUrl_; // the current track's cover
+    QString artUrl_; // what it is published as; empty while it loads
+    QString coverFile_;
+    quint64 coverSerial_ = 0;
 };
 
 // Owns both adaptors and registers /org/mpris/MediaPlayer2 on the session
@@ -127,8 +146,8 @@ class MprisService : public QObject {
     Q_OBJECT
 
 public:
-    explicit MprisService(
-        Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying, QObject* parent = nullptr);
+    explicit MprisService(Playback::PlaybackController& playback, ViewModel::NowPlaying& nowPlaying,
+        Covers::CoverArtCache& covers, QObject* parent = nullptr);
 
 signals:
     void quitRequested();

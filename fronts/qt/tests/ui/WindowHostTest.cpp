@@ -1,6 +1,7 @@
 #include <QAbstractButton>
 #include <QDir>
 #include <QFile>
+#include <QImage>
 #include <QListView>
 #include <QPointer>
 #include <QPushButton>
@@ -8,8 +9,10 @@
 #include <QSignalSpy>
 #include <QSlider>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTest>
 #include <QTreeView>
+#include <QUrl>
 
 #include "Core.h"
 #include "DownloadsPanel.h"
@@ -283,7 +286,7 @@ private slots:
         QVERIFY(ready.wait(10000));
 
         QObject adaptorHost;
-        Integration::MprisPlayerAdaptor adaptor(core.playback(), core.nowPlaying(), &adaptorHost);
+        Integration::MprisPlayerAdaptor adaptor(core.playback(), core.nowPlaying(), core.coverArtCache(), &adaptorHost);
         QSignalSpy seeked(&adaptor, &Integration::MprisPlayerAdaptor::Seeked);
         auto* slider = host.window()->findChild<QSlider*>(QStringLiteral("volumeSlider"));
         QVERIFY(slider != nullptr);
@@ -311,6 +314,21 @@ private slots:
         QCOMPARE(seeked.count(), 2);
         adaptor.SetPosition(trackId, 181000000);
         QCOMPARE(adaptor.position(), 15000000);
+
+        // A cover goes out as a file of ours, not as the URL the desktop
+        // would have to fetch itself — here the album's, the track has none.
+        QTemporaryDir coverDir;
+        QImage image(64, 64, QImage::Format_RGB32);
+        image.fill(Qt::darkCyan);
+        const QString coverPath = coverDir.filePath(QStringLiteral("album.jpg"));
+        QVERIFY(image.save(coverPath));
+        Track withCover = track;
+        withCover.id = QStringLiteral("t2");
+        withCover.album
+            = Album { QStringLiteral("a1"), QStringLiteral("Album"), QUrl::fromLocalFile(coverPath).toString() };
+        core.playback().loadQueue(QStringLiteral("fake"), { withCover }, 0);
+        QTRY_COMPARE(adaptor.metadata().value(QStringLiteral("mpris:artUrl")).toString(),
+            QUrl::fromLocalFile(coverPath).toString());
 
         core.playback().stop();
         QVERIFY(!adaptor.canSeek());
