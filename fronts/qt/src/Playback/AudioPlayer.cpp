@@ -8,10 +8,8 @@
 #include <QFileInfo>
 #include <QLoggingCategory>
 #include <QMetaObject>
-#include <QNetworkAccessManager>
 #include <QNetworkProxy>
-#include <QNetworkReply>
-#include <QNetworkRequest>
+#include <QUrl>
 
 #include <mpv/client.h>
 
@@ -132,8 +130,6 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
     // hint of *why* on its own) forwarded through the same logging
     // category, warn/error at qCWarning, everything else at qCDebug.
     mpv_request_log_messages(mpv_, "info");
-
-    networkManager_ = new QNetworkAccessManager(this);
 }
 
 AudioPlayer::~AudioPlayer()
@@ -257,122 +253,55 @@ void AudioPlayer::play(const QString& url, const QString& title, const std::opti
     const QByteArray titleUtf8 = title.toUtf8();
     mpv_set_property_string(mpv_, "force-media-title", titleUtf8.constData());
 
-    if (pendingRedirectResolve_) {
-        pendingRedirectResolve_->disconnect(this);
-        pendingRedirectResolve_->abort();
-        pendingRedirectResolve_->deleteLater();
-        pendingRedirectResolve_ = nullptr;
-    }
-
     // A file on disk has no connection to route, and the relay can't serve
     // it (Qt's file reply has no HTTP status) — whatever route or headers
     // the source carries.
-    if (QUrl(url).isLocalFile()) {
+    const QUrl parsed(url);
+    if (parsed.isLocalFile() || parsed.scheme().isEmpty()) {
         loadUrl(url);
         return;
     }
 
-    // A source with its own connection: mpv plays from the relay, which
-    // fetches through that proxy (or explicitly directly — mpv itself
-    // would take http_proxy from the environment), follows redirects with
-    // Qt's network stack like the preflight below does, and resumes a
-    // stream that breaks off.
-    //
-    // On Windows every remote stream goes this way: libmpv there crashed
-    // the whole app when a track change cut off an HTTPS stream it was
-    // still downloading itself, while switching between relayed streams
-    // never did. mpv then only ever reads plain HTTP from loopback.
-#ifdef Q_OS_WIN
-    const bool relayAlways = true;
-#else
-    const bool relayAlways = false;
-#endif
-    if (route || !headers.isEmpty() || relayAlways) {
-        loadUrl(
-            relay()->urlFor(QUrl(url), route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers).toString());
-        return;
-    }
-
-    // A HEAD preflight through Qt's own network stack — which follows
-    // HTTP redirects (including 308) automatically by default — to
-    // resolve the *actual* playable URL before handing mpv anything.
-    // Some backends' stream URLs (confirmed: Yandex Music's get-mp3
-    // endpoint) are themselves a bare HTTP 308 pointing at the real
-    // stream host, not the audio directly, and mpv's bundled libavformat
-    // (Debian 11's ffmpeg 4.3.7, in the AppImage build specifically)
-    // doesn't reliably follow it — confirmed by `curl` needing an
-    // explicit -L for the exact same URL, and by mpv's own log reporting
-    // an empty Mime-type and "No format found" against the *unresolved*
-    // redirect response otherwise (both with and without its ytdl_hook
-    // fallback also in play — yt-dlp's own generic extractor just hands
-    // the same unresolved URL straight back for a direct-file link like
-    // this one, rather than actually resolving the redirect itself).
-    //
-    // A fresh play() call aborted any reply still in flight from an
-    // already-superseded track above, so a stale resolution can never race
-    // ahead of a newer one and load the wrong file.
-
-    QNetworkReply* reply = networkManager_->head(QNetworkRequest(QUrl(url)));
-    pendingRedirectResolve_ = reply;
-    connect(reply, &QNetworkReply::finished, this, [this, reply, url]() {
-        if (pendingRedirectResolve_ != reply) {
-            // Already superseded by a newer play() call, which owns
-            // cleaning up its own (different) reply — nothing to do.
-            return;
-        }
-        pendingRedirectResolve_ = nullptr;
-        // Fall back to the original URL on any preflight failure (e.g. a
-        // server that doesn't support HEAD) rather than blocking
-        // playback entirely on what both is, and should stay, a
-        // best-effort nicety.
-        const QUrl resolvedUrl = reply->error() == QNetworkReply::NoError ? reply->url() : QUrl(url);
-        reply->deleteLater();
-        loadUrl(resolvedUrl.toString());
-    });
+    // Anything remote plays from the relay, mpv only ever reads plain HTTP
+    // from loopback. The relay fetches through the source's proxy (or
+    // explicitly directly — mpv itself would take http_proxy from the
+    // environment), follows redirects with Qt's network stack — some
+    // stream URLs (Yandex Music's get-mp3) are a bare 308 the AppImage's
+    // libavformat doesn't follow — and resumes a stream that breaks off.
+    // On Windows it is also what keeps libmpv alive: it crashed the whole
+    // app when a track change cut off an HTTPS stream it was downloading
+    // itself.
+    loadUrl(relay()->urlFor(parsed, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers).toString());
 }
 
-void AudioPlayer::prepare(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route,
-    const QMap<QString, QString>& headers)
+void AudioPlayer::play(StreamDownload* download, const QString& title)
+{
+    clearPrepared();
+    const QByteArray titleUtf8 = title.toUtf8();
+    mpv_set_property_string(mpv_, "force-media-title", titleUtf8.constData());
+    loadUrl(relay()->urlFor(download).toString());
+}
+
+void AudioPlayer::prepare(const QString& file, const QString& title)
 {
     clearPrepared();
     preparedTitle_ = title;
-    const QUrl upstream(url);
-    if (upstream.isLocalFile()) {
-        const QByteArray value = url.toUtf8();
-        const char* args[] = { "loadfile", value.constData(), "append", nullptr };
-        mpv_command_async(mpv_, 0, args);
-        preparedQueued_ = true;
-        emit prepared();
-        return;
-    }
-    relay()->prefetch(upstream, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers);
+    const QByteArray value = file.toUtf8();
+    const char* args[] = { "loadfile", value.constData(), "append", nullptr };
+    mpv_command_async(mpv_, 0, args);
+    preparedQueued_ = true;
+    emit prepared();
 }
 
 StreamRelay* AudioPlayer::relay()
 {
-    // One place for the connection: play() may create the relay first (a
-    // source behind a proxy), and a prefetch through it must still get
-    // queued.
-    if (relay_ == nullptr) {
+    if (relay_ == nullptr)
         relay_ = new StreamRelay(this);
-        connect(relay_, &StreamRelay::prefetchReady, this, [this](const QUrl& localUrl) {
-            if (preparedQueued_)
-                return;
-            qCDebug(lcAudioPlayer) << "next track buffered, queued in mpv";
-            const QByteArray value = localUrl.toString().toUtf8();
-            const char* args[] = { "loadfile", value.constData(), "append", nullptr };
-            mpv_command_async(mpv_, 0, args);
-            preparedQueued_ = true;
-            emit prepared();
-        });
-    }
     return relay_;
 }
 
 void AudioPlayer::clearPrepared()
 {
-    if (relay_)
-        relay_->cancelPrefetch();
     if (preparedQueued_ || preparedPromoting_) {
         const char* args[] = { "playlist-clear", nullptr };
         mpv_command_async(mpv_, 0, args);
@@ -397,21 +326,12 @@ void AudioPlayer::usePrepared(bool manual)
 
 void AudioPlayer::loadUrl(const QString& url)
 {
-    // Fed straight to mpv, no local download-and-buffer step — unlike the
-    // old QMediaPlayer wrapper, whose FFmpeg-based HTTP client had its
-    // connection reset mid-track by the CDN. fronts/tui's playback_engine.py
-    // hands mpv the raw stream URL directly against the same CDN without
-    // that problem, so this follows suit.
     qCDebug(lcAudioPlayer) << "loading URL:" << url;
     levelFeed_.clear();
 
-    // Right before loadfile, not in play(): mpv's "pause" property isn't
-    // reset by loadfile, so a new track must clear it to always start
-    // audible regardless of whatever pause state was left over from
-    // before. Doing this back in play() instead left a window — the HEAD
-    // preflight above is a real network round-trip — during which mpv was
-    // unpaused but still had the *old* file loaded, producing an audible
-    // blip of the previous track before this loadfile replaced it.
+    // mpv's "pause" property isn't reset by loadfile, so a new track must
+    // clear it to always start audible regardless of whatever pause state
+    // was left over from before.
     resume();
 
     const QByteArray urlUtf8 = url.toUtf8();
@@ -434,12 +354,6 @@ void AudioPlayer::resume()
 void AudioPlayer::stop()
 {
     clearPrepared();
-    if (pendingRedirectResolve_) {
-        pendingRedirectResolve_->disconnect(this);
-        pendingRedirectResolve_->abort();
-        pendingRedirectResolve_->deleteLater();
-        pendingRedirectResolve_ = nullptr;
-    }
     const char* args[] = { "stop", nullptr };
     mpv_command_async(mpv_, 0, args);
     levelFeed_.clear();

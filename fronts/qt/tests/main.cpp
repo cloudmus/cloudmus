@@ -18,6 +18,9 @@ QObject* makeBrowseTest();
 QObject* makeDownloadsTest();
 QObject* makeAnalyticsTest();
 QObject* makeStreamRelayTest();
+QObject* makeTrackCacheTest();
+QObject* makePreloaderTest();
+QObject* makePlaybackPreloadTest();
 QObject* makeCrashReporterTest();
 QObject* makeUpdateTest();
 QObject* makeHotkeysTest();
@@ -48,6 +51,7 @@ int main(int argc, char** argv)
     for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
              Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
              Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
+             Tests::makeTrackCacheTest, Tests::makePreloaderTest, Tests::makePlaybackPreloadTest,
              Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeHotkeysTest, Tests::makeI18nTest,
              Tests::makeAudioPulseTest, Tests::makeStarPromptTest, Tests::makePathsTest }) {
         std::unique_ptr<QObject> test(make());

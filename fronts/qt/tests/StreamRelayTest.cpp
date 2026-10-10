@@ -13,7 +13,10 @@
 #include <QTest>
 
 #include "AudioPlayer.h"
+#include "FakeUpstream.h"
+#include "NetworkPool.h"
 #include "ProxyRouting.h"
+#include "StreamDownload.h"
 #include "StreamRelay.h"
 
 namespace Tests {
@@ -106,43 +109,10 @@ private slots:
         });
         player.play(first, QStringLiteral("First"));
         QTRY_VERIFY(started.size() >= 1);
-        player.prepare(second, QStringLiteral("Second"), std::nullopt);
+        player.prepare(second, QStringLiteral("Second"));
         QTRY_VERIFY(firstEnded);
         QTRY_VERIFY(started.size() >= 2);
         QCOMPARE(errors.size(), 0);
-    }
-
-    void aTrackPreparedWhileAProxiedOneIsPlayingGetsQueued()
-    {
-        // play() through a route creates the relay first; the prefetch
-        // prepare() then starts through the same relay must still report.
-        const QByteArray body(512 * 1024, 'x');
-        QTcpServer upstream;
-        QVERIFY(upstream.listen(QHostAddress::LocalHost));
-        connect(&upstream, &QTcpServer::newConnection, &upstream, [&]() {
-            while (QTcpSocket* socket = upstream.nextPendingConnection()) {
-                connect(socket, &QTcpSocket::readyRead, socket, [socket, &body, request = QByteArray()]() mutable {
-                    request += socket->readAll();
-                    if (!request.contains("\r\n\r\n"))
-                        return;
-                    const QByteArray total = QByteArray::number(body.size());
-                    socket->write("HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-"
-                        + QByteArray::number(body.size() - 1) + '/' + total + "\r\nContent-Length: " + total
-                        + "\r\nConnection: close\r\n\r\n");
-                    socket->write(body);
-                    socket->disconnectFromHost();
-                });
-            }
-        });
-
-        Playback::AudioPlayer player(nullptr, "null");
-        QSignalSpy prepared(&player, &Playback::AudioPlayer::prepared);
-        const QNetworkProxy direct(QNetworkProxy::NoProxy);
-        player.play(QStringLiteral("http://127.0.0.1:%1/current").arg(upstream.serverPort()), QStringLiteral("Current"),
-            direct);
-        player.prepare(
-            QStringLiteral("http://127.0.0.1:%1/next").arg(upstream.serverPort()), QStringLiteral("Next"), direct);
-        QVERIFY(prepared.wait(5000));
     }
 
     void aNetworkStreamReportsHowMuchIsBuffered()
@@ -186,84 +156,119 @@ private slots:
         player.stop();
     }
 
-    void stoppingDuringRedirectPreflightCannotStartTheOldTrack()
+    // A track being downloaded plays from the download's file: mpv gets
+    // what's there at once and the rest as it comes, over the one
+    // connection the download has.
+    void aDownloadIsServedWhileItComes()
     {
-        QTcpServer upstream;
-        QVERIFY(upstream.listen(QHostAddress::LocalHost));
-        QTcpSocket* pending = nullptr;
-        bool sawHead = false;
-        connect(&upstream, &QTcpServer::newConnection, &upstream, [&]() {
-            pending = upstream.nextPendingConnection();
-            connect(pending, &QTcpSocket::readyRead, pending,
-                [pending, &sawHead]() { sawHead = pending->readAll().startsWith("HEAD "); });
-        });
+        FakeUpstream upstream;
+        const QByteArray body = FakeUpstream::pattern(1024 * 1024);
+        upstream.bodies.insert(QStringLiteral("/track"), body);
+        upstream.maxAnswerBytes = 400 * 1024;
+        upstream.held.insert(QStringLiteral("/track"));
 
-        Playback::AudioPlayer player;
-        QSignalSpy started(&player, &Playback::AudioPlayer::started);
-        const QString url = QStringLiteral("http://127.0.0.1:%1/slow").arg(upstream.serverPort());
-        player.play(url, QStringLiteral("Slow track"));
-        QTRY_VERIFY(sawHead);
-        player.stop();
-        pending->write("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
-        pending->disconnectFromHost();
-        QTest::qWait(100);
-        QCOMPARE(started.size(), 0);
-    }
-
-    void aPrefetchedPrefixIsServedBeforeTheRemainingRange()
-    {
-        QByteArray body(1024 * 1024, '\0');
-        for (qsizetype i = 0; i < body.size(); ++i)
-            body[i] = char('a' + i % 26);
-
-        QTcpServer upstream;
-        QVERIFY(upstream.listen(QHostAddress::LocalHost));
-        QList<qint64> requestedStarts;
-        bool headersForwarded = true;
-        connect(&upstream, &QTcpServer::newConnection, &upstream, [&]() {
-            while (QTcpSocket* socket = upstream.nextPendingConnection()) {
-                connect(socket, &QTcpSocket::readyRead, socket,
-                    [socket, &body, &requestedStarts, &headersForwarded, request = QByteArray()]() mutable {
-                        request += socket->readAll();
-                        if (!request.contains("\r\n\r\n"))
-                            return;
-                        headersForwarded = headersForwarded && request.contains("X-Test-Token: secret\r\n");
-                        const QRegularExpression pattern(
-                            QStringLiteral(R"(Range: bytes=(\d+)-)"), QRegularExpression::CaseInsensitiveOption);
-                        const auto match = pattern.match(QString::fromLatin1(request));
-                        const qint64 start = match.hasMatch() ? match.captured(1).toLongLong() : 0;
-                        requestedStarts.append(start);
-                        const qint64 end = qMin(start + 512 * 1024, qint64(body.size())) - 1;
-                        const QByteArray chunk = body.mid(start, end - start + 1);
-                        const QByteArray response = "HTTP/1.1 206 Partial Content\r\nContent-Type: audio/mpeg\r\n"
-                                                    "Content-Range: bytes "
-                            + QByteArray::number(start) + '-' + QByteArray::number(end) + '/'
-                            + QByteArray::number(body.size()) + "\r\nContent-Length: "
-                            + QByteArray::number(chunk.size()) + "\r\nConnection: close\r\n\r\n";
-                        socket->write(response);
-                        socket->write(chunk);
-                        socket->disconnectFromHost();
-                    });
-            }
-        });
+        QTemporaryDir directory;
+        Playback::NetworkPool pool;
+        Playback::StreamDownload download(pool, directory.filePath(QStringLiteral("track.part")));
+        download.setSource({ QUrl(upstream.url(QStringLiteral("/track"))), QNetworkProxy(QNetworkProxy::NoProxy),
+            { { QStringLiteral("X-Test-Token"), QStringLiteral("secret") } } });
+        download.start();
 
         Playback::StreamRelay relay;
-        QSignalSpy ready(&relay, &Playback::StreamRelay::prefetchReady);
-        const QUrl source(QStringLiteral("http://127.0.0.1:%1/track").arg(upstream.serverPort()));
-        const QUrl local = relay.prefetch(source, QNetworkProxy(QNetworkProxy::NoProxy),
-            { { QStringLiteral("X-Test-Token"), QStringLiteral("secret") } });
-        QVERIFY(ready.wait(5000));
-        QCOMPARE(ready.first().first().toUrl(), local);
-
         QNetworkAccessManager network;
         network.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
-        QNetworkReply* reply = network.get(QNetworkRequest(local));
+        QNetworkReply* reply = network.get(QNetworkRequest(relay.urlFor(&download)));
         QSignalSpy done(reply, &QNetworkReply::finished);
+        QTRY_COMPARE(upstream.requests.size(), 1);
+        QTest::qWait(100);
+        QCOMPARE(reply->bytesAvailable(), qint64(0)); // nothing to say yet, not even the length
+
+        // The first range arrives, the second is held back.
+        upstream.release(QStringLiteral("/track"));
+        upstream.held.insert(QStringLiteral("/track"));
+        QTRY_COMPARE(reply->bytesAvailable(), qint64(400 * 1024));
+        QCOMPARE(reply->header(QNetworkRequest::ContentLengthHeader).toLongLong(), qint64(body.size()));
+        QVERIFY(!reply->isFinished());
+
+        upstream.release(QStringLiteral("/track"));
         QVERIFY(done.wait(5000));
         QCOMPARE(reply->error(), QNetworkReply::NoError);
         QCOMPARE(reply->readAll(), body);
-        QCOMPARE(requestedStarts, (QList<qint64> { 0, 512 * 1024 }));
-        QVERIFY(headersForwarded);
+        QVERIFY(download.isComplete());
+        // The download's requests, and no other.
+        QCOMPARE(upstream.requests,
+            (QStringList {
+                QStringLiteral("/track@0"), QStringLiteral("/track@409600"), QStringLiteral("/track@819200") }));
+        for (const QByteArray& head : upstream.requestHeads)
+            QVERIFY(head.contains("X-Test-Token: secret\r\n"));
+        reply->deleteLater();
+    }
+
+    // A seek far past what's downloaded doesn't wait for the download to
+    // get there.
+    void aRangeTheDownloadIsNowhereNearGoesUpstream()
+    {
+        FakeUpstream upstream;
+        const QByteArray body = FakeUpstream::pattern(2 * 1024 * 1024);
+        upstream.bodies.insert(QStringLiteral("/track"), body);
+        upstream.stallAfter.insert(QStringLiteral("/track"), 100 * 1024);
+
+        QTemporaryDir directory;
+        Playback::NetworkPool pool;
+        Playback::StreamDownload download(pool, directory.filePath(QStringLiteral("track.part")));
+        download.setSource(
+            { QUrl(upstream.url(QStringLiteral("/track"))), QNetworkProxy(QNetworkProxy::NoProxy), { } });
+        download.start();
+        QTRY_COMPARE(download.bytesAvailable(), qint64(100 * 1024));
+
+        Playback::StreamRelay relay;
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
+        const auto fetch = [&](const QByteArray& range) {
+            QNetworkRequest request(relay.urlFor(&download));
+            request.setRawHeader("Range", range);
+            QNetworkReply* reply = network.get(request);
+            QSignalSpy done(reply, &QNetworkReply::finished);
+            done.wait(5000);
+            reply->deleteLater();
+            return std::pair(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(), reply->readAll());
+        };
+        const qint64 far = 1536 * 1024;
+        const auto ahead = fetch("bytes=" + QByteArray::number(far) + '-');
+        QCOMPARE(ahead.first, 206);
+        QCOMPARE(ahead.second, body.mid(far));
+        QCOMPARE(upstream.requests.last(), QStringLiteral("/track@%1").arg(far));
+
+        // What's downloaded already comes from the file.
+        const auto within = fetch("bytes=1024-2047");
+        QCOMPARE(within.first, 206);
+        QCOMPARE(within.second, body.mid(1024, 1024));
+        QCOMPARE(upstream.requests.size(), 2);
+    }
+
+    // A download that gets nowhere must not leave mpv waiting forever.
+    void aDownloadGivenUpOnEndsTheRequest()
+    {
+        FakeUpstream upstream; // serves nothing: 404
+        QTemporaryDir directory;
+        Playback::NetworkPool pool;
+        Playback::StreamDownload download(pool, directory.filePath(QStringLiteral("track.part")));
+        download.setSource(
+            { QUrl(upstream.url(QStringLiteral("/missing"))), QNetworkProxy(QNetworkProxy::NoProxy), { } });
+        QSignalSpy failed(&download, &Playback::StreamDownload::failed);
+        download.start();
+
+        Playback::StreamRelay relay;
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
+        QNetworkReply* reply = network.get(QNetworkRequest(relay.urlFor(&download)));
+        QSignalSpy done(reply, &QNetworkReply::finished);
+        QTRY_COMPARE(failed.size(), 1);
+        QCOMPARE(failed.first().first().toBool(), false);
+        QVERIFY(!reply->isFinished());
+        download.giveUp();
+        QVERIFY(done.wait(5000));
+        QCOMPARE(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(), 502);
         reply->deleteLater();
     }
 };

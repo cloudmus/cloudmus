@@ -12,6 +12,9 @@
 #include <QTcpSocket>
 #include <QTimer>
 
+#include "NetworkPool.h"
+#include "StreamDownload.h"
+
 namespace Playback {
 
 namespace {
@@ -31,41 +34,9 @@ constexpr int kResumeDelaysMs[kMaxResumeAttempts] = { 500, 1000, 2000, 4000, 500
 constexpr qint64 kReadBufferBytes = 256 * 1024;
 constexpr qint64 kSocketHighWater = 512 * 1024;
 constexpr qint64 kChunkBytes = 64 * 1024;
-constexpr qint64 kPrefetchBytes = 8 * 1024 * 1024;
-constexpr qint64 kReadyBytes = 256 * 1024;
-
-QString proxyKey(const QNetworkProxy& proxy)
-{
-    return QStringLiteral("%1|%2|%3|%4|%5")
-        .arg(int(proxy.type()))
-        .arg(proxy.hostName())
-        .arg(proxy.port())
-        .arg(proxy.user(), proxy.password());
-}
-
-bool isTransient(QNetworkReply::NetworkError error)
-{
-    switch (error) {
-        case QNetworkReply::ConnectionRefusedError:
-        case QNetworkReply::RemoteHostClosedError:
-        case QNetworkReply::HostNotFoundError:
-        case QNetworkReply::TimeoutError:
-        case QNetworkReply::OperationCanceledError: // what a transfer timeout reports
-        case QNetworkReply::TemporaryNetworkFailureError:
-        case QNetworkReply::NetworkSessionFailedError:
-        case QNetworkReply::ProxyConnectionRefusedError:
-        case QNetworkReply::ProxyConnectionClosedError:
-        case QNetworkReply::ProxyNotFoundError:
-        case QNetworkReply::ProxyTimeoutError:
-        case QNetworkReply::UnknownNetworkError:
-        case QNetworkReply::UnknownProxyError:
-        case QNetworkReply::ServiceUnavailableError:
-        case QNetworkReply::InternalServerError:
-            return true;
-        default:
-            return false;
-    }
-}
+// A request starting this little past what's downloaded waits for the
+// download to get there rather than opening a connection of its own.
+constexpr qint64 kFollowSlackBytes = 512 * 1024;
 
 } // namespace
 
@@ -120,13 +91,7 @@ private:
             return;
         }
         head_ = method == "HEAD";
-        upstream_ = target->upstream;
-        proxy_ = target->proxy;
-        headers_ = target->headers;
-        prefix_ = target->prefix;
-        prefixLength_ = target->totalLength;
-        prefixComplete_ = target->complete;
-        prefixType_ = target->contentType;
+        upstream_ = target->source;
 
         static const QRegularExpression range(QStringLiteral(R"(^\s*bytes=(\d*)-(\d*)\s*$)"));
         for (const QByteArray& line : lines.mid(1)) {
@@ -135,38 +100,107 @@ private:
                 continue;
             const QRegularExpressionMatch m = range.match(QString::fromLatin1(line.mid(colon + 1)));
             if (m.hasMatch() && !m.captured(1).isEmpty()) {
+                hasRange_ = true;
                 rangeStart_ = m.captured(1).toLongLong();
                 rangeEnd_ = m.captured(2).isEmpty() ? -1 : m.captured(2).toLongLong();
             }
         }
-        if (!head_ && rangeStart_ == 0 && rangeEnd_ < 0 && !prefix_.isEmpty() && prefixLength_ >= 0) {
-            QByteArray response = "HTTP/1.1 200 OK\r\nContent-Length: " + QByteArray::number(prefixLength_)
-                + "\r\nAccept-Ranges: bytes\r\nConnection: close\r\n";
-            if (!prefixType_.isEmpty())
-                response += "Content-Type: " + prefixType_ + "\r\n";
-            socket_->write(response + "\r\n");
-            socket_->write(prefix_);
-            sent_ = prefix_.size();
-            expectedLength_ = prefixLength_;
+        if (!target->followsDownload) {
+            startUpstream();
+            return;
+        }
+        download_ = target->download;
+        if (!download_) {
+            respondAndClose(404, "Not Found");
+            return;
+        }
+        following_ = true;
+        StreamDownload* download = download_.data();
+        connect(download, &StreamDownload::metaReady, this, &RelayConnection::followDownload);
+        connect(download, &StreamDownload::progressed, this, &RelayConnection::followDownload);
+        connect(download, &StreamDownload::completed, this, &RelayConnection::followDownload);
+        connect(download, &StreamDownload::abandoned, this, &RelayConnection::followDownload);
+        connect(download, &QObject::destroyed, this, [this]() {
+            if (following_ && !clientGone_)
+                socket_->disconnectFromHost();
+        });
+        followDownload();
+    }
+
+    // Serves the request from the file a StreamDownload is filling, waiting
+    // for the bytes that aren't there yet. A request for a part the
+    // download is nowhere near (a seek ahead, an index at the end of the
+    // file) goes upstream on a connection of its own instead.
+    void followDownload()
+    {
+        if (!following_ || clientGone_ || !download_)
+            return;
+        if (!headSent_) {
+            if (!download_->hasMeta()) {
+                if (download_->isAbandoned())
+                    respondAndClose(502, "Bad Gateway");
+                return;
+            }
+            const qint64 total = download_->totalLength();
+            const bool farAhead
+                = !download_->isComplete() && rangeStart_ > download_->bytesAvailable() + kFollowSlackBytes;
+            if (total < 0 || farAhead) {
+                following_ = false;
+                download_->disconnect(this);
+                upstream_ = download_->source();
+                startUpstream();
+                return;
+            }
+            if (rangeStart_ >= total && total > 0) {
+                following_ = false;
+                respondAndClose(416, "Range Not Satisfiable");
+                return;
+            }
+            const qint64 last = rangeEnd_ >= 0 ? qMin(rangeEnd_, total - 1) : total - 1;
+            expectedLength_ = qMax(qint64(0), last - rangeStart_ + 1);
+            QByteArray head
+                = hasRange_ ? QByteArray("HTTP/1.1 206 Partial Content\r\n") : QByteArray("HTTP/1.1 200 OK\r\n");
+            if (hasRange_) {
+                head += "Content-Range: bytes " + QByteArray::number(rangeStart_) + '-' + QByteArray::number(last) + '/'
+                    + QByteArray::number(total) + "\r\n";
+            }
+            head += "Content-Length: " + QByteArray::number(expectedLength_) + "\r\nAccept-Ranges: bytes\r\n";
+            if (!download_->contentType().isEmpty())
+                head += "Content-Type: " + download_->contentType() + "\r\n";
+            socket_->write(head + "Connection: close\r\n\r\n");
             headSent_ = true;
-            if (prefixComplete_) {
+            if (head_) {
+                following_ = false;
                 socket_->disconnectFromHost();
                 return;
             }
         }
-        startUpstream();
+        while (socket_->bytesToWrite() < kSocketHighWater && sent_ < expectedLength_) {
+            const QByteArray chunk = download_->read(rangeStart_ + sent_, qMin(kChunkBytes, expectedLength_ - sent_));
+            if (chunk.isEmpty())
+                break;
+            socket_->write(chunk);
+            sent_ += chunk.size();
+        }
+        // All sent — or nothing more will come: mpv sees the early end and
+        // reconnects, or reports the error.
+        const bool starved = download_->isAbandoned() && rangeStart_ + sent_ >= download_->bytesAvailable();
+        if (sent_ >= expectedLength_ || starved) {
+            following_ = false;
+            socket_->disconnectFromHost(); // after what's still queued is sent
+        }
     }
 
     void startUpstream()
     {
         if (clientGone_)
             return;
-        QNetworkRequest request(upstream_);
+        QNetworkRequest request(upstream_.url);
         request.setTransferTimeout(kStallTimeoutMs);
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
         // Not gzip: Qt would decompress it, and the Content-Length/ranges
         // passed on to mpv would no longer match the bytes it gets.
-        for (auto it = headers_.cbegin(); it != headers_.cend(); ++it)
+        for (auto it = upstream_.headers.cbegin(); it != upstream_.headers.cend(); ++it)
             request.setRawHeader(it.key().toUtf8(), it.value().toUtf8());
         request.setRawHeader("Accept-Encoding", "identity");
         const qint64 from = rangeStart_ + sent_;
@@ -176,7 +210,7 @@ private:
         }
         resuming_ = headSent_;
         gotData_ = false;
-        QNetworkAccessManager* network = relay_.managerFor(proxy_);
+        QNetworkAccessManager* network = relay_.network_->managerFor(upstream_.proxy);
         reply_ = head_ ? network->head(request) : network->get(request);
         reply_->setReadBufferSize(kReadBufferBytes);
         connect(reply_, &QNetworkReply::metaDataChanged, this, &RelayConnection::onMetaData);
@@ -196,7 +230,7 @@ private:
             // A resume only continues the body if the server honored the
             // Range: anything else would splice the wrong bytes in.
             if (status != 206) {
-                qCWarning(lcRelay) << "can't resume" << upstream_.host() << "- got HTTP" << status << "to a Range";
+                qCWarning(lcRelay) << "can't resume" << upstream_.url.host() << "- got HTTP" << status << "to a Range";
                 noResume_ = true;
                 reply_->abort();
             }
@@ -225,6 +259,10 @@ private:
 
     void pump()
     {
+        if (following_) {
+            followDownload();
+            return;
+        }
         if (reply_ == nullptr)
             return;
         // An aborted reply is closed but still finishes: nothing left to read.
@@ -263,7 +301,7 @@ private:
         // link that keeps delivering shouldn't run out of attempts.
         if (gotData_)
             attempts_ = 0;
-        const bool resumable = !noResume_ && !head_ && (isTransient(error) || error == QNetworkReply::NoError);
+        const bool resumable = !noResume_ && !head_ && (isTransientError(error) || error == QNetworkReply::NoError);
         if (resumable && attempts_ < kMaxResumeAttempts) {
             const int delay = kResumeDelaysMs[attempts_++];
             qCInfo(lcRelay) << "upstream broke off at byte" << rangeStart_ + sent_ << "(" << errorText
@@ -279,7 +317,7 @@ private:
         // Short of Content-Length: mpv sees the early end, and reconnects
         // with a Range of its own (or reports the error) as it would
         // against the server directly.
-        qCWarning(lcRelay) << "giving up on" << upstream_.host() << "at byte" << rangeStart_ + sent_ << ":"
+        qCWarning(lcRelay) << "giving up on" << upstream_.url.host() << "at byte" << rangeStart_ + sent_ << ":"
                            << errorText;
         socket_->disconnectFromHost();
     }
@@ -295,15 +333,13 @@ private:
     QTcpSocket* socket_;
     QPointer<QNetworkReply> reply_;
     QByteArray request_;
-    QUrl upstream_;
-    QNetworkProxy proxy_;
-    QMap<QString, QString> headers_;
-    QByteArray prefix_;
-    QByteArray prefixType_;
-    qint64 prefixLength_ = -1;
-    bool prefixComplete_ = false;
+    StreamSource upstream_;
+    QPointer<StreamDownload> download_;
+    // Served from download_'s file rather than from upstream.
+    bool following_ = false;
     bool started_ = false;
     bool head_ = false;
+    bool hasRange_ = false;
     qint64 rangeStart_ = 0;
     qint64 rangeEnd_ = -1;
     bool headSent_ = false;
@@ -319,10 +355,18 @@ private:
 
 StreamRelay::StreamRelay(QObject* parent)
     : QObject(parent)
+    , network_(new NetworkPool(this))
 {
 }
 
 QUrl StreamRelay::urlFor(const QUrl& upstream, const QNetworkProxy& proxy, const QMap<QString, QString>& headers)
+{
+    return addTarget(Target { StreamSource { upstream, proxy, headers }, nullptr, false });
+}
+
+QUrl StreamRelay::urlFor(StreamDownload* download) { return addTarget(Target { download->source(), download, true }); }
+
+QUrl StreamRelay::addTarget(const Target& target)
 {
     if (server_ == nullptr) {
         server_ = new QTcpServer(this);
@@ -337,7 +381,7 @@ QUrl StreamRelay::urlFor(const QUrl& upstream, const QNetworkProxy& proxy, const
     QByteArray token(16, Qt::Uninitialized);
     QRandomGenerator::system()->fillRange(reinterpret_cast<quint32*>(token.data()), token.size() / 4);
     token = token.toHex();
-    targets_.insert(token, Target { upstream, proxy, headers });
+    targets_.insert(token, target);
     tokenOrder_.append(token);
     while (tokenOrder_.size() > kMaxTargets)
         targets_.remove(tokenOrder_.takeFirst());
@@ -350,88 +394,6 @@ QUrl StreamRelay::urlFor(const QUrl& upstream, const QNetworkProxy& proxy, const
     return url;
 }
 
-QUrl StreamRelay::prefetch(const QUrl& upstream, const QNetworkProxy& proxy, const QMap<QString, QString>& headers)
-{
-    cancelPrefetch();
-    const QUrl local = urlFor(upstream, proxy, headers);
-    prefetchToken_ = local.path().mid(1).toLatin1();
-    Target& target = targets_[prefetchToken_];
-    target.headers = headers;
-
-    QNetworkRequest request(upstream);
-    request.setTransferTimeout(kStallTimeoutMs);
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-    for (auto it = headers.cbegin(); it != headers.cend(); ++it)
-        request.setRawHeader(it.key().toUtf8(), it.value().toUtf8());
-    request.setRawHeader("Accept-Encoding", "identity");
-    request.setRawHeader("Range", "bytes=0-" + QByteArray::number(kPrefetchBytes - 1));
-    prefetchReply_ = managerFor(proxy)->get(request);
-    prefetchReply_->setReadBufferSize(kReadBufferBytes);
-    QNetworkReply* reply = prefetchReply_;
-    const QByteArray token = prefetchToken_;
-    const auto collect = [this, reply, token, local]() {
-        if (prefetchReply_ != reply || !targets_.contains(token))
-            return;
-        Target& target = targets_[token];
-        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        if (status != 200 && status != 206)
-            return;
-        const QByteArray range = reply->rawHeader("Content-Range");
-        if (status == 206 && range.startsWith("bytes 0-")) {
-            const qsizetype slash = range.lastIndexOf('/');
-            bool ok = false;
-            const qint64 total = range.mid(slash + 1).toLongLong(&ok);
-            if (ok)
-                target.totalLength = total;
-        } else if (status == 200) {
-            bool ok = false;
-            const qint64 total = reply->rawHeader("Content-Length").toLongLong(&ok);
-            if (ok && total <= kPrefetchBytes) {
-                target.totalLength = total;
-                target.complete = true;
-            }
-        }
-        target.contentType = reply->rawHeader("Content-Type");
-        if (reply->isOpen())
-            target.prefix += reply->read(kPrefetchBytes - target.prefix.size());
-        if (reply->isFinished() && target.totalLength == target.prefix.size())
-            target.complete = true;
-        if (target.prefix.size() >= kPrefetchBytes && !reply->isFinished())
-            reply->abort();
-        const bool usable = target.totalLength >= 0 && (status == 206 || target.complete);
-        const bool filled = target.prefix.size() >= kReadyBytes || reply->isFinished();
-        if (usable && filled && !target.prefix.isEmpty() && !target.ready
-            && (!target.complete || target.prefix.size() == target.totalLength)) {
-            target.ready = true;
-            emit prefetchReady(local);
-        }
-    };
-    connect(reply, &QNetworkReply::readyRead, this, collect);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, collect]() {
-        collect();
-        if (prefetchReply_ == reply)
-            prefetchReply_ = nullptr;
-        reply->deleteLater();
-    });
-    return local;
-}
-
-void StreamRelay::cancelPrefetch()
-{
-    if (prefetchReply_) {
-        prefetchReply_->disconnect(this);
-        prefetchReply_->abort();
-        prefetchReply_->deleteLater();
-        prefetchReply_ = nullptr;
-    }
-    if (!prefetchToken_.isEmpty()) {
-        auto it = targets_.find(prefetchToken_);
-        if (it != targets_.end())
-            it->prefix.clear();
-    }
-    prefetchToken_.clear();
-}
-
 void StreamRelay::onNewConnection()
 {
     while (QTcpSocket* socket = server_->nextPendingConnection())
@@ -442,17 +404,6 @@ const StreamRelay::Target* StreamRelay::target(const QByteArray& token) const
 {
     const auto it = targets_.constFind(token);
     return it == targets_.constEnd() ? nullptr : &it.value();
-}
-
-QNetworkAccessManager* StreamRelay::managerFor(const QNetworkProxy& proxy)
-{
-    const QString key = proxyKey(proxy);
-    QNetworkAccessManager*& manager = managers_[key];
-    if (manager == nullptr) {
-        manager = new QNetworkAccessManager(this);
-        manager->setProxy(proxy);
-    }
-    return manager;
 }
 
 } // namespace Playback

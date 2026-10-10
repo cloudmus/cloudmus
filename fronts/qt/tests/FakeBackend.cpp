@@ -47,7 +47,8 @@ QJsonObject capabilities()
 {
     return {
         { QStringLiteral("playback"),
-            QJsonObject { { QStringLiteral("providesStream"), true }, { QStringLiteral("selfPlayback"), false },
+            QJsonObject { { QStringLiteral("providesStream"), true }, { QStringLiteral("resolveStream"), true },
+                { QStringLiteral("selfPlayback"), false },
                 { QStringLiteral("controls"),
                     QJsonObject { { QStringLiteral("pause"), false }, { QStringLiteral("seek"), false },
                         { QStringLiteral("volume"), false } } } } },
@@ -189,17 +190,33 @@ int runFakeBackend()
         } else if (method == QStringLiteral("playback.play")) {
             // Accepted, but no stream follows: the track counts as current
             // (what the tests look at) without anything actually playing.
-            // Except for "refused": its stream is one nothing answers at.
+            // Except for "refused": its stream is one nothing answers at —
+            // and for a track whose id is a URL, which is its stream.
             reply(id, { { QStringLiteral("accepted"), true } });
             const QString trackId
                 = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
-            if (trackId == QStringLiteral("refused"))
+            const QString url = trackId == QStringLiteral("refused") ? QStringLiteral("http://127.0.0.1:9/refused")
+                : trackId.startsWith(QStringLiteral("http://"))      ? trackId
+                                                                     : QString();
+            if (!url.isEmpty())
                 notify(QStringLiteral("track/streamReady"),
                     { { QStringLiteral("requestId"), id }, { QStringLiteral("trackId"), trackId },
                         { QStringLiteral("stream"),
                             QJsonObject { { QStringLiteral("kind"), QStringLiteral("url") },
-                                { QStringLiteral("url"), QStringLiteral("http://127.0.0.1:9/refused") },
+                                { QStringLiteral("url"), url },
                                 { QStringLiteral("mimeType"), QStringLiteral("audio/mpeg") } } } });
+        } else if (method == QStringLiteral("playback.resolveStream")) {
+            // Only a track whose id is a URL has a stream to resolve.
+            const QString trackId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
+            if (trackId.startsWith(QStringLiteral("http://")))
+                reply(id,
+                    { { QStringLiteral("stream"),
+                        QJsonObject { { QStringLiteral("kind"), QStringLiteral("url") },
+                            { QStringLiteral("url"), trackId },
+                            { QStringLiteral("mimeType"), QStringLiteral("audio/mpeg") } } } });
+            else
+                replyError(id, 1300, QStringLiteral("no stream"));
         } else if (method.startsWith(QStringLiteral("feedback."))) {
             // A track id of "fail" makes any feedback call fail.
             const QString trackId

@@ -7,6 +7,7 @@
 #include <QVector>
 
 #include <functional>
+#include <memory>
 #include <optional>
 
 #include "Coro.h"
@@ -16,11 +17,14 @@
 #include "RpcClient.h"
 #include "SourceManager.h"
 
+class QTemporaryDir;
 class QTimer;
 
 namespace Playback {
 
 class AudioPlayer;
+class Preloader;
+class TrackCache;
 
 struct QueueEntry {
     QString sourceId;
@@ -36,18 +40,35 @@ struct QueueEntry {
 // track/streamReady via the requestId correlation rule in
 // docs/protocol.md §11.1 — a "next" pressed twice discards the stream that
 // arrives for the now-superseded play.
+//
+// Tracks are downloaded whole rather than streamed at the pace they play:
+// the playing one first, then the next few of the queue, one at a time (see
+// Preloader). What's downloaded plays from the TrackCache, without asking
+// the source again.
 class PlaybackController : public QObject {
     Q_OBJECT
 
 public:
-    explicit PlaybackController(Rpc::SourceManager& sourceManager, QObject* parent = nullptr);
+    // `trackCacheDir`: where downloaded tracks are kept from run to run;
+    // empty — in a directory of their own that goes with this object.
+    explicit PlaybackController(
+        Rpc::SourceManager& sourceManager, QObject* parent = nullptr, const QString& trackCacheDir = QString());
     ~PlaybackController() override;
+
+    Preloader& preloader() { return *preloader_; }
+    TrackCache& trackCache() { return *trackCache_; }
+    // How many tracks past the playing one are downloaded ahead: of a
+    // playlist, and of a radio (whose upcoming tracks a skip replaces).
+    // 0: only the playing track.
+    void setPreloadDepth(int playlistTracks, int radioTracks);
+    int playlistPreloadDepth() const { return playlistPreloadDepth_; }
+    int radioPreloadDepth() const { return radioPreloadDepth_; }
 
     // How a source's stream URLs are fetched — see AudioPlayer::play()'s
     // `route` (none: as the system has it). Asked at each play, so a
     // changed connection applies from the next track.
     using StreamRouteProvider = std::function<std::optional<QNetworkProxy>(const QString& sourceId)>;
-    void setStreamRouteProvider(StreamRouteProvider provider) { streamRouteProvider_ = std::move(provider); }
+    void setStreamRouteProvider(StreamRouteProvider provider);
 
     void loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex);
     // Same, for a queue whose entries can come from different sources
@@ -152,9 +173,19 @@ private:
     // not see it again.
     Rpc::Task<void> playIndexAsync(int index, bool isRetry);
     void stopForTransition();
+    // `index` is what plays from now on: bookkeeping and announcements.
+    void becomeCurrent(int index, const QueueEntry& entry, bool isRetry);
+    // Hands the current track to mpv: its file if it's all there, else its
+    // download as it comes, else the stream itself.
+    void startCurrentAudio(const std::optional<StreamDescriptor>& stream);
+    // Tells the Preloader what's wanted now: the playing (or starting)
+    // track and the ones after it.
+    void updatePreloadWindow();
+    // Queues the next track in mpv once it's all downloaded, so it starts
+    // without a gap.
     void prepareNext();
-    Rpc::Task<void> prepareNextAsync(int generation, int nextIndex, QueueEntry entry);
     void invalidatePrepared();
+    Rpc::Task<StreamDescriptor> resolveStreamAsync(QPointer<Rpc::RpcClient> client, int requestId, QString trackId);
     void promotePrepared(int nextIndex, bool manual);
     QString titleFor(const Track& track) const;
     void advance(int delta, bool wasSkip);
@@ -166,6 +197,10 @@ private:
     // (shuffled or not), wrapping around under RepeatMode::All; -1 past
     // either end otherwise.
     int stepFrom(int delta);
+    // What follows `from` in play order without changing anything; -1 at
+    // the end — also where a shuffled list would start another round, whose
+    // order isn't known yet.
+    int peekNext(int from) const;
     // A new random play order: `first` (if a valid index) leads, the rest
     // follow in random order.
     void reshuffle(int first);
@@ -174,6 +209,11 @@ private:
 
     Rpc::SourceManager& sourceManager_;
     AudioPlayer* audioPlayer_ = nullptr;
+    std::unique_ptr<QTemporaryDir> ownCacheDir_;
+    TrackCache* trackCache_ = nullptr;
+    Preloader* preloader_ = nullptr;
+    int playlistPreloadDepth_ = 3;
+    int radioPreloadDepth_ = 2;
     StreamRouteProvider streamRouteProvider_;
 
     QVector<QueueEntry> queue_;
@@ -183,9 +223,9 @@ private:
     int latestRequestId_ = -1;
     int transitionGeneration_ = 0;
     std::optional<StreamReadyParams> earlyStreamReady_;
-    int preparedGeneration_ = 0;
-    int preparedRequestId_ = -1;
-    QPointer<Rpc::RpcClient> preparedClient_;
+    // The playing track's stream as playback.play resolved it; none when
+    // it plays from the cache.
+    std::optional<StreamDescriptor> currentStream_;
     int preparedIndex_ = -1;
     bool preparedReady_ = false;
     bool preparedStartPending_ = false;
@@ -193,7 +233,6 @@ private:
     int startRetries_ = 0;
     // The current track failed for good: Play loads it again.
     bool reloadOnResume_ = false;
-    std::optional<QNetworkProxy> preparedRoute_;
     // Queue index of the in-flight playback.play (-1 if none): it's about
     // to become index_, so a radio replacing its upcoming tracks must keep it.
     int startingIndex_ = -1;

@@ -11,25 +11,20 @@
 
 #include "LevelFeed.h"
 
-class QNetworkAccessManager;
-class QNetworkReply;
-
 struct mpv_handle;
 struct mpv_event;
 
 namespace Playback {
 
+class StreamDownload;
 class StreamRelay;
 
 // Thin wrapper around libmpv — see docs/adr or the AudioPlayer.cpp comment
 // for why this replaced Qt Multimedia's QMediaPlayer: on hybrid Intel/AMD +
 // NVIDIA laptops, QMediaPlayer's FFmpeg backend woke the discrete GPU and
 // held it awake for the whole session even for plain audio (see git log).
-// mpv is configured with vid=no (audio only, no video output/GPU context)
-// and fed stream URLs directly, same as fronts/tui's playback_engine.py —
-// no local buffering workaround needed here; the TLS-reset issue that
-// forced that workaround for QMediaPlayer was specific to Qt's own FFmpeg
-// HTTP client, not observed with mpv against the same CDN.
+// mpv is configured with vid=no (audio only, no video output/GPU context).
+// It plays files from disk, and anything remote through StreamRelay.
 class AudioPlayer : public QObject {
     Q_OBJECT
 
@@ -41,13 +36,16 @@ public:
 #endif
     ~AudioPlayer() override;
 
-    // `route`: fetch the stream through this proxy (NoProxy: explicitly
-    // directly), via StreamRelay; none — as the system has it, straight
-    // from mpv.
+    // A file on disk, or a stream fetched as mpv reads it. `route`: fetch
+    // the stream through this proxy (NoProxy: explicitly directly); none —
+    // as the system has it.
     void play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route = std::nullopt,
         const QMap<QString, QString>& headers = { });
-    void prepare(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route,
-        const QMap<QString, QString>& headers = { });
+    // A track `download` is fetching, played while it still comes.
+    void play(StreamDownload* download, const QString& title);
+    // Queues a file on disk behind what plays, to start without a gap when
+    // that ends (see usePrepared()).
+    void prepare(const QString& file, const QString& title);
     void clearPrepared();
     void usePrepared(bool manual);
     void pause();
@@ -95,15 +93,7 @@ private:
     qint64 lastDurationMs_ = 0;
     qint64 lastBufferedMs_ = -1;
 
-    // Owned by this (parented), not mpv_ — see AudioPlayer.cpp's play()
-    // for why a redirect-resolution preflight through Qt's own network
-    // stack exists at all before handing mpv a URL.
-    QNetworkAccessManager* networkManager_ = nullptr;
-    // The in-flight preflight request, if any — a fresh play() call
-    // aborts and replaces this rather than letting a stale reply from an
-    // already-superseded track race the new one.
-    QNetworkReply* pendingRedirectResolve_ = nullptr;
-    // Created on first use: only a source with its own connection needs it.
+    // Created on first use: a local file needs none.
     StreamRelay* relay_ = nullptr;
     QString preparedTitle_;
     bool preparedQueued_ = false;

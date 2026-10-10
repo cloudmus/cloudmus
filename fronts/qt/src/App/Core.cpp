@@ -1,5 +1,7 @@
 #include "Core.h"
 
+#include <QStandardPaths>
+
 #include "ProxyRouting.h"
 
 namespace App {
@@ -7,7 +9,8 @@ namespace App {
 Core::Core(QObject* parent)
     : QObject(parent)
     , analytics_(settings_)
-    , playback_(sourceManager_)
+    , playback_(sourceManager_, nullptr,
+          QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/tracks"))
     , audioPulse_(playback_)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
     , downloads_(sourceManager_, sourceSession_, trackStates_, coverArtCache_, settings_, messages_)

@@ -151,6 +151,10 @@ add_library(cloudmus-core STATIC
 
     src/Playback/AudioPlayer.cpp
     src/Playback/StreamRelay.cpp
+    src/Playback/NetworkPool.cpp
+    src/Playback/StreamDownload.cpp
+    src/Playback/TrackCache.cpp
+    src/Playback/Preloader.cpp
     src/Playback/PlaybackController.cpp
     src/Playback/BeatDetector.cpp
     src/Playback/LevelFeed.cpp
@@ -602,6 +606,9 @@ add_executable(cloudmus-qt-tests
     tests/DownloadsTest.cpp
     tests/AnalyticsTest.cpp
     tests/StreamRelayTest.cpp
+    tests/TrackCacheTest.cpp
+    tests/PreloaderTest.cpp
+    tests/PlaybackPreloadTest.cpp
     tests/CrashReporterTest.cpp
     tests/UpdateTest.cpp
     tests/HotkeysTest.cpp

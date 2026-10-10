@@ -6,13 +6,16 @@
 #include <QMap>
 #include <QNetworkProxy>
 #include <QObject>
+#include <QPointer>
 #include <QUrl>
 
-class QNetworkAccessManager;
-class QNetworkReply;
+#include "StreamDownload.h"
+
 class QTcpServer;
 
 namespace Playback {
+
+class NetworkPool;
 
 // A local HTTP endpoint mpv plays from, fetching the real stream through a
 // chosen QNetworkProxy (HTTP or SOCKS5 — mpv's bundled ffmpeg can't do
@@ -40,40 +43,28 @@ public:
     // (QNetworkProxy::NoProxy: directly). The last few URLs stay valid, so
     // a seek or reconnect into a track that's still playing keeps working.
     QUrl urlFor(const QUrl& upstream, const QNetworkProxy& proxy, const QMap<QString, QString>& headers = { });
-    // Fetch the beginning of one upcoming stream. A ready URL serves those
-    // bytes locally before continuing with an upstream Range request.
-    QUrl prefetch(const QUrl& upstream, const QNetworkProxy& proxy, const QMap<QString, QString>& headers = { });
-    void cancelPrefetch();
-
-signals:
-    void prefetchReady(const QUrl& localUrl);
+    // The local URL for a track that `download` is fetching: mpv gets the
+    // bytes from the download's file as they arrive, so the track is
+    // fetched once, at full speed, however mpv paces its reading.
+    QUrl urlFor(StreamDownload* download);
 
 private:
     friend class RelayConnection;
 
     struct Target {
-        QUrl upstream;
-        QNetworkProxy proxy;
-        QMap<QString, QString> headers;
-        QByteArray prefix;
-        QByteArray contentType;
-        qint64 totalLength = -1;
-        bool complete = false;
-        bool ready = false;
+        StreamSource source;
+        QPointer<StreamDownload> download;
+        bool followsDownload = false;
     };
 
+    QUrl addTarget(const Target& target);
     void onNewConnection();
     const Target* target(const QByteArray& token) const;
-    // One per distinct proxy: QNetworkAccessManager's proxy is per manager,
-    // and keeping it keeps its connections pooled across seeks.
-    QNetworkAccessManager* managerFor(const QNetworkProxy& proxy);
 
     QTcpServer* server_ = nullptr;
     QHash<QByteArray, Target> targets_;
     QList<QByteArray> tokenOrder_; // oldest first
-    QHash<QString, QNetworkAccessManager*> managers_;
-    QNetworkReply* prefetchReply_ = nullptr;
-    QByteArray prefetchToken_;
+    NetworkPool* network_ = nullptr;
 };
 
 } // namespace Playback
