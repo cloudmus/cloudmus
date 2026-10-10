@@ -72,3 +72,32 @@ def test_read_track_falls_back_to_filename_when_untagged(tmp_path: Path):
     track = scanner.read_track(tmp_path / "My Song.mp3", tmp_path)
     assert track.title == "My Song"
     assert track.id == "My Song.mp3"
+
+
+def test_every_audio_format_is_listed_and_other_files_are_not(tmp_path: Path):
+    wanted = [
+        "a.mp3", "b.flac", "c.ogg", "d.m4a", "e.wav", "f.opus", "g.wma", "h.aac",
+        "i.webm", "j.weba", "k.mka", "l.oga", "m.spx", "n.mp2", "o.m4b",
+        "p.aif", "q.aiff", "r.ape", "s.wv", "t.mpc", "u.tta", "v.dsf", "w.ac3", "x.eac3",
+    ]
+    for name in wanted:
+        _touch(tmp_path / name)
+    # Video containers, and whatever else sits in a music folder.
+    for name in ("v.mp4", "v.mkv", "v.mov", "cover.jpg", "notes.txt", "playlist.m3u", "a.mp3.part"):
+        _touch(tmp_path / name)
+    # Upper case counts too.
+    _touch(tmp_path / "LOUD.WEBM")
+
+    files = {p.name for pl in scanner.scan(tmp_path) for p in pl.files}
+    assert files == set(wanted) | {"LOUD.WEBM"}
+
+
+def test_mime_types_are_audio_ones(tmp_path: Path):
+    for name, mime in (
+        ("a.webm", "audio/webm"),
+        ("a.m4b", "audio/mp4"),
+        ("a.mka", "audio/x-matroska"),
+        ("a.mp3", "audio/mpeg"),
+        ("a.unknown", "application/octet-stream"),
+    ):
+        assert scanner.guess_mime_type(Path(name)) == mime

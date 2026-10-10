@@ -16,10 +16,52 @@ from pathlib import Path
 from mutagen import File as MutagenFile
 from rpc_common.generated.models import Album, Artist, Track
 
-from . import cover_art
+from . import cover_art, matroska
 from .i18n import tr
 
-AUDIO_EXTENSIONS = {".mp3", ".flac", ".ogg", ".m4a", ".wav", ".opus", ".wma", ".aac"}
+# What mpv plays and a music folder holds. Video containers (.mp4, .mkv,
+# .mov, .avi) are left out: they are mostly video, and .webm/.weba/.mka are
+# taken as audio. Matroska ones are read by matroska.py (mutagen has no
+# reader for them); the rest by mutagen.
+AUDIO_EXTENSIONS = {
+    # the common ones
+    ".mp3", ".flac", ".ogg", ".m4a", ".wav", ".opus", ".wma", ".aac",
+    # Ogg, MPEG and MP4 variants
+    ".oga", ".spx", ".mp2", ".m4b",
+    # Matroska/WebM audio — what YouTube serves, and the player saves
+    ".webm", ".weba", ".mka",
+    # lossless and tracker-friendly containers
+    ".aif", ".aiff", ".aifc", ".ape", ".wv", ".mpc", ".tta", ".dsf", ".dff",
+    # Dolby
+    ".ac3", ".eac3",
+}
+
+# For the descriptor's mimeType: what mimetypes guesses is wrong for some
+# (video/webm for .webm) or nothing at all.
+_MIME_TYPES = {
+    ".webm": "audio/webm",
+    ".weba": "audio/webm",
+    ".mka": "audio/x-matroska",
+    ".opus": "audio/ogg",
+    ".oga": "audio/ogg",
+    ".spx": "audio/ogg",
+    ".m4a": "audio/mp4",
+    ".m4b": "audio/mp4",
+    ".aac": "audio/aac",
+    ".flac": "audio/flac",
+    ".mp2": "audio/mpeg",
+    ".ape": "audio/x-ape",
+    ".wv": "audio/x-wavpack",
+    ".mpc": "audio/x-musepack",
+    ".tta": "audio/x-tta",
+    ".dsf": "audio/x-dsf",
+    ".dff": "audio/x-dff",
+    ".ac3": "audio/ac3",
+    ".eac3": "audio/eac3",
+    ".aif": "audio/aiff",
+    ".aiff": "audio/aiff",
+    ".aifc": "audio/aiff",
+}
 
 ROOT_PLAYLIST_ID = "__root__"
 
@@ -68,17 +110,24 @@ def find_playlist(root: Path, playlist_id: str) -> PlaylistInfo | None:
 
 def read_track(path: Path, root: Path) -> Track:
     track_id = path.relative_to(root).as_posix()
-    audio = None
-    try:
-        audio = MutagenFile(path, easy=True)
-    except Exception:
+    if path.suffix.lower() in matroska.EXTENSIONS:
+        info = matroska.read(path)
+        title = info.title or path.stem
+        artist_names = info.artists or ["Unknown"]
+        album_name = info.album
+        duration_ms = int((info.duration_s or 0) * 1000)
+    else:
         audio = None
+        try:
+            audio = MutagenFile(path, easy=True)
+        except Exception:
+            audio = None
 
-    tags = (audio.tags or {}) if audio is not None else {}
-    title = (tags.get("title") or [path.stem])[0]
-    artist_names = tags.get("artist") or ["Unknown"]
-    album_name = (tags.get("album") or [None])[0]
-    duration_ms = int((audio.info.length if audio is not None and audio.info else 0) * 1000)
+        tags = (audio.tags or {}) if audio is not None else {}
+        title = (tags.get("title") or [path.stem])[0]
+        artist_names = tags.get("artist") or ["Unknown"]
+        album_name = (tags.get("album") or [None])[0]
+        duration_ms = int((audio.info.length if audio is not None and audio.info else 0) * 1000)
 
     album = Album(id=album_name, title=album_name) if album_name else None
     artists = [Artist(id=name, name=name) for name in artist_names]
@@ -101,5 +150,8 @@ def resolve_track_path(root: Path, track_id: str) -> Path | None:
 
 
 def guess_mime_type(path: Path) -> str:
+    known = _MIME_TYPES.get(path.suffix.lower())
+    if known:
+        return known
     mime, _ = mimetypes.guess_type(str(path))
     return mime or "application/octet-stream"
