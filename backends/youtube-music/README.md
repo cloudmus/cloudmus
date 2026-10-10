@@ -61,7 +61,7 @@ In `~/.config/cloudmus/backends/youtube-music/`, all written `chmod 0600`:
 ## Dependencies
 
 - `ytmusicapi>=1.8,<2` — catalog and library, both auth mechanisms.
-- `yt-dlp>=2024.1` — stream URLs (`playback.py`) and downloads (`download.py`).
+- `yt-dlp` (pinned in `pyproject.toml`, bumped by hand) — stream URLs (`playback.py`) and downloads (`download.py`).
 - `mutagen>=1.47` — best-effort tags on downloaded files.
 - `cloudmus-rpc-common` — shared transport (`backends/py-rpc-common`).
 

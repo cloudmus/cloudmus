@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 
+import requests
 import yt_dlp
 
 from rpc_common.generated.models import StreamDescriptor
@@ -24,6 +26,11 @@ from rpc_common.generated.models import StreamDescriptor
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 4.0
 MAX_ATTEMPTS = 3
+# A YoutubeDL session YouTube has flagged keeps getting URLs that
+# googlevideo answers with 403, until the process restarts — so it's
+# thrown away after this long even when nothing failed.
+YDL_MAX_AGE = 30 * 60
+VALIDATE_TIMEOUT = 5.0
 
 _YDL_OPTS = {
     "format": "bestaudio/best",
@@ -38,23 +45,57 @@ _MIME_TYPES = {"m4a": "audio/mp4", "webm": "audio/webm", "opus": "audio/opus"}
 _NON_TRANSIENT_SIGNATURES = ("video unavailable", "private video", "copyright", "sign in to confirm")
 
 
-# One YoutubeDL for the process: a fresh one per track threw away its
-# open connections and in-memory caches (player JS, client config), so
-# every resolve paid the full connection setup again. YoutubeDL isn't
+# One YoutubeDL at a time: a fresh one per track threw away its open
+# connections and in-memory caches (player JS, client config), so every
+# resolve paid the full connection setup again. YoutubeDL isn't
 # thread-safe, and the current and the next track may resolve at once —
-# hence the lock.
+# hence the lock. It is dropped when it fails or turns out to hand out
+# URLs googlevideo refuses, and after YDL_MAX_AGE (see above).
 _ydl: yt_dlp.YoutubeDL | None = None
+_ydl_created = 0.0
 _ydl_lock = threading.Lock()
+
+
+class StreamRejected(Exception):
+    """googlevideo answered 403 to the URL yt-dlp just produced."""
+
+
+def _drop_session() -> None:
+    global _ydl
+    with _ydl_lock:
+        _ydl = None
 
 
 def _extract_info(video_id: str) -> dict:
     """Sole yt_dlp seam, kept as its own function so tests can monkeypatch it
     without touching the network."""
-    global _ydl
+    global _ydl, _ydl_created
     with _ydl_lock:
-        if _ydl is None:
+        if _ydl is None or time.monotonic() - _ydl_created > YDL_MAX_AGE:
             _ydl = yt_dlp.YoutubeDL(_YDL_OPTS)
-        return _ydl.extract_info(f"https://music.youtube.com/watch?v={video_id}", download=False)
+            _ydl_created = time.monotonic()
+        try:
+            return _ydl.extract_info(f"https://music.youtube.com/watch?v={video_id}", download=False)
+        except Exception:
+            _ydl = None
+            raise
+
+
+def _stream_accepted(url: str, headers: dict | None) -> bool:
+    """False only when the server says 403. Any other outcome (a network
+    hiccup, a 5xx) is not proof the URL is bad, and must not block playback.
+    Own seam so tests don't touch the network. requests takes the proxy
+    from the environment, the same one the front's relay uses."""
+    try:
+        with requests.get(
+            url,
+            headers={**(headers or {}), "Range": "bytes=0-0"},
+            stream=True,
+            timeout=VALIDATE_TIMEOUT,
+        ) as response:
+            return response.status_code != 403
+    except requests.RequestException:
+        return True
 
 
 def _resolve_stream_sync(video_id: str) -> StreamDescriptor:
@@ -68,6 +109,9 @@ def _resolve_stream_sync(video_id: str) -> StreamDescriptor:
     best = max(audio_formats, key=lambda f: f.get("abr") or 0)
     mime = _MIME_TYPES.get(best.get("ext"), "audio/mp4")
     headers = best.get("http_headers") or info.get("http_headers") or None
+    if not _stream_accepted(best["url"], headers):
+        _drop_session()
+        raise StreamRejected(f"googlevideo refused the stream URL for {video_id} (403)")
     return StreamDescriptor(kind="url", url=best["url"], mimeType=mime, headers=headers)
 
 

@@ -6,7 +6,9 @@ requires-python = ">=3.11"
 dependencies = [
     "cloudmus-rpc-common",
     "ytmusicapi>=1.8,<2",
-    "yt-dlp>=2024.1",
+    # Pinned, bumped by hand when YouTube breaks stream extraction. A
+    # pre-release version in the specifier lets pip install this nightly.
+    "yt-dlp==2026.9.27.232945.dev0",
     "mutagen>=1.47",
     # SOCKS proxies for requests (ALL_PROXY=socks5h://..., set by the front
     # per source — see docs/protocol.md §4.3).

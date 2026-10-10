@@ -6,6 +6,11 @@ import yt_dlp
 from cloudmus_backend_ytmusic import playback
 
 
+@pytest.fixture(autouse=True)
+def _no_network(monkeypatch):
+    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers: True)
+
+
 def _format(acodec="opus", vcodec="none", abr=0, url="https://x", ext="webm", http_headers=None):
     f = {"acodec": acodec, "vcodec": vcodec, "abr": abr, "url": url, "ext": ext}
     if http_headers is not None:
@@ -116,3 +121,58 @@ async def test_fails_immediately_when_no_audio_only_formats(monkeypatch):
     with pytest.raises(LookupError):
         await playback.resolve_stream_with_retry("abc", asyncio.Event())
     assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_rejected_url_is_re_resolved_with_a_fresh_session(monkeypatch):
+    monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
+    monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 0.01)
+    monkeypatch.setattr(playback, "_extract_info", lambda vid: {"formats": [_format(abr=128, url="https://u")]})
+    verdicts = iter([False, True])
+    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers: next(verdicts))
+    dropped = {"n": 0}
+    monkeypatch.setattr(playback, "_drop_session", lambda: dropped.__setitem__("n", dropped["n"] + 1))
+
+    stream = await playback.resolve_stream_with_retry("abc", asyncio.Event())
+    assert stream.url == "https://u"
+    assert dropped["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_always_rejected_gives_up(monkeypatch):
+    monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
+    monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 0.01)
+    monkeypatch.setattr(playback, "_extract_info", lambda vid: {"formats": [_format(abr=128)]})
+    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers: False)
+    with pytest.raises(RuntimeError):
+        await playback.resolve_stream_with_retry("abc", asyncio.Event())
+
+
+def test_session_is_dropped_on_extraction_error_and_after_max_age(monkeypatch):
+    created = []
+
+    class FakeYdl:
+        def __init__(self, opts):
+            created.append(self)
+            self.fail = False
+
+        def extract_info(self, url, download=False):
+            if self.fail:
+                raise TimeoutError("boom")
+            return {"formats": []}
+
+    monkeypatch.setattr(playback.yt_dlp, "YoutubeDL", FakeYdl)
+    monkeypatch.setattr(playback, "_ydl", None)
+    playback._extract_info("a")
+    playback._extract_info("b")
+    assert len(created) == 1  # reused
+
+    created[0].fail = True
+    with pytest.raises(TimeoutError):
+        playback._extract_info("c")
+    playback._extract_info("d")
+    assert len(created) == 2  # dropped after the failure
+
+    monkeypatch.setattr(playback, "YDL_MAX_AGE", -1)
+    playback._extract_info("e")
+    assert len(created) == 3  # too old
