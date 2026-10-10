@@ -5,7 +5,11 @@
 <h1 align="center">CloudMus</h1>
 
 <p align="center">
-  A beautiful desktop music player for all your music services at once
+  Enjoy listening to your clouds
+</p>
+
+<p align="center">
+  <a href="https://cloudmus.app">cloudmus.app</a>
 </p>
 
 <p align="center">

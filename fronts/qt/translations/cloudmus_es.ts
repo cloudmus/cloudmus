@@ -334,8 +334,8 @@
         <translation>Copiar la versión</translation>
     </message>
     <message>
-        <source>A lightweight music player for all your services and your local collection, with a striking translucent interface and advanced controls.</source>
-        <translation>Un reproductor de música ligero para todos tus servicios y tu colección local, con una llamativa interfaz translúcida y controles avanzados.</translation>
+        <source>Enjoy listening to your clouds</source>
+        <translation>Disfruta escuchando tus nubes</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>

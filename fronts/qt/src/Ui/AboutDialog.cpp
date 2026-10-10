@@ -123,14 +123,11 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
     header->addStretch(1);
 
     // --- description
-    description_ = makeLabel(tr("A lightweight music player for all your services and your local collection, with a "
-                                 "striking translucent interface and advanced controls."),
-        Theme::TextStyle::Body, this);
+    description_ = makeLabel(tr("Enjoy listening to your clouds"), Theme::TextStyle::Body, this);
     description_->setAlignment(Qt::AlignCenter);
 
     auto* projectLabel = makeLabel(
-        link(QStringLiteral("https://github.com/cloudmus/cloudmus"), QStringLiteral("github.com/cloudmus/cloudmus")),
-        Theme::TextStyle::Body, this);
+        link(QStringLiteral("https://cloudmus.app"), QStringLiteral("cloudmus.app")), Theme::TextStyle::Body, this);
     projectLabel->setTextFormat(Qt::RichText);
     projectLabel->setOpenExternalLinks(true);
     projectLabel->setAlignment(Qt::AlignCenter);
