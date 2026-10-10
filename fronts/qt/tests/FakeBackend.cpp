@@ -61,6 +61,7 @@ QJsonObject capabilities()
                 { QStringLiteral("skip"), false } } },
         { QStringLiteral("download"), true },
         { QStringLiteral("downloadControl"), true },
+        { QStringLiteral("downloadFromFile"), true },
         { QStringLiteral("localization"),
             QJsonObject { { QStringLiteral("locales"),
                 QJsonArray { QStringLiteral("en"), QStringLiteral("de"), QStringLiteral("ru") } } } },
@@ -240,6 +241,14 @@ int runFakeBackend()
                 progress(50);
                 slowDownloadRequestId = id;
                 slowDownloadId = downloadId;
+            } else if (params.contains(QStringLiteral("sourceFile"))) {
+                // Saved from the file the front has: a copy of it, so a
+                // test can tell which way the track came.
+                const QString path
+                    = params.value(QStringLiteral("destDir")).toString() + QStringLiteral("/") + trackId + ".from-file";
+                QFile::remove(path);
+                QFile::copy(params.value(QStringLiteral("sourceFile")).toString(), path);
+                reply(id, { { QStringLiteral("path"), path } });
             } else {
                 progress(50);
                 progress(100);

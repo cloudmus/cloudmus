@@ -172,3 +172,35 @@ async def test_a_cancel_stops_the_download_and_removes_what_it_wrote(tmp_path, m
     with pytest.raises(Cancelled):
         await download.download_track("abc123", str(tmp_path), tracker)
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_a_file_the_front_already_has_is_saved_without_downloading(tmp_path, monkeypatch):
+    cached = tmp_path / "cache" / "3f2a"
+    cached.parent.mkdir()
+    cached.write_bytes(b"\x00\x00\x00\x18ftypM4A " + b"\x00" * 32)
+    monkeypatch.setattr(
+        download.playback, "_extract_info", lambda video_id: {"track": "My Song", "artist": "My Artist"}
+    )
+    monkeypatch.setattr(download, "_extract_and_download", lambda *a: pytest.fail("downloaded again"))
+    tagged = []
+    monkeypatch.setattr(download, "_tag_file", lambda path, info: tagged.append(path))
+
+    dest = tmp_path / "music"
+    result = await download.download_track("abc123", str(dest), None, str(cached))
+    final_path = Path(result["path"])
+    assert final_path == (dest / "My Artist - My Song.m4a").resolve()
+    assert final_path.read_bytes() == cached.read_bytes()
+    assert cached.exists()
+    assert [p.name for p in tagged] == ["My Artist - My Song.m4a"]
+
+
+@pytest.mark.asyncio
+async def test_a_source_file_that_is_no_use_is_downloaded_instead(tmp_path, monkeypatch):
+    monkeypatch.setattr(download, "_tag_file", lambda path, info: None)
+    monkeypatch.setattr(download.playback, "_extract_info", lambda video_id: {"track": "S", "artist": "A"})
+    monkeypatch.setattr(
+        download, "_extract_and_download", _fake_extract_and_download(tmp_path, "m4a", track="S", artist="A")
+    )
+    result = await download.download_track("abc123", str(tmp_path), None, str(tmp_path / "gone"))
+    assert Path(result["path"]).name == "A - S.m4a"

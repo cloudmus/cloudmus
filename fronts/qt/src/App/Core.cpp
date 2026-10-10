@@ -2,6 +2,7 @@
 
 #include <QStandardPaths>
 
+#include "Preloader.h"
 #include "ProxyRouting.h"
 
 namespace App {
@@ -98,6 +99,12 @@ Core::Core(QObject* parent)
     // front fetches.
     coverArtCache_.setProxyProvider(
         [this](const QString& sourceId, const QUrl& url) { return Net::networkProxy(connectionOf(sourceId), url); });
+    // A track already downloaded for listening isn't downloaded again to
+    // be saved: the source gets the cached file to save from.
+    downloads_.setCachedFileProvider([this](const QString& sourceId, const QString& trackId) {
+        Playback::Preloader& preloader = playback_.preloader();
+        return preloader.isCached(sourceId, trackId) ? preloader.readyPath(sourceId, trackId) : QString();
+    });
     playback_.setStreamRouteProvider([this](const QString& sourceId) -> std::optional<QNetworkProxy> {
         const Net::Connection connection = connectionOf(sourceId);
         // System still routes the stream through the environment's proxy

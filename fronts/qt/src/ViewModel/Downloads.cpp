@@ -257,7 +257,14 @@ Rpc::Task<void> Downloads::run(int jobId)
             lastError = tr("Can't create the folder %1").arg(destDir);
         } else {
             try {
-                const DownloadTrackParams params { track.id, destDir, runningDownloadId_ };
+                DownloadTrackParams params { track.id, destDir, runningDownloadId_ };
+                // Already downloaded for listening: offered to the source
+                // to save from (docs/protocol.md §7.5).
+                if (cachedFileProvider_ && client->capabilities().value(QStringLiteral("downloadFromFile")).toBool()) {
+                    const QString cached = cachedFileProvider_(sourceId, track.id);
+                    if (!cached.isEmpty())
+                        params.sourceFile = cached;
+                }
                 co_await client->call<DownloadTrackResult>(QStringLiteral("catalog.downloadTrack"), params.toJson(),
                     withProgress ? kTimeoutWithProgressMs : kTimeoutMs);
                 saved = true;

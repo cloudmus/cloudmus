@@ -112,7 +112,7 @@ class BackendServer:
         locale = params.get("locale")
         self.translator.set_locale(locale if isinstance(locale, str) else None)
         return {
-            "protocolVersion": "1.11",
+            "protocolVersion": "1.12",
             "source": {
                 "id": self.source_id,
                 "name": self.source_name,

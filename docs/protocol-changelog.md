@@ -5,6 +5,15 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.12 — saving a track from a file the front already has
+
+- **Additive, backward-compatible**: optional capability `downloadFromFile`
+  and optional `catalog.downloadTrack` param `sourceFile` (§7.5). A front
+  that already downloaded a track's audio for playback offers that file,
+  and the source saves from it — named and tagged as usual — instead of
+  transferring the track a second time. The source may decline and
+  download as before.
+
 ## 1.11 — localization
 
 - **Additive, backward-compatible**: optional `initialize` param `locale`,

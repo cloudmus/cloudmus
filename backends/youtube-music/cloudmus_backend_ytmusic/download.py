@@ -27,8 +27,9 @@ from mutagen.id3 import ID3, TALB, TIT2, TPE1
 from mutagen.mp4 import MP4
 from mutagen.oggopus import OggOpus
 
-from rpc_common.downloads import Cancelled, Tracker
+from rpc_common.downloads import Cancelled, Tracker, save_from_source_file
 
+from . import playback
 from .playback import _is_non_transient
 
 _YDL_OPTS = {
@@ -111,8 +112,31 @@ def _remove_partial(video_id: str, dest_dir: Path) -> None:
         leftover.unlink(missing_ok=True)
 
 
-def _download_track_sync(video_id: str, dest_dir: Path, tracker: Tracker) -> Path:
+def _names(info: dict, video_id: str) -> tuple[str, str]:
+    return info.get("artist") or info.get("uploader") or "Unknown", info.get("track") or info.get("title") or video_id
+
+
+def _save_from_source_file(video_id: str, dest_dir: Path, tracker: Tracker, source_file: str) -> Path | None:
+    """The front has the audio already (it played it): only the metadata is
+    fetched — what the file is called and tagged with. None when that
+    can't be done; the track is then downloaded as usual."""
+    try:
+        info = playback._extract_info(video_id)
+    except Exception:
+        return None
+    artist, title = _names(info, video_id)
+    saved = save_from_source_file(source_file, dest_dir / _safe_name(f"{artist} - {title}"), tracker)
+    if saved is not None:
+        _tag_file(saved, info)
+    return saved
+
+
+def _download_track_sync(video_id: str, dest_dir: Path, tracker: Tracker, source_file: str | None = None) -> Path:
     dest_dir.mkdir(parents=True, exist_ok=True)
+    if source_file:
+        saved = _save_from_source_file(video_id, dest_dir, tracker, source_file)
+        if saved is not None:
+            return saved
     # Download under the plain video id first — sidesteps guessing how
     # yt-dlp's own outtmpl sanitizer would mangle a title/artist string,
     # and avoids any chance of the "actual" and "predicted" filenames
@@ -133,15 +157,16 @@ def _download_track_sync(video_id: str, dest_dir: Path, tracker: Tracker) -> Pat
         raise
 
     raw_path = Path(info["_filepath"])
-    title = info.get("track") or info.get("title") or video_id
-    artist = info.get("artist") or info.get("uploader") or "Unknown"
+    artist, title = _names(info, video_id)
     final_path = dest_dir / (_safe_name(f"{artist} - {title}") + raw_path.suffix)
     raw_path.replace(final_path)
     _tag_file(final_path, info)
     return final_path
 
 
-async def download_track(video_id: str, dest_dir: str, tracker: Tracker | None = None) -> dict:
+async def download_track(
+    video_id: str, dest_dir: str, tracker: Tracker | None = None, source_file: str | None = None
+) -> dict:
     tracker = tracker or Tracker(None, None, None)
-    path = await asyncio.to_thread(_download_track_sync, video_id, Path(dest_dir), tracker)
+    path = await asyncio.to_thread(_download_track_sync, video_id, Path(dest_dir), tracker, source_file)
     return {"path": str(path.resolve())}

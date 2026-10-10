@@ -45,6 +45,9 @@ properties:
   # optional (1.7+): download/progress for, and catalog.cancelDownload of,
   # a catalog.downloadTrack given a downloadId
   downloadControl: {type: boolean}
+  # optional (1.12+): catalog.downloadTrack takes a sourceFile — audio the
+  # front already has — instead of downloading the track again
+  downloadFromFile: {type: boolean}
   # optional (1.4+): settings.describe / settings.update
   settings: {type: boolean}
   # optional (1.10+): the source reaches the network, so the front's

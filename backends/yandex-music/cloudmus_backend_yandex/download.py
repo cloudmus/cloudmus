@@ -9,7 +9,7 @@ from pathlib import Path
 from mutagen.id3 import APIC, ID3, TALB, TIT2, TPE1
 from yandex_music import Client
 
-from rpc_common.downloads import Tracker
+from rpc_common.downloads import Tracker, save_from_source_file
 
 from . import http_session, quality
 
@@ -62,23 +62,36 @@ def _fetch(client: Client, url: str, path: Path, tracker: Tracker) -> None:
 
 
 def _download_track_sync(
-    client: Client, track_id: str, dest_dir: Path, quality_level: str, tracker: Tracker
+    client: Client,
+    track_id: str,
+    dest_dir: Path,
+    quality_level: str,
+    tracker: Tracker,
+    source_file: str | None = None,
 ) -> Path:
     tracks = client.tracks([track_id])
     if not tracks:
         raise LookupError(f"track not found: {track_id}")
     track = tracks[0]
 
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    artists = ", ".join(track.artists_name()) if track.artists_name() else "Unknown"
+    stem = _safe_name(f"{artists} - {track.title}")
+
+    # The front has the audio already (it played it): no second transfer,
+    # and no download links to ask for either.
+    saved = save_from_source_file(source_file, dest_dir / stem, tracker)
+    if saved is not None:
+        _tag_file(saved, track)
+        return saved
+
     infos = track.get_download_info()
     if not infos:
         raise RuntimeError(f"no download links available for track {track_id}")
     info = quality.pick(infos, quality_level)
 
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    artists = ", ".join(track.artists_name()) if track.artists_name() else "Unknown"
     extension = ".mp3" if info.codec == "mp3" else ".m4a"
-    filename = _safe_name(f"{artists} - {track.title}") + extension
-    path = dest_dir / filename
+    path = dest_dir / (stem + extension)
 
     tracker.check()
     _fetch(client, info.get_direct_link(), path, tracker)
@@ -87,7 +100,14 @@ def _download_track_sync(
 
 
 async def download_track(
-    client: Client, track_id: str, dest_dir: str, tracker: Tracker, quality_level: str = quality.BEST
+    client: Client,
+    track_id: str,
+    dest_dir: str,
+    tracker: Tracker,
+    quality_level: str = quality.BEST,
+    source_file: str | None = None,
 ) -> dict:
-    path = await asyncio.to_thread(_download_track_sync, client, track_id, Path(dest_dir), quality_level, tracker)
+    path = await asyncio.to_thread(
+        _download_track_sync, client, track_id, Path(dest_dir), quality_level, tracker, source_file
+    )
     return {"path": str(path.resolve())}

@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QString>
 
+#include <functional>
 #include <optional>
 
 #include "Coro.h"
@@ -80,6 +81,12 @@ public:
     // Turning them off cancels whatever is under way.
     void setEnabled(bool on);
 
+    // Where a track's audio already is on disk, if it is (the playback
+    // cache): a source that can (capability downloadFromFile) then saves
+    // from that file instead of downloading the track a second time.
+    using CachedFileProvider = std::function<QString(const QString& sourceId, const QString& trackId)>;
+    void setCachedFileProvider(CachedFileProvider provider) { cachedFileProvider_ = std::move(provider); }
+
     void downloadTrack(const QString& sourceId, const Track& track);
     // A radio station has no fixed list to save — not accepted.
     void downloadPlaylist(const QString& sourceId, const Playlist& playlist);
@@ -115,6 +122,7 @@ private:
     Covers::CoverArtCache& coverArtCache_;
     Config::Settings& settings_;
     Messages& messages_;
+    CachedFileProvider cachedFileProvider_;
 
     QList<Job> jobs_;
     // Playlist jobs' playlists, until run() has listed their tracks.

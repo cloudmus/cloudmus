@@ -26,6 +26,7 @@ CAPABILITIES = {
     "feedback": {"like": True, "dislike": True, "skip": True},
     "download": True,
     "downloadControl": True,
+    "downloadFromFile": True,
     # usernamePassword, not deviceCode: device-code OAuth login itself still
     # works, but every data call made with the resulting token currently
     # 400s due to a confirmed upstream break (see auth.py's module
@@ -142,7 +143,9 @@ def build_server() -> BackendServer:
     async def handle_download_track(params: dict, request_id: int) -> dict:
         try:
             with downloads.track(params.get("downloadId")) as tracker:
-                return await download.download_track(params["trackId"], params["destDir"], tracker)
+                return await download.download_track(
+                    params["trackId"], params["destDir"], tracker, params.get("sourceFile")
+                )
         except LookupError:
             raise BackendError(
                 errors.RESOURCE_NOT_FOUND,

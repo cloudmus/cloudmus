@@ -1,9 +1,12 @@
 #include <QDir>
+#include <QFile>
 #include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QTest>
 
 #include "AuthStates.h"
 #include "CoverArtCache.h"
+#include "DownloadPaths.h"
 #include "Downloads.h"
 #include "FakeBackend.h"
 #include "Messages.h"
@@ -89,6 +92,39 @@ private slots:
         QCOMPARE(downloads_->jobs().first().state, ViewModel::Downloads::State::Done);
         QVERIFY(received.contains(50));
         QCOMPARE(posted.last().at(1).toString(), QStringLiteral("Saved \"Track t1\""));
+    }
+
+    // A track already downloaded for listening is saved from that file.
+    void aTrackTheCacheHasIsNotDownloadedAgain()
+    {
+        QTemporaryDir cache;
+        const QString cached = cache.filePath(QStringLiteral("3f2a"));
+        QFile file(cached);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("the audio");
+        file.close();
+        QStringList asked;
+        downloads_->setCachedFileProvider([&](const QString& sourceId, const QString& trackId) {
+            asked.append(sourceId + QLatin1Char('/') + trackId);
+            return trackId == QStringLiteral("t1") ? cached : QString();
+        });
+        QDir(settings_.downloadDirectory()).removeRecursively();
+
+        downloads_->downloadTrack(QStringLiteral("fake"), track(QStringLiteral("t1")));
+        downloads_->downloadTrack(QStringLiteral("fake"), track(QStringLiteral("t2")));
+        QTRY_VERIFY(!downloads_->isActive());
+        QCOMPARE(asked, (QStringList { QStringLiteral("fake/t1"), QStringLiteral("fake/t2") }));
+        QCOMPARE(downloads_->jobs().first().state, ViewModel::Downloads::State::Done);
+        const auto saved = [this](const QString& name) {
+            QFile f(Library::downloadDirectoryFor(settings_.downloadDirectory(), settings_.downloadLayout(),
+                        QStringLiteral("Fake Source"), track(QStringLiteral("t1")))
+                + QLatin1Char('/') + name);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray("<none>");
+        };
+        QCOMPARE(saved(QStringLiteral("t1.from-file")), QByteArray("the audio"));
+        // What isn't cached is downloaded as ever.
+        QCOMPARE(saved(QStringLiteral("t2.from-file")), QByteArray("<none>"));
+        QVERIFY(QFile::exists(cached)); // the cache keeps its file
     }
 
     void aPlaylistIsSavedTrackByTrack()

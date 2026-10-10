@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.11"
+protocolVersion: "1.12"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -280,6 +280,11 @@ methods:
         # download/progress notifications and catalog.cancelDownload
         # (capability downloadControl) — docs/protocol.md §7.5.
         downloadId: {type: string}
+        # optional (1.12+): a local file that already holds this track's
+        # audio, as the source's own stream delivered it — to be used
+        # instead of downloading it again (capability downloadFromFile) —
+        # docs/protocol.md §7.5.
+        sourceFile: {type: string}
     result:
       type: object
       required: [path]

@@ -24,6 +24,7 @@ CAPABILITIES = {
     "feedback": {"like": True, "dislike": True, "skip": True},
     "download": True,
     "downloadControl": True,
+    "downloadFromFile": True,
     "auth": {"required": True, "flow": "deviceCode"},
 }
 
@@ -138,6 +139,9 @@ def build_server() -> BackendServer:
     @server.method("catalog.downloadTrack", concurrent=True)
     async def handle_download_track(params: dict, request_id: int) -> dict:
         try:
+            # What the front has is what it played: the stream quality. Good
+            # for saving only when downloads are set to the same.
+            same_quality = settings.get("downloadQuality") == settings.get("streamQuality")
             with downloads.track(params.get("downloadId")) as tracker:
                 return await download.download_track(
                     client_module.get_client(),
@@ -145,6 +149,7 @@ def build_server() -> BackendServer:
                     params["destDir"],
                     tracker,
                     settings.get("downloadQuality"),
+                    params.get("sourceFile") if same_quality else None,
                 )
         except LookupError:
             raise BackendError(
