@@ -970,6 +970,42 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
     </message>
 </context>
 <context>
+    <name>Ui::Settings::PreloadPage</name>
+    <message>
+        <source>Preloading</source>
+        <translation>Préchargement</translation>
+    </message>
+    <message>
+        <source>How many tracks after the playing one are downloaded in advance, one at a time, so they start at once and keep playing through a bad connection. With 0 only the playing track is downloaded.</source>
+        <translation>Combien de titres après celui en cours sont téléchargés à l’avance, un par un, pour qu’ils démarrent aussitôt et continuent malgré une mauvaise connexion. Avec 0, seul le titre en cours est téléchargé.</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <extracomment>Megabytes, after a number: &quot;1024 MB&quot;</extracomment>
+        <translation> Mo</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>Vider</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a playlist:</source>
+        <translation>Titres à l’avance dans une playlist :</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a radio:</source>
+        <translation>Titres à l’avance dans une radio :</translation>
+    </message>
+    <message>
+        <source>Disk space for tracks:</source>
+        <translation>Espace disque pour les titres :</translation>
+    </message>
+    <message>
+        <source>%1 used</source>
+        <translation>%1 utilisés</translation>
+    </message>
+</context>
+<context>
     <name>Ui::Settings::ProxyEditor</name>
     <message>
         <source>e.g. Home SOCKS</source>
@@ -1442,6 +1478,33 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
         <source>Removed dislike</source>
         <translation>Mention « Je n’aime pas » retirée</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Preload</name>
+    <message>
+        <source>Downloaded ahead: %1 of %2</source>
+        <translation>Téléchargés à l’avance : %1 sur %2</translation>
+    </message>
+    <message>
+        <source>%1 — downloaded</source>
+        <translation>%1 — téléchargé</translation>
+    </message>
+    <message>
+        <source>%1 — %2%</source>
+        <translation>%1 — %2 %</translation>
+    </message>
+    <message>
+        <source>%1 — couldn&apos;t be downloaded</source>
+        <translation>%1 — téléchargement impossible</translation>
+    </message>
+    <message>
+        <source>%1 — waiting, %2% so far</source>
+        <translation>%1 — en attente, %2 % pour l’instant</translation>
+    </message>
+    <message>
+        <source>%1 — waiting</source>
+        <translation>%1 — en attente</translation>
     </message>
 </context>
 <context>

@@ -1,4 +1,3 @@
-#include <QDataStream>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -26,23 +25,6 @@ class PlaybackPreloadTest : public QObject {
     Q_OBJECT
 
 private:
-    // Two seconds of silence: something mpv plays, and nobody hears.
-    static QByteArray silence()
-    {
-        constexpr quint32 samples = 8000 * 2;
-        QByteArray wave;
-        QDataStream stream(&wave, QIODevice::WriteOnly);
-        stream.setByteOrder(QDataStream::LittleEndian);
-        stream.writeRawData("RIFF", 4);
-        stream << quint32(36 + samples * 2);
-        stream.writeRawData("WAVEfmt ", 8);
-        stream << quint32(16) << quint16(1) << quint16(1) << quint32(8000) << quint32(16000) << quint16(2)
-               << quint16(16);
-        stream.writeRawData("data", 4);
-        stream << quint32(samples * 2);
-        return wave + QByteArray(samples * 2, '\0');
-    }
-
     Track track(const QString& name) const
     {
         Track t;
@@ -75,7 +57,7 @@ private slots:
     {
         upstream_ = std::make_unique<FakeUpstream>();
         for (const char* name : { "a", "b", "c", "d" })
-            upstream_->bodies.insert(QLatin1Char('/') + QLatin1String(name), silence());
+            upstream_->bodies.insert(QLatin1Char('/') + QLatin1String(name), FakeUpstream::silence(30));
         sourceManager_ = std::make_unique<Rpc::SourceManager>();
         playback_ = std::make_unique<Playback::PlaybackController>(*sourceManager_);
         playback_->setVolume(0);

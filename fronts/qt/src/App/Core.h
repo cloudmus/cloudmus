@@ -17,6 +17,7 @@
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
 #include "PlaylistEditing.h"
+#include "Preload.h"
 #include "ProxyRouting.h"
 #include "Registry.h"
 #include "Settings.h"
@@ -56,6 +57,7 @@ public:
     ViewModel::Messages& messages() { return messages_; }
     ViewModel::NowPlaying& nowPlaying() { return nowPlaying_; }
     ViewModel::Downloads& downloads() { return downloads_; }
+    ViewModel::Preload& preload() { return preload_; }
     Hotkeys::Registry& hotkeys() { return hotkeys_; }
     Hotkeys::Dispatcher& hotkeyDispatcher() { return hotkeyDispatcher_; }
     PlaylistEditing& playlistEditing() { return playlistEditing_; }
@@ -79,6 +81,7 @@ private:
     Analytics analytics_;
     Rpc::SourceManager sourceManager_;
     Playback::PlaybackController playback_;
+    ViewModel::Preload preload_;
     ViewModel::AudioPulse audioPulse_;
     Rpc::AuthStates authStates_;
     History::PlaybackHistory playbackHistory_;

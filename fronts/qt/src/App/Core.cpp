@@ -11,6 +11,7 @@ Core::Core(QObject* parent)
     , analytics_(settings_)
     , playback_(sourceManager_, nullptr,
           QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/tracks"))
+    , preload_(playback_, settings_)
     , audioPulse_(playback_)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
     , downloads_(sourceManager_, sourceSession_, trackStates_, coverArtCache_, settings_, messages_)

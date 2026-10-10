@@ -25,6 +25,7 @@ class SourceManager;
 } // namespace Rpc
 namespace ViewModel {
 class Downloads;
+class Preload;
 }
 namespace Hotkeys {
 class Registry;
@@ -52,8 +53,8 @@ class SettingsDialog : public QDialog {
 public:
     // `openAt`: a Settings::Page::id() to show first instead of the top.
     SettingsDialog(Config::Settings& settings, App::Analytics& analytics, Rpc::SourceManager& sourceManager,
-        Rpc::AuthStates& authStates, ViewModel::Downloads& downloads, Hotkeys::Registry& hotkeys,
-        QWidget* parent = nullptr, const QString& openAt = { });
+        Rpc::AuthStates& authStates, ViewModel::Downloads& downloads, ViewModel::Preload& preload,
+        Hotkeys::Registry& hotkeys, QWidget* parent = nullptr, const QString& openAt = { });
 
     void done(int result) override;
 

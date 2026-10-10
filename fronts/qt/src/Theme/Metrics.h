@@ -17,6 +17,9 @@ constexpr int playGlyphSize = 16;
 // CloudMusStyle::pixelMetric()), so the handle QSlider hit-tests is
 // exactly the circle that gets painted.
 constexpr int sliderHandleDiameter = 12;
+// ...and the thickness of its line — also Ui::PreloadCells', which continue
+// the seek bar.
+constexpr int sliderGrooveHeight = 3;
 
 // Keyboard focus ring (Theme::paintFocusRing()). Drawn inside the widget's
 // own bounds: a ring outside them would be clipped by tight parents (the

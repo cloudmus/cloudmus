@@ -193,6 +193,7 @@ add_library(cloudmus-core STATIC
     src/ViewModel/Browse.cpp
     src/ViewModel/SourcePage.cpp
     src/ViewModel/Downloads.cpp
+    src/ViewModel/Preload.cpp
 
     src/Diagnostics/CrashReporter.cpp
     src/Diagnostics/CrashShortcut.cpp
@@ -358,6 +359,7 @@ add_library(cloudmus-ui STATIC
     src/Ui/SmoothScroller.cpp
     src/Ui/OverlayScrollBar.cpp
     src/Ui/ThemedSlider.cpp
+    src/Ui/PreloadCells.cpp
     src/Ui/TabOrder.cpp
     src/Ui/KeyActivation.cpp
     src/Ui/ThemeCrossfade.cpp
@@ -378,6 +380,7 @@ add_library(cloudmus-ui STATIC
     src/Ui/Settings/PageStack.cpp
     src/Ui/Settings/GeneralPage.cpp
     src/Ui/Settings/DownloadsPage.cpp
+    src/Ui/Settings/PreloadPage.cpp
     src/Ui/Settings/SourcePage.cpp
     src/Ui/Settings/SettingsForm.cpp
     src/Ui/Settings/NetworkPage.cpp
@@ -609,6 +612,7 @@ add_executable(cloudmus-qt-tests
     tests/TrackCacheTest.cpp
     tests/PreloaderTest.cpp
     tests/PlaybackPreloadTest.cpp
+    tests/PreloadTest.cpp
     tests/CrashReporterTest.cpp
     tests/UpdateTest.cpp
     tests/HotkeysTest.cpp
@@ -629,6 +633,7 @@ add_executable(cloudmus-qt-ui-tests
     tests/ui/WindowHostTest.cpp
     tests/ui/FocusTest.cpp
     tests/ui/HotkeysPageTest.cpp
+    tests/ui/PreloadUiTest.cpp
     tests/ui/AboutDialogTest.cpp
     # Covers are QPixmaps, which need a GUI application.
     tests/ui/CoverArtCacheTest.cpp

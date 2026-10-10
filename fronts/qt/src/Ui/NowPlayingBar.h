@@ -12,6 +12,9 @@ class QVariantAnimation;
 namespace Hotkeys {
 class Registry;
 }
+namespace ViewModel {
+class Preload;
+}
 class QSlider;
 
 namespace Ui {
@@ -39,6 +42,9 @@ public:
     // The tooltips of the buttons that have a hotkey name it; they follow
     // the settings.
     void setHotkeys(Hotkeys::Registry& hotkeys);
+    // Shows the tracks downloaded ahead as cells continuing the seek bar
+    // (see PreloadCells).
+    void setPreload(ViewModel::Preload& preload);
 
     void setPlaying(bool playing);
     void setLoading(bool loading);
@@ -162,6 +168,7 @@ private:
     QPushButton* downloadButton_ = nullptr;
     QPushButton* playlistsButton_ = nullptr;
     ThemedSlider* seekSlider_ = nullptr;
+    QHBoxLayout* slidersRow_ = nullptr;
     QLabel* elapsedLabel_ = nullptr;
     QLabel* durationLabel_ = nullptr;
     QSlider* volumeSlider_ = nullptr;

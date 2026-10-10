@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <QDataStream>
 #include <QHash>
 #include <QHostAddress>
 #include <QList>
@@ -47,6 +48,23 @@ public:
         for (qsizetype i = 0; i < size; ++i)
             body[i] = char(seed + i % 23);
         return body;
+    }
+
+    // A WAV of silence: something mpv plays, and nobody hears.
+    static QByteArray silence(int seconds)
+    {
+        const quint32 samples = 8000 * quint32(seconds);
+        QByteArray wave;
+        QDataStream stream(&wave, QIODevice::WriteOnly);
+        stream.setByteOrder(QDataStream::LittleEndian);
+        stream.writeRawData("RIFF", 4);
+        stream << quint32(36 + samples * 2);
+        stream.writeRawData("WAVEfmt ", 8);
+        stream << quint32(16) << quint16(1) << quint16(1) << quint32(8000) << quint32(16000) << quint16(2)
+               << quint16(16);
+        stream.writeRawData("data", 4);
+        stream << quint32(samples * 2);
+        return wave + QByteArray(samples * 2, '\0');
     }
 
     // Answers the requests for `path` that were held back, and stops

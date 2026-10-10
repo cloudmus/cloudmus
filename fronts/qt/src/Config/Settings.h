@@ -219,6 +219,17 @@ public:
     bool downloadsEnabled() const;
     void setDownloadsEnabled(bool on);
 
+    // Preloading (Playback::Preloader): how many tracks past the playing
+    // one are downloaded ahead — of a playlist, and of a radio — and how
+    // much disk the downloaded tracks may take, in megabytes.
+    static constexpr int kMaxPreloadTracks = 50;
+    int preloadPlaylistTracks() const;
+    void setPreloadPlaylistTracks(int tracks);
+    int preloadRadioTracks() const;
+    void setPreloadRadioTracks(int tracks);
+    int preloadCacheMaxMb() const;
+    void setPreloadCacheMaxMb(int megabytes);
+
     // The update the user declined (Update::UpdateChecker): not offered
     // again at startup — a newer one is.
     QString skippedUpdateVersion() const;

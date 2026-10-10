@@ -20,7 +20,7 @@ namespace Ui {
 namespace {
 
 constexpr int kAnimationMs = 150;
-constexpr qreal kGrooveHeight = 3.0;
+constexpr qreal kGrooveHeight = Theme::Metrics::sliderGrooveHeight;
 // Vertical room for the full-size handle, so it never gets clipped.
 constexpr int kHeight = 16;
 

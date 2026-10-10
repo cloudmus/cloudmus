@@ -970,6 +970,42 @@ Do you agree to use downloads only this way?</source>
     </message>
 </context>
 <context>
+    <name>Ui::Settings::PreloadPage</name>
+    <message>
+        <source>Preloading</source>
+        <translation>Предзагрузка</translation>
+    </message>
+    <message>
+        <source>How many tracks after the playing one are downloaded in advance, one at a time, so they start at once and keep playing through a bad connection. With 0 only the playing track is downloaded.</source>
+        <translation>Сколько треков после играющего скачивается заранее, по одному, чтобы они начинались сразу и играли даже при плохой связи. При 0 скачивается только играющий трек.</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <extracomment>Megabytes, after a number: &quot;1024 MB&quot;</extracomment>
+        <translation> МБ</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>Очистить</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a playlist:</source>
+        <translation>Треков вперёд в плейлисте:</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a radio:</source>
+        <translation>Треков вперёд в радио:</translation>
+    </message>
+    <message>
+        <source>Disk space for tracks:</source>
+        <translation>Место на диске под треки:</translation>
+    </message>
+    <message>
+        <source>%1 used</source>
+        <translation>Занято: %1</translation>
+    </message>
+</context>
+<context>
     <name>Ui::Settings::ProxyEditor</name>
     <message>
         <source>e.g. Home SOCKS</source>
@@ -1444,6 +1480,33 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Removed dislike</source>
         <translation>«Не нравится» снято</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Preload</name>
+    <message>
+        <source>Downloaded ahead: %1 of %2</source>
+        <translation>Скачано вперёд: %1 из %2</translation>
+    </message>
+    <message>
+        <source>%1 — downloaded</source>
+        <translation>%1 — скачан</translation>
+    </message>
+    <message>
+        <source>%1 — %2%</source>
+        <translation>%1 — %2%</translation>
+    </message>
+    <message>
+        <source>%1 — couldn&apos;t be downloaded</source>
+        <translation>%1 — не удалось скачать</translation>
+    </message>
+    <message>
+        <source>%1 — waiting, %2% so far</source>
+        <translation>%1 — ждёт, скачано %2%</translation>
+    </message>
+    <message>
+        <source>%1 — waiting</source>
+        <translation>%1 — ждёт</translation>
     </message>
 </context>
 <context>

@@ -331,6 +331,36 @@ bool Settings::downloadsEnabled() const { return settings_.value(QStringLiteral(
 
 void Settings::setDownloadsEnabled(bool on) { settings_.setValue(QStringLiteral("download/enabled"), on); }
 
+int Settings::preloadPlaylistTracks() const
+{
+    return qBound(0, settings_.value(QStringLiteral("preload/playlistTracks"), 3).toInt(), kMaxPreloadTracks);
+}
+
+void Settings::setPreloadPlaylistTracks(int tracks)
+{
+    settings_.setValue(QStringLiteral("preload/playlistTracks"), qBound(0, tracks, kMaxPreloadTracks));
+}
+
+int Settings::preloadRadioTracks() const
+{
+    return qBound(0, settings_.value(QStringLiteral("preload/radioTracks"), 2).toInt(), kMaxPreloadTracks);
+}
+
+void Settings::setPreloadRadioTracks(int tracks)
+{
+    settings_.setValue(QStringLiteral("preload/radioTracks"), qBound(0, tracks, kMaxPreloadTracks));
+}
+
+int Settings::preloadCacheMaxMb() const
+{
+    return qMax(0, settings_.value(QStringLiteral("preload/cacheMaxMb"), 1024).toInt());
+}
+
+void Settings::setPreloadCacheMaxMb(int megabytes)
+{
+    settings_.setValue(QStringLiteral("preload/cacheMaxMb"), qMax(0, megabytes));
+}
+
 bool Settings::analyticsEnabled() const { return settings_.value(QStringLiteral("analytics/enabled"), true).toBool(); }
 
 void Settings::setAnalyticsEnabled(bool on)

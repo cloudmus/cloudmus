@@ -1,5 +1,7 @@
 #include "NowPlayingBar.h"
 
+#include "PreloadCells.h"
+
 #include <QDesktopServices>
 #include <QEnterEvent>
 #include <QFontMetrics>
@@ -363,6 +365,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     // separate top-level row before, now shares this one instead of sitting
     // beside the transport buttons.
     auto* slidersRow = new QHBoxLayout;
+    slidersRow_ = slidersRow;
     slidersRow->addWidget(elapsedLabel_);
     slidersRow->addWidget(seekSlider_, 1);
     slidersRow->addWidget(durationLabel_);
@@ -616,6 +619,13 @@ void NowPlayingBar::setPosition(qint64 positionMs, qint64 durationMs)
     if (!userIsDraggingSeek_) {
         seekSlider_->setValue(static_cast<int>(positionMs));
     }
+}
+
+void NowPlayingBar::setPreload(ViewModel::Preload& preload)
+{
+    // Between the seek bar and the track's length: where the bar would go
+    // on, were the next tracks part of it.
+    slidersRow_->insertWidget(slidersRow_->indexOf(durationLabel_), new PreloadCells(preload, this));
 }
 
 void NowPlayingBar::setBuffered(qint64 bufferedMs)

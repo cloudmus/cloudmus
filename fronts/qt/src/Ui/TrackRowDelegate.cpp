@@ -12,6 +12,7 @@
 #include "FocusRing.h"
 #include "FrameClock.h"
 #include "Icons.h"
+#include "Metrics.h"
 #include "Radius.h"
 #include "Spacing.h"
 #include "Tokens.h"
@@ -36,6 +37,9 @@ void fillRoundedRect(QPainter* painter, const QRect& rect, const QColor& color, 
 
 constexpr int kEqualizerWidth = 12;
 constexpr int kEqualizerGap = Theme::Spacing::space2;
+constexpr int kCachedDotSize = 6;
+// What's downloaded is marked like the seek bar marks it (ThemedSlider).
+constexpr qreal kDownloadedAlpha = 0.35;
 
 // 3 uneven, fixed-height bars — not animated. Drawn immediately left of the
 // duration column on the currently-playing row (see paint()).
@@ -274,8 +278,37 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
             .paint(painter, badgeRect);
     }
 
+    // A dot for a track that's downloaded — it starts at once, and plays
+    // without the network — left of the badge.
+    const int cachedReserve = index.data(TrackListModel::CachedRole).toBool() ? kCachedDotSize + kEqualizerGap : 0;
+    if (cachedReserve > 0) {
+        QColor dot = pal.accent;
+        dot.setAlphaF(kDownloadedAlpha);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(dot);
+        painter->drawEllipse(
+            QRectF(rect.right() - margin - rightColumnWidth - equalizerReserve - badgeReserve - cachedReserve + 1,
+                rect.center().y() + 0.5 - kCachedDotSize / 2.0, kCachedDotSize, kCachedDotSize));
+    }
+
     const int textLeft = thumb.right() + margin;
-    const int textRight = rect.right() - margin - rightColumnWidth - equalizerReserve - badgeReserve - margin;
+    const int textRight
+        = rect.right() - margin - rightColumnWidth - equalizerReserve - badgeReserve - cachedReserve - margin;
+
+    // ...and while it downloads, a thin line along the bottom of the row,
+    // as far as it has got.
+    const QVariant downloadProgress = index.data(TrackListModel::DownloadProgressRole);
+    if (downloadProgress.isValid()) {
+        QColor line = pal.accent;
+        line.setAlphaF(kDownloadedAlpha);
+        const qreal lineHeight = Theme::Metrics::sliderGrooveHeight - 1;
+        const qreal fullWidth = rect.right() - margin - textLeft;
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(line);
+        painter->drawRoundedRect(QRectF(textLeft, rect.bottom() - lineHeight,
+                                     fullWidth * qBound(0.0, downloadProgress.toDouble(), 1.0), lineHeight),
+            lineHeight / 2, lineHeight / 2);
+    }
     const QRect titleRect(textLeft, rect.top() + margin - 2, textRight - textLeft, titleMetrics.height());
     const QRect artistRect(textLeft, titleRect.bottom(), textRight - textLeft, secondaryMetrics.height());
 

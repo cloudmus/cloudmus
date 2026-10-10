@@ -128,6 +128,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , messages_(core.messages())
     , nowPlaying_(core.nowPlaying())
     , downloads_(core.downloads())
+    , preload_(core.preload())
     , hotkeys_(core.hotkeys())
     , playlistEditing_(core.playlistEditing())
     , sources_(core.sources())
@@ -162,6 +163,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // whatever's playing instead, so it isn't duplicated. ---
     nowPlayingBar_ = new NowPlayingBar(this);
     nowPlayingBar_->setHotkeys(hotkeys_);
+    nowPlayingBar_->setPreload(preload_);
 
     auto* toolbar = new QToolBar(this);
     toolbar->setObjectName(QStringLiteral("transportToolBar")); // see StyleSheet.cpp's toolBarBlock()
@@ -275,6 +277,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
 
     trackListModel_ = new TrackListModel(this);
     trackListModel_->setTrackStates(trackStates_);
+    trackListModel_->setPreload(&preload_);
     trackRowDelegate_ = new TrackRowDelegate(coverArtCache_, this);
     connect(
         coverArtCache_, &Covers::CoverArtCache::pixmapReady, this, [this]() { trackListView_->viewport()->update(); });
@@ -345,6 +348,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     // when presented, kept filling it by eventFilter()'s resize handling.
     sheet_ = new PlaylistSheet(coverArtCache_, trackListContainer);
     sheet_->trackModel()->setTrackStates(trackStates_);
+    sheet_->trackModel()->setPreload(&preload_);
     const auto sourceName = [this](const QString& sourceId) {
         const Rpc::RpcClient* client = sourceManager_.client(sourceId);
         return client != nullptr ? client->sourceName() : QString();
@@ -1219,7 +1223,8 @@ void MainWindow::showAboutDialog() { Ui::AboutDialog(audioPulse_, this).exec(); 
 
 void MainWindow::showSettingsDialog(const QString& openAt)
 {
-    SettingsDialog dialog(settings_, analytics_, sourceManager_, *authStates_, downloads_, hotkeys_, this, openAt);
+    SettingsDialog dialog(
+        settings_, analytics_, sourceManager_, *authStates_, downloads_, preload_, hotkeys_, this, openAt);
     // While it's up, this window's toasts (an auth error from App::SourceSession,
     // a download finishing) go to the dialog instead: this window is
     // behind it, where they'd go unseen. Restored before the dialog, and

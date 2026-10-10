@@ -10,6 +10,9 @@
 namespace Library {
 class TrackStates;
 }
+namespace ViewModel {
+class Preload;
+}
 
 namespace Ui {
 
@@ -40,6 +43,11 @@ public:
         DislikedRole,
         // When the track was last played at all (any list), UTC; invalid if never.
         LastPlayedRole,
+        // From ViewModel::Preload (see setPreload()): whether the track is
+        // downloaded (bool), and how far a download under way has got
+        // (0..1; invalid when none is).
+        CachedRole,
+        DownloadProgressRole,
     };
 
     // One row for setMixedSourceTracks() — see that method's doc comment
@@ -73,6 +81,9 @@ public:
     // repaint whenever it reports a change. Without one those roles are
     // empty. See Library::TrackStates.
     void setTrackStates(Library::TrackStates* states);
+    // Where CachedRole/DownloadProgressRole come from; without one they're
+    // empty.
+    void setPreload(ViewModel::Preload* preload);
 
     const QString& sourceId() const { return sourceId_; }
     bool isMixedSource() const { return mixedSource_; }
@@ -87,6 +98,7 @@ private:
     void onStateChanged(const QString& sourceId, const QString& trackId);
 
     Library::TrackStates* states_ = nullptr;
+    ViewModel::Preload* preload_ = nullptr;
     QString sourceId_;
     QVector<Track> tracks_;
     QVector<QString> mixedSourceIds_; // parallel to tracks_, only populated when mixedSource_

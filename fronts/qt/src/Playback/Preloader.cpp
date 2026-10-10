@@ -281,6 +281,7 @@ void Preloader::setState(const QString& key, State state)
     it->state = state;
     const Item item = it->item;
     emit trackStateChanged(item.sourceId, item.trackId);
+    emit progressChanged(); // window() carries the state too
 }
 
 void Preloader::dropEntry(const QString& key)

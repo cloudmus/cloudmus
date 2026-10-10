@@ -970,6 +970,42 @@ Accetti di usare i download solo in questo modo?</translation>
     </message>
 </context>
 <context>
+    <name>Ui::Settings::PreloadPage</name>
+    <message>
+        <source>Preloading</source>
+        <translation>Precaricamento</translation>
+    </message>
+    <message>
+        <source>How many tracks after the playing one are downloaded in advance, one at a time, so they start at once and keep playing through a bad connection. With 0 only the playing track is downloaded.</source>
+        <translation>Quanti brani dopo quello in riproduzione vengono scaricati in anticipo, uno alla volta, così partono subito e continuano anche con una connessione scadente. Con 0 viene scaricato solo il brano in riproduzione.</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <extracomment>Megabytes, after a number: &quot;1024 MB&quot;</extracomment>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>Svuota</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a playlist:</source>
+        <translation>Brani in anticipo in una playlist:</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a radio:</source>
+        <translation>Brani in anticipo in una radio:</translation>
+    </message>
+    <message>
+        <source>Disk space for tracks:</source>
+        <translation>Spazio su disco per i brani:</translation>
+    </message>
+    <message>
+        <source>%1 used</source>
+        <translation>%1 in uso</translation>
+    </message>
+</context>
+<context>
     <name>Ui::Settings::ProxyEditor</name>
     <message>
         <source>e.g. Home SOCKS</source>
@@ -1442,6 +1478,33 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
     <message>
         <source>Removed dislike</source>
         <translation>«Non mi piace» rimosso</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Preload</name>
+    <message>
+        <source>Downloaded ahead: %1 of %2</source>
+        <translation>Scaricati in anticipo: %1 di %2</translation>
+    </message>
+    <message>
+        <source>%1 — downloaded</source>
+        <translation>%1 — scaricato</translation>
+    </message>
+    <message>
+        <source>%1 — %2%</source>
+        <translation>%1 — %2%</translation>
+    </message>
+    <message>
+        <source>%1 — couldn&apos;t be downloaded</source>
+        <translation>%1 — impossibile scaricare</translation>
+    </message>
+    <message>
+        <source>%1 — waiting, %2% so far</source>
+        <translation>%1 — in attesa, %2% finora</translation>
+    </message>
+    <message>
+        <source>%1 — waiting</source>
+        <translation>%1 — in attesa</translation>
     </message>
 </context>
 <context>

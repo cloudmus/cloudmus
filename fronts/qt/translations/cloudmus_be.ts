@@ -970,6 +970,42 @@ Do you agree to use downloads only this way?</source>
     </message>
 </context>
 <context>
+    <name>Ui::Settings::PreloadPage</name>
+    <message>
+        <source>Preloading</source>
+        <translation>Перадзагрузка</translation>
+    </message>
+    <message>
+        <source>How many tracks after the playing one are downloaded in advance, one at a time, so they start at once and keep playing through a bad connection. With 0 only the playing track is downloaded.</source>
+        <translation>Колькі трэкаў пасля таго, што грае, спампоўваецца загадзя, па адным, каб яны пачыналіся адразу і гралі нават пры дрэннай сувязі. Пры 0 спампоўваецца толькі трэк, які грае.</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <extracomment>Megabytes, after a number: &quot;1024 MB&quot;</extracomment>
+        <translation> МБ</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>Ачысціць</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a playlist:</source>
+        <translation>Трэкаў наперад у плэйлісце:</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a radio:</source>
+        <translation>Трэкаў наперад у радыё:</translation>
+    </message>
+    <message>
+        <source>Disk space for tracks:</source>
+        <translation>Месца на дыску пад трэкі:</translation>
+    </message>
+    <message>
+        <source>%1 used</source>
+        <translation>Занята: %1</translation>
+    </message>
+</context>
+<context>
     <name>Ui::Settings::ProxyEditor</name>
     <message>
         <source>e.g. Home SOCKS</source>
@@ -1444,6 +1480,33 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Removed dislike</source>
         <translation>«Не падабаецца» зняты</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Preload</name>
+    <message>
+        <source>Downloaded ahead: %1 of %2</source>
+        <translation>Спампавана наперад: %1 з %2</translation>
+    </message>
+    <message>
+        <source>%1 — downloaded</source>
+        <translation>%1 — спампаваны</translation>
+    </message>
+    <message>
+        <source>%1 — %2%</source>
+        <translation>%1 — %2%</translation>
+    </message>
+    <message>
+        <source>%1 — couldn&apos;t be downloaded</source>
+        <translation>%1 — не ўдалося спампаваць</translation>
+    </message>
+    <message>
+        <source>%1 — waiting, %2% so far</source>
+        <translation>%1 — чакае, спампавана %2%</translation>
+    </message>
+    <message>
+        <source>%1 — waiting</source>
+        <translation>%1 — чакае</translation>
     </message>
 </context>
 <context>

@@ -1,5 +1,7 @@
 #include "TrackListModel.h"
 
+#include "Preload.h"
+
 #include "TrackStates.h"
 
 namespace Ui {
@@ -101,6 +103,24 @@ void TrackListModel::setTrackStates(Library::TrackStates* states)
     });
 }
 
+void TrackListModel::setPreload(ViewModel::Preload* preload)
+{
+    preload_ = preload;
+    connect(preload_, &ViewModel::Preload::trackChanged, this, [this](const QString& sourceId, const QString& trackId) {
+        for (int row = 0; row < tracks_.size(); ++row) {
+            if (tracks_[row].id == trackId && sourceIdAt(row) == sourceId) {
+                const QModelIndex idx = index(row);
+                emit dataChanged(idx, idx, { CachedRole, DownloadProgressRole });
+            }
+        }
+    });
+    // The cache dropped or gained something — which tracks, it doesn't say.
+    connect(preload_, &ViewModel::Preload::cacheUsedChanged, this, [this]() {
+        if (!tracks_.isEmpty())
+            emit dataChanged(index(0), index(tracks_.size() - 1), { CachedRole });
+    });
+}
+
 void TrackListModel::onStateChanged(const QString& sourceId, const QString& trackId)
 {
     for (int row = 0; row < tracks_.size(); ++row) {
@@ -141,6 +161,15 @@ QVariant TrackListModel::data(const QModelIndex& index, int role) const
             const std::optional<bool>& flag = role == LikedRole ? state.liked : state.disliked;
             return flag.has_value() ? QVariant(*flag) : QVariant();
         }
+        case CachedRole:
+            if (preload_ == nullptr)
+                return { };
+            return preload_->stateFor(sourceIdAt(index.row()), t.id) == ViewModel::Preload::State::Ready;
+        case DownloadProgressRole:
+            if (preload_ == nullptr
+                || preload_->stateFor(sourceIdAt(index.row()), t.id) != ViewModel::Preload::State::Downloading)
+                return { };
+            return preload_->fractionFor(sourceIdAt(index.row()), t.id);
         case Qt::DisplayRole:
             return t.title;
         default:

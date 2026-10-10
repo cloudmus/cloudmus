@@ -11,6 +11,7 @@ namespace Tests {
 QObject* makeWindowHostTest();
 QObject* makeFocusTest();
 QObject* makeHotkeysPageTest();
+QObject* makePreloadUiTest();
 QObject* makeAboutDialogTest();
 QObject* makeCoverArtCacheTest();
 }
@@ -30,7 +31,7 @@ int main(int argc, char** argv)
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
     for (auto make : { Tests::makeWindowHostTest, Tests::makeFocusTest, Tests::makeHotkeysPageTest,
-             Tests::makeAboutDialogTest, Tests::makeCoverArtCacheTest }) {
+             Tests::makePreloadUiTest, Tests::makeAboutDialogTest, Tests::makeCoverArtCacheTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }
