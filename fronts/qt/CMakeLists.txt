@@ -420,17 +420,29 @@ target_link_libraries(cloudmus-ui PUBLIC
 option(CLOUDMUS_PCH "Precompile the Qt and standard headers" ON)
 if(CLOUDMUS_PCH)
     set(CLOUDMUS_PCH_CORE
-        <QByteArray> <QCoreApplication> <QDateTime> <QDir> <QFile> <QFileInfo>
-        <QHash> <QJsonArray> <QJsonDocument> <QJsonObject> <QList> <QLoggingCategory>
-        <QMap> <QObject> <QPointer> <QSet> <QString> <QStringList> <QTimer> <QUrl>
-        <QVariant> <QVector>
-        <algorithm> <functional> <memory> <optional> <utility> <vector>)
+        QByteArray QCoreApplication QDateTime QDir QFile QFileInfo
+        QHash QJsonArray QJsonDocument QJsonObject QList QLoggingCategory
+        QMap QObject QPointer QSet QString QStringList QTimer QUrl
+        QVariant QVector
+        algorithm functional memory optional utility vector)
     set(CLOUDMUS_PCH_UI
-        <QApplication> <QColor> <QDialog> <QFont> <QGuiApplication> <QHBoxLayout>
-        <QIcon> <QLabel> <QMouseEvent> <QPainter> <QPainterPath> <QPixmap>
-        <QPushButton> <QRect> <QVBoxLayout> <QWidget>)
-    target_precompile_headers(cloudmus-core PRIVATE ${CLOUDMUS_PCH_CORE})
-    target_precompile_headers(cloudmus-ui PRIVATE ${CLOUDMUS_PCH_CORE} ${CLOUDMUS_PCH_UI})
+        QApplication QColor QDialog QFont QGuiApplication QHBoxLayout
+        QIcon QLabel QMouseEvent QPainter QPainterPath QPixmap
+        QPushButton QRect QVBoxLayout QWidget)
+    # C++ only: cloudmus-ui has C sources too (the Wayland protocol), and
+    # without the condition CMake builds a C PCH from the same C++ headers.
+    # One expression per header, with $<ANGLE-R> for the closing bracket: a
+    # literal ">" would end the generator expression.
+    set(_pch_core)
+    foreach(h ${CLOUDMUS_PCH_CORE})
+        list(APPEND _pch_core "$<$<COMPILE_LANGUAGE:CXX>:<${h}$<ANGLE-R>>")
+    endforeach()
+    set(_pch_ui)
+    foreach(h ${CLOUDMUS_PCH_UI})
+        list(APPEND _pch_ui "$<$<COMPILE_LANGUAGE:CXX>:<${h}$<ANGLE-R>>")
+    endforeach()
+    target_precompile_headers(cloudmus-core PRIVATE ${_pch_core})
+    target_precompile_headers(cloudmus-ui PRIVATE ${_pch_core} ${_pch_ui})
     if(CLOUDMUS_CCACHE_PROGRAM AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         # Keeps the PCH's bytes independent of when it was written.
         target_compile_options(cloudmus-core PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
