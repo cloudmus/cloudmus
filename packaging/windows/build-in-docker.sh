@@ -39,7 +39,7 @@ xvfb-run -a wine "${cmake_exe}" -S "${repo_win}\\fronts\\qt" -B "${build_win}" \
     -DCLOUDMUS_MPV_ROOT="${mpv_win}" \
     -DCLOUDMUS_PREGENERATED_PROTOCOL=ON \
     -DCLOUDMUS_VERSION_OVERRIDE="${version}"
-xvfb-run -a wine "${cmake_exe}" --build "${build_win}" --target cloudmus-qt cloudmus-yt-dlp --parallel 4
+xvfb-run -a wine "${cmake_exe}" --build "${build_win}" --target cloudmus-qt cloudmus-yt-dlp --parallel "$(nproc)"
 
 # The exe that ships is this one, unstripped; the copy is for CI to upload
 # to Sentry (-g1 DWARF, matched by build id).
