@@ -169,6 +169,7 @@ add_library(cloudmus-core STATIC
     src/History/PlaybackHistory.cpp
     src/Library/TrackStates.cpp
     src/Library/DownloadPaths.cpp
+    src/Library/TrackFile.cpp
 
     src/Covers/CoverArtCache.cpp
 
@@ -303,6 +304,43 @@ if(CLOUDMUS_SENTRY)
     endif()
     target_link_libraries(cloudmus-core PUBLIC sentry::sentry)
     target_compile_definitions(cloudmus-core PUBLIC CLOUDMUS_HAS_SENTRY)
+endif()
+
+# TagLib writes the tags and cover of a saved track (Library::saveTrackFile).
+# 2.2 or newer: WebM, which YouTube's audio often is, arrived in 2.2. Built
+# statically from its release archive (utfcpp is in it) unless the system
+# has a new enough one.
+find_package(TagLib 2.2 CONFIG QUIET)
+if(TagLib_FOUND)
+    target_link_libraries(cloudmus-core PUBLIC TagLib::tag)
+else()
+    include(FetchContent)
+    set(CLOUDMUS_BUILD_SHARED_LIBS_SAVED ${BUILD_SHARED_LIBS})
+    set(CLOUDMUS_BUILD_TESTING_SAVED ${BUILD_TESTING})
+    set(BUILD_SHARED_LIBS OFF)
+    set(BUILD_TESTING OFF)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_BINDINGS OFF CACHE BOOL "" FORCE)
+    set(WITH_ZLIB OFF CACHE BOOL "" FORCE) # only for compressed ID3v2 frames
+    FetchContent_Declare(taglib
+        URL https://github.com/taglib/taglib/releases/download/v2.3.2/taglib-2.3.2.tar.gz
+        URL_HASH SHA256=3ca2d8afaa7f1cf7f6ed10e511ebc368bfacd6dcaa3dbfa690b89e502e8963dc
+        DOWNLOAD_EXTRACT_TIMESTAMP ON)
+    FetchContent_MakeAvailable(taglib)
+    set(BUILD_SHARED_LIBS ${CLOUDMUS_BUILD_SHARED_LIBS_SAVED})
+    set(BUILD_TESTING ${CLOUDMUS_BUILD_TESTING_SAVED})
+    # In the tree TagLib's headers sit in a directory per format and find
+    # each other by bare name (they are flattened only when installed).
+    file(GLOB_RECURSE _taglib_headers "${taglib_SOURCE_DIR}/taglib/*.h")
+    set(_taglib_dirs "${taglib_BINARY_DIR}")
+    foreach(_header ${_taglib_headers})
+        get_filename_component(_dir "${_header}" DIRECTORY)
+        list(APPEND _taglib_dirs "${_dir}")
+    endforeach()
+    list(REMOVE_DUPLICATES _taglib_dirs)
+    # PUBLIC: the track file tests read the tags back with it.
+    target_include_directories(cloudmus-core PUBLIC ${_taglib_dirs})
+    target_link_libraries(cloudmus-core PUBLIC tag)
 endif()
 add_custom_target(cloudmus_version
     COMMAND ${CMAKE_COMMAND} -DBASE=${PROJECT_VERSION} -DSRC=${CLOUDMUS_REPO_ROOT} -DOUT=${VERSION_DIR}/Version.h
@@ -613,6 +651,7 @@ add_executable(cloudmus-qt-tests
     tests/PreloaderTest.cpp
     tests/PlaybackPreloadTest.cpp
     tests/PreloadTest.cpp
+    tests/TrackFileTest.cpp
     tests/CrashReporterTest.cpp
     tests/UpdateTest.cpp
     tests/HotkeysTest.cpp

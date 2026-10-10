@@ -22,6 +22,7 @@ QObject* makeTrackCacheTest();
 QObject* makePreloaderTest();
 QObject* makePlaybackPreloadTest();
 QObject* makePreloadTest();
+QObject* makeTrackFileTest();
 QObject* makeCrashReporterTest();
 QObject* makeUpdateTest();
 QObject* makeHotkeysTest();
@@ -49,12 +50,13 @@ int main(int argc, char** argv)
     // Anything a test saves goes to throwaway locations, not the user's.
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
-    for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
-             Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
-             Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
-             Tests::makeTrackCacheTest, Tests::makePreloaderTest, Tests::makePlaybackPreloadTest,
-             Tests::makePreloadTest, Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeHotkeysTest,
-             Tests::makeI18nTest, Tests::makeAudioPulseTest, Tests::makeStarPromptTest, Tests::makePathsTest }) {
+    for (auto make :
+        { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
+            Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
+            Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
+            Tests::makeTrackCacheTest, Tests::makePreloaderTest, Tests::makePlaybackPreloadTest, Tests::makePreloadTest,
+            Tests::makeTrackFileTest, Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeHotkeysTest,
+            Tests::makeI18nTest, Tests::makeAudioPulseTest, Tests::makeStarPromptTest, Tests::makePathsTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

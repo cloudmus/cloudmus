@@ -88,3 +88,16 @@ RUN curl -fL --retry 3 -o /tmp/sentry-native.zip \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         librsvg2-bin imagemagick \
     && rm -rf /var/lib/apt/lists/*
+
+# TagLib, which writes the tags and cover of a saved track — here for the
+# same reason as sentry-native above: under Wine CMake's own downloader
+# would need the proxy too. The release archive has utfcpp in it. Last, so
+# adding it didn't invalidate the layers above.
+ARG TAGLIB_VERSION=2.3.2
+ARG TAGLIB_SHA256=3ca2d8afaa7f1cf7f6ed10e511ebc368bfacd6dcaa3dbfa690b89e502e8963dc
+RUN curl -fL --retry 3 -o /tmp/taglib.tar.gz \
+        "https://github.com/taglib/taglib/releases/download/v${TAGLIB_VERSION}/taglib-${TAGLIB_VERSION}.tar.gz" \
+    && echo "${TAGLIB_SHA256}  /tmp/taglib.tar.gz" | sha256sum -c - \
+    && mkdir -p /opt/taglib \
+    && tar -xzf /tmp/taglib.tar.gz -C /opt/taglib --strip-components=1 \
+    && rm /tmp/taglib.tar.gz

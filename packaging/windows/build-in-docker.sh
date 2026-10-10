@@ -34,6 +34,7 @@ xvfb-run -a wine "${cmake_exe}" -S "${repo_win}\\fronts\\qt" -B "${build_win}" \
     "-DCMAKE_C_FLAGS=-g1 -ffile-prefix-map=Z:/workspace=/workspace" \
     "-DCMAKE_CXX_FLAGS=-g1 -ffile-prefix-map=Z:/workspace=/workspace" \
     "-DFETCHCONTENT_SOURCE_DIR_SENTRY-NATIVE=$(winepath -w /opt/sentry-native)" \
+    "-DFETCHCONTENT_SOURCE_DIR_TAGLIB=$(winepath -w /opt/taglib)" \
     -DCMAKE_MAKE_PROGRAM="${ninja_win}" \
     -DCMAKE_PREFIX_PATH="${qt_win}" \
     -DCLOUDMUS_MPV_ROOT="${mpv_win}" \
