@@ -8,7 +8,7 @@ from cloudmus_backend_ytmusic import playback
 
 @pytest.fixture(autouse=True)
 def _no_network(monkeypatch):
-    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers: True)
+    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers, size=None: True)
 
 
 def _format(acodec="opus", vcodec="none", abr=0, url="https://x", ext="webm", http_headers=None):
@@ -139,7 +139,7 @@ async def test_rejected_url_is_re_resolved_with_a_fresh_session(monkeypatch):
     monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 0.01)
     monkeypatch.setattr(playback, "_extract_info", lambda vid: {"formats": [_format(abr=128, url="https://u")]})
     verdicts = iter([False, True])
-    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers: next(verdicts))
+    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers, size=None: next(verdicts))
     dropped = {"n": 0}
     monkeypatch.setattr(playback, "_drop_session", lambda: dropped.__setitem__("n", dropped["n"] + 1))
 
@@ -149,11 +149,29 @@ async def test_rejected_url_is_re_resolved_with_a_fresh_session(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_validation_is_given_the_format_size(monkeypatch):
+    monkeypatch.setattr(
+        playback, "_extract_info", lambda vid: {"formats": [{**_format(abr=128), "filesize": 3444361}]}
+    )
+    seen = []
+    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers, size=None: seen.append(size) or True)
+    await playback.resolve_stream_with_retry("abc", asyncio.Event())
+    assert seen == [3444361]
+
+
+def test_probe_asks_for_a_byte_past_the_first_mebibyte():
+    # A flagged session's URL serves only the start of the stream.
+    assert playback._probe_range(3444361) == "bytes=3444360-3444360"
+    assert playback._probe_range(None) == f"bytes={playback.VALIDATE_OFFSET}-{playback.VALIDATE_OFFSET}"
+    assert playback._probe_range(0) == f"bytes={playback.VALIDATE_OFFSET}-{playback.VALIDATE_OFFSET}"
+
+
+@pytest.mark.asyncio
 async def test_always_rejected_gives_up(monkeypatch):
     monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
     monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 0.01)
     monkeypatch.setattr(playback, "_extract_info", lambda vid: {"formats": [_format(abr=128)]})
-    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers: False)
+    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers, size=None: False)
     with pytest.raises(RuntimeError):
         await playback.resolve_stream_with_retry("abc", asyncio.Event())
 
