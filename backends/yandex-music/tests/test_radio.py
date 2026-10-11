@@ -205,10 +205,33 @@ async def test_top_up_never_serves_an_already_played_track_as_upcoming():
 
     await session._top_up("1", replace=True)
     # Alternating call: the server re-serves the queued id, which already
-    # played — nothing upcoming is left, so nothing is pushed.
+    # played. That is not served again — the session is asked once more,
+    # from the end of what it sent, and what it has then is.
     await session._top_up("1", replace=True)
     added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
-    assert len(added) == 1
+    assert len(added) == 2
+    assert all(t["id"] != "1" for batch in added for t in batch["tracks"])
+    assert client.calls[-1][1] == {"queue": ["1"]}
+
+
+@pytest.mark.asyncio
+async def test_top_up_gives_up_on_a_session_that_only_repeats_itself():
+    class _Repeating(_FakeClient):
+        def _respond(self, url, json):
+            if url.endswith("/tracks"):
+                self.calls.append((url, json))
+                return {"batchId": "b", "sequence": [{"type": "track", "track": _TrackDict.make(1)}]}
+            return super()._respond(url, json)
+
+    client = _Repeating()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    await session.track_started("1")
+
+    await session._top_up("1", replace=False)
+    assert len([url for url, _ in client.calls if url.endswith("/tracks")]) == 4
+    assert not [p for m, p in notifier.events if m == "radio/tracksAdded"]
 
 
 @pytest.mark.asyncio
@@ -390,3 +413,81 @@ async def test_tracks_played_to_the_end_keep_topping_up_with_album_track_ids():
                 queue += [t["id"] for t in p["tracks"] if t["id"] not in queue]
         notifier.events.clear()
         assert queue, "the wave ran out of tracks"
+
+
+@pytest.mark.asyncio
+async def test_a_track_the_session_has_not_queued_is_topped_up_by_the_fronts_count():
+    # The front's queue came apart from what was served (downloaded tracks
+    # kept through a replacement, a resumed radio): the track picked near
+    # its end isn't one of the served ones, and the ones jumped past are
+    # still counted as waiting — the queue used to run out with no more sent.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    session._upcoming = ["a", "b", "c", "d"]
+
+    await session.track_started("x", queued_after=1)
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1
+    assert "replaceUpcoming" not in added[0]
+    assert session._upcoming == ["d"] + [t["id"] for t in added[0]["tracks"]]
+
+
+@pytest.mark.asyncio
+async def test_a_finished_last_track_is_topped_up_whatever_was_served():
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    session._upcoming = ["a", "b", "c", "d"]
+
+    await session.track_finished("x", 1000, queued_after=0)
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1
+    assert session._upcoming == [t["id"] for t in added[0]["tracks"]]
+
+
+@pytest.mark.asyncio
+async def test_a_front_with_plenty_queued_is_not_topped_up():
+    # The other way round: little is left of what was served, but the front
+    # has more than that (tracks it kept).
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    session._upcoming = ["a", "b", "c"]
+
+    await session.track_started("c", queued_after=5)
+    await session.track_finished("c", 1000, queued_after=5)
+    assert not any(url.endswith("/tracks") for url, _ in client.calls)
+    assert not [p for m, p in notifier.events if m == "radio/tracksAdded"]
+
+
+@pytest.mark.asyncio
+async def test_tracks_picked_one_after_another_are_topped_up_as_they_start():
+    # Each is the head of what's queued — no jump — and none plays to its
+    # end: the front's count alone says the queue is running out.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)  # serves "1", "2"
+
+    await session.track_started("1", queued_after=1)
+    assert len([p for m, p in notifier.events if m == "radio/tracksAdded"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_start_reported_along_with_an_end_asks_for_nothing_more():
+    # The front reports a track's end and the next one's start together:
+    # the start's count is from before the end's top-up came.
+    client = _FakeClient(batch_size=3)
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)  # serves "1", "2", "3"
+    await session.track_started("1", queued_after=2)
+    session._topped_up_at = float("-inf")  # that was a while ago
+
+    await session.track_finished("1", 1000, queued_after=2)
+    await session.track_started("2", queued_after=1)
+    assert len([url for url, _ in client.calls if url.endswith("/tracks")]) == 2

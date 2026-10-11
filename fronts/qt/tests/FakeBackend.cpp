@@ -108,6 +108,7 @@ int runFakeBackend()
     QJsonValue slowDownloadRequestId;
     QString slowDownloadId;
     int skipCount = 0;
+    int topUpCount = 0;
     std::string line;
     while (std::getline(std::cin, line)) {
         const QJsonObject request = QJsonDocument::fromJson(QByteArray::fromStdString(line)).object();
@@ -240,6 +241,20 @@ int runFakeBackend()
                 notify(QStringLiteral("radio/tracksAdded"),
                     { { QStringLiteral("stationId"), QStringLiteral("station") },
                         { QStringLiteral("replaceUpcoming"), true },
+                        { QStringLiteral("tracks"),
+                            QJsonArray { QJsonObject { { QStringLiteral("id"), name },
+                                { QStringLiteral("title"), name }, { QStringLiteral("artists"), QJsonArray { } },
+                                { QStringLiteral("durationMs"), 180000 } } } } });
+            }
+            // A radio tops its queue up by what the front says it has left
+            // (queuedAfter) — here, once nothing is: one more track.
+            const QJsonValue queuedAfter
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("queuedAfter"));
+            if (method == QStringLiteral("feedback.trackStarted") && trackId.startsWith(QStringLiteral("http://"))
+                && queuedAfter.isDouble() && queuedAfter.toInt() == 0) {
+                const QString name = QStringLiteral("topped-up-%1").arg(++topUpCount);
+                notify(QStringLiteral("radio/tracksAdded"),
+                    { { QStringLiteral("stationId"), QStringLiteral("station") },
                         { QStringLiteral("tracks"),
                             QJsonArray { QJsonObject { { QStringLiteral("id"), name },
                                 { QStringLiteral("title"), name }, { QStringLiteral("artists"), QJsonArray { } },

@@ -229,6 +229,10 @@ private:
     void reshuffle(int first);
     void setWaveMode(bool on);
     void sendFeedbackFinishedOrSkip(bool wasSkip);
+    // How many tracks are queued after `index` — told to a radio with the
+    // track's feedback (queuedAfter, docs/protocol.md §7.1): the station
+    // tops the queue up by it, as only this queue knows what it has left.
+    int queuedAfter(int index) const;
 
     Rpc::SourceManager& sourceManager_;
     AudioPlayer* audioPlayer_ = nullptr;

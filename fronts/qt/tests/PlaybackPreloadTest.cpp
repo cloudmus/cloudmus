@@ -281,6 +281,49 @@ private slots:
         QCOMPARE(playback_->currentIndex(), 1);
     }
 
+    // The station tops the queue up by what's left of it here, which the
+    // feedback of each track says: picking the last track brings more.
+    void aRadioTellsItsStationHowMuchIsLeftQueued()
+    {
+        playback_->setPreloadDepth(0, 0);
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("station"),
+            { track(QStringLiteral("a")), track(QStringLiteral("b")), track(QStringLiteral("c")) });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        playback_->playAt(1);
+        QTRY_COMPARE(playback_->currentIndex(), 1);
+        QTest::qWait(300); // one is left after it: nothing to come yet
+        QCOMPARE(queueNames(), (QStringList { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c") }));
+
+        playback_->playAt(2);
+        QTRY_COMPARE(queueNames(),
+            (QStringList {
+                QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("topped-up-1") }));
+        QCOMPARE(playback_->currentIndex(), 2);
+    }
+
+    // The station counts the tracks it has sent, not the ones queued here:
+    // a batch it appends can repeat one that is still to come.
+    void aRadioDoesNotQueueAnAppendedTrackTwice()
+    {
+        playback_->setPreloadDepth(0, 0);
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("station"),
+            { track(QStringLiteral("a")), track(QStringLiteral("b")), track(QStringLiteral("c")) });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        playback_->playAt(1);
+        QTRY_COMPARE(playback_->currentIndex(), 1);
+
+        TracksAddedParams added;
+        added.stationId = QStringLiteral("station");
+        // c is queued to come; a has played, and may well come again.
+        added.tracks = { track(QStringLiteral("c")), track(QStringLiteral("x")), track(QStringLiteral("a")),
+            track(QStringLiteral("x")) };
+        playback_->handleTracksAdded(QStringLiteral("fake"), added);
+        QCOMPARE(queueNames(),
+            (QStringList { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("x"),
+                QStringLiteral("a") }));
+    }
+
 private:
     Rpc::AuthStates authStates_;
     Library::TrackStates trackStates_;

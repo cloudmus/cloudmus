@@ -350,3 +350,59 @@ async def test_an_append_overtaken_by_a_skip_adds_nothing():
 
     assert session._upcoming == [t1, t2]
     assert capture.emitted == []
+
+
+@pytest.mark.asyncio
+async def test_a_track_the_session_has_not_queued_is_topped_up_by_the_fronts_count():
+    # The front's queue came apart from what was served (downloaded tracks
+    # kept through a replacement): the track picked near its end isn't one
+    # of the served ones, and the ones jumped past are still counted as
+    # waiting — the queue used to run out with no more sent.
+    ids = [_vid(f"t{i}") for i in range(4)]
+    kept, n1, n2 = _vid("kept"), _vid("n1"), _vid("n2")
+    client = _FakeClient({
+        (None, MIX, False): _batch(*ids),
+        (kept, MIX, True): _batch(kept, ids[3], n1, n2),
+    })
+    capture = _Capture()
+    session = RadioSession(client, capture)
+    await session.start(MIX)
+
+    await session.track_started(kept, queued_after=1)
+
+    assert client.calls[-1] == (kept, MIX, True)
+    assert [t["id"] for t in capture.emitted[0]["tracks"]] == [n1, n2]
+    assert session._upcoming == [ids[3], n1, n2]
+
+
+@pytest.mark.asyncio
+async def test_a_finished_last_track_is_topped_up_whatever_was_served():
+    ids = [_vid(f"t{i}") for i in range(4)]
+    kept, n1 = _vid("kept"), _vid("n1")
+    client = _FakeClient({
+        (None, MIX, False): _batch(*ids),
+        (kept, MIX, True): _batch(n1),
+    })
+    capture = _Capture()
+    session = RadioSession(client, capture)
+    await session.start(MIX)
+
+    await session.track_finished(kept, 1000, queued_after=0)
+
+    assert [t["id"] for t in capture.emitted[0]["tracks"]] == [n1]
+    assert session._upcoming == [n1]
+
+
+@pytest.mark.asyncio
+async def test_a_front_with_plenty_queued_is_not_topped_up():
+    ids = [_vid(f"t{i}") for i in range(3)]
+    client = _FakeClient({(None, MIX, False): _batch(*ids)})
+    capture = _Capture()
+    session = RadioSession(client, capture)
+    await session.start(MIX)
+
+    await session.track_started(ids[2], queued_after=5)
+    await session.track_finished(ids[2], 1000, queued_after=5)
+
+    assert client.calls == [(None, MIX, False)]
+    assert capture.emitted == []

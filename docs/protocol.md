@@ -394,6 +394,16 @@ up to that track counts as passed, and when a jump ahead leaves little
 queued after it, the source appends more right then (a `radio/tracksAdded`
 without `replaceUpcoming`) rather than waiting for the track to end.
 
+How much is left is the front's to say: the queue is its own, and it
+differs from what the source has sent — the front keeps tracks it has
+already downloaded when the rest is replaced, drops the ones it already
+has, and may be playing tracks of an earlier run of the station. So
+`feedback.trackStarted` and `feedback.trackFinished` carry `queuedAfter`
+(1.13+), the number of tracks queued after that track, and a source that
+gets it tops the queue up by that number rather than by its own count of
+what it sent. Tracks of an appended batch that are already queued after
+the playing one are dropped by the front.
+
 ### 7.2 Playback — `providesStream` sources
 
 | Method | Params | Result |
@@ -440,8 +450,8 @@ results here are just acks.
 | `feedback.dislike` | `{"trackId": string}` | `feedback.dislike` |
 | `feedback.unlike` | `{"trackId": string}` | `feedback.like` |
 | `feedback.undislike` | `{"trackId": string}` | `feedback.dislike` |
-| `feedback.trackStarted` | `{"trackId": string}` | `browse.radio` (radio attribution) |
-| `feedback.trackFinished` | `{"trackId": string, "playedMs": number}` | `browse.radio` |
+| `feedback.trackStarted` | `{"trackId": string, "queuedAfter"?: number}` | `browse.radio` (radio attribution; `queuedAfter`: §7.1) |
+| `feedback.trackFinished` | `{"trackId": string, "playedMs": number, "queuedAfter"?: number}` | `browse.radio` |
 | `feedback.skip` | `{"trackId": string, "playedMs": number}` | `feedback.skip` or `browse.radio` |
 
 All return `{}` on success. `trackStarted`/`trackFinished`/`skip` exist

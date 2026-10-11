@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.12"
+protocolVersion: "1.13"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -208,7 +208,12 @@ methods:
     params:
       type: object
       required: [trackId]
-      properties: {trackId: {type: string}}
+      properties:
+        trackId: {type: string}
+        # optional (1.13+): how many tracks the front has queued after
+        # this one — what a source goes by to top the queue up
+        # (docs/protocol.md §7.1).
+        queuedAfter: {type: integer}
     result: {type: object, properties: {}, required: []}
     timeoutMs: 5000
 
@@ -217,7 +222,10 @@ methods:
     params:
       type: object
       required: [trackId, playedMs]
-      properties: {trackId: {type: string}, playedMs: {type: integer}}
+      properties:
+        trackId: {type: string}
+        playedMs: {type: integer}
+        queuedAfter: {type: integer}   # optional (1.13+), as in trackStarted
     result: {type: object, properties: {}, required: []}
     timeoutMs: 5000
 

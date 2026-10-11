@@ -227,12 +227,12 @@ def build_server() -> BackendServer:
 
     @server.method("feedback.trackStarted")
     async def handle_track_started(params: dict, request_id: int) -> dict:
-        await get_radio_session().track_started(params["trackId"])
+        await get_radio_session().track_started(params["trackId"], params.get("queuedAfter"))
         return {}
 
     @server.method("feedback.trackFinished")
     async def handle_track_finished(params: dict, request_id: int) -> dict:
-        await get_radio_session().track_finished(params["trackId"], params["playedMs"])
+        await get_radio_session().track_finished(params["trackId"], params["playedMs"], params.get("queuedAfter"))
         return {}
 
     @server.method("feedback.skip")

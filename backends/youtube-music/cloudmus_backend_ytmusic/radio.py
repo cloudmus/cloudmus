@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any, Awaitable, Callable
 
 from ytmusicapi import YTMusic
@@ -48,6 +49,9 @@ from rpc_common.generated.models import TracksAddedParams
 from . import catalog
 
 logger = logging.getLogger(__name__)
+
+# For this long after tracks were sent, a track's start doesn't ask for more.
+STALE_COUNT_SEC = 3.0
 
 NotifyFn = Callable[[str, dict[str, Any]], Awaitable[None]]
 
@@ -114,6 +118,8 @@ class RadioSession:
         self._reports: set[asyncio.Task] = set()
         # How many times a skip has replaced the queue — see _top_up().
         self._replacements = 0
+        # When tracks were last sent (time.monotonic()) — see track_started().
+        self._topped_up_at = float("-inf")
 
     async def start(self, seed: str | None) -> dict:
         if not seed:
@@ -178,6 +184,7 @@ class RadioSession:
             new = [t for t in tracks if t["videoId"] not in self._upcoming]
             self._upcoming += [t["videoId"] for t in new]
         if new:
+            self._topped_up_at = time.monotonic()
             await emit_radio_tracks_added(
                 self._notify,
                 TracksAddedParams(
@@ -200,25 +207,53 @@ class RadioSession:
         self._reports.add(task)
         task.add_done_callback(self._reports.discard)
 
-    async def track_started(self, track_id: str) -> None:
+    def _follow_front(self, queued_after: int | None) -> None:
+        # The front's queue is not what was served: it keeps tracks it has
+        # downloaded when the rest is replaced, drops the ones it already
+        # has, and may play tracks of an earlier session. Where it says how
+        # many it has left (queuedAfter, docs/protocol.md §7.1), no more
+        # than that many of the served ones can still be waiting — so the
+        # ones it never took don't keep a top-up's tracks out as "queued".
+        # Not by a count from before the last tracks were sent (see
+        # track_started()), which would drop those.
+        if time.monotonic() - self._topped_up_at <= STALE_COUNT_SEC:
+            return
+        if queued_after is not None and len(self._upcoming) > queued_after:
+            self._upcoming = self._upcoming[len(self._upcoming) - queued_after :]
+
+    async def track_started(self, track_id: str, queued_after: int | None = None) -> None:
         self._played.add(track_id)
         # Everything queued up to it has been played or jumped past.
-        jumped = track_id in self._upcoming and self._upcoming.index(track_id) > 0
-        if track_id in self._upcoming:
-            del self._upcoming[: self._upcoming.index(track_id) + 1]
+        position = self._upcoming.index(track_id) if track_id in self._upcoming else -1
+        if position >= 0:
+            del self._upcoming[: position + 1]
+        self._follow_front(queued_after)
         # The front jumped ahead in the queue (the user picked a track
         # further down — not a skip, nothing to replace) and little is left
         # after it: more is appended now rather than when it ends, following
         # the track picked. A track reached in order is topped up after as
         # ever, once it has played.
-        if jumped and len(self._upcoming) < UPCOMING_LOW_WATER:
+        if queued_after is None:
+            low = position > 0 and len(self._upcoming) < UPCOMING_LOW_WATER
+        else:
+            # By the front's own count, whichever way the track was reached
+            # — going by the served tracks alone, a queue that had come
+            # apart from them ran out with no more sent, and so did one
+            # whose tracks were picked one after another, none played to
+            # its end. Unless more was sent a moment ago: the count is then
+            # from before that came (a track ending and the next starting
+            # are reported together).
+            low = queued_after < UPCOMING_LOW_WATER and time.monotonic() - self._topped_up_at > STALE_COUNT_SEC
+        if low:
             await self._top_up(replace=False, anchor=track_id)
 
-    async def track_finished(self, track_id: str, played_ms: int) -> None:
+    async def track_finished(self, track_id: str, played_ms: int, queued_after: int | None = None) -> None:
         self._report_listen(track_id)
         self.last_good = track_id
+        self._follow_front(queued_after)
         # Played to the end: nothing to correct, keep what's queued.
-        if len(self._upcoming) < UPCOMING_LOW_WATER:
+        left = len(self._upcoming) if queued_after is None else queued_after
+        if left < UPCOMING_LOW_WATER:
             await self._top_up(replace=False)
 
     async def skip(self, track_id: str, played_ms: int) -> None:

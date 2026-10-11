@@ -5,6 +5,20 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.13 — what a radio has left queued
+
+- **Additive, backward-compatible**: optional param `queuedAfter` of
+  `feedback.trackStarted` and `feedback.trackFinished` (§7.1, §7.4) — the
+  number of tracks the front has queued after that track. A source tops a
+  radio's queue up by it instead of by its own count of the tracks it
+  sent, which the front's queue does not follow (downloaded tracks kept
+  through a replacement, duplicates dropped, tracks of an earlier run):
+  a station could take its queue for full and let it run out. Without the
+  param a source counts as before.
+- **Clarified, no wire change**: a front drops the tracks of an appended
+  `radio/tracksAdded` batch that it already has queued after the playing
+  one.
+
 ## 1.12 — saving a track from its stream
 
 - **Additive, backward-compatible**: optional capability

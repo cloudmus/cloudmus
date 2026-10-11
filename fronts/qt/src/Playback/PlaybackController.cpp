@@ -217,7 +217,7 @@ void PlaybackController::attachStation(const QString& sourceId, const QString& s
     // more once little is left after it.
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (hasCurrentTrack() && currentSourceId() == sourceId && client != nullptr && client->available()) {
-        TrackStartedParams started { currentTrack().id };
+        TrackStartedParams started { currentTrack().id, queuedAfter(index_) };
         Rpc::feedbackTrackStarted(*client, started).detach();
     }
 }
@@ -310,8 +310,18 @@ void PlaybackController::handleTracksAdded(const QString& sourceId, const Tracks
                 queue_.append(QueueEntry { sourceId, t });
         }
     } else {
-        for (const Track& t : params.tracks)
+        // Minus what's already queued to come: the station counts what it
+        // has sent, which this queue doesn't follow (see above, and
+        // queuedAfter()), so a batch can repeat a track still waiting here.
+        QSet<QString> queuedIds;
+        for (int i = qMax(index_, startingIndex_) + 1; i < queue_.size(); ++i)
+            queuedIds.insert(queue_[i].track.id);
+        for (const Track& t : params.tracks) {
+            if (queuedIds.contains(t.id))
+                continue;
+            queuedIds.insert(t.id);
             queue_.append(QueueEntry { sourceId, t });
+        }
     }
     trimRadioQueue();
     emit queueChanged();
@@ -425,7 +435,7 @@ void PlaybackController::becomeCurrent(int index, const QueueEntry& entry, bool 
     if (waveMode_) {
         Rpc::RpcClient* client = sourceManager_.client(entry.sourceId);
         if (client != nullptr && client->available()) {
-            TrackStartedParams started { entry.track.id };
+            TrackStartedParams started { entry.track.id, queuedAfter(index) };
             Rpc::feedbackTrackStarted(*client, started).detach();
         }
     }
@@ -631,6 +641,8 @@ void PlaybackController::setWaveMode(bool on)
     emit playModeChanged();
 }
 
+int PlaybackController::queuedAfter(int index) const { return qMax(0, int(queue_.size()) - 1 - index); }
+
 void PlaybackController::sendFeedbackFinishedOrSkip(bool wasSkip)
 {
     if (!waveMode_ || !hasCurrentTrack())
@@ -643,7 +655,7 @@ void PlaybackController::sendFeedbackFinishedOrSkip(bool wasSkip)
         SkipParams params { currentTrack().id, playedMs };
         Rpc::feedbackSkip(*client, params).detach();
     } else {
-        TrackFinishedParams params { currentTrack().id, playedMs };
+        TrackFinishedParams params { currentTrack().id, playedMs, queuedAfter(index_) };
         Rpc::feedbackTrackFinished(*client, params).detach();
     }
 }
@@ -875,7 +887,7 @@ void PlaybackController::promotePrepared(int nextIndex, bool manual)
     const QueueEntry entry = queue_[index_];
     if (waveMode_) {
         if (Rpc::RpcClient* client = sourceManager_.client(entry.sourceId)) {
-            TrackStartedParams params { entry.track.id };
+            TrackStartedParams params { entry.track.id, queuedAfter(index_) };
             Rpc::feedbackTrackStarted(*client, params).detach();
         }
     }

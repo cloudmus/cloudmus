@@ -176,6 +176,11 @@ class PlaybackEngine:
         self._latest_request_id = None
         self._latest_request_source = None
 
+    def _queued_after(self) -> int:
+        # What a radio tops the queue up by (docs/protocol.md §7.1): only
+        # this queue knows how much it has left after the current track.
+        return max(0, len(self.queue) - 1 - self.index)
+
     async def _advance(self, direction: int, auto: bool) -> None:
         prev_entry = self.current()
         if prev_entry is not None and self.wave:
@@ -183,8 +188,11 @@ class PlaybackEngine:
             client = self.source_manager.clients.get(prev_entry.source_id)
             if client is not None:
                 method = "feedback.trackFinished" if auto else "feedback.skip"
+                params = {"trackId": prev_entry.track["id"], "playedMs": int(played * 1000)}
+                if auto:
+                    params["queuedAfter"] = self._queued_after()
                 try:
-                    await client.request(method, {"trackId": prev_entry.track["id"], "playedMs": int(played * 1000)})
+                    await client.request(method, params)
                 except Exception as e:
                     logger.debug("%s failed: %s", method, e)
 
@@ -235,7 +243,9 @@ class PlaybackEngine:
 
         if self.wave:
             try:
-                await client.request("feedback.trackStarted", {"trackId": entry.track["id"]})
+                await client.request(
+                    "feedback.trackStarted", {"trackId": entry.track["id"], "queuedAfter": self._queued_after()}
+                )
             except Exception as e:
                 logger.debug("feedback.trackStarted failed: %s", e)
 

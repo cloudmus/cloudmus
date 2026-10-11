@@ -37,6 +37,12 @@ logger = logging.getLogger(__name__)
 # once fewer than this many served tracks are still waiting to play.
 UPCOMING_LOW_WATER = 3
 
+# How many batches in a row a top-up asks for while they bring nothing new.
+TOP_UP_ATTEMPTS = 4
+
+# For this long after tracks were sent, a track's start doesn't ask for more.
+STALE_COUNT_SEC = 3.0
+
 NotifyFn = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 
@@ -92,6 +98,8 @@ class RadioSession:
         self._upcoming: list[str] = []
         # How many times a skip has replaced the queue — see _top_up().
         self._replacements = 0
+        # When tracks were last sent (time.monotonic()) — see track_started().
+        self._topped_up_at = float("-inf")
 
     def _post(self, path: str, payload: dict) -> dict:
         result = self.client._request.post(f"{self.client.base_url}{path}", json=payload)
@@ -182,34 +190,47 @@ class RadioSession:
         if not self.radio_session_id:
             return
         replacements = self._replacements
-        result = await asyncio.to_thread(
-            self._post,
-            f"/rotor/session/{self.radio_session_id}/tracks",
-            {"queue": [played_track_id]},
-        )
-        if not result:
-            return
-        if replace:
-            self._replacements += 1
-        elif replacements != self._replacements:
-            # A skip replaced the queue while this was on its way: what it
-            # brought belongs after a queue that is no more.
-            return
-        self.batch_id = result.get("batchId", self.batch_id)
-        tracks = self._tracks_from(result)
-        # The sequence can still start with the track just played (the
-        # chain head advancing past it) — only unplayed ones are upcoming.
-        upcoming = [t for t in tracks if catalog._bare_id(t.id) not in self._played]
-        if replace:
-            # The new sequence supersedes everything still queued.
-            new = upcoming
-            self._upcoming = [catalog._bare_id(t.id) for t in new]
-        else:
-            # Appended after what's already queued — skip anything in it.
-            new = [t for t in upcoming if catalog._bare_id(t.id) not in self._upcoming]
-            self._upcoming += [catalog._bare_id(t.id) for t in new]
+        queue_id = played_track_id
+        new: list[Track] = []
+        for attempt in range(TOP_UP_ATTEMPTS):
+            result = await asyncio.to_thread(
+                self._post,
+                f"/rotor/session/{self.radio_session_id}/tracks",
+                {"queue": [queue_id]},
+            )
+            if not result:
+                return
+            if replace:
+                if attempt == 0:
+                    self._replacements += 1
+            elif replacements != self._replacements:
+                # A skip replaced the queue while this was on its way: what it
+                # brought belongs after a queue that is no more.
+                return
+            self.batch_id = result.get("batchId", self.batch_id)
+            tracks = self._tracks_from(result)
+            # The sequence can still start with the track just played (the
+            # chain head advancing past it) — only unplayed ones are upcoming.
+            upcoming = [t for t in tracks if catalog._bare_id(t.id) not in self._played]
+            if replace:
+                # The new sequence supersedes everything still queued.
+                new = upcoming
+                self._upcoming = [catalog._bare_id(t.id) for t in new]
+            else:
+                # Appended after what's already queued — skip anything in it.
+                new = [t for t in upcoming if catalog._bare_id(t.id) not in self._upcoming]
+                self._upcoming += [catalog._bare_id(t.id) for t in new]
+            if new or not tracks:
+                break
+            # All of it has been started already or is queued: the session
+            # goes on serving tracks it hasn't been told were played to the
+            # end or skipped — the ones a listener picks one after another
+            # in the queue, say — and a batch is only a few. Asked again
+            # from the end of this one, it moves on.
+            queue_id = str(tracks[-1].track_id)
 
         if new:
+            self._topped_up_at = time.monotonic()
             await emit_radio_tracks_added(
                 self._notify,
                 TracksAddedParams(
@@ -219,28 +240,56 @@ class RadioSession:
                 ),
             )
 
-    async def track_started(self, track_id: str) -> None:
+    def _follow_front(self, queued_after: int | None) -> None:
+        # The front's queue is not what was served: it keeps tracks it has
+        # downloaded when the rest is replaced, drops the ones it already
+        # has, and may play tracks of an earlier session. Where it says how
+        # many it has left (queuedAfter, docs/protocol.md §7.1), no more
+        # than that many of the served ones can still be waiting — so the
+        # ones it never took don't keep a top-up's tracks out as "queued".
+        # Not by a count from before the last tracks were sent (see
+        # track_started()), which would drop those.
+        if time.monotonic() - self._topped_up_at <= STALE_COUNT_SEC:
+            return
+        if queued_after is not None and len(self._upcoming) > queued_after:
+            self._upcoming = self._upcoming[len(self._upcoming) - queued_after :]
+
+    async def track_started(self, track_id: str, queued_after: int | None = None) -> None:
         tid = catalog._bare_id(track_id)
         self._played.add(tid)
         # Everything queued up to it has been played or jumped past.
-        jumped = tid in self._upcoming and self._upcoming.index(tid) > 0
-        if tid in self._upcoming:
-            del self._upcoming[: self._upcoming.index(tid) + 1]
+        position = self._upcoming.index(tid) if tid in self._upcoming else -1
+        if position >= 0:
+            del self._upcoming[: position + 1]
+        self._follow_front(queued_after)
         await self._send_feedback("trackStarted", trackId=track_id)
         # The front jumped ahead in the queue (the user picked a track
         # further down — not a skip, nothing to replace) and little is left
         # after it: more is appended now rather than when it ends. A track
         # reached in order is topped up after as ever, once it has played.
-        if jumped and len(self._upcoming) < UPCOMING_LOW_WATER:
+        if queued_after is None:
+            low = position > 0 and len(self._upcoming) < UPCOMING_LOW_WATER
+        else:
+            # By the front's own count, whichever way the track was reached
+            # — going by the served tracks alone, a queue that had come
+            # apart from them ran out with no more sent, and so did one
+            # whose tracks were picked one after another, none played to
+            # its end. Unless more was sent a moment ago: the count is then
+            # from before that came (a track ending and the next starting
+            # are reported together).
+            low = queued_after < UPCOMING_LOW_WATER and time.monotonic() - self._topped_up_at > STALE_COUNT_SEC
+        if low:
             await self._top_up(track_id, replace=False)
 
-    async def track_finished(self, track_id: str, played_ms: int) -> None:
+    async def track_finished(self, track_id: str, played_ms: int, queued_after: int | None = None) -> None:
+        self._follow_front(queued_after)
         await self._send_feedback(
             "trackFinished", trackId=track_id, totalPlayedSeconds=played_ms / 1000
         )
         # Played to the end: nothing to correct, keep what's queued. The
         # feedback above still steers the batches fetched later.
-        if len(self._upcoming) < UPCOMING_LOW_WATER:
+        left = len(self._upcoming) if queued_after is None else queued_after
+        if left < UPCOMING_LOW_WATER:
             await self._top_up(track_id, replace=False)
 
     async def skip(self, track_id: str, played_ms: int) -> None:
