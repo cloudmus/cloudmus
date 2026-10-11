@@ -145,9 +145,11 @@ class BrowserAuthSession:
     def __init__(self) -> None:
         self.status: str = "unauthenticated"
         self.error_message: str | None = None
+        # The saved headers are there, but YouTube no longer takes them.
+        self.expired = False
 
     def get_status(self) -> dict[str, Any]:
-        if config.has_browser_auth():
+        if config.has_browser_auth() and not self.expired:
             return {"status": "authenticated"}
         if self.status == "error":
             return {"status": "error", "detail": self.error_message or ""}
@@ -192,6 +194,18 @@ class BrowserAuthSession:
         if self.status == "pending":
             self.status = "unauthenticated"
 
+    async def mark_expired(self, notify: NotifyFn) -> str:
+        """YouTube has signed the saved session out (see
+        client.signed_out()): told to the front once, as a sign-in error,
+        so that it asks the user to sign in again. Returns the message."""
+        message = tr("YouTube Music has signed this session out. Sign in again.")
+        if not self.expired:
+            self.expired = True
+            self.status = "error"
+            self.error_message = message
+            await emit_auth_status_changed(notify, StatusChangedParams(status="error", message=message))
+        return message
+
     async def submit(self, fields: dict[str, str], notify: NotifyFn) -> None:
         try:
             path = config.browser_headers_path()
@@ -219,9 +233,11 @@ class BrowserAuthSession:
 
         client_module.reset_client()
         self.status = "authenticated"
+        self.expired = False
         await emit_auth_status_changed(notify, StatusChangedParams(status="authenticated"))
 
     def logout(self) -> None:
+        self.expired = False
         config.clear_browser_auth()
         client_module.reset_client()
         self.status = "unauthenticated"

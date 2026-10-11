@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 
 from ytmusicapi import LikeStatus
 
@@ -88,13 +89,33 @@ def build_server() -> BackendServer:
         await auth_session.submit(params["fields"], server.notify)
         return {}
 
+    def with_account(handler):
+        """For the calls that need the account: a failure with the session
+        signed out is told as that — to the caller (AUTH_EXPIRED) and to
+        the front's sign-in (auth/statusChanged) — not as whatever
+        ytmusicapi made of YouTube's "Sign in" page."""
+
+        @functools.wraps(handler)
+        async def guarded(params: dict, request_id: int) -> dict:
+            try:
+                return await handler(params, request_id)
+            except Exception:
+                if not await asyncio.to_thread(client_module.signed_out):
+                    raise
+            message = await auth_session.mark_expired(server.notify)
+            raise BackendError(errors.AUTH_EXPIRED, message, errors.app_error_data(retryable=False))
+
+        return guarded
+
     # --- catalog ---
 
     @server.method("catalog.listPlaylists")
+    @with_account
     async def handle_list_playlists(params: dict, request_id: int) -> dict:
         return await catalog.list_playlists(client_module.get_client())
 
     @server.method("catalog.listTracks")
+    @with_account
     async def handle_list_tracks(params: dict, request_id: int) -> dict:
         try:
             return await catalog.list_tracks(client_module.get_client(), params["playlistId"])
@@ -106,14 +127,17 @@ def build_server() -> BackendServer:
             )
 
     @server.method("catalog.getTrackPlaylists")
+    @with_account
     async def handle_get_track_playlists(params: dict, request_id: int) -> dict:
         return await catalog.get_track_playlists(client_module.get_client(), params["trackId"])
 
     @server.method("catalog.addToPlaylist")
+    @with_account
     async def handle_add_to_playlist(params: dict, request_id: int) -> dict:
         return await catalog.add_to_playlist(client_module.get_client(), params["playlistId"], params["trackId"])
 
     @server.method("catalog.removeFromPlaylist")
+    @with_account
     async def handle_remove_from_playlist(params: dict, request_id: int) -> dict:
         try:
             return await catalog.remove_from_playlist(
@@ -127,10 +151,12 @@ def build_server() -> BackendServer:
             )
 
     @server.method("catalog.listLiked")
+    @with_account
     async def handle_list_liked(params: dict, request_id: int) -> dict:
         return await catalog.list_liked(client_module.get_client())
 
     @server.method("catalog.startRadio")
+    @with_account
     async def handle_start_radio(params: dict, request_id: int) -> dict:
         try:
             return await get_radio_session().start(params.get("seed"), params.get("recentTrackIds"))
@@ -234,11 +260,13 @@ def build_server() -> BackendServer:
     # --- feedback ---
 
     @server.method("feedback.like")
+    @with_account
     async def handle_like(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().rate_song, params["trackId"], LikeStatus.LIKE)
         return {}
 
     @server.method("feedback.dislike")
+    @with_account
     async def handle_dislike(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().rate_song, params["trackId"], LikeStatus.DISLIKE)
         return {}
@@ -247,11 +275,13 @@ def build_server() -> BackendServer:
     # INDIFFERENT) — unlike and undislike both just clear it back to
     # INDIFFERENT, there's no separate "remove" call.
     @server.method("feedback.unlike")
+    @with_account
     async def handle_unlike(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().rate_song, params["trackId"], LikeStatus.INDIFFERENT)
         return {}
 
     @server.method("feedback.undislike")
+    @with_account
     async def handle_undislike(params: dict, request_id: int) -> dict:
         await asyncio.to_thread(client_module.get_client().rate_song, params["trackId"], LikeStatus.INDIFFERENT)
         return {}
