@@ -1,5 +1,6 @@
 #include "AudioFileProbe.h"
 
+#include <QFileInfo>
 #include <QLoggingCategory>
 
 #include <clocale>
@@ -128,9 +129,11 @@ AudioFileProbe::Info AudioFileProbe::read() const
         // The container doesn't say (Opus in WebM): the file's size over
         // its length — the container's own share is a few percent at most
         // for audio alone.
+        // The size from the file system, not mpv's "file-size": an older
+        // mpv (0.32, the AppImage's) may still say 0 right after loading.
         double duration = 0;
         mpv_get_property(mpv_, "duration", MPV_FORMAT_DOUBLE, &duration);
-        const qint64 size = intProperty(mpv_, "file-size");
+        const qint64 size = QFileInfo(queue_.first().path).size();
         if (duration > 0 && size > 0)
             info.bitrateKbps = int(std::llround(double(size) * 8.0 / duration / 1000.0));
     }
