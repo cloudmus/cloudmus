@@ -1,3 +1,13 @@
+# 0.6.1 (2026-10-12)
+
+- YouTube: higher-resolution album art
+- YouTube: the sign-in instruction now says to sign in from a private browser window, so the session isn't dropped later
+- YouTube: fix tracks failing to play because of a bad session
+- Track card: fix the codec and bitrate display for all local and cached tracks
+- Hotkeys: fix showing the window by a hotkey when it is minimized on Wayland
+- Notifications: fix Plasma freezing when the player starts at login
+- Playback: fix a cached track being deleted in some cases
+
 # 0.6.0 (2026-10-11)
 
 - Offline mode: the player can work without an internet connection
