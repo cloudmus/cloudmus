@@ -124,11 +124,9 @@ private:
     void refreshIcon()
     {
         const int side = Theme::Metrics::iconGlyphSize;
-        QIcon icon = Theme::icon(iconName_, underMouse() ? hoverColor() : restColor(), side);
-        // Used while disabled, whatever the hover/checked state above: given
-        // explicitly so Qt doesn't substitute its own grey.
-        icon.addPixmap(Theme::icon(iconName_, Theme::IconColor::Disabled, side).pixmap(side), QIcon::Disabled);
-        setIcon(icon);
+        // Theme::icon() carries the disabled look itself, whatever the
+        // hover/checked state here.
+        setIcon(Theme::icon(iconName_, underMouse() ? hoverColor() : restColor(), side));
     }
 
     QString iconName_;

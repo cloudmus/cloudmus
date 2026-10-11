@@ -130,6 +130,7 @@ QString textButtonsBlock(const Palette& p)
 }
 QPushButton[variant="primary"]:hover { background: %6; }
 QPushButton[variant="primary"]:pressed { background: %7; }
+QPushButton[variant="primary"]:disabled { background: %11; color: %13; }
 QPushButton[variant="secondary"] {
     background: %8;
     color: %9;
@@ -203,7 +204,11 @@ QString panelsBlock(const Palette& p)
     padding: %7px %8px;
 }
 QMenu { color: %5; }
+/* The color above reaches every item, the ones that can't be chosen too. A
+   color alone leaves the painting to Theme::CloudMusStyle. */
+QMenu::item:disabled { color: %10; }
 QMenu QCheckBox, QMenu QRadioButton { color: %5; spacing: %7px; }
+QMenu QCheckBox:disabled, QMenu QRadioButton:disabled { color: %10; }
 #transportSeparator { color: %2; }
 #secondaryLabel { color: %9; }
 #sectionLabel { color: %10; })")
@@ -303,6 +308,7 @@ QString trackListBlock(const Palette& p)
 QString dialogsBlock(const Palette& p)
 {
     const QString checkIcon = iconAssetPath(QStringLiteral("check"), IconColor::OnAccent, 12);
+    const QString disabledCheckIcon = iconAssetPath(QStringLiteral("check"), IconColor::InkTertiary, 12);
 
     return QStringLiteral(R"(QDialog[themed="true"] { background: %1; color: %2; }
 QLineEdit, QTextEdit, QPlainTextEdit {
@@ -316,6 +322,8 @@ QLineEdit, QTextEdit, QPlainTextEdit {
 QLineEdit { padding: %6px %7px; }
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus { border: 1px solid %8; }
 QLineEdit[variant="filter"] { padding: %7px %7px; border-radius: %12px; }
+/* A field that can't be used sinks back into the surface under it. */
+QLineEdit:disabled, QTextEdit:disabled, QPlainTextEdit:disabled { background: %1; color: %13; }
 QDialog[themed="true"] QCheckBox { spacing: %7px; color: %2; }
 QDialog[themed="true"] QCheckBox::indicator {
     width: 16px; height: 16px;
@@ -328,10 +336,20 @@ QDialog[themed="true"] QCheckBox::indicator:checked {
     background: %8;
     border-color: %8;
     image: url("%11");
+}
+/* Last of the check box rules so they win over hover/checked: no accent on a
+   box that can't be toggled. */
+QDialog[themed="true"] QCheckBox:disabled { color: %13; }
+QDialog[themed="true"] QCheckBox::indicator:disabled { background: %1; border-color: %4; }
+QDialog[themed="true"] QCheckBox::indicator:checked:disabled {
+    background: %14;
+    border-color: %4;
+    image: url("%15");
 })")
         .arg(hex(p.surface100), hex(p.ink), hex(p.surface200), hex(p.border), QString::number(Radius::sm),
             QString::number(Spacing::space1), QString::number(Spacing::space2), hex(p.accent), hex(p.onAccent))
-        .arg(hex(p.borderStrong), checkIcon, QString::number(Radius::md));
+        .arg(hex(p.borderStrong), checkIcon, QString::number(Radius::md), hex(p.inkTertiary), hex(p.surface300),
+            disabledCheckIcon);
 }
 
 // Ui::SettingsDialog: its sidebar sits on the dialog's own chrome tone
@@ -367,6 +385,9 @@ QString comboBoxBlock(const Palette& p)
     const QString arrow = iconAssetPath(QStringLiteral("expand_more"), IconColor::InkSecondary, 16);
     const QString stepUp = iconAssetPath(QStringLiteral("expand_less"), IconColor::InkSecondary, 12);
     const QString stepDown = iconAssetPath(QStringLiteral("expand_more"), IconColor::InkSecondary, 12);
+    const QString disabledArrow = iconAssetPath(QStringLiteral("expand_more"), IconColor::Disabled, 16);
+    const QString disabledStepUp = iconAssetPath(QStringLiteral("expand_less"), IconColor::Disabled, 12);
+    const QString disabledStepDown = iconAssetPath(QStringLiteral("expand_more"), IconColor::Disabled, 12);
 
     return QStringLiteral(R"(QDialog[themed="true"] QComboBox {
     background: %1;
@@ -434,10 +455,31 @@ QDialog[themed="true"] QAbstractSpinBox::up-button:hover, QDialog[themed="true"]
 QDialog[themed="true"] QAbstractSpinBox::up-button:pressed,
 QDialog[themed="true"] QAbstractSpinBox::down-button:pressed { background: %11; }
 QDialog[themed="true"] QAbstractSpinBox::up-arrow { image: url("%13"); width: 12px; height: 12px; }
-QDialog[themed="true"] QAbstractSpinBox::down-arrow { image: url("%14"); width: 12px; height: 12px; })")
+QDialog[themed="true"] QAbstractSpinBox::down-arrow { image: url("%14"); width: 12px; height: 12px; }
+/* Disabled, after everything they override: the same sunken field as a
+   disabled QLineEdit (dialogsBlock()), fainter arrows, and no hover. A spin
+   box's arrow is also "off" at the end of its range. */
+QDialog[themed="true"] QComboBox:disabled, QDialog[themed="true"] QAbstractSpinBox:disabled {
+    background: %15;
+    border-color: %2;
+    color: %16;
+}
+QDialog[themed="true"] QComboBox::down-arrow:disabled { image: url("%17"); }
+QDialog[themed="true"] QAbstractSpinBox::up-arrow:disabled, QDialog[themed="true"] QAbstractSpinBox::up-arrow:off {
+    image: url("%18");
+}
+QDialog[themed="true"] QAbstractSpinBox::down-arrow:disabled,
+QDialog[themed="true"] QAbstractSpinBox::down-arrow:off { image: url("%19"); }
+QDialog[themed="true"] QAbstractSpinBox::up-button:disabled, QDialog[themed="true"] QAbstractSpinBox::up-button:off,
+QDialog[themed="true"] QAbstractSpinBox::down-button:disabled,
+QDialog[themed="true"] QAbstractSpinBox::down-button:off { background: transparent; }
+QDialog[themed="true"] QLabel[hint="true"]:disabled, QDialog[themed="true"] QLabel[error="true"]:disabled {
+    color: %16;
+})")
         .arg(hex(p.surface200), hex(p.border), QString::number(Radius::sm), QString::number(Spacing::space1),
             QString::number(Spacing::space2), hex(p.ink), hex(p.borderStrong), hex(p.accent), arrow)
-        .arg(hex(p.surface300), hex(p.surface400), hex(p.inkSecondary), stepUp, stepDown);
+        .arg(hex(p.surface300), hex(p.surface400), hex(p.inkSecondary), stepUp, stepDown)
+        .arg(hex(p.surface100), hex(p.inkTertiary), disabledArrow, disabledStepUp, disabledStepDown);
 }
 
 } // namespace

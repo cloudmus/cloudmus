@@ -118,15 +118,21 @@ QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize, Mode 
 {
     ensureInvalidationConnected();
     const qreal dpr = devicePixelRatio();
-    const QString key = cacheKey(svgPath, color, pixelSize, dpr, mode);
 
     QHash<QString, QPixmap>& cache = iconCache();
-    auto it = cache.find(key);
-    if (it == cache.end()) {
-        const QColor resolved = colorFor(color, palette(mode));
-        it = cache.insert(key, renderTinted(svgPath, resolved, pixelSize, dpr));
-    }
-    return QIcon(it.value());
+    const auto tinted = [&](IconColor tint) {
+        const QString tintKey = cacheKey(svgPath, tint, pixelSize, dpr, mode);
+        auto it = cache.find(tintKey);
+        if (it == cache.end())
+            it = cache.insert(tintKey, renderTinted(svgPath, colorFor(tint, palette(mode)), pixelSize, dpr));
+        return it.value();
+    };
+    QIcon result(tinted(color));
+    // What a disabled button or menu item shows: given explicitly, so Qt
+    // doesn't substitute a grey of its own that ignores the theme.
+    if (color != IconColor::Disabled)
+        result.addPixmap(tinted(IconColor::Disabled), QIcon::Disabled);
+    return result;
 }
 
 QIcon iconFromFile(const QString& svgPath, const QColor& color, int pixelSize)
