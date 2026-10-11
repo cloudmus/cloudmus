@@ -94,7 +94,8 @@ private slots:
         const auto resets = [this]() {
             QList<QPushButton*> result;
             for (QPushButton* button : widget_->findChildren<QPushButton*>()) {
-                if (button->text() == QStringLiteral("Reset"))
+                // An icon button: its name is what says which one it is.
+                if (button->accessibleName() == QStringLiteral("Reset"))
                     result.append(button);
             }
             return result;
