@@ -2,8 +2,9 @@
 
 #include <QDBusArgument>
 #include <QDBusConnection>
-#include <QDBusInterface>
-#include <QDBusReply>
+#include <QDBusMessage>
+#include <QDBusPendingCallWatcher>
+#include <QDBusPendingReply>
 #include <QDir>
 #include <QFile>
 #include <QImage>
@@ -85,61 +86,74 @@ void NotificationToast::onNotificationClosed(uint id, uint reason)
 {
     Q_UNUSED(reason); // expired, dismissed or closed — gone from the screen either way
     ownIds_.remove(id);
-    if (id == lastNotificationId_)
-        lastNotificationId_ = 0;
-    if (id == lastNoticeId_)
-        lastNoticeId_ = 0;
+    if (id == track_.id)
+        track_.id = 0;
+    if (id == notice_.id)
+        notice_.id = 0;
 }
 
 void NotificationToast::updateCover(const QString& title, const QString& artist, const QPixmap& cover)
 {
     // Same timeout as showTrackChange() — past it a late cover must not pop up again.
-    if (lastNotificationId_ != 0 && lastNotificationSent_.isValid() && !lastNotificationSent_.hasExpired(5000))
+    if (track_.pending || (track_.id != 0 && track_.sentAt.isValid() && !track_.sentAt.hasExpired(5000)))
         showTrackChange(title, artist, cover);
 }
 
 void NotificationToast::showTrackChange(const QString& title, const QString& artist, const QPixmap& cover)
 {
-    send(lastNotificationId_, lastNotificationSent_, title, artist, cover, 5000);
+    send(track_, { title, artist, cover, 5000 });
 }
 
 void NotificationToast::showNotice(const QString& title, const QString& body, const QPixmap& cover)
 {
-    send(lastNoticeId_, lastNoticeSent_, title, body, cover, 2500);
+    send(notice_, { title, body, cover, 2500 });
 }
 
-void NotificationToast::send(
-    uint& id, QElapsedTimer& sentAt, const QString& title, const QString& body, const QPixmap& cover, int timeoutMs)
+void NotificationToast::send(Slot& slot, const Request& request)
 {
-    QDBusInterface iface(QStringLiteral("org.freedesktop.Notifications"),
-        QStringLiteral("/org/freedesktop/Notifications"), QStringLiteral("org.freedesktop.Notifications"),
-        QDBusConnection::sessionBus());
-    if (!iface.isValid())
+    if (slot.pending) {
+        slot.queued = request;
         return;
-
-    if (id != 0 && (!sentAt.isValid() || sentAt.hasExpired(timeoutMs)))
-        id = 0; // gone from the screen by now: a fresh popup, not a silent update
+    }
+    if (slot.id != 0 && (!slot.sentAt.isValid() || slot.sentAt.hasExpired(request.timeoutMs)))
+        slot.id = 0; // gone from the screen by now: a fresh popup, not a silent update
 
     QVariantMap hints;
     // Lets the server take the icon/name from the installed .desktop file
     // (the AppImage installs one — see AppRun); app_icon below names the
     // same icon for when there is none.
     hints.insert(QStringLiteral("desktop-entry"), QStringLiteral("cloudmus-qt"));
-    if (!cover.isNull()) {
-        const QImage image = cover.toImage().convertToFormat(QImage::Format_RGBA8888);
+    if (!request.cover.isNull()) {
+        const QImage image = request.cover.toImage().convertToFormat(QImage::Format_RGBA8888);
         QDBusArgument arg;
         arg << image;
         hints.insert(QStringLiteral("image-data"), QVariant::fromValue(arg));
     }
 
-    QDBusReply<uint> reply = iface.call(QStringLiteral("Notify"), QStringLiteral("CloudMus"), id,
-        // "default": the action for clicking the notification itself.
-        appIconName(), title, body, QStringList { QStringLiteral("default"), tr("Show player") }, hints, timeoutMs);
-    if (reply.isValid()) {
-        id = reply.value();
-        sentAt.start();
-        ownIds_.insert(id);
-    }
+    // A plain message rather than a QDBusInterface: creating one asks the
+    // server to introspect itself and waits for the answer.
+    QDBusMessage message = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.Notifications"),
+        QStringLiteral("/org/freedesktop/Notifications"), QStringLiteral("org.freedesktop.Notifications"),
+        QStringLiteral("Notify"));
+    message << QStringLiteral("CloudMus") << slot.id << appIconName() << request.title
+            << request.body
+            // "default": the action for clicking the notification itself.
+            << QStringList { QStringLiteral("default"), tr("Show player") } << hints << request.timeoutMs;
+    slot.pending = true;
+    auto* watcher = new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message), this);
+    // The slots are members: they live as long as the watcher's parent.
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, &slot]() {
+        watcher->deleteLater();
+        const QDBusPendingReply<uint> reply = *watcher;
+        slot.pending = false;
+        if (reply.isValid()) {
+            slot.id = reply.value();
+            slot.sentAt.start();
+            ownIds_.insert(slot.id);
+        }
+        if (const std::optional<Request> queued = std::exchange(slot.queued, std::nullopt))
+            send(slot, *queued);
+    });
 }
 
 } // namespace Integration
