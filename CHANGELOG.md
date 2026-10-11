@@ -1,3 +1,21 @@
+# 0.6.0 (2026-10-11)
+
+- Offline mode: the player can work without an internet connection
+- Downloads: tracks are downloaded whole into a cache and saved to the library from it, with their tags; the seek bar shows how much is downloaded
+- Preloading: settings for downloading tracks ahead and a view of what is already downloaded
+- YouTube: choose the stream quality in Settings; recovers from 403 on streams
+- Playback skips tracks that won't play
+- A track's codec and bitrate are shown in its card
+- Radio keeps the queue filling to its end, caps it at 100 tracks, and doesn't bring back lately played tracks
+- Hotkeys: rewind and fast forward added; next/previous moved to N and B; the row's reset is a square icon button
+- Radio replaces the queue only on Next and dislike
+- Resume: a radio started from a track comes back, and the saved song plays without waiting for its source
+- Local folder lists WebM and the other audio formats it used to skip
+- MPRIS: the cover is published as a local file; a cover is fetched once for all its sizes
+- Theme: disabled controls look disabled
+- About: shows the website link and the slogan
+- The hero shows the cover placeholder while the cover is slow to load
+
 # 0.5.1 (2026-10-06)
 
 - Fix the AppImage crashing at random moments, often on a track change
