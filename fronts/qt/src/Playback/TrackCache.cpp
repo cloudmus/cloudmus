@@ -53,6 +53,8 @@ QString TrackCache::filePath(const QString& key) const { return directory_ + QLa
 
 QString TrackCache::partPath(const QString& key) const { return filePath(key) + kPartSuffix; }
 
+QString TrackCache::location(const QString& key) const { return entries_.contains(key) ? filePath(key) : QString(); }
+
 QString TrackCache::path(const QString& key)
 {
     const auto it = entries_.find(key);

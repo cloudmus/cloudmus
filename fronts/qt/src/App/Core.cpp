@@ -62,6 +62,20 @@ Core::Core(QObject* parent)
             trackStates_.setStreamQuality(
                 sourceId, trackId, { stream.codec.value_or(QString()), stream.bitrateKbps.value_or(0) });
         });
+    // A track played from the cache is never resolved, so its source never
+    // says what it is: the file itself does.
+    connect(&trackStates_, &Library::TrackStates::streamQualityWanted, this,
+        [this](const QString& sourceId, const QString& trackId) {
+            const QString file = playback_.preloader().cachedFile(sourceId, trackId);
+            if (file.isEmpty() || probedFiles_.contains(file))
+                return;
+            probedFiles_.insert(file);
+            fileProbe_.probe(file, [this, sourceId, trackId](const Playback::AudioFileProbe::Info& info) {
+                trackStates_.setStreamQuality(sourceId, trackId, { info.codec, info.bitrateKbps });
+            });
+        });
+    connect(&playback_, &Playback::PlaybackController::trackChanged, &trackStates_,
+        [this](const Track& track, const QString& sourceId) { trackStates_.requestStreamQuality(sourceId, track.id); });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
     connect(&playback_, &Playback::PlaybackController::trackUnavailable, &trackStates_,
         &Library::TrackStates::setUnavailable);

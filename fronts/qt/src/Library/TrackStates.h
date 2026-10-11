@@ -70,6 +70,9 @@ public:
     // What the source streamed the track as. Nothing to record when it
     // said neither codec nor bitrate.
     void setStreamQuality(const QString& sourceId, const QString& trackId, const StreamQuality& quality);
+    // Somebody is about to show the track's stream quality: tells
+    // streamQualityWanted() unless it is known already.
+    void requestStreamQuality(const QString& sourceId, const QString& trackId);
     // The source said the track can't be played (reason "unavailable",
     // docs/protocol.md §9.1). Lasts for the run.
     void setUnavailable(const QString& sourceId, const QString& trackId);
@@ -79,6 +82,9 @@ signals:
     void changed(const QString& sourceId, const QString& trackId);
     // A successful user like/dislike action should also update cached playlists.
     void feedbackChanged(const QString& sourceId, const QString& trackId);
+    // See requestStreamQuality(). Whoever can find it out answers with
+    // setStreamQuality().
+    void streamQualityWanted(const QString& sourceId, const QString& trackId);
     // Many may have (a whole list observed) — views just refresh everything.
     void bulkChanged();
 

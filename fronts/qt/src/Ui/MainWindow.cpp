@@ -353,8 +353,11 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
         const Rpc::RpcClient* client = sourceManager_.client(sourceId);
         return client != nullptr ? client->sourceName() : QString();
     };
-    TrackHoverCard::attach(trackListView_, coverArtCache_, sourceName);
-    TrackHoverCard::attach(sheet_->trackView(), coverArtCache_, sourceName);
+    const auto requestQuality = [this](const QString& sourceId, const QString& trackId) {
+        trackStates_->requestStreamQuality(sourceId, trackId);
+    };
+    TrackHoverCard::attach(trackListView_, coverArtCache_, sourceName, requestQuality);
+    TrackHoverCard::attach(sheet_->trackView(), coverArtCache_, sourceName, requestQuality);
     trackListContainer->installEventFilter(this);
     sourcePanel_ = sheet_->sourcePanel();
     connect(sourcePanel_, &SourcePanel::submitRequested, &sourcePage_, &ViewModel::SourcePage::submit);

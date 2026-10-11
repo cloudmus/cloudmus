@@ -26,6 +26,8 @@ public:
     bool contains(const QString& key) const { return entries_.contains(key); }
     // The complete file, counted as used now; empty if there is none.
     QString path(const QString& key);
+    // Where the complete file is, without counting that as a use.
+    QString location(const QString& key) const;
     QString partPath(const QString& key) const;
     // The finished download becomes the cached file. Returns its path;
     // empty if it couldn't be moved (the .part then stays where it is).
