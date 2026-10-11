@@ -174,6 +174,13 @@ class BrowserAuthSession:
                     "while signed in, open <b>DevTools → Network</b>, click any request to "
                     "<code>music.youtube.com</code>, and paste its <b>Request Headers</b> (Firefox) or "
                     "<b>Copy as cURL (bash)</b> (Chrome) below."
+                )
+                # Google replaces the session's cookies as the browser goes
+                # on using it, and the copied ones die with that.
+                + " "
+                + tr(
+                    "Do this in a private window and close it afterwards without signing out: "
+                    "a browser that keeps using the same session soon makes these headers stop working."
                 ),
                 "fields": [{"name": "headers", "secret": False, "multiline": True}],
             },
