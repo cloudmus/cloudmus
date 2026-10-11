@@ -53,6 +53,10 @@ logger = logging.getLogger(__name__)
 # For this long after tracks were sent, a track's start doesn't ask for more.
 STALE_COUNT_SEC = 3.0
 
+# With nothing but lately played tracks to serve, this many of them are —
+# the ones played longest ago.
+REPEATS_AT_A_TIME = 3
+
 NotifyFn = Callable[[str, dict[str, Any]], Awaitable[None]]
 
 # After a track plays to the end, the queue is only topped up (appended to)
@@ -116,12 +120,16 @@ class RadioSession:
         self._upcoming: list[str] = []
         # Keeps the fire-and-forget history reports alive until they finish.
         self._reports: set[asyncio.Task] = set()
+        # Played lately, before this session: track id -> how far back (0:
+        # the latest) — what the front passed to start(). Not served while
+        # there is anything else (docs/protocol.md §7.1).
+        self._recent: dict[str, int] = {}
         # How many times a skip has replaced the queue — see _top_up().
         self._replacements = 0
         # When tracks were last sent (time.monotonic()) — see track_started().
         self._topped_up_at = float("-inf")
 
-    async def start(self, seed: str | None) -> dict:
+    async def start(self, seed: str | None, recent_track_ids: list[str] | None = None) -> dict:
         if not seed:
             raise ValueError("YouTube Music radio needs a seed trackId or playlistId")
         self.station_id = seed
@@ -129,6 +137,12 @@ class RadioSession:
         self.last_good = None
         self._played = set()
         self._skipped = set()
+        self._recent = {}
+        for rank, track_id in enumerate(recent_track_ids or []):
+            self._recent.setdefault(track_id, rank)
+        # The track a station is started from was asked for, however
+        # lately it played.
+        self._recent.pop(seed, None)
 
         def fetch() -> dict:
             if self.mix_id is None:
@@ -145,14 +159,20 @@ class RadioSession:
 
     def _fresh(self, result: dict) -> list[dict]:
         # Normalized, once each, minus anything played or skipped — a
-        # track's radio re-includes the track itself as its first entry.
-        tracks, seen = [], set()
+        # track's radio re-includes the track itself as its first entry —
+        # and minus what played lately, before this session, while there is
+        # anything else: failing that, a few of those, the ones played
+        # longest ago first.
+        tracks, held, seen = [], [], set()
         for t in result.get("tracks") or []:
             vid = t.get("videoId")
             if not vid or vid in seen or vid in self._played or vid in self._skipped:
                 continue
             seen.add(vid)
-            tracks.append(_normalize_watch_track(t))
+            (held if vid in self._recent else tracks).append(_normalize_watch_track(t))
+        if not tracks:
+            held.sort(key=lambda t: self._recent[t["videoId"]], reverse=True)
+            tracks = held[:REPEATS_AT_A_TIME]
         return tracks
 
     def _fetch_batch(self, anchor: str | None = None) -> dict:

@@ -294,6 +294,39 @@ private slots:
         QCOMPARE(playback_->queue().last().track.id, QStringLiteral("fresh"));
     }
 
+    // A station is told what played lately from its source — as far back
+    // as that source's setting says — to keep it from playing that again.
+    void aRadioIsStartedWithTheTracksPlayedLately()
+    {
+        start();
+        QCOMPARE(settings_->sourceRadioRepeatGap(QStringLiteral("fake")), Config::Settings::kDefaultRadioRepeatGap);
+        const auto heard = [this](const QString& sourceId, const QString& id) {
+            Track track;
+            track.id = id;
+            track.title = id;
+            history_.record(sourceId, track);
+        };
+        heard(QStringLiteral("fake"), QStringLiteral("heard-1"));
+        heard(QStringLiteral("fake"), QStringLiteral("heard-2"));
+        heard(QStringLiteral("fake"), QStringLiteral("heard-3"));
+        heard(QStringLiteral("another"), QStringLiteral("heard-elsewhere"));
+        heard(QStringLiteral("fake"), QStringLiteral("heard-2")); // once more: counted once, as the latest
+        QCOMPARE(history_.recentTrackIds(QStringLiteral("fake"), 2),
+            (QStringList { QStringLiteral("heard-2"), QStringLiteral("heard-3") }));
+
+        settings_->setSourceRadioRepeatGap(QStringLiteral("fake"), 2);
+        Playlist station = playlist(QStringLiteral("recent-check"));
+        station.kind = QStringLiteral("radioStation");
+        active_->activate({ QStringLiteral("fake"), station }, { }, 0);
+        // The fake station plays back what it was told.
+        QTRY_COMPARE(playback_->queue().size(), 2);
+        QCOMPARE(playback_->queue()[0].track.id, QStringLiteral("recent:heard-2"));
+        QCOMPARE(playback_->queue()[1].track.id, QStringLiteral("recent:heard-3"));
+
+        settings_->setSourceRadioRepeatGap(QStringLiteral("fake"), 9999);
+        QCOMPARE(settings_->sourceRadioRepeatGap(QStringLiteral("fake")), Config::Settings::kMaxRadioRepeatGap);
+    }
+
     void anEditToTheActivePlaylistShowsInItsTracks()
     {
         settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });

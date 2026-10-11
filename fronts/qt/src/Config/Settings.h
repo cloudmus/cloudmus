@@ -175,6 +175,13 @@ public:
     static constexpr auto kSystemConnection = "system";
     static constexpr auto kDirectConnection = "direct";
     QString sourceConnection(const QString& sourceId) const;
+    // How many of a source's lately played tracks its radio keeps from
+    // coming again (see ActivePlaylist::startRadio()). 0: any may.
+    // No more than History holds.
+    static constexpr int kDefaultRadioRepeatGap = 30;
+    static constexpr int kMaxRadioRepeatGap = 500;
+    int sourceRadioRepeatGap(const QString& sourceId) const;
+    void setSourceRadioRepeatGap(const QString& sourceId, int tracks);
     void setSourceConnection(const QString& sourceId, const QString& connection);
 
     // Backend manifest ids the user switched off (Rpc::SourceManager).

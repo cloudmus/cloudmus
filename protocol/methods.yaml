@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.13"
+protocolVersion: "1.14"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -83,7 +83,12 @@ methods:
     requiresCapability: browse.radio
     params:
       type: object
-      properties: {seed: {type: string}}
+      properties:
+        seed: {type: string}
+        # optional (1.14+): this source's tracks the front played lately,
+        # the latest first — not to be served again while there are
+        # others (docs/protocol.md §7.1).
+        recentTrackIds: {type: array, items: {type: string}}
       required: []
     result:
       type: object

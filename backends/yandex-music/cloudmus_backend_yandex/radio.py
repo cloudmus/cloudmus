@@ -37,8 +37,17 @@ logger = logging.getLogger(__name__)
 # once fewer than this many served tracks are still waiting to play.
 UPCOMING_LOW_WATER = 3
 
-# How many batches in a row a top-up asks for while they bring nothing new.
-TOP_UP_ATTEMPTS = 4
+# How many new tracks a top-up goes for: enough for the queue not to be
+# running low again at once.
+TOP_UP_TRACKS = UPCOMING_LOW_WATER
+
+# How many batches in a row a top-up asks for while they bring too little that
+# is new.
+TOP_UP_ATTEMPTS = 5
+
+# With nothing but lately played tracks to serve, this many of them are —
+# the ones played longest ago.
+REPEATS_AT_A_TIME = 3
 
 # For this long after tracks were sent, a track's start doesn't ask for more.
 STALE_COUNT_SEC = 3.0
@@ -96,6 +105,10 @@ class RadioSession:
         # Tracks served to the front that haven't started yet, in queue
         # order — the station's own part of the front's upcoming queue.
         self._upcoming: list[str] = []
+        # Played lately, before this session: bare track id -> how far back
+        # (0: the latest) — what the front passed to start(). Not served
+        # while there is anything else (docs/protocol.md §7.1).
+        self._recent: dict[str, int] = {}
         # How many times a skip has replaced the queue — see _top_up().
         self._replacements = 0
         # When tracks were last sent (time.monotonic()) — see track_started().
@@ -154,8 +167,33 @@ class RadioSession:
 
         await asyncio.to_thread(send)
 
-    async def start(self, seed: str | None) -> dict:
+    def _split(self, tracks: list[Track]) -> tuple[list[Track], list[Track]]:
+        # What may be served — never a track this session has played — as
+        # the ones to serve now and the ones played lately, held back.
+        fresh, held = [], []
+        for t in tracks:
+            tid = catalog._bare_id(t.id)
+            if tid not in self._played:
+                (held if tid in self._recent else fresh).append(t)
+        return fresh, held
+
+    def _least_recent(self, held: list[Track]) -> list[Track]:
+        # Nothing else to serve: a few of the held back ones, the ones
+        # played longest ago first.
+        by_id = {catalog._bare_id(t.id): t for t in reversed(held)}
+        oldest = sorted(by_id, key=lambda tid: self._recent.get(tid, 0), reverse=True)
+        return [by_id[tid] for tid in oldest[:REPEATS_AT_A_TIME]]
+
+    async def start(self, seed: str | None, recent_track_ids: list[str] | None = None) -> dict:
         self.station = _resolve_station(seed)
+        self._recent = {}
+        for rank, track_id in enumerate(recent_track_ids or []):
+            self._recent.setdefault(catalog._bare_id(track_id), rank)
+        # The track a station is started from was asked for, however
+        # lately it played.
+        kind, _, seed_id = self.station.partition(":")
+        if kind == "track":
+            self._recent.pop(seed_id, None)
         # So the station's tracks carry liked/disliked too (see catalog.LikeCache).
         await asyncio.to_thread(catalog.likes.ensure_loaded, self.client)
 
@@ -172,8 +210,11 @@ class RadioSession:
         )
         self.radio_session_id = result.get("radioSessionId")
         self.batch_id = result.get("batchId")
-        tracks = self._tracks_from(result)
         self._played = set()
+        fresh, held = self._split(self._tracks_from(result))
+        # However few are left: the front says how many it has queued, and
+        # the first track's start brings more.
+        tracks = fresh or self._least_recent(held)
         self._upcoming = [catalog._bare_id(t.id) for t in tracks]
         await self._send_feedback("radioStarted", **{"from": "cloudmus"})
 
@@ -192,6 +233,7 @@ class RadioSession:
         replacements = self._replacements
         queue_id = played_track_id
         new: list[Track] = []
+        held: list[Track] = []
         for attempt in range(TOP_UP_ATTEMPTS):
             result = await asyncio.to_thread(
                 self._post,
@@ -210,24 +252,33 @@ class RadioSession:
             self.batch_id = result.get("batchId", self.batch_id)
             tracks = self._tracks_from(result)
             # The sequence can still start with the track just played (the
-            # chain head advancing past it) — only unplayed ones are upcoming.
-            upcoming = [t for t in tracks if catalog._bare_id(t.id) not in self._played]
-            if replace:
+            # chain head advancing past it) — only unplayed ones are upcoming,
+            # and the ones played lately only when there is nothing else.
+            upcoming, lately = self._split(tracks)
+            held += lately
+            if replace and attempt == 0:
                 # The new sequence supersedes everything still queued.
-                new = upcoming
-                self._upcoming = [catalog._bare_id(t.id) for t in new]
-            else:
-                # Appended after what's already queued — skip anything in it.
-                new = [t for t in upcoming if catalog._bare_id(t.id) not in self._upcoming]
-                self._upcoming += [catalog._bare_id(t.id) for t in new]
-            if new or not tracks:
+                self._upcoming = []
+            # After what's already queued, or found a moment ago — minus
+            # anything in it.
+            for t in upcoming:
+                tid = catalog._bare_id(t.id)
+                if tid not in self._upcoming:
+                    self._upcoming.append(tid)
+                    new.append(t)
+            if len(new) >= TOP_UP_TRACKS or not tracks:
                 break
-            # All of it has been started already or is queued: the session
-            # goes on serving tracks it hasn't been told were played to the
-            # end or skipped — the ones a listener picks one after another
-            # in the queue, say — and a batch is only a few. Asked again
-            # from the end of this one, it moves on.
+            # Too little of it is new — the rest has been started already,
+            # played lately or is queued: the session goes on serving
+            # tracks it hasn't been told were played to the end or skipped,
+            # and a batch is only a few. Asked again from the end of this
+            # one, it moves on — until there is enough for the queue not to
+            # be running low at once.
             queue_id = str(tracks[-1].track_id)
+
+        if not new:
+            new = self._least_recent([t for t in held if replace or catalog._bare_id(t.id) not in self._upcoming])
+            self._upcoming += [catalog._bare_id(t.id) for t in new]
 
         if new:
             self._topped_up_at = time.monotonic()

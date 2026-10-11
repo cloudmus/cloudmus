@@ -4,6 +4,7 @@
 #include <QList>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 #include "Models.h"
 
@@ -31,6 +32,9 @@ public:
     // Most-recent-first.
     void record(const QString& sourceId, const Track& track);
     const QList<HistoryEntry>& entries() const { return entries_; }
+    // The ids of the tracks of `sourceId` played last, each once, the
+    // latest first, `limit` at most.
+    QStringList recentTrackIds(const QString& sourceId, int limit) const;
     // Patches Track::liked on every entry matching (sourceId, trackId),
     // persists (history.json), and emits changed() if anything matched —
     // so replaying a liked track from History (including after an app

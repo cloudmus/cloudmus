@@ -406,3 +406,42 @@ async def test_a_front_with_plenty_queued_is_not_topped_up():
 
     assert client.calls == [(None, MIX, False)]
     assert capture.emitted == []
+
+
+@pytest.mark.asyncio
+async def test_a_track_played_lately_is_not_served_while_there_are_others():
+    ids = [_vid(f"t{i}") for i in range(4)]
+    n1, n2 = _vid("n1"), _vid("n2")
+    client = _FakeClient({
+        (None, MIX, False): _batch(*ids),
+        (None, MIX, True): _batch(ids[1], n1, n2),
+    })
+    capture = _Capture()
+    session = RadioSession(client, capture)
+
+    result = await session.start(MIX, [ids[1], n1])
+    assert [t["id"] for t in result["initialTracks"]] == [ids[0], ids[2], ids[3]]
+
+    await session._top_up(replace=True)
+    assert [t["id"] for t in capture.emitted[0]["tracks"]] == [n2]
+
+
+@pytest.mark.asyncio
+async def test_with_nothing_else_the_tracks_played_longest_ago_are_served():
+    ids = [_vid(f"t{i}") for i in range(4)]
+    client = _FakeClient({(None, MIX, False): _batch(*ids)})
+    session = RadioSession(client, _Capture())
+
+    # The latest first: t3 was played longest ago.
+    result = await session.start(MIX, [ids[1], ids[0], ids[2], ids[3]])
+    assert [t["id"] for t in result["initialTracks"]] == [ids[3], ids[2], ids[0]]
+
+
+@pytest.mark.asyncio
+async def test_the_track_a_station_is_started_from_is_served_however_lately_it_played():
+    seed, next1 = _vid("seed"), _vid("next1")
+    client = _FakeClient({(seed, None, True): _batch(seed, next1)})
+    session = RadioSession(client, _Capture())
+
+    result = await session.start(seed, [seed, next1])
+    assert [t["id"] for t in result["initialTracks"]] == [seed]

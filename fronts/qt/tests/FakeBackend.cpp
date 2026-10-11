@@ -170,6 +170,22 @@ int runFakeBackend()
                         { QStringLiteral("title"), QStringLiteral("Old track 2") },
                         { QStringLiteral("artists"), QJsonArray { } }, { QStringLiteral("durationMs"), 180000 },
                         { QStringLiteral("liked"), true } } } } });
+        } else if (method == QStringLiteral("catalog.startRadio")
+            && request.value(QStringLiteral("params")).toObject().value(QStringLiteral("seed")).toString()
+                == QStringLiteral("recent-check")) {
+            // A station that plays back what it was told had played lately
+            // (recentTrackIds), for a test to see what that was.
+            QJsonArray tracks;
+            const QJsonArray recent
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("recentTrackIds")).toArray();
+            for (const QJsonValue& recentId : recent) {
+                const QString name = QStringLiteral("recent:") + recentId.toString();
+                tracks.append(QJsonObject { { QStringLiteral("id"), name }, { QStringLiteral("title"), name },
+                    { QStringLiteral("artists"), QJsonArray { } }, { QStringLiteral("durationMs"), 180000 } });
+            }
+            reply(id,
+                { { QStringLiteral("stationId"), QStringLiteral("station") },
+                    { QStringLiteral("initialTracks"), tracks } });
         } else if (method == QStringLiteral("catalog.startRadio")) {
             reply(id,
                 { { QStringLiteral("stationId"), QStringLiteral("station") },

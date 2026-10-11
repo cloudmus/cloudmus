@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSet>
 #include <QStandardPaths>
 
 #include "ProtocolParseError.h"
@@ -91,6 +92,21 @@ void PlaybackHistory::record(const QString& sourceId, const Track& track)
         entries_.removeLast();
     save();
     emit changed();
+}
+
+QStringList PlaybackHistory::recentTrackIds(const QString& sourceId, int limit) const
+{
+    QStringList ids;
+    QSet<QString> seen;
+    for (const HistoryEntry& e : entries_) {
+        if (ids.size() >= limit)
+            break;
+        if (e.sourceId != sourceId || seen.contains(e.track.id))
+            continue;
+        seen.insert(e.track.id);
+        ids.append(e.track.id);
+    }
+    return ids;
 }
 
 void PlaybackHistory::markTrackLiked(const QString& sourceId, const QString& trackId, bool liked)

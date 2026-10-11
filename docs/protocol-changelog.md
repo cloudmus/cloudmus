@@ -5,6 +5,16 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.14 — tracks a radio should not repeat yet
+
+- **Additive, backward-compatible**: optional param `recentTrackIds` of
+  `catalog.startRadio` (§7.1) — the source's tracks the front played
+  lately, the latest first. The source serves none of them from that
+  station while it has others, and the ones played longest ago first when
+  it has not. How many tracks keep a repeat away is the front's choice:
+  the length of the list. Without the param a station avoids, as before,
+  only what it has played since it was started.
+
 ## 1.13 — what a radio has left queued
 
 - **Additive, backward-compatible**: optional param `queuedAfter` of

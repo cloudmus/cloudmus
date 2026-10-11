@@ -6,6 +6,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSpinBox>
 #include <QStyledItemDelegate>
 #include <QVBoxLayout>
 
@@ -95,6 +96,26 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     connectionLayout->addWidget(connectionLabel);
     connectionLayout->addWidget(connectionCombo_, 1);
 
+    // Hidden by refresh() for a source without a radio.
+    repeatGapRow_ = new QWidget(widget);
+    repeatGapSpin_ = new QSpinBox(repeatGapRow_);
+    repeatGapSpin_->setFont(Theme::font(Theme::TextStyle::Body));
+    repeatGapSpin_->setRange(0, Config::Settings::kMaxRadioRepeatGap);
+    repeatGapSpin_->setValue(settings_.sourceRadioRepeatGap(manifest_.id));
+    connect(repeatGapSpin_, &QSpinBox::valueChanged, this, &Page::dirtyChanged);
+    auto* repeatGapLayout = new QHBoxLayout(repeatGapRow_);
+    repeatGapLayout->setContentsMargins(0, 0, 0, 0);
+    repeatGapLayout->setSpacing(Theme::Spacing::space3);
+    auto* repeatGapLabel = new QLabel(tr("Radio: tracks before a repeat:"), repeatGapRow_);
+    repeatGapLabel->setFont(Theme::font(Theme::TextStyle::Body));
+    repeatGapLayout->addWidget(repeatGapLabel);
+    repeatGapLayout->addWidget(repeatGapSpin_);
+    repeatGapLayout->addStretch(1);
+    repeatGapHint_ = makeHint(tr("The radio leaves out this many of the tracks last played from this source, as "
+                                 "long as it has others to play. 0: it may repeat any track. Applies to the next "
+                                 "station you start."),
+        widget);
+
     accountSection_ = new QWidget(widget);
     auto* accountTitle = new QLabel(tr("Account").toUpper(), accountSection_);
     accountTitle->setProperty("hint", true);
@@ -143,6 +164,8 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     layout->addWidget(offHint_);
     layout->addWidget(connectionRow_);
     layout->addWidget(connectionHint_);
+    layout->addWidget(repeatGapRow_);
+    layout->addWidget(repeatGapHint_);
     layout->addWidget(accountSection_);
     layout->addWidget(settingsSection_);
 
@@ -184,6 +207,11 @@ void SourcePage::refresh()
     usesNetwork_ = !running || client->usesNetwork();
     connectionRow_->setVisible(usesNetwork_);
     updateConnectionHint();
+
+    const bool hasRadio = running
+        && client->capabilities().value(QStringLiteral("browse")).toObject().value(QStringLiteral("radio")).toBool();
+    repeatGapRow_->setVisible(hasRadio);
+    repeatGapHint_->setVisible(hasRadio);
 
     const bool hasSettings = running && client->capabilities().value(QStringLiteral("settings")).toBool();
     settingsSection_->setVisible(hasSettings);
@@ -425,10 +453,13 @@ QString SourcePage::selectedConnection() const { return connectionCombo_->curren
 
 bool SourcePage::isDirty() const
 {
-    if (!enabledCheck_)
+    // Asked while createWidget() is still at it, too (filling the
+    // Connection choices says dirtyChanged()).
+    if (!enabledCheck_ || !repeatGapSpin_)
         return false;
     return enabledCheck_->isChecked() != sourceManager_.isEnabled(manifest_.id)
         || selectedConnection() != settings_.sourceConnection(manifest_.id)
+        || repeatGapSpin_->value() != settings_.sourceRadioRepeatGap(manifest_.id)
         || (settingsForm_ != nullptr && settingsForm_->isDirty());
 }
 
@@ -478,6 +509,9 @@ Rpc::Task<bool> SourcePage::apply()
         if (sourceManager_.isEnabled(manifest_.id))
             restarts_.sourceIds.insert(manifest_.id);
     }
+
+    // Read when a station is started: nothing to restart.
+    settings_.setSourceRadioRepeatGap(manifest_.id, repeatGapSpin_->value());
 
     if (enabledCheck_->isChecked() == sourceManager_.isEnabled(manifest_.id))
         co_return true;

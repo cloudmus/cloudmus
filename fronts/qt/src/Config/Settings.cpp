@@ -547,6 +547,23 @@ QString Settings::sourceConnection(const QString& sourceId) const
         .toString();
 }
 
+int Settings::sourceRadioRepeatGap(const QString& sourceId) const
+{
+    return qBound(0,
+        settings_.value(QStringLiteral("sources/%1/radioRepeatGap").arg(sourceId), kDefaultRadioRepeatGap).toInt(),
+        kMaxRadioRepeatGap);
+}
+
+void Settings::setSourceRadioRepeatGap(const QString& sourceId, int tracks)
+{
+    const QString key = QStringLiteral("sources/%1/radioRepeatGap").arg(sourceId);
+    tracks = qBound(0, tracks, kMaxRadioRepeatGap);
+    if (tracks == kDefaultRadioRepeatGap)
+        settings_.remove(key);
+    else
+        settings_.setValue(key, tracks);
+}
+
 void Settings::setSourceConnection(const QString& sourceId, const QString& connection)
 {
     const QString key = QStringLiteral("sources/%1/connection").arg(sourceId);

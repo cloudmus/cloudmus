@@ -335,7 +335,7 @@ value in v1.
 | `catalog.listPlaylists` | `{}` | `{"playlists": [Playlist, ...]}` | `browse.playlists \|\| browse.likedTracks \|\| browse.radio` |
 | `catalog.listTracks` | `{"playlistId": string, "cursor"?: string}` | `{"tracks": [Track, ...], "nextCursor"?: string}` | `browse.playlists` |
 | `catalog.listLiked` | `{"cursor"?: string}` | `{"tracks": [Track, ...], "nextCursor"?: string}` | `browse.likedTracks` |
-| `catalog.startRadio` | `{"seed"?: string}` | `{"stationId": string, "initialTracks": [Track, ...]}` | `browse.radio` |
+| `catalog.startRadio` | `{"seed"?: string, "recentTrackIds"?: [string]}` | `{"stationId": string, "initialTracks": [Track, ...]}` | `browse.radio` |
 
 `catalog.listPlaylists` is the single source of truth for everything a
 front shows as a "playlist" under a source, including the source's built-in
@@ -371,6 +371,15 @@ After the initial call, the front calls `feedback.trackStarted` /
 the source pushes more tracks proactively via `radio/tracksAdded` (§8) —
 there is no `catalog.getMoreRadioTracks` pull method; a source decides when
 to top up the queue.
+
+A station tends to come back to the same tracks, and only knows what it
+has served since it was started. A front that keeps a history of what was
+played passes `recentTrackIds` (1.14+) to `catalog.startRadio`: this
+source's tracks it played lately, the latest first, as many as it wants
+kept apart from a repeat. The source leaves them out of `initialTracks`
+and of every `radio/tracksAdded` of that station while it has others to
+serve; when it has none, it serves the ones played longest ago first. A
+track the station is seeded with is served all the same.
 
 By default the front appends a `radio/tracksAdded` batch to its queue. A
 source whose upstream recomputes the upcoming sequence in reaction to

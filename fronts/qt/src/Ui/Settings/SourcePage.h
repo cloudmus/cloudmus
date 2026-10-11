@@ -11,6 +11,7 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPushButton;
+class QSpinBox;
 
 namespace Config {
 class Settings;
@@ -57,7 +58,7 @@ public:
     QString title() const override { return manifest_.name; }
     QString iconPath() const override { return manifest_.iconPath; }
     QString sidebarSection() const override;
-    int estimatedHeight() const override { return 150; }
+    int estimatedHeight() const override { return 200; }
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;
@@ -100,6 +101,11 @@ private:
     QLabel* connectionHint_ = nullptr;
     QWidget* connectionRow_ = nullptr;
     bool usesNetwork_ = true;
+    // For a source with a radio: how many of its lately played tracks the
+    // radio keeps from coming again (Settings::sourceRadioRepeatGap()).
+    QWidget* repeatGapRow_ = nullptr;
+    QSpinBox* repeatGapSpin_ = nullptr;
+    QLabel* repeatGapHint_ = nullptr;
     QList<Config::ProxyConfig> proxyChoices_;
     // The saved choice names a proxy no longer in proxyChoices_.
     bool connectionOrphaned_ = false;

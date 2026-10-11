@@ -2,7 +2,15 @@ from types import SimpleNamespace
 
 import pytest
 
+from cloudmus_backend_yandex import radio
 from cloudmus_backend_yandex.radio import RadioSession, _resolve_station
+
+
+@pytest.fixture
+def one_batch_per_top_up(monkeypatch):
+    # A top-up asks on until it has a few new tracks; one is enough for the
+    # tests that look at what a single batch does.
+    monkeypatch.setattr(radio, "TOP_UP_TRACKS", 1)
 
 
 class _TrackDict:
@@ -133,7 +141,7 @@ async def test_start_creates_session_and_sends_radio_started_feedback():
 
 
 @pytest.mark.asyncio
-async def test_top_up_passes_played_track_as_queue_on_session_endpoint():
+async def test_top_up_passes_played_track_as_queue_on_session_endpoint(one_batch_per_top_up):
     # Regression: the session API's /rotor/session/{id}/tracks needs
     # queue=[<just-played track id>] to advance the chain (see radio.py's
     # _top_up() doc comment) — omitting it made the wave re-serve the same
@@ -150,7 +158,7 @@ async def test_top_up_passes_played_track_as_queue_on_session_endpoint():
 
 
 @pytest.mark.asyncio
-async def test_feedback_events_go_through_session_endpoint_with_batch_id():
+async def test_feedback_events_go_through_session_endpoint_with_batch_id(one_batch_per_top_up):
     # All feedback (not just top-up) must use /rotor/session/{id}/feedback
     # — the legacy /rotor/station/.../feedback endpoint returns
     # 400 "condition is not met" for every event type.
@@ -178,7 +186,7 @@ async def test_feedback_events_go_through_session_endpoint_with_batch_id():
 
 
 @pytest.mark.asyncio
-async def test_top_up_replaces_upcoming_with_unplayed_tracks():
+async def test_top_up_replaces_upcoming_with_unplayed_tracks(one_batch_per_top_up):
     # Every top-up is the wave's recomputed upcoming sequence: it's sent
     # with replaceUpcoming so the front swaps its unplayed tail instead of
     # growing the queue by a whole batch per track.
@@ -196,7 +204,7 @@ async def test_top_up_replaces_upcoming_with_unplayed_tracks():
 
 
 @pytest.mark.asyncio
-async def test_top_up_never_serves_an_already_played_track_as_upcoming():
+async def test_top_up_never_serves_an_already_played_track_as_upcoming(one_batch_per_top_up):
     client = _FakeClient()
     notifier = _NotifyRecorder()
     session = RadioSession(client, notifier)
@@ -230,12 +238,12 @@ async def test_top_up_gives_up_on_a_session_that_only_repeats_itself():
     await session.track_started("1")
 
     await session._top_up("1", replace=False)
-    assert len([url for url, _ in client.calls if url.endswith("/tracks")]) == 4
+    assert len([url for url, _ in client.calls if url.endswith("/tracks")]) == 5
     assert not [p for m, p in notifier.events if m == "radio/tracksAdded"]
 
 
 @pytest.mark.asyncio
-async def test_top_up_may_reserve_a_served_but_unplayed_track():
+async def test_top_up_may_reserve_a_served_but_unplayed_track(one_batch_per_top_up):
     # Track "2" was served in the initial batch but never started — a later
     # sequence recommending it again is legitimate (it replaces the tail).
     client = _FakeClient()
@@ -287,7 +295,7 @@ async def test_finished_track_keeps_the_queue_when_enough_is_upcoming():
 
 
 @pytest.mark.asyncio
-async def test_finished_track_appends_when_running_low():
+async def test_finished_track_appends_when_running_low(one_batch_per_top_up):
     client = _FakeClient()
     notifier = _NotifyRecorder()
     session = RadioSession(client, notifier)
@@ -491,3 +499,88 @@ async def test_a_start_reported_along_with_an_end_asks_for_nothing_more():
     await session.track_finished("1", 1000, queued_after=2)
     await session.track_started("2", queued_after=1)
     assert len([url for url, _ in client.calls if url.endswith("/tracks")]) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_track_played_lately_is_not_served_while_there_are_others():
+    # What the front played before this session — the station starts every
+    # session with much the same tracks.
+    client = _FakeClient(with_albums=True, batch_size=3)
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+
+    result = await session.start(seed=None, recent_track_ids=["2:102", "5:105"])
+    assert [t["id"] for t in result["initialTracks"]] == ["1:101", "3:103"]
+
+    await session._top_up("1:101", replace=False)  # serves 4, 5, 6, then 7, 8, 9
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert [t["id"] for t in added[0]["tracks"]] == ["4:104", "6:106", "7:107", "8:108", "9:109"]
+
+
+@pytest.mark.asyncio
+async def test_with_nothing_else_the_tracks_played_longest_ago_are_served():
+    client = _FakeClient(batch_size=4)
+    session = RadioSession(client, _NotifyRecorder())
+
+    # The latest first: 4 was played longest ago.
+    result = await session.start(seed=None, recent_track_ids=["2", "1", "3", "4"])
+    assert [t["id"] for t in result["initialTracks"]] == ["4", "3", "1"]
+
+
+@pytest.mark.asyncio
+async def test_a_top_up_of_lately_played_tracks_only_asks_on_then_serves_the_oldest():
+    client = _FakeClient(batch_size=1)
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    recent = [str(i) for i in range(2, 30)]
+    await session.start(seed=None, recent_track_ids=recent)  # serves "1"
+    await session.track_started("1")
+
+    await session._top_up("1", replace=False)  # 2, 3, 4, 5, 6: all played lately
+    assert len([url for url, _ in client.calls if url.endswith("/tracks")]) == 5
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert [t["id"] for t in added[0]["tracks"]] == ["6", "5", "4"]
+    assert session._upcoming == ["6", "5", "4"]
+
+
+@pytest.mark.asyncio
+async def test_a_track_played_in_this_session_is_never_served_again():
+    client = _FakeClient(batch_size=2)
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None, recent_track_ids=["3", "4"])  # serves 1, 2
+    await session.track_started("1")
+    session._played.add("3")
+
+    await session._top_up("1", replace=True)  # 3 and 4, both held back
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert [t["id"] for t in added[0]["tracks"]] != []
+    assert all(t["id"] != "3" for batch in added for t in batch["tracks"])
+
+
+@pytest.mark.asyncio
+async def test_the_track_a_station_is_started_from_is_served_however_lately_it_played():
+    client = _FakeClient(batch_size=2)
+    client.tracks = lambda ids: []
+    session = RadioSession(client, _NotifyRecorder())
+
+    result = await session.start(seed="1", recent_track_ids=["1", "2"])
+    assert [t["id"] for t in result["initialTracks"]] == ["1"]
+
+
+@pytest.mark.asyncio
+async def test_a_top_up_asks_on_until_it_has_a_few_new_tracks():
+    # A batch is a few tracks, most of them played lately: one new track
+    # at a time would leave the queue one track long.
+    client = _FakeClient(batch_size=2)
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None, recent_track_ids=["4", "6", "8"])  # serves 1, 2
+    await session.track_started("1")
+
+    await session._top_up("1", replace=False)  # 3 4, 5 6, 7 8
+    assert len([url for url, _ in client.calls if url.endswith("/tracks")]) == 3
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert len(added) == 1
+    assert [t["id"] for t in added[0]["tracks"]] == ["3", "5", "7"]
+    assert session._upcoming == ["2", "3", "5", "7"]

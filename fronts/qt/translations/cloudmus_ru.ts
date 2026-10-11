@@ -1094,6 +1094,14 @@ Do you agree to use downloads only this way?</source>
         <translation>Подключение:</translation>
     </message>
     <message>
+        <source>Radio: tracks before a repeat:</source>
+        <translation>Радио: треков до повтора:</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
+        <translation>Радио не ставит столько последних сыгранных треков этого источника, пока у него есть другие. 0 — может повторить любой трек. Применится к следующей запущенной станции.</translation>
+    </message>
+    <message>
         <source>Account</source>
         <translation>Аккаунт</translation>
     </message>

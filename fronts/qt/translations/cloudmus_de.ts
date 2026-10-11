@@ -1094,6 +1094,14 @@ Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
         <translation>Verbindung:</translation>
     </message>
     <message>
+        <source>Radio: tracks before a repeat:</source>
+        <translation>Radio: Titel bis zur Wiederholung:</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
+        <translation>Das Radio lässt so viele der zuletzt gespielten Titel dieser Quelle aus, solange es andere hat. 0: Jeder Titel darf sich wiederholen. Gilt für den nächsten gestarteten Sender.</translation>
+    </message>
+    <message>
         <source>Account</source>
         <translation>Konto</translation>
     </message>

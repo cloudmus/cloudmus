@@ -95,6 +95,9 @@ private:
     void resumeFromCache();
     // A radio resumed without its station gets one, once its source is up.
     Rpc::Task<void> attachStation(QString sourceId, QString seed);
+    // What a station is started with: its seed, and the source's tracks
+    // played lately, for it not to play them again so soon.
+    StartRadioParams radioParams(const QString& sourceId, const QString& seed) const;
     void applyPlaylistEdit(
         const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
     void loadCachedTracks();

@@ -299,6 +299,17 @@ Rpc::Task<void> ActivePlaylist::activateAndPlay(QString sourceId, Playlist playl
     }
 }
 
+StartRadioParams ActivePlaylist::radioParams(const QString& sourceId, const QString& seed) const
+{
+    StartRadioParams params { seed };
+    // A station knows what it has served since it was started, no more:
+    // what played before that is in History.
+    const QStringList recent = history_.recentTrackIds(sourceId, settings_.sourceRadioRepeatGap(sourceId));
+    if (!recent.isEmpty())
+        params.recentTrackIds = recent;
+    return params;
+}
+
 Rpc::Task<void> ActivePlaylist::startRadio(
     QString sourceId, QString seed, PlaylistContext context, std::optional<Track> resumeTrack)
 {
@@ -308,8 +319,7 @@ Rpc::Task<void> ActivePlaylist::startRadio(
     startingRadio_ = true;
     emit startingRadioChanged(true);
     try {
-        StartRadioParams params { seed };
-        StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
+        StartRadioResult result = co_await Rpc::catalogStartRadio(*client, radioParams(sourceId, seed));
         QList<Track> initialTracks = result.initialTracks;
         if (resumeTrack) {
             // The old station session cannot be resumed, but its last song
@@ -518,8 +528,7 @@ Rpc::Task<void> ActivePlaylist::attachStation(QString sourceId, QString seed)
     if (client == nullptr)
         co_return;
     try {
-        StartRadioParams params { seed };
-        StartRadioResult result = co_await Rpc::catalogStartRadio(*client, params);
+        StartRadioResult result = co_await Rpc::catalogStartRadio(*client, radioParams(sourceId, seed));
         // Unless something else has been started meanwhile.
         if (!context_.isRadio() || context_.sourceId != sourceId || context_.playlist.id != seed
             || !playback_.awaitsStation())

@@ -1094,6 +1094,14 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Connexion :</translation>
     </message>
     <message>
+        <source>Radio: tracks before a repeat:</source>
+        <translation>Radio : titres avant une répétition :</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
+        <translation>La radio écarte ce nombre des derniers titres lus de cette source tant qu’elle en a d’autres. 0 : elle peut répéter n’importe quel titre. S’applique à la prochaine station lancée.</translation>
+    </message>
+    <message>
         <source>Account</source>
         <translation>Compte</translation>
     </message>
