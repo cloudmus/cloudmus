@@ -1,8 +1,10 @@
 #pragma once
 
+#include <QJsonObject>
 #include <QNetworkProxy>
 #include <QObject>
 #include <QPointer>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -108,6 +110,13 @@ public:
     // already has the per-client dispatch table to fill in.
     void handleStreamReady(const QString& sourceId, const StreamReadyParams& params);
     void handleTracksAdded(const QString& sourceId, const TracksAddedParams& params);
+    // A source's `error` whose data names the track and why it won't play
+    // (docs/protocol.md §9.1). When it is the track being started, it is
+    // told to the user and playback goes on to the next track that plays —
+    // for "offline", the next downloaded one — at once, instead of waiting
+    // out the start timeout. False: nothing here to act on (no track or
+    // reason, or not the track being started); the caller shows the error.
+    bool handleTrackError(const QString& sourceId, const QJsonObject& data);
 
     void togglePause();
     void stop();
@@ -160,6 +169,8 @@ signals:
     void streamResolved(const QString& sourceId, const QString& trackId, const StreamDescriptor& stream);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
     void errorOccurred(QString message);
+    // A source said this track can't be played at all (reason "unavailable").
+    void trackUnavailable(const QString& sourceId, const QString& trackId);
     // The same failure, for statistics: the source it was on and a fixed
     // reason — "unavailable" (the source is down), "rejected" (the source
     // refused to play the track), "stream" (the audio didn't start),
@@ -219,6 +230,15 @@ private:
     // times, then left paused with Play loading it anew.
     void handleStartFailure(const QString& message, const QString& reason);
     void reportError(const QString& sourceId, const QString& reason, const QString& message);
+    // Nothing plays now: shown as paused, Play loads the track again.
+    void stopAfterFailure();
+    // The first track after `from`, in play order, that isn't known to be
+    // unavailable — and, with `downloadedOnly`, is downloaded; -1 if none
+    // (or if skipping has already gone through the whole queue without a
+    // track starting).
+    int nextPlayableAfter(int from, bool downloadedOnly) const;
+    void setUnavailable(const QString& sourceId, const QString& trackId);
+    bool isUnavailable(const QString& sourceId, const QString& trackId) const;
     // The queue index `delta` steps from the current one in play order
     // (shuffled or not), wrapping around under RepeatMode::All; -1 past
     // either end otherwise.
@@ -253,6 +273,8 @@ private:
     int latestRequestId_ = -1;
     int transitionGeneration_ = 0;
     std::optional<StreamReadyParams> earlyStreamReady_;
+    // Same for a track error (see handleTrackError()): sourceId and data.
+    std::optional<std::pair<QString, QJsonObject>> earlyTrackError_;
     // The playing track's stream as playback.play resolved it; none when
     // it plays from the cache.
     std::optional<StreamDescriptor> currentStream_;
@@ -261,6 +283,11 @@ private:
     bool preparedStartPending_ = false;
     // Fresh resolutions tried for the current track since it last started.
     int startRetries_ = 0;
+    // Tracks skipped one after another since a track last started; bounds
+    // the skipping to one pass over the queue.
+    int skipStreak_ = 0;
+    // Tracks a source said it can't play (sourceId + 0x1f + trackId), this run.
+    QSet<QString> unavailable_;
     // The current track failed for good: Play loads it again.
     bool reloadOnResume_ = false;
     // Queue index of the in-flight playback.play (-1 if none): it's about

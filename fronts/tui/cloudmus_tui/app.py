@@ -219,7 +219,9 @@ class PlayerApp(App):
         elif method == "auth/statusChanged":
             self._on_auth_status_changed(source_id, params)
         elif method == "error":
-            self.notify(params.get("message", "Backend error"), severity="error", timeout=6)
+            data = params.get("data") or {}
+            if not (self.playback_engine is not None and self.playback_engine.handle_track_error(source_id, data)):
+                self.notify(params.get("message", "Backend error"), severity="error", timeout=6)
         elif method == BACKEND_UNAVAILABLE:
             self.notify(f"{source_id} is unavailable: {params.get('reason', '?')}", severity="error", timeout=8)
         elif method == "state/changed":

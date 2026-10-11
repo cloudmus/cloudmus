@@ -250,6 +250,25 @@
     </message>
 </context>
 <context>
+    <name>Playback::PlaybackController</name>
+    <message>
+        <source>No network connection: playing the next downloaded track</source>
+        <translation>Нет сети: играет следующий загруженный трек</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is unavailable, skipped</source>
+        <translation>«%1» недоступен, пропущен</translation>
+    </message>
+    <message>
+        <source>No network connection, and no downloaded track follows</source>
+        <translation>Нет сети, и дальше нет загруженных треков</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is unavailable</source>
+        <translation>«%1» недоступен</translation>
+    </message>
+</context>
+<context>
     <name>QLineEdit</name>
     <message>
         <source>Hide</source>

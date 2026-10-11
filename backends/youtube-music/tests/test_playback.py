@@ -57,7 +57,7 @@ async def test_retries_then_succeeds(monkeypatch):
     def fake_extract(vid):
         calls["n"] += 1
         if calls["n"] < 3:
-            raise TimeoutError("transient network blip")
+            raise RuntimeError("transient blip")
         return {"formats": [_format(abr=128, url="https://ok")]}
 
     monkeypatch.setattr(playback, "_extract_info", fake_extract)
@@ -76,7 +76,7 @@ async def test_gives_up_after_max_attempts(monkeypatch):
 
     def fake_extract(vid):
         calls["n"] += 1
-        raise TimeoutError("transient network blip")
+        raise RuntimeError("transient blip")
 
     monkeypatch.setattr(playback, "_extract_info", fake_extract)
     with pytest.raises(RuntimeError):
@@ -90,7 +90,7 @@ async def test_cancel_event_aborts_retry(monkeypatch):
     monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 5.0)
 
     def fake_extract(vid):
-        raise TimeoutError("transient network blip")
+        raise RuntimeError("transient blip")
 
     monkeypatch.setattr(playback, "_extract_info", fake_extract)
 
@@ -238,3 +238,38 @@ async def test_stream_uses_the_quality_level(monkeypatch):
     monkeypatch.setattr(playback, "_extract_info", lambda vid: {"formats": formats})
     stream = await playback.resolve_stream_with_retry("abc", asyncio.Event(), "medium")
     assert stream.url == "https://mid"
+
+
+@pytest.mark.asyncio
+async def test_not_available_video_fails_fast(monkeypatch):
+    calls = {"n": 0}
+
+    def fake_extract(vid):
+        calls["n"] += 1
+        raise yt_dlp.utils.DownloadError("ERROR: [youtube] abc: This video is not available")
+
+    monkeypatch.setattr(playback, "_extract_info", fake_extract)
+    with pytest.raises(LookupError):
+        await playback.resolve_stream_with_retry("abc", asyncio.Event())
+    assert calls["n"] == 1
+
+
+@pytest.mark.asyncio
+async def test_network_down_is_reported_offline_after_two_attempts(monkeypatch):
+    from rpc_common.errors import OfflineError
+
+    monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
+    monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 0.01)
+    calls = {"n": 0}
+
+    def fake_extract(vid):
+        calls["n"] += 1
+        raise yt_dlp.utils.DownloadError(
+            "ERROR: [youtube] abc: Unable to download API page: "
+            "<urlopen error [Errno -3] Temporary failure in name resolution>"
+        )
+
+    monkeypatch.setattr(playback, "_extract_info", fake_extract)
+    with pytest.raises(OfflineError):
+        await playback.resolve_stream_with_retry("abc", asyncio.Event())
+    assert calls["n"] == playback.OFFLINE_ATTEMPTS

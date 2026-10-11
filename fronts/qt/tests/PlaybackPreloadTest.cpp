@@ -125,6 +125,46 @@ private slots:
         QCOMPARE(upstream_->requests.count(QStringLiteral("/b@0")), 1);
     }
 
+    // The source says a track can't be played: it is told and the next one
+    // plays at once, not after the start timeout.
+    void anUnavailableTrackIsSkipped()
+    {
+        Track gone;
+        gone.id = QStringLiteral("gone");
+        gone.title = QStringLiteral("gone");
+        playback_->loadQueue(
+            QStringLiteral("fake"), { track(QStringLiteral("a")), gone, track(QStringLiteral("c")) }, 0);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QSignalSpy unavailable(playback_.get(), &Playback::PlaybackController::trackUnavailable);
+        QSignalSpy errors(playback_.get(), &Playback::PlaybackController::errorOccurred);
+
+        playback_->next();
+        QTRY_COMPARE(playback_->currentTrack().title, QStringLiteral("c"));
+        QCOMPARE(unavailable.size(), 1);
+        QCOMPARE(unavailable.first().at(1).toString(), QStringLiteral("gone"));
+        QCOMPARE(errors.size(), 1);
+    }
+
+    // No network: only a track that needs none is worth going on to.
+    void withoutTheNetworkTheNextDownloadedTrackPlays()
+    {
+        Track offline;
+        offline.id = QStringLiteral("offline");
+        offline.title = QStringLiteral("offline");
+        Track uncached;
+        uncached.id = QStringLiteral("uncached");
+        uncached.title = QStringLiteral("uncached");
+        playback_->loadQueue(
+            QStringLiteral("fake"), { track(QStringLiteral("a")), offline, uncached, track(QStringLiteral("d")) }, 0);
+        QTRY_VERIFY(cached(QStringLiteral("d")));
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QSignalSpy unavailable(playback_.get(), &Playback::PlaybackController::trackUnavailable);
+
+        playback_->next();
+        QTRY_COMPARE(playback_->currentTrack().title, QStringLiteral("d"));
+        QCOMPARE(unavailable.size(), 0); // the track itself is fine
+    }
+
     // The mark on the seek bar is how much of the track is downloaded —
     // not how far ahead of the playhead mpv happens to have read.
     void theSeekBarShowsHowMuchIsDownloaded()

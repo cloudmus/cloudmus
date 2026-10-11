@@ -123,3 +123,34 @@ async def test_stream_reports_its_codec_and_bitrate():
     client = _FakeClient([[_FakeTrack(infos)]])
     stream = await playback.resolve_stream_with_retry(client, "123", asyncio.Event())
     assert (stream.codec, stream.bitrateKbps) == ("mp3", 192)
+
+
+@pytest.mark.asyncio
+async def test_unavailable_track_is_not_retried(monkeypatch):
+    track = _FakeTrack([_FakeInfo("mp3", 320, "https://ok")])
+    track.available = False
+    client = _FakeClient([[track]])
+    with pytest.raises(playback.TrackUnavailable):
+        await playback.resolve_stream_with_retry(client, "123", asyncio.Event())
+    assert client.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_network_down_is_reported_offline_after_two_attempts(monkeypatch):
+    from rpc_common.errors import OfflineError
+    from yandex_music.exceptions import NetworkError
+
+    monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
+    monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 0.01)
+
+    class _Down:
+        calls = 0
+
+        def tracks(self, ids):
+            self.calls += 1
+            raise NetworkError("x") from ConnectionError("name resolution")
+
+    client = _Down()
+    with pytest.raises(OfflineError):
+        await playback.resolve_stream_with_retry(client, "123", asyncio.Event())
+    assert client.calls == playback.OFFLINE_ATTEMPTS

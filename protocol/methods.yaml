@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.15"
+protocolVersion: "1.16"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -449,6 +449,8 @@ notifications:
       properties:
         code: {type: integer}
         message: {type: string}
+        # Besides retryable/detail (§9): optional trackId (1.16+) — the track the
+        # error is about — and reason (1.16+) — "unavailable" | "offline".
         data: {type: object, additionalProperties: true}
 
 # --- 9. Error codes ---

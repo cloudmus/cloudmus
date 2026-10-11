@@ -46,6 +46,9 @@ public:
         // From Library::TrackStates, only once the track's stream has been
         // resolved in this run: a Library::StreamQuality, else invalid.
         StreamQualityRole,
+        // From Library::TrackStates: bool, true once the source said the
+        // track can't be played.
+        UnavailableRole,
         // From ViewModel::Preload (see setPreload()): whether the track is
         // downloaded (bool), and how far a download under way has got
         // (0..1; invalid when none is).

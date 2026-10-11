@@ -21,6 +21,7 @@ import time
 import requests
 import yt_dlp
 
+from rpc_common.errors import OfflineError
 from rpc_common.generated.models import StreamDescriptor
 
 from . import quality
@@ -28,6 +29,9 @@ from . import quality
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 4.0
 MAX_ATTEMPTS = 3
+# With the network down every attempt fails the same way, so one more try
+# (a blip) is all it gets before the track is reported as offline.
+OFFLINE_ATTEMPTS = 2
 # A YoutubeDL session YouTube has flagged keeps getting URLs that
 # googlevideo answers with 403, until the process restarts — so it's
 # thrown away after this long even when nothing failed.
@@ -52,7 +56,29 @@ def _codec_name(acodec: str | None) -> str | None:
     return "aac" if acodec.startswith("mp4a") else acodec.split(".")[0]
 
 
-_NON_TRANSIENT_SIGNATURES = ("video unavailable", "private video", "copyright", "sign in to confirm")
+_NON_TRANSIENT_SIGNATURES = (
+    "video unavailable",
+    "this video is not available",
+    "private video",
+    "copyright",
+    "sign in to confirm",
+    "not available in your country",
+    "members-only",
+)
+# yt-dlp reports a dead network as a DownloadError wrapping the transport's
+# own text; the signatures are what it (and the OS) say for it.
+_OFFLINE_SIGNATURES = (
+    "temporary failure in name resolution",
+    "name or service not known",
+    "failed to resolve",
+    "getaddrinfo failed",
+    "network is unreachable",
+    "no route to host",
+    "connection refused",
+    "connection reset",
+    "connection aborted",
+    "timed out",
+)
 
 
 # One YoutubeDL at a time: a fresh one per track threw away its open
@@ -138,11 +164,28 @@ def _is_non_transient(exc: Exception) -> bool:
     return any(sig in message for sig in _NON_TRANSIENT_SIGNATURES)
 
 
+def _is_offline(exc: Exception) -> bool:
+    """True for a failure of the transport itself, not of the service's
+    answer: yt-dlp's TransportError, or the OS's network errors, anywhere
+    in the chain, or their well-known text."""
+    seen: set[int] = set()
+    cur: BaseException | None = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        if isinstance(cur, (yt_dlp.networking.exceptions.TransportError, requests.ConnectionError, OSError)):
+            return True
+        inner = getattr(cur, "exc_info", None)
+        cur = cur.__cause__ or cur.__context__ or (inner[1] if inner else None)
+    message = str(exc).lower()
+    return any(sig in message for sig in _OFFLINE_SIGNATURES)
+
+
 async def resolve_stream_with_retry(
     video_id: str, cancel_event: asyncio.Event, quality_level: str = quality.BEST
 ) -> StreamDescriptor:
     delay = RETRY_INITIAL_DELAY
     last_exc: Exception | None = None
+    offline_failures = 0
     for attempt in range(1, MAX_ATTEMPTS + 1):
         if cancel_event.is_set():
             raise asyncio.CancelledError
@@ -154,6 +197,10 @@ async def resolve_stream_with_retry(
             last_exc = e
             if isinstance(e, yt_dlp.utils.DownloadError) and _is_non_transient(e):
                 raise LookupError(f"video unavailable: {video_id}") from e
+            if not isinstance(e, StreamRejected) and _is_offline(e):
+                offline_failures += 1
+                if offline_failures >= OFFLINE_ATTEMPTS:
+                    raise OfflineError(str(e)) from e
             if attempt == MAX_ATTEMPTS:
                 break
             try:

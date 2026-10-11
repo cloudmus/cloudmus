@@ -30,6 +30,9 @@ struct TrackState {
     QDateTime lastPlayedAt; // UTC; invalid if never played (per History)
     // Known only for tracks whose stream was resolved in this run.
     std::optional<StreamQuality> streamQuality;
+    // The source could not play it in this run (removed, blocked in the
+    // region): views show it dimmed, and playback skips it.
+    bool unavailable = false;
 };
 
 // The one place a track's like/dislike/last-played state lives, keyed by
@@ -67,6 +70,9 @@ public:
     // What the source streamed the track as. Nothing to record when it
     // said neither codec nor bitrate.
     void setStreamQuality(const QString& sourceId, const QString& trackId, const StreamQuality& quality);
+    // The source said the track can't be played (reason "unavailable",
+    // docs/protocol.md §9.1). Lasts for the run.
+    void setUnavailable(const QString& sourceId, const QString& trackId);
 
 signals:
     // One track's state changed.

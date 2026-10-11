@@ -152,12 +152,23 @@ def build_server() -> BackendServer:
         except asyncio.CancelledError:
             raise BackendError(errors.STATE_INVALID, tr("Stream resolution cancelled"))
         except LookupError as e:
-            raise BackendError(errors.RESOURCE_NOT_FOUND, str(e), errors.app_error_data(retryable=False)) from e
+            raise BackendError(
+                errors.RESOURCE_NOT_FOUND,
+                str(e),
+                errors.app_error_data(
+                    retryable=False, track_id=params["trackId"], reason=errors.REASON_UNAVAILABLE
+                ),
+            ) from e
         except Exception as e:
+            offline = isinstance(e, errors.OfflineError)
             raise BackendError(
                 errors.UPSTREAM_UNREACHABLE,
                 str(e),
-                errors.app_error_data(retryable=True),
+                errors.app_error_data(
+                    retryable=True,
+                    track_id=params["trackId"],
+                    reason=errors.REASON_OFFLINE if offline else None,
+                ),
             ) from e
         finally:
             inflight_resolutions.pop(request_id, None)
@@ -179,7 +190,9 @@ def build_server() -> BackendServer:
                     {
                         "code": errors.RESOURCE_NOT_FOUND,
                         "message": tr("Track not playable: {error}", error=e),
-                        "data": errors.app_error_data(retryable=False),
+                        "data": errors.app_error_data(
+                            retryable=False, track_id=track_id, reason=errors.REASON_UNAVAILABLE
+                        ),
                     },
                 )
                 return
@@ -189,7 +202,11 @@ def build_server() -> BackendServer:
                     {
                         "code": errors.UPSTREAM_UNREACHABLE,
                         "message": tr("Failed to resolve stream for {track}: {error}", track=track_id, error=e),
-                        "data": errors.app_error_data(retryable=True),
+                        "data": errors.app_error_data(
+                            retryable=True,
+                            track_id=track_id,
+                            reason=errors.REASON_OFFLINE if isinstance(e, errors.OfflineError) else None,
+                        ),
                     },
                 )
                 return

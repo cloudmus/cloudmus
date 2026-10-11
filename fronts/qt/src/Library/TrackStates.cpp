@@ -91,4 +91,13 @@ void TrackStates::setStreamQuality(const QString& sourceId, const QString& track
     emit changed(sourceId, trackId);
 }
 
+void TrackStates::setUnavailable(const QString& sourceId, const QString& trackId)
+{
+    TrackState& s = states_[key(sourceId, trackId)];
+    if (s.unavailable)
+        return;
+    s.unavailable = true;
+    emit changed(sourceId, trackId);
+}
+
 } // namespace Library

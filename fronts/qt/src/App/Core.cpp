@@ -63,6 +63,8 @@ Core::Core(QObject* parent)
                 sourceId, trackId, { stream.codec.value_or(QString()), stream.bitrateKbps.value_or(0) });
         });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
+    connect(&playback_, &Playback::PlaybackController::trackUnavailable, &trackStates_,
+        &Library::TrackStates::setUnavailable);
 
     // What goes wrong, and the sign-in and like steps, for statistics.
     connect(&playback_, &Playback::PlaybackController::failed, &analytics_, &Analytics::recordPlaybackFailure);

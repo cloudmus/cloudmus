@@ -27,10 +27,30 @@ STATE_INVALID = 1400
 DOWNLOAD_CANCELLED = 1410
 
 
-def app_error_data(retryable: bool, detail: str | None = None) -> dict[str, Any]:
+# data.reason of a track that will not play (docs/protocol.md §9.1, 1.16+)
+REASON_UNAVAILABLE = "unavailable"
+REASON_OFFLINE = "offline"
+
+
+class OfflineError(Exception):
+    """A backend's stream resolution failed because its service can't be
+    reached at all (no network, DNS down) — as opposed to the service
+    answering "no". Maps to UPSTREAM_UNREACHABLE with reason "offline"."""
+
+
+def app_error_data(
+    retryable: bool,
+    detail: str | None = None,
+    track_id: str | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
     data: dict[str, Any] = {"retryable": retryable}
     if detail is not None:
         data["detail"] = detail
+    if track_id is not None:
+        data["trackId"] = track_id
+    if reason is not None:
+        data["reason"] = reason
     return data
 
 

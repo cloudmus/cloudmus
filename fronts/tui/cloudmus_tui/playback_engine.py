@@ -260,6 +260,33 @@ class PlaybackEngine:
         self._cancel_latest_request()
         asyncio.create_task(self._advance(direction=1, auto=True))
 
+    def handle_track_error(self, source_id: str, data: dict[str, Any]) -> bool:
+        """An `error` notification naming the track being started and why it
+        won't play (docs/protocol.md §9.1). "unavailable": say so and go on
+        to the next track at once, not after PLAY_TIMEOUT_SEC. "offline":
+        say so and stop — this front keeps no downloaded tracks, so every
+        next one would fail the same way. False: not about the track being
+        started; the caller shows the error as is."""
+        reason = data.get("reason")
+        entry = self.current()
+        if (
+            reason not in ("unavailable", "offline")
+            or entry is None
+            or entry.source_id != source_id
+            or entry.track.get("id") != data.get("trackId")
+            or self._latest_request_source != source_id
+            or self._resolved_request_id == self._latest_request_id
+        ):
+            return False
+        title = entry.track.get("title", "?")
+        self._cancel_latest_request()
+        if reason == "unavailable":
+            self._report_error(f"“{title}” is unavailable, skipping")
+            asyncio.create_task(self._advance(direction=1, auto=True))
+        else:
+            self._report_error(f"No network connection: can't play “{title}”")
+        return True
+
     def handle_stream_ready(self, source_id: str, request_id: int, stream: dict[str, Any]) -> None:
         if request_id != self._latest_request_id or source_id != self._latest_request_source:
             return  # superseded by a newer play — discard (docs/protocol.md §11.1)

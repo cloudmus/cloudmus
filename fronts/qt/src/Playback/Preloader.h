@@ -125,6 +125,9 @@ public:
 signals:
     void ready(const QString& sourceId, const QString& trackId);
     void failed(const QString& sourceId, const QString& trackId);
+    // Resolving found that the source can't play the track at all
+    // (error reason "unavailable"); failed() follows.
+    void trackUnavailable(const QString& sourceId, const QString& trackId);
     // A track's stream was resolved (not told: the playing track's comes
     // from playback.play).
     void streamResolved(const QString& sourceId, const QString& trackId, const StreamDescriptor& stream);

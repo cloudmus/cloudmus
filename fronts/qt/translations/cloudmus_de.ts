@@ -250,6 +250,25 @@
     </message>
 </context>
 <context>
+    <name>Playback::PlaybackController</name>
+    <message>
+        <source>No network connection: playing the next downloaded track</source>
+        <translation>Keine Netzwerkverbindung: der nächste heruntergeladene Titel wird gespielt</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is unavailable, skipped</source>
+        <translation>„%1“ ist nicht verfügbar, übersprungen</translation>
+    </message>
+    <message>
+        <source>No network connection, and no downloaded track follows</source>
+        <translation>Keine Netzwerkverbindung, und es folgt kein heruntergeladener Titel</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is unavailable</source>
+        <translation>„%1“ ist nicht verfügbar</translation>
+    </message>
+</context>
+<context>
     <name>QLineEdit</name>
     <message>
         <source>Hide</source>

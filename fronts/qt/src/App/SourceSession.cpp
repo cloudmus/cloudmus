@@ -40,7 +40,13 @@ void SourceSession::wire(Rpc::RpcClient* client)
         coverArtCache_.assignSource(client->sourceId(), p.tracks);
         playback_.handleTracksAdded(client->sourceId(), p);
     };
-    client->notifications.onError = [this](const ErrorParams& e) { messages_.error(e.message); };
+    client->notifications.onError = [this, client](const ErrorParams& e) {
+        // An error about the track being started moves playback on, saying
+        // so itself; any other is shown as the source worded it.
+        const QJsonObject data = e.data && e.data->isObject() ? e.data->toObject() : QJsonObject();
+        if (!playback_.handleTrackError(client->sourceId(), data))
+            messages_.error(e.message);
+    };
     client->notifications.onDownloadProgress
         = [this, client](const DownloadProgressParams& p) { emit downloadProgress(client->sourceId(), p); };
     // Into authStates_, whose changed() repaints every view of it.

@@ -222,6 +222,18 @@ int runFakeBackend()
                 : trackId.startsWith(QStringLiteral("http://")) || trackId.startsWith(QStringLiteral("file://"))
                 ? trackId
                 : QString();
+            // "gone" and "offline": the source can't produce the stream, and
+            // says why (docs/protocol.md §9.1).
+            if (trackId == QStringLiteral("gone") || trackId == QStringLiteral("offline")) {
+                const bool offline = trackId == QStringLiteral("offline");
+                notify(QStringLiteral("error"),
+                    { { QStringLiteral("code"), offline ? 1200 : 1300 }, { QStringLiteral("message"), trackId },
+                        { QStringLiteral("data"),
+                            QJsonObject { { QStringLiteral("retryable"), offline },
+                                { QStringLiteral("trackId"), trackId },
+                                { QStringLiteral("reason"),
+                                    offline ? QStringLiteral("offline") : QStringLiteral("unavailable") } } } });
+            }
             if (!url.isEmpty())
                 notify(QStringLiteral("track/streamReady"),
                     { { QStringLiteral("requestId"), id }, { QStringLiteral("trackId"), trackId },

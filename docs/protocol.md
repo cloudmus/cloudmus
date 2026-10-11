@@ -700,6 +700,27 @@ All application errors include:
 retry (e.g. a `1200` network blip) versus surface immediately and stop (e.g.
 `1300` not found).
 
+### 9.1 A track that will not play (1.16+)
+
+When a source cannot produce the stream of a track — in the response of
+`playback.play`/`playback.resolveStream`, or in an `error` notification
+(§8) after `playback.play` was accepted — `data` may also carry:
+
+- `trackId` — the track the error is about. An `error` notification has no
+  `requestId`, so this is how the front ties it to the track it started.
+- `reason` — why:
+  - `"unavailable"` (with `1300`): the track cannot be played at all — it
+    was removed, is blocked in the user's region, and so on. Retrying will
+    not help.
+  - `"offline"` (with `1200`): the source cannot reach its service —
+    there is no network. The track itself may well be fine.
+
+A front reacts without a retry loop of its own: for `unavailable` it tells
+the user and moves on to the next track; for `offline` it tells the user
+and moves on to the next track it can play without the network (one it has
+cached), and stops when there is none. A source that leaves `reason` out is
+treated as before: the front may retry once or twice, then stops.
+
 ---
 
 ## 10. Auth flows

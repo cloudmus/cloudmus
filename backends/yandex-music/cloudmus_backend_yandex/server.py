@@ -145,11 +145,23 @@ def build_server() -> BackendServer:
             )
         except asyncio.CancelledError:
             raise BackendError(errors.STATE_INVALID, tr("Stream resolution cancelled"))
+        except playback.TrackUnavailable as e:
+            raise BackendError(
+                errors.RESOURCE_NOT_FOUND,
+                tr("Track not playable: {error}", error=e),
+                errors.app_error_data(
+                    retryable=False, track_id=params["trackId"], reason=errors.REASON_UNAVAILABLE
+                ),
+            ) from e
         except Exception as e:
             raise BackendError(
                 errors.UPSTREAM_UNREACHABLE,
                 tr("Failed to resolve stream for {track}: {error}", track=params["trackId"], error=e),
-                errors.app_error_data(retryable=True),
+                errors.app_error_data(
+                    retryable=True,
+                    track_id=params["trackId"],
+                    reason=errors.REASON_OFFLINE if isinstance(e, errors.OfflineError) else None,
+                ),
             ) from e
         finally:
             inflight_resolutions.pop(request_id, None)
@@ -168,13 +180,29 @@ def build_server() -> BackendServer:
                 )
             except asyncio.CancelledError:
                 return
+            except playback.TrackUnavailable as e:
+                await server.notify(
+                    "error",
+                    {
+                        "code": errors.RESOURCE_NOT_FOUND,
+                        "message": tr("Track not playable: {error}", error=e),
+                        "data": errors.app_error_data(
+                            retryable=False, track_id=track_id, reason=errors.REASON_UNAVAILABLE
+                        ),
+                    },
+                )
+                return
             except Exception as e:
                 await server.notify(
                     "error",
                     {
                         "code": errors.UPSTREAM_UNREACHABLE,
                         "message": tr("Failed to resolve stream for {track}: {error}", track=track_id, error=e),
-                        "data": errors.app_error_data(retryable=True),
+                        "data": errors.app_error_data(
+                            retryable=True,
+                            track_id=track_id,
+                            reason=errors.REASON_OFFLINE if isinstance(e, errors.OfflineError) else None,
+                        ),
                     },
                 )
                 return

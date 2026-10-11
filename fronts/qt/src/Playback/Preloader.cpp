@@ -7,6 +7,7 @@
 #include <QUrl>
 
 #include "NetworkPool.h"
+#include "RpcClient.h"
 #include "StreamDownload.h"
 #include "TrackCache.h"
 
@@ -263,6 +264,16 @@ Rpc::Task<void> Preloader::resolveAsync(QString key, int generation, Rpc::Task<S
     std::optional<StreamDescriptor> stream;
     try {
         stream = co_await std::move(task);
+    } catch (const Rpc::RpcCallException& e) {
+        qCDebug(lcPreload) << "resolving a track failed:" << e.what();
+        const QJsonObject& data = e.error().data;
+        // The source says it can never be played: tell, so it is skipped
+        // rather than tried again whenever it comes up.
+        if (alive && data.value(QStringLiteral("reason")).toString() == QStringLiteral("unavailable")) {
+            const auto it = entries_.find(key);
+            if (it != entries_.end())
+                emit trackUnavailable(it->item.sourceId, it->item.trackId);
+        }
     } catch (const std::exception& e) {
         qCDebug(lcPreload) << "resolving a track failed:" << e.what();
     }

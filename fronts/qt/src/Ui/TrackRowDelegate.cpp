@@ -40,6 +40,7 @@ constexpr int kEqualizerGap = Theme::Spacing::space2;
 constexpr int kCachedDotSize = 6;
 // What's downloaded is marked like the seek bar marks it (ThemedSlider).
 constexpr qreal kDownloadedAlpha = 0.35;
+constexpr qreal kUnavailableAlpha = 0.45;
 
 // 3 uneven, fixed-height bars — not animated. Drawn immediately left of the
 // duration column on the currently-playing row (see paint()).
@@ -238,8 +239,14 @@ void TrackRowDelegate::paint(QPainter* painter, const QStyleOptionViewItem& opti
         playIcon.paint(painter, iconRect, Qt::AlignCenter, QIcon::Normal, QIcon::On);
     }
 
-    const QColor textColor = (selected || isCurrentTrack) ? pal.accent : pal.ink;
-    const QColor secondaryColor = pal.inkSecondary;
+    // A track the source couldn't play is dimmed: it is skipped, not broken.
+    const bool unavailable = index.data(TrackListModel::UnavailableRole).toBool();
+    QColor textColor = (selected || isCurrentTrack) ? pal.accent : pal.ink;
+    QColor secondaryColor = pal.inkSecondary;
+    if (unavailable) {
+        textColor.setAlphaF(kUnavailableAlpha);
+        secondaryColor.setAlphaF(kUnavailableAlpha);
+    }
 
     const QFont titleFont = Theme::font(Theme::TextStyle::Title, option.font);
     const QFont secondaryFont = Theme::font(Theme::TextStyle::BodySecondary, option.font);

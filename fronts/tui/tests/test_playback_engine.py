@@ -100,3 +100,40 @@ async def test_queue_exhausted_reports_none(engine):
     await eng.next()  # advances past the only track
     assert eng.current() is None
     assert calls[-1] is None
+
+
+@pytest.mark.asyncio
+async def test_unavailable_track_error_skips_to_the_next_at_once(engine):
+    eng, client = engine
+    errors = []
+    eng.on_error = errors.append
+    await eng.load_queue("local-folder", [_track("1", "One"), _track("2")], start_index=0)
+
+    handled = eng.handle_track_error("local-folder", {"trackId": "1", "reason": "unavailable"})
+    await asyncio.sleep(0.05)  # the advance runs as a task
+
+    assert handled
+    assert eng.current().track["id"] == "2"
+    assert client.calls[-1] == ("playback.play", {"trackId": "2"})
+    assert errors and "One" in errors[0]
+
+
+@pytest.mark.asyncio
+async def test_offline_error_stops_instead_of_skipping_through_the_queue(engine):
+    eng, client = engine
+    await eng.load_queue("local-folder", [_track("1"), _track("2")], start_index=0)
+
+    assert eng.handle_track_error("local-folder", {"trackId": "1", "reason": "offline"})
+    await asyncio.sleep(0.05)
+
+    assert eng.current().track["id"] == "1"
+    assert len([c for c in client.calls if c[0] == "playback.play"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_error_about_another_track_is_not_handled(engine):
+    eng, _ = engine
+    await eng.load_queue("local-folder", [_track("1"), _track("2")], start_index=0)
+
+    assert not eng.handle_track_error("local-folder", {"trackId": "2", "reason": "unavailable"})
+    assert not eng.handle_track_error("local-folder", {"trackId": "1"})

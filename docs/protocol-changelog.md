@@ -5,6 +5,14 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.16 — why a track will not play
+
+- **Additive, backward-compatible**: optional `data.trackId` and
+  `data.reason` (`"unavailable"` | `"offline"`) of an application error
+  and of the `error` notification (§9.1). A front skips a track that is
+  unavailable at once, and, with no network, goes on to the next cached
+  track, instead of retrying the same one until it times out.
+
 ## 1.15 — what a track's audio is
 
 - **Additive, backward-compatible**: optional fields `codec` (a lowercase

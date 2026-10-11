@@ -38,3 +38,28 @@ async def test_cancel_stops_an_in_flight_resolution(monkeypatch):
 
     with pytest.raises(BackendError):
         await asyncio.wait_for(pending, 1)
+
+
+@pytest.mark.asyncio
+async def test_unavailable_and_offline_errors_carry_the_track_and_reason(monkeypatch):
+    from rpc_common.errors import OfflineError
+
+    backend = server.build_server()
+
+    async def unavailable(track_id, cancel_event, quality_level=None):
+        raise LookupError("video unavailable")
+
+    monkeypatch.setattr(playback, "resolve_stream_with_retry", unavailable)
+    with pytest.raises(BackendError) as info:
+        await backend._handlers["playback.resolveStream"]({"trackId": "42"}, 7)
+    assert info.value.code == 1300
+    assert info.value.data == {"retryable": False, "trackId": "42", "reason": "unavailable"}
+
+    async def offline(track_id, cancel_event, quality_level=None):
+        raise OfflineError("no network")
+
+    monkeypatch.setattr(playback, "resolve_stream_with_retry", offline)
+    with pytest.raises(BackendError) as info:
+        await backend._handlers["playback.resolveStream"]({"trackId": "42"}, 8)
+    assert info.value.code == 1200
+    assert info.value.data == {"retryable": True, "trackId": "42", "reason": "offline"}
