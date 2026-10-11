@@ -101,3 +101,22 @@ def test_mime_types_are_audio_ones(tmp_path: Path):
         ("a.unknown", "application/octet-stream"),
     ):
         assert scanner.guess_mime_type(Path(name)) == mime
+
+
+def test_track_carries_the_codec_and_bitrate_of_its_file(tmp_path: Path):
+    webm = tmp_path / "song.webm"
+    webm.write_bytes((Path(__file__).parent / "data" / "sample.webm").read_bytes())
+
+    track = scanner.read_track(webm, tmp_path)
+
+    assert track.codec == "opus"
+    assert track.bitrateKbps > 0
+
+
+def test_unreadable_file_has_no_codec_or_bitrate_on_its_track(tmp_path: Path):
+    broken = tmp_path / "broken.flac"
+    broken.write_bytes(b"not audio")
+
+    track = scanner.read_track(broken, tmp_path)
+
+    assert track.bitrateKbps is None

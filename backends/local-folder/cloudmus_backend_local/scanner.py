@@ -116,6 +116,7 @@ def read_track(path: Path, root: Path) -> Track:
         artist_names = info.artists or ["Unknown"]
         album_name = info.album
         duration_ms = int((info.duration_s or 0) * 1000)
+        codec, bitrate = _matroska_stream_info(info, path)
     else:
         audio = None
         try:
@@ -128,12 +129,78 @@ def read_track(path: Path, root: Path) -> Track:
         artist_names = tags.get("artist") or ["Unknown"]
         album_name = (tags.get("album") or [None])[0]
         duration_ms = int((audio.info.length if audio is not None and audio.info else 0) * 1000)
+        codec, bitrate = _mutagen_stream_info(getattr(audio, "info", None), path)
 
     album = Album(id=album_name, title=album_name) if album_name else None
     artists = [Artist(id=name, name=name) for name in artist_names]
     cover_url = cover_art.extract_cover_uri(path)
 
-    return Track(id=track_id, title=title, artists=artists, durationMs=duration_ms, album=album, coverUrl=cover_url)
+    return Track(
+        id=track_id,
+        title=title,
+        artists=artists,
+        durationMs=duration_ms,
+        album=album,
+        coverUrl=cover_url,
+        codec=codec,
+        bitrateKbps=bitrate,
+    )
+
+
+def read_stream_info(path: Path) -> tuple[str | None, int | None]:
+    """(codec, bitrate in kbit/s) of an audio file, for the stream
+    descriptor — either is None when it can't be told. The codec is the
+    short lowercase name the protocol uses ("mp3", "flac", "opus")."""
+    if path.suffix.lower() in matroska.EXTENSIONS:
+        return _matroska_stream_info(matroska.read(path), path)
+    try:
+        audio = MutagenFile(path)
+    except Exception:
+        audio = None
+    return _mutagen_stream_info(getattr(audio, "info", None), path)
+
+
+def _matroska_stream_info(info: matroska.MatroskaInfo, path: Path) -> tuple[str | None, int | None]:
+    try:
+        size = path.stat().st_size
+    except OSError:
+        size = 0
+    # The container's overhead is a few percent at most for audio alone.
+    bitrate = size * 8 / info.duration_s if info.duration_s and size else 0
+    return info.codec, round(bitrate / 1000) or None
+
+
+def _mutagen_stream_info(info, path: Path) -> tuple[str | None, int | None]:
+    bitrate = getattr(info, "bitrate", 0) or 0
+    return _codec_of(info, path), round(bitrate / 1000) or None
+
+
+def _codec_of(info, path: Path) -> str | None:
+    kind = type(info).__name__
+    if kind == "MPEGInfo":
+        return "mp3" if getattr(info, "layer", 3) == 3 else "mp2"
+    if kind == "MP4Info":
+        codec = str(getattr(info, "codec", "") or "")
+        return "aac" if codec.startswith("mp4a") else codec or "aac"
+    named = {
+        "FLACInfo": "flac",
+        "OggFLACInfo": "flac",
+        "OggVorbisInfo": "vorbis",
+        "OggOpusInfo": "opus",
+        "OggSpeexInfo": "speex",
+        "ASFInfo": "wma",
+        "WavPackInfo": "wavpack",
+        "MonkeysAudioInfo": "ape",
+        "MusepackInfo": "musepack",
+        "TrueAudioInfo": "tta",
+        "AIFFInfo": "pcm",
+        "WaveStreamInfo": "pcm",
+        "DSFInfo": "dsd",
+        "DSDIFFInfo": "dsd",
+    }
+    if kind in named:
+        return named[kind]
+    return path.suffix.lower().lstrip(".") or None
 
 
 def resolve_track_path(root: Path, track_id: str) -> Path | None:

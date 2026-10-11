@@ -35,6 +35,16 @@ async def test_resolves_best_audio_by_abr(monkeypatch):
     assert stream.url == "https://high"
     assert stream.headers == {"User-Agent": "x"}
     assert stream.mimeType == "audio/webm"
+    assert stream.codec == "opus"
+    assert stream.bitrateKbps == 160
+
+
+@pytest.mark.asyncio
+async def test_stream_names_aac_by_its_short_name(monkeypatch):
+    aac = _format(acodec="mp4a.40.2", abr=129.5, ext="m4a")
+    monkeypatch.setattr(playback, "_extract_info", lambda vid: {"formats": [aac]})
+    stream = await playback.resolve_stream_with_retry("abc", asyncio.Event())
+    assert (stream.codec, stream.bitrateKbps) == ("aac", 130)
 
 
 @pytest.mark.asyncio

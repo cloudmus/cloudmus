@@ -1,5 +1,5 @@
 """Reads what the library needs from Matroska files — WebM, .weba, .mka:
-duration, title, artists, album and the cover.
+duration, codec, title, artists, album and the cover.
 
 mutagen has no Matroska reader, and YouTube's audio (saved by the front, or
 by yt-dlp) is WebM. Only the few elements wanted are read, and only the
@@ -19,6 +19,9 @@ EXTENSIONS = {".webm", ".weba", ".mka"}
 # Element IDs (the ID's own length marker bits are part of it).
 _SEGMENT = 0x18538067
 _INFO = 0x1549A966
+_TRACKS = 0x1654AE6B
+_TRACK_ENTRY = 0xAE
+_CODEC_ID = 0x86
 _TIMECODE_SCALE = 0x2AD7B1
 _DURATION = 0x4489
 _TITLE = 0x7BA9
@@ -46,6 +49,9 @@ _MAX_ELEMENT_BYTES = 32 * 1024 * 1024
 @dataclass
 class MatroskaInfo:
     duration_s: float | None = None
+    # The first track's codec, as the short lowercase name the protocol's
+    # StreamDescriptor.codec uses ("opus", "vorbis", "aac").
+    codec: str | None = None
     title: str | None = None
     artists: list[str] = field(default_factory=list)
     album: str | None = None
@@ -104,6 +110,25 @@ def _parse_info(buf: bytes, start: int, end: int, result: MatroskaInfo) -> None:
             result.title = _text(buf, a, b) or None
     if duration is not None and duration > 0:
         result.duration_s = duration * scale / 1e9
+
+
+def _codec_name(codec_id: str) -> str | None:
+    """Matroska's CodecID ("A_OPUS", "A_AAC/MPEG4/LC") as a short name."""
+    base = codec_id.removeprefix("A_").split("/")[0].lower()
+    if base == "mpeg":
+        return "mp3" if codec_id.endswith("L3") else "mp2"
+    return base or None
+
+
+def _parse_tracks(buf: bytes, start: int, end: int, result: MatroskaInfo) -> None:
+    for element_id, a, b in _elements(buf, start, end):
+        if element_id != _TRACK_ENTRY:
+            continue
+        for inner_id, c, d in _elements(buf, a, b):
+            if inner_id == _CODEC_ID and result.codec is None:
+                result.codec = _codec_name(_text(buf, c, d))
+        if result.codec:
+            return
 
 
 def _parse_tags(buf: bytes, start: int, end: int, result: MatroskaInfo) -> None:
@@ -194,12 +219,14 @@ def _scan(f: BinaryIO, result: MatroskaInfo) -> None:
         element_id, size, unknown = element
         if unknown:
             return  # an open-ended cluster can't be skipped over
-        if element_id in (_INFO, _TAGS, _ATTACHMENTS) and size <= _MAX_ELEMENT_BYTES:
+        if element_id in (_INFO, _TRACKS, _TAGS, _ATTACHMENTS) and size <= _MAX_ELEMENT_BYTES:
             payload = f.read(size)
             if len(payload) < size:
                 return
             if element_id == _INFO:
                 _parse_info(payload, 0, len(payload), result)
+            elif element_id == _TRACKS:
+                _parse_tracks(payload, 0, len(payload), result)
             elif element_id == _TAGS:
                 _parse_tags(payload, 0, len(payload), result)
             else:

@@ -14,7 +14,8 @@ TrackState TrackStates::state(const QString& sourceId, const QString& trackId) c
 
 bool TrackStates::merge(const QString& sourceId, const Track& track, bool onlyIfUnknown)
 {
-    if (!track.liked.has_value() && !track.disliked.has_value())
+    const bool hasQuality = track.codec.has_value() || track.bitrateKbps.has_value();
+    if (!track.liked.has_value() && !track.disliked.has_value() && !hasQuality)
         return false;
     TrackState& s = states_[key(sourceId, track.id)];
     bool changed = false;
@@ -26,6 +27,12 @@ bool TrackStates::merge(const QString& sourceId, const Track& track, bool onlyIf
     };
     apply(s.liked, track.liked);
     apply(s.disliked, track.disliked);
+    // What the source knows of the audio before streaming it; a resolved
+    // stream's own is at least as good, so it is not replaced.
+    if (hasQuality && !s.streamQuality.has_value()) {
+        s.streamQuality = StreamQuality { track.codec.value_or(QString()), track.bitrateKbps.value_or(0) };
+        changed = true;
+    }
     return changed;
 }
 
@@ -70,6 +77,17 @@ void TrackStates::setLastPlayed(const QString& sourceId, const QString& trackId,
     if (s.lastPlayedAt.isValid() && s.lastPlayedAt >= playedAtUtc)
         return;
     s.lastPlayedAt = playedAtUtc;
+    emit changed(sourceId, trackId);
+}
+
+void TrackStates::setStreamQuality(const QString& sourceId, const QString& trackId, const StreamQuality& quality)
+{
+    if (quality.codec.isEmpty() && quality.bitrateKbps <= 0)
+        return;
+    TrackState& s = states_[key(sourceId, trackId)];
+    if (s.streamQuality == quality)
+        return;
+    s.streamQuality = quality;
     emit changed(sourceId, trackId);
 }
 

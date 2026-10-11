@@ -277,10 +277,15 @@ void Preloader::onResolved(const QString& key, int generation, const std::option
         return;
     it->resolving = false;
     it->cancelResolve = nullptr;
-    if (stream)
+    if (stream) {
+        // Copied: a slot may change entries_ before begin() looks it up.
+        const QString sourceId = it->item.sourceId;
+        const QString trackId = it->item.trackId;
+        emit streamResolved(sourceId, trackId, *stream);
         begin(key, *stream);
-    else
+    } else {
         giveUpOn(key);
+    }
 }
 
 void Preloader::begin(const QString& key, const StreamDescriptor& stream)

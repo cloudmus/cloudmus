@@ -44,6 +44,14 @@ _YDL_OPTS = {
 
 _MIME_TYPES = {"m4a": "audio/mp4", "webm": "audio/webm", "opus": "audio/opus"}
 
+def _codec_name(acodec: str | None) -> str | None:
+    """yt-dlp's codec string ("opus", "mp4a.40.2") as the short name the
+    protocol's StreamDescriptor.codec uses."""
+    if not acodec or acodec == "none":
+        return None
+    return "aac" if acodec.startswith("mp4a") else acodec.split(".")[0]
+
+
 _NON_TRANSIENT_SIGNATURES = ("video unavailable", "private video", "copyright", "sign in to confirm")
 
 
@@ -114,7 +122,15 @@ def _resolve_stream_sync(video_id: str, quality_level: str) -> StreamDescriptor:
     if not _stream_accepted(best["url"], headers):
         _drop_session()
         raise StreamRejected(f"googlevideo refused the stream URL for {video_id} (403)")
-    return StreamDescriptor(kind="url", url=best["url"], mimeType=mime, headers=headers)
+    bitrate = round(best.get("abr") or best.get("tbr") or 0)
+    return StreamDescriptor(
+        kind="url",
+        url=best["url"],
+        mimeType=mime,
+        headers=headers,
+        codec=_codec_name(best.get("acodec")),
+        bitrateKbps=bitrate or None,
+    )
 
 
 def _is_non_transient(exc: Exception) -> bool:

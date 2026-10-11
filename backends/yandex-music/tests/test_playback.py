@@ -115,3 +115,11 @@ async def test_stream_uses_the_quality_level():
     client = _FakeClient([[_FakeTrack(infos)]])
     stream = await playback.resolve_stream_with_retry(client, "123", asyncio.Event(), "low")
     assert stream.url == "https://low"
+
+
+@pytest.mark.asyncio
+async def test_stream_reports_its_codec_and_bitrate():
+    infos = [_FakeInfo("mp3", 192, "https://192"), _FakeInfo("aac", 64, "https://aac")]
+    client = _FakeClient([[_FakeTrack(infos)]])
+    stream = await playback.resolve_stream_with_retry(client, "123", asyncio.Event())
+    assert (stream.codec, stream.bitrateKbps) == ("mp3", 192)

@@ -32,7 +32,13 @@ def _resolve_stream_sync(client: Client, track_id: str, quality_level: str) -> S
         raise RuntimeError(f"no download links available for track {track_id}")
     info = quality.pick(infos, quality_level)
     mime_type = "audio/mpeg" if info.codec == "mp3" else f"audio/{info.codec}"
-    return StreamDescriptor(kind="url", url=info.direct_link, mimeType=mime_type)
+    return StreamDescriptor(
+        kind="url",
+        url=info.direct_link,
+        mimeType=mime_type,
+        codec=info.codec,
+        bitrateKbps=info.bitrate_in_kbps or None,
+    )
 
 
 async def resolve_stream_with_retry(

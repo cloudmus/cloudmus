@@ -21,6 +21,7 @@
 #include "Tokens.h"
 #include "TrackListModel.h"
 #include "TrackRowDelegate.h"
+#include "TrackStates.h"
 #include "Typography.h"
 
 namespace Ui {
@@ -51,7 +52,30 @@ struct CardData {
     QVariant liked; // bool, or invalid while unknown
     QVariant disliked;
     QDateTime lastPlayedAt;
+    QVariant streamQuality; // Library::StreamQuality, or invalid while unknown
 };
+
+// "Opus · 129 kbps"; empty when neither part is known. `kbpsFormat` is the
+// translated "%1 kbps".
+QString streamQualityText(const QVariant& value, const QString& kbpsFormat)
+{
+    if (!value.isValid())
+        return QString();
+    const auto quality = value.value<Library::StreamQuality>();
+    static const QHash<QString, QString> names {
+        { QStringLiteral("mp3"), QStringLiteral("MP3") },
+        { QStringLiteral("aac"), QStringLiteral("AAC") },
+        { QStringLiteral("opus"), QStringLiteral("Opus") },
+        { QStringLiteral("vorbis"), QStringLiteral("Vorbis") },
+        { QStringLiteral("flac"), QStringLiteral("FLAC") },
+    };
+    QStringList parts;
+    if (!quality.codec.isEmpty())
+        parts.append(names.value(quality.codec, quality.codec.toUpper()));
+    if (quality.bitrateKbps > 0)
+        parts.append(kbpsFormat.arg(quality.bitrateKbps));
+    return parts.join(QStringLiteral(" · "));
+}
 
 QString artistNames(const Track& track)
 {
@@ -248,6 +272,8 @@ private:
             rows_.append({ tr("Album"), data_.track.album->title });
         if (data_.track.durationMs > 0)
             rows_.append({ tr("Duration"), TrackRowDelegate::formatDuration(data_.track.durationMs) });
+        if (const QString quality = streamQualityText(data_.streamQuality, tr("%1 kbps")); !quality.isEmpty())
+            rows_.append({ tr("Quality"), quality });
         if (!data_.sourceName.isEmpty())
             rows_.append({ tr("Source"), data_.sourceName });
         rows_.append({ tr("Last played"),
@@ -408,6 +434,7 @@ void TrackHoverCard::showFor(const QModelIndex& index, const QPoint& globalPos)
     data.liked = index.data(TrackListModel::LikedRole);
     data.disliked = index.data(TrackListModel::DislikedRole);
     data.lastPlayedAt = index.data(TrackListModel::LastPlayedRole).toDateTime();
+    data.streamQuality = index.data(TrackListModel::StreamQualityRole);
     const QDateTime playedAt = index.data(TrackListModel::PlayedAtRole).toDateTime();
     if (playedAt.isValid() && (!data.lastPlayedAt.isValid() || playedAt > data.lastPlayedAt))
         data.lastPlayedAt = playedAt;

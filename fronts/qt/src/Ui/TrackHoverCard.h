@@ -18,9 +18,10 @@ namespace Ui {
 // Hover card for track lists: once the cursor rests on a row for a moment,
 // a floating card shows the track's large cover and everything known
 // about it — title, artists, album, duration, source, like/dislike,
-// explicit, when it was last played. Reads the row through
-// TrackListModel's roles, so it works on any view over one (directly or
-// through a proxy). Hides on leaving the row, clicking, or scrolling.
+// explicit, its stream quality once known, when it was last played. Reads
+// the row through TrackListModel's roles, so it works on any view over one
+// (directly or through a proxy). Hides on leaving the row, clicking, or
+// scrolling.
 //
 // One call per view, lives as long as it:
 //   TrackHoverCard::attach(view, coverCache, sourceNameFn);

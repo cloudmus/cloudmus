@@ -5,6 +5,15 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.15 — what a track's audio is
+
+- **Additive, backward-compatible**: optional fields `codec` (a lowercase
+  short name — `mp3`, `aac`, `opus`) and `bitrateKbps` of
+  `StreamDescriptor` and of `Track` (§6). A front shows them in a track's
+  details: a source gives them with the track when it knows them before
+  streaming (a local file), and the stream's own replace them once it is
+  resolved. A source that leaves them out shows nothing there.
+
 ## 1.14 — tracks a radio should not repeat yet
 
 - **Additive, backward-compatible**: optional param `recentTrackIds` of

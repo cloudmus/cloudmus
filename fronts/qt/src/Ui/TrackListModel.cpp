@@ -99,7 +99,8 @@ void TrackListModel::setTrackStates(Library::TrackStates* states)
     connect(states_, &Library::TrackStates::changed, this, &TrackListModel::onStateChanged);
     connect(states_, &Library::TrackStates::bulkChanged, this, [this]() {
         if (!tracks_.isEmpty())
-            emit dataChanged(index(0), index(tracks_.size() - 1), { LikedRole, DislikedRole, LastPlayedRole });
+            emit dataChanged(
+                index(0), index(tracks_.size() - 1), { LikedRole, DislikedRole, LastPlayedRole, StreamQualityRole });
     });
 }
 
@@ -126,7 +127,7 @@ void TrackListModel::onStateChanged(const QString& sourceId, const QString& trac
     for (int row = 0; row < tracks_.size(); ++row) {
         if (tracks_[row].id == trackId && sourceIdAt(row) == sourceId) {
             const QModelIndex idx = index(row);
-            emit dataChanged(idx, idx, { LikedRole, DislikedRole, LastPlayedRole });
+            emit dataChanged(idx, idx, { LikedRole, DislikedRole, LastPlayedRole, StreamQualityRole });
         }
     }
 }
@@ -150,6 +151,12 @@ QVariant TrackListModel::data(const QModelIndex& index, int role) const
             return sourceIdAt(index.row());
         case PlayedAtRole:
             return mixedSource_ ? QVariant::fromValue(playedAt_[index.row()]) : QVariant();
+        case StreamQualityRole: {
+            if (states_ == nullptr)
+                return { };
+            const auto quality = states_->state(sourceIdAt(index.row()), t.id).streamQuality;
+            return quality.has_value() ? QVariant::fromValue(*quality) : QVariant();
+        }
         case LikedRole:
         case DislikedRole:
         case LastPlayedRole: {

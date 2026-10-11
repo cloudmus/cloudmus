@@ -263,8 +263,15 @@ expected to always emit the full shape above.
                                     // a browsable page for this track. Absent when the source has no
                                     // such page (e.g. local-folder tracks). No matching capability flag —
                                     // same precedent as coverUrl/liked/explicit: front just checks presence.
+  "codec": "flac",                 // optional (1.15+), lowercase short codec name, as in StreamDescriptor (§6)
+  "bitrateKbps": 905               // optional (1.15+), the audio's bitrate in kbit/s
 }
 ```
+
+`codec` and `bitrateKbps` are what a source already knows of the track's
+audio without streaming it — a local file's. A stream's own values
+(StreamDescriptor, below) take over once it is resolved. Left out when the
+source doesn't know them.
 
 ### Playlist
 ```jsonc
@@ -317,12 +324,19 @@ the front's own playback engine and never needs to be pushed back.
   "kind": "url",
   "url": "https://api.music.yandex.net/get-mp3/...",
   "mimeType": "audio/mpeg",
-  "headers": {"User-Agent": "..."}   // optional, extra HTTP headers the front must send when fetching
+  "headers": {"User-Agent": "..."},  // optional, extra HTTP headers the front must send when fetching
+  "codec": "mp3",                    // optional (1.15+), lowercase short codec name: "mp3", "aac", "opus", ...
+  "bitrateKbps": 320                 // optional (1.15+), the stream's bitrate in kbit/s
 }
 ```
 `kind` is a discriminator left open for future stream types (e.g. a local
 file path) without breaking existing consumers; `"url"` is the only defined
 value in v1.
+
+`codec` and `bitrateKbps` say what the source picked among the variants it
+has of the track (§7.2), for a front to show the listener; both are plain
+information, playback never depends on them. A source leaves out what it
+doesn't know — a front shows only what is there.
 
 ---
 

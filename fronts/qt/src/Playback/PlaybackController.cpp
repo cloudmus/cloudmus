@@ -53,6 +53,7 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
                                                   Rpc::playbackCancel(*guard, CancelParams { id }).detach();
                                           } };
         });
+    connect(preloader_, &Preloader::streamResolved, this, &PlaybackController::streamResolved);
     connect(preloader_, &Preloader::ready, this, &PlaybackController::prepareNext);
     connect(preloader_, &Preloader::progressChanged, this, [this]() { updateBuffered(); });
 
@@ -450,6 +451,7 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
     if (params.requestId != latestRequestId_ || sourceId != latestRequestSourceId_) {
         return; // superseded by a later playback.play — discard, see docs/protocol.md §11.1
     }
+    emit streamResolved(sourceId, params.trackId, params.stream);
     if (startingIndex_ >= 0) {
         earlyStreamReady_ = params;
         return;

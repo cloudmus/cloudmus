@@ -10,4 +10,6 @@ properties:
   headers:                            # optional, extra HTTP headers the front must send when fetching
     type: object
     additionalProperties: {type: string}
+  codec: {type: string}               # optional (1.15+), lowercase short name of the audio codec, e.g. "mp3", "aac", "opus"
+  bitrateKbps: {type: integer, minimum: 1}   # optional (1.15+), the stream's bitrate in kbit/s
 additionalProperties: false

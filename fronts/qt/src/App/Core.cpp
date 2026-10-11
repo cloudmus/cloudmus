@@ -57,6 +57,11 @@ Core::Core(QObject* parent)
         [this](const QString& sourceId, const Track&, const QString&, bool added, int) {
             analytics_.recordPlaylistChange(sourceId, added);
         });
+    connect(&playback_, &Playback::PlaybackController::streamResolved, this,
+        [this](const QString& sourceId, const QString& trackId, const StreamDescriptor& stream) {
+            trackStates_.setStreamQuality(
+                sourceId, trackId, { stream.codec.value_or(QString()), stream.bitrateKbps.value_or(0) });
+        });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
 
     // What goes wrong, and the sign-in and like steps, for statistics.

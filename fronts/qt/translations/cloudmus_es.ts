@@ -436,6 +436,14 @@
         <translation>Fuente</translation>
     </message>
     <message>
+        <source>Quality</source>
+        <translation>Calidad</translation>
+    </message>
+    <message>
+        <source>%1 kbps</source>
+        <translation>%1 kbps</translation>
+    </message>
+    <message>
         <source>Last played</source>
         <translation>Última reproducción</translation>
     </message>

@@ -155,6 +155,9 @@ signals:
     // plays from the cache; -1: nothing to show (a source's own local file).
     void bufferedChanged(qint64 bufferedMs);
     void seeked(qint64 positionMs);
+    // A source's stream for a track — the playing one, or one resolved for
+    // preloading; says what it is (codec, bitrate) for the track's details.
+    void streamResolved(const QString& sourceId, const QString& trackId, const StreamDescriptor& stream);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
     void errorOccurred(QString message);
     // The same failure, for statistics: the source it was on and a fixed

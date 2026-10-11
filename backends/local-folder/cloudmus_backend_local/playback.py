@@ -11,4 +11,11 @@ def resolve_stream(root: Path, track_id: str) -> StreamDescriptor | None:
     path = scanner.resolve_track_path(root, track_id)
     if path is None:
         return None
-    return StreamDescriptor(kind="url", url=path.as_uri(), mimeType=scanner.guess_mime_type(path))
+    codec, bitrate = scanner.read_stream_info(path)
+    return StreamDescriptor(
+        kind="url",
+        url=path.as_uri(),
+        mimeType=scanner.guess_mime_type(path),
+        codec=codec,
+        bitrateKbps=bitrate,
+    )

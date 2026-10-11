@@ -659,6 +659,7 @@ add_executable(cloudmus-qt-tests
     tests/AudioPulseTest.cpp
     tests/StarPromptTest.cpp
     tests/PathsTest.cpp
+    tests/TrackStatesTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

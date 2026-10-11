@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QHash>
 #include <QList>
+#include <QMetaType>
 #include <QObject>
 #include <QString>
 
@@ -12,12 +13,23 @@
 
 namespace Library {
 
+// What a source last streamed a track as (StreamDescriptor's codec and
+// bitrateKbps). Either part is empty/0 when the source didn't say.
+struct StreamQuality {
+    QString codec; // lowercase short name: "mp3", "aac", "opus"
+    int bitrateKbps = 0;
+
+    bool operator==(const StreamQuality&) const = default;
+};
+
 // What the app knows about a track beyond its metadata. liked/disliked
 // are unset while no source has said anything about them.
 struct TrackState {
     std::optional<bool> liked;
     std::optional<bool> disliked;
     QDateTime lastPlayedAt; // UTC; invalid if never played (per History)
+    // Known only for tracks whose stream was resolved in this run.
+    std::optional<StreamQuality> streamQuality;
 };
 
 // The one place a track's like/dislike/last-played state lives, keyed by
@@ -26,9 +38,11 @@ struct TrackState {
 // instead of from its own Track copy, so a like made anywhere, or a fresh
 // value a source reports with a playlist, shows up everywhere at once.
 //
-// Fed by: every Track a source returns (observe()), successful
-// feedback.like/dislike calls (setLiked()/setDisliked()), and playback
-// history (setLastPlayed()).
+// Fed by: every Track a source returns (observe(): its liked/disliked and
+// the audio's codec and bitrate when it carries them), successful
+// feedback.like/dislike calls (setLiked()/setDisliked()), playback
+// history (setLastPlayed()), and the streams playback resolves
+// (setStreamQuality()).
 class TrackStates : public QObject {
     Q_OBJECT
 
@@ -50,6 +64,9 @@ public:
     void setDisliked(const QString& sourceId, const QString& trackId, bool disliked);
     // Keeps the latest of the known and the given time.
     void setLastPlayed(const QString& sourceId, const QString& trackId, const QDateTime& playedAtUtc);
+    // What the source streamed the track as. Nothing to record when it
+    // said neither codec nor bitrate.
+    void setStreamQuality(const QString& sourceId, const QString& trackId, const StreamQuality& quality);
 
 signals:
     // One track's state changed.
@@ -67,3 +84,5 @@ private:
 };
 
 } // namespace Library
+
+Q_DECLARE_METATYPE(Library::StreamQuality)

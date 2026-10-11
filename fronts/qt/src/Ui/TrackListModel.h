@@ -43,6 +43,9 @@ public:
         DislikedRole,
         // When the track was last played at all (any list), UTC; invalid if never.
         LastPlayedRole,
+        // From Library::TrackStates, only once the track's stream has been
+        // resolved in this run: a Library::StreamQuality, else invalid.
+        StreamQualityRole,
         // From ViewModel::Preload (see setPreload()): whether the track is
         // downloaded (bool), and how far a download under way has got
         // (0..1; invalid when none is).

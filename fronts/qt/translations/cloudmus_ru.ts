@@ -436,6 +436,14 @@
         <translation>Источник</translation>
     </message>
     <message>
+        <source>Quality</source>
+        <translation>Качество</translation>
+    </message>
+    <message>
+        <source>%1 kbps</source>
+        <translation>%1 кбит/с</translation>
+    </message>
+    <message>
         <source>Last played</source>
         <translation>Последнее воспроизведение</translation>
     </message>

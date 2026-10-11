@@ -33,4 +33,7 @@ properties:
   webUrl: {type: string}            # optional; a browsable page for this track (e.g. music.yandex.ru
                                      # track page). Absent when the source has no such page (e.g. local
                                      # files). Added in protocol 1.1 (see docs/protocol-changelog.md).
+  codec: {type: string}             # optional (1.15+); the audio's codec, as StreamDescriptor.codec,
+                                     # when the source knows it before streaming (e.g. a local file)
+  bitrateKbps: {type: integer, minimum: 1}   # optional (1.15+); the audio's bitrate in kbit/s, likewise
 additionalProperties: false
