@@ -19,7 +19,6 @@
 namespace Playback {
 
 namespace {
-constexpr int kPlayTimeoutMs = 10000;
 // A stream URL can be refused although it was just resolved (YouTube's
 // googlevideo answers some with 403 Forbidden); a fresh one usually plays.
 constexpr int kMaxStartRetries = 2;
@@ -70,8 +69,9 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
         emit playingChanged(true);
         updatePreloadWindow();
     });
-    connect(audioPlayer_, &AudioPlayer::failed, this,
-        [this](const QString& message) { handleStartFailure(message, QStringLiteral("stream")); });
+    connect(audioPlayer_, &AudioPlayer::failed, this, [this](const QString& message, bool unplayableFile) {
+        handleStartFailure(message, QStringLiteral("stream"), unplayableFile);
+    });
     connect(audioPlayer_, &AudioPlayer::positionChanged, this, [this](qint64 posMs, qint64 durMs) {
         lastKnownPositionMs_ = posMs;
         const bool newDuration = durMs != lastKnownDurationMs_;
@@ -88,13 +88,14 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
 
     playTimeoutTimer_ = new QTimer(this);
     playTimeoutTimer_->setSingleShot(true);
-    playTimeoutTimer_->setInterval(kPlayTimeoutMs);
     connect(playTimeoutTimer_, &QTimer::timeout, this, [this]() {
         handleStartFailure(QStringLiteral("Timed out waiting for the track to start"), QStringLiteral("timeout"));
     });
 }
 
 PlaybackController::~PlaybackController() = default;
+
+void PlaybackController::setStartTimeout(int ms) { startTimeoutMs_ = ms; }
 
 void PlaybackController::setStreamRouteProvider(StreamRouteProvider provider)
 {
@@ -154,12 +155,15 @@ void PlaybackController::reportError(const QString& sourceId, const QString& rea
     emit errorOccurred(message);
 }
 
-void PlaybackController::handleStartFailure(const QString& message, const QString& reason)
+void PlaybackController::handleStartFailure(const QString& message, const QString& reason, bool unplayableFile)
 {
     preparedStartPending_ = false;
     // A cached file that won't play is no use to anyone: the retry
-    // downloads the track anew.
-    if (hasCurrentTrack() && preloader_->isCached(currentSourceId(), currentTrack().id))
+    // downloads the track anew. Only when it is the file that's at fault,
+    // though — a start that was merely slow (a busy machine at login) or
+    // an audio output that went away says nothing about it, and the retry
+    // plays it from the disk again.
+    if (unplayableFile && hasCurrentTrack() && preloader_->isCached(currentSourceId(), currentTrack().id))
         preloader_->discard(currentSourceId(), currentTrack().id);
     if (hasCurrentTrack() && startRetries_ < kMaxStartRetries) {
         ++startRetries_;
@@ -452,15 +456,17 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
     stopForTransition();
 
     // All downloaded, or on its way already: nothing to ask the source for
-    // — which is also what plays with the source or the network gone. Not
-    // for a retry: that's a track which just failed to start this way.
-    if (!isRetry) {
+    // — which is also what plays with the source or the network gone. A
+    // retry takes only a file that is whole (a bad one is gone by now, see
+    // handleStartFailure()): a download that just failed to start playing
+    // needs a fresh stream.
+    {
         const QueueEntry cached = queue_[index];
         const bool onDisk = !preloader_->readyPath(cached.sourceId, cached.track.id).isEmpty();
-        if (onDisk || preloader_->download(cached.sourceId, cached.track.id) != nullptr) {
+        if (onDisk || (!isRetry && preloader_->download(cached.sourceId, cached.track.id) != nullptr)) {
             qCDebug(lcPlayback) << "playing" << cached.track.id << (onDisk ? "from the cache" : "from its download");
             emit loadingChanged(true);
-            playTimeoutTimer_->start();
+            playTimeoutTimer_->start(startTimeoutMs_);
             becomeCurrent(index, cached, isRetry);
             updatePreloadWindow();
             startCurrentAudio(std::nullopt);
@@ -494,7 +500,7 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
     latestRequestSourceId_ = entry.sourceId;
     startingIndex_ = index;
     emit loadingChanged(true);
-    playTimeoutTimer_->start();
+    playTimeoutTimer_->start(startTimeoutMs_);
     // Whatever was downloading for the old track makes way now.
     updatePreloadWindow();
 
@@ -992,7 +998,7 @@ void PlaybackController::promotePrepared(int nextIndex, bool manual)
     preparedStartPending_ = true;
     currentStream_.reset();
     emit loadingChanged(true);
-    playTimeoutTimer_->start();
+    playTimeoutTimer_->start(startTimeoutMs_);
     if (playing_) {
         playing_ = false;
         emit playingChanged(false);
