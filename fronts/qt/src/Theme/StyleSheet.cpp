@@ -138,6 +138,8 @@ QPushButton[variant="secondary"] {
     border-radius: %3px;
     padding: %4px %5px;
 }
+/* Icon-only: equal padding on all sides, so with no text the button is square. */
+QPushButton[variant="secondary"][iconOnly="true"] { padding: %4px; }
 QPushButton[variant="secondary"]:hover { background: %11; }
 QPushButton[variant="secondary"]:disabled { background: %8; color: %13; }
 QPushButton[variant="tab"] {

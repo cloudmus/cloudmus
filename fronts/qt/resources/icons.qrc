@@ -20,6 +20,7 @@
         <file alias="warning.svg">icons/symbols/warning.svg</file>
         <file alias="open_in_new.svg">icons/symbols/open_in_new.svg</file>
         <file alias="refresh.svg">icons/symbols/refresh.svg</file>
+        <file alias="undo.svg">icons/symbols/undo.svg</file>
         <file alias="music_note.svg">icons/symbols/music_note.svg</file>
         <file alias="chevron_right.svg">icons/symbols/chevron_right.svg</file>
         <file alias="expand_more.svg">icons/symbols/expand_more.svg</file>

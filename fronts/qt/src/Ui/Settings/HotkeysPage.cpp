@@ -12,6 +12,8 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "Icons.h"
+#include "Metrics.h"
 #include "Spacing.h"
 #include "Typography.h"
 
@@ -28,6 +30,14 @@ void setError(QLabel* label, bool error)
     label->style()->unpolish(label);
     label->style()->polish(label);
 }
+// Tinted by hand: a disabled control gets the fainter token, not Qt's greying.
+void setResetIcon(QPushButton* button)
+{
+    button->setIcon(Theme::icon(QStringLiteral("undo"),
+        button->isEnabled() ? Theme::IconColor::InkSecondary : Theme::IconColor::Disabled,
+        Theme::Metrics::iconGlyphSize));
+}
+
 } // namespace
 
 HotkeysPage::HotkeysPage(Hotkeys::Registry& registry, QObject* parent)
@@ -117,10 +127,14 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
         row.status->setWordWrap(true);
         row.status->hide();
 
-        row.resetButton = new QPushButton(tr("Reset"), widget);
+        // An icon keeps the row compact; the tooltip names it.
+        row.resetButton = new QPushButton(widget);
         row.resetButton->setProperty("variant", "secondary");
-        row.resetButton->setFont(Theme::font(Theme::TextStyle::Button));
-        row.resetButton->setToolTip(tr("Restore this shortcut's defaults"));
+        row.resetButton->setProperty("iconOnly", true); // square — see StyleSheet.cpp's textButtonsBlock()
+        row.resetButton->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
+        row.resetButton->setToolTip(tr("Reset"));
+        row.resetButton->setAccessibleName(tr("Reset"));
+        Theme::followTheme(row.resetButton, [button = row.resetButton]() { setResetIcon(button); });
         connect(row.resetButton, &QPushButton::clicked, this, [this, action = binding.action]() {
             showBinding(rows_[int(action)], Hotkeys::Registry::defaultBindings()[int(action)]);
             updateStatuses();
@@ -150,7 +164,7 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
         grid->addWidget(row.globalCheck, gridRow, 2, Qt::AlignCenter);
         grid->addWidget(row.notifyCheck, gridRow, 3, Qt::AlignCenter);
         grid->addWidget(row.soundCheck, gridRow, 4, Qt::AlignCenter);
-        grid->addWidget(row.resetButton, gridRow, 5);
+        grid->addWidget(row.resetButton, gridRow, 5, Qt::AlignCenter);
         grid->addWidget(row.status, gridRow + 1, 0, 1, 6);
         gridRow += 2;
         rows_.append(row);
@@ -276,8 +290,10 @@ void HotkeysPage::updateResetButtons()
 {
     const QList<Hotkeys::Binding> bindings = collect();
     const QList<Hotkeys::Binding> defaults = Hotkeys::Registry::defaultBindings();
-    for (int i = 0; i < rows_.size(); ++i)
+    for (int i = 0; i < rows_.size(); ++i) {
         rows_[i].resetButton->setEnabled(bindings[i] != defaults[i]);
+        setResetIcon(rows_[i].resetButton);
+    }
 }
 
 void HotkeysPage::applyFilter()
