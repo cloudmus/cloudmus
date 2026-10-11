@@ -139,6 +139,43 @@ private slots:
         QCOMPARE(active_->entries()[1].track.id, QStringLiteral("fresh"));
     }
 
+    // A radio started from a track is no playlist of its source, yet it is
+    // what comes back — not the playlist that was active before it.
+    void aRadioFromATrackIsRestoredAndResumed()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        start();
+        Playlist station = playlist(QStringLiteral("seed-track"));
+        station.kind = QStringLiteral("radioStation");
+        station.title = QStringLiteral("Radio: Seed");
+        active_->setContext({ QStringLiteral("fake"), station });
+        Track first;
+        first.id = QStringLiteral("old-1");
+        Track second;
+        second.id = QStringLiteral("old-2");
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("old-station"), { first, second });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        playback_->playAt(1);
+        QTRY_COMPARE(settings_->lastActiveTrackId(), QStringLiteral("old-2"));
+
+        resetApp();
+        settings_ = std::make_unique<Config::Settings>(temp_->filePath(QStringLiteral("config.ini")));
+        settings_->setResumePlaybackAtStartup(true);
+        start(false);
+        QCOMPARE(active_->context().playlist.id, QStringLiteral("seed-track"));
+        QCOMPARE(active_->context().playlist.title, QStringLiteral("Radio: Seed"));
+        QCOMPARE(active_->entries().size(), 2);
+
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        QCOMPARE(active_->context().playlist.id, QStringLiteral("seed-track"));
+        active_->play();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("old-2"));
+        QVERIFY(playback_->isRadio());
+    }
+
     void playbackGoingAtQuitResumesFromTheSameSong()
     {
         settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });

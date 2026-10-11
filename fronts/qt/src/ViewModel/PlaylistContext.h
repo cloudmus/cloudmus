@@ -13,9 +13,6 @@ struct PlaylistContext {
     QString sourceId; // empty for History
     Playlist playlist;
     bool isHistory = false;
-    // False for ad-hoc contexts (a radio started from a track) that can't
-    // be restored at startup — they aren't saved to settings.
-    bool persistent = true;
 
     bool isValid() const { return isHistory || !playlist.id.isEmpty(); }
     bool isRadio() const { return playlist.kind == QStringLiteral("radioStation"); }

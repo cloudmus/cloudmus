@@ -55,7 +55,7 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
     });
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
         [this](const Track& track, const QString& sourceId) {
-            if (!context_.persistent || !context_.isValid())
+            if (!context_.isValid())
                 return;
             if (!context_.isHistory && sourceId != context_.sourceId)
                 return;
@@ -171,7 +171,7 @@ void ActivePlaylist::loadCachedTracks()
 
 void ActivePlaylist::saveCachedTracks() const
 {
-    if (!context_.persistent || !context_.isValid())
+    if (!context_.isValid())
         return;
     QJsonArray rows;
     const QVector<Playback::QueueEntry>& entries
@@ -250,10 +250,8 @@ void ActivePlaylist::setContext(const PlaylistContext& context)
         tracks_.clear();
     sources_.model().setActivePlaylist(context.isHistory ? QString() : context.sourceId,
         context.isHistory ? QStringLiteral("history") : context.playlist.id);
-    if (context.persistent) {
-        settings_.setLastActivePlaylist({ context.isHistory ? QString() : context.sourceId, context.playlist.id,
-            context.isHistory ? QStringLiteral("history") : context.playlist.kind });
-    }
+    settings_.setLastActivePlaylist({ context.isHistory ? QString() : context.sourceId, context.playlist.id,
+        context.isHistory ? QStringLiteral("history") : context.playlist.kind });
     // Something the user made active wins over what's still to restore.
     pendingRestore_ = Config::Settings::ActivePlaylistRef();
     if (changed)
@@ -465,6 +463,14 @@ void ActivePlaylist::restoreFrom(const QString& sourceId, const QList<Playlist>&
             loadTracks(context_).detach();
         else
             resumePlayback();
+        return;
+    }
+    // A radio started from a track isn't among the source's playlists:
+    // what loadCachedTracks() brought back is all there is of it.
+    if (context_.isValid() && context_.isRadio() && context_.sourceId == sourceId
+        && context_.playlist.id == playlistId) {
+        resumePending_ = resume;
+        resumePlayback();
         return;
     }
     resumePending_ = false; // the playlist is gone

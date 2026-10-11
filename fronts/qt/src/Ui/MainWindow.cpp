@@ -1073,12 +1073,11 @@ void MainWindow::showTrackMenu(
         // §7.1, so the front must not format it.
         menu->addAction(Theme::icon(QStringLiteral("radio"), Theme::IconColor::Ink, 16),
             tr("Start Radio from This Track"), this, [this, sourceId, id = track.id, title = track.title]() {
-                // An ad-hoc station — active while it plays, but not one to
-                // restore at startup.
+                // Not in the source's playlists, but saved with its tracks
+                // like any active playlist, so the next run restores it.
                 ActiveContext context { sourceId,
                     Playlist { id, tr("Radio: %1").arg(title), std::nullopt, std::nullopt, 0,
                         QStringLiteral("radioStation") } };
-                context.persistent = false;
                 activePlaylist_.startRadio(sourceId, id, context).detach();
             });
     }
