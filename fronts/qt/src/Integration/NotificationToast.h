@@ -6,6 +6,8 @@
 #include <QSet>
 #include <QString>
 
+#include <optional>
+
 class QSystemTrayIcon;
 class QTimer;
 
@@ -52,10 +54,23 @@ private:
     // Also not replaced once its own timeout has passed, even if no
     // NotificationClosed came: Plasma doesn't always send one for a popup
     // that expired, and replacing that one stays silent.
-    uint lastNotificationId_ = 0;
-    uint lastNoticeId_ = 0;
-    QElapsedTimer lastNotificationSent_;
-    QElapsedTimer lastNoticeSent_;
+    struct Request {
+        QString title;
+        QString body;
+        QPixmap cover;
+        int timeoutMs = 0;
+    };
+    struct Slot {
+        uint id = 0;
+        QElapsedTimer sentAt;
+        // Notify is out and its id not back yet. What is asked for
+        // meanwhile waits (the latest only), to replace that one in place
+        // rather than pop up beside it.
+        bool pending = false;
+        std::optional<Request> queued;
+    };
+    Slot track_;
+    Slot notice_;
     // Every notification of ours still around (to tell our clicks from
     // other apps' — the signals are broadcast), and the activation token
     // the server sent for the one about to be clicked.
@@ -63,9 +78,10 @@ private:
     QString pendingActivationToken_;
     QSystemTrayIcon* trayIcon_ = nullptr;
 #ifndef Q_OS_WIN
-    // Sends one notification, replacing the one `id` names (and updating it).
-    void send(uint& id, QElapsedTimer& sentAt, const QString& title, const QString& body, const QPixmap& cover,
-        int timeoutMs);
+    // Sends one notification, replacing the slot's one if it is still up.
+    // Never waits for the server: it is plasmashell on KDE, which at login
+    // may itself be waiting for somebody who waits for us.
+    void send(Slot& slot, const Request& request);
 #endif
 #ifdef Q_OS_WIN
     // Windows: sends the tray balloon itself, see NotificationToastWin.cpp.

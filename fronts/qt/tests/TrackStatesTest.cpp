@@ -9,6 +9,21 @@ class TrackStatesTest : public QObject {
     Q_OBJECT
 
 private slots:
+    // Asked for only while it isn't known: whoever finds it out is not
+    // asked again.
+    void streamQualityIsAskedForWhileUnknown()
+    {
+        Library::TrackStates states;
+        QSignalSpy wanted(&states, &Library::TrackStates::streamQualityWanted);
+        states.requestStreamQuality(QStringLiteral("s"), QStringLiteral("1"));
+        QCOMPARE(wanted.size(), 1);
+        QCOMPARE(wanted.first().at(1).toString(), QStringLiteral("1"));
+
+        states.setStreamQuality(QStringLiteral("s"), QStringLiteral("1"), { QStringLiteral("opus"), 129 });
+        states.requestStreamQuality(QStringLiteral("s"), QStringLiteral("1"));
+        QCOMPARE(wanted.size(), 1);
+    }
+
     void streamQualityIsKeptPerTrackAndAnnounced()
     {
         Library::TrackStates states;

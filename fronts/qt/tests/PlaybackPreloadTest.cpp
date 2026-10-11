@@ -1,3 +1,4 @@
+#include <QFile>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -123,6 +124,41 @@ private slots:
         QCOMPARE(changed.size(), 1);
         QCOMPARE(playback_->currentTrack().title, QStringLiteral("b"));
         QCOMPARE(upstream_->requests.count(QStringLiteral("/b@0")), 1);
+    }
+
+    // A start that takes too long says nothing about the file: it stays,
+    // and plays without the source being asked for the track again.
+    void aSlowStartKeepsTheDownloadedTrack()
+    {
+        playback_->loadQueue(QStringLiteral("fake"), { track(QStringLiteral("a")), track(QStringLiteral("b")) }, 0);
+        QTRY_VERIFY(cached(QStringLiteral("b")));
+        QTRY_VERIFY(playback_->isPlaying());
+
+        playback_->setStartTimeout(0);
+        playback_->next();
+        playback_->setStartTimeout(10000); // the retry gets its time
+        QTRY_VERIFY(playback_->isPlaying());
+        QCOMPARE(playback_->currentTrack().title, QStringLiteral("b"));
+        QVERIFY(cached(QStringLiteral("b")));
+        QCOMPARE(upstream_->requests.count(QStringLiteral("/b@0")), 1);
+    }
+
+    // A downloaded file that can't be played is no use: it goes, and the
+    // track is fetched anew.
+    void aBrokenDownloadedTrackIsFetchedAgain()
+    {
+        playback_->loadQueue(QStringLiteral("fake"), { track(QStringLiteral("a")), track(QStringLiteral("b")) }, 0);
+        QTRY_VERIFY(cached(QStringLiteral("b")));
+        QTRY_VERIFY(playback_->isPlaying());
+        QFile file(playback_->preloader().readyPath(QStringLiteral("fake"), track(QStringLiteral("b")).id));
+        QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        file.write(QByteArray(4096, 'x'));
+        file.close();
+
+        playback_->next();
+        QTRY_COMPARE(upstream_->requests.count(QStringLiteral("/b@0")), 2);
+        QTRY_VERIFY(playback_->isPlaying());
+        QCOMPARE(playback_->currentTrack().title, QStringLiteral("b"));
     }
 
     // The source says a track can't be played: it is told and the next one

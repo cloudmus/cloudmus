@@ -37,6 +37,11 @@ OFFLINE_ATTEMPTS = 2
 # thrown away after this long even when nothing failed.
 YDL_MAX_AGE = 30 * 60
 VALIDATE_TIMEOUT = 5.0
+# A flagged session's URLs serve the first ~1 MiB and answer 403 to any
+# byte past it, so the check has to ask for one that lies beyond. Used
+# when the format's size is unknown; a stream shorter than this answers
+# 416, which is not a refusal.
+VALIDATE_OFFSET = 2 * 1024 * 1024
 
 _YDL_OPTS = {
     "format": "bestaudio/best",
@@ -117,7 +122,15 @@ def _extract_info(video_id: str) -> dict:
             raise
 
 
-def _stream_accepted(url: str, headers: dict | None) -> bool:
+def _probe_range(size: int | None) -> str:
+    """One byte to ask for: the stream's last when its size is known (a
+    flagged session's URL refuses it in any stream longer than ~1 MiB),
+    else the one at VALIDATE_OFFSET."""
+    offset = size - 1 if size and size > 0 else VALIDATE_OFFSET
+    return f"bytes={offset}-{offset}"
+
+
+def _stream_accepted(url: str, headers: dict | None, size: int | None = None) -> bool:
     """False only when the server says 403. Any other outcome (a network
     hiccup, a 5xx) is not proof the URL is bad, and must not block playback.
     Own seam so tests don't touch the network. requests takes the proxy
@@ -125,7 +138,7 @@ def _stream_accepted(url: str, headers: dict | None) -> bool:
     try:
         with requests.get(
             url,
-            headers={**(headers or {}), "Range": "bytes=0-0"},
+            headers={**(headers or {}), "Range": _probe_range(size)},
             stream=True,
             timeout=VALIDATE_TIMEOUT,
         ) as response:
@@ -145,7 +158,7 @@ def _resolve_stream_sync(video_id: str, quality_level: str) -> StreamDescriptor:
     best = quality.pick(audio_formats, quality_level)
     mime = _MIME_TYPES.get(best.get("ext"), "audio/mp4")
     headers = best.get("http_headers") or info.get("http_headers") or None
-    if not _stream_accepted(best["url"], headers):
+    if not _stream_accepted(best["url"], headers, best.get("filesize")):
         _drop_session()
         raise StreamRejected(f"googlevideo refused the stream URL for {video_id} (403)")
     bitrate = round(best.get("abr") or best.get("tbr") or 0)

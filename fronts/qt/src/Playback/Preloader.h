@@ -94,6 +94,9 @@ public:
 
     // The whole track is on disk.
     bool isCached(const QString& sourceId, const QString& trackId) const;
+    // Where, to look into the file — not to play it (see readyPath());
+    // empty if it isn't cached.
+    QString cachedFile(const QString& sourceId, const QString& trackId) const;
     // The file to play the whole track from — the cached one, or a local
     // source's own; empty if there is none (yet).
     QString readyPath(const QString& sourceId, const QString& trackId);

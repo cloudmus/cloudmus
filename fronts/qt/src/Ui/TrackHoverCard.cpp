@@ -355,16 +355,19 @@ private:
 
 } // namespace
 
-void TrackHoverCard::attach(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName)
+void TrackHoverCard::attach(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName,
+    QualityRequestFn requestQuality)
 {
-    new TrackHoverCard(view, coverCache, std::move(sourceName));
+    new TrackHoverCard(view, coverCache, std::move(sourceName), std::move(requestQuality));
 }
 
-TrackHoverCard::TrackHoverCard(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName)
+TrackHoverCard::TrackHoverCard(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName,
+    QualityRequestFn requestQuality)
     : QObject(view)
     , view_(view)
     , coverCache_(coverCache)
     , sourceName_(std::move(sourceName))
+    , requestQuality_(std::move(requestQuality))
 {
     view_->viewport()->installEventFilter(this);
     restTimer_.setSingleShot(true);
@@ -402,6 +405,11 @@ bool TrackHoverCard::eventFilter(QObject* watched, QEvent* event)
                 hideCard();
             // Any move restarts the wait — the card follows a resting cursor.
             if (index.isValid() && index != shownIndex_) {
+                // Asked for as the cursor comes to the row, to be there by
+                // the time the card shows.
+                if (index != restIndex_ && requestQuality_ && !index.data(TrackListModel::StreamQualityRole).isValid())
+                    requestQuality_(index.data(TrackListModel::SourceIdRole).toString(),
+                        index.data(TrackListModel::TrackRole).value<Track>().id);
                 restIndex_ = index;
                 restGlobalPos_ = move->globalPosition().toPoint();
                 restTimer_.start();
@@ -442,7 +450,20 @@ void TrackHoverCard::showFor(const QModelIndex& index, const QPoint& globalPos)
     if (popup_ == nullptr)
         popup_ = new CardPopup(coverCache_);
     shownIndex_ = index;
+    shownGlobalPos_ = globalPos;
+    connect(
+        index.model(), &QAbstractItemModel::dataChanged, this, &TrackHoverCard::onDataChanged, Qt::UniqueConnection);
     static_cast<CardPopup*>(popup_)->showCard(data, globalPos, view_);
+}
+
+void TrackHoverCard::onDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight)
+{
+    if (!shownIndex_.isValid() || popup_ == nullptr || !popup_->isVisible() || shownIndex_.row() < topLeft.row()
+        || shownIndex_.row() > bottomRight.row())
+        return;
+    const QModelIndex index = shownIndex_;
+    shownIndex_ = QModelIndex(); // or showFor() would leave the card as it is
+    showFor(index, shownGlobalPos_);
 }
 
 void TrackHoverCard::hideCard()

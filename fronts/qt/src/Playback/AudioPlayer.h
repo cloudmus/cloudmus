@@ -67,7 +67,9 @@ signals:
     // MPV_EVENT_PLAYBACK_RESTART).
     void started();
     // Playback failed; no started()/endOfFile() will follow for this file.
-    void failed(QString message);
+    // unplayableFile: what was given to play couldn't be opened or made
+    // sense of — as opposed to, say, the audio output going away.
+    void failed(QString message, bool unplayableFile);
     // Natural end of the current track (not a manual stop/track change).
     void endOfFile();
     void positionChanged(qint64 positionMs, qint64 durationMs);

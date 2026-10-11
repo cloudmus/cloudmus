@@ -19,6 +19,7 @@ QObject* makeDownloadsTest();
 QObject* makeAnalyticsTest();
 QObject* makeStreamRelayTest();
 QObject* makeTrackCacheTest();
+QObject* makeAudioFileProbeTest();
 QObject* makePreloaderTest();
 QObject* makePlaybackPreloadTest();
 QObject* makePreloadTest();
@@ -54,7 +55,7 @@ int main(int argc, char** argv)
     for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
              Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
              Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
-             Tests::makeTrackCacheTest, Tests::makePreloaderTest, Tests::makePlaybackPreloadTest,
+             Tests::makeTrackCacheTest, Tests::makeAudioFileProbeTest, Tests::makePreloaderTest, Tests::makePlaybackPreloadTest,
              Tests::makePreloadTest, Tests::makeTrackFileTest, Tests::makeCrashReporterTest, Tests::makeUpdateTest,
              Tests::makeHotkeysTest, Tests::makeI18nTest, Tests::makeAudioPulseTest, Tests::makeStarPromptTest,
              Tests::makePathsTest, Tests::makeTrackStatesTest }) {

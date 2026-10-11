@@ -40,6 +40,22 @@ def test_to_track_maps_fields():
     assert t.webUrl == "https://music.youtube.com/watch?v=abc"
 
 
+def test_small_album_art_is_asked_for_at_a_larger_size():
+    def cover(url):
+        return catalog.to_track(_song(thumbnails=[{"url": "https://img/low.jpg"}, {"url": url}])).coverUrl
+
+    art = "https://yt3.googleusercontent.com/AbC-dEf_123"
+    assert cover(f"{art}=w120-h120-l90-rj") == f"{art}=w544-h544-l90-rj"
+    assert cover("https://lh3.googleusercontent.com/x=w60-h60") == "https://lh3.googleusercontent.com/x=w544-h544"
+    # Large enough already, or not a URL that names its size: as it came.
+    assert cover(f"{art}=w1200-h1200-l90-rj") == f"{art}=w1200-h1200-l90-rj"
+    video = "https://i.ytimg.com/vi/abc/hqdefault.jpg?sqp=-oaymwEW&rs=AMzJL3m"
+    assert cover(video) == video
+    assert cover("https://music.youtube.com/image/mixart?r=ENgE=w120-h120") == (
+        "https://music.youtube.com/image/mixart?r=ENgE=w120-h120"
+    )
+
+
 def test_to_track_handles_missing_album_and_cover():
     t = catalog.to_track(_song(album={}, thumbnails=[]))
     assert t.album is None or t.album.title == ""

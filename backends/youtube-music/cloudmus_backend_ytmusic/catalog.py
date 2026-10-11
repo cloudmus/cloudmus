@@ -4,6 +4,7 @@ resolve a stream from a trackId with no catalog lookup step."""
 from __future__ import annotations
 
 import asyncio
+import re
 
 from ytmusicapi import YTMusic
 
@@ -36,10 +37,21 @@ HOME_SHELVES = 20
 SUPERMIX_TITLE = "My Supermix"
 
 
+# Album art comes from Google's image host at whatever size the URL's
+# suffix names ("...=w120-h120-l90-rj"), and the lists carry it no larger
+# than 120 px. This is the size YouTube Music's own pages ask for.
+COVER_SIZE = 544
+_SIZED_COVER = re.compile(r"^(https://[^/]+\.(?:googleusercontent|ggpht)\.com/[^=]+=)w(\d+)-h(\d+)(.*)$")
+
+
 def _cover_url(thumbnails: list[dict] | None) -> str | None:
     if not thumbnails:
         return None
-    return thumbnails[-1].get("url")  # thumbnails are ordered smallest-first
+    url = thumbnails[-1].get("url")  # thumbnails are ordered smallest-first
+    match = _SIZED_COVER.match(url or "")
+    if match and max(int(match[2]), int(match[3])) < COVER_SIZE:
+        return f"{match[1]}w{COVER_SIZE}-h{COVER_SIZE}{match[4]}"
+    return url
 
 
 def _as_int(value: object) -> int:

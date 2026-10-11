@@ -454,6 +454,11 @@ bool Preloader::isCached(const QString& sourceId, const QString& trackId) const
     return cache_.contains(TrackCache::keyFor(sourceId, trackId));
 }
 
+QString Preloader::cachedFile(const QString& sourceId, const QString& trackId) const
+{
+    return cache_.location(TrackCache::keyFor(sourceId, trackId));
+}
+
 QString Preloader::readyPath(const QString& sourceId, const QString& trackId)
 {
     const QString key = TrackCache::keyFor(sourceId, trackId);

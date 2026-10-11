@@ -1,9 +1,11 @@
 #pragma once
 
 #include <QObject>
+#include <QSet>
 
 #include "ActivePlaylist.h"
 #include "Analytics.h"
+#include "AudioFileProbe.h"
 #include "AudioPulse.h"
 #include "AuthStates.h"
 #include "Browse.h"
@@ -86,6 +88,9 @@ private:
     Rpc::AuthStates authStates_;
     History::PlaybackHistory playbackHistory_;
     Library::TrackStates trackStates_;
+    Playback::AudioFileProbe fileProbe_;
+    // Cached files asked of fileProbe_ already (once is enough for a run).
+    QSet<QString> probedFiles_;
     Covers::CoverArtCache coverArtCache_;
     ViewModel::Messages messages_;
     SourceSession sourceSession_;

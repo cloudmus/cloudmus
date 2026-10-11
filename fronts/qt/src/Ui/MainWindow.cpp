@@ -353,8 +353,11 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
         const Rpc::RpcClient* client = sourceManager_.client(sourceId);
         return client != nullptr ? client->sourceName() : QString();
     };
-    TrackHoverCard::attach(trackListView_, coverArtCache_, sourceName);
-    TrackHoverCard::attach(sheet_->trackView(), coverArtCache_, sourceName);
+    const auto requestQuality = [this](const QString& sourceId, const QString& trackId) {
+        trackStates_->requestStreamQuality(sourceId, trackId);
+    };
+    TrackHoverCard::attach(trackListView_, coverArtCache_, sourceName, requestQuality);
+    TrackHoverCard::attach(sheet_->trackView(), coverArtCache_, sourceName, requestQuality);
     trackListContainer->installEventFilter(this);
     sourcePanel_ = sheet_->sourcePanel();
     connect(sourcePanel_, &SourcePanel::submitRequested, &sourcePage_, &ViewModel::SourcePage::submit);
@@ -1112,6 +1115,17 @@ void MainWindow::bringToFront(const QString& activationToken)
     // window requests activation.
     if (!activationToken.isEmpty())
         qputenv("XDG_ACTIVATION_TOKEN", activationToken.toUtf8());
+#ifndef Q_OS_WIN
+    // Wayland: a client can't bring its minimized window back. All it can
+    // do is ask to be activated, and a window without the focus is refused
+    // that unless a token says the user asked — which a global shortcut
+    // from KGlobalAccel doesn't bring. A window mapped anew is shown,
+    // though: so it leaves the screen first, and comes back the way it
+    // does from the tray.
+    if (activationToken.isEmpty() && isVisible() && !isOnScreen()
+        && QGuiApplication::platformName().startsWith(QLatin1String("wayland")))
+        hideToTray();
+#endif
     // A window hidden to the tray is mapped anew, and the window manager
     // places it like a new one (centered on the screen under the mouse),
     // so put it back on its own screen and spot (X11 — on Wayland a client

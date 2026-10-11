@@ -56,6 +56,24 @@ def get_client() -> YTMusic:
     )
 
 
+def signed_out() -> bool:
+    """True when YouTube answers the saved session as nobody's. Cookies
+    copied from a browser die once Google replaces them there, and the
+    calls then fail in ytmusicapi's parsing (a "Sign in" page isn't what it
+    expects) or come back empty — neither says why. Asked only after such
+    a failure; anything short of YouTube's own word (no network, no saved
+    session, an answer without the flag) is not a sign-out."""
+    try:
+        response = get_client()._send_request("account/account_menu", {})
+    except Exception:
+        return False
+    for service in response.get("responseContext", {}).get("serviceTrackingParams", []):
+        for param in service.get("params", []):
+            if param.get("key") == "logged_in":
+                return param.get("value") == "0"
+    return False
+
+
 def reset_client() -> None:
     """Drops the cached client so the next get_client() re-reads the token
     (used after a fresh login or a logout)."""

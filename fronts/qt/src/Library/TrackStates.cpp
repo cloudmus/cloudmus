@@ -91,6 +91,13 @@ void TrackStates::setStreamQuality(const QString& sourceId, const QString& track
     emit changed(sourceId, trackId);
 }
 
+void TrackStates::requestStreamQuality(const QString& sourceId, const QString& trackId)
+{
+    const auto it = states_.constFind(key(sourceId, trackId));
+    if (it == states_.constEnd() || !it->streamQuality.has_value())
+        emit streamQualityWanted(sourceId, trackId);
+}
+
 void TrackStates::setUnavailable(const QString& sourceId, const QString& trackId)
 {
     TrackState& s = states_[key(sourceId, trackId)];

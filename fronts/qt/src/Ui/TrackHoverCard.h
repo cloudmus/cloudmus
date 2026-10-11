@@ -32,7 +32,13 @@ public:
     // Maps a sourceId to its display name ("Yandex Music").
     using SourceNameFn = std::function<QString(const QString& sourceId)>;
 
-    static void attach(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName);
+    // Told the track a card is about to be shown for, while its stream
+    // quality isn't known: whoever can find it out does, and the model's
+    // StreamQualityRole changes.
+    using QualityRequestFn = std::function<void(const QString& sourceId, const QString& trackId)>;
+
+    static void attach(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName,
+        QualityRequestFn requestQuality = { });
     // The card is a parentless top-level window — deleted with this.
     ~TrackHoverCard() override;
 
@@ -40,7 +46,12 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    TrackHoverCard(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName);
+    TrackHoverCard(QAbstractItemView* view, Covers::CoverArtCache* coverCache, SourceNameFn sourceName,
+        QualityRequestFn requestQuality);
+
+    // The shown row's data changed (its stream quality got known): the
+    // card is shown anew where it is.
+    void onDataChanged(const QModelIndex& topLeft, const QModelIndex& bottomRight);
 
     void showFor(const QModelIndex& index, const QPoint& globalPos);
     void hideCard();
@@ -48,6 +59,8 @@ private:
     QAbstractItemView* view_;
     Covers::CoverArtCache* coverCache_;
     SourceNameFn sourceName_;
+    QualityRequestFn requestQuality_;
+    QPoint shownGlobalPos_;
     QPersistentModelIndex shownIndex_;
     // The row the cursor is resting on and where, until restTimer_ fires.
     QTimer restTimer_;

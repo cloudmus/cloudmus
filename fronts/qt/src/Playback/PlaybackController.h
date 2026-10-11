@@ -63,6 +63,9 @@ public:
     // playlist, and of a radio (whose upcoming tracks a skip replaces).
     // 0: only the playing track.
     void setPreloadDepth(int playlistTracks, int radioTracks);
+    // How long a track may take to start before that counts as a failure;
+    // for the starts after this call.
+    void setStartTimeout(int ms);
     int playlistPreloadDepth() const { return playlistPreloadDepth_; }
     // Longest a radio's queue (and the list showing it) may get.
     static constexpr int kMaxRadioQueue = 100;
@@ -228,7 +231,7 @@ private:
     void advance(int delta, bool wasSkip);
     // The current track failed to load or start: resolved again a few
     // times, then left paused with Play loading it anew.
-    void handleStartFailure(const QString& message, const QString& reason);
+    void handleStartFailure(const QString& message, const QString& reason, bool unplayableFile = false);
     void reportError(const QString& sourceId, const QString& reason, const QString& message);
     // Nothing plays now: shown as paused, Play loads the track again.
     void stopAfterFailure();
@@ -299,6 +302,7 @@ private:
     int radioWaitGeneration_ = 0;
     QString latestRequestSourceId_;
     QTimer* playTimeoutTimer_ = nullptr;
+    int startTimeoutMs_ = 10000;
     qint64 lastKnownPositionMs_ = 0;
     qint64 lastKnownDurationMs_ = 0;
     // What mpv has read ahead: all there is to show for a stream it
