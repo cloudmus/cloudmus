@@ -1,5 +1,5 @@
-"""playback.play stream resolution: yt-dlp extracts the best audio-only
-format for a YouTube videoId -> StreamDescriptor, delivered via
+"""playback.play stream resolution: yt-dlp lists the audio-only formats
+of a YouTube videoId, quality.pick() chooses one -> StreamDescriptor, delivered via
 track/streamReady. No ytmusicapi client involved here at all — a public
 video id is resolvable without an authenticated session, so playback.play
 works even in a logged-out session for a track id obtained elsewhere.
@@ -22,6 +22,8 @@ import requests
 import yt_dlp
 
 from rpc_common.generated.models import StreamDescriptor
+
+from . import quality
 
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 4.0
@@ -98,7 +100,7 @@ def _stream_accepted(url: str, headers: dict | None) -> bool:
         return True
 
 
-def _resolve_stream_sync(video_id: str) -> StreamDescriptor:
+def _resolve_stream_sync(video_id: str, quality_level: str) -> StreamDescriptor:
     info = _extract_info(video_id)
     formats = info.get("formats") or []
     audio_formats = [
@@ -106,7 +108,7 @@ def _resolve_stream_sync(video_id: str) -> StreamDescriptor:
     ]
     if not audio_formats:
         raise LookupError(f"no audio-only formats for {video_id}")
-    best = max(audio_formats, key=lambda f: f.get("abr") or 0)
+    best = quality.pick(audio_formats, quality_level)
     mime = _MIME_TYPES.get(best.get("ext"), "audio/mp4")
     headers = best.get("http_headers") or info.get("http_headers") or None
     if not _stream_accepted(best["url"], headers):
@@ -120,14 +122,16 @@ def _is_non_transient(exc: Exception) -> bool:
     return any(sig in message for sig in _NON_TRANSIENT_SIGNATURES)
 
 
-async def resolve_stream_with_retry(video_id: str, cancel_event: asyncio.Event) -> StreamDescriptor:
+async def resolve_stream_with_retry(
+    video_id: str, cancel_event: asyncio.Event, quality_level: str = quality.BEST
+) -> StreamDescriptor:
     delay = RETRY_INITIAL_DELAY
     last_exc: Exception | None = None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         if cancel_event.is_set():
             raise asyncio.CancelledError
         try:
-            return await asyncio.to_thread(_resolve_stream_sync, video_id)
+            return await asyncio.to_thread(_resolve_stream_sync, video_id, quality_level)
         except LookupError:
             raise
         except Exception as e:

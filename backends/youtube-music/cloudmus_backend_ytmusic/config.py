@@ -7,6 +7,7 @@
   client as of ytmusicapi>=1.x, and the protocol's auth.start takes no params
   to carry credentials through from the front — so this one-time setup step
   necessarily happens outside the RPC protocol, by editing this file by hand.
+  Also holds this backend's settings, under "settings" (settings_store()).
 - oauth_token.json: the actual refreshable OAuth token, in the exact shape
   ytmusicapi.auth.oauth.token.Token.as_dict() produces. auth.py hands this
   path to a RefreshingToken as its local_cache, and client.py hands the same
@@ -24,6 +25,9 @@ import json
 from pathlib import Path
 
 from rpc_common.platform_paths import config_home
+from rpc_common.settings import Field, Group, SettingsStore
+
+from . import quality
 
 CONFIG_DIR = config_home() / "cloudmus" / "backends" / "youtube-music"
 CLIENT_FILE = CONFIG_DIR / "config.json"
@@ -67,3 +71,24 @@ def has_browser_auth() -> bool:
 
 def clear_browser_auth() -> None:
     BROWSER_HEADERS_FILE.unlink(missing_ok=True)
+
+
+def settings_store() -> SettingsStore:
+    """This backend's settings (docs/protocol.md §7.7), in the same
+    config.json as the OAuth client — SettingsStore keeps the other keys."""
+    return SettingsStore(
+        CLIENT_FILE,
+        groups=[Group("playback", "Playback")],
+        fields=[
+            # The front saves the stream it plays (docs/protocol.md §7.5),
+            # so one setting covers listening and saving.
+            Field.enum(
+                "streamQuality",
+                "Quality",
+                default=quality.BEST,
+                options=quality.OPTIONS,
+                group="playback",
+                description="Applies from the next track, and to the tracks you save.",
+            ),
+        ],
+    )

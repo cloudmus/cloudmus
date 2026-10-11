@@ -12,7 +12,9 @@ resolve stream URLs.
   My Mix 1–7, Discover, Replay…) played like My Wave — see `radio.py`.
   Listened tracks are added to the account's YouTube history, which feeds
   its recommendations; there's no other radio feedback on YouTube's side.
-- Streams (`providesStream`, with preloading), `bestaudio`, no `ffmpeg`.
+- Streams (`providesStream`, with preloading), audio-only, no `ffmpeg`. The
+  **Quality** setting caps the bitrate (best ≈130 kbps, or up to 70 / 50
+  kbps to save traffic); Opus is preferred to AAC at the same tier.
   Saving a track is the front's job (`downloadFromStream`): it downloads
   the stream and writes the tags and cover itself.
 - No search yet.
@@ -57,7 +59,7 @@ In `~/.config/cloudmus/backends/youtube-music/`, all written `chmod 0600`:
 |---|---|
 | `browser_headers.json` | The active credential. Delete it (or sign out) to force re-authentication. |
 | `oauth_token.json` | Leftover from the dormant OAuth path; used only if `browser_headers.json` doesn't exist. |
-| `config.json` | `{"clientId": "...", "clientSecret": "..."}`, written by hand — only to revive the OAuth path (a Google Cloud OAuth client of the "TVs and Limited Input devices" type, YouTube Data API v3 enabled). |
+| `config.json` | `{"clientId": "...", "clientSecret": "..."}`, written by hand — only to revive the OAuth path (a Google Cloud OAuth client of the "TVs and Limited Input devices" type, YouTube Data API v3 enabled). Also keeps `"settings"`: the stream quality chosen in **Settings**. |
 
 ## Dependencies
 

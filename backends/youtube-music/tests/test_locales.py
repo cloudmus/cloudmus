@@ -2,15 +2,27 @@
 each language's dictionary (a missing one would silently show English)."""
 import pytest
 
-from cloudmus_backend_ytmusic import server
+from cloudmus_backend_ytmusic import config, server
 from cloudmus_backend_ytmusic.i18n import translator
 from cloudmus_backend_ytmusic.locales import CATALOGS
+
+
+def _settings_strings():
+    store = config.settings_store()
+    for g in store.groups:
+        yield g.title
+    for f in store.fields:
+        for text in (f.label, f.description):
+            if text:
+                yield text
+        for _, label in f.options:
+            yield label
 
 
 @pytest.mark.parametrize("lang", sorted(CATALOGS))
 def test_dictionary_covers_description_and_titles(lang):
     built = server.build_server()
-    expected = [built.source_description, "Liked Songs"]
+    expected = [built.source_description, "Liked Songs", *_settings_strings()]
     missing = [text for text in expected if text not in CATALOGS[lang]]
     assert missing == []
 

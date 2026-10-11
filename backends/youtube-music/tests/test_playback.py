@@ -176,3 +176,55 @@ def test_session_is_dropped_on_extraction_error_and_after_max_age(monkeypatch):
     monkeypatch.setattr(playback, "YDL_MAX_AGE", -1)
     playback._extract_info("e")
     assert len(created) == 3  # too old
+
+
+def _tier(format_id, acodec, abr, **kw):
+    return {"format_id": format_id, "acodec": acodec, "vcodec": "none", "abr": abr, "ext": "webm", **kw}
+
+
+_YOUTUBE_FORMATS = [
+    _tier("139", "mp4a.40.5", 48.8, ext="m4a"),
+    _tier("249", "opus", 46.2),
+    _tier("250", "opus", 61.1),
+    _tier("140", "mp4a.40.2", 129.5, ext="m4a"),
+    _tier("251", "opus", 128.9),
+]
+
+
+@pytest.mark.parametrize("level, expected", [("best", "251"), ("medium", "250"), ("low", "249")])
+def test_quality_caps_the_bitrate(level, expected):
+    from cloudmus_backend_ytmusic import quality
+
+    assert quality.pick(_YOUTUBE_FORMATS, level)["format_id"] == expected
+
+
+def test_quality_prefers_opus_over_aac_at_the_same_tier():
+    from cloudmus_backend_ytmusic import quality
+
+    formats = [_tier("140", "mp4a.40.2", 129.9, ext="m4a"), _tier("251", "opus", 128.9)]
+    assert quality.pick(formats, "best")["format_id"] == "251"
+
+
+def test_quality_falls_back_to_the_lowest_above_the_cap():
+    from cloudmus_backend_ytmusic import quality
+
+    assert quality.pick([_tier("140", "mp4a.40.2", 129.5), _tier("251", "opus", 128.9)], "low")["format_id"] == "251"
+
+
+def test_quality_prefers_the_original_language_and_uncompressed_audio():
+    from cloudmus_backend_ytmusic import quality
+
+    formats = [
+        _tier("251-dub", "opus", 130, language_preference=-1),
+        _tier("251-drc", "opus", 130, language_preference=10),
+        _tier("251", "opus", 129, language_preference=10),
+    ]
+    assert quality.pick(formats, "best")["format_id"] == "251"
+
+
+@pytest.mark.asyncio
+async def test_stream_uses_the_quality_level(monkeypatch):
+    formats = [_format(abr=128, url="https://high"), _format(abr=62, url="https://mid"), _format(abr=48, url="https://low")]
+    monkeypatch.setattr(playback, "_extract_info", lambda vid: {"formats": formats})
+    stream = await playback.resolve_stream_with_retry("abc", asyncio.Event(), "medium")
+    assert stream.url == "https://mid"

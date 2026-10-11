@@ -9,7 +9,7 @@ from rpc_common.server import BackendError
 
 @pytest.mark.asyncio
 async def test_resolve_stream_returns_descriptor_without_starting_playback(monkeypatch):
-    async def resolve(track_id, cancel_event):
+    async def resolve(track_id, cancel_event, quality_level=None):
         return StreamDescriptor(kind="url", url=f"https://cdn/{track_id}", mimeType="audio/webm")
 
     monkeypatch.setattr(playback, "resolve_stream_with_retry", resolve)
@@ -24,7 +24,7 @@ async def test_resolve_stream_returns_descriptor_without_starting_playback(monke
 async def test_cancel_stops_an_in_flight_resolution(monkeypatch):
     started = asyncio.Event()
 
-    async def resolve(track_id, cancel_event):
+    async def resolve(track_id, cancel_event, quality_level=None):
         started.set()
         await cancel_event.wait()
         raise asyncio.CancelledError

@@ -10,7 +10,7 @@ from rpc_common.generated.models import StreamReadyParams
 from rpc_common.server import BackendError, BackendServer
 
 from .i18n import tr, translator
-from . import catalog, client as client_module, playback
+from . import catalog, client as client_module, config, playback
 from .auth import BrowserAuthSession
 from .radio import RadioSession
 
@@ -47,6 +47,9 @@ def build_server() -> BackendServer:
         capabilities=CAPABILITIES,
         translator=translator,
     )
+
+    settings = config.settings_store()
+    settings.register(server)
 
     auth_session = BrowserAuthSession()
     radio_session: RadioSession | None = None
@@ -143,7 +146,9 @@ def build_server() -> BackendServer:
         cancel_event = asyncio.Event()
         inflight_resolutions[request_id] = cancel_event
         try:
-            stream = await playback.resolve_stream_with_retry(params["trackId"], cancel_event)
+            stream = await playback.resolve_stream_with_retry(
+                params["trackId"], cancel_event, settings.get("streamQuality")
+            )
         except asyncio.CancelledError:
             raise BackendError(errors.STATE_INVALID, tr("Stream resolution cancelled"))
         except LookupError as e:
@@ -165,7 +170,7 @@ def build_server() -> BackendServer:
 
         async def resolve() -> None:
             try:
-                stream = await playback.resolve_stream_with_retry(track_id, cancel_event)
+                stream = await playback.resolve_stream_with_retry(track_id, cancel_event, settings.get("streamQuality"))
             except asyncio.CancelledError:
                 return
             except LookupError as e:
