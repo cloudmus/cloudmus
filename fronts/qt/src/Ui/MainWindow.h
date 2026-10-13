@@ -7,6 +7,7 @@
 #include <QSet>
 
 #include <functional>
+#include <optional>
 
 #include "AuthStates.h"
 #include "Core.h"
@@ -23,6 +24,10 @@ class QCloseEvent;
 class QSplitter;
 class QMenu;
 class QCheckBox;
+
+namespace Timing {
+class Debounce;
+}
 
 namespace History {
 class PlaybackHistory;
@@ -245,6 +250,13 @@ private:
     TrackListModel* trackListModel_ = nullptr;
     QListView* trackListView_ = nullptr;
     QSplitter* contentSplitter_ = nullptr;
+    // Where a splitter drag has left each split, until the drag settles:
+    // writing the setting on every move rewrites and fsyncs the config
+    // file once per frame, which stalls the drag whenever the disk is busy.
+    std::optional<double> pendingSidebarFraction_;
+    std::optional<double> pendingHeroPanelFraction_;
+    Timing::Debounce* splitSave_ = nullptr;
+    void saveSplitFractions();
     // Thin wrapper around just trackListView_ — its own immediate parent,
     // needed so trackListBusyIndicator_'s x()/y()-based positioning (same
     // parent as trackListView_) and the resize event filter both keep

@@ -36,6 +36,7 @@
 
 #include "AboutDialog.h"
 #include "CoverArtCache.h"
+#include "Debounce.h"
 #include "DownloadPaths.h"
 #include "DownloadsPanel.h"
 #include "EmptyStatePlaceholder.h"
@@ -334,8 +335,11 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     heroPanel_->setMinimumWidth(kHeroMinWidth);
     trackListPane_->setMinimumWidth(kTrackListMinWidth);
     contentSplitter_->setSizes(splitSizes(settings_.heroPanelFraction()));
-    connect(contentSplitter_, &QSplitter::splitterMoved, this,
-        [this]() { settings_.setHeroPanelFraction(firstPaneFraction(contentSplitter_)); });
+    splitSave_ = new Timing::Debounce(500, [this]() { saveSplitFractions(); }, this);
+    connect(contentSplitter_, &QSplitter::splitterMoved, this, [this]() {
+        pendingHeroPanelFraction_ = firstPaneFraction(contentSplitter_);
+        splitSave_->trigger();
+    });
     trackListContainerLayout->addWidget(contentSplitter_, 1);
 
     // Shown instead of contentSplitter_ until there's an active playlist
@@ -412,8 +416,10 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     splitter->setChildrenCollapsible(false);
     sidebarView_->setMinimumWidth(kSidebarMinWidth);
     splitter->setSizes(splitSizes(settings_.sidebarFraction()));
-    connect(splitter, &QSplitter::splitterMoved, this,
-        [this, splitter]() { settings_.setSidebarFraction(firstPaneFraction(splitter)); });
+    connect(splitter, &QSplitter::splitterMoved, this, [this, splitter]() {
+        pendingSidebarFraction_ = firstPaneFraction(splitter);
+        splitSave_->trigger();
+    });
 
     toastNotifier_ = new ToastNotifier(this);
     // Whatever the core has to tell the user shows as a toast — on
@@ -675,6 +681,7 @@ void MainWindow::showBrowseRows()
 
 MainWindow::~MainWindow()
 {
+    splitSave_->flush(); // a drag that hadn't settled yet
     settings_.setWindowGeometry(saveGeometry());
     if (normalSize_.isValid())
         settings_.setWindowNormalSize(normalSize_);
@@ -1375,8 +1382,20 @@ void MainWindow::repositionTrackListBusyIndicator()
     trackListBusyIndicator_->setGeometry(trackListView_->x(), trackListView_->y(), trackListView_->width(), 4);
 }
 
+void MainWindow::saveSplitFractions()
+{
+    if (pendingSidebarFraction_)
+        settings_.setSidebarFraction(*pendingSidebarFraction_);
+    if (pendingHeroPanelFraction_)
+        settings_.setHeroPanelFraction(*pendingHeroPanelFraction_);
+    pendingSidebarFraction_.reset();
+    pendingHeroPanelFraction_.reset();
+}
+
 void MainWindow::setTrackListVisible(bool visible)
 {
+    // The hero share is read back from the settings below.
+    splitSave_->flush();
     trackListPane_->setVisible(visible);
     if (visible) {
         // Restore the persisted hero share of the splitter. Correct whether

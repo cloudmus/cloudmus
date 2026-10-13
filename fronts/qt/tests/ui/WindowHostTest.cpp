@@ -8,6 +8,7 @@
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QSlider>
+#include <QSplitter>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -77,6 +78,44 @@ private slots:
 
         for (Rpc::RpcClient* client : core.sourceManager().clients())
             await(client->shutdown());
+    }
+
+    // Every move would otherwise rewrite the config file mid-drag.
+    void aSplitterDragIsSavedOnceItSettles()
+    {
+        App::Core core;
+        Ui::WindowHost host(core);
+        host.show();
+        auto* sidebar = host.window()->findChild<QTreeView*>(QStringLiteral("sidebarView"));
+        QVERIFY(sidebar != nullptr);
+        auto* splitter = qobject_cast<QSplitter*>(sidebar->parentWidget());
+        QVERIFY(splitter != nullptr);
+        const double saved = core.settings().sidebarFraction();
+        const auto fraction = [splitter]() {
+            const QList<int> sizes = splitter->sizes();
+            return double(sizes.at(0)) / (sizes.at(0) + sizes.at(1));
+        };
+
+        const auto drag = [splitter](int dx) {
+            QWidget* handle = splitter->handle(1);
+            const QPoint from = handle->rect().center();
+            QTest::mousePress(handle, Qt::LeftButton, { }, from);
+            QTest::mouseMove(handle, from + QPoint(dx, 0));
+            QTest::mouseRelease(handle, Qt::LeftButton, { }, from + QPoint(dx, 0));
+        };
+        drag(60);
+        QVERIFY(!qFuzzyCompare(fraction(), saved));
+        QCOMPARE(core.settings().sidebarFraction(), saved);
+        QTRY_COMPARE(core.settings().sidebarFraction(), fraction());
+
+        // A window closed before the drag settles still saves it.
+        drag(-30);
+        const double last = fraction();
+        QVERIFY(!qFuzzyCompare(core.settings().sidebarFraction(), last));
+        QSignalSpy created(&host, &Ui::WindowHost::windowCreated);
+        host.recreate();
+        QVERIFY(created.wait(5000));
+        QCOMPARE(core.settings().sidebarFraction(), last);
     }
 
     void toolbarIconsFollowAThemeFlip()
