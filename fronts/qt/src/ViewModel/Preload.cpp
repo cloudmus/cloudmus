@@ -1,12 +1,11 @@
 #include "Preload.h"
 
-#include <QTimer>
-
 #include <cmath>
 
 #include "PlaybackController.h"
 #include "Preloader.h"
 #include "Settings.h"
+#include "Throttle.h"
 #include "TrackCache.h"
 
 namespace ViewModel {
@@ -109,17 +108,17 @@ Preload::Preload(Playback::PlaybackController& playback, Config::Settings& setti
     , playback_(playback)
     , settings_(settings)
     , model_(new UpcomingModel(*this))
-    , throttle_(new QTimer(this))
+    , throttle_(new Timing::Throttle(
+          kSmoothIntervalMs,
+          [this]() {
+              const Window now = window();
+              apply(now.playing, now.upcoming);
+          },
+          this))
 {
     playback_.setPreloadDepth(settings_.preloadPlaylistTracks(), settings_.preloadRadioTracks());
     playback_.trackCache().setMaxBytes(settings_.preloadCacheMaxMb() * kMegabyte);
 
-    throttle_->setSingleShot(true);
-    throttle_->setInterval(kSmoothIntervalMs);
-    connect(throttle_, &QTimer::timeout, this, [this]() {
-        if (std::exchange(refreshPending_, false))
-            refresh();
-    });
     connect(&playback_.preloader(), &Playback::Preloader::progressChanged, this, &Preload::refresh);
     connect(&playback_.preloader(), &Playback::Preloader::trackStateChanged, this, &Preload::trackChanged);
     connect(&playback_.trackCache(), &Playback::TrackCache::changed, this, &Preload::cacheUsedChanged);
@@ -241,8 +240,7 @@ void Preload::setProgressMode(ProgressMode mode)
     if (progressMode_ == mode)
         return;
     progressMode_ = mode;
-    throttle_->stop();
-    refreshPending_ = false;
+    throttle_->cancel();
     emit progressModeChanged();
     refresh();
     emit progressChanged(); // overallFraction() counts differently now
@@ -253,7 +251,7 @@ double Preload::reported(double fraction) const
     return progressMode_ == ProgressMode::Stepped ? std::floor(fraction * kSteps) / kSteps : fraction;
 }
 
-void Preload::refresh()
+Preload::Window Preload::window() const
 {
     Slot playing;
     QVector<Slot> fresh;
@@ -269,6 +267,14 @@ void Preload::refresh()
         else
             fresh.append(slot);
     }
+    return { playing, fresh };
+}
+
+void Preload::refresh()
+{
+    const Window now = window();
+    const Slot& playing = now.playing;
+    const QVector<Slot>& fresh = now.upcoming;
 
     // What changed besides how far a download has got is shown at once;
     // so is everything in Stepped mode, where progress rarely changes.
@@ -276,14 +282,10 @@ void Preload::refresh()
         && sameTrack(playing, playing_) && playing.state == playing_.state;
     for (qsizetype i = 0; progressOnly && i < fresh.size(); ++i)
         progressOnly = sameTrack(fresh.at(i), tracks_.at(i)) && fresh.at(i).state == tracks_.at(i).state;
-    if (progressOnly) {
-        if (throttle_->isActive()) {
-            refreshPending_ = true;
-            return;
-        }
-        throttle_->start();
-    }
-    apply(playing, fresh);
+    if (progressOnly)
+        throttle_->trigger();
+    else
+        apply(playing, fresh);
 }
 
 void Preload::apply(const Slot& playing, const QVector<Slot>& fresh)

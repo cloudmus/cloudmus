@@ -5,7 +5,9 @@
 #include <QString>
 #include <QVector>
 
-class QTimer;
+namespace Timing {
+class Throttle;
+}
 
 namespace Config {
 class Settings;
@@ -118,6 +120,12 @@ signals:
 private:
     class UpcomingModel;
 
+    // The preloader's window as this model shows it.
+    struct Window {
+        Slot playing;
+        QVector<Slot> upcoming;
+    };
+    Window window() const;
     void refresh();
     void apply(const Slot& playing, const QVector<Slot>& fresh);
     double reported(double fraction) const;
@@ -132,8 +140,7 @@ private:
     Slot playing_;
     ProgressMode progressMode_ = ProgressMode::Smooth;
     // Holds back progress-only updates in Smooth mode.
-    QTimer* throttle_ = nullptr;
-    bool refreshPending_ = false;
+    Timing::Throttle* throttle_ = nullptr;
 };
 
 } // namespace ViewModel

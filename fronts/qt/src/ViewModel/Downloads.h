@@ -21,7 +21,9 @@ class Settings;
 namespace Covers {
 class CoverArtCache;
 }
-class QTimer;
+namespace Timing {
+class Throttle;
+}
 
 namespace Library {
 class TrackStates;
@@ -152,8 +154,7 @@ private:
     // the jobs: at once, then at most every so often, the latest last.
     QString fetchSource_;
     QString fetchTrack_;
-    QTimer* progressTimer_ = nullptr;
-    bool progressPending_ = false;
+    Timing::Throttle* progressThrottle_ = nullptr;
 
     QList<Job> jobs_;
     // Playlist jobs' playlists, until run() has listed their tracks.

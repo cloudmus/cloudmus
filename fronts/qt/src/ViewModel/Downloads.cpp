@@ -20,6 +20,7 @@
 #include "Settings.h"
 #include "SourceManager.h"
 #include "SourceSession.h"
+#include "Throttle.h"
 #include "TrackFetch.h"
 #include "TrackFile.h"
 
@@ -73,15 +74,7 @@ Downloads::Downloads(Rpc::SourceManager& sourceManager, App::SourceSession& sour
     , settings_(settings)
     , messages_(messages)
 {
-    progressTimer_ = new QTimer(this);
-    progressTimer_->setSingleShot(true);
-    progressTimer_->setInterval(kProgressIntervalMs);
-    connect(progressTimer_, &QTimer::timeout, this, [this]() {
-        if (std::exchange(progressPending_, false)) {
-            reportFetchProgress();
-            progressTimer_->start();
-        }
-    });
+    progressThrottle_ = new Timing::Throttle(kProgressIntervalMs, [this]() { reportFetchProgress(); }, this);
     connect(&sourceSession, &App::SourceSession::downloadProgress, this,
         [this](const QString& sourceId, const DownloadProgressParams& params) {
             onProgress(sourceId, params.downloadId, params.receivedBytes, params.totalBytes);
@@ -424,14 +417,7 @@ Rpc::Task<void> Downloads::saveFromStream(int jobId, QString sourceId, Track tra
         fetchSource_ = sourceId;
         fetchTrack_ = track.id;
         const QMetaObject::Connection progress
-            = connect(&preloader, &Playback::Preloader::progressChanged, this, [this]() {
-                  if (progressTimer_->isActive()) {
-                      progressPending_ = true;
-                      return;
-                  }
-                  reportFetchProgress();
-                  progressTimer_->start();
-              });
+            = connect(&preloader, &Playback::Preloader::progressChanged, progressThrottle_, &Timing::Throttle::trigger);
         wakePlayerSave_ = [=]() { wakeLater(waiter); };
 
         preloader.demand(Playback::Preloader::Item { sourceId, track.id, track.title, std::nullopt, true });
@@ -446,8 +432,7 @@ Rpc::Task<void> Downloads::saveFromStream(int jobId, QString sourceId, Track tra
         if (!alive)
             co_return;
         wakePlayerSave_ = nullptr;
-        progressTimer_->stop();
-        progressPending_ = false;
+        progressThrottle_->cancel();
         fetchSource_.clear();
         fetchTrack_.clear();
     }
