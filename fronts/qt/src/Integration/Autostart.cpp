@@ -21,9 +21,12 @@ QString entryPath()
     return configHome + QStringLiteral("/autostart/cloudmus-qt.desktop");
 }
 
+// Empty unless running from an AppImage.
+QString appImagePath() { return QProcessEnvironment::systemEnvironment().value(QStringLiteral("APPIMAGE")); }
+
 QString executablePath()
 {
-    const QString appImage = QProcessEnvironment::systemEnvironment().value(QStringLiteral("APPIMAGE"));
+    const QString appImage = appImagePath();
     return appImage.isEmpty() ? QCoreApplication::applicationFilePath() : appImage;
 }
 
@@ -150,8 +153,16 @@ void refresh()
     if (!isEnabled())
         return;
     const QString target = firstExecArgument(readEntry().value(QStringLiteral("Exec")));
-    if (!QFileInfo::exists(target)) {
-        qInfo() << "Autostart: entry pointed at missing" << target << "- re-pointing at" << executablePath();
+    // A newer AppImage usually sits next to the old one, which is still
+    // there — so the entry follows the AppImage being run. Only an
+    // AppImage, though: a build run from its build directory must not take
+    // over the installed app's entry.
+    const QString appImage = appImagePath();
+    const bool gone = !QFileInfo::exists(target);
+    const bool anotherAppImage = !appImage.isEmpty() && QFileInfo(target) != QFileInfo(appImage);
+    if (gone || anotherAppImage) {
+        qInfo() << "Autostart: entry pointed at" << target << (gone ? "(missing)" : "") << "- re-pointing at"
+                << executablePath();
         writeEntry();
     }
 }

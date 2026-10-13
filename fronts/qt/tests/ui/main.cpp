@@ -16,6 +16,7 @@ QObject* makePreloadUiTest();
 QObject* makeAboutDialogTest();
 QObject* makeCoverArtCacheTest();
 QObject* makeDisabledLookTest();
+QObject* makeAutostartTest();
 }
 
 // The window's tests: a QApplication, run offscreen (see CMakeLists.txt's
@@ -34,7 +35,7 @@ int main(int argc, char** argv)
     int failures = 0;
     for (auto make : { Tests::makeWindowHostTest, Tests::makeFocusTest, Tests::makeHotkeysPageTest,
              Tests::makeSourcePageTest, Tests::makePreloadUiTest, Tests::makeAboutDialogTest,
-             Tests::makeCoverArtCacheTest, Tests::makeDisabledLookTest }) {
+             Tests::makeCoverArtCacheTest, Tests::makeDisabledLookTest, Tests::makeAutostartTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

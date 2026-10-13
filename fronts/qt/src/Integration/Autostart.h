@@ -20,9 +20,10 @@ inline constexpr auto kLaunchedAtLoginArgument = "--autostart";
 bool isEnabled();
 // Writes or removes the entry; false (with a warning logged) on failure.
 bool setEnabled(bool enabled);
-// Re-points an enabled entry at this binary if the one it names is gone —
-// an AppImage moved, renamed or replaced by a newer download. Call once
-// at startup.
+// Re-points an enabled entry at this binary if the one it names is gone
+// (an AppImage moved or renamed), or if this is another AppImage than the
+// one it names — a newer download kept next to the old one. Call once at
+// startup.
 void refresh();
 
 } // namespace Autostart
