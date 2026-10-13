@@ -27,6 +27,14 @@ widgets (`cloudmus-ui`) only show state and forward actions, and
 `Ui::WindowHost` can replace the main window at any time. New logic goes
 into core (a service or view model) with a test, not into `MainWindow`.
 
+## Timing
+
+To coalesce or rate-limit events use `Timing::Debounce` (run once things
+have gone quiet: typing, a drag, a resize) or `Timing::Throttle` (at most
+once per interval, the last trigger never lost: progress updates), both in
+`src/Timing/` — not a hand-rolled single-shot `QTimer` with a "pending"
+flag. A plain `QTimer` stays for timeouts and delays.
+
 ## Code style
 
 - Classes, structs, namespaces: `PascalCase`; methods, fields: `camelCase`.

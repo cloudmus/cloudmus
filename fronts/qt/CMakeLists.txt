@@ -203,6 +203,8 @@ add_library(cloudmus-core STATIC
     src/Update/ReleaseFeed.cpp
     src/Update/UpdateChecker.cpp
     src/Update/UpdateDownloader.cpp
+    src/Timing/Debounce.cpp
+    src/Timing/Throttle.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 )
@@ -250,6 +252,7 @@ target_include_directories(cloudmus-core PUBLIC
     src/ViewModel
     src/Diagnostics
     src/Update
+    src/Timing
 )
 
 target_link_libraries(cloudmus-core PUBLIC
@@ -662,6 +665,7 @@ add_executable(cloudmus-qt-tests
     tests/StarPromptTest.cpp
     tests/PathsTest.cpp
     tests/TrackStatesTest.cpp
+    tests/TimingTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
