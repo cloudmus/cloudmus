@@ -1,3 +1,8 @@
+# 0.6.2 (2026-10-14)
+
+- Fix dragging the splitters stuttering when the disk is busy
+- Autostart: fix launching an old AppImage at login when a newer one is in use
+
 # 0.6.1 (2026-10-12)
 
 - YouTube: higher-resolution album art
