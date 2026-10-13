@@ -13,6 +13,10 @@ class QResizeEvent;
 class QPaintEvent;
 class QTimer;
 
+namespace Timing {
+class Debounce;
+}
+
 namespace Covers {
 class CoverArtCache;
 }
@@ -82,7 +86,7 @@ signals:
 protected:
     void paintEvent(QPaintEvent* event) override;
     // The background (always) and the cover overlay (when present) depend
-    // on size() — debounced (regenerateTimer_) rather than regenerated on
+    // on size() — debounced (regenerate_) rather than regenerated on
     // every single resizeEvent, since a live window/splitter drag fires a
     // lot of these in a row. Restarted unconditionally, even with no
     // content set, so the background never goes stale/unscaled — see
@@ -135,7 +139,7 @@ private:
 
     QPushButton* playButton_ = nullptr; // the only real child widget — see the class doc
 
-    QTimer* regenerateTimer_ = nullptr;
+    Timing::Debounce* regenerate_ = nullptr;
     // Fires when the current cover has been loading for a while: only then
     // is the placeholder shown, so a cover that arrives right away doesn't
     // flash it first.

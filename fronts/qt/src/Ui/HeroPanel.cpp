@@ -12,6 +12,7 @@
 
 #include "CoverArtCache.h"
 #include "CoverPlaceholder.h"
+#include "Debounce.h"
 #include "GeneratedCoverArt.h"
 #include "Icons.h"
 #include "Metrics.h"
@@ -105,10 +106,7 @@ HeroPanel::HeroPanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     // on size() — debounced rather than regenerated on every single
     // resizeEvent, since a live window/splitter drag fires a lot of these
     // in a row.
-    regenerateTimer_ = new QTimer(this);
-    regenerateTimer_->setSingleShot(true);
-    regenerateTimer_->setInterval(200);
-    connect(regenerateTimer_, &QTimer::timeout, this, &HeroPanel::regenerateSizedLayers);
+    regenerate_ = new Timing::Debounce(200, [this]() { regenerateSizedLayers(); }, this);
 
     placeholderTimer_ = new QTimer(this);
     placeholderTimer_->setSingleShot(true);
@@ -158,7 +156,7 @@ void HeroPanel::setTrack(const Track& track, bool showPlayButton)
 
 void HeroPanel::clearNowPlaying()
 {
-    regenerateTimer_->stop();
+    regenerate_->cancel();
     placeholderTimer_->stop();
     isPromo_ = true;
     currentCoverUrl_.clear();
@@ -184,7 +182,7 @@ void HeroPanel::applyContent(const Content& content)
     // (using currentBgSeed_/currentCoverUrl_, both already updated below)
     // shortly after this synchronous, already-correctly-sized render,
     // redoing the same work for nothing.
-    regenerateTimer_->stop();
+    regenerate_->cancel();
 
     isPromo_ = content.isPromo;
     titleText_ = content.title;
@@ -517,7 +515,7 @@ void HeroPanel::resizeEvent(QResizeEvent* event)
     relayout();
     // Unconditional — see regenerateSizedLayers()'s comment on why the
     // background needs to stay live even with no content set.
-    regenerateTimer_->start(); // restarts the countdown if already running
+    regenerate_->trigger();
 }
 
 } // namespace Ui

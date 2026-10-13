@@ -9,9 +9,9 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QStyle>
-#include <QTimer>
 #include <QVBoxLayout>
 
+#include "Debounce.h"
 #include "Icons.h"
 #include "Metrics.h"
 #include "Spacing.h"
@@ -61,12 +61,8 @@ QWidget* HotkeysPage::createWidget(QWidget* parent)
     filterEdit_->setPlaceholderText(tr("Filter by action or shortcut"));
     filterEdit_->setClearButtonEnabled(true);
     filterEdit_->setFont(Theme::font(Theme::TextStyle::Body));
-    filterTimer_ = new QTimer(widget);
-    filterTimer_->setSingleShot(true);
-    filterTimer_->setInterval(kFilterDelayMs);
-    connect(filterTimer_, &QTimer::timeout, this, &HotkeysPage::applyFilter);
-    // Each keystroke restarts the wait.
-    connect(filterEdit_, &QLineEdit::textChanged, filterTimer_, qOverload<>(&QTimer::start));
+    filterDebounce_ = new Timing::Debounce(kFilterDelayMs, [this]() { applyFilter(); }, widget);
+    connect(filterEdit_, &QLineEdit::textChanged, filterDebounce_, &Timing::Debounce::trigger);
 
     noMatches_ = new QLabel(tr("No shortcuts match the filter."), widget);
     noMatches_->setProperty("hint", true);

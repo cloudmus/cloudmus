@@ -10,7 +10,9 @@ class QKeySequenceEdit;
 class QLineEdit;
 class QLabel;
 class QPushButton;
-class QTimer;
+namespace Timing {
+class Debounce;
+}
 
 namespace Ui::Settings {
 
@@ -74,7 +76,7 @@ private:
     QLineEdit* filterEdit_ = nullptr;
     QLabel* noMatches_ = nullptr;
     // Filters once typing has paused, not on every key.
-    QTimer* filterTimer_ = nullptr;
+    Timing::Debounce* filterDebounce_ = nullptr;
     QPushButton* systemButton_ = nullptr;
 };
 
