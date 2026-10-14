@@ -30,6 +30,8 @@ public:
     // Makes the look follow `scheme` (Theme::setModeOverride()): at
     // startup, and on applying this page.
     static void applyColorScheme(Config::Settings::ColorScheme scheme);
+    // Likewise for the tray icon's panel (Theme::setTrayPanelOverride()).
+    static void applyTrayPanel(Config::Settings::TrayPanel panel);
 
 private:
     // The glass setting in effect: the user's choice, or the default.
@@ -43,6 +45,7 @@ private:
     QCheckBox* closeToTrayCheck_ = nullptr;
     QCheckBox* trackNotificationsCheck_ = nullptr;
     QComboBox* colorSchemeCombo_ = nullptr;
+    QComboBox* trayPanelCombo_ = nullptr;
     QComboBox* languageCombo_ = nullptr;
     QCheckBox* glassCheck_ = nullptr;
     QCheckBox* analyticsCheck_ = nullptr;

@@ -12,6 +12,9 @@
 #include <functional>
 
 #include "Icons.h"
+#ifndef Q_OS_WIN
+#include "DesktopColorScheme.h"
+#endif
 #include "NowPlaying.h"
 #include "PlaylistEditing.h"
 #include "Registry.h"
@@ -80,6 +83,13 @@ bool panelIsAlwaysDark()
     return false;
 }
 
+bool panelIsDark()
+{
+    if (panelIsAlwaysDark())
+        return true;
+    return DesktopColorScheme::resolved() == Qt::ColorScheme::Dark;
+}
+
 } // namespace
 #endif
 
@@ -94,9 +104,7 @@ Theme::Mode menuMode()
 #ifdef Q_OS_WIN
     return Theme::currentMode();
 #else
-    return panelIsAlwaysDark() || QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark
-        ? Theme::Mode::Dark
-        : Theme::Mode::Light;
+    return panelIsDark() ? Theme::Mode::Dark : Theme::Mode::Light;
 #endif
 }
 
@@ -121,7 +129,11 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     watchPersonalizeKey(this, [this]() { updateTrayIcon(); });
 #else
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, &TrayIcon::updateTrayIcon);
+    // The menu's icons follow through Theme::followTheme() below.
+    connect(&DesktopColorScheme::instance(), &DesktopColorScheme::changed, this, &TrayIcon::updateTrayIcon);
 #endif
+    // The user's pick of the panel's color (Settings).
+    connect(&Theme::notifier(), &Theme::Notifier::changed, this, &TrayIcon::updateTrayIcon);
     trayIcon_->setToolTip(QStringLiteral("CloudMus"));
 
     // Context-menu action icons are in scope for the Material Icons
@@ -162,15 +174,7 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     connect(&nowPlaying_, &NowPlaying::trackChanged, this, &TrayIcon::refreshTrack);
     connect(&nowPlaying_, &NowPlaying::playingChanged, this, &TrayIcon::refreshPlaying);
     // The rest of the icons follow state, refreshed by the calls below.
-    Theme::followTheme(menu, [this]() {
-        previousAction_->setIcon(menuIcon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16));
-        nextAction_->setIcon(menuIcon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16));
-        stopAction_->setIcon(menuIcon(QStringLiteral("stop"), Theme::IconColor::Ink, 16));
-        playlistsMenu_->setIcon(menuIcon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16));
-        refreshFeedbackActions();
-        refreshPlaying();
-        refreshShowHideAction();
-    });
+    Theme::followTheme(menu, [this]() { refreshMenuIcons(); });
     refreshTrack();
     // The window's state can change without the tray (minimized from its
     // title bar, closed to the tray) — relabel just before showing.
@@ -295,6 +299,17 @@ void TrayIcon::refreshShowHideAction()
         onScreen ? QStringLiteral("visibility_off") : QStringLiteral("visibility"), Theme::IconColor::Ink, 16));
 }
 
+void TrayIcon::refreshMenuIcons()
+{
+    previousAction_->setIcon(menuIcon(QStringLiteral("skip_previous"), Theme::IconColor::Ink, 16));
+    nextAction_->setIcon(menuIcon(QStringLiteral("skip_next"), Theme::IconColor::Ink, 16));
+    stopAction_->setIcon(menuIcon(QStringLiteral("stop"), Theme::IconColor::Ink, 16));
+    playlistsMenu_->setIcon(menuIcon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16));
+    refreshFeedbackActions();
+    refreshPlaying();
+    refreshShowHideAction();
+}
+
 void TrayIcon::updateTrayIcon()
 {
     // Unknown (no portal/desktop integration reporting a scheme) defaults
@@ -303,10 +318,12 @@ void TrayIcon::updateTrayIcon()
 #ifdef Q_OS_WIN
     // The icon sits on the taskbar, which has a scheme of its own: a dark
     // taskbar with light apps is Windows' default.
-    const bool dark = !taskbarIsLight();
+    bool dark = !taskbarIsLight();
 #else
-    const bool dark = panelIsAlwaysDark() || QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+    bool dark = panelIsDark();
 #endif
+    if (const auto panel = Theme::trayPanelOverride())
+        dark = *panel == Theme::Mode::Dark;
     trayIcon_->setIcon(QIcon(dark ? QStringLiteral(":/icons/icons/tray_icon_dark.svg")
                                   : QStringLiteral(":/icons/icons/tray_icon_light.svg")));
 }

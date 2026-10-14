@@ -247,6 +247,25 @@ void Settings::setColorScheme(ColorScheme scheme)
         settings_.setValue(key, scheme == ColorScheme::Dark ? QStringLiteral("dark") : QStringLiteral("light"));
 }
 
+Settings::TrayPanel Settings::trayPanel() const
+{
+    const QString value = settings_.value(QStringLiteral("tray/panel")).toString();
+    if (value == QLatin1String("light"))
+        return TrayPanel::Light;
+    if (value == QLatin1String("dark"))
+        return TrayPanel::Dark;
+    return TrayPanel::Auto;
+}
+
+void Settings::setTrayPanel(TrayPanel panel)
+{
+    const QString key = QStringLiteral("tray/panel");
+    if (panel == TrayPanel::Auto)
+        settings_.remove(key);
+    else
+        settings_.setValue(key, panel == TrayPanel::Dark ? QStringLiteral("dark") : QStringLiteral("light"));
+}
+
 bool Settings::trackNotifications() const
 {
 #ifdef Q_OS_WIN

@@ -858,6 +858,22 @@ Accetti di usare i download solo in questo modo?</translation>
         <translation>Automatico</translation>
     </message>
     <message>
+        <source>Light panel</source>
+        <translation>Pannello chiaro</translation>
+    </message>
+    <message>
+        <source>Dark panel</source>
+        <translation>Pannello scuro</translation>
+    </message>
+    <message>
+        <source>Tray icon for:</source>
+        <translation>Icona nell’area di notifica per:</translation>
+    </message>
+    <message>
+        <source>The color of the panel the tray icon is on, for when the icon doesn&apos;t stand out.</source>
+        <translation>Il colore del pannello in cui si trova l’icona nell’area di notifica, nel caso in cui non risalti.</translation>
+    </message>
+    <message>
         <source>Language:</source>
         <translation>Lingua:</translation>
     </message>

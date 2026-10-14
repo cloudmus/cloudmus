@@ -858,6 +858,22 @@ Do you agree to use downloads only this way?</source>
         <translation>Аўтаматычна</translation>
     </message>
     <message>
+        <source>Light panel</source>
+        <translation>Светлая панэль</translation>
+    </message>
+    <message>
+        <source>Dark panel</source>
+        <translation>Цёмная панэль</translation>
+    </message>
+    <message>
+        <source>Tray icon for:</source>
+        <translation>Значок у трэі для:</translation>
+    </message>
+    <message>
+        <source>The color of the panel the tray icon is on, for when the icon doesn&apos;t stand out.</source>
+        <translation>Колер панэлі, на якой знаходзіцца значок у трэі, — на выпадак, калі значок дрэнна бачны.</translation>
+    </message>
+    <message>
         <source>Language:</source>
         <translation>Мова:</translation>
     </message>

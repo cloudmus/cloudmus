@@ -131,6 +131,17 @@ public:
     ColorScheme colorScheme() const;
     void setColorScheme(ColorScheme scheme);
 
+    // The color of the panel the tray icon sits on, when the user says what
+    // the desktop doesn't — Auto follows the scheme, as the glyph's pick
+    // always has. A dark panel under light apps is not rare.
+    enum class TrayPanel {
+        Auto,
+        Light,
+        Dark
+    };
+    TrayPanel trayPanel() const;
+    void setTrayPanel(TrayPanel panel);
+
     // A system notification on every track change. Off by default on
     // Windows, where each one also piles up in the Action Center.
     bool trackNotifications() const;

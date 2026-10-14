@@ -243,6 +243,7 @@ int main(int argc, char** argv)
 
     // Before glass, whose default depends on it, and the stylesheet.
     Ui::Settings::GeneralPage::applyColorScheme(settings.colorScheme());
+    Ui::Settings::GeneralPage::applyTrayPanel(settings.trayPanel());
     // Before the stylesheet and any window: both are built for glass or
     // not, and a window can't gain an alpha channel once created.
     Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())

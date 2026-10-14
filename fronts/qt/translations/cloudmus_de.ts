@@ -858,6 +858,22 @@ Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
         <translation>Automatisch</translation>
     </message>
     <message>
+        <source>Light panel</source>
+        <translation>Helle Leiste</translation>
+    </message>
+    <message>
+        <source>Dark panel</source>
+        <translation>Dunkle Leiste</translation>
+    </message>
+    <message>
+        <source>Tray icon for:</source>
+        <translation>Infobereich-Symbol für:</translation>
+    </message>
+    <message>
+        <source>The color of the panel the tray icon is on, for when the icon doesn&apos;t stand out.</source>
+        <translation>Die Farbe der Leiste, auf der das Symbol im Infobereich liegt – falls es sich nicht abhebt.</translation>
+    </message>
+    <message>
         <source>Language:</source>
         <translation>Sprache:</translation>
     </message>

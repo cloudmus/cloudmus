@@ -39,14 +39,21 @@ struct Palette {
     QColor danger;
 };
 
-// Reads QGuiApplication::styleHints()->colorScheme(); Unknown (no portal/
-// desktop integration reporting a scheme) defaults to Light — same
+// Reads QGuiApplication::styleHints()->colorScheme(), else the desktop
+// portal's (Integration::DesktopColorScheme); Unknown (neither reporting a
+// scheme) defaults to Light — same
 // "unknown defaults to the more common case" convention Integration::TrayIcon
 // already uses for its own light/dark glyph pick.
 Mode currentMode();
 // The user's pick over the desktop's scheme; nullopt follows the desktop.
 // A change emits Notifier::changed(), as a desktop switch does.
 void setModeOverride(std::optional<Mode> mode);
+// The tray icon's panel, when the user says what color it is (a dark panel
+// under light apps): the glyph is picked for it, whatever the scheme is.
+// nullopt leaves it to Integration::TrayIcon. A change emits
+// Notifier::changed().
+std::optional<Mode> trayPanelOverride();
+void setTrayPanelOverride(std::optional<Mode> mode);
 
 const Palette& palette(Mode mode);
 inline const Palette& palette() { return palette(currentMode()); }
