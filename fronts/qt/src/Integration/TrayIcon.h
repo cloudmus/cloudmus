@@ -51,8 +51,12 @@ private:
     // the panel's color — a plain white glyph reads fine on a dark panel but
     // disappears on a light one, and vice versa. The panel's color is the
     // taskbar setting on Windows, always dark on GNOME, and the color scheme
-    // elsewhere. Called once at construction and again whenever it changes live.
+    // elsewhere (the desktop portal's, else Qt's) — or what the user said in
+    // Settings (Theme::trayPanelOverride()). Called once at construction
+    // and again whenever it changes live.
     void updateTrayIcon();
+    // The menu's glyphs that don't depend on the track's state.
+    void refreshMenuIcons();
     // Like/Dislike/Playlists: shown for what the playing track's source
     // supports, labeled and iconed by its current state.
     void refreshFeedbackActions();

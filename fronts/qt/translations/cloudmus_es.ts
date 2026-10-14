@@ -858,6 +858,22 @@ Do you agree to use downloads only this way?</source>
         <translation>Automático</translation>
     </message>
     <message>
+        <source>Light panel</source>
+        <translation>Panel claro</translation>
+    </message>
+    <message>
+        <source>Dark panel</source>
+        <translation>Panel oscuro</translation>
+    </message>
+    <message>
+        <source>Tray icon for:</source>
+        <translation>Icono de la bandeja del sistema para:</translation>
+    </message>
+    <message>
+        <source>The color of the panel the tray icon is on, for when the icon doesn&apos;t stand out.</source>
+        <translation>El color del panel donde está el icono de la bandeja del sistema, por si el icono no se distingue.</translation>
+    </message>
+    <message>
         <source>Language:</source>
         <translation>Idioma:</translation>
     </message>

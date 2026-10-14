@@ -3,6 +3,9 @@
 #include <QGuiApplication>
 #include <QStyleHints>
 
+#ifndef Q_OS_WIN
+#include "DesktopColorScheme.h"
+#endif
 #include "WindowGlass.h"
 
 namespace Theme {
@@ -124,6 +127,20 @@ namespace {
 std::optional<Mode> modeOverride;
 }
 
+namespace {
+std::optional<Mode> trayPanelMode;
+}
+
+std::optional<Mode> trayPanelOverride() { return trayPanelMode; }
+
+void setTrayPanelOverride(std::optional<Mode> mode)
+{
+    if (trayPanelMode == mode)
+        return;
+    trayPanelMode = mode;
+    emit notifier().changed();
+}
+
 void setModeOverride(std::optional<Mode> mode)
 {
     if (modeOverride == mode)
@@ -172,7 +189,14 @@ Mode currentMode()
 {
     if (modeOverride)
         return *modeOverride;
-    return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark ? Mode::Dark : Mode::Light;
+#ifdef Q_OS_WIN
+    const Qt::ColorScheme scheme = QGuiApplication::styleHints()->colorScheme();
+#else
+    // Platform themes that don't read the desktop's preference (qt6ct) leave
+    // Qt's scheme Unknown; the portal still knows it.
+    const Qt::ColorScheme scheme = Integration::DesktopColorScheme::resolved();
+#endif
+    return scheme == Qt::ColorScheme::Dark ? Mode::Dark : Mode::Light;
 }
 
 const Palette& palette(Mode mode)
@@ -186,6 +210,10 @@ Notifier::Notifier()
 {
     QObject::connect(
         QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this]() { emit changed(); });
+#ifndef Q_OS_WIN
+    QObject::connect(&Integration::DesktopColorScheme::instance(), &Integration::DesktopColorScheme::changed, this,
+        [this]() { emit changed(); });
+#endif
 }
 
 Notifier& Notifier::instance()

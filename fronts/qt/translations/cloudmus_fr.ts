@@ -858,6 +858,22 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Automatique</translation>
     </message>
     <message>
+        <source>Light panel</source>
+        <translation>Panneau clair</translation>
+    </message>
+    <message>
+        <source>Dark panel</source>
+        <translation>Panneau sombre</translation>
+    </message>
+    <message>
+        <source>Tray icon for:</source>
+        <translation>Icône de la zone de notification pour :</translation>
+    </message>
+    <message>
+        <source>The color of the panel the tray icon is on, for when the icon doesn&apos;t stand out.</source>
+        <translation>La couleur du panneau où se trouve l’icône de la zone de notification, au cas où elle ne ressortirait pas.</translation>
+    </message>
+    <message>
         <source>Language:</source>
         <translation>Langue :</translation>
     </message>

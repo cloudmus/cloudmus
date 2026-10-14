@@ -71,6 +71,25 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     colorSchemeRow->addWidget(colorSchemeCombo_);
     colorSchemeRow->addStretch(1);
 
+    using TrayPanel = Config::Settings::TrayPanel;
+    trayPanelCombo_ = new QComboBox(widget);
+    trayPanelCombo_->setFont(Theme::font(Theme::TextStyle::Body));
+    trayPanelCombo_->setItemDelegate(new QStyledItemDelegate(trayPanelCombo_));
+    trayPanelCombo_->addItem(tr("Automatic"), int(TrayPanel::Auto));
+    // Named for the panel, not the glyph: that's what the user sees.
+    trayPanelCombo_->addItem(tr("Light panel"), int(TrayPanel::Light));
+    trayPanelCombo_->addItem(tr("Dark panel"), int(TrayPanel::Dark));
+    trayPanelCombo_->setCurrentIndex(trayPanelCombo_->findData(int(settings_.trayPanel())));
+    trayPanelCombo_->setToolTip(tr("The color of the panel the tray icon is on, for when the icon doesn't stand out."));
+    connect(trayPanelCombo_, &QComboBox::currentIndexChanged, this, &Page::dirtyChanged);
+    auto* trayPanelRow = new QHBoxLayout;
+    trayPanelRow->setSpacing(Theme::Spacing::space3);
+    auto* trayPanelLabel = new QLabel(tr("Tray icon for:"), widget);
+    trayPanelLabel->setFont(Theme::font(Theme::TextStyle::Body));
+    trayPanelRow->addWidget(trayPanelLabel);
+    trayPanelRow->addWidget(trayPanelCombo_);
+    trayPanelRow->addStretch(1);
+
     languageCombo_ = new QComboBox(widget);
     languageCombo_->setFont(Theme::font(Theme::TextStyle::Body));
     languageCombo_->setItemDelegate(new QStyledItemDelegate(languageCombo_));
@@ -128,6 +147,7 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addWidget(trackNotificationsCheck_);
     layout->addSpacing(Theme::Spacing::space3);
     layout->addLayout(colorSchemeRow);
+    layout->addLayout(trayPanelRow);
     layout->addLayout(languageRow);
     layout->addWidget(glassCheck_);
     layout->addWidget(glassHint);
@@ -148,6 +168,7 @@ bool GeneralPage::isDirty() const
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
             || trackNotificationsCheck_->isChecked() != settings_.trackNotifications()
             || colorSchemeCombo_->currentData().toInt() != int(settings_.colorScheme())
+            || trayPanelCombo_->currentData().toInt() != int(settings_.trayPanel())
             || languageCombo_->currentData().toString() != settings_.language()
             || glassCheck_->isChecked() != glassWanted() || analyticsCheck_->isChecked() != settings_.analyticsEnabled()
             || crashReportsCheck_->isChecked() != settings_.crashReportsEnabled());
@@ -169,6 +190,11 @@ Rpc::Task<bool> GeneralPage::apply()
     if (scheme != settings_.colorScheme()) {
         settings_.setColorScheme(scheme);
         crossfadeThemeChange([scheme]() { applyColorScheme(scheme); });
+    }
+    const auto trayPanel = Config::Settings::TrayPanel(trayPanelCombo_->currentData().toInt());
+    if (trayPanel != settings_.trayPanel()) {
+        settings_.setTrayPanel(trayPanel);
+        applyTrayPanel(trayPanel);
     }
     // Only stored: the language is switched once the Settings window
     // closes — see Ui::MainWindow::showSettingsDialog().
@@ -203,6 +229,15 @@ void GeneralPage::applyColorScheme(Config::Settings::ColorScheme scheme)
             : scheme == ColorScheme::Dark                                       ? Qt::ColorScheme::Dark
                                                                                 : Qt::ColorScheme::Light);
 #endif
+}
+
+void GeneralPage::applyTrayPanel(Config::Settings::TrayPanel panel)
+{
+    using TrayPanel = Config::Settings::TrayPanel;
+    if (panel == TrayPanel::Auto)
+        Theme::setTrayPanelOverride(std::nullopt);
+    else
+        Theme::setTrayPanelOverride(panel == TrayPanel::Dark ? Theme::Mode::Dark : Theme::Mode::Light);
 }
 
 } // namespace Ui::Settings
