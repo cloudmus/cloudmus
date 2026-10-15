@@ -142,6 +142,45 @@ What works on Linux:
   shuffle, repeat);
 - configurable global shortcuts (KDE Plasma, GNOME 48+, X11, Windows).
 
+#### Gentoo
+
+Community-maintained **amd64** ebuilds are available in the
+[vitaly-zdanevich overlay](https://github.com/vitaly-zdanevich/gentoo-overlay).
+Add and sync the overlay as root:
+
+```bash
+emerge --ask app-eselect/eselect-repository dev-vcs/git
+eselect repository add vitaly-zdanevich-overlay git https://github.com/vitaly-zdanevich/gentoo-overlay.git
+emaint sync -r vitaly-zdanevich-overlay
+```
+
+To build CloudMus from source:
+
+```bash
+emerge --ask --autounmask=y --autounmask-write media-sound/cloudmus
+```
+
+The ebuilds use the `~amd64` testing keyword. If Portage proposes keyword
+or USE flag changes, review and apply them with `dispatch-conf`, then run:
+
+```bash
+emerge --ask media-sound/cloudmus
+```
+
+For the prebuilt version, use `media-sound/cloudmus-bin` instead in both
+`emerge` commands. It requires glibc and installs the extracted AppImage,
+so FUSE is not needed. Choose either the source or the binary package.
+
+The source package enables the `local`, `yandex-music` and `youtube-music`
+USE flags by default; disabling a flag omits that backend and its
+dependencies. The `X` and `wayland` flags select desktop integrations.
+See Gentoo's [USE flag guide](https://wiki.gentoo.org/wiki/USE_flag) and
+[keyword guide](https://wiki.gentoo.org/wiki/Knowledge_Base:Accepting_a_keyword_for_a_single_package)
+for configuration details.
+
+Launch CloudMus from the application menu or run `cloudmus-qt`. Manage
+package updates and removal through Portage.
+
 ## First steps
 
 Sources are switched on and off, signed in and configured in
