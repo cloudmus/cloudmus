@@ -111,6 +111,32 @@ private slots:
         QTRY_VERIFY(cached(QStringLiteral("c")));
     }
 
+    // What the window is told to whoever fetches more for it (covers): as
+    // far ahead as the tracks themselves.
+    void thePreloadWindowIsAnnouncedAsDeepAsTracksArePreloaded()
+    {
+        playback_->setPreloadDepth(2, 0);
+        QSignalSpy window(playback_.get(), &Playback::PlaybackController::preloadWindowChanged);
+        QSignalSpy changed(playback_.get(), &Playback::PlaybackController::trackChanged);
+        playback_->loadQueue(QStringLiteral("fake"),
+            { track(QStringLiteral("a")), track(QStringLiteral("b")), track(QStringLiteral("c")),
+                track(QStringLiteral("d")) },
+            0);
+        const auto names = [&window]() {
+            QStringList result;
+            if (window.isEmpty())
+                return result;
+            for (const Playback::QueueEntry& entry : window.last().at(0).value<QVector<Playback::QueueEntry>>())
+                result.append(entry.track.title);
+            return result;
+        };
+        QTRY_COMPARE(names(), (QStringList { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c") }));
+        QTRY_COMPARE(changed.size(), 1);
+
+        playback_->next();
+        QTRY_COMPARE(names(), (QStringList { QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d") }));
+    }
+
     // No round trip to the source: the track is announced before the
     // event loop has turned once.
     void aDownloadedTrackStartsWithoutAskingTheSource()

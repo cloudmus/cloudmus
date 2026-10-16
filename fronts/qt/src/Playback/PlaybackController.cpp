@@ -898,6 +898,7 @@ void PlaybackController::updatePreloadWindow()
         return Preloader::Item { entry.sourceId, entry.track.id, titleFor(entry.track), std::nullopt, true, local };
     };
     QVector<Preloader::Item> items;
+    QVector<QueueEntry> entries { queue_[head] };
     Preloader::Item current = itemFor(head);
     // Its stream comes from playback.play, not from the Preloader asking.
     current.resolve = false;
@@ -921,18 +922,22 @@ void PlaybackController::updatePreloadWindow()
             ++examined;
             const Preloader::Item item = itemFor(index);
             if (item.local) {
-                if (examined == 1)
+                if (examined == 1) {
                     items.append(item);
+                    entries.append(queue_[index]);
+                }
                 continue;
             }
             if (networked >= depth)
                 break;
             ++networked;
             items.append(item);
+            entries.append(queue_[index]);
         }
     }
     preloader_->setWindow(items);
     prepareNext();
+    emit preloadWindowChanged(entries);
 }
 
 void PlaybackController::updateBuffered(bool force)

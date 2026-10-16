@@ -120,6 +120,17 @@ Core::Core(QObject* parent)
     // front fetches.
     coverArtCache_.setProxyProvider(
         [this](const QString& sourceId, const QUrl& url) { return Net::networkProxy(connectionOf(sourceId), url); });
+    // Covers are fetched along with the tracks preloaded, so a track that
+    // comes up has its cover at hand: the Windows notification, which
+    // can't be updated once shown, would otherwise often go out without it.
+    connect(&playback_, &Playback::PlaybackController::preloadWindowChanged, this,
+        [this](const QVector<Playback::QueueEntry>& entries) {
+            for (const Playback::QueueEntry& entry : entries) {
+                const Track& track = entry.track;
+                coverArtCache_.request(
+                    track.coverUrl.value_or(track.album ? track.album->coverUrl.value_or(QString()) : QString()));
+            }
+        });
     // Tracks are saved from the playback cache, or fetched for it.
     downloads_.setPreloader(&playback_.preloader());
     playback_.setStreamRouteProvider([this](const QString& sourceId) -> std::optional<QNetworkProxy> {

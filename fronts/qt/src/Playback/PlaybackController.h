@@ -198,6 +198,11 @@ signals:
     // Shuffle/repeat changed, or a radio started or ended (which changes
     // what's available — see isRadio()).
     void playModeChanged();
+    // The tracks being preloaded now: the playing (or starting) one and the
+    // ones after it, as many as the preload depth — so that what goes with
+    // them (their covers) can be fetched ahead too. Comes often, mostly
+    // with the same tracks.
+    void preloadWindowChanged(const QVector<QueueEntry>& entries);
 
 private:
     void playIndex(int index, bool isRetry = false);
