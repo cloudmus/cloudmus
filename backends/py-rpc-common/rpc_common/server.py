@@ -10,8 +10,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import sys
 import time
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, NoReturn
 
 from . import jsonrpc, transport
 from .i18n import Translator
@@ -200,3 +202,31 @@ class BackendServer:
 
             if method_name == "shutdown":
                 return
+
+
+def serve(server: BackendServer, rpc_out: Any) -> NoReturn:
+    """A backend's entry point: runs server until the front is done with it
+    (shutdown, or stdin closed), then exits the process at once.
+
+    Not asyncio.run(server.run(...)) alone: once the loop ends, it and the
+    interpreter's exit both wait for every asyncio.to_thread() worker, with
+    no timeout — and a blocking network call that hung in one kept the
+    process alive after its front was gone (an orphan under pid 1, when
+    the front was killed and never got to send SIGTERM itself). Whatever
+    is still running in those threads has no one left to answer anyway.
+    """
+    asyncio.run(_serve(server, rpc_out))
+    raise AssertionError("unreachable: _serve() exits the process")
+
+
+async def _serve(server: BackendServer, rpc_out: Any) -> NoReturn:
+    code = 0
+    try:
+        await server.run(rpc_out)
+    except Exception:  # noqa: BLE001 - logged, then the same quick exit
+        logger.exception("stdio loop failed")
+        code = 1
+    # Replies are already on the wire (NdjsonWriter.send() drains); only
+    # the log may still sit in a buffer.
+    sys.stderr.flush()
+    os._exit(code)

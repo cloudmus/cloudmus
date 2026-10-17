@@ -127,3 +127,42 @@ def test_stderr_is_utf8_whatever_the_system_code_page(code_page):
     assert "Моя волна ✓" in text
     assert "Плейлист" in text
     assert result.stdout == b""
+
+
+def test_serve_exits_on_eof_despite_a_hung_worker_thread():
+    # A handler stuck in asyncio.to_thread() (a network call that never
+    # returns) used to keep the process alive after stdin closed: an orphan
+    # once its front was gone.
+    import json
+    import subprocess
+    import sys
+
+    script = (
+        "import asyncio, sys, threading\n"
+        "rpc_out = sys.stdout\n"
+        "sys.stdout = sys.stderr\n"
+        "from rpc_common.server import BackendServer, serve\n"
+        "server = BackendServer('t', 'T', '0', 'test', {})\n"
+        "hang = threading.Event()\n"
+        "@server.method('test.hang', concurrent=True)\n"
+        "async def handle_hang(params, request_id):\n"
+        "    await asyncio.to_thread(hang.wait)\n"
+        "    return {}\n"
+        "serve(server, rpc_out)\n"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, "-c", script],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        for request in (jsonrpc.make_request(1, "initialize", {}), jsonrpc.make_request(2, "test.hang", {})):
+            proc.stdin.write(json.dumps(request).encode() + b"\n")
+        proc.stdin.flush()
+        assert json.loads(proc.stdout.readline())["id"] == 1
+        proc.stdin.close()
+        assert proc.wait(timeout=10) == 0
+    finally:
+        proc.kill()
+        proc.wait()

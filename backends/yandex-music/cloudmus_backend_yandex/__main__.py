@@ -3,13 +3,14 @@ import sys
 _rpc_out = sys.stdout
 sys.stdout = sys.stderr
 
-import asyncio
 import logging
 
 logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 # yandex_music/requests may otherwise emit warnings to stdout by default;
 # they're stdlib logging-based, so basicConfig(stream=sys.stderr) above
 # already routes them correctly.
+
+from rpc_common.server import serve
 
 from cloudmus_backend_yandex import http_logging, http_session, model_compat
 from cloudmus_backend_yandex.server import build_server
@@ -25,7 +26,7 @@ model_compat.install()
 
 def main() -> None:
     server = build_server()
-    asyncio.run(server.run(_rpc_out))
+    serve(server, _rpc_out)
 
 
 if __name__ == "__main__":
