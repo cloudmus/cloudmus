@@ -600,7 +600,10 @@ qt_add_translations(cloudmus-qt
 # Qt's own catalogs (the Ok/Cancel/Yes/No of its stock dialogs) are embedded
 # next to ours: a bundled Qt (AppImage) may ship none, and
 # I18n::Translator falls back to :/i18n. Belarusian has no Qt catalog.
-set(_qt_tr_dir "${QT6_INSTALL_PREFIX}/${QT6_INSTALL_TRANSLATIONS}")
+# The path is relative to the prefix, except where a distro (nixpkgs) ships
+# the catalogs as a separate package and gives it absolute.
+cmake_path(ABSOLUTE_PATH QT6_INSTALL_TRANSLATIONS
+    BASE_DIRECTORY "${QT6_INSTALL_PREFIX}" OUTPUT_VARIABLE _qt_tr_dir)
 set(_qt_tr_files)
 foreach(_lang de es fr it ru)
     if(EXISTS "${_qt_tr_dir}/qtbase_${_lang}.qm")
