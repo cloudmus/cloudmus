@@ -252,5 +252,7 @@ Section "Uninstall"
   Delete "$DESKTOP\CloudMus.lnk"
   RMDir /r "$SMPROGRAMS\CloudMus"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\CloudMus"
+  ; Registered by the app itself at startup (Integration::AppIdentity).
+  DeleteRegKey HKCU "Software\Classes\AppUserModelId\CloudMus.CloudMus"
   RMDir /r "$INSTDIR"
 SectionEnd

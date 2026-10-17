@@ -12,6 +12,7 @@
 #include <functional>
 #include <memory>
 
+#include "AppIdentity.h"
 #include "AppShortcuts.h"
 #include "Autostart.h"
 #include "Core.h"
@@ -121,7 +122,7 @@ int main(int argc, char** argv)
     // giving packaging/windows/cloudmus.nsi's CreateShortCut calls the
     // same id as a Start Menu shortcut property (System::Call +
     // IPropertyStore) — untried so far, since this alone may be enough.
-    SetCurrentProcessExplicitAppUserModelID(L"CloudMus.CloudMus");
+    SetCurrentProcessExplicitAppUserModelID(Integration::AppIdentity::kAppUserModelId);
     // FreeType, not Qt's default DirectWrite: at fractional display scales
     // (13px at 125%) DirectWrite's text came out jagged, with uneven stems.
     // FreeType renders the bundled Manrope as on Linux. Left alone if set,
@@ -268,6 +269,11 @@ int main(int argc, char** argv)
     for (int side : { 16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512 })
         appIcon.addPixmap(logo.pixmap(QSize(side, side), 1.0));
     QApplication::setWindowIcon(appIcon);
+#ifdef Q_OS_WIN
+    // Before the first notification, which Windows 11 heads with the name
+    // registered for the AppUserModelID set above.
+    Integration::AppIdentity::registerAppUserModelId(appIcon);
+#endif
     QApplication::setQuitOnLastWindowClosed(false); // closing to tray must not exit the app
 
     // Non-square covers fitted over their own blur (needs Qt Widgets,

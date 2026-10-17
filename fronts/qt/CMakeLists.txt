@@ -360,6 +360,7 @@ add_custom_target(cloudmus_version
 set(CLOUDMUS_PLATFORM_SOURCES)
 if(WIN32)
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
+        src/Integration/AppIdentityWin.cpp
         src/Integration/AutostartWin.cpp
         src/Integration/FirstFrameBackgroundWin.cpp
         src/Integration/NotificationToastWin.cpp
