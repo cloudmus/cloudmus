@@ -1,6 +1,7 @@
 #include "Settings/NetworkPage.h"
 
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -55,6 +56,11 @@ QLabel* makeFieldLabel(const QString& text, QWidget* parent)
 // One proxy's fields, in a bordered box of its own within the page's card.
 // Plain callbacks rather than signals: it lives and dies with this page.
 class ProxyEditor : public QFrame {
+    // No Q_OBJECT here, so tr() would be QFrame::tr() and look in the
+    // "QFrame" context, while lupdate files these strings under the
+    // class's own name.
+    Q_DECLARE_TR_FUNCTIONS(Ui::Settings::ProxyEditor)
+
 public:
     ProxyEditor(const Config::ProxyConfig& proxy, QWidget* parent)
         : QFrame(parent)
