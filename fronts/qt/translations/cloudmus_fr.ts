@@ -464,7 +464,7 @@
     </message>
     <message>
         <source>Last played</source>
-        <translation>Dernière lecture</translation>
+        <translation>Écouté</translation>
     </message>
     <message>
         <source>Never</source>

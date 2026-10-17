@@ -448,7 +448,7 @@
     </message>
     <message>
         <source>Duration</source>
-        <translation>Працягласць</translation>
+        <translation>Даўжыня</translation>
     </message>
     <message>
         <source>Source</source>
@@ -464,7 +464,7 @@
     </message>
     <message>
         <source>Last played</source>
-        <translation>Апошняе прайграванне</translation>
+        <translation>Слухалі</translation>
     </message>
     <message>
         <source>Never</source>
