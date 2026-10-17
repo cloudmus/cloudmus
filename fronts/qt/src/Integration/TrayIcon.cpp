@@ -181,7 +181,7 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     connect(menu, &QMenu::aboutToShow, this, &TrayIcon::refreshShowHideAction);
 
     trayIcon_->setContextMenu(menu);
-    // QCoreApplication posts LanguageChange to itself when a translator is installed.
+    // QCoreApplication sends LanguageChange to itself when a translator is installed.
     qApp->installEventFilter(this);
 
     connect(trayIcon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
@@ -194,8 +194,21 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
 
 bool TrayIcon::eventFilter(QObject* watched, QEvent* event)
 {
-    if (watched == qApp && event->type() == QEvent::LanguageChange)
-        retranslate();
+    // Not relabeled right away: the event is sent from inside
+    // installTranslator(), which a library can call while it is being loaded
+    // — KDE's image format plugins pull in such libraries in the middle of
+    // decoding a cover, and setting an icon there re-enters Qt's image I/O,
+    // which aborts.
+    if (watched == qApp && event->type() == QEvent::LanguageChange && !retranslatePending_) {
+        retranslatePending_ = true;
+        QMetaObject::invokeMethod(
+            this,
+            [this]() {
+                retranslatePending_ = false;
+                retranslate();
+            },
+            Qt::QueuedConnection);
+    }
     return QObject::eventFilter(watched, event);
 }
 

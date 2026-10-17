@@ -279,12 +279,20 @@ fn sets_up_the_environment_and_cleans_up_after_the_app() {
         seen = seen.display(),
         backends = backends.display(),
     ));
-    let out = h.command().env("APPIMAGE", "/x/CloudMus.AppImage").args(["--debug", "two words"]).output().unwrap();
+    let out = h
+        .command()
+        .env("APPIMAGE", "/x/CloudMus.AppImage")
+        .env("QT_PLUGIN_PATH", "/usr/lib64/qt6/plugins")
+        .args(["--debug", "two words"])
+        .output()
+        .unwrap();
     assert_eq!(out.status.code(), Some(0));
 
     let env = fs::read_to_string(seen.join("env")).unwrap();
     assert!(env.contains("QT_QPA_PLATFORMTHEME=xdgdesktopportal\n"));
     assert!(env.contains("XCURSOR_THEME=Bibata\n"));
+    assert!(env.contains("QT_PLUGIN_PATH=\n"), "the host's Qt plugins stay out");
+    assert!(!env.contains("QT_QPA_PLATFORM_PLUGIN_PATH"));
     assert!(env.contains("CLOUDMUS_TLS_CA_FILE="));
     assert!(!env.contains("CLOUDMUS_MPV_CONFIG_DIR"));
     assert_eq!(fs::read_to_string(seen.join("args")).unwrap(), "--debug two words\n");

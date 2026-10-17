@@ -1,0 +1,25 @@
+# Test builds of a pull request: the same AppImage and Windows installer as
+# for stage.yml, built from every push to the pull request, as workflow
+# artifacts (the PR's Checks → the run → Artifacts).
+name: Pull request
+
+on:
+  pull_request:
+
+# A newer push to the same pull request makes the build of the one before it
+# pointless.
+concurrency:
+  group: pull-request-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # A build must carry working crash reports (build.yml), and GitHub gives
+    # no secrets to a pull request from a fork, so only this repository's
+    # branches are built.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
+    with:
+      release: false
+      retention-days: 14

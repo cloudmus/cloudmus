@@ -87,6 +87,8 @@ private:
     QMenu* playlistsMenu_ = nullptr;
     QAction* showHideAction_ = nullptr;
     QAction* quitAction_ = nullptr;
+    // A relabel is queued; more language changes before it add nothing.
+    bool retranslatePending_ = false;
 };
 
 } // namespace Integration
