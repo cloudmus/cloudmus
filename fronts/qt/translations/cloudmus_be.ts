@@ -957,10 +957,6 @@ Do you agree to use downloads only this way?</source>
         <translation>Скінуць</translation>
     </message>
     <message>
-        <source>Restore this shortcut&apos;s defaults</source>
-        <translation>Вярнуць для гэтага спалучэння значэнні па змоўчванні</translation>
-    </message>
-    <message>
         <source>Restore defaults</source>
         <translation>Аднавіць значэнні па змоўчванні</translation>
     </message>
@@ -1444,6 +1440,14 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Can&apos;t make %1 executable</source>
         <translation>Не атрымалася зрабіць %1 выканальным</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only an installed one can.</source>
+        <translation>Гэтая копія CloudMus не можа абнаўляцца сама: гэта магчыма толькі для ўсталяванай.</translation>
+    </message>
+    <message>
+        <source>Can&apos;t rename %1</source>
+        <translation>Не атрымалася перайменаваць %1</translation>
     </message>
 </context>
 <context>
