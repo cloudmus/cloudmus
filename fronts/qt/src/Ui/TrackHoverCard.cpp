@@ -98,6 +98,11 @@ QString coverUrlOf(const Track& track)
 // popup: translucent outside its rounded shape, never takes focus or
 // mouse input, fades in and out.
 class CardPopup : public QWidget {
+    // No Q_OBJECT here, so tr() would be QWidget::tr() and look in the
+    // "QWidget" context, while lupdate files these strings under the
+    // class's own name.
+    Q_DECLARE_TR_FUNCTIONS(Ui::CardPopup)
+
 public:
     explicit CardPopup(Covers::CoverArtCache* coverCache)
         : QWidget(

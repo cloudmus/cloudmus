@@ -464,7 +464,7 @@
     </message>
     <message>
         <source>Last played</source>
-        <translation>Ultima riproduzione</translation>
+        <translation>Ascoltato</translation>
     </message>
     <message>
         <source>Never</source>
@@ -957,10 +957,6 @@ Accetti di usare i download solo in questo modo?</translation>
         <translation>Ripristina</translation>
     </message>
     <message>
-        <source>Restore this shortcut&apos;s defaults</source>
-        <translation>Ripristina i valori predefiniti di questa scorciatoia</translation>
-    </message>
-    <message>
         <source>Restore defaults</source>
         <translation>Ripristina i valori predefiniti</translation>
     </message>
@@ -1442,6 +1438,14 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
     <message>
         <source>Can&apos;t make %1 executable</source>
         <translation>Impossibile rendere %1 eseguibile</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only an installed one can.</source>
+        <translation>Questa copia di CloudMus non può aggiornarsi da sola: può farlo solo una copia installata.</translation>
+    </message>
+    <message>
+        <source>Can&apos;t rename %1</source>
+        <translation>Impossibile rinominare %1</translation>
     </message>
 </context>
 <context>

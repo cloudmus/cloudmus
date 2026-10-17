@@ -585,6 +585,18 @@ endif()
 # (English is the source language), compiled to .qm and embedded under
 # :/i18n — where I18n::Translator looks. After changing a text:
 # `cmake --build build --target update_translations`.
+# lupdate also reads the sources this platform doesn't build: with
+# -no-obsolete it would drop their texts (InstallerWin.cpp on Linux,
+# InstallerPosix.cpp on Windows) along with the translations. Only those —
+# a file given twice confuses lupdate's namespaces.
+file(GLOB_RECURSE _tr_sources CONFIGURE_DEPENDS src/*.cpp src/*.h)
+foreach(_target cloudmus-core cloudmus-ui cloudmus-qt)
+    get_target_property(_target_sources ${_target} SOURCES)
+    foreach(_source IN LISTS _target_sources)
+        cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+        list(REMOVE_ITEM _tr_sources "${_source}")
+    endforeach()
+endforeach()
 qt_add_translations(cloudmus-qt
     TS_FILES
         translations/cloudmus_be.ts
@@ -594,6 +606,7 @@ qt_add_translations(cloudmus-qt
         translations/cloudmus_it.ts
         translations/cloudmus_ru.ts
     SOURCE_TARGETS cloudmus-core cloudmus-ui cloudmus-qt
+    SOURCES ${_tr_sources}
     RESOURCE_PREFIX /i18n
     LUPDATE_OPTIONS -no-obsolete -locations none -source-language en
 )

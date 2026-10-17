@@ -1,5 +1,6 @@
 #include "DownloadsPanel.h"
 
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -85,6 +86,11 @@ QString statusText(const ViewModel::Downloads::Job& job)
 // The downloads, painted — a row each, plus a line for the track a running
 // playlist is on. Cancel buttons are hit-tested here too.
 class Rows : public QWidget {
+    // No Q_OBJECT here, so tr() would be QWidget::tr() and look in the
+    // "QWidget" context, while lupdate files these strings under the
+    // class's own name.
+    Q_DECLARE_TR_FUNCTIONS(Ui::Rows)
+
 public:
     Rows(ViewModel::Downloads& downloads, QWidget* parent)
         : QWidget(parent)
