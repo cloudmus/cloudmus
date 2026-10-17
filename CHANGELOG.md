@@ -1,3 +1,14 @@
+# 0.6.3 (2026-10-18)
+
+- Theme and tray follow the desktop's light/dark preference from the XDG portal (e.g. qt6ct on Hyprland); Settings → General gets "Tray icon for: Automatic / Light panel / Dark panel"
+- Covers are fetched ahead along with the preloaded tracks, so Windows track notifications get their picture
+- Installation instructions for Gentoo
+- Quit cleanly on kill, Ctrl+C or session end, and take the backends along instead of leaving them running
+- Windows: notifications are headed "CloudMus" with the app's icon instead of "CloudMus.CloudMus"
+- Fix the AppImage crashing while loading a cover on some KDE systems (ROSA)
+- Fix the track card, proxy editor and downloads panel labels showing in English whatever the language; shorter track card labels
+- Fix Qt's stock dialogs staying in English on NixOS
+
 # 0.6.2 (2026-10-14)
 
 - Fix dragging the splitters stuttering when the disk is busy
