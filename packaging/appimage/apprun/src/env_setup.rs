@@ -72,6 +72,17 @@ pub fn prepare(appdir: &Path, dirs: &Dirs, appimage: Option<&OsString>) -> Prepa
         env.push(("QT_QPA_PLATFORMTHEME", "xdgdesktopportal".into()));
     }
 
+    // A distro's profile may point Qt at the host's plugins through
+    // QT_PLUGIN_PATH. They are built against the host's Qt, not the one
+    // bundled here: KDE's image format plugins got loaded this way while a
+    // cover was decoded and took the app down. Empty is what Qt ignores; the
+    // bundled plugins are found through qt.conf.
+    for name in ["QT_PLUGIN_PATH", "QT_QPA_PLATFORM_PLUGIN_PATH"] {
+        if !unset(name) {
+            env.push((name, OsString::new()));
+        }
+    }
+
     // The ASan build (build-appimage.sh --asan): reports go next to the crash
     // reports, as asan.log.<pid>. Leak checking is off: Qt and the bundled
     // libraries keep plenty alive until exit on purpose, which would bury a
