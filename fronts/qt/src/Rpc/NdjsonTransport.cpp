@@ -10,6 +10,12 @@
 #include <windows.h>
 #endif
 
+#ifdef Q_OS_LINUX
+#include <csignal>
+#include <sys/prctl.h>
+#include <unistd.h>
+#endif
+
 namespace Rpc {
 
 namespace {
@@ -81,6 +87,18 @@ void NdjsonTransport::start(const QStringList& argv, const QProcessEnvironment& 
     // detached process would get a visible console window).
     process_.setCreateProcessArgumentsModifier(
         [](QProcess::CreateProcessArguments* args) { args->flags |= DETACHED_PROCESS; });
+#endif
+#ifdef Q_OS_LINUX
+    // The backend gets SIGTERM when the app dies without shutting it down
+    // (SIGKILL, a crash): a backend that doesn't exit on stdin EOF by
+    // itself would outlive it otherwise. Tied to the thread that started
+    // the process — the main one, which lives as long as the app.
+    process_.setChildProcessModifier([parent = ::getpid()]() {
+        ::prctl(PR_SET_PDEATHSIG, SIGTERM);
+        // Died before the call above: nothing would send it any more.
+        if (::getppid() != parent)
+            ::raise(SIGTERM);
+    });
 #endif
     // Under Wine, QProcess loses stdout data when the backend also writes to
     // stderr: after an idle pause the reply to a request never arrives (every

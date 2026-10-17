@@ -373,6 +373,7 @@ else()
         src/Integration/NotificationToast.cpp
         src/Integration/MprisService.cpp
         src/Integration/DesktopColorScheme.cpp
+        src/Integration/QuitSignals.cpp
         src/Integration/GlobalHotkeysKGlobalAccel.cpp
         src/Integration/GlobalHotkeysPortal.cpp)
 endif()

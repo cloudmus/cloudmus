@@ -59,6 +59,9 @@
 #include "TaskbarThumbButtons.h"
 #else
 #include "MprisService.h"
+#include "QuitSignals.h"
+
+#include <csignal>
 #endif
 
 namespace {
@@ -432,6 +435,25 @@ int main(int argc, char** argv)
         core.analytics().flush(2000, done);
         shutdownAll(sourceManager, done).detach();
     });
+
+#ifndef Q_OS_WIN
+    // kill, Ctrl+C, the session ending: quit as the Quit menu item does.
+    // A second one while that is under way ends the app at once, the way it
+    // would have without this — the backends still get SIGTERM then
+    // (PR_SET_PDEATHSIG, see Rpc::NdjsonTransport::start()).
+    Integration::QuitSignals quitSignals;
+    QObject::connect(&quitSignals, &Integration::QuitSignals::received, &windowHost,
+        [&windowHost, quitting = false](int signal) mutable {
+            if (quitting) {
+                std::signal(signal, SIG_DFL);
+                std::raise(signal);
+                return;
+            }
+            quitting = true;
+            qInfo() << "cloudmus-qt: quitting on signal" << signal;
+            windowHost.quit();
+        });
+#endif
 
     Ui::UpdateFlow updateFlow(core.updates(), windowHost, core.analytics());
     // --star-prompt: show the GitHub star prompt right away, to try it,
