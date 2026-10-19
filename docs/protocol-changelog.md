@@ -5,6 +5,15 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## Requests handled concurrently (no version change)
+
+- **Clarified, no wire change** (§3): a source handles requests
+  concurrently and answers them in any order, matched by `id`; a slow one
+  must not hold up the others. A front that needs an order waits for a
+  Response before sending the next request. Before, the shipped backends
+  handled requests one at a time, and a playlist that took long to load
+  held up a `playback.play` behind it past the front's timeout.
+
 ## 1.17 — streams fetched over several connections
 
 - **Additive, backward-compatible**: optional `maxConnections` of

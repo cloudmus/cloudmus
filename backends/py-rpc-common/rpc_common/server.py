@@ -72,9 +72,7 @@ class BackendServer:
         self.translator = translator or Translator()
         self.capabilities = {**capabilities, "localization": {"locales": self.translator.locales()}}
         self._handlers: dict[str, RequestHandler] = {}
-        # Methods run alongside the requests that come after them rather
-        # than one at a time — see method()'s `concurrent`.
-        self._concurrent: set[str] = set()
+        # The requests being handled — see run().
         self._tasks: set[asyncio.Task] = set()
         self._writer: transport.NdjsonWriter | None = None
 
@@ -86,19 +84,16 @@ class BackendServer:
             applied = self.translator.set_locale(locale)
             return {"locale": applied, "description": self.translator.tr(self.source_description)}
 
-    def method(self, name: str, *, concurrent: bool = False) -> Callable[[RequestHandler], RequestHandler]:
+    def method(self, name: str) -> Callable[[RequestHandler], RequestHandler]:
         """Decorator: registers a handler for a `namespace.methodName` request.
 
-        Requests are handled one at a time, in order, which is what most
-        handlers rely on (e.g. a radio's feedback). `concurrent` is for a
-        long-running one — catalog.downloadTrack, minutes for a big file —
-        that must not hold everything else up meanwhile, a
-        catalog.cancelDownload for it included."""
+        Requests are handled concurrently, each answered as it is done
+        (docs/protocol.md §3): a slow one — a big playlist, a download —
+        holds nothing else up. No order is promised; a front that needs
+        one waits for an answer before it sends the next request."""
 
         def decorator(fn: RequestHandler) -> RequestHandler:
             self._handlers[name] = fn
-            if concurrent:
-                self._concurrent.add(name)
             return fn
 
         return decorator
@@ -193,15 +188,17 @@ class BackendServer:
             if method_name is None:
                 continue
             handler = handlers.get(method_name)
-            if handler is not None and method_name in self._concurrent:
-                task = asyncio.create_task(self._dispatch(writer, handler, message))
-                self._tasks.add(task)
-                task.add_done_callback(self._tasks.discard)
+            # The lifecycle stays in line: nothing comes before the answer
+            # to initialize, and nothing after shutdown (what is still
+            # running is left behind with the process).
+            if method_name in ("initialize", "shutdown"):
+                await self._dispatch(writer, handler, message)
+                if method_name == "shutdown":
+                    return
                 continue
-            await self._dispatch(writer, handler, message)
-
-            if method_name == "shutdown":
-                return
+            task = asyncio.create_task(self._dispatch(writer, handler, message))
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
 
 
 def serve(server: BackendServer, rpc_out: Any) -> NoReturn:

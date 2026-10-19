@@ -94,6 +94,14 @@ Rules:
 - `id` is a JSON number, assigned by the front, unique among that source's
   currently in-flight requests. Sources echo it back verbatim in the
   Response.
+- A source handles requests **concurrently** and answers each as it is
+  done, in any order: one slow request (a long playlist) must not hold up
+  the others behind it (a `playback.play`). Nothing about the order they
+  are handled in is promised. A front that needs one — a radio's
+  `feedback.skip` before the next track's `feedback.trackStarted`, a
+  `feedback.like` before a `feedback.unlike` — waits for a request's
+  Response before it sends the next. `initialize` is answered before any
+  other request is read, and nothing after `shutdown` is.
 - **Sources never initiate Requests to the front in protocol version 1.0**
   (no reverse RPC). A source only ever sends Responses and Notifications.
   This keeps a front's dispatcher a pure response/notification consumer.
@@ -449,8 +457,8 @@ front's own playback engine once it has a `StreamDescriptor`.
 `playback.resolveStream` performs only stream resolution: it must not change
 playback state, emit `track/streamReady`, or report a track as started. The
 front may call it while another track plays, and may discard its result if
-the queue changes. A source must handle this potentially slow request
-concurrently with transport and feedback requests. The front still uses
+the queue changes. Like every request (§3), this potentially slow one
+must not hold up the others. The front still uses
 `playback.play` with sources that do not declare this optional capability.
 `playback.cancel` may also name an in-flight `playback.resolveStream` request;
 the source then stops resolution on a best-effort basis.

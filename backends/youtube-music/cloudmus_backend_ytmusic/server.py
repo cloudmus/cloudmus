@@ -167,7 +167,7 @@ def build_server() -> BackendServer:
 
     inflight_resolutions: dict[int, asyncio.Event] = {}
 
-    @server.method("playback.resolveStream", concurrent=True)
+    @server.method("playback.resolveStream")
     async def handle_resolve_stream(params: dict, request_id: int) -> dict:
         cancel_event = asyncio.Event()
         inflight_resolutions[request_id] = cancel_event
