@@ -13,6 +13,14 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/cloudmus/cloudmus/actions/workflows/develop.yml"><img src="https://github.com/cloudmus/cloudmus/actions/workflows/develop.yml/badge.svg?branch=develop" alt="Build status"></a>
+  <a href="https://github.com/cloudmus/cloudmus/releases/latest"><img src="https://img.shields.io/github/v/release/cloudmus/cloudmus" alt="Latest release"></a>
+  <a href="https://github.com/cloudmus/cloudmus/releases"><img src="https://img.shields.io/github/downloads/cloudmus/cloudmus/total" alt="Downloads"></a>
+  <a href="#download-and-install"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue" alt="Platforms: Windows, Linux"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/cloudmus/cloudmus" alt="License: MIT"></a>
+</p>
+
+<p align="center">
   <img src="art/cloudmus.png" alt="CloudMus desktop app playing a track from YouTube Music">
 </p>
 
