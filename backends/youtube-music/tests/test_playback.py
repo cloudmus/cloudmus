@@ -37,6 +37,7 @@ async def test_resolves_best_audio_by_abr(monkeypatch):
     assert stream.mimeType == "audio/webm"
     assert stream.codec == "opus"
     assert stream.bitrateKbps == 160
+    assert stream.maxConnections == playback.STREAM_CONNECTIONS
 
 
 @pytest.mark.asyncio

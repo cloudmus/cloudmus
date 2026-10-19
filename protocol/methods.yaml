@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.16"
+protocolVersion: "1.17"
 
 methods:
   # --- 7.1 Catalog / browse ---

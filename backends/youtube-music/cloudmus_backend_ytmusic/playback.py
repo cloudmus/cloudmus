@@ -42,6 +42,9 @@ VALIDATE_TIMEOUT = 5.0
 # when the format's size is unknown; a stream shorter than this answers
 # 416, which is not a refusal.
 VALIDATE_OFFSET = 2 * 1024 * 1024
+# googlevideo holds each connection to about playback pace; a few ranges
+# fetched at once get a track down that much sooner.
+STREAM_CONNECTIONS = 4
 
 _YDL_OPTS = {
     "format": "bestaudio/best",
@@ -169,6 +172,7 @@ def _resolve_stream_sync(video_id: str, quality_level: str) -> StreamDescriptor:
         headers=headers,
         codec=_codec_name(best.get("acodec")),
         bitrateKbps=bitrate or None,
+        maxConnections=STREAM_CONNECTIONS,
     )
 
 

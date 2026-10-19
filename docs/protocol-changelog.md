@@ -5,6 +5,15 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.17 — streams fetched over several connections
+
+- **Additive, backward-compatible**: optional `maxConnections` of
+  `StreamDescriptor` (§6) — how many range requests for the stream's URL
+  the front may make at once. A front that downloads the track splits it
+  into ranges and fetches that many in parallel, which speeds up a service
+  that holds each connection to a slow pace. Absent means one at a time,
+  as before.
+
 ## 1.16 — why a track will not play
 
 - **Additive, backward-compatible**: optional `data.trackId` and

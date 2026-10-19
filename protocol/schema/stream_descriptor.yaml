@@ -12,4 +12,5 @@ properties:
     additionalProperties: {type: string}
   codec: {type: string}               # optional (1.15+), lowercase short name of the audio codec, e.g. "mp3", "aac", "opus"
   bitrateKbps: {type: integer, minimum: 1}   # optional (1.15+), the stream's bitrate in kbit/s
+  maxConnections: {type: integer, minimum: 1}   # optional (1.17+), how many ranges of the URL the front may fetch at once; 1 if absent
 additionalProperties: false

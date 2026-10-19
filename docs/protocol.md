@@ -326,7 +326,8 @@ the front's own playback engine and never needs to be pushed back.
   "mimeType": "audio/mpeg",
   "headers": {"User-Agent": "..."},  // optional, extra HTTP headers the front must send when fetching
   "codec": "mp3",                    // optional (1.15+), lowercase short codec name: "mp3", "aac", "opus", ...
-  "bitrateKbps": 320                 // optional (1.15+), the stream's bitrate in kbit/s
+  "bitrateKbps": 320,                // optional (1.15+), the stream's bitrate in kbit/s
+  "maxConnections": 4                // optional (1.17+), how many ranges of `url` the front may fetch at once
 }
 ```
 `kind` is a discriminator left open for future stream types (e.g. a local
@@ -337,6 +338,13 @@ value in v1.
 has of the track (§7.2), for a front to show the listener; both are plain
 information, playback never depends on them. A source leaves out what it
 doesn't know — a front shows only what is there.
+
+`maxConnections` (1.17+) is how many HTTP range requests for `url` the
+source's service puts up with at once. A front that downloads the stream
+may split it into ranges and fetch up to that many in parallel — worth it
+where the service holds each connection to a slow pace. Absent means 1: one
+request at a time. The listener may override it in the front's settings; a
+front never goes above what it caps itself.
 
 ---
 
