@@ -71,6 +71,12 @@ in Docker, running under Wine, and what only a real Windows can show.
 - Body: a few wrapped lines on what changed for the user and why.
 - One logical change per commit; never commit generated files, build
   directories, or `.venv/`.
+- A commit that fixes (or works toward fixing) a crash from Sentry names
+  it, before the trailers: `Refs CLOUDMUS-QT-X` and
+  `Sentry: https://navrockydev.sentry.io/issues/CLOUDMUS-QT-X/`. Find the
+  issue id from the event (Sentry MCP, or the event JSON's `event_id`).
+  `Refs`, never `Fixes`/`Closes`: the issue is resolved by hand once the
+  fix is confirmed.
 
 ## Changelog and releases
 
