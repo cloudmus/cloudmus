@@ -166,7 +166,12 @@ void PageStack::materialize(Section& section)
 {
     QWidget* body = section.page->createWidget(section.card);
     section.cardLayout->replaceWidget(section.placeholder, body);
-    delete section.placeholder;
+    // Not deleted on the spot: a resize or scroll can bring us here from
+    // inside Qt's own repolish (an app style sheet change — switching the
+    // theme), which walks a list of widgets it took beforehand, the
+    // placeholder among them.
+    section.placeholder->hide();
+    section.placeholder->deleteLater();
     section.placeholder = nullptr;
     // A child added to an already-visible parent is only shown by a queued
     // call, and a layout counts a not-yet-shown widget as empty — its real
