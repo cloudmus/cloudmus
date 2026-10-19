@@ -516,6 +516,11 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
         if (!alive)
             co_return;
         if (transition == transitionGeneration_ && id == latestRequestId_) {
+            // Given up — a timeout included, after which a busy source may
+            // still answer and send the stream. That stream is no longer
+            // anyone's: taken, it would play under the current track (or,
+            // with none current, read queue_[-1]).
+            latestRequestId_ = -1;
             startingIndex_ = -1;
             playTimeoutTimer_->stop();
             emit loadingChanged(false);
@@ -585,6 +590,10 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
 
 void PlaybackController::startCurrentAudio(const std::optional<StreamDescriptor>& stream)
 {
+    // A stream that outlived its track has nothing to play; queue_[-1]
+    // would be a crash.
+    if (!hasCurrentTrack())
+        return;
     // Displayed by AudioPlayer as the track identity in the OS's per-stream
     // audio widget (mpv would otherwise report itself as "mpv" playing a
     // title derived from the raw stream URL) — same "%1 — %2" convention as

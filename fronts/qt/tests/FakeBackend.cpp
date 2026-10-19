@@ -7,6 +7,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QThread>
 
 #include <cstdio>
 #include <iostream>
@@ -15,6 +16,9 @@
 namespace Tests {
 
 namespace {
+
+// How long the front waits for playback.play (PlaybackController).
+constexpr unsigned long kPlayTimeoutMs = 5000;
 
 void send(const QJsonObject& message)
 {
@@ -215,10 +219,15 @@ int runFakeBackend()
             // (what the tests look at) without anything actually playing.
             // Except for "refused": its stream is one nothing answers at —
             // and for a track whose id is a URL, which is its stream.
-            reply(id, { { QStringLiteral("accepted"), true } });
+            // "late": answered only after the front's play timeout, as a
+            // source busy with a long request does, its stream right behind.
             const QString trackId
                 = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
-            const QString url = trackId == QStringLiteral("refused") ? QStringLiteral("http://127.0.0.1:9/refused")
+            if (trackId == QStringLiteral("late"))
+                QThread::msleep(kPlayTimeoutMs + 500);
+            reply(id, { { QStringLiteral("accepted"), true } });
+            const QString url = trackId == QStringLiteral("refused") || trackId == QStringLiteral("late")
+                ? QStringLiteral("http://127.0.0.1:9/") + trackId
                 : trackId.startsWith(QStringLiteral("http://")) || trackId.startsWith(QStringLiteral("file://"))
                 ? trackId
                 : QString();

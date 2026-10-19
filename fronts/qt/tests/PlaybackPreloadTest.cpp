@@ -207,6 +207,25 @@ private slots:
         QCOMPARE(errors.size(), 1);
     }
 
+    // A source busy past the play's timeout still answers it, the stream
+    // right behind: the play was given up, and its stream goes with it.
+    void aStreamForAPlayThatTimedOutIsIgnored()
+    {
+        Track late;
+        late.id = QStringLiteral("late");
+        late.title = QStringLiteral("late");
+        QSignalSpy failed(playback_.get(), &Playback::PlaybackController::failed);
+        QSignalSpy resolved(playback_.get(), &Playback::PlaybackController::streamResolved);
+
+        playback_->loadQueue(QStringLiteral("fake"), { late }, 0);
+        QTRY_COMPARE_WITH_TIMEOUT(failed.size(), 1, 10000);
+        QCOMPARE(failed.first().at(1).toString(), QStringLiteral("rejected"));
+        QTest::qWait(1500); // the stream comes half a second after the timeout
+        QVERIFY(resolved.isEmpty());
+        QVERIFY(!playback_->hasCurrentTrack());
+        QVERIFY(!playback_->isPlaying());
+    }
+
     // No network: only a track that needs none is worth going on to.
     void withoutTheNetworkTheNextDownloadedTrackPlays()
     {
