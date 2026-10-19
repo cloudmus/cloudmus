@@ -657,6 +657,12 @@ if(CLOUDMUS_SENTRY)
     target_link_options(cloudmus-qt PRIVATE -Wl,--build-id)
 endif()
 
+# --- cloudmus-download-bench: how fast Net::ParallelDownload gets a file
+# over N connections. A developer's tool, built only when asked for:
+# `cmake --build build --target cloudmus-download-bench`.
+add_executable(cloudmus-download-bench EXCLUDE_FROM_ALL tools/DownloadBench.cpp)
+target_link_libraries(cloudmus-download-bench PRIVATE cloudmus-core)
+
 # --- tests (QtTest): `ctest --test-dir build`, or run build/bin/cloudmus-qt-tests.
 if(BUILD_TESTING)
 add_executable(cloudmus-qt-tests

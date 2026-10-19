@@ -175,6 +175,28 @@ The root `pyproject.toml` isn't a package: it only sets pytest's
 `--import-mode=importlib`, so same-named test files in different backends
 (e.g. two `test_catalog.py`) don't collide under `pytest backends/`.
 
+### Download speed
+
+The Qt front downloads tracks and updates in ranges over several
+connections at once (`Net::ParallelDownload`): updates over 5
+(`CLOUDMUS_UPDATE_CONNECTIONS` to try another number), a source's
+tracks over as many as its `StreamDescriptor.maxConnections` says, unless
+the user set a number on the source's settings page. To see what more
+connections are worth on a line, time a real file:
+
+```bash
+cmake --build fronts/qt/build --target cloudmus-download-bench
+U=https://github.com/cloudmus/cloudmus/releases/download/0.6.3/CloudMus-0.6.3-x86_64.AppImage
+fronts/qt/build/bin/cloudmus-download-bench $U 1 --direct --seconds 30
+fronts/qt/build/bin/cloudmus-download-bench $U 5 --direct --seconds 30
+```
+
+Without `--direct` it goes through the proxy the app would use
+(`HTTPS_PROXY` & co.); `--verbose` prints each range asked for and done.
+Speeds swing a lot from one run to the next; take a
+few, or whole files. With `CLOUDMUS_QT_DEBUG=1` the app logs each finished
+download's speed under `cloudmus.net.download`.
+
 ## Protocol
 
 - [`docs/protocol.md`](protocol.md) — the normative spec (wins over
