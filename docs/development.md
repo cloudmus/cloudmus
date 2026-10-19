@@ -304,6 +304,100 @@ base=$(x86_64-w64-mingw32-objdump -p build-windows/bin/cloudmus-qt.exe | awk '/^
 x86_64-w64-mingw32-addr2line -f -C -e build-windows/bin/cloudmus-qt.exe $(printf '0x%x' $((0x$base + 0x1a2b3c)))
 ```
 
+## Branches and git flow
+
+The repository follows [git flow](https://nvie.com/posts/a-successful-git-branching-model/):
+
+| Branch | What |
+|---|---|
+| `master` | Released versions only: each of its commits is a release, tagged `x.y.z`. Never commit to it directly |
+| `develop` | Where work comes together; the default branch on GitHub. Every push to it gets test builds (`.github/workflows/develop.yml`) |
+| `feature/<name>` | A new feature, from `develop` |
+| `bugfix/<name>` | A fix for something not released yet, from `develop` |
+| `release/<x.y.z>` | Preparing a release (changelog), from `develop` |
+| `hotfix/<x.y.z>` | An urgent fix to the released version, from `master` |
+
+Tags have no prefix (`0.7.0`, not `v0.7.0`): pushing one publishes a release
+(`docs/releasing.md`), and the app's version comes from `git describe`.
+
+The [`git flow`](https://github.com/nvie/gitflow) tool is optional — each
+step below is a couple of plain git commands. To set it up after cloning
+(the defaults are what this repository uses):
+
+```bash
+git flow init -d
+```
+
+### A feature
+
+```bash
+git flow feature start my-feature      # = git checkout -b feature/my-feature develop
+# ... commits ...
+```
+
+Then either open a pull request into `develop` (it gets test builds of its
+own, see `docs/releasing.md`):
+
+```bash
+git flow feature publish my-feature    # = git push -u origin feature/my-feature
+```
+
+or merge it yourself:
+
+```bash
+git rebase develop                     # catch up first, keeps history readable
+git flow feature finish my-feature     # = git checkout develop && git merge --no-ff feature/my-feature
+git push origin develop
+```
+
+A small, self-contained change can go straight to `develop` as a commit.
+
+### A bug fix for the next release
+
+The same as a feature, on a `bugfix/<name>` branch. `git flow bugfix` exists
+only in the git-flow-avh fork; with the original tool use plain git
+(`git checkout -b bugfix/<name> develop`, then a pull request or
+`git merge --no-ff` into `develop`). A bug that's already in a released
+version and can't wait for the next release is a hotfix instead.
+
+### A release
+
+On an up-to-date `develop`: update and tidy up the changelog, move it to a
+`release/<x.y.z>` branch as the `Release <x.y.z>` commit, tag that commit,
+`git flow release finish -n <x.y.z>` (merges into `master` and `develop`),
+and push `master`, `develop` and the tag. The steps and the changelog rules:
+`docs/releasing.md`, "Making a release".
+
+### A hotfix
+
+An urgent fix to the released version, made on top of `master` without
+whatever is on `develop`. Its version is the next patch: `0.6.3` → `0.6.4`.
+
+```bash
+git fetch --tags --force origin
+git checkout master && git pull
+git flow hotfix start 0.6.4            # = git checkout -b hotfix/0.6.4 master
+# ... fix commits (a Sentry crash fix names it: AGENTS.md, "Commits") ...
+```
+
+Then release it from the hotfix branch: changelog, `Release 0.6.4` commit,
+annotated tag on it, and:
+
+```bash
+git flow hotfix finish -n 0.6.4        # merges into master and develop
+git push origin master develop 0.6.4
+```
+
+The steps: `docs/releasing.md`, "Making a hotfix". If `develop` has moved
+on, the merge into it may conflict — resolve it there; the fix must not get
+lost from the next release.
+
+`finish` runs with `-n` (no tag) and we tag ourselves, for two reasons: the
+tag message (the release notes) comes from a file, which `git flow` can't
+take, and a tag on the branch's own `Release` commit is reachable from both
+`master` and `develop`, so `git describe` on `develop` counts from the new
+version.
+
 ## Repository layout
 
 ```
@@ -312,7 +406,7 @@ backends/            py-rpc-common/ and one folder per service
 fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, build script, apprun/: the Rust AppRun)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)
-.github/workflows/   Release, stage and pull request builds (build.yml is shared)
+.github/workflows/   Release, develop and pull request builds (build.yml is shared)
 docs/                Protocol spec, this guide, Windows, releasing, analytics
 art/                 Logo and screenshots
 ```

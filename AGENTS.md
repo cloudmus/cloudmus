@@ -61,6 +61,9 @@ in Docker, running under Wine, and what only a real Windows can show.
 - English everywhere. Match surrounding code; comments explain *why*.
 - New backend: `backends/<service>/` with `manifest.json`, built on
   `py-rpc-common`, passing the conformance suite.
+- Git flow (`docs/development.md`, "Branches and git flow"): work goes to
+  `develop` or a `feature/*`/`bugfix/*` branch off it, never straight to
+  `master`; `master` only gets release and hotfix merges.
 - Versions come from `x.y.z` git tags; pushing one publishes a release.
   Don't create or push tags unless asked.
 
@@ -80,4 +83,5 @@ in Docker, running under Wine, and what only a real Windows can show.
 
 ## Changelog and releases
 
-For "tidy up CHANGELOG" or "make a release", follow `docs/releasing.md`.
+For "tidy up CHANGELOG", "make a release" or "make a hotfix", follow
+`docs/releasing.md`.

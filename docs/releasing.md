@@ -7,7 +7,12 @@ release with the tag's message as its release notes. The app's
 version (shown in the About dialog) comes from the same tag via
 `git describe` (`fronts/qt/cmake/Version.cmake`).
 
-Every push to the `stage` branch runs `.github/workflows/stage.yml`: the same
+Branches follow git flow (`docs/development.md`, "Branches and git flow"):
+`develop` collects the work, `master` holds only released versions, and a
+release is prepared on a `release/<x.y.z>` branch (a `hotfix/<x.y.z>` one
+for an urgent fix to the released version).
+
+Every push to the `develop` branch runs `.github/workflows/develop.yml`: the same
 two builds (`build.yml`, shared with the release), kept for 14 days as the
 run's artifacts (Actions → the run → Artifacts) instead of being published.
 Their names carry `git describe`, e.g. `CloudMus-0.5.1-12-gabc1234-…`. They
@@ -77,8 +82,9 @@ keep the original newest-first order.
 
 ## Making a release
 
-1. Pull fresh tags: `git fetch --tags --force origin` (a tag may have been
-   moved or created on GitHub).
+1. Start from an up-to-date `develop` with fresh tags:
+   `git checkout develop && git pull && git fetch --tags --force origin`
+   (a tag may have been moved or created on GitHub).
 2. Run `./update-changelog-from-git.sh`.
 3. Tidy up the new section (see above).
 4. Pick the version: only bug fixes → patch (`0.1.0` → `0.1.1`); anything
@@ -86,11 +92,49 @@ keep the original newest-first order.
    **Stop here**: show the user the tidied section with the version and wait
    for their approval — they may reword, drop or merge entries. Don't commit,
    tag or push before that.
-5. Commit the changelog as `Release <x.y.z>`.
+5. Move the uncommitted changelog to the release branch and commit it as
+   `Release <x.y.z>`:
+
+   ```bash
+   git checkout -b release/<x.y.z>     # what `git flow release start` does; it refuses a dirty tree
+   git commit -am "Release <x.y.z>"
+   ```
+
 6. Create an annotated tag on that commit whose message is the version
-   followed by that release's changelog bullets, and push both:
+   followed by that release's changelog bullets, merge the branch into
+   `master` and `develop`, and push all three:
 
    ```bash
    git tag -a <x.y.z> -F <message-file>
-   git push origin HEAD <x.y.z>
+   git flow release finish -n <x.y.z>  # -n: the tag is already there
+   git push origin master develop <x.y.z>
    ```
+
+   Without the `git flow` tool: `git checkout master && git merge --no-ff
+   release/<x.y.z>`, the same into `develop`, then
+   `git branch -d release/<x.y.z>`.
+
+The tag goes on the `Release` commit, not on the merge into `master`: that
+commit is in both branches, so `git describe` on `develop` counts from the
+new version too.
+
+## Making a hotfix
+
+An urgent fix to the released version, without what's on `develop`:
+
+1. `git fetch --tags --force origin`, `git checkout master && git pull`,
+   `git flow hotfix start <x.y.z>` with the next patch version.
+2. Commit the fix(es) on `hotfix/<x.y.z>`.
+3. Changelog and approval as in "Making a release", steps 2–4 (the version
+   is the branch's), then `git commit -am "Release <x.y.z>"` on the hotfix
+   branch.
+4. Tag, finish and push:
+
+   ```bash
+   git tag -a <x.y.z> -F <message-file>
+   git flow hotfix finish -n <x.y.z>
+   git push origin master develop <x.y.z>
+   ```
+
+   If `develop` has moved on, the merge into it may conflict: resolve it,
+   the fix must reach the next release too.

@@ -1,5 +1,5 @@
 # Test builds of a pull request: the same AppImage and Windows installer as
-# for stage.yml, built from every push to the pull request, as workflow
+# for develop.yml, built from every push to the pull request, as workflow
 # artifacts (the PR's Checks → the run → Artifacts).
 name: Pull request
 

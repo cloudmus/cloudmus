@@ -19,7 +19,7 @@ printNewRelease() {
   else
     COMMITS="${LAST_VERSION}..HEAD"
   fi
-  GIT_LOG_COMMAND="git log --format=%s ${COMMITS}"
+  GIT_LOG_COMMAND="git log --no-merges --format=%s ${COMMITS}"
   $GIT_LOG_COMMAND | while IFS=$'\n' read -r LINE; do
     echo "- $LINE"
   done
