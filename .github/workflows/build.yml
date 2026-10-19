@@ -1,5 +1,5 @@
 # The AppImage and the Windows installer, built the same way for a release
-# (release.yml) and for every push to stage (stage.yml). Uploads them as
+# (release.yml) and for every push to develop (develop.yml). Uploads them as
 # workflow artifacts, and the debug symbols to Sentry.
 name: Build
 
@@ -7,7 +7,7 @@ on:
   workflow_call:
     inputs:
       release:
-        description: Release build, with usage statistics (a stage build leaves them out)
+        description: Release build, with usage statistics (a develop build leaves them out)
         type: boolean
         default: false
       retention-days:

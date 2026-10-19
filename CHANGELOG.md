@@ -1,3 +1,11 @@
+# 0.6.4 (2026-10-19)
+
+- Tracks download over several connections at once (YouTube Music: 4), which is several times faster where the service slows each connection down; each source's settings page gets "Download connections" (Auto, up to 6). Protocol 1.17: `StreamDescriptor.maxConnections`
+- Updates download over five connections, about three times faster from GitHub
+- Backends handle requests concurrently: a slow one (YouTube Music loading playlists) no longer holds up the plays started meanwhile; the app keeps radio feedback, likes and playlist edits in the order they were made
+- Fix a crash when a track started while the source was busy answered too late
+- Fix a crash when switching the theme in Settings
+
 # 0.6.3 (2026-10-18)
 
 - Theme and tray follow the desktop's light/dark preference from the XDG portal (e.g. qt6ct on Hyprland); Settings → General gets "Tray icon for: Automatic / Light panel / Dark panel"
