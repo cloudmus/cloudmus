@@ -242,6 +242,17 @@ Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, boo
         pendingLiked_ = liked;
         emit feedbackChanged();
     }
+    // After whatever was asked of this kind before it: a like and an
+    // unlike reach the source in the order they were made.
+    const Rpc::Sequence::Turn turn = co_await rating_.turn();
+    client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available()) {
+        if (isShownTrack(sourceId, trackId)) {
+            pendingLiked_.reset();
+            emit feedbackChanged();
+        }
+        co_return;
+    }
     try {
         if (liked)
             co_await Rpc::feedbackLike(*client, LikeParams { trackId });
@@ -288,6 +299,15 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
             pendingDisliked_.reset();
             emit feedbackChanged();
         }
+    }
+    const Rpc::Sequence::Turn turn = co_await rating_.turn();
+    client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available()) {
+        if (isShownTrack(sourceId, trackId)) {
+            pendingDisliked_.reset();
+            emit feedbackChanged();
+        }
+        co_return;
     }
     try {
         if (disliked)

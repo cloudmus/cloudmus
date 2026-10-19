@@ -333,8 +333,9 @@ void PlaybackController::attachStation(const QString& sourceId, const QString& s
     // more once little is left after it.
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (hasCurrentTrack() && currentSourceId() == sourceId && client != nullptr && client->available()) {
-        TrackStartedParams started { currentTrack().id, queuedAfter(index_) };
-        Rpc::feedbackTrackStarted(*client, started).detach();
+        const TrackStartedParams started { currentTrack().id, queuedAfter(index_) };
+        sendRadioFeedback(sourceId, [started](Rpc::RpcClient& c) { return Rpc::feedbackTrackStarted(c, started); })
+            .detach();
     }
 }
 
@@ -563,8 +564,10 @@ void PlaybackController::becomeCurrent(int index, const QueueEntry& entry, bool 
     if (waveMode_) {
         Rpc::RpcClient* client = sourceManager_.client(entry.sourceId);
         if (client != nullptr && client->available()) {
-            TrackStartedParams started { entry.track.id, queuedAfter(index) };
-            Rpc::feedbackTrackStarted(*client, started).detach();
+            const TrackStartedParams started { entry.track.id, queuedAfter(index) };
+            sendRadioFeedback(
+                entry.sourceId, [started](Rpc::RpcClient& c) { return Rpc::feedbackTrackStarted(c, started); })
+                .detach();
         }
     }
     if (!isRetry)
@@ -786,11 +789,29 @@ void PlaybackController::sendFeedbackFinishedOrSkip(bool wasSkip)
         return;
     const int playedMs = static_cast<int>(lastKnownPositionMs_);
     if (wasSkip) {
-        SkipParams params { currentTrack().id, playedMs };
-        Rpc::feedbackSkip(*client, params).detach();
+        const SkipParams params { currentTrack().id, playedMs };
+        sendRadioFeedback(currentSourceId(), [params](Rpc::RpcClient& c) { return Rpc::feedbackSkip(c, params); })
+            .detach();
     } else {
-        TrackFinishedParams params { currentTrack().id, playedMs, queuedAfter(index_) };
-        Rpc::feedbackTrackFinished(*client, params).detach();
+        const TrackFinishedParams params { currentTrack().id, playedMs, queuedAfter(index_) };
+        sendRadioFeedback(
+            currentSourceId(), [params](Rpc::RpcClient& c) { return Rpc::feedbackTrackFinished(c, params); })
+            .detach();
+    }
+}
+
+Rpc::Task<void> PlaybackController::sendRadioFeedback(
+    QString sourceId, std::function<Rpc::Task<void>(Rpc::RpcClient&)> send)
+{
+    const Rpc::Sequence::Turn turn = co_await radioFeedback_.turn();
+    // Waiting for its turn, the source may have gone.
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available())
+        co_return;
+    try {
+        co_await send(*client);
+    } catch (const std::exception& e) {
+        qCDebug(lcPlayback) << "radio feedback failed:" << e.what();
     }
 }
 
@@ -1026,9 +1047,11 @@ void PlaybackController::promotePrepared(int nextIndex, bool manual)
         emit currentTrackAvailabilityChanged(true);
     const QueueEntry entry = queue_[index_];
     if (waveMode_) {
-        if (Rpc::RpcClient* client = sourceManager_.client(entry.sourceId)) {
-            TrackStartedParams params { entry.track.id, queuedAfter(index_) };
-            Rpc::feedbackTrackStarted(*client, params).detach();
+        if (sourceManager_.client(entry.sourceId) != nullptr) {
+            const TrackStartedParams params { entry.track.id, queuedAfter(index_) };
+            sendRadioFeedback(
+                entry.sourceId, [params](Rpc::RpcClient& c) { return Rpc::feedbackTrackStarted(c, params); })
+                .detach();
         }
     }
     emit trackChanged(entry.track, entry.sourceId);

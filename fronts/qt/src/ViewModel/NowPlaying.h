@@ -161,6 +161,8 @@ private:
     // In-flight requests for the current track, with the state asked for.
     std::optional<bool> pendingLiked_;
     std::optional<bool> pendingDisliked_;
+    // Likes and dislikes, one after another (see setTrackLiked()).
+    Rpc::Sequence rating_;
     QString previewSourceId_;
     QString previewTrackId_;
 };

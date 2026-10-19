@@ -264,6 +264,9 @@ private:
     void reshuffle(int first);
     void setWaveMode(bool on);
     void sendFeedbackFinishedOrSkip(bool wasSkip);
+    // Sends a radio's feedback once what was sent before it is through
+    // (see radioFeedback_).
+    Rpc::Task<void> sendRadioFeedback(QString sourceId, std::function<Rpc::Task<void>(Rpc::RpcClient&)> send);
     // How many tracks are queued after `index` — told to a radio with the
     // track's feedback (queuedAfter, docs/protocol.md §7.1): the station
     // tops the queue up by it, as only this queue knows what it has left.
@@ -284,6 +287,10 @@ private:
 
     int latestRequestId_ = -1;
     int transitionGeneration_ = 0;
+    // The station follows the listener by its feedback, and a source
+    // handles requests in no particular order: a skip must be through
+    // before the next track's start is sent.
+    Rpc::Sequence radioFeedback_;
     std::optional<StreamReadyParams> earlyStreamReady_;
     // Same for a track error (see handleTrackError()): sourceId and data.
     std::optional<std::pair<QString, QJsonObject>> earlyTrackError_;

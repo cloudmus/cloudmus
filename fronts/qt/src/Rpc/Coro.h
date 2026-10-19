@@ -1,7 +1,9 @@
 #pragma once
 
 #include <coroutine>
+#include <deque>
 #include <exception>
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -184,6 +186,78 @@ private:
     }
 
     std::coroutine_handle<promise_type> handle_;
+};
+
+// Requests that must reach a source in the order they were made — a radio's
+// skip before the next track's start — each take their turn here: a
+// source handles requests concurrently and promises no order, so the
+// order is the front's to keep (docs/protocol.md §3).
+//
+//     const Rpc::Sequence::Turn turn = co_await sequence_.turn();
+//     co_await Rpc::feedbackSkip(*client, params);
+//
+// Turns are given in the order asked for; the next one starts when the
+// Turn before it is destroyed. A Sequence destroyed with coroutines still
+// waiting never resumes them (their owner is gone with it); a Turn may
+// outlive its Sequence.
+class Sequence {
+    struct State {
+        bool taken = false;
+        bool closed = false;
+        std::deque<std::coroutine_handle<>> waiting;
+    };
+
+public:
+    class Turn {
+    public:
+        Turn(Turn&& other) noexcept
+            : state_(std::move(other.state_))
+        {
+        }
+        Turn& operator=(Turn&&) = delete;
+        Turn(const Turn&) = delete;
+        Turn& operator=(const Turn&) = delete;
+        ~Turn()
+        {
+            if (!state_)
+                return;
+            if (state_->closed || state_->waiting.empty()) {
+                state_->taken = false;
+                return;
+            }
+            // Handed straight on: `taken` stays set for the next one.
+            const std::coroutine_handle<> next = state_->waiting.front();
+            state_->waiting.pop_front();
+            next.resume();
+        }
+
+    private:
+        friend class Sequence;
+        explicit Turn(std::shared_ptr<State> state)
+            : state_(std::move(state))
+        {
+        }
+        std::shared_ptr<State> state_;
+    };
+
+    Sequence() = default;
+    Sequence(const Sequence&) = delete;
+    Sequence& operator=(const Sequence&) = delete;
+    ~Sequence() { state_->closed = true; }
+
+    auto turn()
+    {
+        struct Awaiter {
+            std::shared_ptr<State> state;
+            bool await_ready() const noexcept { return !std::exchange(state->taken, true); }
+            void await_suspend(std::coroutine_handle<> h) { state->waiting.push_back(h); }
+            Turn await_resume() { return Turn { std::move(state) }; }
+        };
+        return Awaiter { state_ };
+    }
+
+private:
+    std::shared_ptr<State> state_ = std::make_shared<State>();
 };
 
 } // namespace Rpc

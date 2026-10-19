@@ -694,6 +694,7 @@ add_executable(cloudmus-qt-tests
     tests/PathsTest.cpp
     tests/TrackStatesTest.cpp
     tests/TimingTest.cpp
+    tests/SequenceTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

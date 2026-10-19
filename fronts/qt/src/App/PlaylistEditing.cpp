@@ -61,6 +61,9 @@ Rpc::Task<std::optional<PlaylistEditing::Membership>> PlaylistEditing::membershi
 
 Rpc::Task<bool> PlaylistEditing::setTrackInPlaylist(QString sourceId, Track track, Playlist playlist, bool add)
 {
+    // After the edits asked for before it: an add and a remove reach the
+    // source in the order they were made.
+    const Rpc::Sequence::Turn turn = co_await edits_.turn();
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
         co_return false;

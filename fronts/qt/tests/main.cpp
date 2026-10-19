@@ -34,6 +34,7 @@ QObject* makeStarPromptTest();
 QObject* makePathsTest();
 QObject* makeTrackStatesTest();
 QObject* makeTimingTest();
+QObject* makeSequenceTest();
 int runCrashReporterChildIfAsked(int argc, char** argv);
 }
 
@@ -61,7 +62,8 @@ int main(int argc, char** argv)
              Tests::makePlaybackPreloadTest, Tests::makePreloadTest, Tests::makeTrackFileTest,
              Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeParallelDownloadTest,
              Tests::makeHotkeysTest, Tests::makeI18nTest, Tests::makeAudioPulseTest, Tests::makeStarPromptTest,
-             Tests::makePathsTest, Tests::makeTrackStatesTest, Tests::makeTimingTest }) {
+             Tests::makePathsTest, Tests::makeTrackStatesTest, Tests::makeTimingTest,
+             Tests::makeSequenceTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

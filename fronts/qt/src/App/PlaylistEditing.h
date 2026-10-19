@@ -62,6 +62,8 @@ private:
     Rpc::SourceManager& sourceManager_;
     ViewModel::Messages& messages_;
     QHash<QString, QList<Playlist>> playlists_;
+    // Edits, one after another (see setTrackInPlaylist()).
+    Rpc::Sequence edits_;
 };
 
 } // namespace App
