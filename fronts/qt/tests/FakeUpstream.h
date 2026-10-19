@@ -89,6 +89,13 @@ public:
     // The next answer for the path stops after this many body bytes, the
     // connection left open.
     QHash<QString, qint64> stallAfter;
+    // The next answer for the path is cut off after this many body bytes:
+    // the connection closes.
+    QHash<QString, qint64> cutAfter;
+    // These ignore Range: 200 and the whole body.
+    QSet<QString> wholeOnly;
+    // These don't say their length: "bytes 0-99/*".
+    QSet<QString> lengthUnknown;
     // No answer carries more body than this, whatever range was asked for.
     qint64 maxAnswerBytes = -1;
     // "<path>@<first byte>", in the order they came.
@@ -133,13 +140,31 @@ private:
             return;
         }
         const QByteArray& body = bodies[path];
+        if (wholeOnly.contains(path)) {
+            socket->write("HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\nContent-Length: "
+                + QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n");
+            socket->write(body);
+            socket->disconnectFromHost();
+            return;
+        }
+        if (start >= body.size()) {
+            socket->write("HTTP/1.1 416 Range Not Satisfiable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            socket->disconnectFromHost();
+            return;
+        }
         qint64 last = end < 0 ? body.size() - 1 : qMin(end, qint64(body.size()) - 1);
         if (maxAnswerBytes > 0)
             last = qMin(last, start + maxAnswerBytes - 1);
         const QByteArray chunk = body.mid(start, last - start + 1);
         socket->write("HTTP/1.1 206 Partial Content\r\nContent-Type: audio/mpeg\r\nContent-Range: bytes "
-            + QByteArray::number(start) + '-' + QByteArray::number(last) + '/' + QByteArray::number(body.size())
+            + QByteArray::number(start) + '-' + QByteArray::number(last) + '/'
+            + (lengthUnknown.contains(path) ? QByteArray("*") : QByteArray::number(body.size()))
             + "\r\nContent-Length: " + QByteArray::number(chunk.size()) + "\r\nConnection: close\r\n\r\n");
+        if (cutAfter.contains(path)) {
+            socket->write(chunk.left(cutAfter.take(path)));
+            socket->disconnectFromHost();
+            return;
+        }
         if (stallAfter.contains(path)) {
             socket->write(chunk.left(stallAfter.take(path)));
             return;

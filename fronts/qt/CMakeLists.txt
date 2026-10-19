@@ -166,6 +166,8 @@ add_library(cloudmus-core STATIC
     src/I18n/Languages.cpp
     src/I18n/Translator.cpp
     src/Net/ProxyRouting.cpp
+    src/Net/NetworkErrors.cpp
+    src/Net/ParallelDownload.cpp
 
     src/History/PlaybackHistory.cpp
     src/Library/TrackStates.cpp
@@ -678,6 +680,7 @@ add_executable(cloudmus-qt-tests
     tests/TrackFileTest.cpp
     tests/CrashReporterTest.cpp
     tests/UpdateTest.cpp
+    tests/ParallelDownloadTest.cpp
     tests/HotkeysTest.cpp
     tests/I18nTest.cpp
     tests/AudioPulseTest.cpp

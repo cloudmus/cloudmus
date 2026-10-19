@@ -26,6 +26,7 @@ QObject* makePreloadTest();
 QObject* makeTrackFileTest();
 QObject* makeCrashReporterTest();
 QObject* makeUpdateTest();
+QObject* makeParallelDownloadTest();
 QObject* makeHotkeysTest();
 QObject* makeI18nTest();
 QObject* makeAudioPulseTest();
@@ -58,9 +59,9 @@ int main(int argc, char** argv)
              Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
              Tests::makeTrackCacheTest, Tests::makeAudioFileProbeTest, Tests::makePreloaderTest,
              Tests::makePlaybackPreloadTest, Tests::makePreloadTest, Tests::makeTrackFileTest,
-             Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeHotkeysTest, Tests::makeI18nTest,
-             Tests::makeAudioPulseTest, Tests::makeStarPromptTest, Tests::makePathsTest, Tests::makeTrackStatesTest,
-             Tests::makeTimingTest }) {
+             Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeParallelDownloadTest,
+             Tests::makeHotkeysTest, Tests::makeI18nTest, Tests::makeAudioPulseTest, Tests::makeStarPromptTest,
+             Tests::makePathsTest, Tests::makeTrackStatesTest, Tests::makeTimingTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

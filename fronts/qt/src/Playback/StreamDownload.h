@@ -5,12 +5,10 @@
 #include <QMap>
 #include <QNetworkProxy>
 #include <QObject>
-#include <QPointer>
 #include <QString>
 #include <QUrl>
 
-class QNetworkReply;
-class QTimer;
+#include "ParallelDownload.h"
 
 namespace Playback {
 
@@ -28,9 +26,10 @@ struct StreamSource {
 // not at the pace it is played. The file is readable while it grows (see
 // read()), which is how StreamRelay plays a track that is still coming.
 //
-// Fetched in ranges of a few megabytes, one right after another: some
-// services (YouTube) slow a single long request down to playback speed. A
-// request that breaks off is picked up from the byte it stopped at.
+// Fetched in ranges of a few megabytes (Net::ParallelDownload), over as
+// many connections at once as setConnections() allows — one by default:
+// some services (YouTube) slow a single long request down to playback
+// speed. Only the bytes from the start with no gap count as available.
 class StreamDownload : public QObject {
     Q_OBJECT
 
@@ -42,25 +41,31 @@ public:
     // from the byte it has got to.
     void setSource(const StreamSource& source) { source_ = source; }
     const StreamSource& source() const { return source_; }
+    // How many ranges are fetched at once.
+    void setConnections(int connections) { download_.setConnections(connections); }
+    int connections() const { return download_.connections(); }
 
     // Starts, or goes on after pause() or a failure.
     void start();
-    // Drops the connection, keeps what's downloaded.
+    // Drops the connections, keeps what's downloaded.
     void pause();
     // No further attempt will be made: whoever waits for more bytes
     // (StreamRelay) stops waiting.
     void giveUp();
 
-    bool isActive() const { return reply_ != nullptr || retryPending_; }
-    bool isComplete() const { return complete_; }
-    bool hasFailed() const { return failed_; }
+    bool isActive() const { return download_.isActive(); }
+    bool isComplete() const { return download_.isComplete(); }
+    bool hasFailed() const { return download_.hasFailed(); }
     bool isAbandoned() const { return abandoned_; }
     // The server has answered: the type is known, and the length if it
     // said one.
-    bool hasMeta() const { return hasMeta_; }
-    qint64 bytesAvailable() const { return received_; }
-    qint64 totalLength() const { return total_; } // -1: not known (yet)
-    QByteArray contentType() const { return contentType_; }
+    bool hasMeta() const { return download_.hasMeta(); }
+    // From the start, with no gap: what read() gives.
+    qint64 bytesAvailable() const { return download_.contiguousBytes(); }
+    // All that's downloaded, gaps or not: the progress.
+    qint64 bytesReceived() const { return download_.receivedBytes(); }
+    qint64 totalLength() const { return download_.totalLength(); } // -1: not known (yet)
+    QByteArray contentType() const { return download_.contentType(); }
 
     // Up to `maxBytes` of what's downloaded, from `offset`.
     QByteArray read(qint64 offset, qint64 maxBytes);
@@ -79,39 +84,12 @@ signals:
     void abandoned();
 
 private:
-    void request();
-    void onMetaData();
-    void onData();
-    void onFinished();
-    void retryOrFail();
-    void finish();
-    void fail(bool expired);
-    void dropReply();
-
     NetworkPool& network_;
     StreamSource source_;
     QString filePath_;
-    QFile file_;
+    Net::ParallelDownload download_;
     QFile readFile_;
-    QPointer<QNetworkReply> reply_;
-    QTimer* retryTimer_ = nullptr;
-    bool retryPending_ = false;
-
-    QByteArray contentType_;
-    qint64 received_ = 0;
-    qint64 total_ = -1;
-    bool hasMeta_ = false;
-    bool complete_ = false;
-    bool failed_ = false;
     bool abandoned_ = false;
-    // The server ignores Range: the one request carries the whole body.
-    bool wholeBody_ = false;
-
-    // About the request under way.
-    int httpStatus_ = 0;
-    bool statusSeen_ = false;
-    bool gotData_ = false;
-    int attempts_ = 0;
 };
 
 } // namespace Playback

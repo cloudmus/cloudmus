@@ -2,7 +2,6 @@
 
 #include <QHash>
 #include <QNetworkProxy>
-#include <QNetworkReply>
 #include <QObject>
 #include <QString>
 
@@ -24,9 +23,5 @@ public:
 private:
     QHash<QString, QNetworkAccessManager*> managers_;
 };
-
-// A failure worth another attempt at the same URL — the link, not the
-// answer, was at fault.
-bool isTransientError(QNetworkReply::NetworkError error);
 
 } // namespace Playback

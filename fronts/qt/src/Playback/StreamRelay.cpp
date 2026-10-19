@@ -12,6 +12,7 @@
 #include <QTcpSocket>
 #include <QTimer>
 
+#include "NetworkErrors.h"
 #include "NetworkPool.h"
 #include "StreamDownload.h"
 
@@ -301,7 +302,8 @@ private:
         // link that keeps delivering shouldn't run out of attempts.
         if (gotData_)
             attempts_ = 0;
-        const bool resumable = !noResume_ && !head_ && (isTransientError(error) || error == QNetworkReply::NoError);
+        const bool resumable
+            = !noResume_ && !head_ && (Net::isTransientError(error) || error == QNetworkReply::NoError);
         if (resumable && attempts_ < kMaxResumeAttempts) {
             const int delay = kResumeDelaysMs[attempts_++];
             qCInfo(lcRelay) << "upstream broke off at byte" << rangeStart_ + sent_ << "(" << errorText
