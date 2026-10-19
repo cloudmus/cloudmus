@@ -229,6 +229,7 @@ reaches the backends too (docs/protocol.md §7.8).
 |---|---|
 | `CLOUDMUS_DEV_BACKENDS=1` | Discover backends from this checkout |
 | `CLOUDMUS_QT_DEBUG=1` | Qt front debug log (`~/.local/state/cloudmus/fronts/qt/debug.log`), same as `--debug` |
+| `CLOUDMUS_UPDATE_CONNECTIONS=N` | Qt front: download an update over N connections at once (1–6) instead of 5 |
 | `CLOUDMUS_HOTKEYS_BACKEND=kglobalaccel\|portal\|x11\|none` | Qt front: use one global-hotkeys mechanism whatever the desktop (to try the portal on KDE, say) |
 | `CLOUDMUS_TUI_DEBUG=1` | TUI debug log, `./cloudmus-tui-debug.log` |
 | `CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR` | Overrides the local-folder backend's music folder |

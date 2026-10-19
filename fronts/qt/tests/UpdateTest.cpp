@@ -3,6 +3,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -15,6 +17,7 @@
 #include "UpdateChecker.h"
 #include "UpdateDownloader.h"
 #ifndef Q_OS_WIN
+#include "FakeUpstream.h"
 #include "Installer.h"
 #endif
 
@@ -230,6 +233,72 @@ private slots:
         QFile file(path);
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), server.body);
+    }
+
+    // A server that takes Range gets the update in ranges, several at once.
+    void downloadsInRanges()
+    {
+        QTemporaryDir dir;
+        FakeUpstream server;
+        const QByteArray body = FakeUpstream::pattern(20 * 1024 * 1024);
+        server.bodies.insert(QStringLiteral("/update"), body);
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
+        Update::UpdateDownloader downloader(network);
+        QSignalSpy finished(&downloader, &Update::UpdateDownloader::finished);
+        const QString path = dir.filePath(QStringLiteral("update.part"));
+        downloader.start(QUrl(server.url(QStringLiteral("/update"))), body.size(), path);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 10000);
+        QCOMPARE(server.requests,
+            (QStringList {
+                QStringLiteral("/update@0"), QStringLiteral("/update@8388608"), QStringLiteral("/update@16777216") }));
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), body);
+    }
+
+    // For trying another number on a real update.
+    void theEnvironmentSetsTheConnections()
+    {
+        qputenv("CLOUDMUS_UPDATE_CONNECTIONS", "1");
+        const auto restore = qScopeGuard([]() { qunsetenv("CLOUDMUS_UPDATE_CONNECTIONS"); });
+        QTemporaryDir dir;
+        FakeUpstream server;
+        const QByteArray body = FakeUpstream::pattern(20 * 1024 * 1024);
+        server.bodies.insert(QStringLiteral("/update"), body);
+        server.held.insert(QStringLiteral("/update"));
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
+        Update::UpdateDownloader downloader(network);
+        QSignalSpy finished(&downloader, &Update::UpdateDownloader::finished);
+        downloader.start(QUrl(server.url(QStringLiteral("/update"))), body.size(), dir.filePath(QStringLiteral("u")));
+        QTRY_COMPARE(server.requests.size(), 1);
+
+        // The first range answered, the next one held: with one connection
+        // nothing else is asked for meanwhile.
+        server.release(QStringLiteral("/update"));
+        server.held.insert(QStringLiteral("/update"));
+        QTRY_COMPARE(server.requests.size(), 2);
+        QTest::qWait(200);
+        QCOMPARE(server.requests.size(), 2);
+        server.release(QStringLiteral("/update"));
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 10000);
+    }
+
+    void failedDownloadLeavesNoFile()
+    {
+        QTemporaryDir dir;
+        FakeUpstream server; // serves nothing: 404
+        QNetworkAccessManager network;
+        network.setProxy(QNetworkProxy(QNetworkProxy::NoProxy));
+        Update::UpdateDownloader downloader(network);
+        QSignalSpy failed(&downloader, &Update::UpdateDownloader::failed);
+        const QString path = dir.filePath(QStringLiteral("update.part"));
+        downloader.start(QUrl(server.url(QStringLiteral("/update"))), 0, path);
+        QTRY_COMPARE(failed.size(), 1);
+        QCOMPARE(failed.first().first().toString(), QStringLiteral("The server answered with HTTP 404"));
+        QVERIFY(!downloader.isRunning());
+        QVERIFY(!QFile::exists(path));
     }
 
     void cancelledDownloadLeavesNoFile()
