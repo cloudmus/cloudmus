@@ -8,6 +8,7 @@
 #include <QFrame>
 #include <QLabel>
 #include <QLocale>
+#include <QLoggingCategory>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QTextBlock>
@@ -30,6 +31,8 @@
 namespace Ui {
 
 namespace {
+
+Q_LOGGING_CATEGORY(lcUpdate, "cloudmus.update")
 
 // "3 October 2026" — QLocale::LongFormat would add the weekday.
 QString releaseDate(const QDate& date) { return QLocale().toString(date, QStringLiteral("d MMMM yyyy")); }
@@ -263,9 +266,11 @@ void UpdateDialog::install()
 {
     QString error;
     const QString path = downloadedPath_;
+    qCDebug(lcUpdate).noquote() << "installing" << update_.latest().name << "from" << path;
     // From here on the file belongs to the installer, whatever happens.
     downloadedPath_.clear();
     if (!Update::Installer::launch(path, update_.latest(), &error)) {
+        qCWarning(lcUpdate).noquote() << "couldn't install" << path << ":" << error;
         QFile::remove(path);
         showFailure(error);
         return;
