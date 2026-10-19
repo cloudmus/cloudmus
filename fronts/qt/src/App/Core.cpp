@@ -141,6 +141,8 @@ Core::Core(QObject* parent)
             return Net::environmentProxy(QUrl());
         return Net::networkProxy(connection, QUrl());
     });
+    playback_.setDownloadConnectionsProvider(
+        [this](const QString& sourceId) { return settings_.sourceDownloadConnections(sourceId); });
 }
 
 Net::Connection Core::connectionOf(const QString& sourceId) const

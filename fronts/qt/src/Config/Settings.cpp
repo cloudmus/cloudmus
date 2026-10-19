@@ -583,6 +583,22 @@ void Settings::setSourceRadioRepeatGap(const QString& sourceId, int tracks)
         settings_.setValue(key, tracks);
 }
 
+int Settings::sourceDownloadConnections(const QString& sourceId) const
+{
+    return qBound(0, settings_.value(QStringLiteral("sources/%1/downloadConnections").arg(sourceId), 0).toInt(),
+        kMaxDownloadConnections);
+}
+
+void Settings::setSourceDownloadConnections(const QString& sourceId, int connections)
+{
+    const QString key = QStringLiteral("sources/%1/downloadConnections").arg(sourceId);
+    connections = qBound(0, connections, kMaxDownloadConnections);
+    if (connections == 0)
+        settings_.remove(key);
+    else
+        settings_.setValue(key, connections);
+}
+
 void Settings::setSourceConnection(const QString& sourceId, const QString& connection)
 {
     const QString key = QStringLiteral("sources/%1/connection").arg(sourceId);

@@ -8,6 +8,7 @@
 
 #include "NetworkPool.h"
 #include "RpcClient.h"
+#include "Settings.h"
 #include "StreamDownload.h"
 #include "TrackCache.h"
 
@@ -165,7 +166,7 @@ Preloader::Transfer Preloader::transferOf(const QString& sourceId, const QString
     const auto it = entries_.constFind(TrackCache::keyFor(sourceId, trackId));
     if (it == entries_.constEnd() || it->download == nullptr)
         return { };
-    return { it->download->bytesAvailable(), it->download->totalLength() };
+    return { it->download->bytesReceived(), it->download->totalLength() };
 }
 
 void Preloader::scheduleLater()
@@ -321,6 +322,9 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
     qCDebug(lcPreload) << "downloading" << entry.item.title << "from byte" << entry.download->bytesAvailable();
     entry.download->setSource(StreamSource { url, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)),
         stream.headers.value_or(QMap<QString, QString> { }) });
+    const int wanted = connectionsProvider_ ? connectionsProvider_(entry.item.sourceId) : 0;
+    entry.download->setConnections(
+        qBound(1, wanted > 0 ? wanted : stream.maxConnections.value_or(1), Config::Settings::kMaxDownloadConnections));
     setState(key, State::Downloading);
     entry.download->start();
 }
@@ -428,7 +432,7 @@ QVector<Preloader::Slot> Preloader::window() const
         if (it->state == State::Ready)
             slot.fraction = 1;
         else if (it->download != nullptr && it->download->totalLength() > 0)
-            slot.fraction = double(it->download->bytesAvailable()) / double(it->download->totalLength());
+            slot.fraction = double(it->download->bytesReceived()) / double(it->download->totalLength());
         result.append(slot);
     }
     return result;

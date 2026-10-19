@@ -1141,6 +1141,18 @@ Do you agree to use downloads only this way?</source>
         <translation>Радио не ставит столько последних сыгранных треков этого источника, пока у него есть другие. 0 — может повторить любой трек. Применится к следующей запущенной станции.</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Авто</translation>
+    </message>
+    <message>
+        <source>Download connections:</source>
+        <translation>Соединений для скачивания:</translation>
+    </message>
+    <message>
+        <source>How many parts of a track are downloaded at once. A service that slows each connection down gives several more in all. Auto: as many as the source suggests. Applies to the next track.</source>
+        <translation>Сколько частей трека скачивается одновременно. Сервис, замедляющий каждое соединение, по нескольким отдаёт больше. Авто — сколько предлагает источник. Применится к следующему треку.</translation>
+    </message>
+    <message>
         <source>Account</source>
         <translation>Аккаунт</translation>
     </message>

@@ -1141,6 +1141,18 @@ Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
         <translation>Das Radio lässt so viele der zuletzt gespielten Titel dieser Quelle aus, solange es andere hat. 0: Jeder Titel darf sich wiederholen. Gilt für den nächsten gestarteten Sender.</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
+        <source>Download connections:</source>
+        <translation>Download-Verbindungen:</translation>
+    </message>
+    <message>
+        <source>How many parts of a track are downloaded at once. A service that slows each connection down gives several more in all. Auto: as many as the source suggests. Applies to the next track.</source>
+        <translation>Wie viele Teile eines Titels gleichzeitig heruntergeladen werden. Ein Dienst, der jede Verbindung drosselt, liefert über mehrere insgesamt mehr. Auto: so viele, wie die Quelle vorschlägt. Gilt ab dem nächsten Titel.</translation>
+    </message>
+    <message>
         <source>Account</source>
         <translation>Konto</translation>
     </message>

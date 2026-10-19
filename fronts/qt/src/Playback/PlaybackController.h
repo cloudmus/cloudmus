@@ -76,6 +76,10 @@ public:
     // changed connection applies from the next track.
     using StreamRouteProvider = std::function<std::optional<QNetworkProxy>(const QString& sourceId)>;
     void setStreamRouteProvider(StreamRouteProvider provider);
+    // How many connections the user wants a source's tracks downloaded
+    // over; 0: as many as the stream suggests.
+    using DownloadConnectionsProvider = std::function<int(const QString& sourceId)>;
+    void setDownloadConnectionsProvider(DownloadConnectionsProvider provider);
 
     void loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex);
     // Same, for a queue whose entries can come from different sources

@@ -1141,6 +1141,18 @@ Accetti di usare i download solo in questo modo?</translation>
         <translation>La radio esclude questo numero degli ultimi brani riprodotti da questa sorgente finché ne ha altri. 0: può ripetere qualsiasi brano. Si applica alla prossima stazione avviata.</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
+        <source>Download connections:</source>
+        <translation>Connessioni di download:</translation>
+    </message>
+    <message>
+        <source>How many parts of a track are downloaded at once. A service that slows each connection down gives several more in all. Auto: as many as the source suggests. Applies to the next track.</source>
+        <translation>Quante parti di un brano vengono scaricate insieme. Un servizio che rallenta ogni connessione ne dà di più in totale su diverse. Auto: quante ne suggerisce la sorgente. Vale dal brano successivo.</translation>
+    </message>
+    <message>
         <source>Account</source>
         <translation>Account</translation>
     </message>

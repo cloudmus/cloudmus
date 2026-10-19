@@ -1141,6 +1141,18 @@ Do you agree to use downloads only this way?</source>
         <translation>La radio omite esta cantidad de las últimas pistas reproducidas de esta fuente mientras tenga otras. 0: puede repetir cualquier pista. Se aplica a la próxima emisora que inicies.</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
+        <source>Download connections:</source>
+        <translation>Conexiones de descarga:</translation>
+    </message>
+    <message>
+        <source>How many parts of a track are downloaded at once. A service that slows each connection down gives several more in all. Auto: as many as the source suggests. Applies to the next track.</source>
+        <translation>Cuántas partes de una pista se descargan a la vez. Un servicio que frena cada conexión da más en total por varias. Auto: tantas como sugiera la fuente. Se aplica a la siguiente pista.</translation>
+    </message>
+    <message>
         <source>Account</source>
         <translation>Cuenta</translation>
     </message>

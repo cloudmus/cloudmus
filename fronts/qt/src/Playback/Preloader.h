@@ -76,12 +76,16 @@ public:
     // None: the source can't resolve a track that isn't about to play.
     using Resolver = std::function<std::optional<Resolution>(const QString& sourceId, const QString& trackId)>;
     using RouteProvider = std::function<std::optional<QNetworkProxy>(const QString& sourceId)>;
+    // How many connections the user wants a source's tracks downloaded
+    // over; 0: as many as the stream suggests.
+    using ConnectionsProvider = std::function<int(const QString& sourceId)>;
 
     explicit Preloader(TrackCache& cache, QObject* parent = nullptr);
     ~Preloader() override;
 
     void setResolver(Resolver resolver) { resolver_ = std::move(resolver); }
     void setRouteProvider(RouteProvider provider) { routeProvider_ = std::move(provider); }
+    void setConnectionsProvider(ConnectionsProvider provider) { connectionsProvider_ = std::move(provider); }
 
     void setWindow(const QVector<Item>& items);
     // The window as it stands, in order.
@@ -179,6 +183,7 @@ private:
     NetworkPool* network_ = nullptr;
     Resolver resolver_;
     RouteProvider routeProvider_;
+    ConnectionsProvider connectionsProvider_;
     QVector<QString> order_; // keys, in play order
     QVector<QString> demanded_; // keys, in the order they were asked for
     QHash<QString, Entry> entries_;

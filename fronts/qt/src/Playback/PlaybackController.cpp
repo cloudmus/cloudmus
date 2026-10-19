@@ -103,6 +103,11 @@ void PlaybackController::setStreamRouteProvider(StreamRouteProvider provider)
     preloader_->setRouteProvider(streamRouteProvider_);
 }
 
+void PlaybackController::setDownloadConnectionsProvider(DownloadConnectionsProvider provider)
+{
+    preloader_->setConnectionsProvider(std::move(provider));
+}
+
 void PlaybackController::setPreloadDepth(int playlistTracks, int radioTracks)
 {
     playlistPreloadDepth_ = qMax(0, playlistTracks);

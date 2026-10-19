@@ -116,6 +116,26 @@ QWidget* SourcePage::createWidget(QWidget* parent)
                                  "station you start."),
         widget);
 
+    connectionsRow_ = new QWidget(widget);
+    connectionsSpin_ = new QSpinBox(connectionsRow_);
+    connectionsSpin_->setFont(Theme::font(Theme::TextStyle::Body));
+    connectionsSpin_->setRange(0, Config::Settings::kMaxDownloadConnections);
+    connectionsSpin_->setSpecialValueText(tr("Auto"));
+    connectionsSpin_->setValue(settings_.sourceDownloadConnections(manifest_.id));
+    connect(connectionsSpin_, &QSpinBox::valueChanged, this, &Page::dirtyChanged);
+    auto* connectionsLayout = new QHBoxLayout(connectionsRow_);
+    connectionsLayout->setContentsMargins(0, 0, 0, 0);
+    connectionsLayout->setSpacing(Theme::Spacing::space3);
+    auto* connectionsLabel = new QLabel(tr("Download connections:"), connectionsRow_);
+    connectionsLabel->setFont(Theme::font(Theme::TextStyle::Body));
+    connectionsLayout->addWidget(connectionsLabel);
+    connectionsLayout->addWidget(connectionsSpin_);
+    connectionsLayout->addStretch(1);
+    connectionsHint_ = makeHint(tr("How many parts of a track are downloaded at once. A service that slows each "
+                                   "connection down gives several more in all. Auto: as many as the source "
+                                   "suggests. Applies to the next track."),
+        widget);
+
     accountSection_ = new QWidget(widget);
     auto* accountTitle = new QLabel(tr("Account").toUpper(), accountSection_);
     accountTitle->setProperty("hint", true);
@@ -166,6 +186,8 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     layout->addWidget(connectionHint_);
     layout->addWidget(repeatGapRow_);
     layout->addWidget(repeatGapHint_);
+    layout->addWidget(connectionsRow_);
+    layout->addWidget(connectionsHint_);
     layout->addWidget(accountSection_);
     layout->addWidget(settingsSection_);
 
@@ -212,6 +234,16 @@ void SourcePage::refresh()
         && client->capabilities().value(QStringLiteral("browse")).toObject().value(QStringLiteral("radio")).toBool();
     repeatGapRow_->setVisible(hasRadio);
     repeatGapHint_->setVisible(hasRadio);
+
+    // Only a stream the front downloads itself: not a source's own files.
+    const bool downloadsStreams = running && usesNetwork_
+        && client->capabilities()
+               .value(QStringLiteral("playback"))
+               .toObject()
+               .value(QStringLiteral("providesStream"))
+               .toBool();
+    connectionsRow_->setVisible(downloadsStreams);
+    connectionsHint_->setVisible(downloadsStreams);
 
     const bool hasSettings = running && client->capabilities().value(QStringLiteral("settings")).toBool();
     settingsSection_->setVisible(hasSettings);
@@ -455,11 +487,12 @@ bool SourcePage::isDirty() const
 {
     // Asked while createWidget() is still at it, too (filling the
     // Connection choices says dirtyChanged()).
-    if (!enabledCheck_ || !repeatGapSpin_)
+    if (!enabledCheck_ || !repeatGapSpin_ || !connectionsSpin_)
         return false;
     return enabledCheck_->isChecked() != sourceManager_.isEnabled(manifest_.id)
         || selectedConnection() != settings_.sourceConnection(manifest_.id)
         || repeatGapSpin_->value() != settings_.sourceRadioRepeatGap(manifest_.id)
+        || connectionsSpin_->value() != settings_.sourceDownloadConnections(manifest_.id)
         || (settingsForm_ != nullptr && settingsForm_->isDirty());
 }
 
@@ -512,6 +545,8 @@ Rpc::Task<bool> SourcePage::apply()
 
     // Read when a station is started: nothing to restart.
     settings_.setSourceRadioRepeatGap(manifest_.id, repeatGapSpin_->value());
+    // Read when a track's download starts.
+    settings_.setSourceDownloadConnections(manifest_.id, connectionsSpin_->value());
 
     if (enabledCheck_->isChecked() == sourceManager_.isEnabled(manifest_.id))
         co_return true;

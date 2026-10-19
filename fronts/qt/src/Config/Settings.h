@@ -193,6 +193,13 @@ public:
     static constexpr int kMaxRadioRepeatGap = 500;
     int sourceRadioRepeatGap(const QString& sourceId) const;
     void setSourceRadioRepeatGap(const QString& sourceId, int tracks);
+    // How many connections a source's track is downloaded over at once.
+    // 0 (the default): as many as the source suggests for the stream
+    // (StreamDescriptor::maxConnections), else one.
+    // Qt's network access manager opens no more than six to a host.
+    static constexpr int kMaxDownloadConnections = 6;
+    int sourceDownloadConnections(const QString& sourceId) const;
+    void setSourceDownloadConnections(const QString& sourceId, int connections);
     void setSourceConnection(const QString& sourceId, const QString& connection);
 
     // Backend manifest ids the user switched off (Rpc::SourceManager).

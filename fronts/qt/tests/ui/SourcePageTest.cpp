@@ -49,7 +49,7 @@ private slots:
 
     void theRadioRepeatGapIsSavedOnApply()
     {
-        auto* spin = widget_->findChild<QSpinBox*>();
+        auto* spin = spinBoxes().value(0);
         QVERIFY(spin != nullptr);
         QCOMPARE(spin->value(), Config::Settings::kDefaultRadioRepeatGap);
         QCOMPARE(spin->maximum(), Config::Settings::kMaxRadioRepeatGap);
@@ -61,7 +61,28 @@ private slots:
         QVERIFY(!page_->isDirty());
     }
 
+    void theDownloadConnectionsAreSavedOnApply()
+    {
+        auto* spin = spinBoxes().value(1);
+        QVERIFY(spin != nullptr);
+        QCOMPARE(spin->value(), 0); // as the source suggests
+        QCOMPARE(spin->maximum(), Config::Settings::kMaxDownloadConnections);
+
+        spin->setValue(3);
+        QVERIFY(page_->isDirty());
+        QVERIFY(await(page_->apply()));
+        QCOMPARE(settings_->sourceDownloadConnections(QStringLiteral("fake")), 3);
+        QVERIFY(!page_->isDirty());
+
+        spin->setValue(0);
+        QVERIFY(await(page_->apply()));
+        QCOMPARE(settings_->sourceDownloadConnections(QStringLiteral("fake")), 0);
+    }
+
 private:
+    // In the page's order: radio repeat gap, download connections.
+    QList<QSpinBox*> spinBoxes() const { return widget_->findChildren<QSpinBox*>(); }
+
     QTemporaryDir dir_;
     Rpc::AuthStates authStates_;
     Ui::Settings::RestartRequests restarts_;

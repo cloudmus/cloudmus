@@ -106,6 +106,9 @@ private:
     QWidget* repeatGapRow_ = nullptr;
     QSpinBox* repeatGapSpin_ = nullptr;
     QLabel* repeatGapHint_ = nullptr;
+    QWidget* connectionsRow_ = nullptr;
+    QSpinBox* connectionsSpin_ = nullptr;
+    QLabel* connectionsHint_ = nullptr;
     QList<Config::ProxyConfig> proxyChoices_;
     // The saved choice names a proxy no longer in proxyChoices_.
     bool connectionOrphaned_ = false;

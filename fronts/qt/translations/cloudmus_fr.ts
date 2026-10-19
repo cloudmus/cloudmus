@@ -1141,6 +1141,18 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>La radio écarte ce nombre des derniers titres lus de cette source tant qu’elle en a d’autres. 0 : elle peut répéter n’importe quel titre. S’applique à la prochaine station lancée.</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
+        <source>Download connections:</source>
+        <translation>Connexions de téléchargement :</translation>
+    </message>
+    <message>
+        <source>How many parts of a track are downloaded at once. A service that slows each connection down gives several more in all. Auto: as many as the source suggests. Applies to the next track.</source>
+        <translation>Combien de parties d’un titre sont téléchargées à la fois. Un service qui ralentit chaque connexion en donne davantage au total sur plusieurs. Auto : autant que la source le suggère. S’applique au titre suivant.</translation>
+    </message>
+    <message>
         <source>Account</source>
         <translation>Compte</translation>
     </message>

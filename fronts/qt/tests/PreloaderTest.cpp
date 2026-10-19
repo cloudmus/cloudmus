@@ -78,6 +78,25 @@ private slots:
         freshPaths_.clear();
     }
 
+    // As many connections as the stream allows, unless the listener said
+    // how many.
+    void theStreamOrTheListenerSaysHowManyConnections()
+    {
+        upstream_->held.insert(QStringLiteral("/a"));
+        Item item = playing(QStringLiteral("a"));
+        item.stream->maxConnections = 4;
+        preloader_->setWindow({ item });
+        Playback::StreamDownload* download = nullptr;
+        QTRY_VERIFY((download = preloader_->download(QStringLiteral("src"), QStringLiteral("a"))) != nullptr);
+        QCOMPARE(download->connections(), 4);
+
+        preloader_->setConnectionsProvider([](const QString& sourceId) { return sourceId == u"src" ? 2 : 0; });
+        upstream_->held.insert(QStringLiteral("/b"));
+        preloader_->setWindow({ playing(QStringLiteral("b")) });
+        QTRY_VERIFY((download = preloader_->download(QStringLiteral("src"), QStringLiteral("b"))) != nullptr);
+        QCOMPARE(download->connections(), 2);
+    }
+
     void cleanup()
     {
         preloader_.reset();
