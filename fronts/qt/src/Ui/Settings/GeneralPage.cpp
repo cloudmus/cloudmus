@@ -148,6 +148,13 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addSpacing(Theme::Spacing::space3);
     layout->addLayout(colorSchemeRow);
     layout->addLayout(trayPanelRow);
+#ifdef Q_OS_MACOS
+    // Not built for macOS yet (see AutostartMac.cpp, NotificationToastMac.cpp):
+    // a checkbox that does nothing is worse than none.
+    launchAtLoginCheck_->hide();
+    startHiddenCheck_->hide();
+    trackNotificationsCheck_->hide();
+#endif
     layout->addLayout(languageRow);
     layout->addWidget(glassCheck_);
     layout->addWidget(glassHint);

@@ -369,6 +369,17 @@ if(WIN32)
         src/Integration/SmtcService.cpp
         src/Integration/TaskbarThumbButtons.cpp
         src/Integration/GlobalHotkeysWin.cpp)
+elseif(APPLE)
+    # Stubs for now: the native integrations need the app bundle. The
+    # headers are listed for AUTOMOC: it pairs a header with the .cpp of the
+    # same name, and these have none.
+    list(APPEND CLOUDMUS_PLATFORM_SOURCES
+        src/Integration/AutostartMac.cpp
+        src/Integration/NotificationToast.h
+        src/Integration/NotificationToastMac.cpp
+        src/Integration/DesktopColorScheme.h
+        src/Integration/DesktopColorSchemeMac.cpp
+        src/Integration/QuitSignals.cpp)
 else()
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
         src/Integration/Autostart.cpp
@@ -653,7 +664,8 @@ if(NOT WIN32)
 endif()
 # Sentry finds the symbols for a crash by the executable's build id, so the
 # one in the release must match the unstripped copy uploaded from CI.
-if(CLOUDMUS_SENTRY)
+# Apple's linker has no --build-id (Sentry isn't built for macOS yet).
+if(CLOUDMUS_SENTRY AND NOT APPLE)
     target_link_options(cloudmus-qt PRIVATE -Wl,--build-id)
 endif()
 

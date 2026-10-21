@@ -58,10 +58,12 @@
 #include "SmtcService.h"
 #include "TaskbarThumbButtons.h"
 #else
-#include "MprisService.h"
 #include "QuitSignals.h"
 
 #include <csignal>
+#endif
+#ifdef Q_OS_LINUX
+#include "MprisService.h"
 #endif
 
 namespace {
@@ -312,7 +314,7 @@ int main(int argc, char** argv)
         QObject::connect(taskbarThumbButtons.get(), &Integration::TaskbarThumbButtons::buttonClicked, &core.analytics(),
             [&core]() { core.analytics().recordControlUsed(QStringLiteral("taskbar")); });
     });
-#else
+#elif defined(Q_OS_LINUX)
     Integration::MprisService mpris(playback, core.nowPlaying(), core.coverArtCache());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
     QObject::connect(&mpris, &Integration::MprisService::commandReceived, &core.analytics(),

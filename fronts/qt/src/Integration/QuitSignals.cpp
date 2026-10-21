@@ -31,8 +31,17 @@ void onSignal(int signal)
 QuitSignals::QuitSignals(QObject* parent)
     : QObject(parent)
 {
+    // macOS has no SOCK_CLOEXEC: FD_CLOEXEC goes on afterwards there. A
+    // backend started in between would only hold an idle socket open.
+#ifdef SOCK_CLOEXEC
     if (::socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, g_fds) != 0)
         return;
+#else
+    if (::socketpair(AF_UNIX, SOCK_STREAM, 0, g_fds) != 0)
+        return;
+    for (int fd : g_fds)
+        ::fcntl(fd, F_SETFD, FD_CLOEXEC);
+#endif
     // Never block in the handler, even with the buffer full of signals
     // nobody has read yet.
     ::fcntl(g_fds[0], F_SETFL, ::fcntl(g_fds[0], F_GETFL) | O_NONBLOCK);

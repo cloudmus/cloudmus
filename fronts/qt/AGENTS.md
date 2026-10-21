@@ -16,6 +16,9 @@ ctest --test-dir fronts/qt/build
   (`tests/FakeBackend.h`) — no Python needed.
 - `CLOUDMUS_QT_DEBUG=1` enables the debug log; settings live in
   `~/.config/cloudmus/fronts/qt/config.ini`.
+- Three platforms: Linux, Windows, macOS (setup: `docs/development.md`,
+  "macOS"). "Not Windows" isn't "Linux": D-Bus, X11 and Wayland code goes
+  under `Q_OS_LINUX`. macOS stubs and integrations live in `*Mac.cpp`.
 
 ## Architecture: core library and MVVM
 

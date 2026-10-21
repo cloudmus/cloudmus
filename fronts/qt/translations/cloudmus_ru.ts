@@ -148,6 +148,10 @@
 <context>
     <name>Integration::GlobalHotkeys</name>
     <message>
+        <source>CloudMus doesn&apos;t support them on macOS yet.</source>
+        <translation>CloudMus пока не поддерживает их на macOS.</translation>
+    </message>
+    <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
         <translation>В этой среде рабочего стола у приложений нет способа получить глобальные сочетания клавиш.</translation>
     </message>

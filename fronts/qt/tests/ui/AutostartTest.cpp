@@ -8,7 +8,7 @@
 
 namespace Tests {
 
-#ifndef Q_OS_WIN
+#ifdef Q_OS_LINUX
 
 namespace {
 
@@ -131,7 +131,7 @@ QObject* makeAutostartTest() { return new AutostartTest; }
 #else
 
 // Autostart on Windows is a registry value; nothing here to test without
-// touching the real one.
+// touching the real one. On macOS it isn't built yet (AutostartMac.cpp).
 QObject* makeAutostartTest() { return new QObject; }
 
 #endif
