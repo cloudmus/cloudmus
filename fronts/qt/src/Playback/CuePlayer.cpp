@@ -73,6 +73,8 @@ bool CuePlayer::ensureMpv()
     // no pipewire in the AppImage there either.
 #ifdef Q_OS_WIN
     const char* output = "wasapi";
+#elif defined(Q_OS_MACOS)
+    const char* output = "coreaudio";
 #else
     const char* output = qEnvironmentVariableIsSet("APPIMAGE") ? "pulse,alsa" : "pipewire,pulse,alsa";
 #endif

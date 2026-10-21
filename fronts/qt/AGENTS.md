@@ -10,12 +10,18 @@ CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
 ctest --test-dir fronts/qt/build
 ```
 
+On macOS the app is `build/bin/CloudMus.app` (run
+`CloudMus.app/Contents/MacOS/CloudMus`).
+
 - CMake regenerates the C++ stubs (`fronts/qt/generated/`) itself.
 - Tests (QtTest): `cloudmus-qt-tests` (core) and `cloudmus-qt-ui-tests`
   (window, offscreen). The test binary acts as its own fake backend
   (`tests/FakeBackend.h`) — no Python needed.
 - `CLOUDMUS_QT_DEBUG=1` enables the debug log; settings live in
   `~/.config/cloudmus/fronts/qt/config.ini`.
+- Three platforms: Linux, Windows, macOS (setup: `docs/development.md`,
+  "macOS"). "Not Windows" isn't "Linux": D-Bus, X11 and Wayland code goes
+  under `Q_OS_LINUX`. macOS stubs and integrations live in `*Mac.cpp`.
 
 ## Architecture: core library and MVVM
 

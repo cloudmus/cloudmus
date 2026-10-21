@@ -7,6 +7,11 @@
 #include <QString>
 
 #include <optional>
+#ifdef Q_OS_MACOS
+#include <QTemporaryDir>
+
+#include <memory>
+#endif
 
 class QSystemTrayIcon;
 class QTimer;
@@ -82,6 +87,14 @@ private:
     // Never waits for the server: it is plasmashell on KDE, which at login
     // may itself be waiting for somebody who waits for us.
     void send(Slot& slot, const Request& request);
+#endif
+#ifdef Q_OS_MACOS
+    // macOS: UserNotifications, see NotificationToastMac.mm. The center's
+    // delegate (an Objective-C object, released with this), and the covers
+    // handed to it as files.
+    std::shared_ptr<void> delegate_;
+    QTemporaryDir coverDir_;
+    quint64 coverSerial_ = 0;
 #endif
 #ifdef Q_OS_WIN
     // Windows: sends the tray balloon itself, see NotificationToastWin.cpp.

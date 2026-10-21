@@ -146,7 +146,46 @@
     </message>
 </context>
 <context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Siguiente</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Anterior</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pausa</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Reproducir</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Quitar «Me gusta»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Me gusta</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Quitar «No me gusta»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>No me gusta</translation>
+    </message>
+</context>
+<context>
     <name>Integration::GlobalHotkeys</name>
+    <message>
+        <source>CloudMus doesn&apos;t support them on macOS yet.</source>
+        <translation>CloudMus aún no los admite en macOS.</translation>
+    </message>
     <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
         <translation>Este escritorio no ofrece a las aplicaciones ninguna forma de tener atajos globales.</translation>
@@ -180,6 +219,17 @@
     <message>
         <source>Show player</source>
         <translation>Mostrar el reproductor</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>Me gusta</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>No me gusta</translation>
     </message>
 </context>
 <context>
@@ -832,6 +882,14 @@ Do you agree to use downloads only this way?</source>
     <message>
         <source>Closing the window minimizes to the tray instead of quitting</source>
         <translation>Cerrar la ventana la minimiza a la bandeja en lugar de salir</translation>
+    </message>
+    <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Al hacer clic en el icono de la barra de menús se muestra la ventana (el clic derecho abre el menú)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Mostrar la portada de la pista en reproducción en el icono del Dock</translation>
     </message>
     <message>
         <source>Show a notification when the track changes</source>

@@ -158,6 +158,52 @@ forwarded to either Docker build when set.
 Quick Windows compile checks, running the build under Wine and what that
 can't tell: [`docs/windows.md`](windows.md).
 
+### macOS
+
+No Homebrew or MacPorts: whatever goes into the app bundle has to target an
+older macOS than the build machine's, so everything comes from pinned
+sources, the same here and in CI. Needs Xcode's Command Line Tools and the
+repo's `.venv` (above):
+
+```bash
+pip install cmake ninja meson pkgconf aqtinstall
+aqt install-qt mac desktop 6.9.3 clang_64 -O ~/Qt     # the Qt the other builds use
+packaging/macos/build-deps.sh                         # libmpv, once (~20 min)
+PKG_CONFIG_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib/pkgconfig \
+    cmake -S fronts/qt -B fronts/qt/build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/Qt/6.9.3/macos
+cmake --build fronts/qt/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/CloudMus.app/Contents/MacOS/CloudMus
+```
+
+The app is built as `CloudMus.app` (signed ad hoc on every build): macOS
+takes the name the Dock and the menu bar show, the icon of Finder and the
+notifications (`AppIcon.icns`, drawn from the logo at build time by
+`tools/MakeIconset.cpp`), and Now Playing and notifications the app's
+identity, from the bundle. Notification Center caches the icon; after
+changing it, `lsregister -f` the bundle (in
+`/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/`).
+
+`build-deps.sh` builds libmpv 0.41 (LGPL, Core Audio only) and its
+dependencies from tarballs checked against their sha256, for
+`MACOSX_DEPLOYMENT_TARGET` 12.0, into `packaging/macos/deps/<arch>/`. Only
+`libmpv.2.dylib` is shared; the rest is linked into it. A rerun skips what's
+built. To change a version, edit the script and delete that directory.
+The TUI's python-mpv finds that libmpv with
+`DYLD_FALLBACK_LIBRARY_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib`.
+
+On macOS, Now Playing (`NowPlayingCenterMac.mm`, MediaPlayer.framework)
+stands in for MPRIS: Control Center, the media keys, AirPods, the Touch Bar
+and the lock screen. The Dock's menu has the playing track and its controls,
+and Settings → General can put its cover on the Dock icon (`DockTileMac.cpp`).
+Track notifications go through UserNotifications
+(`NotificationToastMac.mm`), which needs the bundle signed: the build signs
+it ad hoc. Not on macOS yet (the stubs are `*Mac.cpp`): launch at login,
+global shortcuts, self-update, and Sentry. The Linux D-Bus integrations
+(MPRIS, the portal) aren't built there.
+While the window is in the tray (the menu bar), the app leaves the Dock
+and Cmd+Tab (`DockIconMac.mm`). A click on the menu bar icon opens its
+menu, as on macOS; Settings → General can make it show the window instead.
+
 ## Tests
 
 ```bash

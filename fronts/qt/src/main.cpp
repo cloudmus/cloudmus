@@ -58,10 +58,17 @@
 #include "SmtcService.h"
 #include "TaskbarThumbButtons.h"
 #else
-#include "MprisService.h"
 #include "QuitSignals.h"
 
 #include <csignal>
+#endif
+#ifdef Q_OS_LINUX
+#include "MprisService.h"
+#endif
+#ifdef Q_OS_MACOS
+#include "DockIcon.h"
+#include "DockTile.h"
+#include "NowPlayingCenter.h"
 #endif
 
 namespace {
@@ -248,6 +255,10 @@ int main(int argc, char** argv)
     // Before glass, whose default depends on it, and the stylesheet.
     Ui::Settings::GeneralPage::applyColorScheme(settings.colorScheme());
     Ui::Settings::GeneralPage::applyTrayPanel(settings.trayPanel());
+    Integration::TrayIcon::setClickShowsWindow(settings.trayClickShowsWindow());
+#ifdef Q_OS_MACOS
+    Integration::DockTile::setShowsCover(settings.dockShowsCover());
+#endif
     // Before the stylesheet and any window: both are built for glass or
     // not, and a window can't gain an alpha channel once created.
     Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())
@@ -268,10 +279,15 @@ int main(int argc, char** argv)
     // jagged edges. A ladder of sizes rendered from the SVG lets the
     // compositor pick one close to what it draws.
     const QIcon logo(QStringLiteral(":/icons/icons/logo.svg"));
+#ifdef Q_OS_MACOS
+    // Windows have no icons on macOS; the Dock's one is drawn on its own.
+    Integration::DockIcon::setIcon(logo);
+#else
     QIcon appIcon;
     for (int side : { 16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512 })
         appIcon.addPixmap(logo.pixmap(QSize(side, side), 1.0));
     QApplication::setWindowIcon(appIcon);
+#endif
 #ifdef Q_OS_WIN
     // Before the first notification, which Windows 11 heads with the name
     // registered for the AppUserModelID set above.
@@ -312,13 +328,20 @@ int main(int argc, char** argv)
         QObject::connect(taskbarThumbButtons.get(), &Integration::TaskbarThumbButtons::buttonClicked, &core.analytics(),
             [&core]() { core.analytics().recordControlUsed(QStringLiteral("taskbar")); });
     });
-#else
+#elif defined(Q_OS_LINUX)
     Integration::MprisService mpris(playback, core.nowPlaying(), core.coverArtCache());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
     QObject::connect(&mpris, &Integration::MprisService::commandReceived, &core.analytics(),
         [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
     QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,
         [&windowHost]() { windowHost.bringToFront(); });
+#elif defined(Q_OS_MACOS)
+    Integration::NowPlayingCenter nowPlayingCenter(playback, core.nowPlaying(), core.coverArtCache());
+    QObject::connect(&nowPlayingCenter, &Integration::NowPlayingCenter::commandReceived, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
+    Integration::DockTile dockTile(core.nowPlaying(), core.coverArtCache());
+    QObject::connect(dockTile.menu(), &QMenu::triggered, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("dock")); });
 #endif
 
     Integration::NotificationToast notificationToast(tray.systemTrayIcon());

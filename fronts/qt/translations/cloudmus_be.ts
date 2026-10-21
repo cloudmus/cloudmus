@@ -146,7 +146,46 @@
     </message>
 </context>
 <context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Наступны</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Папярэдні</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Паўза</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Прайграць</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Зняць «Падабаецца»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Зняць «Не падабаецца»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+</context>
+<context>
     <name>Integration::GlobalHotkeys</name>
+    <message>
+        <source>CloudMus doesn&apos;t support them on macOS yet.</source>
+        <translation>CloudMus пакуль не падтрымлівае іх на macOS.</translation>
+    </message>
     <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
         <translation>У гэтым асяроддзі працоўнага стала праграмы не могуць атрымаць глабальныя спалучэнні клавіш.</translation>
@@ -180,6 +219,17 @@
     <message>
         <source>Show player</source>
         <translation>Паказаць плэер</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
     </message>
 </context>
 <context>
@@ -832,6 +882,14 @@ Do you agree to use downloads only this way?</source>
     <message>
         <source>Closing the window minimizes to the tray instead of quitting</source>
         <translation>Закрыццё акна згортвае ў трэй замест выхаду</translation>
+    </message>
+    <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Пстрычка па значку ў радку меню паказвае акно (пстрычка правай кнопкай адкрывае меню)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Паказваць вокладку трэка, які грае, на значку ў Dock</translation>
     </message>
     <message>
         <source>Show a notification when the track changes</source>

@@ -169,6 +169,18 @@ public:
     bool closeMinimizesToTray() const;
     void setCloseMinimizesToTray(bool value);
 
+    // macOS: a click on the menu bar icon shows the window, a right-click
+    // opens the menu (Integration::TrayIcon::setClickShowsWindow()). Off:
+    // any click opens the menu, macOS's own way. Elsewhere a click always
+    // shows the window.
+    bool trayClickShowsWindow() const;
+    void setTrayClickShowsWindow(bool value);
+
+    // macOS: the Dock icon shows the playing track's cover
+    // (Integration::DockTile::setShowsCover()). Off: the logo.
+    bool dockShowsCover() const;
+    void setDockShowsCover(bool value);
+
     // Launched at login (Integration::Autostart): stay in the tray instead
     // of opening the window.
     bool startHiddenAtLogin() const;

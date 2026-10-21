@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
 project(cloudmus-qt VERSION 0.1.0 LANGUAGES C CXX)
+if(APPLE)
+    enable_language(OBJCXX) # AppKit calls in *Mac.mm
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -369,6 +372,23 @@ if(WIN32)
         src/Integration/SmtcService.cpp
         src/Integration/TaskbarThumbButtons.cpp
         src/Integration/GlobalHotkeysWin.cpp)
+elseif(APPLE)
+    # The macOS integrations, some still stubs (*Mac.cpp). The headers are
+    # listed for AUTOMOC: it pairs a header with the .cpp of the same name,
+    # and these have none.
+    list(APPEND CLOUDMUS_PLATFORM_SOURCES
+        src/Integration/AutostartMac.cpp
+        src/Integration/NotificationToast.h
+        src/Integration/NotificationToastMac.mm
+        src/Integration/DesktopColorScheme.h
+        src/Integration/DesktopColorSchemeMac.cpp
+        src/Integration/DockIcon.h
+        src/Integration/DockIconMac.mm
+        src/Integration/DockTile.h
+        src/Integration/DockTileMac.cpp
+        src/Integration/NowPlayingCenter.h
+        src/Integration/NowPlayingCenterMac.mm
+        src/Integration/QuitSignals.cpp)
 else()
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
         src/Integration/Autostart.cpp
@@ -514,6 +534,17 @@ if(WIN32)
     # CoCreateInstance(ITaskbarList3) (TaskbarThumbButtons.cpp).
     target_link_libraries(cloudmus-ui PRIVATE shell32 dwmapi runtimeobject shcore shlwapi ole32)
 endif()
+if(APPLE)
+    # The Dock's icon and the app's presence there (DockIconMac.mm); Now
+    # Playing and the media keys (NowPlayingCenterMac.mm); notifications
+    # (NotificationToastMac.mm). The precompiled Qt headers are C++'s; the
+    # Objective-C++ files do without. The newer ones are built with ARC.
+    target_link_libraries(cloudmus-ui PRIVATE
+        "-framework AppKit" "-framework MediaPlayer" "-framework UserNotifications")
+    set_source_files_properties(src/Integration/DockIconMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    set_source_files_properties(src/Integration/NowPlayingCenterMac.mm src/Integration/NotificationToastMac.mm
+        PROPERTIES SKIP_PRECOMPILE_HEADERS ON COMPILE_OPTIONS -fobjc-arc)
+endif()
 
 # Glass (Integration::WindowGlass): blur asked of the compositor directly —
 # over Wayland (the standard ext-background-effect-v1 or KWin's
@@ -582,6 +613,41 @@ if(WIN32)
         OBJECT_DEPENDS "${VERSION_DIR}/Version.h")
     add_executable(cloudmus-yt-dlp WIN32 src/Playback/YtDlpLauncherWin.cpp)
     set_target_properties(cloudmus-yt-dlp PROPERTIES OUTPUT_NAME "yt-dlp")
+elseif(APPLE)
+    # CloudMus.app: macOS names an app after its bundle, a bare executable
+    # after its file ("cloudmus-qt" in the Dock and the menu bar). Now
+    # Playing and notifications identify the app by its bundle too.
+    set_target_properties(cloudmus-qt PROPERTIES
+        MACOSX_BUNDLE TRUE
+        OUTPUT_NAME CloudMus
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/resources/Info.plist.in
+        MACOSX_BUNDLE_BUNDLE_NAME CloudMus
+        MACOSX_BUNDLE_GUI_IDENTIFIER io.github.cloudmus.CloudMus
+        MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+        MACOSX_BUNDLE_ICON_FILE AppIcon)
+    # The bundle's icon (Finder, notifications), drawn from the logo by a
+    # tool built for this machine and packed by iconutil.
+    add_executable(cloudmus-make-iconset tools/MakeIconset.cpp)
+    target_link_libraries(cloudmus-make-iconset PRIVATE Qt6::Gui Qt6::Svg)
+    set(_iconset "${CMAKE_CURRENT_BINARY_DIR}/AppIcon.iconset")
+    set(_icns "${CMAKE_CURRENT_BINARY_DIR}/AppIcon.icns")
+    add_custom_command(OUTPUT ${_icns}
+        COMMAND ${CMAKE_COMMAND} -E rm -rf ${_iconset}
+        COMMAND cloudmus-make-iconset ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/logo.svg ${_iconset}
+        COMMAND iconutil -c icns -o ${_icns} ${_iconset}
+        DEPENDS cloudmus-make-iconset ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/logo.svg
+        VERBATIM)
+    target_sources(cloudmus-qt PRIVATE ${_icns})
+    set_source_files_properties(${_icns} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    # The linker signs the executable alone; notifications want the whole
+    # bundle signed, ad hoc is enough on the machine that built it. Signed
+    # on every build (a fraction of a second), not after linking only: a
+    # changed Info.plist or icon breaks the signature as well.
+    add_custom_target(cloudmus-qt-sign ALL
+        COMMAND codesign --force --sign - $<TARGET_BUNDLE_DIR:cloudmus-qt>
+        DEPENDS cloudmus-qt
+        VERBATIM)
 endif()
 # The app's own texts, one translations/cloudmus_<code>.ts per language
 # (English is the source language), compiled to .qm and embedded under
@@ -599,6 +665,10 @@ foreach(_target cloudmus-core cloudmus-ui cloudmus-qt)
         list(REMOVE_ITEM _tr_sources "${_source}")
     endforeach()
 endforeach()
+# Qt would list the languages in CFBundleLocalizations from the .ts files,
+# but reads them with an xmllint that prints to stderr on newer macOS and
+# takes that for a failure; resources/Info.plist.in lists them instead.
+set(QT_SKIP_STORE_LANGUAGES_FROM_TS_FILES ON)
 qt_add_translations(cloudmus-qt
     TS_FILES
         translations/cloudmus_be.ts
@@ -653,7 +723,8 @@ if(NOT WIN32)
 endif()
 # Sentry finds the symbols for a crash by the executable's build id, so the
 # one in the release must match the unstripped copy uploaded from CI.
-if(CLOUDMUS_SENTRY)
+# Apple's linker has no --build-id (Sentry isn't built for macOS yet).
+if(CLOUDMUS_SENTRY AND NOT APPLE)
     target_link_options(cloudmus-qt PRIVATE -Wl,--build-id)
 endif()
 

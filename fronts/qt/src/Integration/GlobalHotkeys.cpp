@@ -4,7 +4,7 @@
 
 #ifdef Q_OS_WIN
 #include "GlobalHotkeysWin.h"
-#else
+#elif defined(Q_OS_LINUX)
 #include "GlobalHotkeysKGlobalAccel.h"
 #include "GlobalHotkeysPortal.h"
 #ifdef CLOUDMUS_HOTKEYS_X11
@@ -36,6 +36,9 @@ std::unique_ptr<GlobalHotkeys> createGlobalHotkeys()
 {
 #ifdef Q_OS_WIN
     return std::make_unique<GlobalHotkeysWin>();
+#elif defined(Q_OS_MACOS)
+    return std::make_unique<NoGlobalHotkeys>(QCoreApplication::translate(
+        "Integration::GlobalHotkeys", "CloudMus doesn't support them on macOS yet."));
 #else
     // CLOUDMUS_HOTKEYS_BACKEND=kglobalaccel|portal|x11|none picks one
     // regardless of the desktop — to try the others where they exist
