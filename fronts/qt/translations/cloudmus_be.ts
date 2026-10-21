@@ -187,6 +187,17 @@
     </message>
 </context>
 <context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+</context>
+<context>
     <name>Integration::TrayIcon</name>
     <message>
         <source>Previous</source>

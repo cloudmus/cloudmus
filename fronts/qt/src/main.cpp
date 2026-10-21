@@ -67,6 +67,7 @@
 #endif
 #ifdef Q_OS_MACOS
 #include "DockIcon.h"
+#include "NowPlayingCenter.h"
 #endif
 
 namespace {
@@ -330,6 +331,10 @@ int main(int argc, char** argv)
         [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
     QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,
         [&windowHost]() { windowHost.bringToFront(); });
+#elif defined(Q_OS_MACOS)
+    Integration::NowPlayingCenter nowPlayingCenter(playback, core.nowPlaying(), core.coverArtCache());
+    QObject::connect(&nowPlayingCenter, &Integration::NowPlayingCenter::commandReceived, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
 #endif
 
     Integration::NotificationToast notificationToast(tray.systemTrayIcon());

@@ -384,6 +384,8 @@ elseif(APPLE)
         src/Integration/DesktopColorSchemeMac.cpp
         src/Integration/DockIcon.h
         src/Integration/DockIconMac.mm
+        src/Integration/NowPlayingCenter.h
+        src/Integration/NowPlayingCenterMac.mm
         src/Integration/QuitSignals.cpp)
 else()
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
@@ -531,11 +533,14 @@ if(WIN32)
     target_link_libraries(cloudmus-ui PRIVATE shell32 dwmapi runtimeobject shcore shlwapi ole32)
 endif()
 if(APPLE)
-    # The Dock's icon and the app's presence there (DockIconMac.mm). The
-    # precompiled Qt headers are C++'s; the one Objective-C++ file does
-    # without.
-    target_link_libraries(cloudmus-ui PRIVATE "-framework AppKit")
+    # The Dock's icon and the app's presence there (DockIconMac.mm); Now
+    # Playing and the media keys (NowPlayingCenterMac.mm). The precompiled
+    # Qt headers are C++'s; the Objective-C++ files do without. The newer
+    # ones are built with ARC.
+    target_link_libraries(cloudmus-ui PRIVATE "-framework AppKit" "-framework MediaPlayer")
     set_source_files_properties(src/Integration/DockIconMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+    set_source_files_properties(src/Integration/NowPlayingCenterMac.mm
+        PROPERTIES SKIP_PRECOMPILE_HEADERS ON COMPILE_OPTIONS -fobjc-arc)
 endif()
 
 # Glass (Integration::WindowGlass): blur asked of the compositor directly —

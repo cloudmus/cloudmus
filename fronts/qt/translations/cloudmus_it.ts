@@ -187,6 +187,17 @@
     </message>
 </context>
 <context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>Mi piace</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Non mi piace</translation>
+    </message>
+</context>
+<context>
     <name>Integration::TrayIcon</name>
     <message>
         <source>Previous</source>
