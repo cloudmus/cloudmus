@@ -111,6 +111,7 @@ int runFakeBackend()
     QString locale = QStringLiteral("en");
     QJsonValue slowDownloadRequestId;
     QString slowDownloadId;
+    bool cancelledSignIn = false;
     int skipCount = 0;
     int topUpCount = 0;
     std::string line;
@@ -333,6 +334,16 @@ int runFakeBackend()
             }
         } else if (method == QStringLiteral("auth.getStatus")) {
             reply(id, { { QStringLiteral("status"), QStringLiteral("authenticated") } });
+        } else if (method == QStringLiteral("auth.cancel")) {
+            cancelledSignIn = true;
+            reply(id, { });
+        } else if (method == QStringLiteral("auth.start")) {
+            reply(id, { });
+            // The link says whether a cancel came first: Start over must send one.
+            notify(QStringLiteral("auth/prompt"),
+                { { QStringLiteral("flow"), QStringLiteral("oauthRedirect") },
+                    { QStringLiteral("url"),
+                        QStringLiteral("https://fake.example/login?afterCancel=%1").arg(cancelledSignIn ? 1 : 0) } });
         } else if (method == QStringLiteral("auth.submit")) {
             replyError(id, 1002, QStringLiteral("wrong password"));
         } else if (method == QStringLiteral("shutdown")) {

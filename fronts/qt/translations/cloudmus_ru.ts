@@ -400,6 +400,10 @@
         <translation>Повторить</translation>
     </message>
     <message>
+        <source>Start over</source>
+        <translation>Начать заново</translation>
+    </message>
+    <message>
         <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
         <translation>Откройте &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; и введите код ниже</translation>
     </message>

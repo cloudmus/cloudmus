@@ -400,6 +400,10 @@
         <translation>Riprova</translation>
     </message>
     <message>
+        <source>Start over</source>
+        <translation>Ricomincia</translation>
+    </message>
+    <message>
         <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
         <translation>Apri &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; e inserisci il codice qui sotto</translation>
     </message>

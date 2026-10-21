@@ -347,6 +347,7 @@ SourcePanel::SourcePanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     connect(authCard_, &AuthCard::submitRequested, this,
         [this](const QJsonObject& fields) { emit submitRequested(currentSourceId_, fields); });
     connect(authCard_, &AuthCard::retryRequested, this, [this]() { emit retryRequested(currentSourceId_); });
+    connect(authCard_, &AuthCard::restartRequested, this, [this]() { emit restartRequested(currentSourceId_); });
     connect(authCard_, &AuthCard::codeCopied, this, &SourcePanel::codeCopied);
     authCard_->hide();
 

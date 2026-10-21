@@ -108,6 +108,12 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     connect(retryButton_, &QPushButton::clicked, this, [this]() { emit retryRequested(); });
     retryButton_->hide();
 
+    restartButton_ = new QPushButton(tr("Start over"), this);
+    restartButton_->setProperty("variant", "secondary");
+    restartButton_->setFont(Theme::font(Theme::TextStyle::Button));
+    connect(restartButton_, &QPushButton::clicked, this, [this]() { emit restartRequested(); });
+    restartButton_->hide();
+
     busyIndicator_ = new QProgressBar(this);
     busyIndicator_->setProperty("themed", true); // see StyleSheet.cpp's progressBarBlock()
     busyIndicator_->setRange(0, 0); // indeterminate
@@ -121,6 +127,7 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     buttonRow->addWidget(submitButton_);
     buttonRow->addWidget(openBrowserButton_);
     buttonRow->addWidget(retryButton_);
+    buttonRow->addWidget(restartButton_);
     buttonRow->addWidget(busyIndicator_);
     buttonRow->addStretch(1);
 
@@ -158,6 +165,7 @@ void AuthCard::reset()
     submitButton_->hide();
     openBrowserButton_->hide();
     retryButton_->hide();
+    restartButton_->hide();
     setBusy(false);
 }
 
@@ -178,6 +186,7 @@ void AuthCard::showPrompt(const QJsonObject& params)
         codeLabel_->setText(code);
         codeLabel_->show();
         copyCodeButton_->show();
+        restartButton_->show();
     } else if (flow == QStringLiteral("usernamePassword")) {
         const QJsonArray fields = params.value(QStringLiteral("fields")).toArray();
         bool hasMultilineField = false;
@@ -227,6 +236,7 @@ void AuthCard::showPrompt(const QJsonObject& params)
         messageLabel_->setTextFormat(Qt::PlainText);
         messageLabel_->setText(tr("Continue in your browser"));
         openBrowserButton_->show();
+        restartButton_->show();
     } else {
         messageLabel_->setTextFormat(Qt::PlainText);
         messageLabel_->setText(tr("Sign-in required"));
@@ -264,6 +274,7 @@ void AuthCard::setBusy(bool busy)
 {
     submitButton_->setEnabled(!busy);
     retryButton_->setEnabled(!busy);
+    restartButton_->setEnabled(!busy);
     busyIndicator_->setVisible(busy);
 }
 

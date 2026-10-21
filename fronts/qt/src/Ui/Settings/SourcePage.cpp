@@ -159,6 +159,7 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     connect(authCard_, &AuthCard::submitRequested, this,
         [this](const QJsonObject& fields) { submitAsync(fields).detach(); });
     connect(authCard_, &AuthCard::retryRequested, this, [this]() { signInAsync().detach(); });
+    connect(authCard_, &AuthCard::restartRequested, this, [this]() { restartSignInAsync().detach(); });
     connect(authCard_, &AuthCard::codeCopied, this, [this]() { toasts_.showSuccess(tr("Code copied")); });
 
     auto* accountLayout = new QVBoxLayout(accountSection_);
@@ -333,6 +334,29 @@ Rpc::Task<void> SourcePage::signInAsync()
     try {
         // The prompt, if the flow has one, arrives as auth/prompt —
         // through Rpc::AuthStates, into refresh().
+        co_await Rpc::authStart(*client);
+    } catch (const std::exception& e) {
+        if (alive)
+            authCard_->showError(QString::fromStdString(e.what()));
+    }
+    if (alive)
+        authCard_->setBusy(false);
+}
+
+Rpc::Task<void> SourcePage::restartSignInAsync()
+{
+    Rpc::RpcClient* client = sourceManager_.client(manifest_.id);
+    if (client == nullptr)
+        co_return;
+    const QPointer<QWidget> alive = widget_;
+    authCard_->setBusy(true);
+    try {
+        co_await Rpc::authCancel(*client);
+    } catch (const std::exception&) {
+        // Best effort: the sign-in may have just ended on its own.
+    }
+    try {
+        // The new prompt arrives as auth/prompt, into refresh().
         co_await Rpc::authStart(*client);
     } catch (const std::exception& e) {
         if (alive)

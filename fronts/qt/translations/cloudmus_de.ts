@@ -400,6 +400,10 @@
         <translation>Erneut versuchen</translation>
     </message>
     <message>
+        <source>Start over</source>
+        <translation>Neu beginnen</translation>
+    </message>
+    <message>
         <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
         <translation>Öffnen Sie &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; und geben Sie den folgenden Code ein</translation>
     </message>

@@ -71,6 +71,7 @@ private:
     void refresh();
     Rpc::Task<void> refreshAuthStatusAsync();
     Rpc::Task<void> signInAsync();
+    Rpc::Task<void> restartSignInAsync();
     Rpc::Task<void> submitAsync(QJsonObject fields);
     Rpc::Task<void> signOutAsync();
     Rpc::Task<void> cancelSignInAsync();

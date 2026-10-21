@@ -400,6 +400,10 @@
         <translation>Réessayer</translation>
     </message>
     <message>
+        <source>Start over</source>
+        <translation>Recommencer</translation>
+    </message>
+    <message>
         <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
         <translation>Ouvrez &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; et saisissez le code ci-dessous</translation>
     </message>

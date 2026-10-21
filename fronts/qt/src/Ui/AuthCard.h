@@ -41,8 +41,8 @@ public:
     void showError(const QString& message);
     // Not signed in, nothing gone wrong: a "Sign in" button.
     void showSignInNeeded();
-    // Disables whichever action button is currently relevant (Submit,
-    // Retry or Sign in — only one is ever visible at a time) and shows an
+    // Disables whichever action buttons are currently relevant (Submit,
+    // Retry or Sign in, and Start over) and shows an
     // indeterminate progress indicator, so a click can't be repeated while
     // its RPC round-trip is in flight and the user sees something started.
     void setBusy(bool busy);
@@ -51,6 +51,9 @@ signals:
     void submitRequested(QJsonObject fields);
     // Retry, or Sign in: either way, (re)start the sign-in flow.
     void retryRequested();
+    // "Start over" on a code or browser prompt: drop that sign-in and begin
+    // a new one — for a code that expired, a browser tab closed.
+    void restartRequested();
     // "Copy code" put the device code on the clipboard — for the owner to
     // confirm with a toast in its own window.
     void codeCopied();
@@ -73,6 +76,7 @@ private:
     QPushButton* submitButton_ = nullptr;
     QPushButton* openBrowserButton_ = nullptr;
     QPushButton* retryButton_ = nullptr;
+    QPushButton* restartButton_ = nullptr;
     QProgressBar* busyIndicator_ = nullptr;
     QHash<QString, QLineEdit*> fieldEdits_;
     QHash<QString, QPlainTextEdit*> multilineFieldEdits_;
