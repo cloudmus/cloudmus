@@ -7,6 +7,7 @@ hardcoded to one service.
 from __future__ import annotations
 
 import logging
+import webbrowser
 from pathlib import Path
 from typing import Any, Optional
 
@@ -235,6 +236,12 @@ class PlayerApp(App):
                 f"{source_id} — sign in: open {params['url']} and enter code  {params['code']}"
                 f"   (expires in ~{minutes} min)"
             )
+        elif params.get("flow") == "oauthRedirect":
+            # The source listens for the browser's return itself (§10.3);
+            # the link stays on screen for a terminal without a browser.
+            url = params.get("url", "")
+            webbrowser.open(url)
+            banner.update(f"{source_id} — continue signing in in your browser: {url}")
         else:
             banner.update(f"{source_id} — sign-in required ({params.get('flow')})")
         banner.display = True

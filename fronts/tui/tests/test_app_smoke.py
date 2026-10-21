@@ -237,3 +237,20 @@ async def test_dynamic_playlist_tracks_survive_restart(tmp_path):
             {"id": "second", "title": "Second"}, {"id": "fresh", "title": "Fresh"},
         ])]
     restored.playback_engine.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_oauth_redirect_prompt_opens_the_browser(monkeypatch, tmp_path):
+    opened = []
+    monkeypatch.setattr("cloudmus_tui.app.webbrowser.open", opened.append)
+    app = PlayerApp(manifests=[], session_path=tmp_path / "session.json")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        url = "https://accounts.spotify.com/authorize?client_id=x"
+        app._show_auth_prompt("spotify", {"flow": "oauthRedirect", "url": url})
+        await pilot.pause()
+        banner = app.query_one("#auth-banner")
+        assert opened == [url]
+        assert banner.display
+        assert url in str(banner.render())
+    await app.source_manager.shutdown_all()
