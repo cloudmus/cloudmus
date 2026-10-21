@@ -158,6 +158,35 @@ forwarded to either Docker build when set.
 Quick Windows compile checks, running the build under Wine and what that
 can't tell: [`docs/windows.md`](windows.md).
 
+### macOS
+
+No Homebrew or MacPorts: whatever goes into the app bundle has to target an
+older macOS than the build machine's, so everything comes from pinned
+sources, the same here and in CI. Needs Xcode's Command Line Tools and the
+repo's `.venv` (above):
+
+```bash
+pip install cmake ninja meson pkgconf aqtinstall
+aqt install-qt mac desktop 6.9.3 clang_64 -O ~/Qt     # the Qt the other builds use
+packaging/macos/build-deps.sh                         # libmpv, once (~20 min)
+PKG_CONFIG_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib/pkgconfig \
+    cmake -S fronts/qt -B fronts/qt/build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/Qt/6.9.3/macos
+cmake --build fronts/qt/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
+```
+
+`build-deps.sh` builds libmpv 0.41 (LGPL, Core Audio only) and its
+dependencies from tarballs checked against their sha256, for
+`MACOSX_DEPLOYMENT_TARGET` 12.0, into `packaging/macos/deps/<arch>/`. Only
+`libmpv.2.dylib` is shared; the rest is linked into it. A rerun skips what's
+built. To change a version, edit the script and delete that directory.
+The TUI's python-mpv finds that libmpv with
+`DYLD_FALLBACK_LIBRARY_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib`.
+
+Not on macOS yet (the stubs are `*Mac.cpp`): Now Playing and media keys,
+notifications, launch at login, global shortcuts, self-update, and Sentry.
+The Linux D-Bus integrations (MPRIS, the portal) aren't built there.
+
 ## Tests
 
 ```bash
