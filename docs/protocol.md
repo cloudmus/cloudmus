@@ -817,14 +817,19 @@ paste (see that backend's `auth.py`) is the first real user of this.
 --> auth.start {}
 <-- {} (ack)
 <-- auth/prompt {"flow":"oauthRedirect","url":"https://..."}
-      (front just opens this URL in a browser; the SOURCE owns any local-loopback
+      (front offers to open this URL in a browser; the SOURCE owns any local-loopback
        redirect listener needed to catch the callback — not the front)
 <-- auth/statusChanged {"status":"authenticated"}
 ```
+The front opens the URL when the user asks (a Sign in button), not on the
+prompt alone: it sends `auth.start` as soon as a source needing a sign-in
+starts. It also shows the URL itself, for a browser other than the default
+one. The URL stays valid while the source waits; a source doesn't give up
+on its own, as there's no telling how long the user takes.
+
 The Spotify backend uses this flow: its listener is on `127.0.0.1` with a
 port of its own choosing, and the prompt carries a `message` as well
-(§10). A front has no way to report that the user closed the browser, so a
-source gives up waiting after a while and reports `status: "error"`.
+(§10).
 
 Credentials/tokens are stored inside each source's own private config
 directory. The front never sees them and never needs source-specific

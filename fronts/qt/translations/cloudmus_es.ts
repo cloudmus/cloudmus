@@ -392,10 +392,6 @@
         <translation>Enviar</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Abrir el navegador</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Reintentar</translation>
     </message>
@@ -412,16 +408,20 @@
         <translation>Inicia sesión pegando abajo lo que se pide.</translation>
     </message>
     <message>
+        <source>Sign in in your browser</source>
+        <translation>Inicia sesión en el navegador</translation>
+    </message>
+    <message>
+        <source>Or open &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;this link&lt;/a&gt; in a browser of your choice</source>
+        <translation>O abre &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;este enlace&lt;/a&gt; en el navegador que prefieras</translation>
+    </message>
+    <message>
         <source>Sign in</source>
         <translation>Iniciar sesión</translation>
     </message>
     <message>
         <source>Paste here</source>
         <translation>Pega aquí</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Continúa en tu navegador</translation>
     </message>
     <message>
         <source>Sign-in required</source>

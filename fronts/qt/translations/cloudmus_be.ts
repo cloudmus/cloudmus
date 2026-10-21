@@ -392,10 +392,6 @@
         <translation>Адправіць</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Адкрыць браўзер</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Паўтарыць</translation>
     </message>
@@ -412,16 +408,20 @@
         <translation>Увайдзіце, уставіўшы ніжэй тое, што запытваецца.</translation>
     </message>
     <message>
+        <source>Sign in in your browser</source>
+        <translation>Увайдзіце ў браўзеры</translation>
+    </message>
+    <message>
+        <source>Or open &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;this link&lt;/a&gt; in a browser of your choice</source>
+        <translation>Або адкрыйце &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;гэту спасылку&lt;/a&gt; у патрэбным браўзеры</translation>
+    </message>
+    <message>
         <source>Sign in</source>
         <translation>Увайсці</translation>
     </message>
     <message>
         <source>Paste here</source>
         <translation>Устаўце сюды</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Працягніце ў браўзеры</translation>
     </message>
     <message>
         <source>Sign-in required</source>

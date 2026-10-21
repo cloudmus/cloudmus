@@ -392,10 +392,6 @@
         <translation>Invia</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Apri il browser</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Riprova</translation>
     </message>
@@ -412,16 +408,20 @@
         <translation>Accedi incollando qui sotto ciò che viene richiesto.</translation>
     </message>
     <message>
+        <source>Sign in in your browser</source>
+        <translation>Accedi nel browser</translation>
+    </message>
+    <message>
+        <source>Or open &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;this link&lt;/a&gt; in a browser of your choice</source>
+        <translation>Oppure apri &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;questo link&lt;/a&gt; nel browser che preferisci</translation>
+    </message>
+    <message>
         <source>Sign in</source>
         <translation>Accedi</translation>
     </message>
     <message>
         <source>Paste here</source>
         <translation>Incolla qui</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Continua nel browser</translation>
     </message>
     <message>
         <source>Sign-in required</source>

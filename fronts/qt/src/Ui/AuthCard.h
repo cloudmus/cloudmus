@@ -15,7 +15,8 @@ class QVBoxLayout;
 namespace Ui {
 
 // A source's sign-in card: renders an auth/prompt (deviceCode's URL and
-// code, usernamePassword's fields, oauthRedirect's browser hand-off —
+// code, usernamePassword's fields, oauthRedirect's Sign in button and
+// link —
 // discriminated by params["flow"], see Rpc::RpcClient::onAuthPromptRaw's
 // doc comment for why this is raw JSON rather than a generated struct), an
 // error with Retry, or a plain "sign in" invitation. Holds no source
@@ -74,14 +75,17 @@ private:
     // of their own here instead. See showPrompt()'s usernamePassword branch.
     QVBoxLayout* multilineFieldsLayout_ = nullptr;
     QPushButton* submitButton_ = nullptr;
-    QPushButton* openBrowserButton_ = nullptr;
+    QPushButton* browserSignInButton_ = nullptr;
+    // oauthRedirect's link, for a browser other than the default one.
+    QLabel* linkLabel_ = nullptr;
     QPushButton* retryButton_ = nullptr;
     QPushButton* restartButton_ = nullptr;
     QProgressBar* busyIndicator_ = nullptr;
     QHash<QString, QLineEdit*> fieldEdits_;
     QHash<QString, QPlainTextEdit*> multilineFieldEdits_;
-    // oauthRedirect's URL, kept so the manual "Open Browser" button can
-    // re-open it if the automatic open-on-prompt was missed/blocked.
+    // oauthRedirect's URL, opened by the Sign in button: the browser opens
+    // only when the user asks, never on the prompt alone — the front asks
+    // for a sign-in as soon as the source starts.
     QString pendingOAuthUrl_;
 };
 

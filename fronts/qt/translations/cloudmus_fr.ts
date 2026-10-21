@@ -392,10 +392,6 @@
         <translation>Envoyer</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Ouvrir le navigateur</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Réessayer</translation>
     </message>
@@ -412,16 +408,20 @@
         <translation>Connectez-vous en collant ci-dessous ce qui est demandé.</translation>
     </message>
     <message>
+        <source>Sign in in your browser</source>
+        <translation>Connectez-vous dans votre navigateur</translation>
+    </message>
+    <message>
+        <source>Or open &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;this link&lt;/a&gt; in a browser of your choice</source>
+        <translation>Ou ouvrez &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;ce lien&lt;/a&gt; dans le navigateur de votre choix</translation>
+    </message>
+    <message>
         <source>Sign in</source>
         <translation>Se connecter</translation>
     </message>
     <message>
         <source>Paste here</source>
         <translation>Coller ici</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Continuer dans votre navigateur</translation>
     </message>
     <message>
         <source>Sign-in required</source>

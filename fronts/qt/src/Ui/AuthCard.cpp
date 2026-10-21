@@ -95,12 +95,21 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     });
     submitButton_->hide();
 
-    openBrowserButton_ = new QPushButton(tr("Open Browser"), this);
-    openBrowserButton_->setProperty("variant", "secondary");
-    openBrowserButton_->setFont(Theme::font(Theme::TextStyle::Button));
-    connect(openBrowserButton_, &QPushButton::clicked, this,
+    browserSignInButton_ = new QPushButton(tr("Sign in"), this);
+    browserSignInButton_->setProperty("variant", "primary");
+    browserSignInButton_->setFont(Theme::font(Theme::TextStyle::Button));
+    connect(browserSignInButton_, &QPushButton::clicked, this,
         [this]() { QDesktopServices::openUrl(QUrl(pendingOAuthUrl_)); });
-    openBrowserButton_->hide();
+    browserSignInButton_->hide();
+
+    linkLabel_ = new QLabel(this);
+    linkLabel_->setWordWrap(true);
+    linkLabel_->setTextFormat(Qt::RichText);
+    // Clicked, the link opens the default browser; its context menu copies
+    // the address for another one.
+    linkLabel_->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    linkLabel_->setOpenExternalLinks(true);
+    linkLabel_->hide();
 
     retryButton_ = new QPushButton(tr("Retry"), this);
     retryButton_->setProperty("variant", "secondary");
@@ -125,7 +134,7 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     buttonRow->addWidget(copyCodeButton_);
     buttonRow->addLayout(formLayout_);
     buttonRow->addWidget(submitButton_);
-    buttonRow->addWidget(openBrowserButton_);
+    buttonRow->addWidget(browserSignInButton_);
     buttonRow->addWidget(retryButton_);
     buttonRow->addWidget(restartButton_);
     buttonRow->addWidget(busyIndicator_);
@@ -139,6 +148,7 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     cardLayout->addWidget(codeLabel_);
     cardLayout->addLayout(multilineFieldsLayout_);
     cardLayout->addLayout(buttonRow);
+    cardLayout->addWidget(linkLabel_);
 }
 
 void AuthCard::clearFormFields()
@@ -163,7 +173,8 @@ void AuthCard::reset()
     codeLabel_->clear();
     copyCodeButton_->hide();
     submitButton_->hide();
-    openBrowserButton_->hide();
+    browserSignInButton_->hide();
+    linkLabel_->hide();
     retryButton_->hide();
     restartButton_->hide();
     setBusy(false);
@@ -232,11 +243,12 @@ void AuthCard::showPrompt(const QJsonObject& params)
         chainTabOrder(this); // the fields were created after the buttons
     } else if (flow == QStringLiteral("oauthRedirect")) {
         pendingOAuthUrl_ = params.value(QStringLiteral("url")).toString();
-        QDesktopServices::openUrl(QUrl(pendingOAuthUrl_));
         messageLabel_->setTextFormat(Qt::PlainText);
-        messageLabel_->setText(tr("Continue in your browser"));
-        openBrowserButton_->show();
-        restartButton_->show();
+        messageLabel_->setText(tr("Sign in in your browser"));
+        browserSignInButton_->show();
+        linkLabel_->setText(tr("Or open <a href=\"%1\" style=\"color: %2\">this link</a> in a browser of your choice")
+                .arg(pendingOAuthUrl_.toHtmlEscaped(), Theme::palette().accent.name()));
+        linkLabel_->show();
     } else {
         messageLabel_->setTextFormat(Qt::PlainText);
         messageLabel_->setText(tr("Sign-in required"));
@@ -273,6 +285,7 @@ void AuthCard::showSignInNeeded()
 void AuthCard::setBusy(bool busy)
 {
     submitButton_->setEnabled(!busy);
+    browserSignInButton_->setEnabled(!busy);
     retryButton_->setEnabled(!busy);
     restartButton_->setEnabled(!busy);
     busyIndicator_->setVisible(busy);
