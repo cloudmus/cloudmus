@@ -761,6 +761,12 @@ The front calls `auth.getStatus` right after `initialize` when
 `auth.required` is true. If not authenticated, it calls `auth.start` and
 waits for `auth/prompt` / `auth/statusChanged` notifications.
 
+`auth.start` while a sign-in is running changes nothing. `auth.cancel`
+ends the running one at once, even if the source only notices later: an
+`auth.start` right after it begins a **new** sign-in, with a new prompt
+(a front's "Start over"), and the cancelled one sends nothing more — no
+prompt, no `auth/statusChanged`.
+
 Any `auth/prompt` may carry an optional `"message"` (1.5+): what the user
 has to do, in the source's own words — a front can't know that a
 `usernamePassword` field expects, say, headers copied from a browser. It

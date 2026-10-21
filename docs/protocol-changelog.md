@@ -5,6 +5,14 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## Starting a sign-in over (no version change)
+
+- **Clarified, no wire change** (§10): `auth.start` right after
+  `auth.cancel` begins a new sign-in with a new prompt, and the cancelled
+  one reports nothing more. Before, the Yandex and YouTube backends took a
+  sign-in that hadn't noticed its cancel yet as still running, and
+  ignored the new `auth.start`.
+
 ## Streams a source serves itself (no version change)
 
 - **Clarified, no wire change** (§6, §4.3): a `StreamDescriptor.url` on a
