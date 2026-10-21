@@ -192,12 +192,9 @@ pub fn parse_callback(request_line: &str, expected_state: &str) -> Callback {
     query("code").map(Callback::Code).unwrap_or(Callback::Other)
 }
 
-fn page(title: &str, text: &str) -> String {
-    let body = format!(
-        "<!doctype html><meta charset=utf-8><title>{title}</title>\
-         <body style=\"font-family:sans-serif;text-align:center;padding-top:20vh\">\
-         <h2>{title}</h2><p>{text}</p></body>"
-    );
+/// The redirect listener's whole answer: the end-of-sign-in page (page.rs).
+fn page(outcome: crate::page::Outcome, title: &str, text: &str) -> String {
+    let body = crate::page::html(outcome, &crate::i18n::translator().locale(), title, text);
     format!(
         "HTTP/1.1 200 OK\r\ncontent-type: text/html; charset=utf-8\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
         body.len()
@@ -386,12 +383,20 @@ impl Account {
                 let request_line = request.lines().next().unwrap_or("");
                 match parse_callback(request_line, &state) {
                     Callback::Code(code) => {
-                        let reply = page(&tr("Signed in"), &tr("You can close this tab and return to CloudMus."));
+                        let reply = page(
+                            crate::page::Outcome::SignedIn,
+                            &tr("Signed in"),
+                            &tr("You can close this tab and return to CloudMus."),
+                        );
                         let _ = stream.write_all(reply.as_bytes()).await;
                         break Ok(code);
                     }
                     Callback::Denied(error) => {
-                        let reply = page(&tr("Sign-in cancelled"), &tr("You can close this tab."));
+                        let reply = page(
+                            crate::page::Outcome::Cancelled,
+                            &tr("Sign-in cancelled"),
+                            &tr("You can close this tab."),
+                        );
                         let _ = stream.write_all(reply.as_bytes()).await;
                         break Err(FlowError::Failed(trf(
                             "Spotify refused the sign-in: {error}",

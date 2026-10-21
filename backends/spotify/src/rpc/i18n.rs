@@ -46,6 +46,11 @@ impl Translator {
         std::iter::once(DEFAULT_LOCALE.to_owned()).chain(self.catalogs.keys().cloned()).collect()
     }
 
+    /// The language in effect: a catalog's key, or "en".
+    pub fn locale(&self) -> String {
+        self.current.read().unwrap().clone()
+    }
+
     /// Picks the best catalog ("pt-BR" tries "pt-BR", then "pt") and
     /// returns the language now in effect.
     pub fn set_locale(&self, locale: Option<&str>) -> String {

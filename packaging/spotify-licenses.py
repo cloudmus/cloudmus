@@ -20,6 +20,7 @@ from pathlib import Path
 ROOT = "cloudmus-backend-spotify"
 LICENSE_PREFIXES = ("license", "licence", "copying", "notice")
 FALLBACK_DIR = Path(__file__).resolve().parent / "spotify-licenses"
+ASSET_LICENSE = Path(__file__).resolve().parent.parent / "backends" / "spotify" / "assets" / "fonts" / "Rubik-OFL.txt"
 # Crate name (or name prefix ending in "-") -> its license text, taken from
 # the crate's repository.
 FALLBACKS = {
@@ -86,6 +87,14 @@ def main() -> None:
             texts.setdefault(text, []).append(name)
     for text, names in texts.items():
         out += ["", "=" * 72, "Carried by: " + ", ".join(names), "", text]
+    # Not a crate: the font inside the sign-in page (src/page.rs).
+    out += [
+        "",
+        "=" * 72,
+        "Rubik (the font of the page shown at the end of a sign-in), SIL Open Font License 1.1",
+        "",
+        ASSET_LICENSE.read_text(encoding="utf-8").strip(),
+    ]
     sys.stdout.write("\n".join(out) + "\n")
 
 
