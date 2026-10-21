@@ -187,9 +187,15 @@ built. To change a version, edit the script and delete that directory.
 The TUI's python-mpv finds that libmpv with
 `DYLD_FALLBACK_LIBRARY_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib`.
 
-Not on macOS yet (the stubs are `*Mac.cpp`): Now Playing and media keys,
-notifications, launch at login, global shortcuts, self-update, and Sentry.
-The Linux D-Bus integrations (MPRIS, the portal) aren't built there.
+On macOS, Now Playing (`NowPlayingCenterMac.mm`, MediaPlayer.framework)
+stands in for MPRIS: Control Center, the media keys, AirPods, the Touch Bar
+and the lock screen. The Dock's menu has the playing track and its controls,
+and Settings → General can put its cover on the Dock icon (`DockTileMac.cpp`).
+Track notifications go through UserNotifications
+(`NotificationToastMac.mm`), which needs the bundle signed: the build signs
+it ad hoc. Not on macOS yet (the stubs are `*Mac.cpp`): launch at login,
+global shortcuts, self-update, and Sentry. The Linux D-Bus integrations
+(MPRIS, the portal) aren't built there.
 While the window is in the tray (the menu bar), the app leaves the Dock
 and Cmd+Tab (`DockIconMac.mm`). A click on the menu bar icon opens its
 menu, as on macOS; Settings → General can make it show the window instead.

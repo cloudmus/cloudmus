@@ -373,13 +373,13 @@ if(WIN32)
         src/Integration/TaskbarThumbButtons.cpp
         src/Integration/GlobalHotkeysWin.cpp)
 elseif(APPLE)
-    # Stubs for now: the native integrations need the app bundle. The
-    # headers are listed for AUTOMOC: it pairs a header with the .cpp of the
-    # same name, and these have none.
+    # The macOS integrations, some still stubs (*Mac.cpp). The headers are
+    # listed for AUTOMOC: it pairs a header with the .cpp of the same name,
+    # and these have none.
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
         src/Integration/AutostartMac.cpp
         src/Integration/NotificationToast.h
-        src/Integration/NotificationToastMac.cpp
+        src/Integration/NotificationToastMac.mm
         src/Integration/DesktopColorScheme.h
         src/Integration/DesktopColorSchemeMac.cpp
         src/Integration/DockIcon.h
@@ -536,12 +536,13 @@ if(WIN32)
 endif()
 if(APPLE)
     # The Dock's icon and the app's presence there (DockIconMac.mm); Now
-    # Playing and the media keys (NowPlayingCenterMac.mm). The precompiled
-    # Qt headers are C++'s; the Objective-C++ files do without. The newer
-    # ones are built with ARC.
-    target_link_libraries(cloudmus-ui PRIVATE "-framework AppKit" "-framework MediaPlayer")
+    # Playing and the media keys (NowPlayingCenterMac.mm); notifications
+    # (NotificationToastMac.mm). The precompiled Qt headers are C++'s; the
+    # Objective-C++ files do without. The newer ones are built with ARC.
+    target_link_libraries(cloudmus-ui PRIVATE
+        "-framework AppKit" "-framework MediaPlayer" "-framework UserNotifications")
     set_source_files_properties(src/Integration/DockIconMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
-    set_source_files_properties(src/Integration/NowPlayingCenterMac.mm
+    set_source_files_properties(src/Integration/NowPlayingCenterMac.mm src/Integration/NotificationToastMac.mm
         PROPERTIES SKIP_PRECOMPILE_HEADERS ON COMPILE_OPTIONS -fobjc-arc)
 endif()
 
