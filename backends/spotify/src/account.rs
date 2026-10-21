@@ -157,7 +157,11 @@ pub fn authorize_url(redirect_uri: &str, challenge: &str, state: &str) -> String
         .append_pair("code_challenge_method", "S256")
         .append_pair("code_challenge", challenge)
         .append_pair("state", state)
-        .append_pair("scope", &SCOPES.join(" "));
+        .append_pair("scope", &SCOPES.join(" "))
+        // Spotify otherwise hands back whoever is signed in to it in the
+        // browser, at once — the Free account again, with no way to pick
+        // another. The dialog names the account and offers "Not you?".
+        .append_pair("show_dialog", "true");
     url.into()
 }
 
@@ -351,14 +355,19 @@ impl Account {
         let url = authorize_url(&redirect_uri, &pkce_challenge(&verifier), &state);
         log::info!("sign-in listening on 127.0.0.1:{port}");
 
+        // Why the last sign-in ended is told once, in this prompt: the front
+        // keeps showing it, and a later one starts afresh.
+        let was_not_premium = config::was_not_premium();
+        config::clear_not_premium();
         self.notifier.notify(
             AUTH_PROMPT,
             json!({
                 "flow": "oauthRedirect",
                 "url": url,
-                "message": if config::was_not_premium() {
+                "message": if was_not_premium {
                     tr("Spotify says the account you signed in with is on the Free plan, and CloudMus plays \
-                        Spotify only with <b>Premium</b>. Sign in with a Premium account.")
+                        Spotify only with <b>Premium</b>. Sign in with a Premium account: Spotify's page \
+                        offers <b>Not you?</b> to switch.")
                 } else {
                     tr("Sign in with a Spotify <b>Premium</b> account.")
                 },
@@ -554,6 +563,7 @@ mod tests {
         assert_eq!(pairs["code_challenge"], "ch");
         assert_eq!(pairs["state"], "st");
         assert!(pairs["scope"].contains("streaming"));
+        assert_eq!(pairs["show_dialog"], "true");
     }
 
     #[test]
