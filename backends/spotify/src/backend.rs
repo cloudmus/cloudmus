@@ -126,7 +126,7 @@ pub async fn build_server() -> std::io::Result<Server> {
     server.capabilities_mut()["settings"] = true.into();
     let notifier = server.notifier();
     let backend = Arc::new(Backend {
-        account: Account::new(notifier.clone()),
+        account: Account::new(notifier.clone(), crate::account::proxy_from_env().await),
         liked: Liked::default(),
         streams: StreamServer::start().await?,
         settings: SettingsStore::new(

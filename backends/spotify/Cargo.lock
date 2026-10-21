@@ -253,6 +253,7 @@ dependencies = [
  "librespot-metadata",
  "librespot-protocol",
  "log",
+ "percent-encoding",
  "protobuf",
  "rand 0.9.5",
  "serde",

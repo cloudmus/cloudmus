@@ -101,9 +101,26 @@ pub struct Account {
     proxy: Option<Url>,
 }
 
-/// The proxy the front set for this source (§4.3). librespot speaks HTTP
-/// proxies only.
-pub fn proxy_from_env() -> Option<Url> {
+/// The proxy the front set for this source (§4.3), as librespot is to use
+/// it. librespot speaks HTTP proxies only, and without their credentials: a
+/// proxy that has some is reached through the relay (proxy_relay.rs).
+pub async fn proxy_from_env() -> Option<Url> {
+    let proxy = env_proxy()?;
+    let Some(authorization) = crate::proxy_relay::basic_authorization(&proxy) else { return Some(proxy) };
+    if proxy.scheme() != "http" {
+        log::warn!("an {} proxy with credentials isn't supported; connecting directly", proxy.scheme());
+        return None;
+    }
+    match crate::proxy_relay::start(&proxy, authorization).await {
+        Ok(relay) => Some(relay),
+        Err(e) => {
+            log::warn!("can't start the proxy relay: {e}; connecting directly");
+            None
+        }
+    }
+}
+
+fn env_proxy() -> Option<Url> {
     let value = ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy"]
         .iter()
         .find_map(|name| std::env::var(name).ok().filter(|v| !v.is_empty()))?;
@@ -190,13 +207,13 @@ enum FlowError {
 }
 
 impl Account {
-    pub fn new(notifier: Notifier) -> Arc<Self> {
+    pub fn new(notifier: Notifier, proxy: Option<Url>) -> Arc<Self> {
         let status = if config::load_credentials().is_some() { Status::Authenticated } else { Status::Unauthenticated };
         Arc::new(Account {
             state: std::sync::Mutex::new(State { status, session: None, flow: None }),
             connecting: Mutex::new(()),
             notifier,
-            proxy: proxy_from_env(),
+            proxy,
         })
     }
 

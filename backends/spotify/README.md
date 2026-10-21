@@ -58,7 +58,10 @@ on Windows), written with mode 0600:
 ## Proxies
 
 An HTTP(S) proxy set for the source (`HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY`)
-carries all of its traffic. librespot can't use SOCKS proxies: with one set,
+carries all of its traffic. librespot doesn't send a proxy's login and
+password, so for a proxy that has them (`http://user:pass@host:port`) the
+backend runs a small relay on `127.0.0.1` that signs each connection in to
+it (`src/proxy_relay.rs`). librespot can't use SOCKS proxies: with one set,
 the backend logs a warning and connects directly.
 
 ## Known issues
