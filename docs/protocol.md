@@ -192,7 +192,8 @@ nothing on the wire changes:
   system's.
 - The front fetches what a source hands it — stream URLs, cover art —
   through the same proxy: a service may only honor a stream URL from the
-  address that asked for it.
+  address that asked for it. A stream URL on a loopback host is the
+  exception (§6, StreamDescriptor): the source serves it itself.
 - A different proxy takes effect by restarting the source (§4.2, then a new
   process and `initialize`).
 
@@ -341,6 +342,13 @@ the front's own playback engine and never needs to be pushed back.
 `kind` is a discriminator left open for future stream types (e.g. a local
 file path) without breaking existing consumers; `"url"` is the only defined
 value in v1.
+
+A `url` on a loopback host (`127.0.0.1`, `::1`, `localhost`) is served by
+the source process itself — one that fetches and decodes its service's
+audio on its own, like the Spotify backend. A front fetches such a URL
+directly, never through the source's proxy (§4.3): no proxy can reach this
+machine's loopback. The source keeps the URL valid while it runs and
+should guard it against other local users (an unguessable path).
 
 `codec` and `bitrateKbps` say what the source picked among the variants it
 has of the track (§7.2), for a front to show the listener; both are plain
@@ -807,7 +815,10 @@ paste (see that backend's `auth.py`) is the first real user of this.
        redirect listener needed to catch the callback — not the front)
 <-- auth/statusChanged {"status":"authenticated"}
 ```
-No concrete source uses this flow yet in v1; the shape above is reserved.
+The Spotify backend uses this flow: its listener is on `127.0.0.1` with a
+port of its own choosing, and the prompt carries a `message` as well
+(§10). A front has no way to report that the user closed the browser, so a
+source gives up waiting after a while and reports `status: "error"`.
 
 Credentials/tokens are stored inside each source's own private config
 directory. The front never sees them and never needs source-specific
@@ -880,9 +891,6 @@ something bumps MAJOR. Changes are tracked in `docs/protocol-changelog.md`.
 - `catalog.resolveUrl` (resolving a pasted service URL/ID directly) is not
   part of the protocol; if a source wants this, it's exposed only through
   that source's own standalone debug CLI, outside RPC.
-- `auth.flow: "oauthRedirect"` has a defined message shape (§10.3) but no
-  source implements it yet — treat as provisional until a real
-  implementation exercises it.
 
 ---
 

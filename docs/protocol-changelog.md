@@ -5,6 +5,17 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## Streams a source serves itself (no version change)
+
+- **Clarified, no wire change** (§6, §4.3): a `StreamDescriptor.url` on a
+  loopback host (`127.0.0.1`, `::1`, `localhost`) is served by the source
+  process itself, and a front fetches it directly, never through the
+  source's proxy. The Spotify backend serves the audio it decrypts this
+  way. Before, a front routed every stream through the source's proxy,
+  which can't reach this machine's loopback.
+- `auth.flow: "oauthRedirect"` (§10.3) is no longer provisional: the
+  Spotify backend implements it.
+
 ## Requests handled concurrently (no version change)
 
 - **Clarified, no wire change** (§3): a source handles requests

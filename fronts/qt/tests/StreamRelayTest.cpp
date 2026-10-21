@@ -71,6 +71,17 @@ private slots:
         QCOMPARE(Net::environmentProxy(QUrl())->port(), quint16(1080));
     }
 
+    // A source serving its streams on this machine is reached directly,
+    // whatever proxy its connection names.
+    void loopbackStreamsSkipTheProxy()
+    {
+        const QNetworkProxy proxy(QNetworkProxy::HttpProxy, QStringLiteral("proxy.example"), 3128);
+        for (const char* url : { "http://127.0.0.1:4000/t/a", "http://[::1]:4000/a", "http://localhost:4000/a" })
+            QCOMPARE(Net::streamProxy(proxy, QUrl(QString::fromLatin1(url))).type(), QNetworkProxy::NoProxy);
+        QCOMPARE(Net::streamProxy(proxy, QUrl(QStringLiteral("https://strm.example/a.mp3"))).hostName(),
+            QStringLiteral("proxy.example"));
+    }
+
     void oneMpvAdvancesToAnEnqueuedLocalTrack()
     {
         QTemporaryDir directory;
