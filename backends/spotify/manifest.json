@@ -1,0 +1,7 @@
+{
+  "id": "spotify",
+  "name": "Spotify",
+  "argv": ["target/release/cloudmus-backend-spotify"],
+  "protocolVersion": "1.17",
+  "icon": "icon.svg"
+}

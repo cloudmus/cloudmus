@@ -54,9 +54,11 @@ backend is treated as gone.
 | `backends/yandex-music` | Yandex Music | `deviceCode` (OAuth) | yes | My Wave, stations | yes |
 | `backends/youtube-music` | YouTube Music | `usernamePassword` (browser headers, see its [README](../backends/youtube-music/README.md)) | yes | mixes, from a track | yes |
 | `backends/local-folder` | A local music folder (subfolders → playlists) | none | playlists | — | — |
+| `backends/spotify` | Spotify (Premium), through librespot — see its [README](../backends/spotify/README.md) | `oauthRedirect` | yes | — | from the stream |
 
 `backends/py-rpc-common` is the shared Python NDJSON/JSON-RPC transport and
-the conformance suite.
+the conformance suite. The Spotify backend is in Rust and carries its own
+small JSON-RPC runtime (`backends/spotify/src/rpc/`).
 
 | Front | Description | Stack |
 |---|---|---|
@@ -68,6 +70,7 @@ the conformance suite.
 Requirements:
 
 - Python ≥ 3.11
+- Rust (stable) for the Spotify backend — or Docker, see below
 - `libmpv` (the Qt front also needs its development package and `pkg-config`)
 - `jinja2`, `pyyaml` (protocol code generation)
 - Qt front: Qt 6 (Core, Widgets, Network, DBus, Svg), CMake ≥ 3.21, a C++20
@@ -78,12 +81,26 @@ python3 -m venv .venv && source .venv/bin/activate
 
 # Typed protocol stubs (gitignored; regenerate after any change under protocol/)
 pip install jinja2 pyyaml
-python protocol/codegen/generate.py --lang python cpp
+python protocol/codegen/generate.py --lang python cpp rust
 
 # Shared transport, all backends, and the TUI front
 pip install -e backends/py-rpc-common -e backends/yandex-music \
     -e backends/local-folder -e backends/youtube-music -e fronts/tui
+
+# The Spotify backend (its manifest runs target/release/)
+(cd backends/spotify && cargo build --release)
 ```
+
+Without a local Rust, build it in the same pinned image as `AppRun` (the
+binary is static musl, so it runs on the host):
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -e CARGO_HOME=/workspace/build-spotify/cargo-home \
+    -e CARGO_TARGET_DIR=/workspace/backends/spotify/target -v "$PWD":/workspace:z \
+    -w /workspace/backends/spotify rust:1.98.0-alpine cargo build --release --locked
+```
+
+(`cargo test --locked` the same way runs its tests.)
 
 Run the TUI:
 
@@ -169,6 +186,8 @@ ctest --test-dir fronts/qt/build                # Qt front
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_yandex
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_ytmusic
+python -m rpc_common.testing.conformance backends/spotify/target/release/cloudmus-backend-spotify
+(cd backends/spotify && cargo test)                # Spotify backend
 ```
 
 The root `pyproject.toml` isn't a package: it only sets pytest's
@@ -402,7 +421,7 @@ version.
 
 ```
 protocol/            Protocol schemas (schema/, methods.yaml) + codegen/
-backends/            py-rpc-common/ and one folder per service
+backends/            py-rpc-common/ and one folder per service (spotify/ is Rust)
 fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, build script, apprun/: the Rust AppRun)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)

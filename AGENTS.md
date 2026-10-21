@@ -13,6 +13,7 @@ Details: `docs/development.md`. Before touching `fronts/qt/`, read
 | `docs/protocol.md` | Normative protocol spec (wins over `protocol/`) | |
 | `backends/py-rpc-common/` | Shared NDJSON/JSON-RPC transport + conformance suite | Python ≥ 3.11 |
 | `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11 |
+| `backends/spotify/` | Spotify backend on librespot, with its own JSON-RPC runtime | Rust |
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
 | `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
 | `packaging/appimage/`, `build-appimage.sh` | AppImage build in Docker | |
@@ -21,9 +22,10 @@ Details: `docs/development.md`. Before touching `fronts/qt/`, read
 ## Generated code
 
 Protocol stubs are gitignored build artifacts — never edit or commit
-`backends/py-rpc-common/rpc_common/generated/` or `fronts/qt/generated/`.
+`backends/py-rpc-common/rpc_common/generated/`, `fronts/qt/generated/` or
+`backends/spotify/src/generated/`.
 Regenerate after a fresh checkout or any change under `protocol/`:
-`python protocol/codegen/generate.py --lang python cpp`.
+`python protocol/codegen/generate.py --lang python cpp rust`.
 
 ## Changing the protocol
 
@@ -45,6 +47,7 @@ source .venv/bin/activate      # setup: docs/development.md
 pytest backends/                                  # from the repo root
 (cd fronts/tui && python -m pytest tests/ -q)
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local  # per backend
+(cd backends/spotify && cargo test)  # no local Rust: docs/development.md
 ```
 
 `CLOUDMUS_DEV_BACKENDS=1` makes fronts use backends from this checkout.
