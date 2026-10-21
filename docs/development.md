@@ -172,8 +172,12 @@ packaging/macos/build-deps.sh                         # libmpv, once (~20 min)
 PKG_CONFIG_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib/pkgconfig \
     cmake -S fronts/qt -B fronts/qt/build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/Qt/6.9.3/macos
 cmake --build fronts/qt/build
-CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/CloudMus.app/Contents/MacOS/CloudMus
 ```
+
+The app is built as `CloudMus.app` (signed ad hoc): macOS takes the name
+the Dock and the menu bar show, and Now Playing and notifications the
+app's identity, from the bundle.
 
 `build-deps.sh` builds libmpv 0.41 (LGPL, Core Audio only) and its
 dependencies from tarballs checked against their sha256, for

@@ -605,6 +605,23 @@ if(WIN32)
         OBJECT_DEPENDS "${VERSION_DIR}/Version.h")
     add_executable(cloudmus-yt-dlp WIN32 src/Playback/YtDlpLauncherWin.cpp)
     set_target_properties(cloudmus-yt-dlp PROPERTIES OUTPUT_NAME "yt-dlp")
+elseif(APPLE)
+    # CloudMus.app: macOS names an app after its bundle, a bare executable
+    # after its file ("cloudmus-qt" in the Dock and the menu bar). Now
+    # Playing and notifications identify the app by its bundle too.
+    set_target_properties(cloudmus-qt PROPERTIES
+        MACOSX_BUNDLE TRUE
+        OUTPUT_NAME CloudMus
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/resources/Info.plist.in
+        MACOSX_BUNDLE_BUNDLE_NAME CloudMus
+        MACOSX_BUNDLE_GUI_IDENTIFIER io.github.cloudmus.CloudMus
+        MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+    # The linker signs the executable alone; notifications want the whole
+    # bundle signed, ad hoc is enough on the machine that built it.
+    add_custom_command(TARGET cloudmus-qt POST_BUILD
+        COMMAND codesign --force --sign - $<TARGET_BUNDLE_DIR:cloudmus-qt>
+        VERBATIM)
 endif()
 # The app's own texts, one translations/cloudmus_<code>.ts per language
 # (English is the source language), compiled to .qm and embedded under

@@ -10,6 +10,9 @@ CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
 ctest --test-dir fronts/qt/build
 ```
 
+On macOS the app is `build/bin/CloudMus.app` (run
+`CloudMus.app/Contents/MacOS/CloudMus`).
+
 - CMake regenerates the C++ stubs (`fronts/qt/generated/`) itself.
 - Tests (QtTest): `cloudmus-qt-tests` (core) and `cloudmus-qt-ui-tests`
   (window, offscreen). The test binary acts as its own fake backend
