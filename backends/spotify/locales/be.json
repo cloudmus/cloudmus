@@ -32,5 +32,6 @@
  "Failed to resolve stream for {track}: {error}": "Не ўдалося атрымаць паток для {track}: {error}",
  "Radio from Liked Songs": "Радыё па ўпадабаных",
  "Spotify radio needs a track to start from": "Радыё Spotify патрэбны трэк, з якога пачаць",
- "Sign in with a Spotify <b>Premium</b> account.": "Увайдзіце з акаўнтам Spotify <b>Premium</b>."
+ "Sign in with a Spotify <b>Premium</b> account.": "Увайдзіце з акаўнтам Spotify <b>Premium</b>.",
+ "Spotify says the account you signed in with is on the Free plan, and CloudMus plays Spotify only with <b>Premium</b>. Sign in with a Premium account.": "Spotify паведамляе, што акаўнт, з якім вы ўвайшлі, — на тарыфе Free, а CloudMus грае Spotify толькі з <b>Premium</b>. Увайдзіце з акаўнтам Premium."
 }

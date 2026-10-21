@@ -21,6 +21,7 @@ fn main() {
         .target(env_logger::Target::Stderr)
         .init();
 
+    account::install_exit_guard();
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("tokio runtime");
     let code = runtime.block_on(async {
         match backend::build_server().await {
@@ -37,5 +38,6 @@ fn main() {
     // Not a runtime shutdown: a stream read or a sign-in still waiting on
     // the network has no one left to answer, and must not keep the process
     // alive after its front is gone.
+    account::exiting_on_purpose();
     std::process::exit(code);
 }

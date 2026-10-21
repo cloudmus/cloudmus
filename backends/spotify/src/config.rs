@@ -4,8 +4,10 @@
 //!   after its first sign-in (username + an opaque blob, not the password,
 //!   which the backend never sees). Delete it to sign out.
 //! - `config.json`: the settings, under "settings".
+//! - `not-premium`: there while the last account signed in turned out not
+//!   to be Premium (see account::install_exit_guard).
 //!
-//! Both are written with mode 0600.
+//! The first two are written with mode 0600.
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -73,6 +75,23 @@ pub fn load_credentials() -> Option<Credentials> {
 pub fn save_credentials(credentials: &Credentials) -> io::Result<()> {
     let text = serde_json::to_string(credentials).map_err(io::Error::other)?;
     write_private(&credentials_file(), &text)
+}
+
+fn not_premium_file() -> PathBuf {
+    config_dir().join("not-premium")
+}
+
+pub fn mark_not_premium() {
+    let _ = std::fs::create_dir_all(config_dir());
+    let _ = std::fs::write(not_premium_file(), "");
+}
+
+pub fn was_not_premium() -> bool {
+    not_premium_file().exists()
+}
+
+pub fn clear_not_premium() {
+    let _ = std::fs::remove_file(not_premium_file());
 }
 
 pub fn clear_credentials() {

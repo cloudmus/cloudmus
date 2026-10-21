@@ -66,9 +66,9 @@ the backend logs a warning and connects directly.
 
 ## Known issues
 
-- If a saved account stops being Premium, librespot ends the process as soon
-  as Spotify says so; the front then shows the source as unavailable. A new
-  sign-in reports it properly.
+- librespot ends the process as soon as Spotify says an account isn't
+  Premium. The backend then forgets the sign-in, and once restarted asks to
+  sign in again, saying the account was on the Free plan.
 
 ## Building
 

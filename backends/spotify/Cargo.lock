@@ -248,6 +248,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "libc",
  "librespot-audio",
  "librespot-core",
  "librespot-metadata",

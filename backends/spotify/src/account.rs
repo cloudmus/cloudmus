@@ -337,6 +337,7 @@ impl Account {
         }
         state.status = Status::Unauthenticated;
         config::clear_credentials();
+        config::clear_not_premium();
     }
 
     async fn run_flow(&self, mut cancel: watch::Receiver<bool>) -> Result<Session, FlowError> {
@@ -355,7 +356,12 @@ impl Account {
             json!({
                 "flow": "oauthRedirect",
                 "url": url,
-                "message": tr("Sign in with a Spotify <b>Premium</b> account."),
+                "message": if config::was_not_premium() {
+                    tr("Spotify says the account you signed in with is on the Free plan, and CloudMus plays \
+                        Spotify only with <b>Premium</b>. Sign in with a Premium account.")
+                } else {
+                    tr("Sign in with a Spotify <b>Premium</b> account.")
+                },
             }),
         );
 
@@ -428,6 +434,7 @@ impl Account {
         }
         config::save_credentials(&reusable)
             .map_err(|e| FlowError::Failed(trf("Couldn't save the sign-in: {error}", &[("error", &e)])))?;
+        config::clear_not_premium();
         log::info!("signed in as {}", session.username());
         Ok(session)
     }
@@ -482,6 +489,34 @@ async fn account_product(http: &HttpClient, token: &str) -> Result<Option<String
 
 /// Spotify refusing the credentials, as opposed to not being reachable:
 /// librespot's AuthenticationError::LoginFailed (private) maps to this.
+/// Set right before this backend ends the process itself (main.rs).
+static OWN_EXIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn exiting_on_purpose() {
+    OWN_EXIT.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// librespot ends the process (exit(1), Session::check_catalogue) as soon
+/// as Spotify says a session's account isn't Premium — the one exit in it,
+/// and one that can't be caught. Its atexit handlers still run: one that
+/// finds the exit isn't ours forgets the saved sign-in and leaves a mark,
+/// so the restarted backend asks to sign in again and says why, instead of
+/// signing in to the same Free account and ending again, over and over.
+pub fn install_exit_guard() {
+    extern "C" fn on_exit() {
+        if OWN_EXIT.load(std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+        config::clear_credentials();
+        config::mark_not_premium();
+        eprintln!("the account isn't Premium (librespot ended the process): signed out");
+    }
+    // SAFETY: registers a plain extern "C" function with no arguments.
+    unsafe {
+        libc::atexit(on_exit);
+    }
+}
+
 fn is_login_failure(e: &librespot_core::Error) -> bool {
     e.kind == librespot_core::error::ErrorKind::PermissionDenied && e.to_string().contains("Login failed")
 }
