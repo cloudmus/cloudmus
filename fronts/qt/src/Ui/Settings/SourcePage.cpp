@@ -236,8 +236,9 @@ void SourcePage::refresh()
     repeatGapRow_->setVisible(hasRadio);
     repeatGapHint_->setVisible(hasRadio);
 
-    // Only a stream the front downloads itself: not a source's own files.
-    const bool downloadsStreams = running && usesNetwork_
+    // Only a stream the front downloads itself: not a source's own files,
+    // nor one the source keeps to one connection.
+    const bool downloadsStreams = running && usesNetwork_ && client->allowsParallelDownload()
         && client->capabilities()
                .value(QStringLiteral("playback"))
                .toObject()

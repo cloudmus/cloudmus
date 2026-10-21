@@ -5,6 +5,15 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.18 — sources whose streams take one connection
+
+- **Additive, backward-compatible**: optional capability `parallelDownload`
+  (§5), `true` when absent. A source declaring `false` has its streams
+  fetched over one connection, whatever the listener set, and the front
+  doesn't offer the Download connections setting for it. The Spotify
+  backend does so: it serves its streams itself on this machine, and more
+  connections would only take turns reading the one file.
+
 ## Starting a sign-in over (no version change)
 
 - **Clarified, no wire change** (§10): `auth.start` right after

@@ -141,8 +141,14 @@ Core::Core(QObject* parent)
             return Net::environmentProxy(QUrl());
         return Net::networkProxy(connection, QUrl());
     });
-    playback_.setDownloadConnectionsProvider(
-        [this](const QString& sourceId) { return settings_.sourceDownloadConnections(sourceId); });
+    playback_.setDownloadConnectionsProvider([this](const QString& sourceId) {
+        // One for a source that says more gain nothing (parallelDownload),
+        // whatever was set for it before it said so.
+        const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+        if (client != nullptr && client->available() && !client->allowsParallelDownload())
+            return 1;
+        return settings_.sourceDownloadConnections(sourceId);
+    });
 }
 
 Net::Connection Core::connectionOf(const QString& sourceId) const

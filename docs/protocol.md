@@ -241,12 +241,14 @@ defaults, since the front does not assume any implicit capability.
 | `downloadFromStream` | bool | Optional (1.12+). The front may save a track from the stream `playback.resolveStream` returns, downloading, naming and tagging the file itself; the source needs no `catalog.downloadTrack` (§7.5). |
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `network` | bool | Optional (1.10+), **defaults to `true` when absent**: the source reaches the network, so the front offers its per-source Connection setting (system / direct / proxy) and routes the source's streams and covers through it. A source working only with local files declares `false`. |
+| `parallelDownload` | bool | Optional (1.18+), **defaults to `true` when absent**: the front may fetch the source's streams in several ranges at once (`StreamDescriptor.maxConnections`, §6), and offers its per-source Download connections setting. `false`: every stream is fetched over one connection, whatever the listener set, and the setting isn't offered — for a source whose streams gain nothing from it, such as one serving them itself on this machine. |
 | `localization` | object | Optional (1.11+). `{"locales": [string, ...]}`: the source can answer user-facing strings in these languages (BCP-47, English implied) and supports `localization.setLanguage` (§7.8). |
 | `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
 | `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
 
-`network` is the one capability that is assumed when absent, so sources
-that predate it keep their Connection setting.
+`network` and `parallelDownload` are the capabilities assumed when absent,
+so sources that predate them keep their Connection and Download
+connections settings.
 
 The front should treat an absent/omitted nested object as "capability not
 declared, do not attempt" (defensive default), but conformant sources are
@@ -360,7 +362,9 @@ source's service puts up with at once. A front that downloads the stream
 may split it into ranges and fetch up to that many in parallel — worth it
 where the service holds each connection to a slow pace. Absent means 1: one
 request at a time. The listener may override it in the front's settings; a
-front never goes above what it caps itself.
+front never goes above what it caps itself. A source declaring
+`parallelDownload: false` (§5) is always fetched over one connection, and
+offers no such setting.
 
 ---
 
