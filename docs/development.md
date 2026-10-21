@@ -108,6 +108,12 @@ Run the TUI:
 CLOUDMUS_DEV_BACKENDS=1 cloudmus      # or: python -m cloudmus_tui
 ```
 
+Or all in one: `./run-dev.sh` regenerates the stubs, builds the Spotify
+backend (with a local cargo, else in Docker as above) and the Qt front, and
+runs it with `CLOUDMUS_DEV_BACKENDS=1`; arguments go to the app. While an
+installed AppImage runs, its manifests in `~/.config/cloudmus/backends.d`
+win over the checkout's for the backends it bundles.
+
 Build and run the Qt front (CMake regenerates the C++ stubs itself):
 
 ```bash
