@@ -21,6 +21,9 @@ if [ -n "${CLOUDMUS_SENTRY_DSN:-}" ]; then
     sentry_run_envs+=(-e "CLOUDMUS_SENTRY_DSN")
 fi
 
+# The Spotify backend (Rust), cross-built for Windows apart from the rest.
+packaging/build-spotify.sh windows
+
 docker build "${proxy_build_args[@]}" -t cloudmus-windows-builder \
     -f packaging/windows/Dockerfile packaging/windows
 mkdir -p dist

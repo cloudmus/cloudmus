@@ -167,7 +167,11 @@ Build the Windows x64 NSIS installer from Linux with Docker:
 The Windows builder in `packaging/windows/` installs the official Qt MinGW
 toolchain and runs Windows CMake under Wine. Its first run downloads several
 large archives; subsequent runs reuse Docker layers. It also bundles a
-Windows Python runtime and the three backends. `build-windows/` and
+Windows Python runtime and the Python backends; the Spotify backend is
+cross-built with MinGW beforehand (`packaging/build-spotify.sh windows`, in
+the pinned `rust:alpine` image — so is the AppImage's, with `linux`). Both
+leave its binary and `THIRD_PARTY-spotify.txt` (the licenses of its Rust
+crates) in `build-spotify/`. `build-windows/` and
 `dist/windows-stage/` are generated and can be deleted. A release tag supplies
 the installer and About-dialog version. `CLOUDMUS_GA4_MEASUREMENT_ID` is
 forwarded to either Docker build when set.

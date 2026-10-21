@@ -159,7 +159,7 @@ fn cursor_theme(kcminputrc: &Path, breeze: &Path) -> Option<String> {
 
 /// Manifests for the backends bundled here, with absolute paths into this
 /// run's mount point (a new one every launch, so nothing fixed at build time
-/// can be trusted). Only these three files are ever touched: a manifest the
+/// can be trusted). Only these four files are ever touched: a manifest the
 /// user put in the same directory for their own backend stays as it is. They
 /// are removed again on exit, or a dev build sharing the directory would be
 /// pointed at a since-unmounted path.
@@ -171,17 +171,21 @@ fn write_manifests(appdir: &Path, dir: &Path) -> Vec<PathBuf> {
     // Not PATH: a user's own backend is spawned with the app's environment,
     // and its bare "python3" must stay their system Python, so the manifests
     // carry an absolute path instead.
-    let python = appdir.join("usr/bin/python3");
+    let python = appdir.join("usr/bin/python3").to_string_lossy().into_owned();
+    let python_module = |module: &str| vec![python.clone(), "-m".to_string(), module.to_string()];
+    // The Spotify backend is a program of its own (Rust), not a module.
+    let spotify = appdir.join("usr/bin/cloudmus-backend-spotify").to_string_lossy().into_owned();
     let mut written = Vec::new();
-    for (id, module, name) in [
-        ("local-folder", "cloudmus_backend_local", "Local Folder"),
-        ("yandex-music", "cloudmus_backend_yandex", "Yandex Music"),
-        ("youtube-music", "cloudmus_backend_ytmusic", "YouTube Music"),
+    for (id, name, argv) in [
+        ("local-folder", "Local Folder", python_module("cloudmus_backend_local")),
+        ("yandex-music", "Yandex Music", python_module("cloudmus_backend_yandex")),
+        ("youtube-music", "YouTube Music", python_module("cloudmus_backend_ytmusic")),
+        ("spotify", "Spotify", vec![spotify]),
     ] {
         let manifest = json!({
             "id": id,
             "name": name,
-            "argv": [python.to_string_lossy(), "-m", module],
+            "argv": argv,
             "protocolVersion": "1.2",
             "icon": appdir.join(format!("usr/share/cloudmus/backend-icons/{id}.svg")).to_string_lossy(),
         });
@@ -287,12 +291,15 @@ mod tests {
         let dir = temp("manifests");
         let appdir = Path::new("/tmp/.mount_x\"y/AppDir");
         let written = write_manifests(appdir, &dir);
-        assert_eq!(written.len(), 3);
+        assert_eq!(written.len(), 4);
         let manifest: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(dir.join("yandex-music.json")).unwrap()).unwrap();
         assert_eq!(manifest["id"], "yandex-music");
         assert_eq!(manifest["argv"][0], "/tmp/.mount_x\"y/AppDir/usr/bin/python3");
         assert_eq!(manifest["argv"][2], "cloudmus_backend_yandex");
         assert_eq!(manifest["protocolVersion"], "1.2");
+        let spotify: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(dir.join("spotify.json")).unwrap()).unwrap();
+        assert_eq!(spotify["argv"], serde_json::json!(["/tmp/.mount_x\"y/AppDir/usr/bin/cloudmus-backend-spotify"]));
     }
 }
