@@ -16,13 +16,11 @@
  "Playlist not found": "Lista de reproducción no encontrada",
  "Not signed in to Spotify": "No has iniciado sesión en Spotify",
  "Spotify has signed this session out. Sign in again.": "Spotify ha cerrado esta sesión. Vuelve a iniciar sesión.",
- "Sign in to Spotify in the browser that opened. A Premium account is required.": "Inicia sesión en Spotify en el navegador que se ha abierto. Se necesita una cuenta Premium.",
  "Signed in": "Sesión iniciada",
  "You can close this tab and return to CloudMus.": "Puedes cerrar esta pestaña y volver a CloudMus.",
  "Sign-in cancelled": "Inicio de sesión cancelado",
  "You can close this tab.": "Puedes cerrar esta pestaña.",
  "Spotify refused the sign-in: {error}": "Spotify rechazó el inicio de sesión: {error}",
- "The sign-in timed out. Try again.": "Se agotó el tiempo para iniciar sesión. Inténtalo de nuevo.",
  "Can't start the sign-in: {error}": "No se puede iniciar sesión: {error}",
  "Couldn't finish the sign-in: {error}": "No se pudo completar el inicio de sesión: {error}",
  "Spotify sent no access token": "Spotify no envió un token de acceso",
@@ -33,5 +31,6 @@
  "Track not playable: {error}": "La pista no se puede reproducir: {error}",
  "Failed to resolve stream for {track}: {error}": "No se pudo obtener el flujo de {track}: {error}",
  "Radio from Liked Songs": "Radio de tus canciones que te gustan",
- "Spotify radio needs a track to start from": "La radio de Spotify necesita una pista para empezar"
+ "Spotify radio needs a track to start from": "La radio de Spotify necesita una pista para empezar",
+ "Sign in with a Spotify <b>Premium</b> account.": "Inicia sesión con una cuenta de Spotify <b>Premium</b>."
 }

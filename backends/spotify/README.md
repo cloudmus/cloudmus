@@ -30,15 +30,15 @@ Spotify itself.
 
 ## Signing in
 
-**Sign in** opens accounts.spotify.com in your browser. After you sign in
+**Sign in** opens accounts.spotify.com in your default browser; the link
+under it is for another one (right-click to copy it). After you sign in
 there, Spotify sends the browser back to `http://127.0.0.1:<port>/login`,
 where the backend is listening. The browser has to run on the same computer
 as CloudMus.
 
 The backend keeps the *reusable credentials* Spotify gives a signed-in
 session, not your password, and signs in with them on later starts.
-**Sign out** deletes them. If nothing happens in the browser, **Start over**
-gets a new link. After 5 minutes the sign-in gives up by itself.
+**Sign out** deletes them. The link stays valid until you use it.
 
 No Spotify developer app is involved: the backend signs in with the client
 id of Spotify's desktop app, as librespot does. The library is read through

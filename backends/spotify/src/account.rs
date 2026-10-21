@@ -74,10 +74,6 @@ const SCOPES: &[&str] = &[
     "user-read-recently-played",
     "user-top-read",
 ];
-/// The front has no way to give up on a sign-in, other than Start over;
-/// a browser tab closed unfinished ends as an error after this long, so
-/// the card offers Retry instead of waiting for good.
-const SIGN_IN_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 #[derive(Clone, PartialEq, Debug)]
 enum Status {
@@ -342,7 +338,7 @@ impl Account {
             json!({
                 "flow": "oauthRedirect",
                 "url": url,
-                "message": tr("Sign in to Spotify in the browser that opened. A Premium account is required."),
+                "message": tr("Sign in with a Spotify <b>Premium</b> account."),
             }),
         );
 
@@ -377,12 +373,11 @@ impl Account {
             }
         };
 
+        // No time limit: the link works for as long as this waits, and the
+        // user signs in whenever they get to it (docs/protocol.md §10.3).
         let code = tokio::select! {
             code = wait => code?,
             _ = cancel.wait_for(|cancelled| *cancelled) => return Err(FlowError::Cancelled),
-            _ = tokio::time::sleep(SIGN_IN_TIMEOUT) => {
-                return Err(FlowError::Failed(tr("The sign-in timed out. Try again.")));
-            }
         };
         drop(listener);
 

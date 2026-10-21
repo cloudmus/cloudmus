@@ -16,13 +16,11 @@
  "Playlist not found": "Плейлист не найден",
  "Not signed in to Spotify": "Вход в Spotify не выполнен",
  "Spotify has signed this session out. Sign in again.": "Spotify завершил этот сеанс. Войдите заново.",
- "Sign in to Spotify in the browser that opened. A Premium account is required.": "Войдите в Spotify в открывшемся браузере. Нужен аккаунт Premium.",
  "Signed in": "Вход выполнен",
  "You can close this tab and return to CloudMus.": "Эту вкладку можно закрыть и вернуться в CloudMus.",
  "Sign-in cancelled": "Вход отменён",
  "You can close this tab.": "Эту вкладку можно закрыть.",
  "Spotify refused the sign-in: {error}": "Spotify отклонил вход: {error}",
- "The sign-in timed out. Try again.": "Время на вход истекло. Попробуйте ещё раз.",
  "Can't start the sign-in: {error}": "Не удалось начать вход: {error}",
  "Couldn't finish the sign-in: {error}": "Не удалось завершить вход: {error}",
  "Spotify sent no access token": "Spotify не прислал токен доступа",
@@ -33,5 +31,6 @@
  "Track not playable: {error}": "Трек недоступен для воспроизведения: {error}",
  "Failed to resolve stream for {track}: {error}": "Не удалось получить поток для {track}: {error}",
  "Radio from Liked Songs": "Радио по понравившимся",
- "Spotify radio needs a track to start from": "Радио Spotify нужен трек, с которого начать"
+ "Spotify radio needs a track to start from": "Радио Spotify нужен трек, с которого начать",
+ "Sign in with a Spotify <b>Premium</b> account.": "Войдите с аккаунтом Spotify <b>Premium</b>."
 }
