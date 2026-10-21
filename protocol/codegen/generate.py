@@ -86,12 +86,15 @@ def generate_cpp(ir: schema_ir.ProtocolIR) -> None:
 
 def _rustfmt_inplace(paths: list[Path]) -> None:
     """Formats generated Rust like hand-written code; optional, same as
-    clang-format for the C++ target."""
+    clang-format for the C++ target. A failing rustfmt counts as missing:
+    rustup puts a `rustfmt` on PATH that only errors out when the component
+    isn't installed (the rust:alpine image)."""
     rustfmt = shutil.which("rustfmt")
-    if rustfmt is None:
-        print("warning: rustfmt not found on PATH — generated Rust left unformatted", file=sys.stderr)
-        return
-    subprocess.run([rustfmt, "--edition", "2021", *[str(p) for p in paths]], check=True)
+    result = None
+    if rustfmt is not None:
+        result = subprocess.run([rustfmt, "--edition", "2021", *[str(p) for p in paths]], capture_output=True)
+    if result is None or result.returncode != 0:
+        print("warning: rustfmt not usable — generated Rust left unformatted", file=sys.stderr)
 
 
 def generate_rust(ir: schema_ir.ProtocolIR) -> None:
