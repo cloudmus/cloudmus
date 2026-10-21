@@ -838,6 +838,10 @@ Do you agree to use downloads only this way?</source>
         <translation>Закрытие окна сворачивает в трей вместо выхода</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Щелчок по значку в строке меню показывает окно (правый щелчок открывает меню)</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Показывать уведомление при смене трека</translation>
     </message>

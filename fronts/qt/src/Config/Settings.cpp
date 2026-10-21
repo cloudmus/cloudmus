@@ -324,6 +324,16 @@ void Settings::setCloseMinimizesToTray(bool value)
     settings_.setValue(QStringLiteral("window/closeMinimizesToTray"), value);
 }
 
+bool Settings::trayClickShowsWindow() const
+{
+    return settings_.value(QStringLiteral("tray/clickShowsWindow"), false).toBool();
+}
+
+void Settings::setTrayClickShowsWindow(bool value)
+{
+    settings_.setValue(QStringLiteral("tray/clickShowsWindow"), value);
+}
+
 bool Settings::startHiddenAtLogin() const
 {
     return settings_.value(QStringLiteral("window/startHiddenAtLogin"), true).toBool();

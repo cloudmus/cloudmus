@@ -838,6 +838,10 @@ Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
         <translation>Das Schließen des Fensters minimiert in den Infobereich, statt zu beenden</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Ein Klick auf das Symbol in der Menüleiste zeigt das Fenster (Rechtsklick öffnet das Menü)</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Benachrichtigung beim Titelwechsel anzeigen</translation>
     </message>

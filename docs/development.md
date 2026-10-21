@@ -187,7 +187,8 @@ Not on macOS yet (the stubs are `*Mac.cpp`): Now Playing and media keys,
 notifications, launch at login, global shortcuts, self-update, and Sentry.
 The Linux D-Bus integrations (MPRIS, the portal) aren't built there.
 While the window is in the tray (the menu bar), the app leaves the Dock
-and Cmd+Tab (`DockIconMac.mm`).
+and Cmd+Tab (`DockIconMac.mm`). A click on the menu bar icon opens its
+menu, as on macOS; Settings → General can make it show the window instead.
 
 ## Tests
 

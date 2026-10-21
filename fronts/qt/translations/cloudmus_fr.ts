@@ -838,6 +838,10 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Fermer la fenêtre la réduit dans la zone de notification au lieu de quitter</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Cliquer sur l&apos;icône de la barre des menus affiche la fenêtre (le clic droit ouvre le menu)</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Afficher une notification quand la piste change</translation>
     </message>

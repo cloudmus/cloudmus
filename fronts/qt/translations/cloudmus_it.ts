@@ -838,6 +838,10 @@ Accetti di usare i download solo in questo modo?</translation>
         <translation>Chiudere la finestra la riduce nell’area di notifica invece di uscire</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Un clic sull&apos;icona nella barra dei menu mostra la finestra (il clic destro apre il menu)</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Mostra una notifica quando cambia il brano</translation>
     </message>

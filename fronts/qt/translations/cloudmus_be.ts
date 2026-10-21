@@ -838,6 +838,10 @@ Do you agree to use downloads only this way?</source>
         <translation>Закрыццё акна згортвае ў трэй замест выхаду</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Пстрычка па значку ў радку меню паказвае акно (пстрычка правай кнопкай адкрывае меню)</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Паказваць апавяшчэнне пры змене трэка</translation>
     </message>

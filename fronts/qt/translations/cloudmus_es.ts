@@ -838,6 +838,10 @@ Do you agree to use downloads only this way?</source>
         <translation>Cerrar la ventana la minimiza a la bandeja en lugar de salir</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Al hacer clic en el icono de la barra de menús se muestra la ventana (el clic derecho abre el menú)</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Mostrar una notificación al cambiar de pista</translation>
     </message>

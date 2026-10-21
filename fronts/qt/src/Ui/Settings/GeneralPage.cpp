@@ -16,6 +16,7 @@
 #include "Spacing.h"
 #include "ThemeCrossfade.h"
 #include "Tokens.h"
+#include "TrayIcon.h"
 #include "Typography.h"
 #include "WindowGlass.h"
 
@@ -50,6 +51,9 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
         = makeCheck(tr("Resume playback on start if it was playing at exit"), settings_.resumePlaybackAtStartup());
     closeToTrayCheck_ = makeCheck(
         tr("Closing the window minimizes to the tray instead of quitting"), settings_.closeMinimizesToTray());
+    trayClickShowsWindowCheck_
+        = makeCheck(tr("Clicking the menu bar icon shows the window (right-click opens the menu)"),
+            settings_.trayClickShowsWindow());
     trackNotificationsCheck_
         = makeCheck(tr("Show a notification when the track changes"), settings_.trackNotifications());
 
@@ -144,6 +148,7 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addLayout(startHiddenRow);
     layout->addWidget(resumePlaybackCheck_);
     layout->addWidget(closeToTrayCheck_);
+    layout->addWidget(trayClickShowsWindowCheck_);
     layout->addWidget(trackNotificationsCheck_);
     layout->addSpacing(Theme::Spacing::space3);
     layout->addLayout(colorSchemeRow);
@@ -154,6 +159,9 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     launchAtLoginCheck_->hide();
     startHiddenCheck_->hide();
     trackNotificationsCheck_->hide();
+#else
+    // Elsewhere a click on the tray icon always shows the window.
+    trayClickShowsWindowCheck_->hide();
 #endif
     layout->addLayout(languageRow);
     layout->addWidget(glassCheck_);
@@ -173,6 +181,7 @@ bool GeneralPage::isDirty() const
             || startHiddenCheck_->isChecked() != settings_.startHiddenAtLogin()
             || resumePlaybackCheck_->isChecked() != settings_.resumePlaybackAtStartup()
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
+            || trayClickShowsWindowCheck_->isChecked() != settings_.trayClickShowsWindow()
             || trackNotificationsCheck_->isChecked() != settings_.trackNotifications()
             || colorSchemeCombo_->currentData().toInt() != int(settings_.colorScheme())
             || trayPanelCombo_->currentData().toInt() != int(settings_.trayPanel())
@@ -191,6 +200,8 @@ Rpc::Task<bool> GeneralPage::apply()
     settings_.setStartHiddenAtLogin(startHiddenCheck_->isChecked());
     settings_.setResumePlaybackAtStartup(resumePlaybackCheck_->isChecked());
     settings_.setCloseMinimizesToTray(closeToTrayCheck_->isChecked());
+    settings_.setTrayClickShowsWindow(trayClickShowsWindowCheck_->isChecked());
+    Integration::TrayIcon::setClickShowsWindow(trayClickShowsWindowCheck_->isChecked());
     if (trackNotificationsCheck_->isChecked() != settings_.trackNotifications())
         settings_.setTrackNotifications(trackNotificationsCheck_->isChecked());
     const auto scheme = Config::Settings::ColorScheme(colorSchemeCombo_->currentData().toInt());
