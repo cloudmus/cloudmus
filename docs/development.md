@@ -175,9 +175,13 @@ cmake --build fronts/qt/build
 CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/CloudMus.app/Contents/MacOS/CloudMus
 ```
 
-The app is built as `CloudMus.app` (signed ad hoc): macOS takes the name
-the Dock and the menu bar show, and Now Playing and notifications the
-app's identity, from the bundle.
+The app is built as `CloudMus.app` (signed ad hoc on every build): macOS
+takes the name the Dock and the menu bar show, the icon of Finder and the
+notifications (`AppIcon.icns`, drawn from the logo at build time by
+`tools/MakeIconset.cpp`), and Now Playing and notifications the app's
+identity, from the bundle. Notification Center caches the icon; after
+changing it, `lsregister -f` the bundle (in
+`/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/`).
 
 `build-deps.sh` builds libmpv 0.41 (LGPL, Core Audio only) and its
 dependencies from tarballs checked against their sha256, for

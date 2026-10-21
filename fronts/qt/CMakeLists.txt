@@ -624,11 +624,29 @@ elseif(APPLE)
         MACOSX_BUNDLE_BUNDLE_NAME CloudMus
         MACOSX_BUNDLE_GUI_IDENTIFIER io.github.cloudmus.CloudMus
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
-        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
+        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+        MACOSX_BUNDLE_ICON_FILE AppIcon)
+    # The bundle's icon (Finder, notifications), drawn from the logo by a
+    # tool built for this machine and packed by iconutil.
+    add_executable(cloudmus-make-iconset tools/MakeIconset.cpp)
+    target_link_libraries(cloudmus-make-iconset PRIVATE Qt6::Gui Qt6::Svg)
+    set(_iconset "${CMAKE_CURRENT_BINARY_DIR}/AppIcon.iconset")
+    set(_icns "${CMAKE_CURRENT_BINARY_DIR}/AppIcon.icns")
+    add_custom_command(OUTPUT ${_icns}
+        COMMAND ${CMAKE_COMMAND} -E rm -rf ${_iconset}
+        COMMAND cloudmus-make-iconset ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/logo.svg ${_iconset}
+        COMMAND iconutil -c icns -o ${_icns} ${_iconset}
+        DEPENDS cloudmus-make-iconset ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/logo.svg
+        VERBATIM)
+    target_sources(cloudmus-qt PRIVATE ${_icns})
+    set_source_files_properties(${_icns} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
     # The linker signs the executable alone; notifications want the whole
-    # bundle signed, ad hoc is enough on the machine that built it.
-    add_custom_command(TARGET cloudmus-qt POST_BUILD
+    # bundle signed, ad hoc is enough on the machine that built it. Signed
+    # on every build (a fraction of a second), not after linking only: a
+    # changed Info.plist or icon breaks the signature as well.
+    add_custom_target(cloudmus-qt-sign ALL
         COMMAND codesign --force --sign - $<TARGET_BUNDLE_DIR:cloudmus-qt>
+        DEPENDS cloudmus-qt
         VERBATIM)
 endif()
 # The app's own texts, one translations/cloudmus_<code>.ts per language
@@ -647,6 +665,10 @@ foreach(_target cloudmus-core cloudmus-ui cloudmus-qt)
         list(REMOVE_ITEM _tr_sources "${_source}")
     endforeach()
 endforeach()
+# Qt would list the languages in CFBundleLocalizations from the .ts files,
+# but reads them with an xmllint that prints to stderr on newer macOS and
+# takes that for a failure; resources/Info.plist.in lists them instead.
+set(QT_SKIP_STORE_LANGUAGES_FROM_TS_FILES ON)
 qt_add_translations(cloudmus-qt
     TS_FILES
         translations/cloudmus_be.ts
