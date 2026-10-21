@@ -176,6 +176,11 @@ public:
     bool trayClickShowsWindow() const;
     void setTrayClickShowsWindow(bool value);
 
+    // macOS: the Dock icon shows the playing track's cover
+    // (Integration::DockTile::setShowsCover()). Off: the logo.
+    bool dockShowsCover() const;
+    void setDockShowsCover(bool value);
+
     // Launched at login (Integration::Autostart): stay in the tray instead
     // of opening the window.
     bool startHiddenAtLogin() const;

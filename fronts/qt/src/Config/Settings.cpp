@@ -334,6 +334,10 @@ void Settings::setTrayClickShowsWindow(bool value)
     settings_.setValue(QStringLiteral("tray/clickShowsWindow"), value);
 }
 
+bool Settings::dockShowsCover() const { return settings_.value(QStringLiteral("dock/showsCover"), false).toBool(); }
+
+void Settings::setDockShowsCover(bool value) { settings_.setValue(QStringLiteral("dock/showsCover"), value); }
+
 bool Settings::startHiddenAtLogin() const
 {
     return settings_.value(QStringLiteral("window/startHiddenAtLogin"), true).toBool();

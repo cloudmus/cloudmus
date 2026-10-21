@@ -384,6 +384,8 @@ elseif(APPLE)
         src/Integration/DesktopColorSchemeMac.cpp
         src/Integration/DockIcon.h
         src/Integration/DockIconMac.mm
+        src/Integration/DockTile.h
+        src/Integration/DockTileMac.cpp
         src/Integration/NowPlayingCenter.h
         src/Integration/NowPlayingCenterMac.mm
         src/Integration/QuitSignals.cpp)

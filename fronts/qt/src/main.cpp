@@ -67,6 +67,7 @@
 #endif
 #ifdef Q_OS_MACOS
 #include "DockIcon.h"
+#include "DockTile.h"
 #include "NowPlayingCenter.h"
 #endif
 
@@ -255,6 +256,9 @@ int main(int argc, char** argv)
     Ui::Settings::GeneralPage::applyColorScheme(settings.colorScheme());
     Ui::Settings::GeneralPage::applyTrayPanel(settings.trayPanel());
     Integration::TrayIcon::setClickShowsWindow(settings.trayClickShowsWindow());
+#ifdef Q_OS_MACOS
+    Integration::DockTile::setShowsCover(settings.dockShowsCover());
+#endif
     // Before the stylesheet and any window: both are built for glass or
     // not, and a window can't gain an alpha channel once created.
     Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())
@@ -335,6 +339,9 @@ int main(int argc, char** argv)
     Integration::NowPlayingCenter nowPlayingCenter(playback, core.nowPlaying(), core.coverArtCache());
     QObject::connect(&nowPlayingCenter, &Integration::NowPlayingCenter::commandReceived, &core.analytics(),
         [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
+    Integration::DockTile dockTile(core.nowPlaying(), core.coverArtCache());
+    QObject::connect(dockTile.menu(), &QMenu::triggered, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("dock")); });
 #endif
 
     Integration::NotificationToast notificationToast(tray.systemTrayIcon());

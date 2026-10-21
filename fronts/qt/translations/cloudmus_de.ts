@@ -146,6 +146,41 @@
     </message>
 </context>
 <context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Weiter</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Zurück</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pause</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Wiedergabe</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>„Gefällt mir“ entfernen</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Gefällt mir</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>„Gefällt mir nicht“ entfernen</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Gefällt mir nicht</translation>
+    </message>
+</context>
+<context>
     <name>Integration::GlobalHotkeys</name>
     <message>
         <source>CloudMus doesn&apos;t support them on macOS yet.</source>
@@ -851,6 +886,10 @@ Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
     <message>
         <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
         <translation>Ein Klick auf das Symbol in der Menüleiste zeigt das Fenster (Rechtsklick öffnet das Menü)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Cover des laufenden Titels auf dem Dock-Symbol zeigen</translation>
     </message>
     <message>
         <source>Show a notification when the track changes</source>

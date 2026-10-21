@@ -146,6 +146,41 @@
     </message>
 </context>
 <context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Следующий</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Предыдущий</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Пауза</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Воспроизвести</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Убрать «Нравится»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Нравится</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Убрать «Не нравится»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не нравится</translation>
+    </message>
+</context>
+<context>
     <name>Integration::GlobalHotkeys</name>
     <message>
         <source>CloudMus doesn&apos;t support them on macOS yet.</source>
@@ -851,6 +886,10 @@ Do you agree to use downloads only this way?</source>
     <message>
         <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
         <translation>Щелчок по значку в строке меню показывает окно (правый щелчок открывает меню)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Показывать обложку играющего трека на значке в Dock</translation>
     </message>
     <message>
         <source>Show a notification when the track changes</source>
