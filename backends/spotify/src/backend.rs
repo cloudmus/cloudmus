@@ -45,6 +45,9 @@ fn capabilities() -> Value {
         // Saved by the front from the stream (docs/protocol.md §7.5).
         "download": false,
         "downloadFromStream": true,
+        // The streams come from this process's own server, one reader per
+        // file (stream.rs): more connections would only take turns.
+        "parallelDownload": false,
         "auth": {"required": true, "flow": "oauthRedirect"},
     })
 }

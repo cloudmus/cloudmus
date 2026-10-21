@@ -204,7 +204,8 @@ impl StreamServer {
             mime_type: mime_type.into(),
             codec: Some(codec.into()),
             bitrate_kbps: Some(bitrate_kbps(format)),
-            // One reader per open file: parallel ranges would only take turns.
+            // One reader per open file: parallel ranges would only take turns
+            // (and the capabilities say parallelDownload: false).
             max_connections: Some(1),
             ..Default::default()
         })
