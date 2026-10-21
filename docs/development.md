@@ -186,6 +186,8 @@ The TUI's python-mpv finds that libmpv with
 Not on macOS yet (the stubs are `*Mac.cpp`): Now Playing and media keys,
 notifications, launch at login, global shortcuts, self-update, and Sentry.
 The Linux D-Bus integrations (MPRIS, the portal) aren't built there.
+While the window is in the tray (the menu bar), the app leaves the Dock
+and Cmd+Tab (`DockIconMac.mm`).
 
 ## Tests
 

@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
 project(cloudmus-qt VERSION 0.1.0 LANGUAGES C CXX)
+if(APPLE)
+    enable_language(OBJCXX) # AppKit calls in *Mac.mm
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -379,6 +382,8 @@ elseif(APPLE)
         src/Integration/NotificationToastMac.cpp
         src/Integration/DesktopColorScheme.h
         src/Integration/DesktopColorSchemeMac.cpp
+        src/Integration/DockIcon.h
+        src/Integration/DockIconMac.mm
         src/Integration/QuitSignals.cpp)
 else()
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
@@ -524,6 +529,13 @@ if(WIN32)
     # cover to SMTC without an http(s) URL (SmtcService.cpp); ole32 for
     # CoCreateInstance(ITaskbarList3) (TaskbarThumbButtons.cpp).
     target_link_libraries(cloudmus-ui PRIVATE shell32 dwmapi runtimeobject shcore shlwapi ole32)
+endif()
+if(APPLE)
+    # The Dock's icon and the app's presence there (DockIconMac.mm). The
+    # precompiled Qt headers are C++'s; the one Objective-C++ file does
+    # without.
+    target_link_libraries(cloudmus-ui PRIVATE "-framework AppKit")
+    set_source_files_properties(src/Integration/DockIconMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 endif()
 
 # Glass (Integration::WindowGlass): blur asked of the compositor directly —

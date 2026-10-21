@@ -65,6 +65,9 @@
 #ifdef Q_OS_LINUX
 #include "MprisService.h"
 #endif
+#ifdef Q_OS_MACOS
+#include "DockIcon.h"
+#endif
 
 namespace {
 
@@ -270,10 +273,15 @@ int main(int argc, char** argv)
     // jagged edges. A ladder of sizes rendered from the SVG lets the
     // compositor pick one close to what it draws.
     const QIcon logo(QStringLiteral(":/icons/icons/logo.svg"));
+#ifdef Q_OS_MACOS
+    // Windows have no icons on macOS; the Dock's one is drawn on its own.
+    Integration::DockIcon::setIcon(logo);
+#else
     QIcon appIcon;
     for (int side : { 16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512 })
         appIcon.addPixmap(logo.pixmap(QSize(side, side), 1.0));
     QApplication::setWindowIcon(appIcon);
+#endif
 #ifdef Q_OS_WIN
     // Before the first notification, which Windows 11 heads with the name
     // registered for the AppUserModelID set above.
