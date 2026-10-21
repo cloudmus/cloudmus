@@ -12,7 +12,7 @@ class SourceSession;
 namespace ViewModel {
 
 // A source's page, as far as signing in goes: asking it again (Retry /
-// Sign in) and sending the user's answer to a username/password prompt —
+// Sign in), starting a sign-in over, and sending the user's answer to a username/password prompt —
 // each busy while in flight, so the page can't be clicked twice. What the
 // page shows otherwise comes straight from Rpc::AuthStates,
 // ViewModel::Sources and the source's capabilities.
@@ -24,6 +24,7 @@ public:
 
     bool isBusy(const QString& sourceId) const { return busy_.contains(sourceId); }
     void signIn(const QString& sourceId);
+    void restartSignIn(const QString& sourceId);
     void submit(const QString& sourceId, const QJsonObject& fields);
 
 signals:

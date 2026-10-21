@@ -1,0 +1,41 @@
+[package]
+name = "cloudmus-backend-spotify"
+version = "0.1.0"
+edition = "2021"
+description = "cloudmus backend: Spotify, through librespot"
+license = "MIT"
+publish = false
+
+# Build with --locked: Cargo.lock holds vergen at 9.0.6, as librespot's own
+# lock does — with vergen 9.1 librespot-core's build script doesn't compile.
+
+[dependencies]
+# rustls with bundled roots, not native-tls: one static binary that finds
+# the same CA set on any distro and on Windows.
+librespot-core = { version = "0.8", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-audio = { version = "0.8", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-metadata = { version = "0.8", default-features = false, features = ["rustls-tls-webpki-roots"] }
+librespot-protocol = "0.8"
+
+base64 = "0.22"
+bytes = "1"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+http = "1"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+libc = "0.2"
+log = "0.4"
+percent-encoding = "2"
+env_logger = { version = "0.11", default-features = false, features = ["auto-color", "humantime"] }
+protobuf = "3"
+rand = "0.9"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "sync", "time", "fs"] }
+url = "2"
+
+[profile.release]
+strip = true
+lto = "thin"

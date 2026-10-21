@@ -5,6 +5,34 @@ Tracks changes to the cloudmus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.18 — sources whose streams take one connection
+
+- **Additive, backward-compatible**: optional capability `parallelDownload`
+  (§5), `true` when absent. A source declaring `false` has its streams
+  fetched over one connection, whatever the listener set, and the front
+  doesn't offer the Download connections setting for it. The Spotify
+  backend does so: it serves its streams itself on this machine, and more
+  connections would only take turns reading the one file.
+
+## Starting a sign-in over (no version change)
+
+- **Clarified, no wire change** (§10): `auth.start` right after
+  `auth.cancel` begins a new sign-in with a new prompt, and the cancelled
+  one reports nothing more. Before, the Yandex and YouTube backends took a
+  sign-in that hadn't noticed its cancel yet as still running, and
+  ignored the new `auth.start`.
+
+## Streams a source serves itself (no version change)
+
+- **Clarified, no wire change** (§6, §4.3): a `StreamDescriptor.url` on a
+  loopback host (`127.0.0.1`, `::1`, `localhost`) is served by the source
+  process itself, and a front fetches it directly, never through the
+  source's proxy. The Spotify backend serves the audio it decrypts this
+  way. Before, a front routed every stream through the source's proxy,
+  which can't reach this machine's loopback.
+- `auth.flow: "oauthRedirect"` (§10.3) is no longer provisional: the
+  Spotify backend implements it.
+
 ## Requests handled concurrently (no version change)
 
 - **Clarified, no wire change** (§3): a source handles requests

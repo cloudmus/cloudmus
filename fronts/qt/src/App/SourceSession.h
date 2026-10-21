@@ -43,6 +43,9 @@ public:
     // Asks the source to sign in unless it already is (auth.getStatus, then
     // auth.start) — its prompt and result then come in as notifications.
     Rpc::Task<void> signIn(QString sourceId);
+    // Drops the sign-in under way and begins a new one (auth.cancel, then
+    // auth.start): a new code or link comes in as a prompt.
+    Rpc::Task<void> restartSignIn(QString sourceId);
     // The user's answer to a usernamePassword prompt (auth.submit). An
     // empty result on success, else what went wrong (also posted as an
     // error message).

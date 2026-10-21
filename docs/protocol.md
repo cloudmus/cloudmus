@@ -192,7 +192,8 @@ nothing on the wire changes:
   system's.
 - The front fetches what a source hands it — stream URLs, cover art —
   through the same proxy: a service may only honor a stream URL from the
-  address that asked for it.
+  address that asked for it. A stream URL on a loopback host is the
+  exception (§6, StreamDescriptor): the source serves it itself.
 - A different proxy takes effect by restarting the source (§4.2, then a new
   process and `initialize`).
 
@@ -240,12 +241,14 @@ defaults, since the front does not assume any implicit capability.
 | `downloadFromStream` | bool | Optional (1.12+). The front may save a track from the stream `playback.resolveStream` returns, downloading, naming and tagging the file itself; the source needs no `catalog.downloadTrack` (§7.5). |
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `network` | bool | Optional (1.10+), **defaults to `true` when absent**: the source reaches the network, so the front offers its per-source Connection setting (system / direct / proxy) and routes the source's streams and covers through it. A source working only with local files declares `false`. |
+| `parallelDownload` | bool | Optional (1.18+), **defaults to `true` when absent**: the front may fetch the source's streams in several ranges at once (`StreamDescriptor.maxConnections`, §6), and offers its per-source Download connections setting. `false`: every stream is fetched over one connection, whatever the listener set, and the setting isn't offered — for a source whose streams gain nothing from it, such as one serving them itself on this machine. |
 | `localization` | object | Optional (1.11+). `{"locales": [string, ...]}`: the source can answer user-facing strings in these languages (BCP-47, English implied) and supports `localization.setLanguage` (§7.8). |
 | `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
 | `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
 
-`network` is the one capability that is assumed when absent, so sources
-that predate it keep their Connection setting.
+`network` and `parallelDownload` are the capabilities assumed when absent,
+so sources that predate them keep their Connection and Download
+connections settings.
 
 The front should treat an absent/omitted nested object as "capability not
 declared, do not attempt" (defensive default), but conformant sources are
@@ -342,6 +345,13 @@ the front's own playback engine and never needs to be pushed back.
 file path) without breaking existing consumers; `"url"` is the only defined
 value in v1.
 
+A `url` on a loopback host (`127.0.0.1`, `::1`, `localhost`) is served by
+the source process itself — one that fetches and decodes its service's
+audio on its own, like the Spotify backend. A front fetches such a URL
+directly, never through the source's proxy (§4.3): no proxy can reach this
+machine's loopback. The source keeps the URL valid while it runs and
+should guard it against other local users (an unguessable path).
+
 `codec` and `bitrateKbps` say what the source picked among the variants it
 has of the track (§7.2), for a front to show the listener; both are plain
 information, playback never depends on them. A source leaves out what it
@@ -352,7 +362,9 @@ source's service puts up with at once. A front that downloads the stream
 may split it into ranges and fetch up to that many in parallel — worth it
 where the service holds each connection to a slow pace. Absent means 1: one
 request at a time. The listener may override it in the front's settings; a
-front never goes above what it caps itself.
+front never goes above what it caps itself. A source declaring
+`parallelDownload: false` (§5) is always fetched over one connection, and
+offers no such setting.
 
 ---
 
@@ -753,6 +765,12 @@ The front calls `auth.getStatus` right after `initialize` when
 `auth.required` is true. If not authenticated, it calls `auth.start` and
 waits for `auth/prompt` / `auth/statusChanged` notifications.
 
+`auth.start` while a sign-in is running changes nothing. `auth.cancel`
+ends the running one at once, even if the source only notices later: an
+`auth.start` right after it begins a **new** sign-in, with a new prompt
+(a front's "Start over"), and the cancelled one sends nothing more — no
+prompt, no `auth/statusChanged`.
+
 Any `auth/prompt` may carry an optional `"message"` (1.5+): what the user
 has to do, in the source's own words — a front can't know that a
 `usernamePassword` field expects, say, headers copied from a browser. It
@@ -803,11 +821,19 @@ paste (see that backend's `auth.py`) is the first real user of this.
 --> auth.start {}
 <-- {} (ack)
 <-- auth/prompt {"flow":"oauthRedirect","url":"https://..."}
-      (front just opens this URL in a browser; the SOURCE owns any local-loopback
+      (front offers to open this URL in a browser; the SOURCE owns any local-loopback
        redirect listener needed to catch the callback — not the front)
 <-- auth/statusChanged {"status":"authenticated"}
 ```
-No concrete source uses this flow yet in v1; the shape above is reserved.
+The front opens the URL when the user asks (a Sign in button), not on the
+prompt alone: it sends `auth.start` as soon as a source needing a sign-in
+starts. It also shows the URL itself, for a browser other than the default
+one. The URL stays valid while the source waits; a source doesn't give up
+on its own, as there's no telling how long the user takes.
+
+The Spotify backend uses this flow: its listener is on `127.0.0.1` with a
+port of its own choosing, and the prompt carries a `message` as well
+(§10).
 
 Credentials/tokens are stored inside each source's own private config
 directory. The front never sees them and never needs source-specific
@@ -880,9 +906,6 @@ something bumps MAJOR. Changes are tracked in `docs/protocol-changelog.md`.
 - `catalog.resolveUrl` (resolving a pasted service URL/ID directly) is not
   part of the protocol; if a source wants this, it's exposed only through
   that source's own standalone debug CLI, outside RPC.
-- `auth.flow: "oauthRedirect"` has a defined message shape (§10.3) but no
-  source implements it yet — treat as provisional until a real
-  implementation exercises it.
 
 ---
 

@@ -2,7 +2,8 @@
 # Builds a self-contained Linux AppImage for cloudmus-qt, bundling its
 # Python backends too — see packaging/appimage/ for the full design
 # rationale (Debian 11 base for an old glibc floor, Qt6 via aqtinstall
-# since bullseye has no Qt6 packages, bundled Python runtime, etc.).
+# since bullseye has no Qt6 packages, bundled Python runtime, etc.) — and
+# the Spotify backend, a static Rust binary (packaging/build-spotify.sh).
 #
 # Also run unmodified by .github/workflows/release.yml on an
 # ubuntu-latest runner (Docker is preinstalled there).
@@ -66,6 +67,9 @@ docker run --rm \
     -w /workspace/packaging/appimage/apprun \
     rust:1.98.0-alpine \
     cargo build --release --locked
+
+# The Spotify backend: Rust too, static musl the same way (see the script).
+packaging/build-spotify.sh linux
 
 docker build \
     "${proxy_build_args[@]}" \

@@ -7,6 +7,7 @@
 #include <QUrl>
 
 #include "NetworkPool.h"
+#include "ProxyRouting.h"
 #include "RpcClient.h"
 #include "Settings.h"
 #include "StreamDownload.h"
@@ -320,8 +321,8 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
         connect(entry.download, &StreamDownload::progressed, this, &Preloader::progressChanged);
     }
     qCDebug(lcPreload) << "downloading" << entry.item.title << "from byte" << entry.download->bytesAvailable();
-    entry.download->setSource(StreamSource { url, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)),
-        stream.headers.value_or(QMap<QString, QString> { }) });
+    const QNetworkProxy proxy = Net::streamProxy(route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), url);
+    entry.download->setSource(StreamSource { url, proxy, stream.headers.value_or(QMap<QString, QString> { }) });
     const int wanted = connectionsProvider_ ? connectionsProvider_(entry.item.sourceId) : 0;
     entry.download->setConnections(
         qBound(1, wanted > 0 ? wanted : stream.maxConnections.value_or(1), Config::Settings::kMaxDownloadConnections));

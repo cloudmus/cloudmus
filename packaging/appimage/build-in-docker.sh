@@ -122,6 +122,13 @@ cp -a "$(dirname "$(dirname "${BUNDLED_PYTHON3}")")" "${APPDIR}/usr/python-runti
     ./backends/youtube-music
 ln -s ../python-runtime/bin/python3 "${APPDIR}/usr/bin/python3"
 
+# The Spotify backend, built by build-appimage.sh before this container
+# started (packaging/build-spotify.sh): a static binary of its own, with the
+# licenses of the Rust crates in it.
+cp build-spotify/target/release/cloudmus-backend-spotify "${APPDIR}/usr/bin/"
+mkdir -p "${APPDIR}/usr/share/cloudmus"
+cp build-spotify/THIRD_PARTY-spotify.txt "${APPDIR}/usr/share/cloudmus/"
+
 # Desktop integration: .desktop + icon, under the standard FHS paths
 # linuxdeploy actually scans (usr/share/applications, usr/share/icons) —
 # NOT AppDir root. Root-level copies (plus AppRun) are what linuxdeploy
@@ -136,7 +143,7 @@ cp art/logo.png "${APPDIR}/usr/share/icons/hicolor/512x512/apps/cloudmus-qt.png"
 # Each backend's sidebar icon (manifest.json's "icon") — AppRun writes
 # an absolute path to these into the manifests it seeds every launch.
 mkdir -p "${APPDIR}/usr/share/cloudmus/backend-icons"
-for id in local-folder yandex-music youtube-music; do
+for id in local-folder yandex-music youtube-music spotify; do
     cp "backends/${id}/icon.svg" "${APPDIR}/usr/share/cloudmus/backend-icons/${id}.svg"
 done
 

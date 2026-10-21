@@ -392,12 +392,12 @@
         <translation>Absenden</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Browser öffnen</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Erneut versuchen</translation>
+    </message>
+    <message>
+        <source>Start over</source>
+        <translation>Neu beginnen</translation>
     </message>
     <message>
         <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
@@ -408,16 +408,20 @@
         <translation>Melden Sie sich an, indem Sie unten das Verlangte einfügen.</translation>
     </message>
     <message>
+        <source>Sign in in your browser</source>
+        <translation>Melden Sie sich im Browser an</translation>
+    </message>
+    <message>
+        <source>Or open &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;this link&lt;/a&gt; in a browser of your choice</source>
+        <translation>Oder öffnen Sie &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;diesen Link&lt;/a&gt; in einem Browser Ihrer Wahl</translation>
+    </message>
+    <message>
         <source>Sign in</source>
         <translation>Anmelden</translation>
     </message>
     <message>
         <source>Paste here</source>
         <translation>Hier einfügen</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Im Browser fortfahren</translation>
     </message>
     <message>
         <source>Sign-in required</source>

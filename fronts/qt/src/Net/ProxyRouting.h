@@ -52,6 +52,12 @@ void bypassProxyForLoopback();
 QNetworkProxy networkProxy(const Connection& connection, const QUrl& url);
 QNetworkProxy networkProxy(const Config::ProxyConfig& proxy);
 
+// The route for a stream the source handed out at `url`: `route`, except
+// directly for a loopback host — a source serving its own streams on this
+// machine (docs/protocol.md §6, StreamDescriptor) can't be reached through
+// a proxy elsewhere.
+QNetworkProxy streamProxy(const QNetworkProxy& route, const QUrl& url);
+
 // The proxy the environment names for `url` (an empty one counts as
 // https://), read the way Python's requests does — what a backend left with
 // the System connection uses: <scheme>_proxy, then all_proxy, lowercase

@@ -159,6 +159,7 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     connect(authCard_, &AuthCard::submitRequested, this,
         [this](const QJsonObject& fields) { submitAsync(fields).detach(); });
     connect(authCard_, &AuthCard::retryRequested, this, [this]() { signInAsync().detach(); });
+    connect(authCard_, &AuthCard::restartRequested, this, [this]() { restartSignInAsync().detach(); });
     connect(authCard_, &AuthCard::codeCopied, this, [this]() { toasts_.showSuccess(tr("Code copied")); });
 
     auto* accountLayout = new QVBoxLayout(accountSection_);
@@ -235,8 +236,9 @@ void SourcePage::refresh()
     repeatGapRow_->setVisible(hasRadio);
     repeatGapHint_->setVisible(hasRadio);
 
-    // Only a stream the front downloads itself: not a source's own files.
-    const bool downloadsStreams = running && usesNetwork_
+    // Only a stream the front downloads itself: not a source's own files,
+    // nor one the source keeps to one connection.
+    const bool downloadsStreams = running && usesNetwork_ && client->allowsParallelDownload()
         && client->capabilities()
                .value(QStringLiteral("playback"))
                .toObject()
@@ -262,7 +264,9 @@ void SourcePage::refresh()
     if (!state.prompt.isEmpty()) {
         authCard_->showPrompt(state.prompt);
         authCard_->show();
-        showStatus(tr("Signing in…"), cancelButton_);
+        // No Cancel: the card has what the prompt needs, as on the source's
+        // own page, and a prompt holds nothing to cancel.
+        showStatus(tr("Signing in…"), nullptr);
     } else if (!state.errorMessage.isEmpty()) {
         authCard_->showError(state.errorMessage);
         authCard_->show();
@@ -333,6 +337,29 @@ Rpc::Task<void> SourcePage::signInAsync()
     try {
         // The prompt, if the flow has one, arrives as auth/prompt —
         // through Rpc::AuthStates, into refresh().
+        co_await Rpc::authStart(*client);
+    } catch (const std::exception& e) {
+        if (alive)
+            authCard_->showError(QString::fromStdString(e.what()));
+    }
+    if (alive)
+        authCard_->setBusy(false);
+}
+
+Rpc::Task<void> SourcePage::restartSignInAsync()
+{
+    Rpc::RpcClient* client = sourceManager_.client(manifest_.id);
+    if (client == nullptr)
+        co_return;
+    const QPointer<QWidget> alive = widget_;
+    authCard_->setBusy(true);
+    try {
+        co_await Rpc::authCancel(*client);
+    } catch (const std::exception&) {
+        // Best effort: the sign-in may have just ended on its own.
+    }
+    try {
+        // The new prompt arrives as auth/prompt, into refresh().
         co_await Rpc::authStart(*client);
     } catch (const std::exception& e) {
         if (alive)

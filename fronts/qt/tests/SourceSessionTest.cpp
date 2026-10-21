@@ -56,6 +56,16 @@ private slots:
         QCOMPARE(errors.count(), 0);
     }
 
+    // Start over cancels the sign-in under way before starting one, so the
+    // source begins anew instead of ignoring a start while one runs.
+    void restartingASignInCancelsItFirst()
+    {
+        await(session_->restartSignIn(QStringLiteral("fake")));
+        QTRY_VERIFY(!authStates_.state(QStringLiteral("fake")).prompt.isEmpty());
+        QCOMPARE(authStates_.state(QStringLiteral("fake")).prompt.value(QStringLiteral("url")).toString(),
+            QStringLiteral("https://fake.example/login?afterCancel=1"));
+    }
+
     void aRejectedSubmitReturnsAndReportsWhy()
     {
         QSignalSpy errors(&messages_, &ViewModel::Messages::posted);

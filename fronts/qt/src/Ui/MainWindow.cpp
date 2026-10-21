@@ -366,6 +366,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     sourcePanel_ = sheet_->sourcePanel();
     connect(sourcePanel_, &SourcePanel::submitRequested, &sourcePage_, &ViewModel::SourcePage::submit);
     connect(sourcePanel_, &SourcePanel::retryRequested, &sourcePage_, &ViewModel::SourcePage::signIn);
+    connect(sourcePanel_, &SourcePanel::restartRequested, &sourcePage_, &ViewModel::SourcePage::restartSignIn);
     connect(sourcePanel_, &SourcePanel::playlistActivated, &browse_, &ViewModel::Browse::openPlaylist);
     connect(sourcePanel_, &SourcePanel::favoriteToggled, this, &MainWindow::toggleFavorite);
     sourcePanel_->setFavoriteCheck([this](const QString& sourceId, const QString& playlistId) {

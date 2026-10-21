@@ -392,12 +392,12 @@
         <translation>Отправить</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Открыть браузер</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Повторить</translation>
+    </message>
+    <message>
+        <source>Start over</source>
+        <translation>Начать заново</translation>
     </message>
     <message>
         <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
@@ -408,16 +408,20 @@
         <translation>Войдите, вставив ниже то, что запрашивается.</translation>
     </message>
     <message>
+        <source>Sign in in your browser</source>
+        <translation>Войдите в браузере</translation>
+    </message>
+    <message>
+        <source>Or open &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;this link&lt;/a&gt; in a browser of your choice</source>
+        <translation>Или откройте &lt;a href=&quot;%1&quot; style=&quot;color: %2&quot;&gt;эту ссылку&lt;/a&gt; в нужном браузере</translation>
+    </message>
+    <message>
         <source>Sign in</source>
         <translation>Войти</translation>
     </message>
     <message>
         <source>Paste here</source>
         <translation>Вставьте сюда</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Продолжите в браузере</translation>
     </message>
     <message>
         <source>Sign-in required</source>

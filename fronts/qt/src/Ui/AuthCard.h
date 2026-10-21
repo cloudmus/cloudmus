@@ -15,7 +15,8 @@ class QVBoxLayout;
 namespace Ui {
 
 // A source's sign-in card: renders an auth/prompt (deviceCode's URL and
-// code, usernamePassword's fields, oauthRedirect's browser hand-off —
+// code, usernamePassword's fields, oauthRedirect's Sign in button and
+// link —
 // discriminated by params["flow"], see Rpc::RpcClient::onAuthPromptRaw's
 // doc comment for why this is raw JSON rather than a generated struct), an
 // error with Retry, or a plain "sign in" invitation. Holds no source
@@ -41,8 +42,8 @@ public:
     void showError(const QString& message);
     // Not signed in, nothing gone wrong: a "Sign in" button.
     void showSignInNeeded();
-    // Disables whichever action button is currently relevant (Submit,
-    // Retry or Sign in — only one is ever visible at a time) and shows an
+    // Disables whichever action buttons are currently relevant (Submit,
+    // Retry or Sign in, and Start over) and shows an
     // indeterminate progress indicator, so a click can't be repeated while
     // its RPC round-trip is in flight and the user sees something started.
     void setBusy(bool busy);
@@ -51,6 +52,9 @@ signals:
     void submitRequested(QJsonObject fields);
     // Retry, or Sign in: either way, (re)start the sign-in flow.
     void retryRequested();
+    // "Start over" on a code or browser prompt: drop that sign-in and begin
+    // a new one — for a code that expired, a browser tab closed.
+    void restartRequested();
     // "Copy code" put the device code on the clipboard — for the owner to
     // confirm with a toast in its own window.
     void codeCopied();
@@ -71,13 +75,17 @@ private:
     // of their own here instead. See showPrompt()'s usernamePassword branch.
     QVBoxLayout* multilineFieldsLayout_ = nullptr;
     QPushButton* submitButton_ = nullptr;
-    QPushButton* openBrowserButton_ = nullptr;
+    QPushButton* browserSignInButton_ = nullptr;
+    // oauthRedirect's link, for a browser other than the default one.
+    QLabel* linkLabel_ = nullptr;
     QPushButton* retryButton_ = nullptr;
+    QPushButton* restartButton_ = nullptr;
     QProgressBar* busyIndicator_ = nullptr;
     QHash<QString, QLineEdit*> fieldEdits_;
     QHash<QString, QPlainTextEdit*> multilineFieldEdits_;
-    // oauthRedirect's URL, kept so the manual "Open Browser" button can
-    // re-open it if the automatic open-on-prompt was missed/blocked.
+    // oauthRedirect's URL, opened by the Sign in button: the browser opens
+    // only when the user asks, never on the prompt alone — the front asks
+    // for a sign-in as soon as the source starts.
     QString pendingOAuthUrl_;
 };
 

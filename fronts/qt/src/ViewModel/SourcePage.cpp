@@ -20,6 +20,16 @@ void SourcePage::signIn(const QString& sourceId)
                                                   .detach();
 }
 
+void SourcePage::restartSignIn(const QString& sourceId)
+{
+    [](SourcePage* self, QString sourceId) -> Rpc::Task<void> {
+        self->setBusy(sourceId, true);
+        co_await self->sourceSession_.restartSignIn(sourceId);
+        self->setBusy(sourceId, false);
+    }(this, sourceId)
+                                                  .detach();
+}
+
 void SourcePage::submit(const QString& sourceId, const QJsonObject& fields)
 {
     [](SourcePage* self, QString sourceId, QJsonObject fields) -> Rpc::Task<void> {

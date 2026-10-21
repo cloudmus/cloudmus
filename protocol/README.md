@@ -30,10 +30,11 @@ this protocol needs, not a general JSON-RPC framework.
 ```
 python protocol/codegen/generate.py --lang python   # -> backends/py-rpc-common/rpc_common/generated/
 python protocol/codegen/generate.py --lang cpp       # -> fronts/qt/generated/
-python protocol/codegen/generate.py --lang python cpp  # both
+python protocol/codegen/generate.py --lang rust      # -> backends/spotify/src/generated/
+python protocol/codegen/generate.py --lang python cpp rust  # all
 ```
 
-**Generated output is gitignored, not checked in** — both `generated/`
+**Generated output is gitignored, not checked in** — every `generated/`
 directories are build artifacts, always regenerated from `protocol/` rather
 than committed, so there's nothing to go stale relative to `protocol/schema`
 + `protocol/methods.yaml` in the first place. Practically:
@@ -43,6 +44,8 @@ than committed, so there's nothing to go stale relative to `protocol/schema`
   fresh checkout otherwise) — CI must run this before the Python test suites.
 - Run `python protocol/codegen/generate.py --lang cpp` before building
   `fronts/qt` — CI/the build must run this before invoking CMake.
+- Run `python protocol/codegen/generate.py --lang rust` before building
+  `backends/spotify` (`cargo` fails on the missing `src/generated/` otherwise).
 
 Requires (dev-time only, not a runtime dependency of any generated code):
 `pip install jinja2 pyyaml`. The C++ target also formats its own output with
@@ -106,6 +109,11 @@ trait (specialized for `QString`/`int`/`double`/`bool`/`QJsonValue`; the
 primary template covers any generated struct via its own `fromJson`/`toJson`).
 Uses only Qt (`QJsonObject`/`QJsonArray`/`QJsonValue`, `QString`, `QMap`) plus
 the C++ standard library — no third-party JSON library.
+
+The Rust target (`rustrender.py`, `templates/rust/`) emits serde structs for
+every data type plus constants for the method and notification names; serde
+itself does the validation. It formats its output with `rustfmt` when that is
+on `PATH`, and only warns otherwise.
 
 Go is not generated yet (no backend rewrite has started) — extending
 `generate.py` with a `--lang go` and a `templates/go/` directory when that

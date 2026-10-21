@@ -13,6 +13,7 @@
 
 #include <mpv/client.h>
 
+#include "ProxyRouting.h"
 #include "StreamRelay.h"
 
 namespace Playback {
@@ -272,7 +273,8 @@ void AudioPlayer::play(const QString& url, const QString& title, const std::opti
     // On Windows it is also what keeps libmpv alive: it crashed the whole
     // app when a track change cut off an HTTPS stream it was downloading
     // itself.
-    loadUrl(relay()->urlFor(parsed, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), headers).toString());
+    const QNetworkProxy proxy = Net::streamProxy(route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)), parsed);
+    loadUrl(relay()->urlFor(parsed, proxy, headers).toString());
 }
 
 void AudioPlayer::play(StreamDownload* download, const QString& title)

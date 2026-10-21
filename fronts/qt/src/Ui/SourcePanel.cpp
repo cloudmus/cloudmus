@@ -347,6 +347,7 @@ SourcePanel::SourcePanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     connect(authCard_, &AuthCard::submitRequested, this,
         [this](const QJsonObject& fields) { emit submitRequested(currentSourceId_, fields); });
     connect(authCard_, &AuthCard::retryRequested, this, [this]() { emit retryRequested(currentSourceId_); });
+    connect(authCard_, &AuthCard::restartRequested, this, [this]() { emit restartRequested(currentSourceId_); });
     connect(authCard_, &AuthCard::codeCopied, this, &SourcePanel::codeCopied);
     authCard_->hide();
 
@@ -394,7 +395,15 @@ SourcePanel::SourcePanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     content->setSpacing(Theme::Spacing::space2);
     content->addWidget(new SectionTitle(tr("Status"), column));
     content->addWidget(statusRow_);
-    content->addWidget(authCard_);
+    // In a row of its own, not straight in the column: a vertical layout
+    // asks a widget for its height at the column's width, past the card's
+    // maximum one, and a wrapped message came out a line short — cut off.
+    // A row hands the card the width it really gets.
+    auto* authRow = new QHBoxLayout;
+    authRow->setContentsMargins(0, 0, 0, 0);
+    authRow->addWidget(authCard_, 1);
+    authRow->addStretch(0);
+    content->addLayout(authRow);
     // Sign-in/out and the source's own options live in Settings; this is
     // the way there from the source itself.
     auto* settingsButton = new QPushButton(tr("Settings…"), column);

@@ -235,6 +235,11 @@ class PlayerApp(App):
                 f"{source_id} — sign in: open {params['url']} and enter code  {params['code']}"
                 f"   (expires in ~{minutes} min)"
             )
+        elif params.get("flow") == "oauthRedirect":
+            # The source listens for the browser's return itself (§10.3).
+            # Not opened here: the front asks for a sign-in as soon as the
+            # source starts, and the user picks the browser.
+            banner.update(f"{source_id} — sign in: open {params.get('url', '')} in your browser")
         else:
             banner.update(f"{source_id} — sign-in required ({params.get('flow')})")
         banner.display = True

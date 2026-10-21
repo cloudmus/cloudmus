@@ -80,6 +80,7 @@ public:
 signals:
     void submitRequested(QString sourceId, QJsonObject fields);
     void retryRequested(QString sourceId);
+    void restartRequested(QString sourceId);
     void playlistActivated(QString sourceId, Playlist playlist);
     void favoriteToggled(QString sourceId, QString playlistId);
     void refreshRequested(QString sourceId);
