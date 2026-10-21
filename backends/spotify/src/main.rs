@@ -9,6 +9,7 @@ mod errors;
 #[allow(clippy::all)]
 mod generated;
 mod i18n;
+mod radio;
 mod rpc;
 mod stream;
 

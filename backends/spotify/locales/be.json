@@ -31,5 +31,7 @@
  "Couldn't save the sign-in: {error}": "Не ўдалося захаваць уваход: {error}",
  "Stream resolution cancelled": "Атрыманне патоку скасавана",
  "Track not playable: {error}": "Трэк недаступны для прайгравання: {error}",
- "Failed to resolve stream for {track}: {error}": "Не ўдалося атрымаць паток для {track}: {error}"
+ "Failed to resolve stream for {track}: {error}": "Не ўдалося атрымаць паток для {track}: {error}",
+ "Radio from Liked Songs": "Радыё па ўпадабаных",
+ "Spotify radio needs a track to start from": "Радыё Spotify патрэбны трэк, з якога пачаць"
 }

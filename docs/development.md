@@ -54,7 +54,7 @@ backend is treated as gone.
 | `backends/yandex-music` | Yandex Music | `deviceCode` (OAuth) | yes | My Wave, stations | yes |
 | `backends/youtube-music` | YouTube Music | `usernamePassword` (browser headers, see its [README](../backends/youtube-music/README.md)) | yes | mixes, from a track | yes |
 | `backends/local-folder` | A local music folder (subfolders → playlists) | none | playlists | — | — |
-| `backends/spotify` | Spotify (Premium), through librespot — see its [README](../backends/spotify/README.md) | `oauthRedirect` | yes | — | from the stream |
+| `backends/spotify` | Spotify (Premium), through librespot — see its [README](../backends/spotify/README.md) | `oauthRedirect` | yes | from a track, Liked Songs | from the stream |
 
 `backends/py-rpc-common` is the shared Python NDJSON/JSON-RPC transport and
 the conformance suite. The Spotify backend is in Rust and carries its own

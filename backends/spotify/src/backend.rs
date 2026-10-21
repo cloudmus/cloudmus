@@ -15,9 +15,11 @@ use crate::config;
 use crate::generated::methods::*;
 use crate::generated::models::{
     CancelParams, ErrorParams, LikeParams, ListLikedParams, ListPlaylistsResult, ListTracksParams, PlayParams,
-    ResolveStreamParams, ResolveStreamResult, StreamReadyParams, UnlikeParams,
+    ResolveStreamParams, ResolveStreamResult, SkipParams, StartRadioParams, StreamReadyParams, TrackFinishedParams,
+    TrackStartedParams, UnlikeParams,
 };
 use crate::i18n::{self, tr, trf};
+use crate::radio::{self, RadioSession};
 use crate::rpc::errors::{
     app_error_data, parse_params, to_result, REASON_UNAVAILABLE, RESOURCE_NOT_FOUND, STATE_INVALID,
     UPSTREAM_UNREACHABLE,
@@ -38,7 +40,7 @@ fn capabilities() -> Value {
             "selfPlayback": false,
             "controls": {"pause": false, "seek": false, "volume": false},
         },
-        "browse": {"playlists": true, "likedTracks": true, "radio": false, "search": false, "editPlaylists": false},
+        "browse": {"playlists": true, "likedTracks": true, "radio": true, "search": false, "editPlaylists": false},
         "feedback": {"like": true, "dislike": false, "skip": false},
         // Saved by the front from the stream (docs/protocol.md §7.5).
         "download": false,
@@ -55,6 +57,7 @@ struct Backend {
     notifier: Notifier,
     /// Stream resolutions in flight, by the request id playback.cancel names.
     inflight: Mutex<HashMap<i64, AbortHandle>>,
+    radio: tokio::sync::Mutex<RadioSession>,
 }
 
 /// A catalog failure as the front should see it.
@@ -138,6 +141,7 @@ pub async fn build_server() -> std::io::Result<Server> {
         ),
         notifier,
         inflight: Mutex::new(HashMap::new()),
+        radio: tokio::sync::Mutex::new(RadioSession::default()),
     });
 
     macro_rules! handle {
@@ -168,7 +172,9 @@ pub async fn build_server() -> std::io::Result<Server> {
     // --- catalog ---
     handle!(CATALOG_LIST_PLAYLISTS, |b, _p, _id| {
         let session = b.account.session().await?;
-        let playlists = catalog::list_playlists(&session, &b.liked).await.map_err(|e| catalog_error(&e))?;
+        let mut playlists = catalog::list_playlists(&session, &b.liked).await.map_err(|e| catalog_error(&e))?;
+        // Right after Liked Songs, which it plays from.
+        playlists.insert(1, radio::liked_station());
         to_result(ListPlaylistsResult { playlists })
     });
     handle!(CATALOG_LIST_TRACKS, |b, p, _id| {
@@ -221,6 +227,51 @@ pub async fn build_server() -> std::io::Result<Server> {
         if let Some(task) = b.inflight.lock().unwrap().remove(&params.request_id) {
             task.abort();
         }
+        Ok(json!({}))
+    });
+
+    // --- radio ---
+    handle!(CATALOG_START_RADIO, |b, p, _id| {
+        let params: StartRadioParams = parse_params(p)?;
+        let Some(seed) = params.seed.filter(|s| !s.is_empty()) else {
+            return Err(RpcError::new(STATE_INVALID, tr("Spotify radio needs a track to start from"))
+                .with_data(app_error_data(false, None, None, None)));
+        };
+        let session = b.account.session().await?;
+        let recent = params.recent_track_ids.unwrap_or_default();
+        let result =
+            b.radio.lock().await.start(&session, &b.liked, &seed, &recent).await.map_err(|e| catalog_error(&e))?;
+        to_result(result)
+    });
+    handle!(FEEDBACK_TRACK_STARTED, |b, p, _id| {
+        let params: TrackStartedParams = parse_params(p)?;
+        let session = b.account.session().await?;
+        let mut radio = b.radio.lock().await;
+        radio
+            .track_started(&session, &b.liked, &b.notifier, &params.track_id, params.queued_after)
+            .await
+            .map_err(|e| upstream_error(&e))?;
+        Ok(json!({}))
+    });
+    handle!(FEEDBACK_TRACK_FINISHED, |b, p, _id| {
+        let params: TrackFinishedParams = parse_params(p)?;
+        let session = b.account.session().await?;
+        let mut radio = b.radio.lock().await;
+        radio
+            .track_finished(&session, &b.liked, &b.notifier, &params.track_id, params.queued_after)
+            .await
+            .map_err(|e| upstream_error(&e))?;
+        Ok(json!({}))
+    });
+    handle!(FEEDBACK_SKIP, |b, p, _id| {
+        let params: SkipParams = parse_params(p)?;
+        let session = b.account.session().await?;
+        b.radio
+            .lock()
+            .await
+            .skip(&session, &b.liked, &b.notifier, &params.track_id)
+            .await
+            .map_err(|e| upstream_error(&e))?;
         Ok(json!({}))
     });
 

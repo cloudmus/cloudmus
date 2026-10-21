@@ -31,5 +31,7 @@
  "Couldn't save the sign-in: {error}": "Impossible d’enregistrer la connexion : {error}",
  "Stream resolution cancelled": "Récupération du flux annulée",
  "Track not playable: {error}": "Piste illisible : {error}",
- "Failed to resolve stream for {track}: {error}": "Impossible de récupérer le flux de {track} : {error}"
+ "Failed to resolve stream for {track}: {error}": "Impossible de récupérer le flux de {track} : {error}",
+ "Radio from Liked Songs": "Radio de vos titres likés",
+ "Spotify radio needs a track to start from": "La radio Spotify a besoin d’un titre de départ"
 }

@@ -31,5 +31,7 @@
  "Couldn't save the sign-in: {error}": "No se pudo guardar el inicio de sesión: {error}",
  "Stream resolution cancelled": "Obtención del flujo cancelada",
  "Track not playable: {error}": "La pista no se puede reproducir: {error}",
- "Failed to resolve stream for {track}: {error}": "No se pudo obtener el flujo de {track}: {error}"
+ "Failed to resolve stream for {track}: {error}": "No se pudo obtener el flujo de {track}: {error}",
+ "Radio from Liked Songs": "Radio de tus canciones que te gustan",
+ "Spotify radio needs a track to start from": "La radio de Spotify necesita una pista para empezar"
 }

@@ -17,12 +17,16 @@ Spotify itself.
 
 - Your playlists (those in your library, folders flattened) and Liked Songs.
 - Like / unlike.
+- Radio from any track, and a station from your Liked Songs, played like
+  My Wave: built on Spotify's own track radio ("inspired by" mixes), it
+  follows the tracks you play to the end and drops the ones you skip. See
+  `src/radio.rs`.
 - Streams with preloading and seeking, Ogg Vorbis (or MP3 where that's all
   there is). The **Quality** setting picks 320, 160 or 96 kbps. Tracks not
   available in your country play one of Spotify's alternatives, as the
   official clients do.
 - Saving tracks: the front saves the stream (`downloadFromStream`).
-- Not yet: radio, search, editing playlists.
+- Not yet: search, editing playlists, dislikes.
 
 ## Signing in
 

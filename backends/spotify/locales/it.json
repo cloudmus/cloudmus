@@ -31,5 +31,7 @@
  "Couldn't save the sign-in: {error}": "Impossibile salvare l’accesso: {error}",
  "Stream resolution cancelled": "Recupero dello stream annullato",
  "Track not playable: {error}": "Brano non riproducibile: {error}",
- "Failed to resolve stream for {track}: {error}": "Impossibile recuperare lo stream di {track}: {error}"
+ "Failed to resolve stream for {track}: {error}": "Impossibile recuperare lo stream di {track}: {error}",
+ "Radio from Liked Songs": "Radio dai brani che ti piacciono",
+ "Spotify radio needs a track to start from": "La radio di Spotify ha bisogno di un brano da cui partire"
 }

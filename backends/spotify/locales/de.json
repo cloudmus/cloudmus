@@ -31,5 +31,7 @@
  "Couldn't save the sign-in: {error}": "Anmeldung konnte nicht gespeichert werden: {error}",
  "Stream resolution cancelled": "Abrufen des Streams abgebrochen",
  "Track not playable: {error}": "Titel nicht abspielbar: {error}",
- "Failed to resolve stream for {track}: {error}": "Stream für {track} konnte nicht abgerufen werden: {error}"
+ "Failed to resolve stream for {track}: {error}": "Stream für {track} konnte nicht abgerufen werden: {error}",
+ "Radio from Liked Songs": "Radio aus deinen Lieblingssongs",
+ "Spotify radio needs a track to start from": "Spotify-Radio braucht einen Titel als Ausgangspunkt"
 }
