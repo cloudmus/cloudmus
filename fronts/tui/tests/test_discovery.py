@@ -11,6 +11,11 @@ def test_discover_manifests_dev_mode(monkeypatch, tmp_path):
     ids = {m.id for m in manifests}
     assert "local-folder" in ids
     assert "yandex-music" in ids
+    # A program path in a manifest is relative to its own directory.
+    spotify = next(m for m in manifests if m.id == "spotify")
+    assert spotify.argv[0] == str(spotify.manifest_path.parent / "target/release/cloudmus-backend-spotify")
+    local = next(m for m in manifests if m.id == "local-folder")
+    assert local.argv[0] == "python3"
 
 
 def test_discover_manifests_reads_production_dir(monkeypatch, tmp_path):
