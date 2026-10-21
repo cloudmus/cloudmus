@@ -264,7 +264,9 @@ void SourcePage::refresh()
     if (!state.prompt.isEmpty()) {
         authCard_->showPrompt(state.prompt);
         authCard_->show();
-        showStatus(tr("Signing in…"), cancelButton_);
+        // No Cancel: the card has what the prompt needs, as on the source's
+        // own page, and a prompt holds nothing to cancel.
+        showStatus(tr("Signing in…"), nullptr);
     } else if (!state.errorMessage.isEmpty()) {
         authCard_->showError(state.errorMessage);
         authCard_->show();
