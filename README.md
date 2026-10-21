@@ -189,6 +189,45 @@ for configuration details.
 Launch CloudMus from the application menu or run `cloudmus-qt`. Manage
 package updates and removal through Portage.
 
+#### NixOS and Nix
+
+The repository is also a flake, so Nix builds CloudMus from source. On NixOS,
+add it to your configuration:
+
+```nix
+{
+  inputs.cloudmus.url = "github:cloudmus/cloudmus";
+
+  # where the system packages are set:
+  nixpkgs.overlays = [ inputs.cloudmus.overlays.default ];
+  environment.systemPackages = [ pkgs.cloudmus ];
+}
+```
+
+Without a system configuration, `nix profile install github:cloudmus/cloudmus`
+installs it into your profile and `nix run github:cloudmus/cloudmus` starts it
+once.
+
+Usage statistics and crash reports are on, exactly as in the AppImage; both
+switches are in **Settings → General**. To build without them, or with your own
+Google Analytics property and Sentry project:
+
+```nix
+pkgs.cloudmus.override {
+  enableAnalytics = false;
+  enableSentry = false;
+  # analyticsMeasurementId = "G-XXXXXXXXXX";
+  # sentryDsn = "https://<key>@<host>/<project>";
+}
+```
+
+[Usage statistics](docs/analytics.md) carry no personal data — no track or
+playlist names, no sign-in details — they only show which features are used.
+
+Qt, mpv and TagLib come prebuilt from `cache.nixos.org`, so a build compiles
+CloudMus itself and takes a few minutes; the `Nix` workflow publishes the result
+to a binary cache, which turns an update into a download.
+
 ## First steps
 
 Sources are switched on and off, signed in and configured in
