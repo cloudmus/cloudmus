@@ -249,9 +249,13 @@ private slots:
         const QString path = dir.filePath(QStringLiteral("update.part"));
         downloader.start(QUrl(server.url(QStringLiteral("/update"))), body.size(), path);
         QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 10000);
-        QCOMPARE(server.requests,
+        // The ranges go over parallel connections: the server may see them
+        // in any order.
+        QStringList requests = server.requests;
+        requests.sort();
+        QCOMPARE(requests,
             (QStringList {
-                QStringLiteral("/update@0"), QStringLiteral("/update@8388608"), QStringLiteral("/update@16777216") }));
+                QStringLiteral("/update@0"), QStringLiteral("/update@16777216"), QStringLiteral("/update@8388608") }));
         QFile file(path);
         QVERIFY(file.open(QIODevice::ReadOnly));
         QCOMPARE(file.readAll(), body);

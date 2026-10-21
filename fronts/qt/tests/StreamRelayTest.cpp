@@ -199,8 +199,9 @@ private slots:
         QCOMPARE(upstream.requests,
             (QStringList {
                 QStringLiteral("/track@0"), QStringLiteral("/track@409600"), QStringLiteral("/track@819200") }));
+        // Header names are case-insensitive, and Qt 6.8+ sends them lowercase.
         for (const QByteArray& head : upstream.requestHeads)
-            QVERIFY(head.contains("X-Test-Token: secret\r\n"));
+            QVERIFY(head.toLower().contains("x-test-token: secret\r\n"));
         reply->deleteLater();
     }
 
