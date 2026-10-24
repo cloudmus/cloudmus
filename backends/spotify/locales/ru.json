@@ -29,6 +29,7 @@
  "Couldn't save the sign-in: {error}": "Не удалось сохранить вход: {error}",
  "Stream resolution cancelled": "Получение потока отменено",
  "Track not playable: {error}": "Трек недоступен для воспроизведения: {error}",
+ "Spotify refused the key to decrypt {track}": "Spotify не выдал ключ для расшифровки трека «{track}»",
  "Failed to resolve stream for {track}: {error}": "Не удалось получить поток для {track}: {error}",
  "Radio from Liked Songs": "Радио по понравившимся",
  "Spotify radio needs a track to start from": "Радио Spotify нужен трек, с которого начать",

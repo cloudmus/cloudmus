@@ -25,12 +25,14 @@ use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use librespot_audio::{AudioDecrypt, AudioFile};
-use librespot_core::{Error, Session, SpotifyId, SpotifyUri};
+use librespot_core::audio_key::AudioKey;
+use librespot_core::{Error, FileId, Session, SpotifyId, SpotifyUri};
 use librespot_metadata::audio::{AudioFileFormat, AudioFiles, AudioItem};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
 use crate::generated::models::StreamDescriptor;
+use crate::i18n::trf;
 
 /// Spotify's Ogg files start with a header of its own (holding loudness
 /// data) that no decoder knows; real Ogg begins here (librespot-playback's
@@ -177,18 +179,30 @@ impl StreamServer {
             let spotify_id = SpotifyId::try_from(&item.track_id)?;
             let file = AudioFile::open(session, file_id, data_rate(format)).await?;
             let file_len = file.get_stream_loader_controller()?.len() as u64;
-            let audio_key = match session.audio_key().request(spotify_id, file_id).await {
-                Ok(k) => Some(k),
+            let offset = if AudioFiles::is_ogg_vorbis(format) { SPOTIFY_OGG_HEADER_END } else { 0 };
+            let file = match audio_key(session, spotify_id, file_id).await {
+                Ok(k) => AudioDecrypt::new(Some(k), file),
                 Err(e) => {
-                    // As librespot-playback: some files aren't encrypted.
-                    log::warn!("no key for {track_id}, serving it undecrypted: {e}");
-                    None
+                    // As librespot-playback, some files aren't encrypted and
+                    // play without a key; but Spotify also refuses keys for
+                    // some accounts, and served as is those files are noise
+                    // the player can't even name the format of.
+                    let file = AudioDecrypt::new(None, file);
+                    let (file, head) = read_head(file, offset).await?;
+                    if !looks_unencrypted(format, &head) {
+                        log::warn!("no key for {track_id}: {e}");
+                        return Err(ResolveError::Unplayable(Unplayable(trf(
+                            "Spotify refused the key to decrypt {track}",
+                            &[("track", &item.name)],
+                        ))));
+                    }
+                    log::info!("no key for {track_id}, but it isn't encrypted: serving it as is");
+                    file
                 }
             };
-            let offset = if AudioFiles::is_ogg_vorbis(format) { SPOTIFY_OGG_HEADER_END } else { 0 };
             let track = Arc::new(OpenTrack {
                 key: key.clone(),
-                file: Mutex::new(AudioDecrypt::new(audio_key, file)),
+                file: Mutex::new(file),
                 offset,
                 len: file_len.saturating_sub(offset),
                 mime_type,
@@ -297,6 +311,45 @@ fn body(track: Arc<OpenTrack>, start: u64, length: u64) -> BoxBody<Bytes, std::i
     StreamBody::new(frames).boxed()
 }
 
+/// The file's decryption key, asked for twice: a refusal is usually for
+/// good, but one retry costs little next to a track that won't play.
+async fn audio_key(session: &Session, track: SpotifyId, file: FileId) -> Result<AudioKey, Error> {
+    match session.audio_key().request(track, file).await {
+        Ok(key) => Ok(key),
+        Err(e) => {
+            log::debug!("audio key refused, asking again: {e}");
+            session.audio_key().request(track, file).await
+        }
+    }
+}
+
+/// The first bytes of the playable data, read on a blocking thread
+/// (AudioFile's reads wait for the download).
+async fn read_head(
+    mut file: AudioDecrypt<AudioFile>,
+    offset: u64,
+) -> Result<(AudioDecrypt<AudioFile>, Vec<u8>), Error> {
+    let (file, head) = tokio::task::spawn_blocking(move || {
+        let mut head = vec![0u8; 4];
+        let read = file.seek(SeekFrom::Start(offset)).and_then(|_| file.read_exact(&mut head));
+        (file, read.map(|_| head))
+    })
+    .await
+    .map_err(|e| Error::internal(e.to_string()))?;
+    Ok((file, head?))
+}
+
+/// Whether `head`, the start of the playable data, is the format itself
+/// rather than ciphertext: Ogg's capture pattern, or an MP3's ID3 tag or
+/// frame sync.
+fn looks_unencrypted(format: AudioFileFormat, head: &[u8]) -> bool {
+    if AudioFiles::is_ogg_vorbis(format) {
+        head.starts_with(b"OggS")
+    } else {
+        head.starts_with(b"ID3") || (head.len() >= 2 && head[0] == 0xff && head[1] & 0xe0 == 0xe0)
+    }
+}
+
 /// The track, or failing that an available alternative of it.
 async fn playable_item(session: &Session, uri: SpotifyUri) -> Result<AudioItem, ResolveError> {
     let item = AudioItem::get_file(session, uri).await?;
@@ -402,5 +455,15 @@ mod tests {
         assert_eq!(formats_for("320")[0], AudioFileFormat::OGG_VORBIS_320);
         assert_eq!(bitrate_kbps(AudioFileFormat::MP3_256), 256);
         assert_eq!(data_rate(AudioFileFormat::OGG_VORBIS_160), 20 * 1024);
+    }
+
+    #[test]
+    fn tells_ciphertext_from_audio() {
+        use AudioFileFormat::*;
+        assert!(looks_unencrypted(OGG_VORBIS_320, b"OggS"));
+        assert!(!looks_unencrypted(OGG_VORBIS_320, &[0x8e, 0x21, 0x07, 0xd3]));
+        assert!(looks_unencrypted(MP3_320, b"ID3\x04"));
+        assert!(looks_unencrypted(MP3_320, &[0xff, 0xfb, 0x90, 0x64]));
+        assert!(!looks_unencrypted(MP3_320, b"OggS"));
     }
 }

@@ -213,6 +213,9 @@ pub async fn list_playlists(session: &Session, liked: &Liked) -> Result<Vec<Play
             ..Default::default()
         });
     }
+    // An account with no playlists of its own gets an empty rootlist: say
+    // so, to tell that apart from playlists dropped here.
+    log::info!("rootlist: {} items, {} playlists", items.len(), playlists.len() - 1);
     Ok(playlists)
 }
 
