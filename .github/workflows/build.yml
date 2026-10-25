@@ -93,6 +93,9 @@ jobs:
 
   macos:
     strategy:
+      # One arch failing says nothing about the other: let it finish (and
+      # save its libmpv cache).
+      fail-fast: false
       matrix:
         include:
           - runner: macos-15-intel
