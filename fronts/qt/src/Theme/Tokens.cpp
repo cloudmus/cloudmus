@@ -118,9 +118,26 @@ QColor glass(const QColor& color, qreal opacity)
     // thinner tint.
     if (currentMode() == Mode::Light)
         opacity -= 0.05;
+#ifdef Q_OS_MACOS
+    // macOS's blur material carries a tint of its own (WindowGlassMac.mm):
+    // ours over it at full strength left little of the blur to see — a
+    // pale one least of all.
+    opacity -= currentMode() == Mode::Light ? 0.25 : 0.15;
+#endif
     QColor tinted = color;
     tinted.setAlphaF(opacity);
     return tinted;
+}
+
+QColor chromeGlass()
+{
+    qreal opacity = kChromeGlassOpacity;
+#ifdef Q_OS_MACOS
+    // The window's pale chrome over macOS's blur still hid the most of it.
+    if (currentMode() == Mode::Light)
+        opacity -= 0.13;
+#endif
+    return glass(palette().surface100, opacity);
 }
 
 namespace {

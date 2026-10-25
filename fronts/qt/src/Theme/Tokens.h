@@ -79,9 +79,25 @@ inline bool glassWanted(std::optional<bool> userChoice) { return userChoice.valu
 // color covers the blur.
 constexpr qreal kGlassOpacity = 0.8;
 // The window's chrome — sidebar, toolbar — shaded more, closer to the
-// opaque color it stands in for.
+// opaque color it stands in for. Not on macOS: there the window's blur
+// material is tinted already, and with more of ours the window hardly
+// read as glass.
+#ifdef Q_OS_MACOS
+constexpr qreal kChromeGlassOpacity = 0.7;
+#else
 constexpr qreal kChromeGlassOpacity = 0.85;
+#endif
+// A track's hover card: as a menu, but thinner on macOS — a bigger
+// panel, mostly cover and text, whose glass otherwise barely showed.
+#ifdef Q_OS_MACOS
+constexpr qreal kCardGlassOpacity = 0.65;
+#else
+constexpr qreal kCardGlassOpacity = kGlassOpacity;
+#endif
 QColor glass(const QColor& color, qreal opacity = kGlassOpacity);
+// The chrome's glass: surface100 at kChromeGlassOpacity — thinner yet in
+// macOS's light scheme.
+QColor chromeGlass();
 // With glass, the content area's list is a light layer of surface0 at this
 // opacity over the chrome glass, so it still reads a step darker.
 constexpr qreal kContentGlassLayer = 0.3;
