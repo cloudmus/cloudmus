@@ -9,7 +9,9 @@ namespace Integration {
 // GNOME, XFCE, ...) runs at login. The entry starts this very binary —
 // the AppImage when running from one ($APPIMAGE; the path inside it is a
 // temporary mount) — with kLaunchedAtLoginArgument, so main() can tell a
-// login launch from one the user started by hand.
+// login launch from one the user started by hand. On Windows it is the
+// HKCU Run key (AutostartWin.cpp), on macOS a launchd agent
+// (AutostartMac.mm) — each with the same argument.
 namespace Autostart {
 
 inline constexpr auto kLaunchedAtLoginArgument = "--autostart";

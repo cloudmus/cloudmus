@@ -197,8 +197,11 @@ and the lock screen. The Dock's menu has the playing track and its controls,
 and Settings → General can put its cover on the Dock icon (`DockTileMac.cpp`).
 Track notifications go through UserNotifications
 (`NotificationToastMac.mm`), which needs the bundle signed: the build signs
-it ad hoc. Not on macOS yet (the stubs are `*Mac.cpp`): launch at login,
-global shortcuts, self-update, and Sentry. The Linux D-Bus integrations
+it ad hoc. Launch at login is a launchd agent,
+`~/Library/LaunchAgents/io.github.cloudmus.CloudMus.autostart.plist`
+(`AutostartMac.mm`); it starts the executable with `--autostart`, which
+SMAppService's login items can't pass. Not on macOS yet (the stubs are
+`*Mac.cpp`): self-update and Sentry. The Linux D-Bus integrations
 (MPRIS, the portal) aren't built there.
 While the window is in the tray (the menu bar), the app leaves the Dock
 and Cmd+Tab (`DockIconMac.mm`). A click on the menu bar icon opens its

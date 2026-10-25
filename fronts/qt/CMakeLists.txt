@@ -377,7 +377,7 @@ elseif(APPLE)
     # listed for AUTOMOC: it pairs a header with the .cpp of the same name,
     # and these have none.
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
-        src/Integration/AutostartMac.cpp
+        src/Integration/AutostartMac.mm
         src/Integration/NotificationToast.h
         src/Integration/NotificationToastMac.mm
         src/Integration/DesktopColorScheme.h
@@ -540,13 +540,14 @@ if(APPLE)
     # The Dock's icon and the app's presence there (DockIconMac.mm); Now
     # Playing and the media keys (NowPlayingCenterMac.mm); notifications
     # (NotificationToastMac.mm); glass (WindowGlassMac.mm); global hotkeys
-    # (Carbon, GlobalHotkeysMac.cpp). The precompiled Qt headers are C++'s; the
+    # (Carbon, GlobalHotkeysMac.cpp); the login agent (AutostartMac.mm,
+    # Foundation, which AppKit brings). The precompiled Qt headers are C++'s; the
     # Objective-C++ files do without. The newer ones are built with ARC.
     target_link_libraries(cloudmus-ui PRIVATE
         "-framework AppKit" "-framework Carbon" "-framework MediaPlayer" "-framework UserNotifications")
     set_source_files_properties(src/Integration/DockIconMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     set_source_files_properties(src/Integration/NowPlayingCenterMac.mm src/Integration/NotificationToastMac.mm
-        src/Integration/WindowGlassMac.mm
+        src/Integration/WindowGlassMac.mm src/Integration/AutostartMac.mm
         PROPERTIES SKIP_PRECOMPILE_HEADERS ON COMPILE_OPTIONS -fobjc-arc)
 endif()
 

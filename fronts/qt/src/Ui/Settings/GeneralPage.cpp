@@ -158,12 +158,7 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addSpacing(Theme::Spacing::space3);
     layout->addLayout(colorSchemeRow);
     layout->addLayout(trayPanelRow);
-#ifdef Q_OS_MACOS
-    // Not built for macOS yet (see AutostartMac.cpp): a checkbox that does
-    // nothing is worse than none.
-    launchAtLoginCheck_->hide();
-    startHiddenCheck_->hide();
-#else
+#ifndef Q_OS_MACOS
     // Elsewhere a click on the tray icon always shows the window, and
     // there is no Dock.
     trayClickShowsWindowCheck_->hide();

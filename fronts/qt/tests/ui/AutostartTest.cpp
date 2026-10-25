@@ -1,5 +1,6 @@
 #include <QCoreApplication>
 #include <QFile>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -128,10 +129,105 @@ private slots:
 
 QObject* makeAutostartTest() { return new AutostartTest; }
 
+#elif defined(Q_OS_MACOS)
+
+namespace {
+
+QString agentPath(const QString& home)
+{
+    return home + QStringLiteral("/Library/LaunchAgents/io.github.cloudmus.CloudMus.autostart.plist");
+}
+
+QStringList programArguments(const QString& home)
+{
+    QSettings agent(agentPath(home), QSettings::NativeFormat);
+    return agent.value(QStringLiteral("ProgramArguments")).toStringList();
+}
+
+} // namespace
+
+// The agent goes to $HOME/Library/LaunchAgents: HOME points at a temporary
+// folder, never at the real one.
+class AutostartTest : public QObject {
+    Q_OBJECT
+
+private:
+    QByteArray savedHome_;
+    QTemporaryDir home_;
+
+private slots:
+    void init()
+    {
+        QVERIFY(home_.isValid());
+        savedHome_ = qgetenv("HOME");
+        qputenv("HOME", home_.path().toUtf8());
+    }
+
+    void cleanup()
+    {
+        Integration::Autostart::setEnabled(false);
+        qputenv("HOME", savedHome_);
+    }
+
+    void writesAnAgentStartingThisBinaryAtLogin()
+    {
+        QVERIFY(!Integration::Autostart::isEnabled());
+        QVERIFY(Integration::Autostart::setEnabled(true));
+        QVERIFY(Integration::Autostart::isEnabled());
+        QCOMPARE(programArguments(home_.path()),
+            QStringList({ QCoreApplication::applicationFilePath(),
+                QLatin1String(Integration::Autostart::kLaunchedAtLoginArgument) }));
+
+        QVERIFY(Integration::Autostart::setEnabled(false));
+        QVERIFY(!QFile::exists(agentPath(home_.path())));
+        QVERIFY(!Integration::Autostart::isEnabled());
+    }
+
+    void followsThisBinaryWhenTheNamedOneIsGone()
+    {
+        QVERIFY(Integration::Autostart::setEnabled(true));
+        {
+            QSettings agent(agentPath(home_.path()), QSettings::NativeFormat);
+            agent.setValue(QStringLiteral("ProgramArguments"),
+                QStringList({ home_.filePath(QStringLiteral("Gone.app/Contents/MacOS/CloudMus")),
+                    QLatin1String(Integration::Autostart::kLaunchedAtLoginArgument) }));
+        }
+        Integration::Autostart::refresh();
+        QCOMPARE(programArguments(home_.path()).value(0), QCoreApplication::applicationFilePath());
+    }
+
+    void leavesAnExistingAgentAlone()
+    {
+        QTemporaryDir installed;
+        QVERIFY(installed.isValid());
+        const QString other = installed.filePath(QStringLiteral("CloudMus"));
+        {
+            QFile file(other);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        QVERIFY(Integration::Autostart::setEnabled(true));
+        {
+            QSettings agent(agentPath(home_.path()), QSettings::NativeFormat);
+            agent.setValue(QStringLiteral("ProgramArguments"), QStringList({ other }));
+        }
+        // A build run from its build directory isn't the installed app.
+        Integration::Autostart::refresh();
+        QCOMPARE(programArguments(home_.path()), QStringList({ other }));
+    }
+
+    void doesNotCreateAnAgentTheUserHasNotAskedFor()
+    {
+        Integration::Autostart::refresh();
+        QVERIFY(!QFile::exists(agentPath(home_.path())));
+    }
+};
+
+QObject* makeAutostartTest() { return new AutostartTest; }
+
 #else
 
 // Autostart on Windows is a registry value; nothing here to test without
-// touching the real one. On macOS it isn't built yet (AutostartMac.cpp).
+// touching the real one.
 QObject* makeAutostartTest() { return new QObject; }
 
 #endif
