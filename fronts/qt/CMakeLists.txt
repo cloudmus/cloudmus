@@ -560,8 +560,10 @@ endif()
 # (xcb). Each is optional; without them, the system's KF6WindowSystem is
 # loaded at runtime instead, which works only next to the Qt it was built
 # against (not in the AppImage).
+# Linux only: a Mac may have xcb or wayland-client from Homebrew (GitHub's
+# runners do), and macOS's Qt has no X11 or Wayland interfaces.
 find_package(Qt6 QUIET OPTIONAL_COMPONENTS GuiPrivate)
-if(NOT WIN32)
+if(UNIX AND NOT APPLE)
     pkg_check_modules(WAYLAND_CLIENT QUIET IMPORTED_TARGET wayland-client)
     find_program(WAYLAND_SCANNER wayland-scanner)
 endif()
@@ -591,7 +593,7 @@ if(TARGET Qt6::GuiPrivate AND WAYLAND_CLIENT_FOUND AND WAYLAND_SCANNER)
     target_link_libraries(cloudmus-ui PRIVATE Qt6::GuiPrivate PkgConfig::WAYLAND_CLIENT)
     message(STATUS "Glass: Wayland blur protocols, built in")
 endif()
-if(NOT WIN32)
+if(UNIX AND NOT APPLE)
     pkg_check_modules(XCB QUIET IMPORTED_TARGET xcb)
 endif()
 if(XCB_FOUND)
