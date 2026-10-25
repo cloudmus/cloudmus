@@ -152,6 +152,13 @@ int main(int argc, char** argv)
     }
 #endif
     QApplication app(argc, argv);
+#ifdef Q_OS_MACOS
+    // Qt's Cocoa plugin turns menu icons off, as native macOS menus go
+    // without them. Ours are the app's own, not the system's, and their
+    // icons carry state — whether a track is liked shows only there.
+    // After the QApplication: the plugin sets its default while it's made.
+    QCoreApplication::setAttribute(Qt::AA_DontShowIconsInMenus, false);
+#endif
     // Animations at the monitor's refresh rate instead of Qt's fixed 60 FPS.
     Ui::DisplayAnimationDriver animationDriver;
     animationDriver.install();
