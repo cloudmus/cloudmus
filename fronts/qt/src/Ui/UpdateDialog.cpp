@@ -269,6 +269,11 @@ void UpdateDialog::showFailure(const QString& error)
 
 void UpdateDialog::install()
 {
+    // Putting it in place can take a few seconds (on macOS the app is
+    // copied out of the DMG).
+    setStep(Step::Downloading, tr("Installing CloudMus %1").arg(update_.latest().name), QString());
+    progressBar_->setRange(0, 0);
+    progressLabel_->clear();
     QString error;
     const QString path = downloadedPath_;
     qCDebug(lcUpdate).noquote() << "installing" << update_.latest().name << "from" << path;

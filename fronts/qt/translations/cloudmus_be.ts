@@ -183,10 +183,6 @@
 <context>
     <name>Integration::GlobalHotkeys</name>
     <message>
-        <source>CloudMus doesn&apos;t support them on macOS yet.</source>
-        <translation>CloudMus пакуль не падтрымлівае іх на macOS.</translation>
-    </message>
-    <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
         <translation>У гэтым асяроддзі працоўнага стала праграмы не могуць атрымаць глабальныя спалучэнні клавіш.</translation>
     </message>
@@ -1469,6 +1465,10 @@ You can try again later or download the new version yourself.</source>
         <source>Couldn&apos;t open %1 in a browser</source>
         <translation>Не атрымалася адкрыць %1 у браўзеры</translation>
     </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Усталёўка CloudMus %1</translation>
+    </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
@@ -1518,6 +1518,22 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Can&apos;t rename %1</source>
         <translation>Не атрымалася перайменаваць %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Гэтая копія CloudMus не можа абнавіцца сама: гэта ўмее толькі CloudMus.app.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus не можа абнавіцца, пакуль запушчаны з вобраза дыска або папкі «Спампоўкі»: спачатку перанясіце яго ў «Праграмы».</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>У вобразе дыска няма CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>У вобразе дыска іншая праграма</translation>
     </message>
 </context>
 <context>

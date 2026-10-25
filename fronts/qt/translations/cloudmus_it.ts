@@ -183,10 +183,6 @@
 <context>
     <name>Integration::GlobalHotkeys</name>
     <message>
-        <source>CloudMus doesn&apos;t support them on macOS yet.</source>
-        <translation>CloudMus non le supporta ancora su macOS.</translation>
-    </message>
-    <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
         <translation>Questo desktop non permette alle applicazioni di avere scorciatoie globali.</translation>
     </message>
@@ -1467,6 +1463,10 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
         <source>Couldn&apos;t open %1 in a browser</source>
         <translation>Impossibile aprire %1 nel browser</translation>
     </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Installazione di CloudMus %1</translation>
+    </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
@@ -1516,6 +1516,22 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
     <message>
         <source>Can&apos;t rename %1</source>
         <translation>Impossibile rinominare %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Questa copia di CloudMus non può aggiornarsi da sola: può farlo solo CloudMus.app.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus non può aggiornarsi mentre è avviato dall’immagine disco o dalla cartella Download: spostalo prima in Applicazioni.</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>L’immagine disco non contiene CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>L’immagine disco contiene un’altra app</translation>
     </message>
 </context>
 <context>

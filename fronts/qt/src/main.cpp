@@ -249,12 +249,20 @@ int main(int argc, char** argv)
     // --update-from=<x.y.z>: check for updates as if that version were
     // running — to try the whole update flow from a dev build, which
     // otherwise is neither checked at startup nor older than any release.
+    // --update-feed=<url>: from a feed of one's own (GitHub's releases
+    // JSON), with a package not released yet.
     QString updateVersion = QStringLiteral(CLOUDMUS_VERSION);
+    QUrl updateFeed;
     for (const QString& argument : app.arguments()) {
         if (argument.startsWith(QLatin1String("--update-from=")))
             updateVersion = argument.mid(QLatin1String("--update-from=").size());
+        else if (argument.startsWith(QLatin1String("--update-feed=")))
+            updateFeed = QUrl(argument.mid(QLatin1String("--update-feed=").size()));
     }
-    core.updates().configure(updateVersion);
+    if (updateFeed.isValid())
+        core.updates().configure(updateVersion, updateFeed);
+    else
+        core.updates().configure(updateVersion);
     Config::Settings& settings = core.settings();
     Rpc::SourceManager& sourceManager = core.sourceManager();
     Playback::PlaybackController& playback = core.playback();

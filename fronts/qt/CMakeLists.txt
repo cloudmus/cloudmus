@@ -216,6 +216,8 @@ add_library(cloudmus-core STATIC
 add_dependencies(cloudmus-core protocol_codegen_cpp)
 if(WIN32)
     target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterWin.cpp src/Update/InstallerWin.cpp)
+elseif(APPLE)
+    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerMac.cpp)
 else()
     target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerPosix.cpp)
 endif()
@@ -660,7 +662,8 @@ endif()
 # `cmake --build build --target update_translations`.
 # lupdate also reads the sources this platform doesn't build: with
 # -no-obsolete it would drop their texts (InstallerWin.cpp on Linux,
-# InstallerPosix.cpp on Windows) along with the translations. Only those —
+# InstallerPosix.cpp on Windows, InstallerMac.cpp on both) along with the
+# translations. Only those —
 # a file given twice confuses lupdate's namespaces.
 file(GLOB_RECURSE _tr_sources CONFIGURE_DEPENDS src/*.cpp src/*.h)
 foreach(_target cloudmus-core cloudmus-ui cloudmus-qt)

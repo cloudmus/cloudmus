@@ -51,7 +51,8 @@ struct PendingUpdate {
     const Release& latest() const { return releases.first(); }
 };
 
-// The asset this platform installs from: the AppImage or the NSIS setup.
+// The asset this platform installs from: the AppImage, the NSIS setup or
+// the DMG of this Mac's architecture.
 QString platformAssetSuffix();
 
 // GitHub's GET /repos/{owner}/{repo}/releases response. Drafts,

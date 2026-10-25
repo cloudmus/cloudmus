@@ -183,10 +183,6 @@
 <context>
     <name>Integration::GlobalHotkeys</name>
     <message>
-        <source>CloudMus doesn&apos;t support them on macOS yet.</source>
-        <translation>CloudMus пока не поддерживает их на macOS.</translation>
-    </message>
-    <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
         <translation>В этой среде рабочего стола у приложений нет способа получить глобальные сочетания клавиш.</translation>
     </message>
@@ -1469,6 +1465,10 @@ You can try again later or download the new version yourself.</source>
         <source>Couldn&apos;t open %1 in a browser</source>
         <translation>Не удалось открыть %1 в браузере</translation>
     </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Установка CloudMus %1</translation>
+    </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
@@ -1518,6 +1518,22 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Can&apos;t rename %1</source>
         <translation>Не удалось переименовать %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Эта копия CloudMus не может обновиться сама: это умеет только CloudMus.app.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus не может обновиться, пока запущен из образа диска или папки «Загрузки»: сначала перенесите его в «Программы».</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>В образе диска нет CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>В образе диска другое приложение</translation>
     </message>
 </context>
 <context>

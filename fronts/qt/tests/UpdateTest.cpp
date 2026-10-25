@@ -341,7 +341,36 @@ private slots:
         QVERIFY(!QFile::exists(path));
     }
 
-#ifndef Q_OS_WIN
+#ifdef Q_OS_MACOS
+    void bundleIsFoundAboveTheExecutable()
+    {
+        using Update::Installer::bundleOf;
+        QCOMPARE(bundleOf(QStringLiteral("/Applications/CloudMus.app/Contents/MacOS")),
+            QStringLiteral("/Applications/CloudMus.app"));
+        // Renamed by the user: still the app.
+        QCOMPARE(bundleOf(QStringLiteral("/Applications/My Player.app/Contents/MacOS")),
+            QStringLiteral("/Applications/My Player.app"));
+        QVERIFY(bundleOf(QStringLiteral("/usr/local/bin")).isEmpty());
+        QVERIFY(bundleOf(QStringLiteral("/opt/Contents/MacOS")).isEmpty());
+    }
+
+    void bundleOutsideAWritableFolderCannotUpdate()
+    {
+        using Update::Installer::unavailableReason;
+        QVERIFY(!unavailableReason(QString()).isEmpty());
+        QVERIFY(!unavailableReason(QStringLiteral("/Volumes/CloudMus/CloudMus.app")).isEmpty());
+        QVERIFY(
+            !unavailableReason(QStringLiteral("/private/var/folders/ab/cd/T/AppTranslocation/0123-4567/d/CloudMus.app"))
+                .isEmpty());
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString bundle = dir.filePath(QStringLiteral("CloudMus.app"));
+        QCOMPARE(unavailableReason(bundle), QString());
+        QVERIFY(QFile::setPermissions(dir.path(), QFile::ReadOwner | QFile::ExeOwner));
+        QVERIFY(!unavailableReason(bundle).isEmpty());
+        QVERIFY(QFile::setPermissions(dir.path(), QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+    }
+#elif !defined(Q_OS_WIN)
     void appImageTakesItsNewName()
     {
         using Update::Installer::appImageTarget;

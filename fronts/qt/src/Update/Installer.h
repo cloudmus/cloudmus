@@ -6,8 +6,10 @@
 
 // Installing a downloaded update — per platform: InstallerPosix.cpp
 // replaces the AppImage this runs from, InstallerWin.cpp runs the NSIS
-// setup (packaging/windows/cloudmus.nsi's /UPDATE mode). Either way the
-// new version starts by itself once this process has exited.
+// setup (packaging/windows/cloudmus.nsi's /UPDATE mode), InstallerMac.cpp
+// copies CloudMus.app out of the release's DMG and puts it in place of
+// this one. Either way the new version starts by itself once this process
+// has exited.
 namespace Update::Installer {
 
 // Why this run can't install an update by itself, for the user — empty if
@@ -15,7 +17,8 @@ namespace Update::Installer {
 QString unavailableReason();
 
 // Where `release`'s file is downloaded to: for the AppImage, next to it,
-// so putting it in place is a rename on the same file system.
+// so putting it in place is a rename on the same file system; the DMG
+// goes to the cache.
 QString downloadPath(const Release& release);
 
 // Puts the downloaded file in place and starts what finishes the job once
@@ -23,7 +26,12 @@ QString downloadPath(const Release& release);
 // nothing was started, and `error` says why.
 bool launch(const QString& downloadedPath, const Release& release, QString* error);
 
-#ifndef Q_OS_WIN
+#ifdef Q_OS_MACOS
+// The .app whose Contents/MacOS is `executableDir`, empty if it isn't in one.
+QString bundleOf(const QString& executableDir);
+// unavailableReason() for the app at `bundle` (empty: not run from one).
+QString unavailableReason(const QString& bundle);
+#elif !defined(Q_OS_WIN)
 // The path the new AppImage goes to: its own versioned name in the old
 // one's folder, unless the user renamed the old one — then that name.
 QString appImageTarget(const QString& currentPath, const QString& assetName);

@@ -112,10 +112,15 @@ can't be used, and gets only the precompiled headers.
 
 To try the updater, run with `--update-from=0.0.1`: it then checks (at startup
 too) as if that version were running, and offers the latest GitHub release.
-Installing works only from an AppImage (Linux) or an installed copy
-(Windows); from a build directory the dialog offers the release page instead.
+Installing works only from an AppImage (Linux), an installed copy
+(Windows) or `CloudMus.app` outside the DMG (macOS); from a build directory
+the dialog offers the release page instead.
 To test the Linux install itself, copy an old AppImage somewhere writable and
 run it with that flag: `CloudMus-0.2.0-x86_64.AppImage --update-from=0.0.1`.
+`--update-feed=<url>` takes the releases from another URL, in the format of
+GitHub's `GET /repos/{owner}/{repo}/releases` — a file of one's own served
+locally offers a package that isn't released yet (on macOS, a DMG from
+`packaging/macos/build-app.sh`).
 
 The GitHub star prompt normally shows once, on the third day the player is
 used. To try it, run with `--star-prompt`: it opens a couple of seconds after
@@ -211,8 +216,11 @@ Track notifications go through UserNotifications
 it ad hoc. Launch at login is a launchd agent,
 `~/Library/LaunchAgents/io.github.cloudmus.CloudMus.autostart.plist`
 (`AutostartMac.mm`); it starts the executable with `--autostart`, which
-SMAppService's login items can't pass. Not on macOS yet (the stubs are
-`*Mac.cpp`): self-update and Sentry. The Linux D-Bus integrations
+SMAppService's login items can't pass. Self-update (`InstallerMac.cpp`)
+downloads the release's DMG of the running arch, copies `CloudMus.app` out
+of it next to the running one, and once the app has quit swaps the two and
+opens the new one; it works for an app outside the DMG in a folder the user
+can write to (`/Applications` for an admin). Not on macOS yet: Sentry. The Linux D-Bus integrations
 (MPRIS, the portal) aren't built there.
 While the window is in the tray (the menu bar), the app leaves the Dock
 and Cmd+Tab (`DockIconMac.mm`). A click on the menu bar icon opens its

@@ -183,10 +183,6 @@
 <context>
     <name>Integration::GlobalHotkeys</name>
     <message>
-        <source>CloudMus doesn&apos;t support them on macOS yet.</source>
-        <translation>CloudMus ne les prend pas encore en charge sur macOS.</translation>
-    </message>
-    <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
         <translation>Ce bureau ne permet pas à une application d’avoir des raccourcis globaux.</translation>
     </message>
@@ -1467,6 +1463,10 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
         <source>Couldn&apos;t open %1 in a browser</source>
         <translation>Impossible d’ouvrir %1 dans un navigateur</translation>
     </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Installation de CloudMus %1</translation>
+    </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
@@ -1516,6 +1516,22 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
         <source>Can&apos;t rename %1</source>
         <translation>Impossible de renommer %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Cette copie de CloudMus ne peut pas se mettre à jour elle-même : seul CloudMus.app le peut.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus ne peut pas se mettre à jour tant qu’il est lancé depuis l’image disque ou le dossier Téléchargements : déplacez-le d’abord dans Applications.</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>L’image disque ne contient pas CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>L’image disque contient une autre application</translation>
     </message>
 </context>
 <context>
