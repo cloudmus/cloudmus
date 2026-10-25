@@ -85,13 +85,15 @@ build_ffmpeg() {
     # folder can hold any format, and mpv's audio chain uses lavfi filters.
     # TLS through Secure Transport: the system's own trust store, no CA file.
     # No x86 assembly: it needs nasm, and audio decoding doesn't miss it.
+    # (An empty array is "unbound" to macOS's bash 3.2 under set -u, hence
+    # the ${asm[@]+...} below.)
     local asm=()
     [[ $arch == x86_64 ]] && asm=(--disable-x86asm)
     (cd "$1" && ./configure --prefix="$prefix" --enable-static --disable-shared --enable-pic \
         --disable-programs --disable-doc --disable-debug --disable-avdevice \
         --disable-encoders --disable-muxers --disable-indevs --disable-outdevs \
         --disable-sdl2 --disable-xlib --disable-libxcb --disable-vulkan \
-        --enable-securetransport "${asm[@]}" \
+        --enable-securetransport ${asm[@]+"${asm[@]}"} \
         --extra-cflags="-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET" \
         --extra-ldflags="-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET" \
         && make -j"$jobs" && make install)
