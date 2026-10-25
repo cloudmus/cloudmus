@@ -248,12 +248,14 @@ void GeneralPage::applyColorScheme(Config::Settings::ColorScheme scheme)
         Theme::setModeOverride(std::nullopt);
     else
         Theme::setModeOverride(scheme == ColorScheme::Dark ? Theme::Mode::Dark : Theme::Mode::Light);
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     // Windows draws the title bar light or dark after Qt's color scheme,
     // which otherwise follows the system's — a white title bar over a dark
     // app. Setting it recolors every window's frame, open ones included.
-    // Not elsewhere: there the scheme is also what Qt's platform theme and
-    // the desktop's decorations go by, and those already look right.
+    // On macOS it's the app's appearance: the title bar and the glass's
+    // blur material (WindowGlassMac.mm) go by it. Not elsewhere: there the
+    // scheme is also what Qt's platform theme and the desktop's decorations
+    // go by, and those already look right.
     QGuiApplication::styleHints()->setColorScheme(scheme == ColorScheme::System ? Qt::ColorScheme::Unknown
             : scheme == ColorScheme::Dark                                       ? Qt::ColorScheme::Dark
                                                                                 : Qt::ColorScheme::Light);

@@ -388,6 +388,7 @@ elseif(APPLE)
         src/Integration/DockTileMac.cpp
         src/Integration/NowPlayingCenter.h
         src/Integration/NowPlayingCenterMac.mm
+        src/Integration/WindowGlassMac.mm
         src/Integration/QuitSignals.cpp)
 else()
     list(APPEND CLOUDMUS_PLATFORM_SOURCES
@@ -537,12 +538,13 @@ endif()
 if(APPLE)
     # The Dock's icon and the app's presence there (DockIconMac.mm); Now
     # Playing and the media keys (NowPlayingCenterMac.mm); notifications
-    # (NotificationToastMac.mm). The precompiled Qt headers are C++'s; the
+    # (NotificationToastMac.mm); glass (WindowGlassMac.mm). The precompiled Qt headers are C++'s; the
     # Objective-C++ files do without. The newer ones are built with ARC.
     target_link_libraries(cloudmus-ui PRIVATE
         "-framework AppKit" "-framework MediaPlayer" "-framework UserNotifications")
     set_source_files_properties(src/Integration/DockIconMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     set_source_files_properties(src/Integration/NowPlayingCenterMac.mm src/Integration/NotificationToastMac.mm
+        src/Integration/WindowGlassMac.mm
         PROPERTIES SKIP_PRECOMPILE_HEADERS ON COMPILE_OPTIONS -fobjc-arc)
 endif()
 
