@@ -191,6 +191,17 @@ built. To change a version, edit the script and delete that directory.
 The TUI's python-mpv finds that libmpv with
 `DYLD_FALLBACK_LIBRARY_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib`.
 
+`packaging/macos/build-app.sh` builds what a release ships,
+`dist/CloudMus-<version>-<arch>.dmg` (this machine's arch, `x86_64` or
+`arm64`): `CloudMus.app` with Qt (`macdeployqt`), libmpv, CPython 3.13
+from python-build-standalone in `Contents/Resources/python` with the
+backends installed into it, and their manifests in
+`Contents/Resources/backends/` (found there by `Rpc::BackendManifest`). It
+checks that nothing in the bundle links outside it or needs a newer macOS
+than 12, and signs it ad hoc. Without a Developer ID, the first start of
+a downloaded copy is blocked: System Settings → Privacy & Security → Open
+Anyway (or `xattr -dr com.apple.quarantine /Applications/CloudMus.app`).
+
 On macOS, Now Playing (`NowPlayingCenterMac.mm`, MediaPlayer.framework)
 stands in for MPRIS: Control Center, the media keys, AirPods, the Touch Bar
 and the lock screen. The Dock's menu has the playing track and its controls,

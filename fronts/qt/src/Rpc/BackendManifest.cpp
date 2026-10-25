@@ -109,8 +109,13 @@ QList<BackendManifest> discoverManifests()
     const QString configHome = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
     scanDir(QDir(configHome + QStringLiteral("/cloudmus/backends.d")), result, seenIds);
 
+    // The backends that ship with the app (packaging/windows,
+    // packaging/macos/build-app.sh).
 #ifdef Q_OS_WIN
     scanDir(QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/backends")), result, seenIds, true);
+#elif defined(Q_OS_MACOS)
+    scanDir(
+        QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/../Resources/backends")), result, seenIds, true);
 #endif
 
     const QString devFlag = QProcessEnvironment::systemEnvironment().value(QStringLiteral("CLOUDMUS_DEV_BACKENDS"));
