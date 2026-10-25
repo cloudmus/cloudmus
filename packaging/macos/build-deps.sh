@@ -149,10 +149,12 @@ build_mpv() {
         "$1/meson.build"
     grep -q "'osdep/utils-mac.c')" "$1/meson.build"
     # libplacebo is C++, but its .pc doesn't say so, and mpv links as C.
+    # libobjc for utils-mac.c's Objective-C calls: on arm64 nothing else
+    # brings it in, and objc_msgSend is left unresolved.
     meson setup "$1/_build" "$1" --prefix="$prefix" --libdir=lib --buildtype=release \
         -Ddefault_library=shared -Dprefer_static=true -Dauto_features=disabled \
         -Dlibmpv=true -Dcplayer=false -Dgpl=false -Dtests=false -Dbuild-date=false \
-        -Dgl=disabled -Dcoreaudio=enabled -Dzlib=enabled -Dc_link_args=-lc++
+        -Dgl=disabled -Dcoreaudio=enabled -Dzlib=enabled "-Dc_link_args=-lc++ -lobjc"
     meson compile -C "$1/_build"
     meson install -C "$1/_build"
     # meson names it by its absolute path; the app finds it through its rpath
