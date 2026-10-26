@@ -183,6 +183,7 @@ add_library(cloudmus-core STATIC
     src/App/TrackFetch.cpp
     src/App/StarPrompt.cpp
     src/App/ListeningTime.cpp
+    src/App/SingleInstance.cpp
 
     src/Hotkeys/Actions.cpp
     src/Hotkeys/Registry.cpp
@@ -695,6 +696,7 @@ add_executable(cloudmus-qt-tests
     tests/TrackStatesTest.cpp
     tests/TimingTest.cpp
     tests/SequenceTest.cpp
+    tests/SingleInstanceTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)

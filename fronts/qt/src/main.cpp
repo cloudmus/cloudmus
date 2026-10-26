@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QDir>
 #include <QFile>
 #include <QFont>
 #include <QIcon>
@@ -36,6 +37,7 @@
 #include "SentryConfig.h"
 #include "Settings.h"
 #include "Settings/GeneralPage.h"
+#include "SingleInstance.h"
 #include "SourceManager.h"
 #include "StarPromptFlow.h"
 #include "Style.h"
@@ -81,6 +83,18 @@ Rpc::Task<void> shutdownAll(Rpc::SourceManager& sourceManager, std::function<voi
         }
     }
     done();
+}
+
+// What this process was started with, for the running instance to act on.
+App::SingleInstance::Launch currentLaunch(const QApplication& app)
+{
+    App::SingleInstance::Launch launch;
+    launch.arguments = app.arguments().mid(1);
+    launch.workingDirectory = QDir::currentPath();
+    // Wayland launchers hand over XDG_ACTIVATION_TOKEN, X11 ones
+    // DESKTOP_STARTUP_ID.
+    launch.activationToken = qEnvironmentVariable("XDG_ACTIVATION_TOKEN", qEnvironmentVariable("DESKTOP_STARTUP_ID"));
+    return launch;
 }
 
 #ifdef Q_OS_WIN
@@ -168,6 +182,12 @@ int main(int argc, char** argv)
     // in the AppImage predates the xdg-toplevel-icon-v1 protocol) have no
     // way to resolve one from a .desktop file's Icon= key at all.
     QApplication::setDesktopFileName(QStringLiteral("cloudmus-qt"));
+    // Before anything touches the shared state — debug.log, the crash
+    // reports, analytics: a second launch only hands over to the running
+    // instance (raising its window) and exits.
+    App::SingleInstance singleInstance;
+    if (!singleInstance.claim(currentLaunch(app)))
+        return 0;
     // Before anything opens debug.log or the crash directory.
     Config::migrateLegacyState();
     installLogging(); // reads --debug / CLOUDMUS_QT_DEBUG — see Logging.h
@@ -283,6 +303,14 @@ int main(int argc, char** argv)
     // which the core library doesn't link).
     core.coverArtCache().setFitter(&Ui::fitCover);
     Ui::WindowHost windowHost(core);
+    // A later launch brings this window up; a duplicate start at login
+    // mustn't. Its arguments (a track file to queue, say) are not acted on
+    // yet.
+    QObject::connect(&singleInstance, &App::SingleInstance::launched, &windowHost,
+        [&windowHost](const App::SingleInstance::Launch& launch) {
+            if (!launch.arguments.contains(QLatin1String(Integration::Autostart::kLaunchedAtLoginArgument)))
+                windowHost.bringToFront(launch.activationToken);
+        });
 
     Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing(), core.hotkeys());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &windowHost, &Ui::WindowHost::quit);
