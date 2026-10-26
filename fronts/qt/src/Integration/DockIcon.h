@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 class QIcon;
 class QPixmap;
 
@@ -15,8 +17,9 @@ void setIcon(const QIcon& logo);
 // logo back.
 void setCover(const QPixmap& cover);
 
-// Hidden while the window sits in the tray: the app lives in the menu bar
-// then, like other menu bar apps, and leaves Cmd+Tab as well.
-void setVisible(bool visible);
+// Called on a click on the Dock icon, or when the app is opened again while
+// it runs (Finder, Spotlight, a login item): macOS sends the running app a
+// reopen event then, and expects its window back — even one in the tray.
+void setReopenHandler(std::function<void()> handler);
 
 } // namespace Integration::DockIcon

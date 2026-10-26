@@ -222,8 +222,10 @@ of it next to the running one, and once the app has quit swaps the two and
 opens the new one; it works for an app outside the DMG in a folder the user
 can write to (`/Applications` for an admin). Not on macOS yet: Sentry. The Linux D-Bus integrations
 (MPRIS, the portal) aren't built there.
-While the window is in the tray (the menu bar), the app leaves the Dock
-and Cmd+Tab (`DockIconMac.mm`). A click on the menu bar icon opens its
+While the window is in the tray (the menu bar), the app stays in the Dock
+and Cmd+Tab, cover and all, as music players do; a click on its Dock icon
+(a reopen event, `DockIconMac.mm`) brings the window back. A click on the
+menu bar icon opens its
 menu, as on macOS; Settings → General can make it show the window instead.
 
 ## Tests

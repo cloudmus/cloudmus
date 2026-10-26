@@ -5,12 +5,34 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QTimer>
 
 #import <AppKit/AppKit.h>
 
 namespace Integration::DockIcon {
+namespace {
+    std::function<void()> reopenHandler;
+}
+} // namespace Integration::DockIcon
+
+// Receives the reopen Apple Event for setReopenHandler().
+@interface CloudMusReopenTarget : NSObject
+- (void)handleReopen:(NSAppleEventDescriptor*)event withReplyEvent:(NSAppleEventDescriptor*)reply;
+@end
+
+@implementation CloudMusReopenTarget
+- (void)handleReopen:(NSAppleEventDescriptor*)event withReplyEvent:(NSAppleEventDescriptor*)reply
+{
+    if (Integration::DockIcon::reopenHandler)
+        Integration::DockIcon::reopenHandler();
+}
+@end
+
+namespace Integration::DockIcon {
 
 namespace {
+    CloudMusReopenTarget* reopenTarget = nil;
+
     // Qt hands the Dock its 1x rasters, which it scales up blurry. One
     // 1024px raster at the Dock's 128pt is only ever scaled down. Apple's
     // grid keeps 100px of the 1024 free around the artwork.
@@ -90,20 +112,20 @@ void setCover(const QPixmap& cover)
         apply();
 }
 
-void setVisible(bool visible)
+void setReopenHandler(std::function<void()> handler)
 {
-    const NSApplicationActivationPolicy policy
-        = visible ? NSApplicationActivationPolicyRegular : NSApplicationActivationPolicyAccessory;
-    if (NSApp.activationPolicy == policy)
+    reopenHandler = std::move(handler);
+    if (reopenTarget != nil)
         return;
-    [NSApp setActivationPolicy:policy];
-    if (visible) {
-        // Back in the Dock, the icon is the executable's generic one again.
-        apply();
-        // A window shown right after the switch stays behind the others
-        // unless the app takes the front itself.
-        [NSApp activateIgnoringOtherApps:YES];
-    }
+    reopenTarget = [[CloudMusReopenTarget alloc] init];
+    // AppKit installs its own handler while it finishes launching, which
+    // the event loop does: ours goes in once that has run.
+    QTimer::singleShot(0, [] {
+        [[NSAppleEventManager sharedAppleEventManager] setEventHandler:reopenTarget
+                                                           andSelector:@selector(handleReopen:withReplyEvent:)
+                                                         forEventClass:kCoreEventClass
+                                                            andEventID:kAEReopenApplication];
+    });
 }
 
 } // namespace Integration::DockIcon

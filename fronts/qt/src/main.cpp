@@ -454,6 +454,11 @@ int main(int argc, char** argv)
             else
                 windowHost.bringToFront(activationToken);
         });
+#ifdef Q_OS_MACOS
+    // In the tray the app stays in the Dock: a click on its icon brings the
+    // window back, as it does for any app with its windows closed.
+    Integration::DockIcon::setReopenHandler([&windowHost]() { windowHost.bringToFront(); });
+#endif
     QObject::connect(&hotkeyDispatcher, &Hotkeys::Dispatcher::noticeRequested, &notificationToast,
         [&notificationToast, coverCache, notificationCoverSize](const Hotkeys::Dispatcher::Notice& notice) {
             const QPixmap cover

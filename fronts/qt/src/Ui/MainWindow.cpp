@@ -71,10 +71,6 @@
 #include "Typography.h"
 #include "WindowGlass.h"
 
-#ifdef Q_OS_MACOS
-#include "DockIcon.h"
-#endif
-
 namespace Ui {
 
 namespace {
@@ -1156,9 +1152,6 @@ void MainWindow::bringToFront(const QString& activationToken)
 #endif
     }
     trayHiddenGeometry_.clear();
-#ifdef Q_OS_MACOS
-    Integration::DockIcon::setVisible(true);
-#endif
     setWindowState((windowState() & ~Qt::WindowMinimized) | Qt::WindowActive);
     show();
     raise();
@@ -1177,9 +1170,6 @@ void MainWindow::hideToTray()
 {
     trayHiddenGeometry_ = saveGeometry();
     hide();
-#ifdef Q_OS_MACOS
-    Integration::DockIcon::setVisible(false);
-#endif
 }
 
 void MainWindow::showPlaylistsMenu(QPoint anchor)
