@@ -87,12 +87,15 @@ build_ffmpeg() {
     # No x86 assembly: it needs nasm, and audio decoding doesn't miss it.
     # (An empty array is "unbound" to macOS's bash 3.2 under set -u, hence
     # the ${asm[@]+...} below.)
+    # No Objective-C: its video filters (CoreImage, Metal) aren't for audio,
+    # and on arm64 the linker leaves their objc_msgSend unbound in libmpv.
     local asm=()
     [[ $arch == x86_64 ]] && asm=(--disable-x86asm)
     (cd "$1" && ./configure --prefix="$prefix" --enable-static --disable-shared --enable-pic \
         --disable-programs --disable-doc --disable-debug --disable-avdevice \
         --disable-encoders --disable-muxers --disable-indevs --disable-outdevs \
         --disable-sdl2 --disable-xlib --disable-libxcb --disable-vulkan \
+        --disable-coreimage --disable-appkit --disable-metal --disable-avfoundation \
         --enable-securetransport ${asm[@]+"${asm[@]}"} \
         --extra-cflags="-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET" \
         --extra-ldflags="-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET" \
@@ -149,12 +152,10 @@ build_mpv() {
         "$1/meson.build"
     grep -q "'osdep/utils-mac.c')" "$1/meson.build"
     # libplacebo is C++, but its .pc doesn't say so, and mpv links as C.
-    # libobjc for utils-mac.c's Objective-C calls: on arm64 nothing else
-    # brings it in, and objc_msgSend is left unresolved.
     meson setup "$1/_build" "$1" --prefix="$prefix" --libdir=lib --buildtype=release \
         -Ddefault_library=shared -Dprefer_static=true -Dauto_features=disabled \
         -Dlibmpv=true -Dcplayer=false -Dgpl=false -Dtests=false -Dbuild-date=false \
-        -Dgl=disabled -Dcoreaudio=enabled -Dzlib=enabled "-Dc_link_args=-lc++ -lobjc"
+        -Dgl=disabled -Dcoreaudio=enabled -Dzlib=enabled -Dc_link_args=-lc++
     meson compile -C "$1/_build"
     meson install -C "$1/_build"
     # meson names it by its absolute path; the app finds it through its rpath
