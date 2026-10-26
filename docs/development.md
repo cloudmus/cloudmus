@@ -40,7 +40,7 @@ implementation detail of the process on either side.
 ### Backend discovery and supervision
 
 On startup a front reads backend manifests (`manifest.json`: `id`, `name`,
-`argv`, `protocolVersion`, optional `icon`) from
+`argv`, `protocolVersion`, optional `icon` and `logo`) from
 `~/.config/cloudmus/backends.d/*.json` — or, with `CLOUDMUS_DEV_BACKENDS=1`,
 from `backends/*/manifest.json` in this checkout (run with its `.venv`).
 It spawns each backend, performs the `initialize` handshake, and restarts a
@@ -212,9 +212,11 @@ download's speed under `cloudmus.net.download`.
 1. Create `backends/<service-name>/`.
 2. Write a `manifest.json` (`id`, `name`, `argv`, `protocolVersion`, and
    optionally `icon`: a monochrome 24×24 SVG, path relative to the manifest
-   — the Qt front tints it to its theme). Installed fronts, the AppImage
-   included, pick up manifests from `~/.config/cloudmus/backends.d/`, so a
-   backend of your own works with a release build too.
+   — the Qt front tints it to its theme; and `logo`: the service's
+   full-color square SVG logo, shown as is on the source's page). Installed
+   fronts, the AppImage included, pick up manifests from
+   `~/.config/cloudmus/backends.d/`, so a backend of your own works with a
+   release build too.
 3. Implement the protocol methods (`initialize`, `catalog.*`, `playback.*`,
    …) on top of `backends/py-rpc-common`.
 4. Make it pass the conformance suite.

@@ -57,6 +57,7 @@ public:
     QString id() const override { return QStringLiteral("source:") + manifest_.id; }
     QString title() const override { return manifest_.name; }
     QString iconPath() const override { return manifest_.iconPath; }
+    QString logoPath() const override { return manifest_.logoPath; }
     QString sidebarSection() const override;
     int estimatedHeight() const override { return 200; }
 

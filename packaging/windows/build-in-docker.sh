@@ -99,8 +99,11 @@ for backend_id in ('local-folder', 'yandex-music', 'youtube-music'):
     # the icon has to be renamed to match, or that lookup silently misses.
     if 'icon' in manifest:
         manifest['icon'] = f'{backend_id}.svg'
+        (dest / f'{backend_id}.svg').write_bytes((source / 'icon.svg').read_bytes())
+    if 'logo' in manifest:
+        manifest['logo'] = f'{backend_id}-logo.svg'
+        (dest / f'{backend_id}-logo.svg').write_bytes((source / 'logo.svg').read_bytes())
     (dest / f'{backend_id}.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
-    (dest / f'{backend_id}.svg').write_bytes((source / 'icon.svg').read_bytes())
 PY
 
 echo '==> Building NSIS installer'

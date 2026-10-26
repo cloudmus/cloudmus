@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QHash>
 #include <QList>
 #include <QObject>
 #include <QSet>
@@ -50,6 +51,7 @@ public:
     QList<Playlist> playlists(const QString& sourceId) const { return model_.playlistsFor(sourceId); }
     bool isLoading(const QString& sourceId) const { return model_.isSourceLoading(sourceId); }
     QString iconPath(const QString& sourceId) const { return model_.sourceIconPath(sourceId); }
+    QString logoPath(const QString& sourceId) const { return logoPaths_.value(sourceId); }
 
     // Lists the source's playlists again (catalog.listPlaylists).
     void refresh(const QString& sourceId);
@@ -89,6 +91,7 @@ private:
     Config::Settings& settings_;
     Messages& messages_;
     SidebarModel model_;
+    QHash<QString, QString> logoPaths_;
     QSet<QString> collapsed_;
 };
 
