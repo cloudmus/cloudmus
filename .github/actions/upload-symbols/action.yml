@@ -5,6 +5,9 @@ inputs:
     required: true
   org:
     required: true
+  source-root:
+    description: Where the sources the debug info names are. The Docker builds see the checkout as /workspace; macOS builds in the checkout itself.
+    default: /workspace
 runs:
   using: composite
   steps:
@@ -13,6 +16,7 @@ runs:
         SENTRY_AUTH_TOKEN: ${{ inputs.auth-token }}
         SENTRY_ORG: ${{ inputs.org }}
         SENTRY_PROJECT: cloudmus-qt
+        SOURCE_ROOT: ${{ inputs.source-root }}
       run: |
         test -n "$SENTRY_AUTH_TOKEN" && test -n "$SENTRY_ORG"
         pip install --quiet sentry-cli
@@ -20,8 +24,8 @@ runs:
         # the debug info names the sources by those paths (the Windows one
         # is rewritten to /workspace/... at build time). Make them resolve
         # here, so that --include-sources can bundle the files.
-        sudo ln -sfn "$GITHUB_WORKSPACE" /workspace
+        if [ "$SOURCE_ROOT" = /workspace ]; then sudo ln -sfn "$GITHUB_WORKSPACE" /workspace; fi
         # Without it the upload still succeeds, just with no source in the
         # stacks: fail here instead of finding out from a crash.
-        test -f /workspace/fronts/qt/src/main.cpp
+        test -f "$SOURCE_ROOT/fronts/qt/src/main.cpp"
         sentry-cli debug-files upload --include-sources dist/symbols

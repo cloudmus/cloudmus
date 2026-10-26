@@ -220,8 +220,9 @@ SMAppService's login items can't pass. Self-update (`InstallerMac.cpp`)
 downloads the release's DMG of the running arch, copies `CloudMus.app` out
 of it next to the running one, and once the app has quit swaps the two and
 opens the new one; it works for an app outside the DMG in a folder the user
-can write to (`/Applications` for an admin). Not on macOS yet: Sentry. The Linux D-Bus integrations
-(MPRIS, the portal) aren't built there.
+can write to (`/Applications` for an admin). Crash reports go to Sentry as
+on Linux and Windows; the symbols are a dSYM (`dist/symbols/CloudMus.dSYM`).
+The Linux D-Bus integrations (MPRIS, the portal) aren't built there.
 While the window is in the tray (the menu bar), the app stays in the Dock
 and Cmd+Tab, cover and all, as music players do; a click on its Dock icon
 (a reopen event, `DockIconMac.mm`) brings the window back. A click on the

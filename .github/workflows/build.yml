@@ -1,7 +1,6 @@
 # The AppImage, the Windows installer and the macOS DMGs, built the same way
 # for a release (release.yml) and for every push to develop (develop.yml).
-# Uploads them as workflow artifacts, and the debug symbols to Sentry (not
-# for macOS yet: it isn't built with Sentry).
+# Uploads them as workflow artifacts, and the debug symbols to Sentry.
 name: Build
 
 on:
@@ -137,10 +136,19 @@ jobs:
       - name: Build the DMG
         env:
           CLOUDMUS_GA4_MEASUREMENT_ID: ${{ inputs.release && secrets.CLOUDMUS_GA4_MEASUREMENT_ID || '' }}
+          CLOUDMUS_SENTRY_DSN: ${{ secrets.CLOUDMUS_SENTRY_DSN }}
           RELEASE: ${{ inputs.release }}
         run: |
           if [ "$RELEASE" = true ]; then test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"; fi
+          test -n "$CLOUDMUS_SENTRY_DSN"
           packaging/macos/build-app.sh
+
+      - name: Upload debug symbols to Sentry
+        uses: ./.github/actions/upload-symbols
+        with:
+          auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          org: ${{ secrets.SENTRY_ORG }}
+          source-root: ${{ github.workspace }}
 
       - uses: actions/upload-artifact@v4
         with:

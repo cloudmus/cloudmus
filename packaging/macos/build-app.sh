@@ -16,6 +16,9 @@
 # CLOUDMUS_CODESIGN_IDENTITY signs with another identity; a Developer ID
 # would also want the hardened runtime and notarization, not done here.
 #
+# CLOUDMUS_SENTRY_DSN builds in crash reports to Sentry, and leaves the
+# debug symbols in dist/symbols/ for CI to upload.
+#
 # Usage: packaging/macos/build-app.sh
 
 set -euo pipefail
@@ -72,14 +75,29 @@ python3 protocol/codegen/generate.py --lang python cpp
 
 echo '==> Building CloudMus.app'
 build=$repo/build-macos-$arch
-# Sentry isn't built for macOS yet: never, even with CLOUDMUS_SENTRY_DSN set.
+# Explicit, not left to the DSN: the option is cached in the build directory.
+sentry=OFF
+if [[ -n ${CLOUDMUS_SENTRY_DSN:-} ]]; then sentry=ON; fi
+# -g1: enough debug info for Sentry to name functions and lines in a crash
+# stack; it goes into the dSYM below, macdeployqt strips what ships.
 PKG_CONFIG_PATH=$deps/lib/pkgconfig cmake -S fronts/qt -B "$build" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+    -DCMAKE_C_FLAGS=-g1 -DCMAKE_CXX_FLAGS=-g1 \
+    -DCLOUDMUS_SENTRY="$sentry" \
     -DCMAKE_PREFIX_PATH="$qt_dir" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
-    -DCLOUDMUS_SENTRY=OFF \
     -DCLOUDMUS_VERSION_OVERRIDE="$version"
 cmake --build "$build"
+
+# With Sentry (a build given CLOUDMUS_SENTRY_DSN), the symbols for CI to
+# upload. Sentry matches them to a crash by the executable's LC_UUID, which
+# stripping and signing keep.
+rm -rf "$repo/dist/symbols"
+if [[ -n ${CLOUDMUS_SENTRY_DSN:-} ]]; then
+    echo '==> Extracting the debug symbols'
+    mkdir -p "$repo/dist/symbols"
+    dsymutil "$build/bin/CloudMus.app/Contents/MacOS/CloudMus" -o "$repo/dist/symbols/CloudMus.dSYM"
+fi
 
 stage=$repo/dist/macos-stage-$arch
 app=$stage/CloudMus.app

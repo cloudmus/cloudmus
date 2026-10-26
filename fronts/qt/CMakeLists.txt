@@ -733,7 +733,7 @@ if(NOT WIN32)
 endif()
 # Sentry finds the symbols for a crash by the executable's build id, so the
 # one in the release must match the unstripped copy uploaded from CI.
-# Apple's linker has no --build-id (Sentry isn't built for macOS yet).
+# Apple's linker has no --build-id: it always writes an LC_UUID instead.
 if(CLOUDMUS_SENTRY AND NOT APPLE)
     target_link_options(cloudmus-qt PRIVATE -Wl,--build-id)
 endif()
