@@ -4,7 +4,7 @@
 
 #include "ReleaseFeed.h"
 
-// Installing a downloaded update — per platform: InstallerPosix.cpp
+// Installing a downloaded update — per platform: InstallerLinux.cpp
 // replaces the AppImage this runs from, InstallerWin.cpp runs the NSIS
 // setup (packaging/windows/cloudmus.nsi's /UPDATE mode), InstallerMac.cpp
 // copies CloudMus.app out of the release's DMG and puts it in place of

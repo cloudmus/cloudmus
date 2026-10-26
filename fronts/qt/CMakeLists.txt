@@ -219,7 +219,7 @@ if(WIN32)
 elseif(APPLE)
     target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerMac.cpp)
 else()
-    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerPosix.cpp)
+    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerLinux.cpp)
 endif()
 
 # GCC 10 miscompiles our coroutines: a braced temporary inside a co_await
@@ -664,9 +664,9 @@ endif()
 # `cmake --build build --target update_translations`.
 # lupdate also reads the sources this platform doesn't build: with
 # -no-obsolete it would drop their texts (InstallerWin.cpp on Linux,
-# InstallerPosix.cpp on Windows, InstallerMac.cpp on both) along with the
-# translations. Only those —
-# a file given twice confuses lupdate's namespaces.
+# InstallerLinux.cpp on Windows, InstallerMac.cpp on both) along with the
+# translations. Only those — a file given twice confuses lupdate's
+# namespaces.
 file(GLOB_RECURSE _tr_sources CONFIGURE_DEPENDS src/*.cpp src/*.h)
 foreach(_target cloudmus-core cloudmus-ui cloudmus-qt)
     get_target_property(_target_sources ${_target} SOURCES)
