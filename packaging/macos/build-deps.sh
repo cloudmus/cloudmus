@@ -168,6 +168,20 @@ build_mpv() {
     if [[ -n $missing ]]; then
         echo "build-deps: libmpv has unresolved symbols:" >&2
         echo "$missing" >&2
+        # What a fix needs to know: who refers to them, what libmpv links,
+        # how it was linked, with which tools.
+        local symbol
+        for symbol in $(echo "$missing" | awk '{print $3}'); do
+            echo "build-deps: referring to $symbol:" >&2
+            nm -A "$prefix"/lib/*.a "$1"/_build/libmpv.2.dylib.p/*.o 2>/dev/null |
+                awk -v s="$symbol" '$(NF-1) == "U" && $NF == s {print "  " $1}' | sort -u >&2
+        done
+        echo "build-deps: libmpv links:" >&2
+        otool -L "$lib" >&2
+        echo "build-deps: link command:" >&2
+        grep -A3 "^build libmpv.2.dylib:" "$1/_build/build.ninja" >&2 || true
+        ld -v 2>&1 | head -1 >&2
+        cc --version | head -1 >&2
         exit 1
     fi
 }
