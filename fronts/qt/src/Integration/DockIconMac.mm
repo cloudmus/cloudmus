@@ -1,11 +1,13 @@
 #include "DockIcon.h"
 
+#include <QBrush>
 #include <QIcon>
 #include <QImage>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
 #include <QTimer>
+#include <QTransform>
 
 #import <AppKit/AppKit.h>
 
@@ -33,11 +35,14 @@ namespace Integration::DockIcon {
 namespace {
     CloudMusReopenTarget* reopenTarget = nil;
 
-    // Qt hands the Dock its 1x rasters, which it scales up blurry. One
-    // 1024px raster at the Dock's 128pt is only ever scaled down. Apple's
-    // grid keeps 100px of the 1024 free around the artwork.
+    // Qt hands the Dock its 1x rasters, which it scales up blurry. The icon
+    // is drawn at 1024px instead, on Apple's grid (100px of the 1024 free
+    // around the artwork), and handed over at every size an .icns has: the
+    // Dock and Cmd+Tab pick one close to what they draw, rather than
+    // shrinking the 1024px one jagged.
     constexpr int canvas = 1024;
     constexpr int margin = 100;
+    constexpr int sizes[] = { 16, 32, 64, 128, 256, 512, 1024 };
 
     QIcon logoIcon;
     NSImage* logoImage = nil;
@@ -49,14 +54,28 @@ namespace {
             NSApp.applicationIconImage = image;
     }
 
-    // A retained image (the caller releases it), nil if it can't be made.
+    // A retained image (the caller releases it) of the canvas at each of
+    // `sizes`, nil if it can't be made.
     NSImage* toDockImage(const QImage& image)
     {
-        CGImageRef cgImage = image.toCGImage();
-        if (!cgImage)
+        NSImage* result = [[NSImage alloc] initWithSize:NSMakeSize(128, 128)];
+        for (const int pixels : sizes) {
+            const QImage scaled = pixels == image.width()
+                ? image
+                : image.scaled(pixels, pixels, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            CGImageRef cgImage = scaled.toCGImage();
+            if (!cgImage)
+                continue;
+            NSBitmapImageRep* rep = [[NSBitmapImageRep alloc] initWithCGImage:cgImage];
+            CGImageRelease(cgImage);
+            rep.size = NSMakeSize(pixels, pixels);
+            [result addRepresentation:rep];
+            [rep release];
+        }
+        if (result.representations.count == 0) {
+            [result release];
             return nil;
-        NSImage* result = [[NSImage alloc] initWithCGImage:cgImage size:NSMakeSize(128, 128)];
-        CGImageRelease(cgImage);
+        }
         return result;
     }
 } // namespace
@@ -94,10 +113,13 @@ void setCover(const QPixmap& cover)
         const QRectF tile(margin, margin, side, side);
         QPainterPath shape;
         shape.addRoundedRect(tile, side * 0.2237, side * 0.2237);
-        painter.save();
-        painter.setClipPath(shape);
-        painter.drawPixmap(tile, cover, QRectF(cover.rect()));
-        painter.restore();
+        // Filled with the cover rather than clipped to the shape: Qt's
+        // clipping isn't antialiased, and the corners came out stepped.
+        QBrush brush(cover.toImage().scaled(side, side, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+        brush.setTransform(QTransform::fromTranslate(margin, margin));
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(brush);
+        painter.drawPath(shape);
         // The logo in the bottom right corner, a little over the edge, as
         // the Dock places badges: whose cover it is.
         const int badge = side * 3 / 8;
