@@ -12,7 +12,6 @@
 #include <QShortcut>
 #include <QSortFilterProxyModel>
 #include <QStackedWidget>
-#include <QSvgRenderer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -72,11 +71,11 @@ public:
         const QString& iconPath, const QString& logoPath)
     {
         iconPath_ = iconPath;
-        logo_ = renderLogo(logoPath);
+        logoPath_ = logoPath;
         title_ = title;
         subtitle_ = subtitle;
         coverUrl_ = coverUrl;
-        generatedCover_ = coverUrl.isEmpty() && logo_.isNull()
+        generatedCover_ = coverUrl.isEmpty() && logoPath.isEmpty()
             ? generateMeshAuraGradientCover(coverSeed, QSize(kCoverSide, kCoverSide) * devicePixelRatioF())
             : QPixmap();
         update();
@@ -99,10 +98,10 @@ protected:
         const Theme::Palette& pal = Theme::palette();
 
         const QRect coverRect(0, (height() - kCoverSide) / 2, kCoverSide, kCoverSide);
-        if (!logo_.isNull()) {
+        if (!logoPath_.isEmpty()) {
             // A logo is the brand's own artwork, shape and colors included:
             // drawn as is, in place of the cover and the tinted icon.
-            painter.drawPixmap(coverRect, logo_);
+            Theme::logoFromFile(logoPath_, kCoverSide).paint(&painter, coverRect);
             paintText(painter, coverRect);
             return;
         }
@@ -130,24 +129,6 @@ protected:
     }
 
 private:
-    QPixmap renderLogo(const QString& path) const
-    {
-        if (path.isEmpty())
-            return { };
-        QSvgRenderer renderer(path);
-        if (!renderer.isValid())
-            return { };
-        const qreal dpr = devicePixelRatioF();
-        QPixmap pixmap(QSize(kCoverSide, kCoverSide) * dpr);
-        pixmap.fill(Qt::transparent);
-        QPainter painter(&pixmap);
-        painter.setRenderHint(QPainter::Antialiasing);
-        renderer.render(&painter);
-        painter.end();
-        pixmap.setDevicePixelRatio(dpr);
-        return pixmap;
-    }
-
     void paintText(QPainter& painter, const QRect& coverRect)
     {
         const Theme::Palette& pal = Theme::palette();
@@ -181,7 +162,7 @@ private:
     QString coverUrl_;
     QPixmap generatedCover_;
     QString iconPath_;
-    QPixmap logo_;
+    QString logoPath_;
 };
 
 // Case-insensitive substring match on title, artist names and album.
