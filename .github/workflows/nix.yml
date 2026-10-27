@@ -50,14 +50,16 @@ jobs:
       # information names the build sandbox, not this checkout — so frames are
       # symbolized from the DWARF alone.
       #
-      # Skipped for pull requests, whose secrets GitHub does not hand out.
+      # Skipped for pull requests, whose secrets GitHub does not hand out, and
+      # while SENTRY_AUTH_TOKEN is not configured — a fork's own push has none.
       - name: Upload debug symbols to Sentry
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN != ''
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: cloudmus-qt
         run: |
           symbols=$(nix build --print-out-paths .#default^debug)
-          pip install --quiet sentry-cli
-          sentry-cli debug-files upload "$symbols"
+          # sentry-cli from nixpkgs: the runner's Python is externally managed
+          # (PEP 668), so a plain `pip install sentry-cli` cannot install into it.
+          nix run nixpkgs#sentry-cli -- debug-files upload "$symbols"
