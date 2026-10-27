@@ -191,8 +191,8 @@ package updates and removal through Portage.
 
 #### NixOS and Nix
 
-The repository is also a flake, so Nix builds CloudMus from source. On NixOS,
-add it to your configuration:
+The repository is also a flake, so Nix builds CloudMus from source — on
+`x86_64-linux` and `aarch64-linux`. On NixOS, add it to your configuration:
 
 ```nix
 {

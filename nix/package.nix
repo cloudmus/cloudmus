@@ -402,6 +402,8 @@ pkgs.stdenv.mkDerivation {
     homepage = "https://cloudmus.app";
     license = lib.licenses.mit;
     mainProgram = "cloudmus";
-    platforms = [ "x86_64-linux" ];
+    # Linux on any architecture: nothing here is architecture-specific (the
+    # backends are CPython, the front Qt).
+    platforms = lib.platforms.linux;
   };
 }

@@ -6,8 +6,13 @@
   outputs =
     { self, nixpkgs }:
     let
-      system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
+      # Linux only: the front is Qt and the backends are CPython processes, so
+      # nothing in the package is architecture-specific.
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      forEachSystem = nixpkgs.lib.genAttrs systems;
 
       # A flake cannot see the tags of the source it was fetched from — self
       # carries rev and shortRev, not the ref — so the package cannot tell a
@@ -28,52 +33,70 @@
       # there, not secrets of this workflow: a flake build has to be
       # reproducible, and a value taken from the environment would make the
       # CI build and a user's own build different store paths.
-      cloudmus = pkgs.callPackage ./nix/package.nix {
-        inherit pkgs;
-        inherit versionSuffix;
-        src = self;
-      };
+      cloudmusFor =
+        pkgs:
+        pkgs.callPackage ./nix/package.nix {
+          inherit pkgs;
+          src = self;
+          inherit versionSuffix;
+        };
     in
     {
-      packages.${system} = {
-        default = cloudmus;
-        cloudmus = cloudmus;
-      };
+      packages = forEachSystem (
+        system:
+        let
+          cloudmus = cloudmusFor nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = cloudmus;
+          cloudmus = cloudmus;
+        }
+      );
 
-      apps.${system}.default = {
-        type = "app";
-        program = "${cloudmus}/bin/cloudmus";
-        meta.description = "CloudMus — enjoy listening to your clouds";
-      };
+      apps = forEachSystem (system: {
+        default = {
+          type = "app";
+          program = "${self.packages.${system}.cloudmus}/bin/cloudmus";
+          meta.description = "CloudMus — enjoy listening to your clouds";
+        };
+      });
 
       # For a NixOS configuration: nixpkgs.overlays = [ inputs.cloudmus.overlays.default ];
       # then pkgs.cloudmus, or pkgs.cloudmus.override { enableSentry = false; }.
       overlays.default = final: _prev: {
         cloudmus = final.callPackage ./nix/package.nix {
           pkgs = final;
-          inherit versionSuffix;
           src = self;
+          inherit versionSuffix;
         };
       };
 
-      devShells.${system}.default = pkgs.mkShell {
-        inputsFrom = [ cloudmus ];
-        packages = [
-          (pkgs.python3.withPackages (ps: [
-            ps.jinja2
-            ps.pyyaml
-          ]))
-          # Not inputs of the package itself: docs/development.md recommends
-          # both for a source build, and fronts/qt/CMakeLists.txt uses them
-          # with no flags once it finds them.
-          pkgs.ccache
-          pkgs.mold
-        ];
-        shellHook = ''
-          echo "CloudMus dev shell. To build the front outside Nix:"
-          echo "  cmake -S fronts/qt -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPYTHON3_EXECUTABLE=$(command -v python3)"
-          echo "  cmake --build build"
-        '';
-      };
+      devShells = forEachSystem (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = pkgs.mkShell {
+            inputsFrom = [ self.packages.${system}.cloudmus ];
+            packages = [
+              (pkgs.python3.withPackages (ps: [
+                ps.jinja2
+                ps.pyyaml
+              ]))
+              # Not inputs of the package itself: docs/development.md recommends
+              # both for a source build, and fronts/qt/CMakeLists.txt uses them
+              # with no flags once it finds them.
+              pkgs.ccache
+              pkgs.mold
+            ];
+            shellHook = ''
+              echo "CloudMus dev shell. To build the front outside Nix:"
+              echo "  cmake -S fronts/qt -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPYTHON3_EXECUTABLE=$(command -v python3)"
+              echo "  cmake --build build"
+            '';
+          };
+        }
+      );
     };
 }
