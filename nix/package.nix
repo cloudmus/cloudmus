@@ -233,6 +233,37 @@ let
   # AppRun it writes only its own three files, so a manifest a user put there
   # for their own backend stays untouched.
   #
+  # Each manifest is the backend's own (backends/<id>/manifest.json) with the
+  # two values this package owns: argv[0], an absolute path on purpose — the
+  # front passes its own environment on to the backends, so a bare python3
+  # would be the user's, which does not have these packages (see
+  # BackendManifest.cpp) — and the icon. The rest, protocolVersion above all,
+  # stays the backend's to declare, so a bump there needs nothing here.
+  backendIds = [
+    "local-folder"
+    "yandex-music"
+    "youtube-music"
+  ];
+
+  # Written into $out in postInstall and copied from there by seedBackends:
+  # whole files, so no shell ever has to quote their JSON.
+  seedManifest =
+    id:
+    let
+      backend = lib.importJSON "${src}/backends/${id}/manifest.json";
+    in
+    builtins.toJSON (
+      backend
+      // {
+        argv = [
+          "${backendPython}/bin/python3"
+          "-m"
+          (builtins.elemAt backend.argv 2)
+        ];
+        icon = "${placeholder "out"}/share/cloudmus/backend-icons/${id}.svg";
+      }
+    );
+
   # $1 is the package's own $out (an AppImage has a fresh mount point every
   # launch, so AppRun cannot embed these paths; a store path is stable, but the
   # script is still run every launch — it is idempotent).
@@ -250,25 +281,10 @@ let
     dir="$configHome/cloudmus/backends.d"
     mkdir -p "$dir" 2>/dev/null || exit 0
 
-    # argv[0] is an absolute path on purpose: the front passes its own
-    # environment to the backends, so a bare python3 would be the user's (which
-    # does not have these packages) — see BackendManifest.cpp.
-    write_manifest() {
-      id="$1"
-      name="$2"
-      module="$3"
-      protocol="$4"
-      cat > "$dir/$id.json" <<JSON || exit 0
-    {"id":"$id","name":"$name","argv":["${backendPython}/bin/python3","-m","$module"],"protocolVersion":"$protocol","icon":"$out/share/cloudmus/backend-icons/$id.svg"}
-    JSON
-    }
-
-    # protocolVersion is the value from each backend's own manifest.json in the
-    # repo (local-folder 1.12, the other two 1.8), not the constant 1.2 AppRun
-    # writes for all of them.
-    write_manifest local-folder "Local Folder" cloudmus_backend_local 1.12
-    write_manifest yandex-music "Yandex Music" cloudmus_backend_yandex 1.8
-    write_manifest youtube-music "YouTube Music" cloudmus_backend_ytmusic 1.8
+    # Whole files, so no JSON is ever quoted into a shell. The glob is exactly
+    # the three manifests this package ships (postInstall), so a manifest a user
+    # put there for their own backend stays untouched.
+    cp "$out"/share/cloudmus/backends.d/*.json "$dir"/ || exit 0
   '';
 in
 pkgs.stdenv.mkDerivation {
@@ -390,11 +406,16 @@ pkgs.stdenv.mkDerivation {
     install -Dm644 ${src}/art/logo.png \
       $out/share/icons/hicolor/512x512/apps/cloudmus-qt.png
 
-    # Each backend's sidebar icon, referenced by the manifests above.
-    for id in local-folder yandex-music youtube-music; do
-      install -Dm644 ${src}/backends/$id/icon.svg \
-        $out/share/cloudmus/backend-icons/$id.svg
-    done
+    # The manifests the launcher copies (see seedBackends) and the sidebar icons
+    # they name.
+    mkdir -p $out/share/cloudmus/backends.d
+    ${lib.concatStrings (
+      map (id: ''
+        printf '%s\n' ${lib.escapeShellArg (seedManifest id)} \
+          > $out/share/cloudmus/backends.d/${id}.json
+        install -Dm644 ${src}/backends/${id}/icon.svg $out/share/cloudmus/backend-icons/${id}.svg
+      '') backendIds
+    )}
   '';
 
   meta = {
