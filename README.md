@@ -224,6 +224,10 @@ pkgs.cloudmus.override {
 [Usage statistics](docs/analytics.md) carry no personal data — no track or
 playlist names, no sign-in details — they only show which features are used.
 
+A Nix build never calls itself a release: **About** shows the changelog's
+version plus the commit it was built from (`0.6.4-gabc1234`), and the crashes it
+reports are filed as a development build's rather than mixed into the release's.
+
 Qt, mpv and TagLib come prebuilt from `cache.nixos.org`, so a build compiles
 CloudMus itself and takes a few minutes; the `Nix` workflow publishes the result
 to a binary cache, which turns an update into a download.

@@ -30,6 +30,15 @@
       "CloudMus: the first heading of ${toString src}/CHANGELOG.md is not x.y.z (pass `version`)";
     parsed,
 
+  # Added to the reported version only, not to the changelog's: a build of a
+  # release tag keeps the plain number, everything else says which commit it
+  # names ("0.6.4-gabc1234"). CrashReporter then files it as a development
+  # build rather than mixing it into the release's crashes, and the About
+  # dialog pins the exact tree — as `git describe` does for a checkout of the
+  # front. flake.nix passes it: a store copy of the sources has no history to
+  # tell the release commit from the ones after it.
+  versionSuffix ? "",
+
   # Usage statistics and crash reports, on by default as in the AppImage. The
   # values are the ones the released AppImage carries: a client-side DSN is
   # public by design — it can be read from any published build — and the
@@ -47,6 +56,8 @@ assert lib.assertMsg (enableAnalytics -> analyticsMeasurementId != "")
   "CloudMus: enableAnalytics needs an analyticsMeasurementId (or set enableAnalytics = false)";
 
 let
+  fullVersion = "${version}${versionSuffix}";
+
   # --- Generated protocol code --------------------------------------------
   # protocol/codegen/generate.py renders both language bindings from
   # protocol/schema/*.yaml + methods.yaml. CMake regenerates the C++ ones
@@ -262,7 +273,8 @@ let
 in
 pkgs.stdenv.mkDerivation {
   pname = "cloudmus";
-  inherit version src;
+  inherit src;
+  version = fullVersion;
 
   nativeBuildInputs = [
     pkgs.cmake # fronts/qt/CMakeLists.txt requires >= 3.21
@@ -309,7 +321,7 @@ pkgs.stdenv.mkDerivation {
     # Beats the hook's own PATH lookup: generate.py needs jinja2+pyyaml.
     "-DPYTHON3_EXECUTABLE=${codegen}/bin/python3"
     # See `version` above.
-    "-DCLOUDMUS_VERSION_OVERRIDE=${version}"
+    "-DCLOUDMUS_VERSION_OVERRIDE=${fullVersion}"
     # Explicit: without it the option's default follows the DSN, and a build
     # that asked for no crash reports should not link the SDK at all.
     "-DCLOUDMUS_SENTRY=${if enableSentry then "ON" else "OFF"}"

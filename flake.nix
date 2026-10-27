@@ -9,6 +9,19 @@
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
 
+      # A flake cannot see the tags of the source it was fetched from — self
+      # carries rev and shortRev, not the ref — so the package cannot tell a
+      # release commit from the ones after it. Every Nix build therefore names
+      # its commit, and CrashReporter files it as a development build: no NixOS
+      # crash ends up mixed into a released version's.
+      versionSuffix =
+        if self ? dirtyShortRev then
+          "-g${self.dirtyShortRev}"
+        else if self ? shortRev then
+          "-g${self.shortRev}"
+        else
+          "";
+
       # The package definition lives in nix/package.nix; the sources are this
       # checkout, so a build needs no downloads of its own and follows the
       # commits. Sentry's DSN and the analytics measurement ID are arguments
@@ -17,6 +30,7 @@
       # CI build and a user's own build different store paths.
       cloudmus = pkgs.callPackage ./nix/package.nix {
         inherit pkgs;
+        inherit versionSuffix;
         src = self;
       };
     in
@@ -37,6 +51,7 @@
       overlays.default = final: _prev: {
         cloudmus = final.callPackage ./nix/package.nix {
           pkgs = final;
+          inherit versionSuffix;
           src = self;
         };
       };
