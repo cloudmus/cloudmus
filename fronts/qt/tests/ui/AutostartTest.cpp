@@ -1,5 +1,7 @@
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -44,11 +46,14 @@ class AutostartTest : public QObject {
 
 private:
     QByteArray savedAppImage_;
+    QByteArray savedLauncher_;
 
 private slots:
     void init()
     {
         savedAppImage_ = qgetenv("APPIMAGE");
+        savedLauncher_ = qgetenv("CLOUDMUS_LAUNCHER");
+        qunsetenv("CLOUDMUS_LAUNCHER");
         Integration::Autostart::setEnabled(false);
     }
 
@@ -59,6 +64,50 @@ private slots:
             qunsetenv("APPIMAGE");
         else
             qputenv("APPIMAGE", savedAppImage_);
+        if (savedLauncher_.isEmpty())
+            qunsetenv("CLOUDMUS_LAUNCHER");
+        else
+            qputenv("CLOUDMUS_LAUNCHER", savedLauncher_);
+    }
+
+    // A Nix package starts bin/cloudmus, which seeds the backend manifests and
+    // runs the wrapped binary in the store: the entry has to name that launcher,
+    // not the binary the wrapper execs.
+    void followsTheLauncherThatStartedIt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString launcher = dir.filePath(QStringLiteral("cloudmus"));
+        touch(launcher);
+
+        qputenv("CLOUDMUS_LAUNCHER", launcher.toUtf8());
+        QVERIFY(Integration::Autostart::setEnabled(true));
+        QCOMPARE(
+            execLine(), launcher + QLatin1Char(' ') + QLatin1String(Integration::Autostart::kLaunchedAtLoginArgument));
+    }
+
+    // An upgraded Nix package is another store path, and the old one is still
+    // there until a garbage collection: the entry follows the new launcher.
+    void followsANewerLauncherKeptNextToTheOldOne()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString older = dir.filePath(QStringLiteral("older/cloudmus"));
+        const QString newer = dir.filePath(QStringLiteral("newer/cloudmus"));
+        QVERIFY(QDir().mkpath(QFileInfo(older).absolutePath()));
+        QVERIFY(QDir().mkpath(QFileInfo(newer).absolutePath()));
+        touch(older);
+        touch(newer);
+
+        qputenv("CLOUDMUS_LAUNCHER", older.toUtf8());
+        QVERIFY(Integration::Autostart::setEnabled(true));
+        QVERIFY(execLine().startsWith(older));
+
+        qputenv("CLOUDMUS_LAUNCHER", newer.toUtf8());
+        Integration::Autostart::refresh();
+        QCOMPARE(
+            execLine(), newer + QLatin1Char(' ') + QLatin1String(Integration::Autostart::kLaunchedAtLoginArgument));
+        QVERIFY(Integration::Autostart::isEnabled());
     }
 
     void followsANewerAppImageKeptNextToTheOldOne()

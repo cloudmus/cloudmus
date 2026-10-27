@@ -343,6 +343,11 @@ pkgs.stdenv.mkDerivation {
     #!/bin/sh
     # A failed step here must not keep the app from starting.
     ${seedBackends} ${placeholder "out"} || true
+    # Where the autostart entry points (Integration/Autostart.cpp): the wrapped
+    # binary in the store is no substitute — it skips this script and the
+    # environment wrapQtAppsHook set up for it.
+    CLOUDMUS_LAUNCHER=${placeholder "out"}/bin/cloudmus
+    export CLOUDMUS_LAUNCHER
     exec ${placeholder "out"}/bin/cloudmus-qt "$@"
     EOF
     chmod 755 $out/bin/cloudmus
