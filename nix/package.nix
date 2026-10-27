@@ -135,6 +135,30 @@ let
     nativeCheckInputs = [ python.pkgs.pytestCheckHook ];
   };
 
+  # yt-dlp's nightlies are where YouTube's extraction fixes land, so the
+  # backend's pyproject.toml pins one exactly ("bumped by hand when YouTube
+  # breaks stream extraction"). That very version is built here rather than
+  # taken from nixpkgs, which carries a release weeks older — the pin is the
+  # whole point of it.
+  ytDlp = python.pkgs.buildPythonPackage rec {
+    pname = "yt-dlp";
+    version = "2026.9.27.232945.dev0";
+    pyproject = true;
+    # fetchPypi builds its URL from pname, and PyPI's source shorthand exists
+    # only in the underscored form (as for yandex_music above).
+    src = pkgs.fetchPypi {
+      pname = "yt_dlp";
+      inherit version;
+      hash = "sha256-8JFgvjfFuy5R8tF/aFflEI81Scqt8tl3AJoU3/W08eM=";
+    };
+    # pyproject.toml: requires = ["hatchling>=1.27.0"], backend hatchling.build
+    build-system = [ python.pkgs.hatchling ];
+    # Its core declares no runtime dependencies — brotli, certifi, curl_cffi
+    # and the rest are extras, and playback.py imports only YoutubeDL, the
+    # networking exceptions and DownloadError. The sdist ships no test suite.
+    doCheck = false;
+  };
+
   backendLocalFolder = python.pkgs.buildPythonPackage {
     pname = "cloudmus-backend-local-folder";
     version = "0.1.0";
@@ -158,17 +182,8 @@ let
       rpcCommon
       python.pkgs.pysocks # SOCKS proxies (ALL_PROXY), see docs/protocol.md
       python.pkgs.ytmusicapi
-      # pyproject.toml pins yt-dlp==2026.9.27.232945.dev0 — a pre-release,
-      # "bumped by hand when YouTube breaks stream extraction". nixpkgs has no
-      # such version, and pinning a PyPI pre-release would need a hand-written
-      # derivation; the nixpkgs build of the same tool is used instead.
-      python.pkgs.yt-dlp
+      ytDlp
     ];
-    # The wheel's own metadata keeps that exact pin, which the runtime
-    # dependency check then rejects: relax the specifier so the nixpkgs yt-dlp
-    # above is accepted (a recorded, deliberate divergence, not a removed
-    # dependency).
-    pythonRelaxDeps = [ "yt-dlp" ];
     doCheck = false;
   };
 
