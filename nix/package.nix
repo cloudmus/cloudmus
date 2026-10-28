@@ -388,21 +388,10 @@ pkgs.stdenv.mkDerivation {
     #!/bin/sh
     # A failed step here must not keep the app from starting.
     ${seedBackends} ${placeholder "out"} || true
-
-    # Where the "launch at login" entry points (Integration/Autostart.cpp). The
-    # wrapped binary in the store is no substitute — it skips this script and the
-    # environment wrapQtAppsHook set up for it — and neither is our own store
-    # path: an installed copy sits behind a link an update moves
-    # (/run/current-system/sw/bin/cloudmus, ~/.nix-profile/bin/cloudmus), while a
-    # store path keeps starting the version an update replaced, and none at all
-    # once a collection removed it. $0 is that link for a launched script; it is
-    # not absolute only when something ran this by a bare name.
-    launcher=$0
-    case "$launcher" in
-      /*) ;;
-      *) launcher=${placeholder "out"}/bin/cloudmus ;;
-    esac
-    CLOUDMUS_LAUNCHER=$launcher
+    # Where the autostart entry points (Integration/Autostart.cpp): the wrapped
+    # binary in the store is no substitute — it skips this script and the
+    # environment wrapQtAppsHook set up for it.
+    CLOUDMUS_LAUNCHER=${placeholder "out"}/bin/cloudmus
     export CLOUDMUS_LAUNCHER
     exec ${placeholder "out"}/bin/cloudmus-qt "$@"
     EOF
