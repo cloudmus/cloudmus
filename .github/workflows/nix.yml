@@ -1,0 +1,71 @@
+# Builds the Nix package from this repository, and publishes the result to a
+# Cachix binary cache when one is configured: NixOS users then download the
+# binary instead of compiling it themselves.
+#
+# The cache is optional. Set CACHIX_CACHE_NAME as a repository variable and
+# CACHIX_AUTH_TOKEN as a secret; without them the two cache steps are skipped
+# and the job only checks that the package builds.
+name: Nix
+
+on:
+  push:
+    branches: [develop, master]
+    tags: ['*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: nix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v31
+
+      # Skipped for pull requests (their secrets are not available) and while
+      # the repository has no cache configured.
+      - name: Set up the binary cache
+        if: github.event_name != 'pull_request' && vars.CACHIX_CACHE_NAME != ''
+        uses: cachix/cachix-action@v15
+        with:
+          name: ${{ vars.CACHIX_CACHE_NAME }}
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build
+        run: nix build .#default --print-build-logs
+
+      - name: Push to the binary cache
+        if: github.event_name != 'pull_request' && vars.CACHIX_CACHE_NAME != ''
+        run: cachix push "$CACHE" ./result
+        env:
+          CACHE: ${{ vars.CACHIX_CACHE_NAME }}
+
+      # A crash from a NixOS build has to arrive with symbols, as one from the
+      # AppImage does (build.yml). The `debug` output of nix/package.nix is
+      # what sentry-cli reads; there are no sources to attach — the debug
+      # information names the build sandbox, not this checkout — so frames are
+      # symbolized from the DWARF alone.
+      #
+      # Skipped for pull requests, whose secrets GitHub does not hand out. The
+      # step skips itself when SENTRY_AUTH_TOKEN is empty, which is every fork's
+      # push: no `secrets` context exists in a step's `if`, so that check lives
+      # in the script.
+      - name: Upload debug symbols to Sentry
+        if: github.event_name != 'pull_request'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: cloudmus-qt
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "SENTRY_AUTH_TOKEN is not configured; skipping the symbol upload"
+            exit 0
+          fi
+          symbols=$(nix build --print-out-paths .#default^debug)
+          # sentry-cli from nixpkgs: the job has Nix anyway, so the runner needs
+          # no Python of its own for it.
+          nix run nixpkgs#sentry-cli -- debug-files upload "$symbols"
