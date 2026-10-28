@@ -30,13 +30,12 @@
       "CloudMus: the first heading of ${toString src}/CHANGELOG.md is not x.y.z (pass `version`)";
     parsed,
 
-  # Added to the reported version only, not to the changelog's: a build of a
-  # release tag keeps the plain number, everything else says which commit it
-  # names ("0.6.4-gabc1234"). CrashReporter then files it as a development
-  # build rather than mixing it into the release's crashes, and the About
-  # dialog pins the exact tree — as `git describe` does for a checkout of the
-  # front. flake.nix passes it: a store copy of the sources has no history to
-  # tell the release commit from the ones after it.
+  # Added to the reported version only, not to the changelog's: a Nix build
+  # never claims to be a release — it says which commit it names
+  # ("0.6.4-gabc1234"), because a store copy of the sources cannot tell the
+  # release commit from the ones after it. CrashReporter then files it as a
+  # development build, and the About dialog pins the exact tree — as
+  # `git describe` does for a checkout of the front. flake.nix passes it.
   versionSuffix ? "",
 
   # Usage statistics and crash reports, on by default as in the AppImage. The
@@ -281,10 +280,13 @@ let
     dir="$configHome/cloudmus/backends.d"
     mkdir -p "$dir" 2>/dev/null || exit 0
 
-    # Whole files, so no JSON is ever quoted into a shell. The glob is exactly
-    # the three manifests this package ships (postInstall), so a manifest a user
-    # put there for their own backend stays untouched.
-    cp "$out"/share/cloudmus/backends.d/*.json "$dir"/ || exit 0
+    # Whole files, so no JSON is ever quoted into a shell. install sets the mode
+    # itself: the copies in the store are read-only, and a plain cp would hand
+    # that mode to the config file, which the next launch — and the AppImage's
+    # AppRun, writing the same file — then could not overwrite. The glob is
+    # exactly the three manifests this package ships (postInstall), so a
+    # manifest a user put there for their own backend stays untouched.
+    install -m644 "$out"/share/cloudmus/backends.d/*.json "$dir"/ || exit 0
   '';
 in
 pkgs.stdenv.mkDerivation {
@@ -386,10 +388,21 @@ pkgs.stdenv.mkDerivation {
     #!/bin/sh
     # A failed step here must not keep the app from starting.
     ${seedBackends} ${placeholder "out"} || true
-    # Where the autostart entry points (Integration/Autostart.cpp): the wrapped
-    # binary in the store is no substitute — it skips this script and the
-    # environment wrapQtAppsHook set up for it.
-    CLOUDMUS_LAUNCHER=${placeholder "out"}/bin/cloudmus
+
+    # Where the "launch at login" entry points (Integration/Autostart.cpp). The
+    # wrapped binary in the store is no substitute — it skips this script and the
+    # environment wrapQtAppsHook set up for it — and neither is our own store
+    # path: an installed copy sits behind a link an update moves
+    # (/run/current-system/sw/bin/cloudmus, ~/.nix-profile/bin/cloudmus), while a
+    # store path keeps starting the version an update replaced, and none at all
+    # once a collection removed it. $0 is that link for a launched script; it is
+    # not absolute only when something ran this by a bare name.
+    launcher=$0
+    case "$launcher" in
+      /*) ;;
+      *) launcher=${placeholder "out"}/bin/cloudmus ;;
+    esac
+    CLOUDMUS_LAUNCHER=$launcher
     export CLOUDMUS_LAUNCHER
     exec ${placeholder "out"}/bin/cloudmus-qt "$@"
     EOF
