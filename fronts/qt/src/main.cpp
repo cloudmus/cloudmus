@@ -135,10 +135,8 @@ int main(int argc, char** argv)
     // (SmtcService::pushThumbnail() feeds them the cover directly), but
     // the volume flyout's "Now playing" card (Windows 10) stayed blank —
     // that one specifically needs to resolve the running process back to
-    // a registered app. If it's still blank after this: the next step is
-    // giving packaging/windows/cloudmus.nsi's CreateShortCut calls the
-    // same id as a Start Menu shortcut property (System::Call +
-    // IPropertyStore) — untried so far, since this alone may be enough.
+    // a registered app. Its name there also needs the Start Menu shortcut
+    // to carry this id (AppIdentity::registerAppUserModelId()).
     SetCurrentProcessExplicitAppUserModelID(Integration::AppIdentity::kAppUserModelId);
     // FreeType, not Qt's default DirectWrite: at fractional display scales
     // (13px at 125%) DirectWrite's text came out jagged, with uneven stems.

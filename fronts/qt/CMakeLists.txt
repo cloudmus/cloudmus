@@ -512,7 +512,8 @@ if(WIN32)
     # first-frame background (FirstFrameBackgroundWin.cpp) and glass (WindowGlass.cpp);
     # runtimeobject for WinRT activation (Ro*), shcore + shlwapi to hand a
     # cover to SMTC without an http(s) URL (SmtcService.cpp); ole32 for
-    # CoCreateInstance(ITaskbarList3) (TaskbarThumbButtons.cpp).
+    # CoCreateInstance(ITaskbarList3) (TaskbarThumbButtons.cpp) and the Start
+    # Menu shortcut's AppUserModelID (AppIdentityWin.cpp).
     target_link_libraries(cloudmus-ui PRIVATE shell32 dwmapi runtimeobject shcore shlwapi ole32)
 endif()
 
