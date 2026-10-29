@@ -170,9 +170,7 @@ protected:
     {
         QPainter painter(this);
         // Replace, not blend — see ThemedToolTip's identical comment.
-        painter.setCompositionMode(QPainter::CompositionMode_Source);
-        painter.fillRect(rect(), Qt::transparent);
-        painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        Theme::clearPopup(&painter, rect());
         painter.setOpacity(Theme::popupFade() == Theme::PopupFade::Painted ? opacity_ : 1.0);
         painter.setRenderHint(QPainter::Antialiasing);
         painter.setRenderHint(QPainter::SmoothPixmapTransform);

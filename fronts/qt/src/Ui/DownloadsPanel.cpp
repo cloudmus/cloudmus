@@ -366,9 +366,7 @@ void DownloadsPanel::place()
 void DownloadsPanel::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
-    painter.setCompositionMode(QPainter::CompositionMode_Source);
-    painter.fillRect(rect(), Qt::transparent);
-    painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    Theme::clearPopup(&painter, rect());
     painter.setRenderHint(QPainter::Antialiasing);
     const QRect panel = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
     Theme::paintSoftShadow(&painter, panel, shadowMargin(), shadow().offsetY, shadow().maxAlpha, Theme::Radius::md);

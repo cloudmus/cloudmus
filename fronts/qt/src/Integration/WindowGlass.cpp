@@ -610,6 +610,12 @@ Support support()
     return value;
 }
 
+bool translucentWindows()
+{
+    static const bool value = !isX11() || compositing();
+    return value;
+}
+
 bool fallbackBlur() { return backend() != nullptr && backend()->isFallback(); }
 
 bool nativePopups() { return backend() != nullptr && backend()->hasNativePopups(); }
