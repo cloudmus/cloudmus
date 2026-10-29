@@ -365,7 +365,7 @@ front never goes above what it caps itself.
 | `catalog.listPlaylists` | `{}` | `{"playlists": [Playlist, ...]}` | `browse.playlists \|\| browse.likedTracks \|\| browse.radio` |
 | `catalog.listTracks` | `{"playlistId": string, "cursor"?: string}` | `{"tracks": [Track, ...], "nextCursor"?: string}` | `browse.playlists` |
 | `catalog.listLiked` | `{"cursor"?: string}` | `{"tracks": [Track, ...], "nextCursor"?: string}` | `browse.likedTracks` |
-| `catalog.startRadio` | `{"seed"?: string, "recentTrackIds"?: [string]}` | `{"stationId": string, "initialTracks": [Track, ...]}` | `browse.radio` |
+| `catalog.startRadio` | `{"seed"?: string, "recentTrackIds"?: [string], "recentTracks"?: [RecentTrack]}` | `{"stationId": string, "initialTracks": [Track, ...]}` | `browse.radio` |
 
 `catalog.listPlaylists` is the single source of truth for everything a
 front shows as a "playlist" under a source, including the source's built-in
@@ -410,6 +410,16 @@ kept apart from a repeat. The source leaves them out of `initialTracks`
 and of every `radio/tracksAdded` of that station while it has others to
 serve; when it has none, it serves the ones played longest ago first. A
 track the station is seeded with is served all the same.
+
+The same song often comes in several versions with ids of their own — the
+original and a sped up or slowed one, a music video and its audio track.
+Along with the ids, such a front passes `recentTracks` (1.18+): the same
+tracks in the same order as `{"id": string, "title": string, "artists":
+[string]}` (artist names). A source may then treat another version of a
+recent track as recent too, and, within a station, not serve another
+version of a track it has played — matched by artist and title with the
+version stripped. Where a version ends and a different song begins (a
+remix, a live recording) is the source's call.
 
 By default the front appends a `radio/tracksAdded` batch to its queue. A
 source whose upstream recomputes the upcoming sequence in reaction to

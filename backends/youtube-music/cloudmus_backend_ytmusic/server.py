@@ -159,7 +159,9 @@ def build_server() -> BackendServer:
     @with_account
     async def handle_start_radio(params: dict, request_id: int) -> dict:
         try:
-            return await get_radio_session().start(params.get("seed"), params.get("recentTrackIds"))
+            return await get_radio_session().start(
+                params.get("seed"), params.get("recentTrackIds"), params.get("recentTracks")
+            )
         except ValueError as e:
             raise BackendError(errors.STATE_INVALID, str(e), errors.app_error_data(retryable=False))
 

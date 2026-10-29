@@ -14,6 +14,15 @@ meaning.
   handled requests one at a time, and a playlist that took long to load
   held up a `playback.play` behind it past the front's timeout.
 
+## 1.18 — versions of a song a radio should not repeat yet
+
+- **Additive, backward-compatible**: optional param `recentTracks` of
+  `catalog.startRadio` (§7.1) — the tracks of `recentTrackIds`, in the
+  same order, with their title and artist names. A source may keep other
+  versions of a recent track (sped up, slowed, its music video) from
+  coming again too, and other versions of a track a station has played.
+  A source that ignores it goes by the ids, as before.
+
 ## 1.17 — streams fetched over several connections
 
 - **Additive, backward-compatible**: optional `maxConnections` of

@@ -303,7 +303,7 @@ private slots:
         const auto heard = [this](const QString& sourceId, const QString& id) {
             Track track;
             track.id = id;
-            track.title = id;
+            track.title = QStringLiteral("Title of ") + id;
             history_.record(sourceId, track);
         };
         heard(QStringLiteral("fake"), QStringLiteral("heard-1"));
@@ -322,6 +322,8 @@ private slots:
         QTRY_COMPARE(playback_->queue().size(), 2);
         QCOMPARE(playback_->queue()[0].track.id, QStringLiteral("recent:heard-2"));
         QCOMPARE(playback_->queue()[1].track.id, QStringLiteral("recent:heard-3"));
+        // ...and the titles, for a source to tell other versions of these.
+        QCOMPARE(playback_->queue()[0].track.title, QStringLiteral("recent:Title of heard-2"));
 
         settings_->setSourceRadioRepeatGap(QStringLiteral("fake"), 9999);
         QCOMPARE(settings_->sourceRadioRepeatGap(QStringLiteral("fake")), Config::Settings::kMaxRadioRepeatGap);
