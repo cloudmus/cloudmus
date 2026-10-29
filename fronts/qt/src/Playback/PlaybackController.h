@@ -12,6 +12,7 @@
 #include <memory>
 #include <optional>
 
+#include "AudioPlayer.h"
 #include "Coro.h"
 #include "LevelFeed.h"
 #include "Models.h"
@@ -24,7 +25,6 @@ class QTimer;
 
 namespace Playback {
 
-class AudioPlayer;
 class Preloader;
 class TrackCache;
 
@@ -181,7 +181,8 @@ signals:
     // The same failure, for statistics: the source it was on and a fixed
     // reason — "unavailable" (the source is down), "rejected" (the source
     // refused to play the track), "stream" (the audio didn't start),
-    // "timeout", "station_empty".
+    // "timeout", "station_empty", "audio_output" (no audio output could be
+    // opened).
     void failed(const QString& sourceId, const QString& reason);
     // Emitted whenever hasCurrentTrack() actually changes: true right
     // before trackChanged() when a play succeeds, false when stop()
@@ -240,7 +241,8 @@ private:
     void advance(int delta, bool wasSkip);
     // The current track failed to load or start: resolved again a few
     // times, then left paused with Play loading it anew.
-    void handleStartFailure(const QString& message, const QString& reason, bool unplayableFile = false);
+    void handleStartFailure(
+        const QString& message, const QString& reason, AudioPlayer::Failure failure = AudioPlayer::Failure::Stream);
     void reportError(const QString& sourceId, const QString& reason, const QString& message);
     // Nothing plays now: shown as paused, Play loads the track again.
     void stopAfterFailure();

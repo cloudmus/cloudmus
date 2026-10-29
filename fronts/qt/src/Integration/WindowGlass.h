@@ -62,6 +62,11 @@ void enableBlurBehindPanel(QWidget* window, const QRect& panel, qreal radius);
 // undocumented accent policy — whole windows only. Glass isn't on by default then.
 bool fallbackBlur();
 
+// Whether a translucent window shows what's behind it rather than black:
+// not on X11 without a compositing manager (a window manager alone, e.g.
+// Openbox with picom off). Checked once.
+bool translucentWindows();
+
 // Whether popups are the window system's own (any Windows 11): DWM
 // rounds a popup window's corners, shadows it and — with glass — puts its
 // acrylic backdrop behind it; the window is just the panel. See

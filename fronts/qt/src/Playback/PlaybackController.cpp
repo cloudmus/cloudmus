@@ -69,8 +69,8 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
         emit playingChanged(true);
         updatePreloadWindow();
     });
-    connect(audioPlayer_, &AudioPlayer::failed, this, [this](const QString& message, bool unplayableFile) {
-        handleStartFailure(message, QStringLiteral("stream"), unplayableFile);
+    connect(audioPlayer_, &AudioPlayer::failed, this, [this](const QString& message, AudioPlayer::Failure failure) {
+        handleStartFailure(message, QStringLiteral("stream"), failure);
     });
     connect(audioPlayer_, &AudioPlayer::positionChanged, this, [this](qint64 posMs, qint64 durMs) {
         lastKnownPositionMs_ = posMs;
@@ -160,15 +160,28 @@ void PlaybackController::reportError(const QString& sourceId, const QString& rea
     emit errorOccurred(message);
 }
 
-void PlaybackController::handleStartFailure(const QString& message, const QString& reason, bool unplayableFile)
+void PlaybackController::handleStartFailure(const QString& message, const QString& reason, AudioPlayer::Failure failure)
 {
     preparedStartPending_ = false;
+    // Without an audio output (the sound server gone, the device unplugged)
+    // every track fails alike, and at once: retrying, or going on to the
+    // next downloaded track, would run through the whole queue in a moment
+    // and leave the listener far from where they were. Paused on this
+    // track instead; Play tries it again.
+    if (failure == AudioPlayer::Failure::Output) {
+        startRetries_ = 0;
+        invalidatePrepared(); // or mpv goes on to the queued track, to fail again
+        const QString sourceId = hasCurrentTrack() ? currentSourceId() : QString();
+        stopAfterFailure();
+        reportError(sourceId, QStringLiteral("audio_output"), tr("Can't open the audio output"));
+        return;
+    }
     // A cached file that won't play is no use to anyone: the retry
     // downloads the track anew. Only when it is the file that's at fault,
-    // though — a start that was merely slow (a busy machine at login) or
-    // an audio output that went away says nothing about it, and the retry
-    // plays it from the disk again.
-    if (unplayableFile && hasCurrentTrack() && preloader_->isCached(currentSourceId(), currentTrack().id))
+    // though — a start that was merely slow (a busy machine at login) says
+    // nothing about it, and the retry plays it from the disk again.
+    if (failure == AudioPlayer::Failure::File && hasCurrentTrack()
+        && preloader_->isCached(currentSourceId(), currentTrack().id))
         preloader_->discard(currentSourceId(), currentTrack().id);
     if (hasCurrentTrack() && startRetries_ < kMaxStartRetries) {
         ++startRetries_;

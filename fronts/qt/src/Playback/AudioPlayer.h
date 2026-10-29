@@ -29,6 +29,14 @@ class AudioPlayer : public QObject {
     Q_OBJECT
 
 public:
+    // What a failed() was down to.
+    enum class Failure {
+        Stream, // the track didn't start: a stream refused or broken, say
+        File, // what was given to play couldn't be opened or made sense of
+        Output, // no audio output could be opened: no fault of the track's
+    };
+    Q_ENUM(Failure)
+
 #ifdef Q_OS_WIN
     explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "wasapi");
 #elif defined(Q_OS_MACOS)
@@ -69,9 +77,9 @@ signals:
     // MPV_EVENT_PLAYBACK_RESTART).
     void started();
     // Playback failed; no started()/endOfFile() will follow for this file.
-    // unplayableFile: what was given to play couldn't be opened or made
-    // sense of — as opposed to, say, the audio output going away.
-    void failed(QString message, bool unplayableFile);
+    // Without an audio output, though, started() comes first: mpv 2.5
+    // reports the file restarted before it gives up for want of one.
+    void failed(QString message, Playback::AudioPlayer::Failure failure);
     // Natural end of the current track (not a manual stop/track change).
     void endOfFile();
     void positionChanged(qint64 positionMs, qint64 durationMs);

@@ -363,9 +363,7 @@ void CloudMusStyle::drawPrimitive(
         // not blend) resets this widget's whole paint region to fully
         // transparent first, so every repaint starts from a clean slate
         // regardless of how many times it's been redrawn already.
-        painter->setCompositionMode(QPainter::CompositionMode_Source);
-        painter->fillRect(option->rect, Qt::transparent);
-        painter->setCompositionMode(QPainter::CompositionMode_SourceOver);
+        clearPopup(painter, option->rect);
         painter->setRenderHint(QPainter::Antialiasing);
 
         const QRect panelRect = menuPanelRect(option->rect);

@@ -298,6 +298,10 @@
 <context>
     <name>Playback::PlaybackController</name>
     <message>
+        <source>Can&apos;t open the audio output</source>
+        <translation>Не ўдаецца адкрыць аўдыявыхад</translation>
+    </message>
+    <message>
         <source>No network connection: playing the next downloaded track</source>
         <translation>Няма сеткі: іграе наступны загружаны трэк</translation>
     </message>

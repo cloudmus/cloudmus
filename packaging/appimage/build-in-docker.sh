@@ -433,6 +433,24 @@ done
 find "${APPDIR}/usr/lib" -maxdepth 1 -type f -name '*.so*' -print0 | \
     xargs -0 -I{} patchelf --set-rpath '$ORIGIN' {}
 
+# libsystemd and libudev (pulled in by dbus, pulseaudio and samba) move out
+# of usr/lib into a directory each that AppRun puts on LD_LIBRARY_PATH only
+# when the host lacks the library: the host's copy has to win. Ours are
+# bullseye's v247, and a host library that gets into the process anyway
+# (GTK through a user's LD_PRELOAD) brings the host's libmount, which since
+# util-linux 2.42 needs LIBSYSTEMD_251 — with ours already loaded under the
+# same soname, the dynamic linker stops the app before main()
+# (CLOUDMUS-QT-F, on Manjaro). The host's copy is never too old for our
+# libraries; the fallback is only for a host without systemd (Void, Artix).
+# Their own dependencies (lz4, zstd, gcrypt, ...) stay in usr/lib.
+for _lib in libsystemd.so.0 libudev.so.1; do
+    [ -e "${APPDIR}/usr/lib/${_lib}" ] || continue
+    _dir="${APPDIR}/usr/lib/fallback/${_lib%%.*}"
+    mkdir -p "${_dir}"
+    mv "${APPDIR}/usr/lib/${_lib}" "${_dir}/"
+    patchelf --set-rpath '$ORIGIN/../..' "${_dir}/${_lib}"
+done
+
 # --- 6. Our AppRun in place of linuxdeploy's generated one (for Qt6 that is
 # just a link to the binary): the static Rust program from
 # packaging/appimage/apprun, built by build-appimage.sh before this

@@ -60,7 +60,7 @@ fn main() -> ExitCode {
         match report::Reporter::new(&appdir, &dirs) {
             Err(reason) => eprintln!("cloudmus-apprun: not reporting: {reason}"),
             Ok(reporter) => match marker.as_deref() {
-                Some(marker) if marker.exists() => reporter.startup_failure(&appdir, &outcome),
+                Some(marker) if marker.exists() => reporter.startup_failure(&appdir, &outcome, &prepared.env),
                 Some(_) => reporter.stored_crashes(&dirs.app_state().join("crashes/sentry")),
                 None => eprintln!("cloudmus-apprun: not reporting: no startup marker, can't tell how far the app got"),
             },
