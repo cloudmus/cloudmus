@@ -2,6 +2,7 @@
 //! report sentry-native left on disk for an app that did.
 
 use crate::child::{Exit, Outcome};
+use crate::display;
 use crate::env_setup::Dirs;
 use crate::log::debug;
 use crate::sentry::{self, Dsn, Item};
@@ -48,9 +49,9 @@ impl Reporter {
     /// The app was started but died before it installed its own crash
     /// reporter: nothing else will ever know.
     /// `env`: what the app was started with on top of ours.
-    pub fn startup_failure(&self, appdir: &Path, outcome: &Outcome, env: &[(&str, OsString)]) {
+    pub fn startup_failure(&self, appdir: &Path, outcome: &Outcome, env: &[(&str, OsString)], at_login: bool) {
         let event_id = sentry::new_event_id();
-        let event = self.startup_event(&event_id, appdir, outcome, env);
+        let event = self.startup_event(&event_id, appdir, outcome, env, at_login);
         debug!("startup failure event {event_id}: {event}");
         let envelope = sentry::build_envelope(
             &event_id,
@@ -124,7 +125,14 @@ impl Reporter {
         }
     }
 
-    fn startup_event(&self, event_id: &str, appdir: &Path, outcome: &Outcome, env: &[(&str, OsString)]) -> Value {
+    fn startup_event(
+        &self,
+        event_id: &str,
+        appdir: &Path,
+        outcome: &Outcome,
+        env: &[(&str, OsString)],
+        at_login: bool,
+    ) -> Value {
         let exit = outcome.exit.map(Exit::shell_code);
         let (title, tag_name, tag_value) = describe(outcome);
         let stderr = String::from_utf8_lossy(&outcome.stderr);
@@ -143,9 +151,19 @@ impl Reporter {
                 tags.insert(tag.into(), json!(value));
             }
         }
+        // Started outside a graphical session, Qt fails with the same
+        // platform plugin lines as with a library missing; that one is a
+        // packaging bug, this one isn't, so they are kept apart.
+        let no_display = !display::has_display(env);
+        if no_display {
+            tags.insert("display".into(), json!("none"));
+        }
 
         let tail: Vec<&str> = stderr.lines().rev().take(30).collect::<Vec<_>>().into_iter().rev().collect();
         let mut fingerprint = vec!["startup-failure".to_string(), tag_value.clone()];
+        if no_display {
+            fingerprint.push("no-display".into());
+        }
         fingerprint.extend(reason);
         json!({
             "event_id": event_id,
@@ -159,7 +177,7 @@ impl Reporter {
             "tags": tags,
             "contexts": {
                 "os": os_context(),
-                "startup": startup_context(appdir, exit, env),
+                "startup": startup_context(appdir, exit, env, at_login),
             },
             "extra": { "stderr_tail": tail.join("\n") },
         })
@@ -280,16 +298,28 @@ fn os_context() -> Value {
     })
 }
 
-fn startup_context(appdir: &Path, exit: Option<i32>, env: &[(&str, OsString)]) -> Value {
+fn startup_context(appdir: &Path, exit: Option<i32>, env: &[(&str, OsString)], at_login: bool) -> Value {
     let var = |name: &str| std::env::var(name).ok();
-    let present = |name: &str| std::env::var_os(name).is_some_and(|v| !v.is_empty());
+    // As the app got it: ours, or what was added for it (a WAYLAND_DISPLAY
+    // found by waiting).
+    let present = |name: &str| {
+        std::env::var_os(name).is_some_and(|v| !v.is_empty()) || env.iter().any(|(k, v)| *k == name && !v.is_empty())
+    };
     json!({
         "exit": exit,
         "host_glibc": host_glibc(),
         "session_type": var("XDG_SESSION_TYPE"),
         "desktop": var("XDG_CURRENT_DESKTOP"),
+        // Whether the autostart entry started it, and from where: an early
+        // login launch and one from a terminal outside the session look the
+        // same otherwise.
+        "launched_at_login": at_login,
+        "cgroup": fs::read_to_string("/proc/self/cgroup").ok().and_then(|c| display::cgroup(&c)),
         "wayland_display_set": present("WAYLAND_DISPLAY"),
         "x11_display_set": present("DISPLAY"),
+        "xdg_runtime_dir_set": present("XDG_RUNTIME_DIR"),
+        // Up by now, though missing when the app started: it came too early.
+        "wayland_sockets": display::wayland_sockets(&display::runtime_dir()),
         "qt_qpa_platform": var("QT_QPA_PLATFORM"),
         "lang": var("LANG"),
         // What the host injects into the process: its libraries win over

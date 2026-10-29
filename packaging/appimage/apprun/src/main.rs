@@ -13,6 +13,7 @@
 //! started again soon enough for the SDK to send the report it stored.
 
 mod child;
+mod display;
 mod env_setup;
 mod log;
 mod report;
@@ -36,7 +37,8 @@ fn main() -> ExitCode {
     debug!("version {}, mounted at {}, APPIMAGE {:?}", env!("CARGO_PKG_VERSION"), appdir.display(), appimage);
     debug!("config {}, cache {}, data {}, state {}", dirs.config.display(), dirs.cache.display(), dirs.data.display(), dirs.state.display());
 
-    let prepared = env_setup::prepare(&appdir, &dirs, appimage.as_ref());
+    let mut prepared = env_setup::prepare(&appdir, &dirs, appimage.as_ref());
+    display::wait_for_wayland(&args, &mut prepared.env);
     // The app removes it once its crash reporter is up; still there after the
     // app has exited, it never got that far. Without a marker we can't tell.
     let marker = create_marker();
@@ -57,10 +59,15 @@ fn main() -> ExitCode {
         if let Some(exit) = outcome.exit {
             eprintln!("cloudmus-apprun: cloudmus-qt {}", report::describe_exit(exit));
         }
+        if !display::has_display(&prepared.env) {
+            eprintln!("cloudmus-apprun: no graphical session (neither WAYLAND_DISPLAY nor DISPLAY is set)");
+        }
         match report::Reporter::new(&appdir, &dirs) {
             Err(reason) => eprintln!("cloudmus-apprun: not reporting: {reason}"),
             Ok(reporter) => match marker.as_deref() {
-                Some(marker) if marker.exists() => reporter.startup_failure(&appdir, &outcome, &prepared.env),
+                Some(marker) if marker.exists() => {
+                    reporter.startup_failure(&appdir, &outcome, &prepared.env, display::launched_at_login(&args))
+                }
                 Some(_) => reporter.stored_crashes(&dirs.app_state().join("crashes/sentry")),
                 None => eprintln!("cloudmus-apprun: not reporting: no startup marker, can't tell how far the app got"),
             },
