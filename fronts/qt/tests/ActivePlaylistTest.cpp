@@ -327,6 +327,23 @@ private slots:
         QCOMPARE(settings_->sourceRadioRepeatGap(QStringLiteral("fake")), Config::Settings::kMaxRadioRepeatGap);
     }
 
+    // Listening to one source doesn't push another's tracks out of History,
+    // and so out of what its radio keeps from repeating.
+    void historyIsCappedPerSource()
+    {
+        Track kept;
+        kept.id = QStringLiteral("kept");
+        history_.record(QStringLiteral("quiet"), kept);
+        for (int i = 0; i <= Config::Settings::kMaxRadioRepeatGap; ++i) {
+            Track track;
+            track.id = QStringLiteral("busy-%1").arg(i);
+            history_.record(QStringLiteral("busy"), track);
+        }
+        QCOMPARE(history_.recentTrackIds(QStringLiteral("quiet"), 1), QStringList { QStringLiteral("kept") });
+        QCOMPARE(history_.recentTrackIds(QStringLiteral("busy"), Config::Settings::kMaxRadioRepeatGap + 1).size(),
+            Config::Settings::kMaxRadioRepeatGap);
+    }
+
     void anEditToTheActivePlaylistShowsInItsTracks()
     {
         settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });

@@ -19,7 +19,7 @@ struct HistoryEntry {
 // Every track PlaybackController actually starts playing gets recorded here
 // (see MainWindow's connection to PlaybackController::trackChanged) and
 // persisted to ~/.config/cloudmus/fronts/qt/history.json, most-recent-first,
-// capped at kMaxEntries — so the user can scroll back through everything
+// capped per source — so the user can scroll back through everything
 // they've listened to and replay any of it. Surfaced in the UI as the
 // sidebar's "History" entry (MainWindow::showHistory()), a synthetic
 // Ui::Playlist backed by this list instead of a real backend playlist.
