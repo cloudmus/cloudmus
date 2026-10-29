@@ -11,7 +11,8 @@ namespace Integration {
 // inside it is a temporary mount), otherwise the launcher ($CLOUDMUS_LAUNCHER;
 // the Nix package's bin/cloudmus, which seeds the backends) — with
 // kLaunchedAtLoginArgument, so main() can tell a login launch from one the
-// user started by hand.
+// user started by hand. On Windows it is the HKCU Run key (AutostartWin.cpp),
+// on macOS a launchd agent (AutostartMac.mm) — each with the same argument.
 namespace Autostart {
 
 inline constexpr auto kLaunchedAtLoginArgument = "--autostart";

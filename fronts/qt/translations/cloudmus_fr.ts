@@ -146,6 +146,41 @@
     </message>
 </context>
 <context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Suivant</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Précédent</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pause</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Lire</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Ne plus aimer</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>J’aime</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Retirer « Je n’aime pas »</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Je n’aime pas</translation>
+    </message>
+</context>
+<context>
     <name>Integration::GlobalHotkeys</name>
     <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
@@ -180,6 +215,17 @@
     <message>
         <source>Show player</source>
         <translation>Afficher le lecteur</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>J’aime</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Je n’aime pas</translation>
     </message>
 </context>
 <context>
@@ -834,6 +880,14 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Fermer la fenêtre la réduit dans la zone de notification au lieu de quitter</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Cliquer sur l&apos;icône de la barre des menus affiche la fenêtre (le clic droit ouvre le menu)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Afficher la pochette du titre en cours sur l’icône du Dock</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Afficher une notification quand la piste change</translation>
     </message>
@@ -1409,6 +1463,10 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
         <source>Couldn&apos;t open %1 in a browser</source>
         <translation>Impossible d’ouvrir %1 dans un navigateur</translation>
     </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Installation de CloudMus %1</translation>
+    </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
@@ -1458,6 +1516,22 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
         <source>Can&apos;t rename %1</source>
         <translation>Impossible de renommer %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Cette copie de CloudMus ne peut pas se mettre à jour elle-même : seul CloudMus.app le peut.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus ne peut pas se mettre à jour tant qu’il est lancé depuis l’image disque ou le dossier Téléchargements : déplacez-le d’abord dans Applications.</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>L’image disque ne contient pas CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>L’image disque contient une autre application</translation>
     </message>
 </context>
 <context>

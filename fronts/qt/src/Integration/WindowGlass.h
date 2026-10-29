@@ -27,8 +27,8 @@ namespace Integration::WindowGlass {
 //     behind them and the main window. Windows 10: DWM's blur through the
 //     undocumented accent policy, whole windows only (fallbackBlur()) — a
 //     popup's window is clipped to its panel instead.
-//   - macOS: not yet — the place for an NSVisualEffectView behind the
-//     window's content.
+//   - macOS: an NSVisualEffectView under the window's content — the
+//     whole window, or a popup's panel, rounded by a mask.
 
 enum class Support {
     // The window system blurs on request (enableBlurBehind()).

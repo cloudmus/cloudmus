@@ -146,6 +146,41 @@
     </message>
 </context>
 <context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Successivo</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Precedente</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pausa</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Riproduci</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Togli «Mi piace»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Mi piace</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Togli «Non mi piace»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Non mi piace</translation>
+    </message>
+</context>
+<context>
     <name>Integration::GlobalHotkeys</name>
     <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
@@ -180,6 +215,17 @@
     <message>
         <source>Show player</source>
         <translation>Mostra il lettore</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>Mi piace</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Non mi piace</translation>
     </message>
 </context>
 <context>
@@ -834,6 +880,14 @@ Accetti di usare i download solo in questo modo?</translation>
         <translation>Chiudere la finestra la riduce nell’area di notifica invece di uscire</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Un clic sull&apos;icona nella barra dei menu mostra la finestra (il clic destro apre il menu)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Mostra la copertina del brano in riproduzione sull’icona del Dock</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Mostra una notifica quando cambia il brano</translation>
     </message>
@@ -1409,6 +1463,10 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
         <source>Couldn&apos;t open %1 in a browser</source>
         <translation>Impossibile aprire %1 nel browser</translation>
     </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Installazione di CloudMus %1</translation>
+    </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
@@ -1458,6 +1516,22 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
     <message>
         <source>Can&apos;t rename %1</source>
         <translation>Impossibile rinominare %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Questa copia di CloudMus non può aggiornarsi da sola: può farlo solo CloudMus.app.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus non può aggiornarsi mentre è avviato dall’immagine disco o dalla cartella Download: spostalo prima in Applicazioni.</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>L’immagine disco non contiene CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>L’immagine disco contiene un’altra app</translation>
     </message>
 </context>
 <context>

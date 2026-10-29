@@ -183,7 +183,7 @@ protected:
         QPainterPath panel;
         panel.addRoundedRect(QRectF(content).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::md, Theme::Radius::md);
         painter.setPen(QPen(pal.border, 1));
-        painter.setBrush(Theme::glass(pal.surface200));
+        painter.setBrush(Theme::glass(pal.surface200, Theme::kCardGlassOpacity));
         painter.drawPath(panel);
 
         // Cover

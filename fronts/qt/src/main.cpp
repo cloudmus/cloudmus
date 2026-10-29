@@ -60,10 +60,17 @@
 #include "SmtcService.h"
 #include "TaskbarThumbButtons.h"
 #else
-#include "MprisService.h"
 #include "QuitSignals.h"
 
 #include <csignal>
+#endif
+#ifdef Q_OS_LINUX
+#include "MprisService.h"
+#endif
+#ifdef Q_OS_MACOS
+#include "DockIcon.h"
+#include "DockTile.h"
+#include "NowPlayingCenter.h"
 #endif
 
 namespace {
@@ -159,6 +166,13 @@ int main(int argc, char** argv)
     }
 #endif
     QApplication app(argc, argv);
+#ifdef Q_OS_MACOS
+    // Qt's Cocoa plugin turns menu icons off, as native macOS menus go
+    // without them. Ours are the app's own, not the system's, and their
+    // icons carry state — whether a track is liked shows only there.
+    // After the QApplication: the plugin sets its default while it's made.
+    QCoreApplication::setAttribute(Qt::AA_DontShowIconsInMenus, false);
+#endif
     // Animations at the monitor's refresh rate instead of Qt's fixed 60 FPS.
     Ui::DisplayAnimationDriver animationDriver;
     animationDriver.install();
@@ -255,12 +269,20 @@ int main(int argc, char** argv)
     // --update-from=<x.y.z>: check for updates as if that version were
     // running — to try the whole update flow from a dev build, which
     // otherwise is neither checked at startup nor older than any release.
+    // --update-feed=<url>: from a feed of one's own (GitHub's releases
+    // JSON), with a package not released yet.
     QString updateVersion = QStringLiteral(CLOUDMUS_VERSION);
+    QUrl updateFeed;
     for (const QString& argument : app.arguments()) {
         if (argument.startsWith(QLatin1String("--update-from=")))
             updateVersion = argument.mid(QLatin1String("--update-from=").size());
+        else if (argument.startsWith(QLatin1String("--update-feed=")))
+            updateFeed = QUrl(argument.mid(QLatin1String("--update-feed=").size()));
     }
-    core.updates().configure(updateVersion);
+    if (updateFeed.isValid())
+        core.updates().configure(updateVersion, updateFeed);
+    else
+        core.updates().configure(updateVersion);
     Config::Settings& settings = core.settings();
     Rpc::SourceManager& sourceManager = core.sourceManager();
     Playback::PlaybackController& playback = core.playback();
@@ -268,6 +290,10 @@ int main(int argc, char** argv)
     // Before glass, whose default depends on it, and the stylesheet.
     Ui::Settings::GeneralPage::applyColorScheme(settings.colorScheme());
     Ui::Settings::GeneralPage::applyTrayPanel(settings.trayPanel());
+    Integration::TrayIcon::setClickShowsWindow(settings.trayClickShowsWindow());
+#ifdef Q_OS_MACOS
+    Integration::DockTile::setShowsCover(settings.dockShowsCover());
+#endif
     // Before the stylesheet and any window: both are built for glass or
     // not, and a window can't gain an alpha channel once created.
     Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())
@@ -288,10 +314,15 @@ int main(int argc, char** argv)
     // jagged edges. A ladder of sizes rendered from the SVG lets the
     // compositor pick one close to what it draws.
     const QIcon logo(QStringLiteral(":/icons/icons/logo.svg"));
+#ifdef Q_OS_MACOS
+    // Windows have no icons on macOS; the Dock's one is drawn on its own.
+    Integration::DockIcon::setIcon(logo);
+#else
     QIcon appIcon;
     for (int side : { 16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512 })
         appIcon.addPixmap(logo.pixmap(QSize(side, side), 1.0));
     QApplication::setWindowIcon(appIcon);
+#endif
 #ifdef Q_OS_WIN
     // Before the first notification, which Windows 11 heads with the name
     // registered for the AppUserModelID set above.
@@ -340,13 +371,20 @@ int main(int argc, char** argv)
         QObject::connect(taskbarThumbButtons.get(), &Integration::TaskbarThumbButtons::buttonClicked, &core.analytics(),
             [&core]() { core.analytics().recordControlUsed(QStringLiteral("taskbar")); });
     });
-#else
+#elif defined(Q_OS_LINUX)
     Integration::MprisService mpris(playback, core.nowPlaying(), core.coverArtCache());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
     QObject::connect(&mpris, &Integration::MprisService::commandReceived, &core.analytics(),
         [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
     QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,
         [&windowHost]() { windowHost.bringToFront(); });
+#elif defined(Q_OS_MACOS)
+    Integration::NowPlayingCenter nowPlayingCenter(playback, core.nowPlaying(), core.coverArtCache());
+    QObject::connect(&nowPlayingCenter, &Integration::NowPlayingCenter::commandReceived, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
+    Integration::DockTile dockTile(core.nowPlaying(), core.coverArtCache());
+    QObject::connect(dockTile.menu(), &QMenu::triggered, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("dock")); });
 #endif
 
     Integration::NotificationToast notificationToast(tray.systemTrayIcon());
@@ -444,6 +482,11 @@ int main(int argc, char** argv)
             else
                 windowHost.bringToFront(activationToken);
         });
+#ifdef Q_OS_MACOS
+    // In the tray the app stays in the Dock: a click on its icon brings the
+    // window back, as it does for any app with its windows closed.
+    Integration::DockIcon::setReopenHandler([&windowHost]() { windowHost.bringToFront(); });
+#endif
     QObject::connect(&hotkeyDispatcher, &Hotkeys::Dispatcher::noticeRequested, &notificationToast,
         [&notificationToast, coverCache, notificationCoverSize](const Hotkeys::Dispatcher::Notice& notice) {
             const QPixmap cover

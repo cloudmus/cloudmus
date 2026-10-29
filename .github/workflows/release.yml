@@ -1,5 +1,6 @@
-# Builds the AppImage on a release tag (x.y.z, e.g. 1.2.0) and attaches it
-# to that tag's GitHub release — creating the release if the tag was
+# Builds the AppImage, the Windows installer and the macOS DMGs on a
+# release tag (x.y.z, e.g. 1.2.0) and attaches them to that tag's GitHub
+# release — creating the release if the tag was
 # pushed from git, or reusing it if it was created in the GitHub UI
 # (which also creates the tag and triggers this same push event). An
 # annotated tag's message becomes the release notes.
@@ -35,22 +36,30 @@ jobs:
         with:
           name: windows-installer
           path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: macos-*
+          merge-multiple: true
+          path: dist
       - name: Publish to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          # The AppImage/installer are already named with their own
+          # The AppImage/installer/DMGs are already named with their own
           # version (packaging/appimage and packaging/windows's
-          # build-in-docker.sh, from `git describe`), which matches TAG
+          # build-in-docker.sh, packaging/macos/build-app.sh, from `git
+          # describe`), which matches TAG
           # exactly for a clean tagged checkout like this one.
           appimage_asset="$(ls dist/CloudMus-*-x86_64.AppImage)"
           windows_asset="$(ls dist/CloudMus-*-x86_64-Setup.exe)"
+          macos_assets=(dist/CloudMus-*.dmg)
           # Only the builds of this very tag: a name with a commit count or
           # hash (0.5.1-12-gabc1234, -dirty) is an intermediate build and
           # never goes to a release.
           test "$appimage_asset" = "dist/CloudMus-${TAG}-x86_64.AppImage"
           test "$windows_asset" = "dist/CloudMus-${TAG}-x86_64-Setup.exe"
+          test "${macos_assets[*]}" = "dist/CloudMus-${TAG}-arm64.dmg dist/CloudMus-${TAG}-x86_64.dmg"
           # Release notes = the annotated tag's message minus its first
           # line (the version), see docs/releasing.md. Re-fetched
           # explicitly: checkout can leave the tag as a lightweight one.
@@ -70,4 +79,4 @@ jobs:
           else
               gh release create "$TAG" --verify-tag --title "$TAG" "${notes[@]}"
           fi
-          gh release upload "$TAG" "$appimage_asset" "$windows_asset" --clobber
+          gh release upload "$TAG" "$appimage_asset" "$windows_asset" "${macos_assets[@]}" --clobber

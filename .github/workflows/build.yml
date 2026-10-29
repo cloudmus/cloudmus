@@ -1,6 +1,6 @@
-# The AppImage and the Windows installer, built the same way for a release
-# (release.yml) and for every push to develop (develop.yml). Uploads them as
-# workflow artifacts, and the debug symbols to Sentry.
+# The AppImage, the Windows installer and the macOS DMGs, built the same way
+# for a release (release.yml) and for every push to develop (develop.yml).
+# Uploads them as workflow artifacts, and the debug symbols to Sentry.
 name: Build
 
 on:
@@ -88,4 +88,70 @@ jobs:
         with:
           name: windows-installer
           path: dist/CloudMus-*-x86_64-Setup.exe
+          retention-days: ${{ inputs.retention-days }}
+
+  macos:
+    strategy:
+      # One arch failing says nothing about the other: let it finish (and
+      # save its libmpv cache).
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: macos-15
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      # libmpv and what it's built from take ~20 minutes; rebuilt only when
+      # build-deps.sh (its versions) changes.
+      - name: Restore libmpv
+        uses: actions/cache@v4
+        with:
+          path: packaging/macos/deps/${{ matrix.arch }}
+          key: macos-deps-${{ matrix.arch }}-${{ hashFiles('packaging/macos/build-deps.sh') }}
+
+      - name: Restore Qt
+        uses: actions/cache@v4
+        with:
+          path: ~/Qt/6.9.3
+          key: macos-qt-6.9.3
+
+      - name: Install the build tools
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --quiet cmake ninja meson pkgconf aqtinstall jinja2 pyyaml
+          if [ ! -d "$HOME/Qt/6.9.3/macos" ]; then
+              .venv/bin/aqt install-qt mac desktop 6.9.3 clang_64 -O "$HOME/Qt"
+          fi
+
+      - name: Build the DMG
+        env:
+          CLOUDMUS_GA4_MEASUREMENT_ID: ${{ inputs.release && secrets.CLOUDMUS_GA4_MEASUREMENT_ID || '' }}
+          CLOUDMUS_SENTRY_DSN: ${{ secrets.CLOUDMUS_SENTRY_DSN }}
+          RELEASE: ${{ inputs.release }}
+        run: |
+          if [ "$RELEASE" = true ]; then test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"; fi
+          test -n "$CLOUDMUS_SENTRY_DSN"
+          packaging/macos/build-app.sh
+
+      - name: Upload debug symbols to Sentry
+        uses: ./.github/actions/upload-symbols
+        with:
+          auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          org: ${{ secrets.SENTRY_ORG }}
+          source-root: ${{ github.workspace }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist/CloudMus-*-${{ matrix.arch }}.dmg
           retention-days: ${{ inputs.retention-days }}

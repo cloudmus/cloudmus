@@ -1,0 +1,22 @@
+CloudMus for macOS bundles Qt 6.9.3, libmpv 0.41 with the libraries it is
+built from, CPython 3.13 (python-build-standalone) and the Python packages
+used by its three backends.
+
+Qt: https://www.qt.io/licensing/open-source-lgpl-obligations
+libmpv: https://github.com/mpv-player/mpv/blob/master/Copyright — built
+as libmpv.2.dylib with FFmpeg 8.1 (LGPL 2.1), libass, FreeType, FriBidi,
+HarfBuzz and libplacebo linked into it; the versions and sources are
+pinned in packaging/macos/build-deps.sh of the CloudMus repository.
+TagLib 2.3.2 (tags and covers of saved tracks), statically linked, used
+under the Mozilla Public License 1.1: https://taglib.org/ — source:
+https://github.com/taglib/taglib/releases/tag/v2.3.2 (with utfcpp,
+Boost Software License 1.0)
+CPython: https://docs.python.org/3/license.html
+python-build-standalone: https://github.com/astral-sh/python-build-standalone
+
+Python package licenses and versions are recorded in the accompanying
+Resources/python/lib/python3.13/site-packages/*.dist-info/ directories.
+
+These components are dynamically linked or packaged as separate files,
+except TagLib (above), which is statically linked.
+Their source code is available from the linked upstream projects.
