@@ -184,6 +184,8 @@ fn write_manifests(appdir: &Path, dir: &Path) -> Vec<PathBuf> {
             "argv": [python.to_string_lossy(), "-m", module],
             "protocolVersion": "1.2",
             "icon": appdir.join(format!("usr/share/cloudmus/backend-icons/{id}.svg")).to_string_lossy(),
+            // Not every backend has one; the front skips a missing file.
+            "logo": appdir.join(format!("usr/share/cloudmus/backend-icons/{id}-logo.svg")).to_string_lossy(),
         });
         let path = dir.join(format!("{id}.json"));
         match fs::write(&path, format!("{manifest}\n")) {

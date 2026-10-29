@@ -699,7 +699,7 @@ void MainWindow::showSourcePage(const QString& sourceId)
     const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
     const QString description = client != nullptr ? client->sourceDescription() : QString();
     const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
-    sheet_->showSource(sourceName, description, sources_.iconPath(sourceId));
+    sheet_->showSource(sourceName, description, sources_.iconPath(sourceId), sources_.logoPath(sourceId));
     sourcePanel_->setSource(sourceId, capabilities);
     sourcePanel_->setPlaylists(sources_.playlists(sourceId), sources_.isLoading(sourceId));
 

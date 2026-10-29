@@ -25,13 +25,17 @@ Events and their parameters:
 | `star_prompt` | `action`: `shown`, `star`, `dismiss` |
 | `listening_time` | `minutes` of actual playback, sent hourly and at quit |
 
-Every event also carries the app version. `source` is a category for
+Every event also carries the app version, and `app_launch` the OS, its
+version and the CPU architecture (`os`, `os_version`, `arch`). `source` is a category for
 built-in sources (`yandex_music`, `youtube_music`, `local_folder`) and
 `other` for the rest. Requests do not contain track or playlist names or
 IDs, error messages, account details, or arbitrary backend data. Each
 request also carries the preferred system UI language (e.g. `ru-ru`), the primary
 screen's size, and a `User-Agent` naming the OS and the app, e.g.
-`Mozilla/5.0 (X11; Linux x86_64) CloudMus/0.2.0`. Requests go directly
+`Mozilla/5.0 (X11; Linux x86_64) CloudMus/0.2.0`, and the same as
+user-agent client hints (`uap`, `uapv`, `uaa`, `uab`, `uafvl`), which is
+what GA4 reads the OS, OS version and architecture from. The device model
+(`uam`) is not sent: a desktop has no portable one. Requests go directly
 from the app to Google over HTTPS; Google derives an approximate location
 (country, region, city) from the request's network address. Events still
 queued when the app quits get up to two seconds to go out. Builds without a
@@ -48,7 +52,7 @@ even with `user_location` filled in from an IP lookup. `/g/collect` needs no
 API secret either. The catch: it isn't a documented API, so Google may
 change it; the parameters used are the ones gtag.js sends
 (`v`, `tid`, `cid`, `sid`, `sct`, `seg`, `_s`, `_ss`, `_nsi`, `_fv`, `ul`,
-`sr`, `dl`, `dt`, `npa`, and per event `en`, `_et`, `ep.*`, `epn.*`). A
+`sr`, `dl`, `dt`, `npa`, `uap`, `uapv`, `uaa`, `uab`, `uamb`, `uam`, `uafvl`, `uaw`, and per event `en`, `_et`, `ep.*`, `epn.*`). A
 single event goes in the URL; several go in the body, one per line.
 
 ## Setting up a build
@@ -60,9 +64,93 @@ with that name and fails if it is missing. The ID ends up in the public
 AppImage, so anyone can send events to the property — as with any website's
 tag. In GA4 Custom definitions, register event-scoped dimensions for
 `source`, `kind`, `action`, `reason`, `trigger`, `theme`, `glass`,
-`ui_language`, `at_login`, `hidden` and `app_version`, plus custom metrics
+`ui_language`, `at_login`, `hidden`, `app_version`, `os`, `os_version` and
+`arch`, plus custom metrics
 for `saved_count`, `count` and `minutes`, to report on those event
 parameters.
+
+## Setting up the GA4 property by hand
+
+Nothing below can be done from the repository. Do it once per property;
+data arrives only from the moment a definition exists, and a new
+dimension takes up to about 24 hours to appear in reports.
+
+1. **Create the property and a stream.** In
+   [analytics.google.com](https://analytics.google.com) → Admin → Create →
+   Property. Then Admin → Data collection and modification → Data streams
+   → Add stream → **Web** (the app speaks the web tag's protocol, so an
+   iOS/Android stream does not fit). Any URL works, e.g.
+   `https://github.com/cloudmus/cloudmus`. Copy the **Measurement ID**
+   (`G-XXXXXXXXXX`) into the `CLOUDMUS_GA4_MEASUREMENT_ID` GitHub Actions
+   secret (see "Setting up a build").
+2. **Leave Enhanced measurement as it is.** It only matters for web pages;
+   the app sends its own events.
+3. **Register custom dimensions.** Admin → Data display → Custom
+   definitions → **Custom dimensions** → Create custom dimension. For
+   each row of the first table: Scope **Event**, Dimension name as shown,
+   Event parameter exactly as in the second column (case-sensitive).
+
+   | Dimension name | Event parameter |
+   |---|---|
+   | Source | `source` |
+   | Kind | `kind` |
+   | Action | `action` |
+   | Reason | `reason` |
+   | Trigger | `trigger` |
+   | Theme | `theme` |
+   | Glass | `glass` |
+   | UI language | `ui_language` |
+   | At login | `at_login` |
+   | Hidden | `hidden` |
+   | App version | `app_version` |
+   | OS | `os` |
+   | OS version | `os_version` |
+   | CPU architecture | `arch` |
+
+   Without this, these parameters are collected but never show up in
+   reports or Explorations. The free tier allows 50 event-scoped
+   dimensions, so the 14 above fit.
+4. **Register custom metrics.** Same page → **Custom metrics** → Create
+   custom metric. Scope **Event**, Unit of measurement **Standard**
+   (for `minutes` choose **Minutes**):
+
+   | Metric name | Event parameter |
+   |---|---|
+   | Saved count | `saved_count` |
+   | Crash count | `count` |
+   | Listening minutes | `minutes` |
+5. **Mark key events (optional).** Admin → Data display → Events → turn
+   on "Mark as key event" for `playback_started`, `download_completed`
+   and `star_prompt` if you want conversions for them. A key event is a
+   whole event name, so `star_prompt` counts shown, starred and
+   dismissed together; to count only stars, use the `action` dimension in
+   an Exploration instead.
+6. **Keep the data retention at 14 months.** Admin → Data collection and
+   modification → Data retention → Event data retention → 14 months
+   (the default is 2), or Explorations will not reach past two months.
+7. **Don't turn on Google signals or ad personalization.** The app sends
+   `npa=1`, and the Settings checkbox promises plain usage statistics.
+8. **Find the data.**
+   - OS, OS version, architecture, language, country: Reports → Tech →
+     Tech details, and Reports → Demographics. These come from the client
+     hints and need no registration. Change the primary dimension in the
+     table to "Operating system", "Operating system version" or
+     "Platform / device category". The device model stays "(not set)": the
+     app does not send it.
+   - App version, OS (`os` and friends), actions: Explore → Blank →
+     Dimensions: add the registered ones; Metrics: Event count, Active
+     users; put e.g. "App version" in Rows and "Event count" in Values,
+     filter "Event name" exactly matching `app_launch`.
+   - GitHub star prompt: an Exploration with "Event name" = `star_prompt`,
+     rows "Action" (`shown`, `star`, `dismiss`), values "Event count".
+     The ratio `star` / `shown` is the conversion.
+   - Downloads: the same with `download_completed`, rows "Kind" and
+     "Source", values "Event count" and "Saved count".
+9. **Check it works.** Admin → DebugView, with the app started under
+   `CLOUDMUS_QT_DEBUG=1` (see "Checking it"). Realtime (Reports →
+   Realtime) shows events within a minute, but DebugView shows their
+   parameters. A parameter you see in DebugView but not in reports means
+   its custom dimension is missing or still propagating.
 
 ## Checking it
 
