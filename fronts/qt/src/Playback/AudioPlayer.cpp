@@ -185,8 +185,12 @@ void AudioPlayer::handleEvent(const mpv_event& event)
             } else if (data->reason == MPV_END_FILE_REASON_ERROR) {
                 const QString message = QString::fromUtf8(mpv_error_string(data->error));
                 qCWarning(lcAudioPlayer) << "playback failed:" << message;
-                emit failed(
-                    message, data->error == MPV_ERROR_LOADING_FAILED || data->error == MPV_ERROR_UNKNOWN_FORMAT);
+                Failure failure = Failure::Stream;
+                if (data->error == MPV_ERROR_LOADING_FAILED || data->error == MPV_ERROR_UNKNOWN_FORMAT)
+                    failure = Failure::File;
+                else if (data->error == MPV_ERROR_AO_INIT_FAILED)
+                    failure = Failure::Output;
+                emit failed(message, failure);
             }
             // STOP/QUIT/REDIRECT are our own doing (stop()/next loadfile) — no
             // signal, same as the old QMediaPlayer wrapper's stop() not firing

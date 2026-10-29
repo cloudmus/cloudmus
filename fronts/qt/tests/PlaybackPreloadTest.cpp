@@ -1,6 +1,9 @@
 #include <QFile>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTest>
+
+#include <optional>
 
 #include "AuthStates.h"
 #include "CoverArtCache.h"
@@ -185,6 +188,45 @@ private slots:
         QTRY_COMPARE(upstream_->requests.count(QStringLiteral("/b@0")), 2);
         QTRY_VERIFY(playback_->isPlaying());
         QCOMPARE(playback_->currentTrack().title, QStringLiteral("b"));
+    }
+
+    // Without an audio output every track fails at once (mpv even reports
+    // it started first): rather than run through the queue, playback stops
+    // on the track it was at, and the track stays.
+    void withoutAnAudioOutputPlaybackStopsOnTheTrack()
+    {
+#ifdef Q_OS_WIN
+        QSKIP("breaks the outputs mpv uses on Linux");
+#endif
+        // Points every output mpv tries (pipewire, pulse, alsa) nowhere.
+        const std::pair<const char*, const char*> broken[] = { { "PIPEWIRE_REMOTE", "cloudmus-test-nowhere" },
+            { "PULSE_SERVER", "unix:/nonexistent/cloudmus-test" }, { "ALSA_CONFIG_PATH", "/dev/null" } };
+        QList<std::pair<const char*, std::optional<QByteArray>>> saved;
+        for (const auto& [name, value] : broken) {
+            saved.append({ name, qEnvironmentVariableIsSet(name) ? std::optional(qgetenv(name)) : std::nullopt });
+            qputenv(name, value);
+        }
+        const auto restore = qScopeGuard([&]() {
+            for (const auto& [name, value] : saved) {
+                if (value)
+                    qputenv(name, *value);
+                else
+                    qunsetenv(name);
+            }
+        });
+        QSignalSpy failed(playback_.get(), &Playback::PlaybackController::failed);
+        QSignalSpy errors(playback_.get(), &Playback::PlaybackController::errorOccurred);
+
+        playback_->loadQueue(QStringLiteral("fake"),
+            { track(QStringLiteral("a")), track(QStringLiteral("b")), track(QStringLiteral("c")) }, 0);
+        QTRY_COMPARE_WITH_TIMEOUT(failed.size(), 1, 10000);
+        QCOMPARE(failed.first().at(1).toString(), QStringLiteral("audio_output"));
+        QTest::qWait(500);
+        QCOMPARE(failed.size(), 1);
+        QCOMPARE(errors.size(), 1);
+        QCOMPARE(playback_->currentTrack().title, QStringLiteral("a"));
+        QVERIFY(!playback_->isPlaying());
+        QCOMPARE(upstream_->requests.count(QStringLiteral("/a@0")), 1);
     }
 
     // The source says a track can't be played: it is told and the next one
