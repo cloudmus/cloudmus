@@ -1195,8 +1195,16 @@ Do you agree to use downloads only this way?</source>
         <translation>Радио: треков до повтора:</translation>
     </message>
     <message>
-        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
-        <translation>Радио не ставит столько последних сыгранных треков этого источника, пока у него есть другие. 0 — может повторить любой трек. Применится к следующей запущенной станции.</translation>
+        <source>Off</source>
+        <translation>Выкл.</translation>
+    </message>
+    <message>
+        <source>or days:</source>
+        <translation>или дней:</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. 0 and Off: it may repeat any track. Applies to the next station you start.</source>
+        <translation>Радио не ставит столько последних сыгранных треков этого источника — или все сыгранные за столько дней, если их больше, — пока у него есть другие. 0 треков и «Выкл.» — может повторить любой трек. Применится к следующей запущенной станции.</translation>
     </message>
     <message>
         <source>Auto</source>

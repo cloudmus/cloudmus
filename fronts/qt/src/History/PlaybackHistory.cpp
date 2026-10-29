@@ -98,12 +98,12 @@ void PlaybackHistory::record(const QString& sourceId, const Track& track)
     emit changed();
 }
 
-QStringList PlaybackHistory::recentTrackIds(const QString& sourceId, int limit) const
+QStringList PlaybackHistory::recentTrackIds(const QString& sourceId, int limit, const QDateTime& since) const
 {
     QStringList ids;
     QSet<QString> seen;
     for (const HistoryEntry& e : entries_) {
-        if (ids.size() >= limit)
+        if (ids.size() >= limit && (!since.isValid() || e.playedAt < since))
             break;
         if (e.sourceId != sourceId || seen.contains(e.track.id))
             continue;

@@ -597,6 +597,22 @@ void Settings::setSourceRadioRepeatGap(const QString& sourceId, int tracks)
         settings_.setValue(key, tracks);
 }
 
+int Settings::sourceRadioRepeatDays(const QString& sourceId) const
+{
+    return qBound(
+        0, settings_.value(QStringLiteral("sources/%1/radioRepeatDays").arg(sourceId), 0).toInt(), kMaxRadioRepeatDays);
+}
+
+void Settings::setSourceRadioRepeatDays(const QString& sourceId, int days)
+{
+    const QString key = QStringLiteral("sources/%1/radioRepeatDays").arg(sourceId);
+    days = qBound(0, days, kMaxRadioRepeatDays);
+    if (days == 0)
+        settings_.remove(key);
+    else
+        settings_.setValue(key, days);
+}
+
 int Settings::sourceDownloadConnections(const QString& sourceId) const
 {
     return qBound(0, settings_.value(QStringLiteral("sources/%1/downloadConnections").arg(sourceId), 0).toInt(),

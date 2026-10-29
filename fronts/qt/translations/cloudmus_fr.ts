@@ -1195,8 +1195,16 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Radio : titres avant une répétition :</translation>
     </message>
     <message>
-        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
-        <translation>La radio écarte ce nombre des derniers titres lus de cette source tant qu’elle en a d’autres. 0 : elle peut répéter n’importe quel titre. S’applique à la prochaine station lancée.</translation>
+        <source>Off</source>
+        <translation>Désactivé</translation>
+    </message>
+    <message>
+        <source>or days:</source>
+        <translation>ou jours :</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. 0 and Off: it may repeat any track. Applies to the next station you start.</source>
+        <translation>La radio écarte ce nombre des derniers titres lus de cette source — ou tous ceux lus pendant ce nombre de jours, s’il y en a plus — tant qu’elle en a d’autres. 0 titre et « Désactivé » : elle peut répéter n’importe quel titre. S’applique à la prochaine station lancée.</translation>
     </message>
     <message>
         <source>Auto</source>

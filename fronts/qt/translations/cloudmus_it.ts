@@ -1195,8 +1195,16 @@ Accetti di usare i download solo in questo modo?</translation>
         <translation>Radio: brani prima di una ripetizione:</translation>
     </message>
     <message>
-        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
-        <translation>La radio esclude questo numero degli ultimi brani riprodotti da questa sorgente finché ne ha altri. 0: può ripetere qualsiasi brano. Si applica alla prossima stazione avviata.</translation>
+        <source>Off</source>
+        <translation>Disattivato</translation>
+    </message>
+    <message>
+        <source>or days:</source>
+        <translation>o giorni:</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. 0 and Off: it may repeat any track. Applies to the next station you start.</source>
+        <translation>La radio esclude questo numero degli ultimi brani riprodotti da questa sorgente — o tutti quelli riprodotti in questi giorni, se sono di più — finché ne ha altri. 0 brani e «Disattivato»: può ripetere qualsiasi brano. Si applica alla prossima stazione avviata.</translation>
     </message>
     <message>
         <source>Auto</source>

@@ -205,6 +205,12 @@ public:
     static constexpr int kMaxRadioRepeatGap = 500;
     int sourceRadioRepeatGap(const QString& sourceId) const;
     void setSourceRadioRepeatGap(const QString& sourceId, int tracks);
+    // ...and for how many days since they played, whichever keeps a track
+    // away longer. 0 (the default): by the count alone. History holds 500
+    // of a source's tracks, so this reaches no further back than that.
+    static constexpr int kMaxRadioRepeatDays = 30;
+    int sourceRadioRepeatDays(const QString& sourceId) const;
+    void setSourceRadioRepeatDays(const QString& sourceId, int days);
     // How many connections a source's track is downloaded over at once.
     // 0 (the default): as many as the source suggests for the stream
     // (StreamDescriptor::maxConnections), else one.

@@ -33,8 +33,9 @@ public:
     void record(const QString& sourceId, const Track& track);
     const QList<HistoryEntry>& entries() const { return entries_; }
     // The ids of the tracks of `sourceId` played last, each once, the
-    // latest first, `limit` at most.
-    QStringList recentTrackIds(const QString& sourceId, int limit) const;
+    // latest first: `limit` of them, or all played since `since` if that
+    // is more.
+    QStringList recentTrackIds(const QString& sourceId, int limit, const QDateTime& since = { }) const;
     // Patches Track::liked on every entry matching (sourceId, trackId),
     // persists (history.json), and emits changed() if anything matched —
     // so replaying a liked track from History (including after an app

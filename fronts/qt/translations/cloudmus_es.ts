@@ -1195,8 +1195,16 @@ Do you agree to use downloads only this way?</source>
         <translation>Radio: pistas antes de repetir:</translation>
     </message>
     <message>
-        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
-        <translation>La radio omite esta cantidad de las últimas pistas reproducidas de esta fuente mientras tenga otras. 0: puede repetir cualquier pista. Se aplica a la próxima emisora que inicies.</translation>
+        <source>Off</source>
+        <translation>Desactivado</translation>
+    </message>
+    <message>
+        <source>or days:</source>
+        <translation>o días:</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. 0 and Off: it may repeat any track. Applies to the next station you start.</source>
+        <translation>La radio omite esta cantidad de las últimas pistas reproducidas de esta fuente —o todas las reproducidas en estos días, si son más— mientras tenga otras. 0 pistas y «Desactivado»: puede repetir cualquier pista. Se aplica a la próxima emisora que inicies.</translation>
     </message>
     <message>
         <source>Auto</source>

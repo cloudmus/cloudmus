@@ -110,10 +110,21 @@ QWidget* SourcePage::createWidget(QWidget* parent)
     repeatGapLabel->setFont(Theme::font(Theme::TextStyle::Body));
     repeatGapLayout->addWidget(repeatGapLabel);
     repeatGapLayout->addWidget(repeatGapSpin_);
+    repeatDaysSpin_ = new QSpinBox(repeatGapRow_);
+    repeatDaysSpin_->setFont(Theme::font(Theme::TextStyle::Body));
+    repeatDaysSpin_->setRange(0, Config::Settings::kMaxRadioRepeatDays);
+    repeatDaysSpin_->setSpecialValueText(tr("Off"));
+    repeatDaysSpin_->setValue(settings_.sourceRadioRepeatDays(manifest_.id));
+    connect(repeatDaysSpin_, &QSpinBox::valueChanged, this, &Page::dirtyChanged);
+    auto* repeatDaysLabel = new QLabel(tr("or days:"), repeatGapRow_);
+    repeatDaysLabel->setFont(Theme::font(Theme::TextStyle::Body));
+    repeatGapLayout->addWidget(repeatDaysLabel);
+    repeatGapLayout->addWidget(repeatDaysSpin_);
     repeatGapLayout->addStretch(1);
-    repeatGapHint_ = makeHint(tr("The radio leaves out this many of the tracks last played from this source, as "
-                                 "long as it has others to play. 0: it may repeat any track. Applies to the next "
-                                 "station you start."),
+    repeatGapHint_ = makeHint(tr("The radio leaves out this many of the tracks last played from this source, or "
+                                 "all it played in this many days if that is more, as long as it has others to "
+                                 "play. 0 and Off: it may repeat any track. Applies to the next station "
+                                 "you start."),
         widget);
 
     connectionsRow_ = new QWidget(widget);
@@ -487,11 +498,12 @@ bool SourcePage::isDirty() const
 {
     // Asked while createWidget() is still at it, too (filling the
     // Connection choices says dirtyChanged()).
-    if (!enabledCheck_ || !repeatGapSpin_ || !connectionsSpin_)
+    if (!enabledCheck_ || !repeatGapSpin_ || !repeatDaysSpin_ || !connectionsSpin_)
         return false;
     return enabledCheck_->isChecked() != sourceManager_.isEnabled(manifest_.id)
         || selectedConnection() != settings_.sourceConnection(manifest_.id)
         || repeatGapSpin_->value() != settings_.sourceRadioRepeatGap(manifest_.id)
+        || repeatDaysSpin_->value() != settings_.sourceRadioRepeatDays(manifest_.id)
         || connectionsSpin_->value() != settings_.sourceDownloadConnections(manifest_.id)
         || (settingsForm_ != nullptr && settingsForm_->isDirty());
 }
@@ -545,6 +557,7 @@ Rpc::Task<bool> SourcePage::apply()
 
     // Read when a station is started: nothing to restart.
     settings_.setSourceRadioRepeatGap(manifest_.id, repeatGapSpin_->value());
+    settings_.setSourceRadioRepeatDays(manifest_.id, repeatDaysSpin_->value());
     // Read when a track's download starts.
     settings_.setSourceDownloadConnections(manifest_.id, connectionsSpin_->value());
 

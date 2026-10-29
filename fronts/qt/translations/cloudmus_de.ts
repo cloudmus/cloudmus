@@ -1195,8 +1195,16 @@ Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
         <translation>Radio: Titel bis zur Wiederholung:</translation>
     </message>
     <message>
-        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
-        <translation>Das Radio lässt so viele der zuletzt gespielten Titel dieser Quelle aus, solange es andere hat. 0: Jeder Titel darf sich wiederholen. Gilt für den nächsten gestarteten Sender.</translation>
+        <source>Off</source>
+        <translation>Aus</translation>
+    </message>
+    <message>
+        <source>or days:</source>
+        <translation>oder Tage:</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. 0 and Off: it may repeat any track. Applies to the next station you start.</source>
+        <translation>Das Radio lässt so viele der zuletzt gespielten Titel dieser Quelle aus – oder alle, die in so vielen Tagen liefen, falls das mehr sind –, solange es andere hat. 0 Titel und „Aus“: Jeder Titel darf sich wiederholen. Gilt für den nächsten gestarteten Sender.</translation>
     </message>
     <message>
         <source>Auto</source>

@@ -327,6 +327,26 @@ private slots:
         QCOMPARE(settings_->sourceRadioRepeatGap(QStringLiteral("fake")), Config::Settings::kMaxRadioRepeatGap);
     }
 
+    // A repeat gap in days reaches past the count of tracks, never short
+    // of it.
+    void theRecentTracksReachBackSoManyDaysIfThatIsMore()
+    {
+        const QString sourceId = QStringLiteral("days-%1").arg(QDateTime::currentMSecsSinceEpoch());
+        for (const QString& id : { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c") }) {
+            Track track;
+            track.id = id;
+            history_.record(sourceId, track);
+        }
+        const QDateTime now = QDateTime::currentDateTimeUtc();
+        QCOMPARE(history_.recentTrackIds(sourceId, 1, now.addDays(-1)),
+            (QStringList { QStringLiteral("c"), QStringLiteral("b"), QStringLiteral("a") }));
+        QCOMPARE(history_.recentTrackIds(sourceId, 2, now.addDays(1)),
+            (QStringList { QStringLiteral("c"), QStringLiteral("b") }));
+
+        settings_->setSourceRadioRepeatDays(sourceId, 9999);
+        QCOMPARE(settings_->sourceRadioRepeatDays(sourceId), Config::Settings::kMaxRadioRepeatDays);
+    }
+
     // Listening to one source doesn't push another's tracks out of History,
     // and so out of what its radio keeps from repeating.
     void historyIsCappedPerSource()

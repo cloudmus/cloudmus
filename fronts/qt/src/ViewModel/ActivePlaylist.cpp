@@ -304,7 +304,9 @@ StartRadioParams ActivePlaylist::radioParams(const QString& sourceId, const QStr
     StartRadioParams params { seed };
     // A station knows what it has served since it was started, no more:
     // what played before that is in History.
-    const QStringList recent = history_.recentTrackIds(sourceId, settings_.sourceRadioRepeatGap(sourceId));
+    const int days = settings_.sourceRadioRepeatDays(sourceId);
+    const QStringList recent = history_.recentTrackIds(sourceId, settings_.sourceRadioRepeatGap(sourceId),
+        days > 0 ? QDateTime::currentDateTimeUtc().addDays(-days) : QDateTime());
     if (!recent.isEmpty())
         params.recentTrackIds = recent;
     return params;
