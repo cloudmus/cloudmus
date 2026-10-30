@@ -419,6 +419,10 @@
         <translation>Écoutez vos nuages avec plaisir</translation>
     </message>
     <message>
+        <source>Telegram chat</source>
+        <translation>Discussion Telegram</translation>
+    </message>
+    <message>
         <source>AI pair programmer by Anthropic</source>
         <translation>Programmeur binôme IA par Anthropic</translation>
     </message>

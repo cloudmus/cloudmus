@@ -419,6 +419,10 @@
         <translation>Genieße es, deinen Wolken zu lauschen</translation>
     </message>
     <message>
+        <source>Telegram chat</source>
+        <translation>Telegram-Chat</translation>
+    </message>
+    <message>
         <source>AI pair programmer by Anthropic</source>
         <translation>KI-Programmierpartner von Anthropic</translation>
     </message>

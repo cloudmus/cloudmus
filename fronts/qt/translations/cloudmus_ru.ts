@@ -419,6 +419,10 @@
         <translation>Слушайте свои облака с удовольствием</translation>
     </message>
     <message>
+        <source>Telegram chat</source>
+        <translation>Telegram-чат</translation>
+    </message>
+    <message>
         <source>AI pair programmer by Anthropic</source>
         <translation>ИИ-напарник по программированию от Anthropic</translation>
     </message>
