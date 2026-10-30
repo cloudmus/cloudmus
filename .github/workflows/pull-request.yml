@@ -1,6 +1,6 @@
-# Test builds of a pull request: the same AppImage and Windows installer as
-# for develop.yml, built from every push to the pull request, as workflow
-# artifacts (the PR's Checks → the run → Artifacts).
+# Test builds of a pull request: the same AppImage, Windows installer and
+# macOS DMGs as for develop.yml, built from every push to the pull request,
+# as workflow artifacts (the PR's Checks → the run → Artifacts).
 name: Pull request
 
 on:

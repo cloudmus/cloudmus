@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.17"
+protocolVersion: "1.18"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -89,6 +89,20 @@ methods:
         # the latest first — not to be served again while there are
         # others (docs/protocol.md §7.1).
         recentTrackIds: {type: array, items: {type: string}}
+        # optional (1.18+): the same tracks in the same order, with what a
+        # source needs to tell other versions of the same song (sped up,
+        # slowed, ...) by — their ids differ (docs/protocol.md §7.1).
+        recentTracks:
+          type: array
+          items:
+            type: object
+            x-name: RecentTrack
+            required: [id, title, artists]
+            properties:
+              id: {type: string}
+              title: {type: string}
+              artists: {type: array, items: {type: string}}   # names
+            additionalProperties: false
       required: []
     result:
       type: object

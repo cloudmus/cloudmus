@@ -2,11 +2,12 @@
 //! report sentry-native left on disk for an app that did.
 
 use crate::child::{Exit, Outcome};
+use crate::display;
 use crate::env_setup::Dirs;
 use crate::log::debug;
 use crate::sentry::{self, Dsn, Item};
 use serde_json::{json, Map, Value};
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
@@ -47,9 +48,10 @@ impl Reporter {
 
     /// The app was started but died before it installed its own crash
     /// reporter: nothing else will ever know.
-    pub fn startup_failure(&self, appdir: &Path, outcome: &Outcome) {
+    /// `env`: what the app was started with on top of ours.
+    pub fn startup_failure(&self, appdir: &Path, outcome: &Outcome, env: &[(&str, OsString)], at_login: bool) {
         let event_id = sentry::new_event_id();
-        let event = self.startup_event(&event_id, appdir, outcome);
+        let event = self.startup_event(&event_id, appdir, outcome, env, at_login);
         debug!("startup failure event {event_id}: {event}");
         let envelope = sentry::build_envelope(
             &event_id,
@@ -123,7 +125,14 @@ impl Reporter {
         }
     }
 
-    fn startup_event(&self, event_id: &str, appdir: &Path, outcome: &Outcome) -> Value {
+    fn startup_event(
+        &self,
+        event_id: &str,
+        appdir: &Path,
+        outcome: &Outcome,
+        env: &[(&str, OsString)],
+        at_login: bool,
+    ) -> Value {
         let exit = outcome.exit.map(Exit::shell_code);
         let (title, tag_name, tag_value) = describe(outcome);
         let stderr = String::from_utf8_lossy(&outcome.stderr);
@@ -142,9 +151,19 @@ impl Reporter {
                 tags.insert(tag.into(), json!(value));
             }
         }
+        // Started outside a graphical session, Qt fails with the same
+        // platform plugin lines as with a library missing; that one is a
+        // packaging bug, this one isn't, so they are kept apart.
+        let no_display = !display::has_display(env);
+        if no_display {
+            tags.insert("display".into(), json!("none"));
+        }
 
         let tail: Vec<&str> = stderr.lines().rev().take(30).collect::<Vec<_>>().into_iter().rev().collect();
         let mut fingerprint = vec!["startup-failure".to_string(), tag_value.clone()];
+        if no_display {
+            fingerprint.push("no-display".into());
+        }
         fingerprint.extend(reason);
         json!({
             "event_id": event_id,
@@ -158,7 +177,7 @@ impl Reporter {
             "tags": tags,
             "contexts": {
                 "os": os_context(),
-                "startup": startup_context(appdir, exit),
+                "startup": startup_context(appdir, exit, env, at_login),
             },
             "extra": { "stderr_tail": tail.join("\n") },
         })
@@ -243,11 +262,14 @@ pub fn is_user_stop(exit: Exit) -> bool {
 /// into the message and the grouping, where an ordinary log line (with its
 /// timestamp) would split every report into its own issue.
 fn telling_line(stderr: &str) -> Option<String> {
-    const PATTERNS: [&str; 7] = [
+    const PATTERNS: [&str; 8] = [
         "error while loading shared libraries",
         "cannot open shared object file",
         "version `GLIBC",
         "version `GLIBCXX",
+        // Any other symbol version, e.g. a host library wanting a newer
+        // libsystemd than ours.
+        "' not found (required by",
         "undefined symbol",
         // Qt's platform plugin: "Could not load…" when its own library is
         // missing (libxcb-cursor), and the generic line after either failure.
@@ -276,19 +298,36 @@ fn os_context() -> Value {
     })
 }
 
-fn startup_context(appdir: &Path, exit: Option<i32>) -> Value {
+fn startup_context(appdir: &Path, exit: Option<i32>, env: &[(&str, OsString)], at_login: bool) -> Value {
     let var = |name: &str| std::env::var(name).ok();
-    let present = |name: &str| std::env::var_os(name).is_some_and(|v| !v.is_empty());
+    // As the app got it: ours, or what was added for it (a WAYLAND_DISPLAY
+    // found by waiting).
+    let present = |name: &str| {
+        std::env::var_os(name).is_some_and(|v| !v.is_empty()) || env.iter().any(|(k, v)| *k == name && !v.is_empty())
+    };
     json!({
         "exit": exit,
         "host_glibc": host_glibc(),
         "session_type": var("XDG_SESSION_TYPE"),
         "desktop": var("XDG_CURRENT_DESKTOP"),
+        // Whether the autostart entry started it, and from where: an early
+        // login launch and one from a terminal outside the session look the
+        // same otherwise.
+        "launched_at_login": at_login,
+        "cgroup": fs::read_to_string("/proc/self/cgroup").ok().and_then(|c| display::cgroup(&c)),
         "wayland_display_set": present("WAYLAND_DISPLAY"),
         "x11_display_set": present("DISPLAY"),
+        "xdg_runtime_dir_set": present("XDG_RUNTIME_DIR"),
+        // Up by now, though missing when the app started: it came too early.
+        "wayland_sockets": display::wayland_sockets(&display::runtime_dir()),
         "qt_qpa_platform": var("QT_QPA_PLATFORM"),
         "lang": var("LANG"),
-        "missing_libraries": missing_libraries(&appdir.join("usr/bin/cloudmus-qt")),
+        // What the host injects into the process: its libraries win over
+        // ours and drag their own dependencies along.
+        "ld_preload": var("LD_PRELOAD"),
+        "ld_so_preload": fs::read_to_string("/etc/ld.so.preload").ok().map(|t| t.trim().to_string()),
+        "ld_library_path": var("LD_LIBRARY_PATH"),
+        "missing_libraries": missing_libraries(&appdir.join("usr/bin/cloudmus-qt"), env),
     })
 }
 
@@ -304,10 +343,11 @@ fn host_glibc() -> Option<String> {
 }
 
 /// The libraries the dynamic linker can't find for the binary: it lists them
-/// itself when asked to trace instead of run, with the binary's own RUNPATH.
-fn missing_libraries(binary: &Path) -> Vec<String> {
+/// itself when asked to trace instead of run, with the binary's own RUNPATH
+/// and the environment the app had (LD_LIBRARY_PATH for the fallbacks).
+fn missing_libraries(binary: &Path, env: &[(&str, OsString)]) -> Vec<String> {
     let mut command = Command::new(binary);
-    command.env("LD_TRACE_LOADED_OBJECTS", "1");
+    command.envs(env.iter().map(|(k, v)| (*k, v))).env("LD_TRACE_LOADED_OBJECTS", "1");
     run_for_text(command, Duration::from_secs(5))
         .unwrap_or_default()
         .lines()
@@ -406,6 +446,8 @@ mod tests {
             Some("./cloudmus-qt: error while loading shared libraries: libfoo.so.1: cannot open shared object file")
         );
         assert_eq!(telling_line("just noise\n"), None);
+        let version = "/a/usr/bin/cloudmus-qt: /a/usr/bin/../lib/libsystemd.so.0: version `LIBSYSTEMD_251' not found (required by /usr/lib/libmount.so.1)\n";
+        assert!(telling_line(version).unwrap().contains("LIBSYSTEMD_251"));
         let qt = "qt.qpa.plugin: Could not find the Qt platform plugin \"x\" in \"\"\nThis application failed to start because no Qt platform plugin could be initialized. Reinstalling may fix this.\n";
         assert!(telling_line(qt).unwrap().starts_with("This application failed to start because no Qt platform plugin"));
     }

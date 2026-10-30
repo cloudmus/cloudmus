@@ -3,6 +3,7 @@
 #include <QRect>
 #include <Qt>
 
+class QPainter;
 class QWidget;
 
 namespace Theme {
@@ -23,6 +24,11 @@ enum class PopupLook {
     // Windows 11 22H2+: the window is just the panel; DWM rounds its
     // corners, shadows it and, with glass, puts acrylic behind it.
     Native,
+    // X11 without a compositing manager: what is transparent in a window
+    // comes out black (Integration::WindowGlass::translucentWindows()). The
+    // window is just the panel, no shadow; its shape (an X11 window mask)
+    // cuts the rounded corners, in whole pixels — a mask has no alpha.
+    Opaque,
 };
 PopupLook popupLook();
 
@@ -46,7 +52,8 @@ void preparePopup(QWidget* popup, bool clickThrough);
 enum class PopupFade {
     // Not at all: Painted popups over the compositor's blur, which can't
     // fade along with what we paint — the compositor fades those itself,
-    // blur included, as it does menus.
+    // blur included, as it does menus. Opaque ones: painted opacity would
+    // fade them through black.
     None,
     // By painting with opacity (setPopupOpacity() fades a Clipped popup's
     // shadow window along). Not by window opacity: Wayland has none.
@@ -67,9 +74,18 @@ struct PopupShadow {
 };
 
 // Call before the popup shows and whenever its panel changes (on resize):
-// glass behind the panel at `panel` (the popup's coordinates) and, when
-// Clipped, the shadow window under it. `radius`: the panel's corners.
+// glass behind the panel at `panel` (the popup's coordinates), when
+// Clipped the shadow window under it, and when Opaque the window's shape.
+// `radius`: the panel's corners.
 void setUpPopup(QWidget* popup, const QRect& panel, int radius, const PopupShadow& shadow);
+
+// Starts a popup's paint by replacing (not blending) `rect` with
+// transparency — or, when Opaque, with the border's color: the panel's
+// 1px border is drawn on a smooth curve, the window's shape cuts stepped
+// corners, and what lies between them is border too, not the panel's
+// fill. The border then follows the shape, a little thicker at the steps,
+// and the antialiased edge doesn't blend with black.
+void clearPopup(QPainter* painter, const QRect& rect);
 
 // Makes `anchor`'s top-level window the popup's transient parent. Call
 // before show(). A parentless Qt::ToolTip window is an xdg_popup on

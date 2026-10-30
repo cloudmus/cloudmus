@@ -45,6 +45,7 @@ from ytmusicapi import YTMusic
 
 from rpc_common.generated.methods import emit_radio_tracks_added
 from rpc_common.generated.models import TracksAddedParams
+from rpc_common.songs import song_key
 
 from . import catalog
 
@@ -124,12 +125,27 @@ class RadioSession:
         # the latest) — what the front passed to start(). Not served while
         # there is anything else (docs/protocol.md §7.1).
         self._recent: dict[str, int] = {}
+        # The same by song (rpc_common.songs.song_key), so another version
+        # of a recent track — a music video and its audio track, the
+        # original and a sped up upload are different videos — is held
+        # back too; and the songs this session has played, so it serves no
+        # other version of them either.
+        self._recent_songs: dict[str, int] = {}
+        self._played_songs: set[str] = set()
+        # The song of each track served this session, by video id: the
+        # front reports a played track by its id alone.
+        self._songs: dict[str, str] = {}
         # How many times a skip has replaced the queue — see _top_up().
         self._replacements = 0
         # When tracks were last sent (time.monotonic()) — see track_started().
         self._topped_up_at = float("-inf")
 
-    async def start(self, seed: str | None, recent_track_ids: list[str] | None = None) -> dict:
+    async def start(
+        self,
+        seed: str | None,
+        recent_track_ids: list[str] | None = None,
+        recent_tracks: list[dict] | None = None,
+    ) -> dict:
         if not seed:
             raise ValueError("YouTube Music radio needs a seed trackId or playlistId")
         self.station_id = seed
@@ -140,9 +156,20 @@ class RadioSession:
         self._recent = {}
         for rank, track_id in enumerate(recent_track_ids or []):
             self._recent.setdefault(track_id, rank)
+        self._recent_songs = {}
+        seed_songs = set()
+        for rank, recent in enumerate(recent_tracks or []):
+            song = song_key(recent.get("title") or "", recent.get("artists") or [])
+            self._recent_songs.setdefault(song, rank)
+            if recent.get("id") == seed:
+                seed_songs.add(song)
+        self._played_songs = set()
+        self._songs = {}
         # The track a station is started from was asked for, however
         # lately it played.
         self._recent.pop(seed, None)
+        for song in seed_songs:
+            self._recent_songs.pop(song, None)
 
         def fetch() -> dict:
             if self.mix_id is None:
@@ -158,22 +185,35 @@ class RadioSession:
         }
 
     def _fresh(self, result: dict) -> list[dict]:
-        # Normalized, once each, minus anything played or skipped — a
-        # track's radio re-includes the track itself as its first entry —
-        # and minus what played lately, before this session, while there is
-        # anything else: failing that, a few of those, the ones played
-        # longest ago first.
+        # Normalized, once each — one version of a song — minus anything
+        # played or skipped — a track's radio re-includes the track itself
+        # as its first entry — and minus what played lately, before this
+        # session, while there is anything else: failing that, a few of
+        # those, the ones played longest ago first.
         tracks, held, seen = [], [], set()
         for t in result.get("tracks") or []:
             vid = t.get("videoId")
-            if not vid or vid in seen or vid in self._played or vid in self._skipped:
+            if not vid:
                 continue
-            seen.add(vid)
-            (held if vid in self._recent else tracks).append(_normalize_watch_track(t))
+            song = song_key(t.get("title") or "", [a.get("name") or "" for a in t.get("artists") or []])
+            self._songs[vid] = song
+            if vid in seen or song in seen or vid in self._played or vid in self._skipped:
+                continue
+            if song in self._played_songs:
+                continue
+            seen.update((vid, song))
+            (held if vid in self._recent or song in self._recent_songs else tracks).append(_normalize_watch_track(t))
         if not tracks:
-            held.sort(key=lambda t: self._recent[t["videoId"]], reverse=True)
+            held.sort(key=self._played_ago, reverse=True)
             tracks = held[:REPEATS_AT_A_TIME]
         return tracks
+
+    def _played_ago(self, track: dict) -> int:
+        # How far back this track, or another version of it, played: the
+        # latest of the two.
+        vid = track["videoId"]
+        ranks = [r for r in (self._recent.get(vid), self._recent_songs.get(self._songs.get(vid, ""))) if r is not None]
+        return min(ranks, default=0)
 
     def _fetch_batch(self, anchor: str | None = None) -> dict:
         anchor = anchor or self.last_good
@@ -243,6 +283,8 @@ class RadioSession:
 
     async def track_started(self, track_id: str, queued_after: int | None = None) -> None:
         self._played.add(track_id)
+        if track_id in self._songs:
+            self._played_songs.add(self._songs[track_id])
         # Everything queued up to it has been played or jumped past.
         position = self._upcoming.index(track_id) if track_id in self._upcoming else -1
         if position >= 0:

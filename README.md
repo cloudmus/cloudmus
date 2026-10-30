@@ -13,13 +13,21 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/cloudmus/cloudmus/actions/workflows/develop.yml"><img src="https://github.com/cloudmus/cloudmus/actions/workflows/develop.yml/badge.svg?branch=develop" alt="Build status"></a>
+  <a href="https://github.com/cloudmus/cloudmus/releases/latest"><img src="https://img.shields.io/github/v/release/cloudmus/cloudmus" alt="Latest release"></a>
+  <a href="https://github.com/cloudmus/cloudmus/releases"><img src="https://img.shields.io/github/downloads/cloudmus/cloudmus/total" alt="Downloads"></a>
+  <a href="#download-and-install"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue" alt="Platforms: Windows, macOS, Linux"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/cloudmus/cloudmus" alt="License: MIT"></a>
+</p>
+
+<p align="center">
   <img src="art/cloudmus.png" alt="CloudMus desktop app playing a track from YouTube Music">
 </p>
 
 ---
 
 CloudMus — *cloud music* — brings Yandex Music, YouTube Music and your
-local music folder into one native desktop app for Windows and Linux: a
+local music folder into one native desktop app for Windows, macOS and Linux: a
 glass window that blurs your desktop behind it, big cover art, smooth animations, light
 and dark themes. No browser tabs, no Electron wrappers: one fast player with the
 same controls for every service.
@@ -33,7 +41,7 @@ Spotify, Apple Music, SoundCloud, TuneIn, VK Music, Zvuk (Sber) and others.
   Music and your own files in the same sidebar, with one queue, one
   history and one set of controls. More services can be added as plug-ins.
 - **Looks great** — a frosted-glass background (acrylic on Windows 11,
-  blur on Windows 10, real blur on KDE Plasma and Wayland compositors,
+  blur on Windows 10, vibrancy on macOS, real blur on KDE Plasma and Wayland compositors,
   see-through on GNOME with Blur my Shell), light, dark or system theme, hero panels with large covers, overlay scrollbars
   and animated transitions.
 - **Endless personal radio** — Yandex My Wave and personal playlists
@@ -47,24 +55,27 @@ Spotify, Apple Music, SoundCloud, TuneIn, VK Music, Zvuk (Sber) and others.
   album.
 - **Your library, editable** — like and dislike, add the playing track to
   your playlists or remove it, from the toolbar, the track menu or the tray.
-- **Part of your desktop** — on Windows and Linux alike: tray icon with
-  playback controls, media keys, track notifications, launch at login.
-  On Windows the player shows up in the volume flyout and quick settings;
-  on Linux it speaks MPRIS (seek, volume, shuffle, repeat). Keyboard
+- **Part of your desktop** — on Windows, macOS and Linux alike: tray (menu
+  bar) icon with playback controls, media keys, track notifications,
+  launch at login. On Windows the player shows up in the volume flyout and
+  quick settings; on macOS in Now Playing and the Dock menu; on Linux it
+  speaks MPRIS (seek, volume, shuffle, repeat). Keyboard
   shortcuts for play/pause, track and volume, like, dislike and download
   are set in Settings and work with the window out of focus too: on KDE
   Plasma, GNOME 48+ and other desktops with the global shortcuts portal,
-  X11 and Windows.
+  X11, Windows and macOS.
 - **Proxies per service** — HTTP and SOCKS5 proxies, chosen per source;
   streams and covers go through them too.
 - **Picks up where you left off** — the last playlist and track are
   restored on start; everything you play lands in History.
-- **Self-contained downloads** — an AppImage for Linux and an installer for Windows.
+- **Self-contained downloads** — an AppImage for Linux, an installer for
+  Windows and a DMG for macOS; the app updates itself from them.
 
 ## Download and install
 
-CloudMus runs on **Windows** and **Linux** (x86_64). Both downloads are on
-the [latest release](https://github.com/cloudmus/cloudmus/releases/latest)
+CloudMus runs on **Windows** (x64), **macOS** (Intel and Apple Silicon)
+and **Linux** (x86_64). All downloads are on the
+[latest release](https://github.com/cloudmus/cloudmus/releases/latest)
 page.
 
 ### Windows
@@ -91,6 +102,48 @@ What works on Windows:
 - launch at login;
 - media keys and the media card in the volume flyout and quick settings,
   through System Media Transport Controls (SMTC).
+
+### macOS
+
+**Requirements:** macOS 12 Monterey or newer, on an Apple Silicon (M1 and
+later) or Intel Mac.
+
+1. Download the DMG for your Mac from the
+   [latest release](https://github.com/cloudmus/cloudmus/releases/latest):
+   `CloudMus-<version>-arm64.dmg` for Apple Silicon,
+   `CloudMus-<version>-x86_64.dmg` for Intel (Apple menu → About This Mac
+   shows which one you have).
+2. Open it and drag **CloudMus** to **Applications**.
+3. Start CloudMus from Applications. The app is not notarized by Apple, so
+   the first start is blocked with a warning: open **System Settings →
+   Privacy & Security**, scroll down and click **Open Anyway** next to the
+   message about CloudMus, then confirm. This is needed only once (or run
+   `xattr -dr com.apple.quarantine /Applications/CloudMus.app` in Terminal).
+
+**Updating:** CloudMus offers new versions itself and installs them on
+restart (it needs to be in a folder you can write to, such as
+Applications, not run from the DMG). Or download the new DMG and replace
+the app.
+
+**Uninstalling:** quit CloudMus and move it from Applications to the Bin.
+To remove everything, also delete `~/Library/Preferences/cloudmus/`,
+`~/Library/Caches/cloudmus/`, `~/.config/cloudmus/`, `~/.cache/cloudmus/`,
+`~/.local/state/cloudmus/` and, if launch at login was on,
+`~/Library/LaunchAgents/io.github.cloudmus.CloudMus.autostart.plist`.
+
+What works on macOS:
+
+- glass background: the window and popups blend with what's behind them;
+- menu bar icon with playback controls (a click opens its menu; Settings →
+  General can make it show the window instead);
+- Now Playing in Control Center and on the lock screen, media keys and
+  AirPods controls;
+- the Dock menu with the playing track and its controls, the cover on the
+  Dock icon (Settings → General); the app stays in the Dock while its window
+  is closed to the menu bar, and a click on the Dock icon brings it back;
+- track notifications;
+- launch at login;
+- configurable global shortcuts.
 
 ### Linux
 
@@ -181,6 +234,49 @@ for configuration details.
 Launch CloudMus from the application menu or run `cloudmus-qt`. Manage
 package updates and removal through Portage.
 
+#### NixOS and Nix
+
+The repository is also a flake, so Nix builds CloudMus from source — on
+`x86_64-linux` and `aarch64-linux`. On NixOS, add it to your configuration:
+
+```nix
+{
+  inputs.cloudmus.url = "github:cloudmus/cloudmus";
+
+  # where the system packages are set:
+  nixpkgs.overlays = [ inputs.cloudmus.overlays.default ];
+  environment.systemPackages = [ pkgs.cloudmus ];
+}
+```
+
+Without a system configuration, `nix profile install github:cloudmus/cloudmus`
+installs it into your profile and `nix run github:cloudmus/cloudmus` starts it
+once.
+
+Usage statistics and crash reports are on, exactly as in the AppImage; both
+switches are in **Settings → General**. To build without them, or with your own
+Google Analytics property and Sentry project:
+
+```nix
+pkgs.cloudmus.override {
+  enableAnalytics = false;
+  enableSentry = false;
+  # analyticsMeasurementId = "G-XXXXXXXXXX";
+  # sentryDsn = "https://<key>@<host>/<project>";
+}
+```
+
+[Usage statistics](docs/analytics.md) carry no personal data — no track or
+playlist names, no sign-in details — they only show which features are used.
+
+A Nix build never calls itself a release: **About** shows the changelog's
+version plus the commit it was built from (`0.6.4-gabc1234`), and the crashes it
+reports are filed as a development build's rather than mixed into the release's.
+
+Qt, mpv and TagLib come prebuilt from `cache.nixos.org`, so a build compiles
+CloudMus itself and takes a few minutes; the `Nix` workflow publishes the result
+to a binary cache, which turns an update into a download.
+
 ## First steps
 
 Sources are switched on and off, signed in and configured in
@@ -193,7 +289,7 @@ Sources are switched on and off, signed in and configured in
   broken, [sigma67/ytmusicapi#676](https://github.com/sigma67/ytmusicapi/issues/676)).
   Step-by-step: [Setting up browser-header auth](backends/youtube-music/README.md#setting-up-browser-header-auth).
 - **Local folder** — plays your Music folder (XDG Music on Linux, the Windows
-  Music known folder on Windows), each subfolder shown as a playlist; another folder can be
+  Music known folder on Windows, `~/Music` on macOS), each subfolder shown as a playlist; another folder can be
   picked in the source's settings.
 - **Downloads** are off until turned on in Settings; they go to the same
   music folder unless you choose another one.
@@ -212,7 +308,9 @@ Search isn't available yet. More services are planned — see above.
 
 - Settings, sign-in tokens and history: `~/.config/cloudmus/`; logs and
   crash reports: `~/.local/state/cloudmus/`; cached covers:
-  `~/.cache/cloudmus/`.
+  `~/.cache/cloudmus/` (`~/Library/Caches/cloudmus/` on macOS, where the
+  app's own settings are in `~/Library/Preferences/cloudmus/`). On Windows
+  they are under `%APPDATA%\cloudmus` and `%LOCALAPPDATA%\cloudmus`.
 - To report a bug, run the app with `--debug` (or `CLOUDMUS_QT_DEBUG=1`)
   and attach `~/.local/state/cloudmus/fronts/qt/debug.log`.
 - CloudMus sends anonymous usage statistics, which can be turned off in

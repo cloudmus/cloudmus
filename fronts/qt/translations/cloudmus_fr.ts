@@ -146,6 +146,41 @@
     </message>
 </context>
 <context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Suivant</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Précédent</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pause</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Lire</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Ne plus aimer</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>J’aime</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Retirer « Je n’aime pas »</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Je n’aime pas</translation>
+    </message>
+</context>
+<context>
     <name>Integration::GlobalHotkeys</name>
     <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
@@ -180,6 +215,17 @@
     <message>
         <source>Show player</source>
         <translation>Afficher le lecteur</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>J’aime</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Je n’aime pas</translation>
     </message>
 </context>
 <context>
@@ -251,6 +297,10 @@
 </context>
 <context>
     <name>Playback::PlaybackController</name>
+    <message>
+        <source>Can&apos;t open the audio output</source>
+        <translation>Impossible d&apos;ouvrir la sortie audio</translation>
+    </message>
     <message>
         <source>No network connection: playing the next downloaded track</source>
         <translation>Pas de connexion : lecture du prochain titre téléchargé</translation>
@@ -367,6 +417,10 @@
     <message>
         <source>Enjoy listening to your clouds</source>
         <translation>Écoutez vos nuages avec plaisir</translation>
+    </message>
+    <message>
+        <source>Telegram chat</source>
+        <translation>Discussion Telegram</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>
@@ -834,6 +888,14 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Fermer la fenêtre la réduit dans la zone de notification au lieu de quitter</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Cliquer sur l&apos;icône de la barre des menus affiche la fenêtre (le clic droit ouvre le menu)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Afficher la pochette du titre en cours sur l’icône du Dock</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Afficher une notification quand la piste change</translation>
     </message>
@@ -1137,8 +1199,16 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Radio : titres avant une répétition :</translation>
     </message>
     <message>
-        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
-        <translation>La radio écarte ce nombre des derniers titres lus de cette source tant qu’elle en a d’autres. 0 : elle peut répéter n’importe quel titre. S’applique à la prochaine station lancée.</translation>
+        <source>Off</source>
+        <translation>Désactivé</translation>
+    </message>
+    <message>
+        <source>or days:</source>
+        <translation>ou jours :</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. 0 and Off: it may repeat any track. Applies to the next station you start.</source>
+        <translation>La radio écarte ce nombre des derniers titres lus de cette source — ou tous ceux lus pendant ce nombre de jours, s’il y en a plus — tant qu’elle en a d’autres. 0 titre et « Désactivé » : elle peut répéter n’importe quel titre. S’applique à la prochaine station lancée.</translation>
     </message>
     <message>
         <source>Auto</source>
@@ -1319,6 +1389,13 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
     </message>
 </context>
 <context>
+    <name>Ui::ToastNotifier</name>
+    <message>
+        <source>Copy Message</source>
+        <translation>Copier le message</translation>
+    </message>
+</context>
+<context>
     <name>Ui::TrackRowDelegate</name>
     <message>
         <source>Today</source>
@@ -1409,6 +1486,10 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
         <source>Couldn&apos;t open %1 in a browser</source>
         <translation>Impossible d’ouvrir %1 dans un navigateur</translation>
     </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Installation de CloudMus %1</translation>
+    </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
@@ -1458,6 +1539,22 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
         <source>Can&apos;t rename %1</source>
         <translation>Impossible de renommer %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Cette copie de CloudMus ne peut pas se mettre à jour elle-même : seul CloudMus.app le peut.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus ne peut pas se mettre à jour tant qu’il est lancé depuis l’image disque ou le dossier Téléchargements : déplacez-le d’abord dans Applications.</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>L’image disque ne contient pas CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>L’image disque contient une autre application</translation>
     </message>
 </context>
 <context>

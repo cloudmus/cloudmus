@@ -20,7 +20,6 @@
 #include "FakeBackend.h"
 #include "HeroPanel.h"
 #include "MainWindow.h"
-#include "MprisService.h"
 #include "NowPlayingBar.h"
 #include "PlaylistSheet.h"
 #include "RpcClient.h"
@@ -28,6 +27,10 @@
 #include "Tokens.h"
 #include "TrackListModel.h"
 #include "WindowHost.h"
+
+#ifdef Q_OS_LINUX
+#include "MprisService.h"
+#endif
 
 namespace Tests {
 
@@ -315,6 +318,7 @@ private slots:
             await(client->shutdown());
     }
 
+#ifdef Q_OS_LINUX
     void mprisSeekAndVolumeFollowThePlayer()
     {
         App::Core core;
@@ -376,6 +380,7 @@ private slots:
         for (Rpc::RpcClient* client : core.sourceManager().clients())
             await(client->shutdown());
     }
+#endif
 };
 
 QObject* makeWindowHostTest() { return new WindowHostTest; }

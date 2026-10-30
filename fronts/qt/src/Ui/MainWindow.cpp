@@ -220,8 +220,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     sidebarView_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     SmoothScroller::attach(sidebarView_);
     // Before OverlayScrollBar::attach — see ScrollEdgeFade's class doc.
-    ScrollEdgeFade::attach(
-        sidebarView_, [] { return Theme::glass(Theme::palette().surface100, Theme::kChromeGlassOpacity); });
+    ScrollEdgeFade::attach(sidebarView_, [] { return Theme::chromeGlass(); });
     OverlayScrollBar::attach(sidebarView_);
     // Real mouse-move events over the viewport drive NavItemDelegate's hover
     // via eventFilter() below — needs mouse tracking on to get them without
@@ -299,7 +298,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
         // the window's chrome glass (see the stylesheet's trackListBlock()).
         QColor layer = pal.surface0;
         layer.setAlphaF(Theme::kContentGlassLayer);
-        return Theme::over(layer, Theme::glass(pal.surface100, Theme::kChromeGlassOpacity));
+        return Theme::over(layer, Theme::chromeGlass());
     });
     OverlayScrollBar::attach(trackListView_);
     connect(trackListView_, &QListView::doubleClicked, this, &MainWindow::onTrackDoubleClicked);
@@ -700,7 +699,7 @@ void MainWindow::showSourcePage(const QString& sourceId)
     const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
     const QString description = client != nullptr ? client->sourceDescription() : QString();
     const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
-    sheet_->showSource(sourceName, description, sources_.iconPath(sourceId));
+    sheet_->showSource(sourceName, description, sources_.iconPath(sourceId), sources_.logoPath(sourceId));
     sourcePanel_->setSource(sourceId, capabilities);
     sourcePanel_->setPlaylists(sources_.playlists(sourceId), sources_.isLoading(sourceId));
 
@@ -1276,7 +1275,7 @@ void MainWindow::paintEvent(QPaintEvent* event)
     if (Theme::glassEnabled()) {
         QPainter painter(this);
         painter.setCompositionMode(QPainter::CompositionMode_Source);
-        painter.fillRect(event->rect(), Theme::glass(Theme::palette().surface100, Theme::kChromeGlassOpacity));
+        painter.fillRect(event->rect(), Theme::chromeGlass());
     }
     QMainWindow::paintEvent(event);
 }

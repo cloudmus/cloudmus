@@ -65,6 +65,18 @@ private slots:
         }
         await(client.shutdown());
     }
+
+    // As at a quit that skips shutdown(): ~QProcess kills the backend and
+    // reports it while the client is half destroyed.
+    void destroyingAClientWithItsBackendRunningIsSafe()
+    {
+        auto client = std::make_unique<Rpc::RpcClient>(fakeManifest());
+        await(client->start(QProcessEnvironment::systemEnvironment()));
+        bool unavailable = false;
+        connect(client.get(), &Rpc::RpcClient::becameUnavailable, this, [&unavailable]() { unavailable = true; });
+        client.reset();
+        QVERIFY(!unavailable);
+    }
 };
 
 QObject* makeRpcClientTest() { return new RpcClientTest; }

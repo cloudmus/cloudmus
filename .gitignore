@@ -10,6 +10,7 @@ build-appimage/
 build-appimage-asan/
 build-apprun/
 build-windows/
+build-macos-*/
 .ccache/
 dist/
 
@@ -27,3 +28,11 @@ fronts/qt/.qtcreator/
 
 # The AppRun crate's own cargo output (the AppImage build uses build-apprun/)
 packaging/appimage/apprun/target/
+
+# packaging/macos/build-deps.sh: the libraries it builds and its downloads
+packaging/macos/deps/
+packaging/macos/.cache/
+
+# nix build
+/result
+/result-*

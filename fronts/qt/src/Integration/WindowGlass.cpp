@@ -1,4 +1,5 @@
 #include "WindowGlass.h"
+#include "WindowGlassBackend.h"
 
 #include <QGuiApplication>
 #include <QHash>
@@ -53,26 +54,7 @@ bool isKde()
 bool isWayland() { return QGuiApplication::platformName().startsWith(QLatin1String("wayland")); }
 bool isX11() { return QGuiApplication::platformName() == QLatin1String("xcb"); }
 
-// A way to ask the compositor for blur: apply() sets `region` (window coordinates;
-// the whole window if empty) behind `window`, whose native window exists.
-class Backend {
-public:
-    virtual ~Backend() = default;
-    virtual void apply(QWindow* window, const QRegion& region) = 0;
-    // See enableBlurBehindPanel().
-    virtual void applyPanel(QWindow* window, const QRect& panel, qreal radius)
-    {
-        apply(window, roundedRegion(panel, radius));
-    }
-    // See fallbackBlur(), nativePopups(), setUpNativePopup().
-    virtual bool isFallback() const { return false; }
-    virtual bool hasNativePopups() const { return false; }
-    // Whether apply()/applyPanel() work on a native window that isn't on
-    // screen yet — then there's no need to wait for it to be mapped, and the
-    // first frame is already blurred.
-    virtual bool appliesBeforeShow() const { return false; }
-    virtual void setUpNativePopup(QWindow*, int, bool) { }
-};
+using Detail::Backend;
 
 #if defined(CLOUDMUS_BLUR_WAYLAND)
 // Wayland: the compositor's blur protocol, spoken here directly so no
@@ -539,6 +521,9 @@ Backend* createBackend()
 #if defined(Q_OS_WIN)
     return WindowsBackend::create();
 #endif
+#if defined(Q_OS_MACOS)
+    return Detail::createMacBackend();
+#endif
 #if defined(CLOUDMUS_BLUR_WAYLAND)
     // Any compositor: the standard protocol isn't KDE's alone.
     if (isWayland()) {
@@ -607,6 +592,12 @@ Support support()
     static const Support value = backend() != nullptr ? Support::Blur
         : compositing()                               ? Support::SeeThrough
                                                       : Support::None;
+    return value;
+}
+
+bool translucentWindows()
+{
+    static const bool value = !isX11() || compositing();
     return value;
 }
 

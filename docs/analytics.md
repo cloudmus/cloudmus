@@ -20,7 +20,7 @@ Events and their parameters:
 | `download_completed` | `source`, `kind`, `saved_count` |
 | `playlist_changed` | `source`, `action`: `add`, `remove` |
 | `track_feedback` | `source`, `action`: `like`, `unlike`, `dislike`, `undislike` |
-| `control_used` | `trigger`: `global_hotkey`, `window_shortcut`, `tray`, `media_controls`, `taskbar` — once a run per trigger |
+| `control_used` | `trigger`: `global_hotkey`, `window_shortcut`, `tray`, `media_controls`, `taskbar`, `dock` (macOS) — once a run per trigger |
 | `update` | `action`: `offered` (with `kind` `auto`/`manual`), `install`, `install_launched`, `failed`, `release_page` |
 | `star_prompt` | `action`: `shown`, `star`, `dismiss` |
 | `listening_time` | `minutes` of actual playback, sent hourly and at quit |

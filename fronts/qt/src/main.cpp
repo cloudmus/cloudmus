@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QDir>
 #include <QFile>
 #include <QFont>
 #include <QIcon>
@@ -36,6 +37,7 @@
 #include "SentryConfig.h"
 #include "Settings.h"
 #include "Settings/GeneralPage.h"
+#include "SingleInstance.h"
 #include "SourceManager.h"
 #include "StarPromptFlow.h"
 #include "Style.h"
@@ -58,10 +60,17 @@
 #include "SmtcService.h"
 #include "TaskbarThumbButtons.h"
 #else
-#include "MprisService.h"
 #include "QuitSignals.h"
 
 #include <csignal>
+#endif
+#ifdef Q_OS_LINUX
+#include "MprisService.h"
+#endif
+#ifdef Q_OS_MACOS
+#include "DockIcon.h"
+#include "DockTile.h"
+#include "NowPlayingCenter.h"
 #endif
 
 namespace {
@@ -81,6 +90,18 @@ Rpc::Task<void> shutdownAll(Rpc::SourceManager& sourceManager, std::function<voi
         }
     }
     done();
+}
+
+// What this process was started with, for the running instance to act on.
+App::SingleInstance::Launch currentLaunch(const QApplication& app)
+{
+    App::SingleInstance::Launch launch;
+    launch.arguments = app.arguments().mid(1);
+    launch.workingDirectory = QDir::currentPath();
+    // Wayland launchers hand over XDG_ACTIVATION_TOKEN, X11 ones
+    // DESKTOP_STARTUP_ID.
+    launch.activationToken = qEnvironmentVariable("XDG_ACTIVATION_TOKEN", qEnvironmentVariable("DESKTOP_STARTUP_ID"));
+    return launch;
 }
 
 #ifdef Q_OS_WIN
@@ -121,10 +142,8 @@ int main(int argc, char** argv)
     // (SmtcService::pushThumbnail() feeds them the cover directly), but
     // the volume flyout's "Now playing" card (Windows 10) stayed blank —
     // that one specifically needs to resolve the running process back to
-    // a registered app. If it's still blank after this: the next step is
-    // giving packaging/windows/cloudmus.nsi's CreateShortCut calls the
-    // same id as a Start Menu shortcut property (System::Call +
-    // IPropertyStore) — untried so far, since this alone may be enough.
+    // a registered app. Its name there also needs the Start Menu shortcut
+    // to carry this id (AppIdentity::registerAppUserModelId()).
     SetCurrentProcessExplicitAppUserModelID(Integration::AppIdentity::kAppUserModelId);
     // FreeType, not Qt's default DirectWrite: at fractional display scales
     // (13px at 125%) DirectWrite's text came out jagged, with uneven stems.
@@ -145,6 +164,13 @@ int main(int argc, char** argv)
     }
 #endif
     QApplication app(argc, argv);
+#ifdef Q_OS_MACOS
+    // Qt's Cocoa plugin turns menu icons off, as native macOS menus go
+    // without them. Ours are the app's own, not the system's, and their
+    // icons carry state — whether a track is liked shows only there.
+    // After the QApplication: the plugin sets its default while it's made.
+    QCoreApplication::setAttribute(Qt::AA_DontShowIconsInMenus, false);
+#endif
     // Animations at the monitor's refresh rate instead of Qt's fixed 60 FPS.
     Ui::DisplayAnimationDriver animationDriver;
     animationDriver.install();
@@ -168,6 +194,12 @@ int main(int argc, char** argv)
     // in the AppImage predates the xdg-toplevel-icon-v1 protocol) have no
     // way to resolve one from a .desktop file's Icon= key at all.
     QApplication::setDesktopFileName(QStringLiteral("cloudmus-qt"));
+    // Before anything touches the shared state — debug.log, the crash
+    // reports, analytics: a second launch only hands over to the running
+    // instance (raising its window) and exits.
+    App::SingleInstance singleInstance;
+    if (!singleInstance.claim(currentLaunch(app)))
+        return 0;
     // Before anything opens debug.log or the crash directory.
     Config::migrateLegacyState();
     installLogging(); // reads --debug / CLOUDMUS_QT_DEBUG — see Logging.h
@@ -235,12 +267,20 @@ int main(int argc, char** argv)
     // --update-from=<x.y.z>: check for updates as if that version were
     // running — to try the whole update flow from a dev build, which
     // otherwise is neither checked at startup nor older than any release.
+    // --update-feed=<url>: from a feed of one's own (GitHub's releases
+    // JSON), with a package not released yet.
     QString updateVersion = QStringLiteral(CLOUDMUS_VERSION);
+    QUrl updateFeed;
     for (const QString& argument : app.arguments()) {
         if (argument.startsWith(QLatin1String("--update-from=")))
             updateVersion = argument.mid(QLatin1String("--update-from=").size());
+        else if (argument.startsWith(QLatin1String("--update-feed=")))
+            updateFeed = QUrl(argument.mid(QLatin1String("--update-feed=").size()));
     }
-    core.updates().configure(updateVersion);
+    if (updateFeed.isValid())
+        core.updates().configure(updateVersion, updateFeed);
+    else
+        core.updates().configure(updateVersion);
     Config::Settings& settings = core.settings();
     Rpc::SourceManager& sourceManager = core.sourceManager();
     Playback::PlaybackController& playback = core.playback();
@@ -248,6 +288,10 @@ int main(int argc, char** argv)
     // Before glass, whose default depends on it, and the stylesheet.
     Ui::Settings::GeneralPage::applyColorScheme(settings.colorScheme());
     Ui::Settings::GeneralPage::applyTrayPanel(settings.trayPanel());
+    Integration::TrayIcon::setClickShowsWindow(settings.trayClickShowsWindow());
+#ifdef Q_OS_MACOS
+    Integration::DockTile::setShowsCover(settings.dockShowsCover());
+#endif
     // Before the stylesheet and any window: both are built for glass or
     // not, and a window can't gain an alpha channel once created.
     Theme::setGlassEnabled(Theme::glassWanted(settings.glassBackground())
@@ -268,10 +312,15 @@ int main(int argc, char** argv)
     // jagged edges. A ladder of sizes rendered from the SVG lets the
     // compositor pick one close to what it draws.
     const QIcon logo(QStringLiteral(":/icons/icons/logo.svg"));
+#ifdef Q_OS_MACOS
+    // Windows have no icons on macOS; the Dock's one is drawn on its own.
+    Integration::DockIcon::setIcon(logo);
+#else
     QIcon appIcon;
     for (int side : { 16, 22, 24, 32, 48, 64, 96, 128, 192, 256, 512 })
         appIcon.addPixmap(logo.pixmap(QSize(side, side), 1.0));
     QApplication::setWindowIcon(appIcon);
+#endif
 #ifdef Q_OS_WIN
     // Before the first notification, which Windows 11 heads with the name
     // registered for the AppUserModelID set above.
@@ -283,6 +332,14 @@ int main(int argc, char** argv)
     // which the core library doesn't link).
     core.coverArtCache().setFitter(&Ui::fitCover);
     Ui::WindowHost windowHost(core);
+    // A later launch brings this window up; a duplicate start at login
+    // mustn't. Its arguments (a track file to queue, say) are not acted on
+    // yet.
+    QObject::connect(&singleInstance, &App::SingleInstance::launched, &windowHost,
+        [&windowHost](const App::SingleInstance::Launch& launch) {
+            if (!launch.arguments.contains(QLatin1String(Integration::Autostart::kLaunchedAtLoginArgument)))
+                windowHost.bringToFront(launch.activationToken);
+        });
 
     Integration::TrayIcon tray(windowHost, core.nowPlaying(), core.playlistEditing(), core.hotkeys());
     QObject::connect(&tray, &Integration::TrayIcon::quitRequested, &windowHost, &Ui::WindowHost::quit);
@@ -312,13 +369,20 @@ int main(int argc, char** argv)
         QObject::connect(taskbarThumbButtons.get(), &Integration::TaskbarThumbButtons::buttonClicked, &core.analytics(),
             [&core]() { core.analytics().recordControlUsed(QStringLiteral("taskbar")); });
     });
-#else
+#elif defined(Q_OS_LINUX)
     Integration::MprisService mpris(playback, core.nowPlaying(), core.coverArtCache());
     QObject::connect(&mpris, &Integration::MprisService::quitRequested, &windowHost, &Ui::WindowHost::quit);
     QObject::connect(&mpris, &Integration::MprisService::commandReceived, &core.analytics(),
         [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
     QObject::connect(&mpris, &Integration::MprisService::raiseRequested, &windowHost,
         [&windowHost]() { windowHost.bringToFront(); });
+#elif defined(Q_OS_MACOS)
+    Integration::NowPlayingCenter nowPlayingCenter(playback, core.nowPlaying(), core.coverArtCache());
+    QObject::connect(&nowPlayingCenter, &Integration::NowPlayingCenter::commandReceived, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("media_controls")); });
+    Integration::DockTile dockTile(core.nowPlaying(), core.coverArtCache());
+    QObject::connect(dockTile.menu(), &QMenu::triggered, &core.analytics(),
+        [&core]() { core.analytics().recordControlUsed(QStringLiteral("dock")); });
 #endif
 
     Integration::NotificationToast notificationToast(tray.systemTrayIcon());
@@ -416,6 +480,11 @@ int main(int argc, char** argv)
             else
                 windowHost.bringToFront(activationToken);
         });
+#ifdef Q_OS_MACOS
+    // In the tray the app stays in the Dock: a click on its icon brings the
+    // window back, as it does for any app with its windows closed.
+    Integration::DockIcon::setReopenHandler([&windowHost]() { windowHost.bringToFront(); });
+#endif
     QObject::connect(&hotkeyDispatcher, &Hotkeys::Dispatcher::noticeRequested, &notificationToast,
         [&notificationToast, coverCache, notificationCoverSize](const Hotkeys::Dispatcher::Notice& notice) {
             const QPixmap cover

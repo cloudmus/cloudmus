@@ -146,6 +146,41 @@
     </message>
 </context>
 <context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Наступны</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Папярэдні</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Паўза</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Прайграць</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Зняць «Падабаецца»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Зняць «Не падабаецца»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+</context>
+<context>
     <name>Integration::GlobalHotkeys</name>
     <message>
         <source>This desktop has no way for an app to have global shortcuts.</source>
@@ -180,6 +215,17 @@
     <message>
         <source>Show player</source>
         <translation>Паказаць плэер</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
     </message>
 </context>
 <context>
@@ -251,6 +297,10 @@
 </context>
 <context>
     <name>Playback::PlaybackController</name>
+    <message>
+        <source>Can&apos;t open the audio output</source>
+        <translation>Не ўдаецца адкрыць аўдыявыхад</translation>
+    </message>
     <message>
         <source>No network connection: playing the next downloaded track</source>
         <translation>Няма сеткі: іграе наступны загружаны трэк</translation>
@@ -367,6 +417,10 @@
     <message>
         <source>Enjoy listening to your clouds</source>
         <translation>Слухайце свае аблокі з задавальненнем</translation>
+    </message>
+    <message>
+        <source>Telegram chat</source>
+        <translation>Telegram-чат</translation>
     </message>
     <message>
         <source>AI pair programmer by Anthropic</source>
@@ -834,6 +888,14 @@ Do you agree to use downloads only this way?</source>
         <translation>Закрыццё акна згортвае ў трэй замест выхаду</translation>
     </message>
     <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Пстрычка па значку ў радку меню паказвае акно (пстрычка правай кнопкай адкрывае меню)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Паказваць вокладку трэка, які грае, на значку ў Dock</translation>
+    </message>
+    <message>
         <source>Show a notification when the track changes</source>
         <translation>Паказваць апавяшчэнне пры змене трэка</translation>
     </message>
@@ -1137,8 +1199,16 @@ Do you agree to use downloads only this way?</source>
         <translation>Радыё: трэкаў да паўтору:</translation>
     </message>
     <message>
-        <source>The radio leaves out this many of the tracks last played from this source, as long as it has others to play. 0: it may repeat any track. Applies to the next station you start.</source>
-        <translation>Радыё не ставіць столькі апошніх прайграных трэкаў гэтай крыніцы, пакуль у яго ёсць іншыя. 0 — можа паўтарыць любы трэк. Ужываецца да наступнай запушчанай станцыі.</translation>
+        <source>Off</source>
+        <translation>Выкл.</translation>
+    </message>
+    <message>
+        <source>or days:</source>
+        <translation>або дзён:</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. 0 and Off: it may repeat any track. Applies to the next station you start.</source>
+        <translation>Радыё не ставіць столькі апошніх прайграных трэкаў гэтай крыніцы — або ўсе прайграныя за столькі дзён, калі іх больш, — пакуль у яго ёсць іншыя. 0 трэкаў і «Выкл.» — можа паўтарыць любы трэк. Ужываецца да наступнай запушчанай станцыі.</translation>
     </message>
     <message>
         <source>Auto</source>
@@ -1319,6 +1389,13 @@ Do you agree to use downloads only this way?</source>
     </message>
 </context>
 <context>
+    <name>Ui::ToastNotifier</name>
+    <message>
+        <source>Copy Message</source>
+        <translation>Скапіяваць паведамленне</translation>
+    </message>
+</context>
+<context>
     <name>Ui::TrackRowDelegate</name>
     <message>
         <source>Today</source>
@@ -1411,6 +1488,10 @@ You can try again later or download the new version yourself.</source>
         <source>Couldn&apos;t open %1 in a browser</source>
         <translation>Не атрымалася адкрыць %1 у браўзеры</translation>
     </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Усталёўка CloudMus %1</translation>
+    </message>
 </context>
 <context>
     <name>Ui::UpdateFlow</name>
@@ -1460,6 +1541,22 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Can&apos;t rename %1</source>
         <translation>Не атрымалася перайменаваць %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Гэтая копія CloudMus не можа абнавіцца сама: гэта ўмее толькі CloudMus.app.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus не можа абнавіцца, пакуль запушчаны з вобраза дыска або папкі «Спампоўкі»: спачатку перанясіце яго ў «Праграмы».</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>У вобразе дыска няма CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>У вобразе дыска іншая праграма</translation>
     </message>
 </context>
 <context>

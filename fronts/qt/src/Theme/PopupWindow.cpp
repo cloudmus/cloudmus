@@ -5,9 +5,11 @@
 #include <QEvent>
 #include <QPainter>
 #include <QPointer>
+#include <QRegion>
 #include <QTimer>
 #include <QWidget>
 #include <QWindow>
+#include <QtMath>
 
 #include "Shadow.h"
 #include "Tokens.h"
@@ -149,6 +151,26 @@ private:
     qreal opacity_ = 1.0;
 };
 
+// `rect` with its corners rounded by `radius`, row by row: a pixel stays
+// when its center is inside the corner's circle. The same steps in all four
+// corners — a region from the path's polygon rounded each corner its own way.
+QRegion roundedMask(const QRect& rect, qreal radius)
+{
+    QRegion mask(rect);
+    const int rows = qMin(qCeil(radius), rect.height() / 2);
+    for (int row = 0; row < rows; ++row) {
+        const qreal dy = radius - (row + 0.5);
+        const int cut = qMin(int(qRound(radius - qSqrt(radius * radius - dy * dy))), rect.width() / 2);
+        if (cut <= 0)
+            continue;
+        for (const int y : { rect.top() + row, rect.bottom() - row }) {
+            mask -= QRect(rect.left(), y, cut, 1);
+            mask -= QRect(rect.right() - cut + 1, y, cut, 1);
+        }
+    }
+    return mask;
+}
+
 ShadowWindow* shadowWindowOf(const QWidget* popup)
 {
     return dynamic_cast<ShadowWindow*>(popup->property(kShadowWindowProperty).value<QObject*>());
@@ -160,12 +182,15 @@ PopupLook popupLook()
 {
     if (Integration::WindowGlass::nativePopups())
         return PopupLook::Native;
+    if (!Integration::WindowGlass::translucentWindows())
+        return PopupLook::Opaque;
     if (glassEnabled() && Integration::WindowGlass::fallbackBlur())
         return PopupLook::Clipped;
     return PopupLook::Painted;
 }
 
 int popupShadowMargin(int reach) { return popupLook() == PopupLook::Painted ? reach : 0; }
+
 
 Qt::WindowFlags popupWindowFlags(Qt::WindowFlags flags)
 {
@@ -196,6 +221,8 @@ PopupFade popupFade()
     switch (popupLook()) {
         case PopupLook::Native:
             return PopupFade::Window;
+        case PopupLook::Opaque:
+            return PopupFade::None;
         case PopupLook::Painted:
             // No blur protocol has an opacity: painted fading left the blur
             // at full strength until the popup hid, then it vanished at once.
@@ -228,7 +255,20 @@ void setUpPopup(QWidget* popup, const QRect& panel, int radius, const PopupShado
             if (glassEnabled())
                 Integration::WindowGlass::enableBlurBehindPanel(popup, panel, radius);
             break;
+        case PopupLook::Opaque:
+            popup->setMask(roundedMask(panel, radius));
+            break;
     }
+}
+
+void clearPopup(QPainter* painter, const QRect& rect)
+{
+    painter->setCompositionMode(QPainter::CompositionMode_Source);
+    if (popupLook() == PopupLook::Opaque)
+        painter->fillRect(rect, palette().border);
+    else
+        painter->fillRect(rect, Qt::transparent);
+    painter->setCompositionMode(QPainter::CompositionMode_SourceOver);
 }
 
 void attachToWindow(QWidget* popup, const QWidget* anchor)

@@ -1,6 +1,7 @@
 #include "Settings/PageStack.h"
 
 #include <QApplication>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
 #include <QScrollBar>
@@ -8,6 +9,7 @@
 #include <QVBoxLayout>
 #include <QVariantAnimation>
 
+#include "Icons.h"
 #include "OverlayScrollBar.h"
 #include "Radius.h"
 #include "ScrollEdgeFade.h"
@@ -141,11 +143,28 @@ void PageStack::addPage(Page* page)
     frameLayout->setContentsMargins(0, 0, 0, 0);
     frameLayout->setSpacing(Theme::Spacing::space2);
 
+    auto* heading = new QHBoxLayout;
+    heading->setSpacing(Theme::Spacing::space2);
+    // Lined up with the card's content, not its border.
+    heading->setContentsMargins(Theme::Spacing::space1, 0, 0, 0);
     auto* title = new QLabel(page->title(), section.frame);
     title->setFont(Theme::font(Theme::TextStyle::Title));
-    // Lined up with the card's content, not its border.
-    title->setContentsMargins(Theme::Spacing::space1, 0, 0, 0);
-    frameLayout->addWidget(title);
+    // A source's own logo, or else its monochrome icon, as tall as the
+    // title's line.
+    if (!page->logoPath().isEmpty() || !page->iconPath().isEmpty()) {
+        auto* icon = new QLabel(section.frame);
+        const int side = QFontMetrics(title->font()).height();
+        const QString logoPath = page->logoPath();
+        const QString iconPath = page->iconPath();
+        Theme::followTheme(icon, [icon, side, logoPath, iconPath]() {
+            icon->setPixmap((logoPath.isEmpty() ? Theme::iconFromFile(iconPath, Theme::IconColor::Ink, side)
+                                                : Theme::logoFromFile(logoPath, side))
+                    .pixmap(side, side));
+        });
+        heading->addWidget(icon);
+    }
+    heading->addWidget(title, 1);
+    frameLayout->addLayout(heading);
 
     section.card = new SectionCard(section.frame);
     section.cardLayout = new QVBoxLayout(section.card);

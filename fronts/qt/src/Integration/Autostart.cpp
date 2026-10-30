@@ -24,10 +24,20 @@ QString entryPath()
 // Empty unless running from an AppImage.
 QString appImagePath() { return QProcessEnvironment::systemEnvironment().value(QStringLiteral("APPIMAGE")); }
 
+// Empty unless a launcher set it: the Nix package's bin/cloudmus, which seeds
+// the backend manifests and starts the wrapped binary. The wrapped binary in
+// the store is no target for the entry — it skips wrapQtAppsHook's environment,
+// and once an update or a garbage collection removed its path nothing starts at
+// all.
+QString launcherPath() { return QProcessEnvironment::systemEnvironment().value(QStringLiteral("CLOUDMUS_LAUNCHER")); }
+
 QString executablePath()
 {
     const QString appImage = appImagePath();
-    return appImage.isEmpty() ? QCoreApplication::applicationFilePath() : appImage;
+    if (!appImage.isEmpty())
+        return appImage;
+    const QString launcher = launcherPath();
+    return launcher.isEmpty() ? QCoreApplication::applicationFilePath() : launcher;
 }
 
 // Exec= quoting per the Desktop Entry spec: a path with reserved
@@ -153,14 +163,14 @@ void refresh()
     if (!isEnabled())
         return;
     const QString target = firstExecArgument(readEntry().value(QStringLiteral("Exec")));
-    // A newer AppImage usually sits next to the old one, which is still
-    // there — so the entry follows the AppImage being run. Only an
-    // AppImage, though: a build run from its build directory must not take
-    // over the installed app's entry.
-    const QString appImage = appImagePath();
+    // A newer AppImage — or a newer Nix package — usually sits in place of the
+    // old one, which is still there, so the entry follows the launcher being
+    // run. Only a launcher, though: a build run from its build directory must
+    // not take over the installed app's entry.
+    const bool fromLauncher = !appImagePath().isEmpty() || !launcherPath().isEmpty();
     const bool gone = !QFileInfo::exists(target);
-    const bool anotherAppImage = !appImage.isEmpty() && QFileInfo(target) != QFileInfo(appImage);
-    if (gone || anotherAppImage) {
+    const bool anotherLauncher = fromLauncher && QFileInfo(target) != QFileInfo(executablePath());
+    if (gone || anotherLauncher) {
         qInfo() << "Autostart: entry pointed at" << target << (gone ? "(missing)" : "") << "- re-pointing at"
                 << executablePath();
         writeEntry();

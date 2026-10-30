@@ -33,6 +33,9 @@ public:
     // Or a monochrome SVG file (a backend manifest's icon), tinted the same
     // way; wins over iconName().
     virtual QString iconPath() const { return { }; }
+    // A full-color SVG (a backend manifest's logo) shown by the section's
+    // heading; empty for none, and then iconPath() is shown there instead.
+    virtual QString logoPath() const { return { }; }
     // Pages sharing a non-empty section are listed in the sidebar under a
     // heading of that name (e.g. "Sources"), after the pages without one.
     virtual QString sidebarSection() const { return { }; }

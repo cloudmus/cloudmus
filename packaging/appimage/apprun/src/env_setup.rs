@@ -123,6 +123,10 @@ pub fn prepare(appdir: &Path, dirs: &Dirs, appimage: Option<&OsString>) -> Prepa
         env.push(("CLOUDMUS_TLS_CA_FILE", certifi.into_os_string()));
     }
 
+    if let Some(path) = fallback_library_path(appdir, &host_has_library) {
+        env.push(("LD_LIBRARY_PATH", path));
+    }
+
     // Earlier versions generated a youtube-dl wrapper for mpv's ytdl_hook
     // here.
     let _ = fs::remove_dir_all(dirs.cache.join("cloudmus/mpv-appimage"));
@@ -139,6 +143,45 @@ pub fn prepare(appdir: &Path, dirs: &Dirs, appimage: Option<&OsString>) -> Prepa
     }
     debug!("backend manifests: {:?}", manifests);
     Prepared { env, manifests }
+}
+
+/// Libraries bundled only for a host without them, each in its own
+/// directory under usr/lib/fallback (build-in-docker.sh puts them there).
+/// The host's copy has to win: ours come from Debian 11, and a host library
+/// pulled into the process (GTK through a user's LD_PRELOAD) brings the
+/// host's libmount, which needs a newer libsystemd than that. With ours
+/// already loaded under the same name, the dynamic linker stops the app
+/// before main(). Not in usr/lib, so the bundled libraries' $ORIGIN finds
+/// the host's copy; a host's copy is never too old for them.
+const FALLBACK_LIBRARIES: [&str; 2] = ["libsystemd.so.0", "libudev.so.1"];
+
+/// LD_LIBRARY_PATH with the fallback directories of the libraries the host
+/// lacks appended (the user's own entries keep their priority); None when it
+/// has them all.
+fn fallback_library_path(appdir: &Path, host_has: &dyn Fn(&str) -> bool) -> Option<OsString> {
+    let missing: Vec<PathBuf> = FALLBACK_LIBRARIES
+        .iter()
+        .filter(|name| !host_has(name))
+        .map(|name| appdir.join("usr/lib/fallback").join(name.split('.').next().unwrap_or(name)))
+        .filter(|dir| dir.is_dir())
+        .collect();
+    if missing.is_empty() {
+        return None;
+    }
+    debug!("not on the host, the bundled copy is used: {:?}", missing);
+    let current = std::env::var_os("LD_LIBRARY_PATH").filter(|v| !v.is_empty());
+    std::env::join_paths(current.iter().flat_map(std::env::split_paths).chain(missing)).ok()
+}
+
+/// Whether the dynamic linker finds `name` on the host by itself: listed in
+/// its cache (as a NUL-terminated string), or in a default directory.
+fn host_has_library(name: &str) -> bool {
+    let entry = format!("{name}\0");
+    let in_cache = fs::read("/etc/ld.so.cache").is_ok_and(|cache| cache.windows(entry.len()).any(|w| w == entry.as_bytes()));
+    in_cache
+        || ["/lib64", "/usr/lib64", "/lib/x86_64-linux-gnu", "/usr/lib/x86_64-linux-gnu", "/lib", "/usr/lib"]
+            .iter()
+            .any(|dir| Path::new(dir).join(name).exists())
 }
 
 /// The last `cursorTheme=` in kcminputrc; else Breeze if it's installed, a
@@ -184,6 +227,8 @@ fn write_manifests(appdir: &Path, dir: &Path) -> Vec<PathBuf> {
             "argv": [python.to_string_lossy(), "-m", module],
             "protocolVersion": "1.2",
             "icon": appdir.join(format!("usr/share/cloudmus/backend-icons/{id}.svg")).to_string_lossy(),
+            // Not every backend has one; the front skips a missing file.
+            "logo": appdir.join(format!("usr/share/cloudmus/backend-icons/{id}-logo.svg")).to_string_lossy(),
         });
         let path = dir.join(format!("{id}.json"));
         match fs::write(&path, format!("{manifest}\n")) {
@@ -274,6 +319,18 @@ mod tests {
         let dir = temp("breeze");
         assert_eq!(cursor_theme(&dir.join("missing"), &dir.join("none")), None);
         assert_eq!(cursor_theme(&dir.join("missing"), &dir).as_deref(), Some("breeze_cursors"));
+    }
+
+    #[test]
+    fn fallback_libraries_only_for_what_the_host_lacks() {
+        let appdir = temp("fallback");
+        fs::create_dir_all(appdir.join("usr/lib/fallback/libsystemd")).unwrap();
+        fs::create_dir_all(appdir.join("usr/lib/fallback/libudev")).unwrap();
+        assert_eq!(fallback_library_path(&appdir, &|_| true), None);
+        let path = fallback_library_path(&appdir, &|name| name != "libsystemd.so.0").unwrap();
+        let dirs: Vec<PathBuf> = std::env::split_paths(&path).collect();
+        assert_eq!(dirs.last(), Some(&appdir.join("usr/lib/fallback/libsystemd")));
+        assert!(!dirs.contains(&appdir.join("usr/lib/fallback/libudev")));
     }
 
     #[test]

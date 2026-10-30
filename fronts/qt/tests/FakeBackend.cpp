@@ -178,13 +178,17 @@ int runFakeBackend()
             && request.value(QStringLiteral("params")).toObject().value(QStringLiteral("seed")).toString()
                 == QStringLiteral("recent-check")) {
             // A station that plays back what it was told had played lately
-            // (recentTrackIds), for a test to see what that was.
+            // (recentTrackIds, and recentTracks' titles as the titles), for
+            // a test to see what that was.
             QJsonArray tracks;
-            const QJsonArray recent
-                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("recentTrackIds")).toArray();
-            for (const QJsonValue& recentId : recent) {
-                const QString name = QStringLiteral("recent:") + recentId.toString();
-                tracks.append(QJsonObject { { QStringLiteral("id"), name }, { QStringLiteral("title"), name },
+            const QJsonObject params = request.value(QStringLiteral("params")).toObject();
+            const QJsonArray recent = params.value(QStringLiteral("recentTrackIds")).toArray();
+            const QJsonArray recentTracks = params.value(QStringLiteral("recentTracks")).toArray();
+            for (qsizetype i = 0; i < recent.size(); ++i) {
+                const QString name = QStringLiteral("recent:") + recent[i].toString();
+                const QString title = QStringLiteral("recent:")
+                    + recentTracks.at(i).toObject().value(QStringLiteral("title")).toString();
+                tracks.append(QJsonObject { { QStringLiteral("id"), name }, { QStringLiteral("title"), title },
                     { QStringLiteral("artists"), QJsonArray { } }, { QStringLiteral("durationMs"), 180000 } });
             }
             reply(id,

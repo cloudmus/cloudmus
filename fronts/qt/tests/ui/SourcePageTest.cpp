@@ -61,9 +61,23 @@ private slots:
         QVERIFY(!page_->isDirty());
     }
 
-    void theDownloadConnectionsAreSavedOnApply()
+    void theRadioRepeatDaysAreSavedOnApply()
     {
         auto* spin = spinBoxes().value(1);
+        QVERIFY(spin != nullptr);
+        QCOMPARE(spin->value(), 0); // off
+        QCOMPARE(spin->maximum(), Config::Settings::kMaxRadioRepeatDays);
+
+        spin->setValue(3);
+        QVERIFY(page_->isDirty());
+        QVERIFY(await(page_->apply()));
+        QCOMPARE(settings_->sourceRadioRepeatDays(QStringLiteral("fake")), 3);
+        QVERIFY(!page_->isDirty());
+    }
+
+    void theDownloadConnectionsAreSavedOnApply()
+    {
+        auto* spin = spinBoxes().value(2);
         QVERIFY(spin != nullptr);
         QCOMPARE(spin->value(), 0); // as the source suggests
         QCOMPARE(spin->maximum(), Config::Settings::kMaxDownloadConnections);

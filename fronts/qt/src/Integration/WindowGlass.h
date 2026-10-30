@@ -27,8 +27,8 @@ namespace Integration::WindowGlass {
 //     behind them and the main window. Windows 10: DWM's blur through the
 //     undocumented accent policy, whole windows only (fallbackBlur()) — a
 //     popup's window is clipped to its panel instead.
-//   - macOS: not yet — the place for an NSVisualEffectView behind the
-//     window's content.
+//   - macOS: an NSVisualEffectView under the window's content — the
+//     whole window, or a popup's panel, rounded by a mask.
 
 enum class Support {
     // The window system blurs on request (enableBlurBehind()).
@@ -61,6 +61,11 @@ void enableBlurBehindPanel(QWidget* window, const QRect& panel, qreal radius);
 // Whether the blur is a workaround: Windows 10's and Windows 11 21H2's
 // undocumented accent policy — whole windows only. Glass isn't on by default then.
 bool fallbackBlur();
+
+// Whether a translucent window shows what's behind it rather than black:
+// not on X11 without a compositing manager (a window manager alone, e.g.
+// Openbox with picom off). Checked once.
+bool translucentWindows();
 
 // Whether popups are the window system's own (any Windows 11): DWM
 // rounds a popup window's corners, shadows it and — with glass — puts its

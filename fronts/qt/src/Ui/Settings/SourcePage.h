@@ -57,6 +57,7 @@ public:
     QString id() const override { return QStringLiteral("source:") + manifest_.id; }
     QString title() const override { return manifest_.name; }
     QString iconPath() const override { return manifest_.iconPath; }
+    QString logoPath() const override { return manifest_.logoPath; }
     QString sidebarSection() const override;
     int estimatedHeight() const override { return 200; }
 
@@ -102,9 +103,11 @@ private:
     QWidget* connectionRow_ = nullptr;
     bool usesNetwork_ = true;
     // For a source with a radio: how many of its lately played tracks the
-    // radio keeps from coming again (Settings::sourceRadioRepeatGap()).
+    // radio keeps from coming again, and for how many days
+    // (Settings::sourceRadioRepeatGap(), sourceRadioRepeatDays()).
     QWidget* repeatGapRow_ = nullptr;
     QSpinBox* repeatGapSpin_ = nullptr;
+    QSpinBox* repeatDaysSpin_ = nullptr;
     QLabel* repeatGapHint_ = nullptr;
     QWidget* connectionsRow_ = nullptr;
     QSpinBox* connectionsSpin_ = nullptr;

@@ -49,6 +49,17 @@ void preferRepoVenvInterpreter(BackendManifest& manifest, const QString& repoRoo
     }
 }
 
+// A file named by the manifest, relative to the manifest's own directory;
+// empty if not named or missing.
+QString manifestFile(const QString& manifestPath, const QJsonObject& obj, const QString& key)
+{
+    const QString name = obj.value(key).toString();
+    if (name.isEmpty())
+        return { };
+    const QString resolved = QDir(QFileInfo(manifestPath).absolutePath()).absoluteFilePath(name);
+    return QFileInfo::exists(resolved) ? resolved : QString();
+}
+
 bool parseManifest(const QString& path, BackendManifest& out)
 {
     QFile file(path);
@@ -66,13 +77,8 @@ bool parseManifest(const QString& path, BackendManifest& out)
     out.name = obj.value(QStringLiteral("name")).toString();
     out.protocolVersion = obj.value(QStringLiteral("protocolVersion")).toString();
     out.manifestPath = path;
-    out.iconPath.clear();
-    const QString icon = obj.value(QStringLiteral("icon")).toString();
-    if (!icon.isEmpty()) {
-        const QString resolved = QDir(QFileInfo(path).absolutePath()).absoluteFilePath(icon);
-        if (QFileInfo::exists(resolved))
-            out.iconPath = resolved;
-    }
+    out.iconPath = manifestFile(path, obj, QStringLiteral("icon"));
+    out.logoPath = manifestFile(path, obj, QStringLiteral("logo"));
     out.argv.clear();
     for (const QJsonValue& v : obj.value(QStringLiteral("argv")).toArray()) {
         out.argv.append(v.toString());
@@ -109,8 +115,13 @@ QList<BackendManifest> discoverManifests()
     const QString configHome = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
     scanDir(QDir(configHome + QStringLiteral("/cloudmus/backends.d")), result, seenIds);
 
+    // The backends that ship with the app (packaging/windows,
+    // packaging/macos/build-app.sh).
 #ifdef Q_OS_WIN
     scanDir(QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/backends")), result, seenIds, true);
+#elif defined(Q_OS_MACOS)
+    scanDir(
+        QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/../Resources/backends")), result, seenIds, true);
 #endif
 
     const QString devFlag = QProcessEnvironment::systemEnvironment().value(QStringLiteral("CLOUDMUS_DEV_BACKENDS"));
