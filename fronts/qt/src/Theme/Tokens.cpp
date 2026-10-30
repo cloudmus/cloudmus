@@ -121,8 +121,8 @@ QColor glass(const QColor& color, qreal opacity)
 #ifdef Q_OS_MACOS
     // macOS's blur material carries a tint of its own (WindowGlassMac.mm):
     // ours over it at full strength left little of the blur to see — a
-    // pale one least of all.
-    opacity -= currentMode() == Mode::Light ? 0.25 : 0.15;
+    // pale one least of all. Even a fair share of it hid the effect.
+    opacity -= currentMode() == Mode::Light ? 0.35 : 0.3;
 #endif
     QColor tinted = color;
     tinted.setAlphaF(opacity);

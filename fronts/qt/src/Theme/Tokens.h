@@ -99,8 +99,13 @@ QColor glass(const QColor& color, qreal opacity = kGlassOpacity);
 // macOS's light scheme.
 QColor chromeGlass();
 // With glass, the content area's list is a light layer of surface0 at this
-// opacity over the chrome glass, so it still reads a step darker.
+// opacity over the chrome glass, so it still reads a step darker. Thinner
+// on macOS, like the chrome under it: there the list hid most of the blur.
+#ifdef Q_OS_MACOS
+constexpr qreal kContentGlassLayer = 0.2;
+#else
 constexpr qreal kContentGlassLayer = 0.3;
+#endif
 // `top` composited over `bottom` (source-over), both possibly see-through:
 // the one color a stack of translucent layers shows as.
 QColor over(const QColor& top, const QColor& bottom);
