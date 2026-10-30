@@ -1385,6 +1385,13 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
     </message>
 </context>
 <context>
+    <name>Ui::ToastNotifier</name>
+    <message>
+        <source>Copy Message</source>
+        <translation>Copier le message</translation>
+    </message>
+</context>
+<context>
     <name>Ui::TrackRowDelegate</name>
     <message>
         <source>Today</source>
