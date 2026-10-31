@@ -98,6 +98,8 @@ for abi in "${abis[@]}"; do
         *) echo "unknown ABI $abi" >&2; exit 1 ;;
     esac
     build=$work/$abi
+    # aqtinstall leaves some kits' tools without the execute bit.
+    [ -x "$QT_ROOT/$kit/bin/qt-cmake" ] || chmod +x "$QT_ROOT/$kit/bin/"*
     "$QT_ROOT/$kit/bin/qt-cmake" -S fronts/mobile -B "$build" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DQT_HOST_PATH="$QT_ROOT/gcc_64" \
