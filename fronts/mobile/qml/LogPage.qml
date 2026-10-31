@@ -20,6 +20,7 @@ Page {
         minLevel: levelGroup.checkedButton ? levelGroup.checkedButton.level : "D"
         process: processGroup.checkedButton ? processGroup.checkedButton.process : ""
         thisBootOnly: bootChip.checked
+        tag: startupChip.checked ? "Startup" : ""
         text: search.text
         onCountChanged: if (list.follow) Qt.callLater(list.positionViewAtEnd)
     }
@@ -96,6 +97,11 @@ Page {
                     Chip {
                         id: bootChip
                         text: qsTr("This boot")
+                    }
+                    // The startup milestones alone: how long each start took.
+                    Chip {
+                        id: startupChip
+                        text: qsTr("Startup")
                     }
                 }
             }

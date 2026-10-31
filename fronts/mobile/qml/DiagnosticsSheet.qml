@@ -3,8 +3,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import Cloudmus.Mobile
 
-// The test bench: the device and screen, this boot's startup timeline,
-// autoplay, the UI scale, and where the log is.
+// The test bench: the device and screen, autoplay, the UI scale and
+// scrolling, and where the log is (the startup timeline is on the Log page,
+// "Startup").
 Drawer {
     id: sheet
 
@@ -31,13 +32,6 @@ Drawer {
             height: parent.radius
             color: parent.color
         }
-    }
-
-    LogModel {
-        id: startup
-        directory: sheet.visible ? sheet.platform.logDirectory : ""
-        tag: "Startup"
-        thisBootOnly: true
     }
 
     ScrollArea {
@@ -69,25 +63,6 @@ Drawer {
 
             Heading { text: qsTr("Device") }
             Body { text: sheet.platform.deviceInfo }
-
-            Heading { text: qsTr("Startup, this boot") }
-            Repeater {
-                model: startup
-                Body {
-                    required property string time
-                    required property real uptime
-                    required property string process
-                    required property string message
-                    font.family: Theme.monoFamily
-                    font.pixelSize: Theme.dp(13)
-                    text: uptime.toFixed(2) + " s  " + process + "  " + message
-                }
-            }
-            Body {
-                visible: startup.count === 0
-                color: Theme.inkTertiary
-                text: qsTr("Nothing yet")
-            }
 
             Heading { text: qsTr("Playback") }
             TextButton {
