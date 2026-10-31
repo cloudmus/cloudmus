@@ -22,7 +22,8 @@
         android:name="dev.cloudmus.mobile.CmApp"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="-- %%INSERT_APP_NAME%% --"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="Cloudmus"
         android:requestLegacyExternalStorage="true"
         android:allowBackup="false"
         android:fullBackupOnly="false">

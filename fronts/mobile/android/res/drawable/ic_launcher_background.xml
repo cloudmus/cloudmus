@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The adaptive icon's back layer: art/logo.svg's gradient. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:type="radial"
+        android:centerX="0.3"
+        android:centerY="0.2"
+        android:gradientRadius="103dp"
+        android:startColor="#ff9a5c"
+        android:centerColor="#e2461c"
+        android:endColor="#8f1f08" />
+</shape>
