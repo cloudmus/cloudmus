@@ -14,9 +14,18 @@ constexpr int kPositionIntervalMs = 250;
 NowPlaying::NowPlaying(Playback::QueuePlayer& player, QObject* parent)
     : QObject(parent)
     , player_(player)
-    , positionThrottle_(kPositionIntervalMs, [this] { emit positionChanged(); })
+    , positionThrottle_(kPositionIntervalMs, [this] {
+        emit positionMsChanged();
+        emit durationMsChanged();
+    })
 {
-    connect(&player_, &Playback::QueuePlayer::currentChanged, this, &NowPlaying::trackChanged);
+    connect(&player_, &Playback::QueuePlayer::currentChanged, this, [this] {
+        emit hasTrackChanged();
+        emit titleChanged();
+        emit artistChanged();
+        emit coverUrlChanged();
+        emit currentIndexChanged();
+    });
     connect(&player_, &Playback::QueuePlayer::playingChanged, this, &NowPlaying::playingChanged);
     connect(&player_, &Playback::QueuePlayer::loadingChanged, this, &NowPlaying::loadingChanged);
     connect(&player_, &Playback::QueuePlayer::positionChanged, &positionThrottle_, &Timing::Throttle::trigger);

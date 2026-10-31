@@ -82,10 +82,10 @@ void runCore(QString filesDir, QString mediaDir)
 
     auto report = [&core] { reportState(core); };
     auto& now = core.nowPlaying();
-    QObject::connect(&now, &ViewModel::NowPlaying::trackChanged, &core, report);
+    QObject::connect(&now, &ViewModel::NowPlaying::currentIndexChanged, &core, report);
     QObject::connect(&now, &ViewModel::NowPlaying::playingChanged, &core, report);
     QObject::connect(&now, &ViewModel::NowPlaying::loadingChanged, &core, report);
-    QObject::connect(&now, &ViewModel::NowPlaying::positionChanged, &core, report);
+    QObject::connect(&now, &ViewModel::NowPlaying::positionMsChanged, &core, report);
     QObject::connect(&now, &ViewModel::NowPlaying::stopped, &core, [] {
         JNIEnv* env = Android::Jni::env();
         env->CallStaticVoidMethod(bridgeClass, onStoppedMethod);

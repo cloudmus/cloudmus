@@ -19,15 +19,19 @@ namespace ViewModel {
 // Objects replica, and a replica only carries properties, signals and slots.
 class NowPlaying : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool hasTrack READ hasTrack NOTIFY trackChanged)
-    Q_PROPERTY(QString title READ title NOTIFY trackChanged)
-    Q_PROPERTY(QString artist READ artist NOTIFY trackChanged)
-    Q_PROPERTY(QString coverUrl READ coverUrl NOTIFY trackChanged)
-    Q_PROPERTY(int currentIndex READ currentIndex NOTIFY trackChanged)
+    // A signal of its own for each property: Qt Remote Objects tells a
+    // replica of a change per notify signal, and for properties sharing one
+    // it only brought the last one up to date — the views kept the previous
+    // track's title and cover while its position ran on.
+    Q_PROPERTY(bool hasTrack READ hasTrack NOTIFY hasTrackChanged)
+    Q_PROPERTY(QString title READ title NOTIFY titleChanged)
+    Q_PROPERTY(QString artist READ artist NOTIFY artistChanged)
+    Q_PROPERTY(QString coverUrl READ coverUrl NOTIFY coverUrlChanged)
+    Q_PROPERTY(int currentIndex READ currentIndex NOTIFY currentIndexChanged)
     Q_PROPERTY(bool playing READ playing NOTIFY playingChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
-    Q_PROPERTY(qint64 positionMs READ positionMs NOTIFY positionChanged)
-    Q_PROPERTY(qint64 durationMs READ durationMs NOTIFY positionChanged)
+    Q_PROPERTY(qint64 positionMs READ positionMs NOTIFY positionMsChanged)
+    Q_PROPERTY(qint64 durationMs READ durationMs NOTIFY durationMsChanged)
 
 public:
     explicit NowPlaying(Playback::QueuePlayer& player, QObject* parent = nullptr);
@@ -54,11 +58,16 @@ public slots:
     void stop();
 
 signals:
-    void trackChanged();
+    void hasTrackChanged();
+    void titleChanged();
+    void artistChanged();
+    void coverUrlChanged();
+    void currentIndexChanged();
     void playingChanged();
     void loadingChanged();
-    // At most a few times a second: it crosses a process on Android.
-    void positionChanged();
+    // At most a few times a second: they cross a process on Android.
+    void positionMsChanged();
+    void durationMsChanged();
     void stopped();
 
 private:

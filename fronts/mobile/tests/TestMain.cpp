@@ -5,12 +5,18 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
+#include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
+#include <QUrl>
+
+#include <memory>
 
 #include "Backend.h"
 #include "Host.h"
@@ -34,6 +40,7 @@ App::MobileCore::Paths writeTracks(const QTemporaryDir& dir)
             { "title", QStringLiteral("Title %1").arg(i) },
             { "artist", QStringLiteral("Artist %1").arg(i) },
             { "durationMs", 60000 * i },
+            { "cover", QStringLiteral("c%1.jpg").arg(i) },
         });
     }
     QFile file(dir.filePath("tracks.json"));
@@ -50,6 +57,15 @@ void writeLog(const QString& path, const QByteArray& text)
 }
 
 } // namespace
+
+// A slot for a signal of a replica, which has no member function to point at.
+class Receiver : public QObject {
+    Q_OBJECT
+public slots:
+    void run() { emit ran(); }
+signals:
+    void ran();
+};
 
 class MobileTest : public QObject {
     Q_OBJECT
@@ -106,6 +122,74 @@ private slots:
 
         QMetaObject::invokeMethod(backend.settings(), "setAutoplay", Q_ARG(bool, false));
         QTRY_COMPARE(core.settings().autoplay(), false);
+    }
+
+    // Title, artist and cover of the replica are those of the track that
+    // plays, after every change, not those of the one before.
+    void replicaShowsTheCurrentTrack()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core(writeTracks(dir));
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+        QObject* nowPlaying = backend.nowPlaying();
+
+        // What a view sees at the moment `currentIndex` changes: all of it.
+        QStringList seen;
+        Receiver receiver;
+        QObject::connect(nowPlaying, SIGNAL(currentIndexChanged()), &receiver, SLOT(run()));
+        QObject::connect(&receiver, &Receiver::ran, [&] {
+            seen << QStringLiteral("%1/%2/%3")
+                        .arg(nowPlaying->property("currentIndex").toInt())
+                        .arg(nowPlaying->property("title").toString(), nowPlaying->property("artist").toString());
+        });
+        // The position moves all the time while a track plays.
+        QTimer position;
+        position.setInterval(20);
+        QObject::connect(&position, &QTimer::timeout, [&core] { core.player().seek(core.player().positionMs() + 40); });
+        position.start();
+        for (int index : { 2, 1, 0, 2 }) {
+            QMetaObject::invokeMethod(backend.playlist(), "play", Q_ARG(int, index));
+            QTRY_COMPARE_WITH_TIMEOUT(nowPlaying->property("currentIndex").toInt(), index, 3000);
+            QTRY_COMPARE_WITH_TIMEOUT(
+                nowPlaying->property("title").toString(), QStringLiteral("Title %1").arg(index + 1), 3000);
+            QTRY_COMPARE_WITH_TIMEOUT(
+                nowPlaying->property("artist").toString(), QStringLiteral("Artist %1").arg(index + 1), 3000);
+            QTRY_COMPARE_WITH_TIMEOUT(nowPlaying->property("coverUrl").toString(),
+                QUrl::fromLocalFile(core.player().tracks()[index].cover).toString(), 3000);
+        }
+        // And a QML binding to it follows, whatever else changes meanwhile.
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            Item {
+                property QtObject np
+                readonly property string title: np ? np.title : ""
+                readonly property string cover: np ? np.coverUrl : ""
+                readonly property string line: np ? np.currentIndex + ":" + np.title + ":" + np.artist + ":" + np.positionMs : ""
+            })",
+            QUrl());
+        std::unique_ptr<QObject> item(component.create());
+        QVERIFY2(item, qPrintable(component.errorString()));
+        item->setProperty("np", QVariant::fromValue(nowPlaying));
+        for (int index : { 1, 0, 2 }) {
+            QMetaObject::invokeMethod(backend.playlist(), "play", Q_ARG(int, index));
+            QTRY_COMPARE_WITH_TIMEOUT(
+                item->property("title").toString(), QStringLiteral("Title %1").arg(index + 1), 3000);
+            QTRY_COMPARE_WITH_TIMEOUT(item->property("cover").toString(),
+                QUrl::fromLocalFile(core.player().tracks()[index].cover).toString(), 3000);
+        }
+
+        // The views are told, for each change; at the last of its signals
+        // (properties arrive one by one) what they read is of one track.
+        qInfo() << "told" << seen;
+        QVERIFY2(seen.size() >= 4, qPrintable(QStringLiteral("told %1 times").arg(seen.size())));
+        for (const QString& line : std::as_const(seen)) {
+            const QStringList parts = line.split('/');
+            QCOMPARE(parts[1], QStringLiteral("Title %1").arg(parts[0].toInt() + 1));
+        }
     }
 
     // The core's process ends (Android kills it with the screen off): the
@@ -226,13 +310,18 @@ private slots:
 
         // A drag in the sheet scrolls its list; pulled down from the top the
         // sheet follows and closes.
+        // A finger's move takes time: the sheet judges how fast it was let go.
+        auto move = [&](const QPoint& to) {
+            QTest::mouseMove(window, to);
+            QTest::qWait(16);
+        };
         const QPoint inSheet(size.width() / 2, size.height() - 120);
         auto drag = [&](int dy) {
             QTest::mousePress(window, Qt::LeftButton, { }, inSheet);
             for (int step = 1; step <= 20; ++step)
-                QTest::mouseMove(window, inSheet + QPoint(0, dy * step / 20), 16);
+                move(inSheet + QPoint(0, dy * step / 20));
             // Held still before letting go: no fling to carry the list on.
-            QTest::mouseMove(window, inSheet + QPoint(0, dy), 300);
+            QTest::qWait(200);
             QTest::mouseRelease(window, Qt::LeftButton, { }, inSheet + QPoint(0, dy), 16);
             QTest::qWait(400);
         };
@@ -243,10 +332,20 @@ private slots:
         const QPoint handle(size.width() / 2, size.height() - diagnostics->property("height").toInt() + 10);
         QTest::mousePress(window, Qt::LeftButton, { }, handle);
         for (int step = 1; step <= 10; ++step)
-            QTest::mouseMove(window, handle + QPoint(0, 8 * step), 16);
+            move(handle + QPoint(0, 8 * step));
+        QTest::qWait(200); // held still: not a flick
         QTest::mouseRelease(window, Qt::LeftButton, { }, handle + QPoint(0, 80), 16);
         QTRY_COMPARE_WITH_TIMEOUT(diagnostics->property("position").toReal(), 1.0, 2000);
         QVERIFY(diagnostics->property("opened").toBool());
+
+        // A short quick flick down closes it.
+        QTest::mousePress(window, Qt::LeftButton, { }, handle);
+        for (int step = 1; step <= 3; ++step)
+            move(handle + QPoint(0, 15 * step));
+        QTest::mouseRelease(window, Qt::LeftButton, { }, handle + QPoint(0, 45), 10);
+        QTRY_VERIFY_WITH_TIMEOUT(!diagnostics->property("visible").toBool(), 3000);
+        QMetaObject::invokeMethod(diagnostics, "open");
+        QTRY_VERIFY_WITH_TIMEOUT(diagnostics->property("opened").toBool(), 3000);
 
         // A tap above the sheet closes it.
         QTest::mouseClick(window, Qt::LeftButton, { }, QPoint(size.width() / 2, 20));
