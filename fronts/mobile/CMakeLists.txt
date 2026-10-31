@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.7 REQUIRED COMPONENTS Core Network RemoteObjects Gui Qml Quick QuickControls2 Svg)
+find_package(Qt6 6.7 REQUIRED COMPONENTS Concurrent Core Network RemoteObjects Gui Qml Quick QuickControls2 Svg)
 qt_standard_project_setup(REQUIRES 6.7)
 
 # The desktop front's sources the core shares as they are.
@@ -104,7 +104,7 @@ qt_add_library(cloudmus-mobile-ui STATIC
 )
 target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
-    cloudmus-mobile-log Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
+    cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
 if(NOT ANDROID)
     # The desktop runs the core in the app; Android in the service.
     target_link_libraries(cloudmus-mobile-ui PUBLIC cloudmus-mobile-core)

@@ -129,7 +129,7 @@ private slots:
 
         Ui::LogModel model;
         model.setDirectory(dir.path());
-        QCOMPARE(model.rowCount(), 3);
+        QTRY_COMPARE(model.rowCount(), 3); // read on a worker thread
         // Merged by time across the two files.
         QCOMPARE(model.data(model.index(1), Ui::LogModel::ProcessRole).toString(), QStringLiteral("ui"));
         QCOMPARE(

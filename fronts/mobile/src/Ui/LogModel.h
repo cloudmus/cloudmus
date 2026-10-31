@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QFutureWatcher>
 #include <QHash>
 #include <QStringList>
 #include <QTimer>
@@ -10,7 +11,8 @@
 namespace Ui {
 
 // The log files of both processes as one list, oldest first, for the Log
-// page: read once, then their new tails every second. Filtered by level,
+// page: read once, then their new tails every second — on a worker thread,
+// so opening a long log doesn't hold up the page's first touches. Filtered by level,
 // process and text; keeps the newest `kMaxEntries` so a weak head unit
 // doesn't choke on a long log.
 class LogModel : public QAbstractListModel {
@@ -37,6 +39,7 @@ public:
     };
 
     explicit LogModel(QObject* parent = nullptr);
+    ~LogModel() override;
 
     int rowCount(const QModelIndex& parent = { }) const override;
     QVariant data(const QModelIndex& index, int role) const override;
@@ -82,9 +85,22 @@ private:
         QByteArray partial;
     };
 
+    // What a read of the files brought: their new lines, and how far each
+    // file has been read.
+    struct Batch {
+        QHash<QString, FileState> files;
+        QVector<Entry> entries;
+        // Continuation lines at the start of a tail: they belong to the
+        // last entry already shown.
+        QString continuation;
+    };
+
     void poll();
-    // Appends what's new in `path`; true if anything was.
-    bool readTail(const QString& path, QVector<Entry>& into);
+    void merge(Batch batch);
+    // Reads what's new in the files of `directory` (on a worker thread).
+    static Batch read(const QString& directory, QHash<QString, FileState> files);
+    // Appends what's new in `path` to `batch`.
+    static void readTail(const QString& path, FileState& state, Batch& batch);
     bool accepts(const Entry& entry) const;
     void refilter();
 
@@ -98,6 +114,10 @@ private:
     QVector<Entry> all_;
     QVector<int> shown_;
     QTimer pollTimer_;
+    QFutureWatcher<Batch> reading_;
+    // Bumped with the directory: a read of the old one is dropped.
+    int generation_ = 0;
+    int readingGeneration_ = 0;
 };
 
 } // namespace Ui
