@@ -29,7 +29,11 @@ if(ANDROID)
     endif()
     set(CLOUDMUS_MPV_LIBS_DIR "${CLOUDMUS_MPV_ANDROID_DIR}/jni/${ANDROID_ABI}")
     target_include_directories(cloudmus-mobile-mpv INTERFACE "${CLOUDMUS_MPV_ANDROID_DIR}/include")
-    target_link_libraries(cloudmus-mobile-mpv INTERFACE "${CLOUDMUS_MPV_LIBS_DIR}/libmpv.so")
+    # libavcodec: ServiceMain hands FFmpeg the JavaVM (av_jni_set_java_vm).
+    target_link_libraries(cloudmus-mobile-mpv INTERFACE
+        "${CLOUDMUS_MPV_LIBS_DIR}/libmpv.so" "${CLOUDMUS_MPV_LIBS_DIR}/libavcodec.so")
+    # libmpv's own dependencies sit next to it.
+    target_link_options(cloudmus-mobile-mpv INTERFACE "-Wl,-rpath-link,${CLOUDMUS_MPV_LIBS_DIR}")
 else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
@@ -167,15 +171,32 @@ if(ANDROID)
     foreach(_lib mpv avcodec avdevice avfilter avformat avutil postproc swresample swscale)
         list(APPEND _mpv_libs "${CLOUDMUS_MPV_LIBS_DIR}/lib${_lib}.so")
     endforeach()
+
+    # The package source: the android/ files plus the dev tracks as assets,
+    # copied (and again whenever one changes) into the build directory.
+    set(_package ${CMAKE_CURRENT_BINARY_DIR}/android-package)
+    file(GLOB_RECURSE _package_files CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/android
+        ${CMAKE_CURRENT_SOURCE_DIR}/android/*)
+    foreach(_file IN LISTS _package_files)
+        configure_file(android/${_file} ${_package}/${_file} COPYONLY)
+    endforeach()
+    file(GLOB _media CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/media/*)
+    if(NOT _media)
+        message(WARNING "No dev tracks in media/ (run tools/fetch-dev-tracks.sh): the APK will have none")
+    endif()
+    foreach(_file IN LISTS _media)
+        get_filename_component(_name ${_file} NAME)
+        configure_file(${_file} ${_package}/assets/media/${_name} COPYONLY)
+    endforeach()
+
     add_dependencies(cloudmus-mobile cloudmus-core)
     set_target_properties(cloudmus-mobile PROPERTIES
-        QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
+        QT_ANDROID_PACKAGE_SOURCE_DIR ${_package}
         QT_ANDROID_EXTRA_LIBS "$<TARGET_FILE:cloudmus-core>;${_mpv_libs}"
         QT_ANDROID_MIN_SDK_VERSION 26
         QT_ANDROID_TARGET_SDK_VERSION 34
         QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}
         QT_ANDROID_VERSION_CODE 1
-        QT_ANDROID_PACKAGE_NAME dev.cloudmus.mobile
     )
 endif()
 

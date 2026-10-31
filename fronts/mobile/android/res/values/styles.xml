@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What shows at once while Qt loads: the app's own background, not a
+         white flash. -->
+    <style name="CloudmusTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/surface0</item>
+        <item name="android:statusBarColor">@color/surface0</item>
+        <item name="android:navigationBarColor">@color/surface0</item>
+    </style>
+    <color name="surface0">#14100D</color>
+</resources>

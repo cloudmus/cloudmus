@@ -41,6 +41,9 @@ public:
     explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "wasapi");
 #elif defined(Q_OS_MACOS)
     explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "coreaudio");
+#elif defined(Q_OS_ANDROID)
+    // The prebuilt libmpv's outputs: AudioTrack, and OpenSL ES as the other.
+    explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "audiotrack,opensles");
 #else
     explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "pipewire,pulse,alsa");
 #endif
