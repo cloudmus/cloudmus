@@ -22,7 +22,8 @@ Page {
         thisBootOnly: bootChip.checked
         tag: startupChip.checked ? "Startup" : ""
         text: search.text
-        onCountChanged: if (list.follow) Qt.callLater(list.positionViewAtEnd)
+        // Never under a finger or a fling: that's the user scrolling.
+        onCountChanged: if (list.follow && !list.moving) Qt.callLater(list.positionViewAtEnd)
     }
 
     header: Rectangle {
@@ -132,9 +133,16 @@ Page {
         anchors.fill: parent
         clip: true
         model: log
-        // Follows new lines while at the bottom; scrolling up stops it.
+        // Follows new lines while at the bottom; touching it stops that at
+        // once (not only when the scroll ends: the jump to the end fought
+        // the finger), letting go at the bottom starts it again.
         property bool follow: true
+        onMovementStarted: follow = false
         onMovementEnded: follow = atYEnd
+        // Log lines wrap to different heights and are many: kept ready a few
+        // screens ahead and recycled, not made anew under a moving finger.
+        reuseItems: true
+        cacheBuffer: Math.max(0, height * 3)
         Component.onCompleted: positionViewAtEnd()
         ScrollBar.vertical: ScrollBar { }
 

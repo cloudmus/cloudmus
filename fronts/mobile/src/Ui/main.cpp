@@ -89,7 +89,7 @@ void applyRenderingSettings()
     const QByteArray renderLoop = settings.value(QStringLiteral("ui/renderLoop")).toByteArray();
     if (!renderLoop.isEmpty() && !qEnvironmentVariableIsSet("QSG_RENDER_LOOP"))
         qputenv("QSG_RENDER_LOOP", renderLoop);
-    if (!settings.value(QStringLiteral("ui/touchCompression"), true).toBool())
+    if (!settings.value(QStringLiteral("ui/touchCompression"), false).toBool())
         qputenv("QML_NO_TOUCH_COMPRESSION", "1");
 }
 

@@ -17,7 +17,7 @@ Drawer {
     property real flickDeceleration: Theme.flickDecelerationBase
     property bool showFps: false
     property string renderLoop: ""
-    property bool touchCompression: true
+    property bool touchCompression: false
     signal logRequested()
     signal stopRequested()
 

@@ -24,7 +24,9 @@ ApplicationWindow {
         property real flickDeceleration: 2000
         // Read by main() before the window exists (see applyRenderingSettings()).
         property string renderLoop: ""
-        property bool touchCompression: true
+        // Off: under a finger Qt otherwise merges touch moves into one per
+        // frame out of step with the screen, and drags stutter (Pixel 7).
+        property bool touchCompression: false
         property bool showFps: false
     }
 

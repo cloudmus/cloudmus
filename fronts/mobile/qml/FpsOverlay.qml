@@ -1,8 +1,8 @@
 import QtQuick
 
-// Frames shown in the last second, in a corner: to tell a stutter under the
-// finger from a slow device. Counting keeps the window redrawing, so it's
-// only there while switched on in Diagnostics.
+// Frames the window actually drew in the last second, in a corner: 0 when
+// nothing moves, the screen's rate while something does. It only counts,
+// never asks for a frame — besides its own once-a-second redraw.
 Rectangle {
     id: overlay
 
@@ -27,11 +27,6 @@ Rectangle {
     Connections {
         target: overlay.window
         function onFrameSwapped() { overlay.frames++ }
-    }
-    // Asks for a frame each vsync, so an idle screen reads as its rate.
-    FrameAnimation {
-        running: overlay.visible
-        onTriggered: overlay.window.contentItem.update()
     }
     Timer {
         interval: 1000
