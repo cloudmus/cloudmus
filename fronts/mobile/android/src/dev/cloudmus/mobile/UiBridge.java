@@ -30,7 +30,12 @@ public final class UiBridge {
         return CmLog.exportZip();
     }
 
+    // Blocks for long: from a worker thread, the UI polls exportProgress().
     public static String exportSystemApps(Context context) {
         return SystemProbe.exportApks(context);
+    }
+
+    public static String exportProgress(Context context) {
+        return SystemProbe.exportProgress();
     }
 }

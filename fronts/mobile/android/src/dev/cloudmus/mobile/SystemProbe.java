@@ -14,12 +14,15 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -27,7 +30,7 @@ import java.util.zip.ZipOutputStream;
 // widget and steering-wheel buttons are the vendor's code, and there's no adb
 // to look at it. The widget lists Yandex Music and VK Video but not us,
 // without ever binding to our service — the diff between their manifests and
-// ours, and the vendor's own APKs (exportApks()), show what it goes by.
+// ours, and the head unit's own APKs (exportApks()), show what it goes by.
 final class SystemProbe {
     private static final String TAG = "SystemProbe";
     // The apps the head unit's widget does list; ours is compared to them.
@@ -168,51 +171,124 @@ final class SystemProbe {
         text.append('}');
     }
 
-    // The launcher's and the vendor's media APKs, for decompiling at home:
-    // how the widget picks its apps and where the steering-wheel buttons go.
-    // System APKs are world-readable.
+    // Export progress for the UI, which polls it from another thread: bytes
+    // (one launcher APK can outweigh all the rest), the package being copied.
+    private static volatile long exportDoneBytes;
+    private static volatile long exportTotalBytes;
+    private static volatile String exportCurrent = "";
+
+    // "<done bytes>\t<total bytes>\t<package>"; total 0 while it's listing.
+    static String exportProgress() {
+        return exportDoneBytes + "\t" + exportTotalBytes + "\t" + exportCurrent;
+    }
+
+    // Whether a system package goes into the export: the vendor's own ones
+    // (anything not plain AOSP or Google — the widget's names are unknown),
+    // and among AOSP/Google the ones the widget could be in: the launcher,
+    // the status bar, whoever watches media sessions, and the name matches.
+    private static String exportReason(ApplicationInfo app, Set<String> home, Set<String> sessionWatchers) {
+        String name = app.packageName;
+        if ((app.flags & ApplicationInfo.FLAG_SYSTEM) == 0)
+            return null;
+        if (home.contains(name))
+            return "launcher";
+        if (name.equals("com.android.systemui"))
+            return "system UI";
+        if (sessionWatchers.contains(name))
+            return "watches media sessions";
+        if (VENDOR.matcher(name).find())
+            return "name";
+        if (name.equals("android") || name.startsWith("com.android.") || name.startsWith("com.google.")
+            || name.startsWith("android."))
+            return null;
+        return "vendor";
+    }
+
+    // The head unit's system APKs, for decompiling at home: how the widget
+    // picks its apps and where the steering-wheel buttons go. index.txt
+    // lists every installed package, exported or not, so a widget the
+    // selection missed can still be named and fetched next time. System
+    // APKs are world-readable; Android 11+ hides most packages from us
+    // (package visibility), Android 9 on the head unit doesn't. Blocking:
+    // from a worker thread.
     static String exportApks(Context context) {
+        exportDoneBytes = 0;
+        exportTotalBytes = 0;
+        exportCurrent = "";
         PackageManager pm = context.getPackageManager();
-        Set<String> names = vendorPackages(pm);
-        return CmLog.exportToDownloads("cloudmus-system-apks", out -> {
+        Set<String> home = new TreeSet<>();
+        for (ResolveInfo info : pm.queryIntentActivities(
+                 new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0))
+            home.add(info.activityInfo.packageName);
+        Set<String> sessionWatchers = new TreeSet<>();
+        for (PackageInfo info : pm.getPackagesHoldingPermissions(
+                 new String[] {"android.permission.MEDIA_CONTENT_CONTROL"}, 0))
+            sessionWatchers.add(info.packageName);
+
+        List<ApplicationInfo> apps = new ArrayList<>(pm.getInstalledApplications(0));
+        Collections.sort(apps, (a, b) -> a.packageName.compareTo(b.packageName));
+        List<ApplicationInfo> selected = new ArrayList<>();
+        long total = 0;
+        for (ApplicationInfo app : apps) {
+            if (exportReason(app, home, sessionWatchers) != null) {
+                selected.add(app);
+                total += new File(app.sourceDir).length();
+            }
+        }
+        exportTotalBytes = Math.max(1, total);
+        CmLog.i(TAG, "APK export: " + selected.size() + " of " + apps.size() + " packages, " + total / 1024 / 1024
+                + " MB");
+
+        String result = CmLog.exportToDownloads("cloudmus-system-apks", out -> {
             try (ZipOutputStream zip = new ZipOutputStream(out)) {
+                // APKs are zips already: deflating again only costs time.
+                zip.setLevel(Deflater.NO_COMPRESSION);
                 StringBuilder index = new StringBuilder();
-                for (String name : names) {
-                    ApplicationInfo app;
-                    try {
-                        app = pm.getApplicationInfo(name, 0);
-                    } catch (PackageManager.NameNotFoundException error) {
-                        continue;
-                    }
-                    if ((app.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
-                        index.append(name).append(": user app, skipped\n");
-                        continue;
-                    }
+                index.append(String.format(Locale.US, "%d packages installed (as visible to the app), %d exported\n"
+                        + "columns: package, system/user, why exported (or -), size, apk path, outcome\n\n",
+                    apps.size(), selected.size()));
+                for (ApplicationInfo app : apps) {
+                    String reason = exportReason(app, home, sessionWatchers);
                     File apk = new File(app.sourceDir);
+                    index.append(app.packageName).append('\t')
+                        .append((app.flags & ApplicationInfo.FLAG_SYSTEM) != 0 ? "system" : "user").append('\t')
+                        .append(reason == null ? "-" : reason).append('\t').append(apk.length()).append('\t')
+                        .append(apk);
+                    if (app.splitSourceDirs != null && app.splitSourceDirs.length > 0)
+                        index.append(" (+").append(app.splitSourceDirs.length).append(" splits, not exported)");
+                    index.append('\t');
+                    if (reason == null) {
+                        index.append("skipped\n");
+                        continue;
+                    }
+                    exportCurrent = app.packageName;
                     try {
-                        add(zip, name + ".apk", apk);
-                        index.append(name).append(": ").append(apk).append(", ").append(apk.length())
-                            .append(" bytes\n");
+                        add(zip, app.packageName + ".apk", apk);
+                        index.append("exported\n");
                     } catch (IOException error) {
-                        index.append(name).append(": ").append(apk).append(", can't read: ").append(error)
-                            .append('\n');
+                        index.append("can't read: ").append(error).append('\n');
                     }
                 }
+                exportCurrent = "index.txt";
+                zip.setLevel(Deflater.DEFAULT_COMPRESSION);
                 zip.putNextEntry(new ZipEntry("index.txt"));
-                zip.write(index.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                zip.write(index.toString().getBytes(StandardCharsets.UTF_8));
                 zip.closeEntry();
-                CmLog.i(TAG, String.format(Locale.US, "APK export:\n%s", index));
             }
         });
+        exportCurrent = "";
+        return result;
     }
 
     private static void add(ZipOutputStream zip, String entry, File file) throws IOException {
         try (InputStream in = new FileInputStream(file)) {
             zip.putNextEntry(new ZipEntry(entry));
-            byte[] buffer = new byte[64 * 1024];
+            byte[] buffer = new byte[256 * 1024];
             int n;
-            while ((n = in.read(buffer)) > 0)
+            while ((n = in.read(buffer)) > 0) {
                 zip.write(buffer, 0, n);
+                exportDoneBytes += n;
+            }
             zip.closeEntry();
         }
     }

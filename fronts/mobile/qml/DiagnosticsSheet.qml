@@ -271,7 +271,9 @@ Popup {
                 color: Theme.inkSecondary
                 font.pixelSize: Theme.fontSmall
             }
-            RowLayout {
+            // Three buttons don't fit a phone's width in a row.
+            Flow {
+                Layout.fillWidth: true
                 spacing: Theme.spacing
                 TextButton {
                     text: qsTr("Open log")
@@ -284,12 +286,73 @@ Popup {
                     text: qsTr("Export zip")
                     onClicked: exportResult.text = sheet.platform.exportLogs()
                 }
-                // The head unit's launcher and media apps, to decompile.
+                // The head unit's system apps, to decompile; a few hundred
+                // MB, so it shows how far along it is.
                 TextButton {
                     visible: sheet.platform.android
-                    text: qsTr("Export system apps")
-                    onClicked: exportResult.text = sheet.platform.exportSystemApps()
+                    enabled: !sheet.platform.exportingApps
+                    text: sheet.platform.exportingApps ? qsTr("Exporting…") : qsTr("Export system apps")
+                    onClicked: {
+                        exportResult.text = ""
+                        sheet.platform.exportSystemApps()
+                    }
                 }
+            }
+            ColumnLayout {
+                visible: sheet.platform.exportingApps
+                Layout.fillWidth: true
+                spacing: Theme.dp(6)
+                ProgressBar {
+                    id: exportBar
+                    Layout.fillWidth: true
+                    // Indeterminate (a moving stripe) while it counts the
+                    // packages: something moves from the first moment.
+                    indeterminate: sheet.platform.exportFraction < 0
+                    value: Math.max(0, sheet.platform.exportFraction)
+                    background: Rectangle {
+                        implicitHeight: Theme.dp(6)
+                        radius: height / 2
+                        color: Theme.surface300
+                    }
+                    contentItem: Item {
+                        implicitHeight: Theme.dp(6)
+                        clip: true
+                        Rectangle {
+                            visible: !exportBar.indeterminate
+                            width: exportBar.visualPosition * parent.width
+                            height: parent.height
+                            radius: height / 2
+                            color: Theme.accent
+                        }
+                        Rectangle {
+                            id: stripe
+                            visible: exportBar.indeterminate
+                            width: parent.width / 3
+                            height: parent.height
+                            radius: height / 2
+                            color: Theme.accent
+                            NumberAnimation on x {
+                                running: stripe.visible
+                                loops: Animation.Infinite
+                                from: -stripe.width
+                                to: stripe.parent.width
+                                duration: 1200
+                            }
+                        }
+                    }
+                }
+                Body {
+                    Layout.fillWidth: true
+                    text: sheet.platform.exportStatus
+                    elide: Text.ElideMiddle
+                    wrapMode: Text.NoWrap
+                    color: Theme.inkSecondary
+                    font.pixelSize: Theme.fontSmall
+                }
+            }
+            Connections {
+                target: sheet.platform
+                function onSystemAppsExported(result) { exportResult.text = result }
             }
             Body {
                 id: exportResult
