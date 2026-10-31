@@ -58,10 +58,10 @@ QtObject {
     readonly property int barHeight: dp(56)
 
     // Fling physics (ScrollList): Qt's defaults (2500, 1500) cut a fast
-    // swipe short, Android lets it fly up to ~8000 dp/s. Tunable in
-    // Diagnostics while finding what feels native.
-    property real flickMaxVelocityBase: 9000
-    property real flickDecelerationBase: 4000
+    // swipe short and stop it hard. These felt native on a Pixel 7; still
+    // tunable in Diagnostics.
+    property real flickMaxVelocityBase: 12000
+    property real flickDecelerationBase: 2000
     readonly property real flickMaxVelocity: flickMaxVelocityBase * scale
     readonly property real flickDeceleration: flickDecelerationBase * scale
 

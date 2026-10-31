@@ -94,6 +94,8 @@ void Platform::markFirstFrame(QObject* window) const
                                  << quickWindow->rendererInterface()->graphicsApi() << ", render loop "
                                  << (qEnvironmentVariableIsSet("QSG_RENDER_LOOP") ? qgetenv("QSG_RENDER_LOOP")
                                                                                   : QByteArray("default"))
+                                 << ", touch compression "
+                                 << (qEnvironmentVariableIsSet("QML_NO_TOUCH_COMPRESSION") ? "off" : "on")
                                  << ", device pixel ratio " << quickWindow->devicePixelRatio();
 }
 

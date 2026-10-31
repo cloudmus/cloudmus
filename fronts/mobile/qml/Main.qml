@@ -20,8 +20,11 @@ ApplicationWindow {
         id: uiSettings
         category: "ui"
         property real scale: -1
-        property real flickMaxVelocity: 9000
-        property real flickDeceleration: 4000
+        property real flickMaxVelocity: 12000
+        property real flickDeceleration: 2000
+        // Read by main() before the window exists (see applyRenderingSettings()).
+        property string renderLoop: ""
+        property bool touchCompression: true
         property bool showFps: false
     }
 
@@ -138,6 +141,10 @@ ApplicationWindow {
         onFlickDecelerationChanged: uiSettings.flickDeceleration = flickDeceleration
         showFps: uiSettings.showFps
         onShowFpsChanged: uiSettings.showFps = showFps
+        renderLoop: uiSettings.renderLoop
+        onRenderLoopChanged: uiSettings.renderLoop = renderLoop
+        touchCompression: uiSettings.touchCompression
+        onTouchCompressionChanged: uiSettings.touchCompression = touchCompression
         onLogRequested: stack.open(logPage, "slide")
         onStopRequested: window.stopAndQuit()
     }

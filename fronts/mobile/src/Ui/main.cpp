@@ -3,6 +3,7 @@
 #include <QGuiApplication>
 #include <QProcess>
 #include <QQmlApplicationEngine>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QtQml/QQmlExtensionPlugin>
 
@@ -80,6 +81,18 @@ int runCore(int argc, char* argv[])
 }
 #endif
 
+// The drawing experiments of Diagnostics (Main.qml's uiSettings): they work
+// through environment variables Qt reads as the app starts.
+void applyRenderingSettings()
+{
+    QSettings settings;
+    const QByteArray renderLoop = settings.value(QStringLiteral("ui/renderLoop")).toByteArray();
+    if (!renderLoop.isEmpty() && !qEnvironmentVariableIsSet("QSG_RENDER_LOOP"))
+        qputenv("QSG_RENDER_LOOP", renderLoop);
+    if (!settings.value(QStringLiteral("ui/touchCompression"), true).toBool())
+        qputenv("QML_NO_TOUCH_COMPRESSION", "1");
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -91,9 +104,10 @@ int main(int argc, char* argv[])
     }
 #endif
 
+    QCoreApplication::setOrganizationName(QStringLiteral("cloudmus"));
+    QCoreApplication::setApplicationName(QStringLiteral("cloudmus-mobile"));
+    applyRenderingSettings();
     QGuiApplication app(argc, argv);
-    app.setOrganizationName(QStringLiteral("cloudmus"));
-    app.setApplicationName(QStringLiteral("cloudmus-mobile"));
     QDir().mkpath(dataDir());
     Logging::install(QStringLiteral("ui"), logDir());
     Logging::mark(QStringLiteral("ui main()"));

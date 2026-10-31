@@ -16,6 +16,8 @@ Drawer {
     property real flickMaxVelocity: Theme.flickMaxVelocityBase
     property real flickDeceleration: Theme.flickDecelerationBase
     property bool showFps: false
+    property string renderLoop: ""
+    property bool touchCompression: true
     signal logRequested()
     signal stopRequested()
 
@@ -139,6 +141,31 @@ Drawer {
                 Switch {
                     checked: sheet.showFps
                     onToggled: sheet.showFps = checked
+                }
+            }
+
+            // Experiments for a finger drag that stutters at a steady frame
+            // rate: how Qt draws and how it hands touches to the views.
+            Heading { text: qsTr("Drawing (after a restart)") }
+            RowLayout {
+                spacing: Theme.spacing
+                Body { Layout.fillWidth: false; text: qsTr("Render loop") }
+                Repeater {
+                    model: [{ t: qsTr("Default"), v: "" }, { t: "threaded", v: "threaded" }, { t: "basic", v: "basic" }]
+                    Chip {
+                        required property var modelData
+                        text: modelData.t
+                        checked: sheet.renderLoop === modelData.v
+                        onClicked: sheet.renderLoop = modelData.v
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Body { text: qsTr("Merge touch moves into one per frame") }
+                Switch {
+                    checked: sheet.touchCompression
+                    onToggled: sheet.touchCompression = checked
                 }
             }
 
