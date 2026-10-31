@@ -6,7 +6,7 @@ import Cloudmus.Mobile
 // The test bench: the device and screen, autoplay, the UI scale and
 // scrolling, and where the log is (the startup timeline is on the Log page,
 // "Startup").
-Drawer {
+Popup {
     id: sheet
 
     property QtObject backend
@@ -21,22 +21,44 @@ Drawer {
     signal logRequested()
     signal stopRequested()
 
-    edge: Qt.BottomEdge
+    // How far it's out: 1 open, 0 gone. A Popup, not a Drawer: Drawer's own
+    // swipe took vertical drags from the list inside and closed the sheet
+    // instead of scrolling it, and without it a Drawer stops closing on a
+    // tap outside. As Android's bottom sheets: a drag scrolls the list, and
+    // only once it's at the top does pulling further down take the sheet
+    // with it (see `list`); the handle drags it too.
+    property real position: 0
+
+    x: 0
+    y: parent.height - height * position
     width: parent.width
     height: Math.min(parent.height * 0.9, handle.height + content.implicitHeight + Theme.padding * 2)
+    padding: 0
+    modal: true
     dim: true
-    // Drawer's own swipe took vertical drags from the list inside and closed
-    // the sheet instead of scrolling it. As Android's bottom sheets: a drag
-    // scrolls the list, and only once it's at the top does pulling further
-    // down take the sheet with it (see `list`); the handle drags it too.
-    interactive: false
+    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    enter: Transition {
+        NumberAnimation { property: "position"; from: 0; to: 1; duration: Theme.durationPage; easing.type: Easing.OutCubic }
+    }
+    exit: Transition {
+        NumberAnimation { property: "position"; to: 0; duration: Theme.durationPage; easing.type: Easing.InCubic }
+    }
 
     // Lets go of a drag: back up, or closed if pulled down far enough.
+    // open() wouldn't bring it back: to Qt the sheet is still open.
     function settle() {
         if (sheet.position < 0.75)
             sheet.close()
         else
-            sheet.open()
+            backUp.restart()
+    }
+    NumberAnimation {
+        id: backUp
+        target: sheet
+        property: "position"
+        to: 1
+        duration: Theme.durationPage
+        easing.type: Easing.OutCubic
     }
     background: Rectangle {
         color: Theme.surface100

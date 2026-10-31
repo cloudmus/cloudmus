@@ -225,6 +225,20 @@ private slots:
         drag(-200);
         QTest::qWait(500);
         QVERIFY(diagnostics->property("opened").toBool());
+        // Pulled down a little by the handle, not far enough: back up.
+        const QPoint handle(size.width() / 2, size.height() - diagnostics->property("height").toInt() + 10);
+        QTest::mousePress(window, Qt::LeftButton, { }, handle);
+        for (int step = 1; step <= 10; ++step)
+            QTest::mouseMove(window, handle + QPoint(0, 8 * step), 16);
+        QTest::mouseRelease(window, Qt::LeftButton, { }, handle + QPoint(0, 80), 16);
+        QTRY_COMPARE_WITH_TIMEOUT(diagnostics->property("position").toReal(), 1.0, 2000);
+        QVERIFY(diagnostics->property("opened").toBool());
+
+        // A tap above the sheet closes it.
+        QTest::mouseClick(window, Qt::LeftButton, { }, QPoint(size.width() / 2, 20));
+        QTRY_VERIFY_WITH_TIMEOUT(!diagnostics->property("visible").toBool(), 3000);
+        QMetaObject::invokeMethod(diagnostics, "open");
+        QTRY_VERIFY_WITH_TIMEOUT(diagnostics->property("opened").toBool(), 3000);
         // Back to the top of the list, then on down: the sheet goes.
         for (int i = 0; i < 4 && diagnostics->property("opened").toBool(); ++i)
             drag(600);
