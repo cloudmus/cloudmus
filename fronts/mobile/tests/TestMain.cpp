@@ -7,6 +7,7 @@
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -53,7 +54,20 @@ void writeLog(const QString& path, const QByteArray& text)
 class MobileTest : public QObject {
     Q_OBJECT
 
+    QTemporaryDir settingsDir_;
+
 private slots:
+    // QML Settings (and the core's) go to a fresh directory of the run's:
+    // nothing kept from the last run, nothing left in the user's config.
+    void initTestCase()
+    {
+        QVERIFY(settingsDir_.isValid());
+        QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, settingsDir_.path());
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsDir_.path());
+        QCoreApplication::setOrganizationName(QStringLiteral("cloudmus-tests"));
+        QCoreApplication::setApplicationName(QStringLiteral("cloudmus-mobile-tests"));
+    }
+
     void tracksLoadAndRestore()
     {
         QTemporaryDir dir;
