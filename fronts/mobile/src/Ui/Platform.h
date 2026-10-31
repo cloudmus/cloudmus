@@ -27,6 +27,10 @@ public:
     // Packs the log into a zip a file manager can reach; what to tell the
     // user (where it went, or what went wrong).
     Q_INVOKABLE QString exportLogs() const;
+    // The launcher's and the vendor's media APKs into a zip, for working
+    // out the head unit's media widget at home (Android). Blocks a few
+    // seconds: a diagnostic, run by hand.
+    Q_INVOKABLE QString exportSystemApps() const;
     // The window's first frame: startup timing.
     // Also logs how it's drawn (refresh rate, graphics API, render loop).
     Q_INVOKABLE void markFirstFrame(QObject* window) const;

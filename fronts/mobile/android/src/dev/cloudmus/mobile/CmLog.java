@@ -205,11 +205,22 @@ public final class CmLog {
     // what went wrong, for the user.
     public static String exportZip() {
         flushNow();
-        String name = "cloudmus-logs-" + new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(new Date()) + ".zip";
         File[] files = internalDir.listFiles((dir, file) -> file.endsWith(".log"));
         if (files == null || files.length == 0)
             return "No log files";
         Arrays.sort(files);
+        return exportToDownloads("cloudmus-logs", out -> zip(files, out));
+    }
+
+    interface ZipWriter {
+        void write(OutputStream out) throws IOException;
+    }
+
+    // Writes `<prefix>-<time>.zip` to Download/Cloudmus (the app's external
+    // files dir without storage access); where it went, or what went wrong,
+    // for the user.
+    static String exportToDownloads(String prefix, ZipWriter content) {
+        String name = prefix + "-" + new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(new Date()) + ".zip";
         try {
             if (Build.VERSION.SDK_INT >= 29) {
                 ContentValues values = new ContentValues();
@@ -220,9 +231,9 @@ public final class CmLog {
                 if (uri == null)
                     throw new IOException("MediaStore refused the file");
                 try (OutputStream out = context.getContentResolver().openOutputStream(uri)) {
-                    zip(files, out);
+                    content.write(out);
                 }
-                i(TAG, "log exported to Download/Cloudmus/" + name);
+                i(TAG, "exported to Download/Cloudmus/" + name);
                 return "Saved to Download/Cloudmus/" + name;
             }
             File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Cloudmus");
@@ -233,12 +244,12 @@ public final class CmLog {
             dir.mkdirs();
             File target = new File(dir, name);
             try (OutputStream out = new FileOutputStream(target)) {
-                zip(files, out);
+                content.write(out);
             }
-            i(TAG, "log exported to " + target);
+            i(TAG, "exported to " + target);
             return "Saved to " + target;
         } catch (IOException | RuntimeException error) {
-            e(TAG, "log export failed", error);
+            e(TAG, "export of " + name + " failed", error);
             return "Export failed: " + error.getMessage();
         }
     }

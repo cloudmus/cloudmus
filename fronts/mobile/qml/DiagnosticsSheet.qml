@@ -284,6 +284,12 @@ Popup {
                     text: qsTr("Export zip")
                     onClicked: exportResult.text = sheet.platform.exportLogs()
                 }
+                // The head unit's launcher and media apps, to decompile.
+                TextButton {
+                    visible: sheet.platform.android
+                    text: qsTr("Export system apps")
+                    onClicked: exportResult.text = sheet.platform.exportSystemApps()
+                }
             }
             Body {
                 id: exportResult

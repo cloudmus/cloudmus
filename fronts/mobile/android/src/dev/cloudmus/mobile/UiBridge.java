@@ -29,4 +29,8 @@ public final class UiBridge {
     public static String exportLogs(Context context) {
         return CmLog.exportZip();
     }
+
+    public static String exportSystemApps(Context context) {
+        return SystemProbe.exportApks(context);
+    }
 }

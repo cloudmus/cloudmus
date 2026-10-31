@@ -10,16 +10,24 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.os.Bundle;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 // What the car's media system is made of, for the log: a head unit's media
 // widget and steering-wheel buttons are the vendor's code, and there's no adb
 // to look at it. The widget lists Yandex Music and VK Video but not us,
 // without ever binding to our service — the diff between their manifests and
-// ours show what it goes by.
+// ours, and the vendor's own APKs (exportApks()), show what it goes by.
 final class SystemProbe {
     private static final String TAG = "SystemProbe";
     // The apps the head unit's widget does list; ours is compared to them.
@@ -158,5 +166,54 @@ final class SystemProbe {
             text.append(key).append('=').append(metaData.get(key));
         }
         text.append('}');
+    }
+
+    // The launcher's and the vendor's media APKs, for decompiling at home:
+    // how the widget picks its apps and where the steering-wheel buttons go.
+    // System APKs are world-readable.
+    static String exportApks(Context context) {
+        PackageManager pm = context.getPackageManager();
+        Set<String> names = vendorPackages(pm);
+        return CmLog.exportToDownloads("cloudmus-system-apks", out -> {
+            try (ZipOutputStream zip = new ZipOutputStream(out)) {
+                StringBuilder index = new StringBuilder();
+                for (String name : names) {
+                    ApplicationInfo app;
+                    try {
+                        app = pm.getApplicationInfo(name, 0);
+                    } catch (PackageManager.NameNotFoundException error) {
+                        continue;
+                    }
+                    if ((app.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+                        index.append(name).append(": user app, skipped\n");
+                        continue;
+                    }
+                    File apk = new File(app.sourceDir);
+                    try {
+                        add(zip, name + ".apk", apk);
+                        index.append(name).append(": ").append(apk).append(", ").append(apk.length())
+                            .append(" bytes\n");
+                    } catch (IOException error) {
+                        index.append(name).append(": ").append(apk).append(", can't read: ").append(error)
+                            .append('\n');
+                    }
+                }
+                zip.putNextEntry(new ZipEntry("index.txt"));
+                zip.write(index.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                zip.closeEntry();
+                CmLog.i(TAG, String.format(Locale.US, "APK export:\n%s", index));
+            }
+        });
+    }
+
+    private static void add(ZipOutputStream zip, String entry, File file) throws IOException {
+        try (InputStream in = new FileInputStream(file)) {
+            zip.putNextEntry(new ZipEntry(entry));
+            byte[] buffer = new byte[64 * 1024];
+            int n;
+            while ((n = in.read(buffer)) > 0)
+                zip.write(buffer, 0, n);
+            zip.closeEntry();
+        }
     }
 }

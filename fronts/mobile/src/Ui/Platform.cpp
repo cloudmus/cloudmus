@@ -83,6 +83,15 @@ QString Platform::exportLogs() const
 #endif
 }
 
+QString Platform::exportSystemApps() const
+{
+#ifdef Q_OS_ANDROID
+    return bridgeString("exportSystemApps");
+#else
+    return tr("Android only");
+#endif
+}
+
 void Platform::markFirstFrame(QObject* window) const
 {
     Logging::mark(QStringLiteral("first frame"));
