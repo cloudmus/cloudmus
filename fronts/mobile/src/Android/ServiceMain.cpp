@@ -36,6 +36,7 @@ jclass bridgeClass = nullptr;
 jmethodID onStateMethod = nullptr;
 jmethodID onAutoplayMethod = nullptr;
 jmethodID onReadyMethod = nullptr;
+jmethodID onStoppedMethod = nullptr;
 
 std::mutex mutex;
 QObject* receiver = nullptr; // lives in the core thread, once it's up
@@ -85,6 +86,11 @@ void runCore(QString filesDir, QString mediaDir)
     QObject::connect(&now, &ViewModel::NowPlaying::playingChanged, &core, report);
     QObject::connect(&now, &ViewModel::NowPlaying::loadingChanged, &core, report);
     QObject::connect(&now, &ViewModel::NowPlaying::positionChanged, &core, report);
+    QObject::connect(&now, &ViewModel::NowPlaying::stopped, &core, [] {
+        JNIEnv* env = Android::Jni::env();
+        env->CallStaticVoidMethod(bridgeClass, onStoppedMethod);
+        Android::Jni::checkException(env, "CoreBridge.onStopped");
+    });
     core.settings().onAutoplayChanged = [](bool enabled) {
         JNIEnv* env = Android::Jni::env();
         env->CallStaticVoidMethod(bridgeClass, onAutoplayMethod, jboolean(enabled));
@@ -132,6 +138,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     onStateMethod = env->GetStaticMethodID(bridgeClass, "onState", "(IZZJJ)V");
     onAutoplayMethod = env->GetStaticMethodID(bridgeClass, "onAutoplayChanged", "(Z)V");
     onReadyMethod = env->GetStaticMethodID(bridgeClass, "onCoreReady", "()V");
+    onStoppedMethod = env->GetStaticMethodID(bridgeClass, "onStopped", "()V");
     return JNI_VERSION_1_6;
 }
 

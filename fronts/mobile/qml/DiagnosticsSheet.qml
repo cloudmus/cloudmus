@@ -13,6 +13,7 @@ Drawer {
     // -1: automatic.
     property real userScale: -1
     signal logRequested()
+    signal stopRequested()
 
     edge: Qt.BottomEdge
     width: parent.width
@@ -86,6 +87,10 @@ Drawer {
             }
 
             Heading { text: qsTr("Playback") }
+            TextButton {
+                text: qsTr("Stop and close")
+                onClicked: sheet.stopRequested()
+            }
             RowLayout {
                 Layout.fillWidth: true
                 Body {

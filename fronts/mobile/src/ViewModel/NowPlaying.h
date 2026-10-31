@@ -49,6 +49,9 @@ public slots:
     void next();
     void previous();
     void seek(qint64 positionMs);
+    // Playback stops and the player is done with: on Android the playback
+    // service and its process end (stopped() tells them).
+    void stop();
 
 signals:
     void trackChanged();
@@ -56,6 +59,7 @@ signals:
     void loadingChanged();
     // At most a few times a second: it crosses a process on Android.
     void positionChanged();
+    void stopped();
 
 private:
     Playback::QueuePlayer& player_;

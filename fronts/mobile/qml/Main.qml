@@ -28,6 +28,14 @@ ApplicationWindow {
         value: uiSettings.scale > 0 ? uiSettings.scale : Theme.autoScale(window.width, window.height)
     }
 
+    // Stops the player for good and closes the app (on Android the playback
+    // service ends too).
+    function stopAndQuit() {
+        if (backend.nowPlaying)
+            backend.nowPlaying.stop()
+        Qt.callLater(Qt.quit)
+    }
+
     FontLoader { source: "qrc:/fonts/Manrope-Regular.ttf" }
     FontLoader { source: "qrc:/fonts/Manrope-Medium.ttf" }
     FontLoader { source: "qrc:/fonts/Manrope-SemiBold.ttf" }
@@ -94,6 +102,7 @@ ApplicationWindow {
         NowPlayingPage {
             objectName: "nowPlaying"
             onCloseRequested: stack.close()
+            onStopRequested: window.stopAndQuit()
         }
     }
     Component {
@@ -112,6 +121,7 @@ ApplicationWindow {
         userScale: uiSettings.scale
         onUserScaleChanged: uiSettings.scale = userScale
         onLogRequested: stack.open(logPage, "slide")
+        onStopRequested: window.stopAndQuit()
     }
 
     // While the core comes up (in the playback service on Android).

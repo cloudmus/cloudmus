@@ -29,6 +29,7 @@ public final class CoreBridge {
     }
 
     private static Listener listener;
+    private static Runnable stopHandler;
     private static boolean started;
 
     private CoreBridge() {
@@ -50,6 +51,11 @@ public final class CoreBridge {
 
     public static synchronized void setListener(Listener value) {
         listener = value;
+    }
+
+    // What to do when a view asks the player to stop for good.
+    public static synchronized void setStopHandler(Runnable handler) {
+        stopHandler = handler;
     }
 
     // Loads the core and starts it on a thread of its own. Idempotent.
@@ -141,6 +147,17 @@ public final class CoreBridge {
         Context context = CmLog.context();
         if (context != null)
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(PREF_AUTOPLAY, enabled).apply();
+    }
+
+    // From the core: a view stopped the player (NowPlaying::stop()).
+    @SuppressWarnings("unused")
+    static void onStopped() {
+        Runnable handler;
+        synchronized (CoreBridge.class) {
+            handler = stopHandler;
+        }
+        if (handler != null)
+            handler.run();
     }
 
     @SuppressWarnings("unused")

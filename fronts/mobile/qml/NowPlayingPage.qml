@@ -13,6 +13,7 @@ Page {
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property bool wide: width > height * 1.1
     signal closeRequested()
+    signal stopRequested()
 
     background: Rectangle {
         color: Theme.surface0
@@ -57,7 +58,12 @@ Page {
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: Theme.dp(1)
             }
-            Item { implicitWidth: Theme.touch }
+            // Stops the music and closes the app: the player stays playing
+            // when the app is just swiped away.
+            IconButton {
+                iconName: "close"
+                onClicked: page.stopRequested()
+            }
         }
     }
 

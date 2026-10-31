@@ -64,4 +64,10 @@ void NowPlaying::previous() { player_.previous(); }
 
 void NowPlaying::seek(qint64 positionMs) { player_.seek(positionMs); }
 
+void NowPlaying::stop()
+{
+    player_.pause();
+    emit stopped();
+}
+
 } // namespace ViewModel

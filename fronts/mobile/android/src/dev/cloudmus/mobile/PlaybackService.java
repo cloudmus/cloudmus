@@ -11,10 +11,14 @@ import androidx.annotation.Nullable;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.session.CommandButton;
 import androidx.media3.session.DefaultMediaNotificationProvider;
 import androidx.media3.session.LibraryResult;
 import androidx.media3.session.MediaLibraryService;
 import androidx.media3.session.MediaSession;
+import androidx.media3.session.SessionCommand;
+import androidx.media3.session.SessionCommands;
+import androidx.media3.session.SessionResult;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
@@ -37,6 +41,10 @@ public final class PlaybackService extends MediaLibraryService {
     private static final String DEV_TRACKS_ID = "dev-tracks";
     private static final String CHANNEL_ID = "playback";
     private static final int NOTIFICATION_ID = DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID;
+    // The notification's (and the app's) "stop it all": playback stops and
+    // the service, with its process, goes.
+    static final String COMMAND_CLOSE = "dev.cloudmus.mobile.CLOSE";
+    private static final SessionCommand CLOSE = new SessionCommand(COMMAND_CLOSE, Bundle.EMPTY);
 
     private MediaLibrarySession session;
     private CorePlayer player;
@@ -50,15 +58,31 @@ public final class PlaybackService extends MediaLibraryService {
         tracks = Tracks.load(this);
         player = new CorePlayer(this, getMainLooper(), tracks);
         CoreBridge.setListener(player);
+        CoreBridge.setStopHandler(() -> new android.os.Handler(getMainLooper()).post(() -> close("stopped in the app")));
         Intent open = new Intent(this, MainActivity.class);
+        CommandButton close = new CommandButton.Builder()
+            .setDisplayName(getString(R.string.close))
+            .setIconResId(R.drawable.ic_close)
+            .setSessionCommand(CLOSE)
+            .build();
         session = new MediaLibrarySession.Builder(this, player, new Callback())
             .setSessionActivity(PendingIntent.getActivity(this, 0, open,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT))
+            .setCustomLayout(ImmutableList.of(close))
             .build();
-        setMediaNotificationProvider(new DefaultMediaNotificationProvider.Builder(this)
+        DefaultMediaNotificationProvider notifications = new DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
             .setChannelName(R.string.playback_channel)
-            .build());
+            .build();
+        // A white silhouette: Android 5+ shows the small icon as a mask, the
+        // app's colored icon came out as a blank square or not at all.
+        notifications.setSmallIcon(R.drawable.ic_stat_cloudmus);
+        setMediaNotificationProvider(notifications);
+        // Media3 posts the notification (and goes foreground) only for the
+        // sessions it knows of — the ones a controller connected to, or
+        // added here. Our UI reaches the core over Qt Remote Objects, not a
+        // MediaController, so without this there was no notification at all.
+        addSession(session);
         CmLog.mark("service ready, " + tracks.size() + " tracks");
     }
 
@@ -80,7 +104,7 @@ public final class PlaybackService extends MediaLibraryService {
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel(CHANNEL_ID, "Playback", NotificationManager.IMPORTANCE_LOW));
         return new Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(getApplicationInfo().icon)
+            .setSmallIcon(R.drawable.ic_stat_cloudmus)
             .setContentTitle("Cloudmus")
             .setOngoing(true)
             .build();
@@ -91,6 +115,21 @@ public final class PlaybackService extends MediaLibraryService {
     public MediaLibrarySession onGetSession(MediaSession.ControllerInfo controllerInfo) {
         CmLog.i(TAG, "session requested by " + controllerInfo.getPackageName());
         return session;
+    }
+
+    // Pauses, lets go of the audio focus and ends the service — and with it
+    // the process (onDestroy()).
+    void close(String why) {
+        CmLog.i(TAG, "closing: " + why);
+        player.pause();
+        stopSelf();
+    }
+
+    @Override
+    public void onUpdateNotification(MediaSession session, boolean startInForegroundRequired) {
+        CmLog.i(TAG, "notification update, foreground " + startInForegroundRequired + ", playing "
+                + session.getPlayer().getPlayWhenReady() + ", items " + session.getPlayer().getMediaItemCount());
+        super.onUpdateNotification(session, startInForegroundRequired);
     }
 
     @Override
@@ -106,6 +145,7 @@ public final class PlaybackService extends MediaLibraryService {
     public void onDestroy() {
         CmLog.i(TAG, "service onDestroy");
         CoreBridge.setListener(null);
+        CoreBridge.setStopHandler(null);
         if (session != null) {
             session.release();
             session = null;
@@ -122,7 +162,20 @@ public final class PlaybackService extends MediaLibraryService {
         @Override
         public MediaSession.ConnectionResult onConnect(MediaSession session, MediaSession.ControllerInfo controller) {
             CmLog.i(TAG, "controller connected: " + controller.getPackageName() + " (uid " + controller.getUid() + ")");
-            return MediaLibrarySession.Callback.super.onConnect(session, controller);
+            MediaSession.ConnectionResult result = MediaLibrarySession.Callback.super.onConnect(session, controller);
+            // Everyone may close: the notification, the car's media widget.
+            SessionCommands commands = result.availableSessionCommands.buildUpon().add(CLOSE).build();
+            return MediaSession.ConnectionResult.accept(commands, result.availablePlayerCommands);
+        }
+
+        @Override
+        public ListenableFuture<SessionResult> onCustomCommand(MediaSession session,
+            MediaSession.ControllerInfo controller, SessionCommand command, Bundle args) {
+            if (COMMAND_CLOSE.equals(command.customAction)) {
+                close("asked by " + controller.getPackageName());
+                return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+            }
+            return MediaLibrarySession.Callback.super.onCustomCommand(session, controller, command, args);
         }
 
         @Override

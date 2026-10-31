@@ -133,7 +133,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         src/Ui/LogModel.h
 )
 
-set(_icons arrow_back expand_less expand_more file_download history music_note pause play_arrow
+set(_icons arrow_back close expand_less expand_more file_download history music_note pause play_arrow
     skip_next skip_previous tune volume_up)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)

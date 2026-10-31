@@ -437,6 +437,7 @@ public final class CmLog {
         }
         try {
             marker.createNewFile();
+            marker.setLastModified(System.currentTimeMillis());
         } catch (IOException ignored) {
         }
         if (Build.VERSION.SDK_INT >= 30) {
