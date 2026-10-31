@@ -15,6 +15,7 @@ Details: `docs/development.md`. Before touching `fronts/qt/`, read
 | `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11 |
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
 | `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
+| `fronts/mobile/` | Mobile front MVP (Android APK + Linux debug build); `docs/android.md` | C++20, Qt 6.7, QML, Media3 |
 | `packaging/appimage/`, `build-appimage.sh` | AppImage build in Docker | |
 | `packaging/appimage/apprun/` | The AppImage's `AppRun`: static launcher that reports failed starts to Sentry | Rust (built in `rust:alpine`) |
 
