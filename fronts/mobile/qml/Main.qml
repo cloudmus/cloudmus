@@ -1,0 +1,147 @@
+import QtQuick
+import QtQuick.Controls.Basic
+import QtQuick.Controls.impl
+import QtCore
+import Cloudmus.Mobile
+
+ApplicationWindow {
+    id: window
+
+    required property QtObject backend
+    required property QtObject platform
+
+    width: 420
+    height: 860
+    visible: true
+    title: "Cloudmus"
+    color: Theme.surface0
+
+    Settings {
+        id: uiSettings
+        category: "ui"
+        property real scale: -1
+    }
+
+    Binding {
+        target: Theme
+        property: "scale"
+        value: uiSettings.scale > 0 ? uiSettings.scale : Theme.autoScale(window.width, window.height)
+    }
+
+    FontLoader { source: "qrc:/fonts/Manrope-Regular.ttf" }
+    FontLoader { source: "qrc:/fonts/Manrope-Medium.ttf" }
+    FontLoader { source: "qrc:/fonts/Manrope-SemiBold.ttf" }
+    FontLoader { source: "qrc:/fonts/Manrope-Bold.ttf" }
+
+    // Page transitions differ per page: Now Playing rises from the mini
+    // player over a receding playlist, the log slides in from the side.
+    property string transitionKind: "rise"
+
+    StackView {
+        id: stack
+        objectName: "stack"
+        anchors.fill: parent
+        visible: window.backend.ready
+        initialItem: playlistPage
+
+        pushEnter: Transition {
+            NumberAnimation { property: window.transitionKind === "rise" ? "y" : "x"; from: window.transitionKind === "rise" ? stack.height : stack.width; to: 0; duration: Theme.durationPage; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "opacity"; from: 0.6; to: 1; duration: Theme.durationPage }
+        }
+        pushExit: Transition {
+            NumberAnimation { property: "scale"; from: 1; to: 0.94; duration: Theme.durationPage; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "opacity"; from: 1; to: 0.4; duration: Theme.durationPage }
+        }
+        popEnter: Transition {
+            NumberAnimation { property: "scale"; from: 0.94; to: 1; duration: Theme.durationPage; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "opacity"; from: 0.4; to: 1; duration: Theme.durationPage }
+        }
+        popExit: Transition {
+            NumberAnimation { property: window.transitionKind === "rise" ? "y" : "x"; from: 0; to: window.transitionKind === "rise" ? stack.height : stack.width; duration: Theme.durationPage; easing.type: Easing.InCubic }
+        }
+
+        function open(component, kind) {
+            window.transitionKind = kind
+            push(component, { backend: window.backend, platform: window.platform })
+        }
+        function close() {
+            if (depth > 1) {
+                window.transitionKind = currentItem.objectName === "log" ? "slide" : "rise"
+                pop()
+            }
+        }
+
+        Keys.onBackPressed: (event) => {
+            event.accepted = depth > 1
+            close()
+        }
+        Keys.onEscapePressed: close()
+        focus: true
+    }
+
+    Component {
+        id: playlistPage
+        PlaylistPage {
+            objectName: "playlist"
+            backend: window.backend
+            onNowPlayingRequested: stack.open(nowPlayingPage, "rise")
+            onLogRequested: stack.open(logPage, "slide")
+            onDiagnosticsRequested: diagnostics.open()
+        }
+    }
+    Component {
+        id: nowPlayingPage
+        NowPlayingPage {
+            objectName: "nowPlaying"
+            onCloseRequested: stack.close()
+        }
+    }
+    Component {
+        id: logPage
+        LogPage {
+            objectName: "log"
+            onCloseRequested: stack.close()
+        }
+    }
+
+    DiagnosticsSheet {
+        id: diagnostics
+        objectName: "diagnostics"
+        backend: window.backend
+        platform: window.platform
+        userScale: uiSettings.scale
+        onUserScaleChanged: uiSettings.scale = userScale
+        onLogRequested: stack.open(logPage, "slide")
+    }
+
+    // While the core comes up (in the playback service on Android).
+    Column {
+        anchors.centerIn: parent
+        spacing: Theme.padding
+        visible: !window.backend.ready
+        Image {
+            anchors.horizontalCenter: parent.horizontalCenter
+            source: "qrc:/icons/logo.svg"
+            sourceSize.width: Theme.dp(72)
+            sourceSize.height: Theme.dp(72)
+        }
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: qsTr("Starting…")
+            color: Theme.inkSecondary
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+        }
+    }
+
+    Component.onCompleted: frameMark.enabled = true
+    Connections {
+        id: frameMark
+        enabled: false
+        target: window
+        function onFrameSwapped() {
+            frameMark.enabled = false
+            window.platform.markFirstFrame()
+        }
+    }
+}

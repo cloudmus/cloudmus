@@ -36,3 +36,6 @@ packaging/macos/.cache/
 # nix build
 /result
 /result-*
+
+# fronts/mobile/tools/fetch-dev-tracks.sh: dev tracks for the mobile MVP
+fronts/mobile/media/

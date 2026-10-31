@@ -1,0 +1,185 @@
+cmake_minimum_required(VERSION 3.21)
+project(cloudmus-mobile VERSION 0.1.0 LANGUAGES C CXX)
+
+# Mobile front (MVP): QML views over a Qt Core-only core. On the desktop one
+# binary holds both (or two processes with --split); on Android the core is
+# a library of its own run by the playback service in its own process, the
+# views talk to it over Qt Remote Objects. Kept to Qt 6.7: the newest that
+# still runs on Android 8 (API 26).
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+
+find_package(Qt6 6.7 REQUIRED COMPONENTS Core Network RemoteObjects Gui Qml Quick QuickControls2 Svg)
+qt_standard_project_setup(REQUIRES 6.7)
+
+# The desktop front's sources the core shares as they are.
+set(QT_FRONT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../qt/src)
+set(QT_FRONT_RES ${CMAKE_CURRENT_SOURCE_DIR}/../qt/resources)
+
+# --- libmpv: the system's on the desktop; on Android the prebuilt one from
+# the dev.jdtech.mpv:libmpv AAR, unpacked by build-android.sh with the
+# mpv/client.h of its version.
+add_library(cloudmus-mobile-mpv INTERFACE)
+if(ANDROID)
+    set(CLOUDMUS_MPV_ANDROID_DIR "" CACHE PATH "Unpacked libmpv AAR (jni/<abi>/*.so) plus include/")
+    if(NOT EXISTS "${CLOUDMUS_MPV_ANDROID_DIR}/jni/${ANDROID_ABI}/libmpv.so")
+        message(FATAL_ERROR "No libmpv for ${ANDROID_ABI} in CLOUDMUS_MPV_ANDROID_DIR (run build-android.sh)")
+    endif()
+    set(CLOUDMUS_MPV_LIBS_DIR "${CLOUDMUS_MPV_ANDROID_DIR}/jni/${ANDROID_ABI}")
+    target_include_directories(cloudmus-mobile-mpv INTERFACE "${CLOUDMUS_MPV_ANDROID_DIR}/include")
+    target_link_libraries(cloudmus-mobile-mpv INTERFACE "${CLOUDMUS_MPV_LIBS_DIR}/libmpv.so")
+else()
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(MPV REQUIRED IMPORTED_TARGET mpv)
+    target_link_libraries(cloudmus-mobile-mpv INTERFACE PkgConfig::MPV)
+endif()
+
+# --- Logging: both processes, no Qt beyond Core.
+add_library(cloudmus-mobile-log STATIC
+    src/Logging/Log.cpp
+    src/Logging/Log.h
+)
+target_include_directories(cloudmus-mobile-log PUBLIC src/Logging)
+target_link_libraries(cloudmus-mobile-log PUBLIC Qt6::Core)
+if(ANDROID)
+    target_sources(cloudmus-mobile-log PRIVATE
+        src/Android/Jni.cpp
+        src/Android/Jni.h
+        src/Logging/AndroidLog.cpp
+        src/Logging/AndroidLog.h
+    )
+    target_include_directories(cloudmus-mobile-log PUBLIC src/Android)
+    target_link_libraries(cloudmus-mobile-log PUBLIC log)
+endif()
+set_target_properties(cloudmus-mobile-log PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# --- The core: playback, view models, remoting. Qt Core, Network and
+# Remote Objects only — no Gui, so the playback service starts light.
+add_library(cloudmus-mobile-core STATIC
+    ${QT_FRONT_SRC}/Net/NetworkErrors.cpp
+    ${QT_FRONT_SRC}/Net/ParallelDownload.cpp
+    ${QT_FRONT_SRC}/Playback/AudioPlayer.cpp
+    ${QT_FRONT_SRC}/Playback/LevelFeed.cpp
+    ${QT_FRONT_SRC}/Playback/NetworkPool.cpp
+    ${QT_FRONT_SRC}/Playback/StreamDownload.cpp
+    ${QT_FRONT_SRC}/Playback/StreamRelay.cpp
+    ${QT_FRONT_SRC}/Timing/Throttle.cpp
+    src/App/MobileCore.cpp
+    src/App/MobileCore.h
+    src/Playback/QueuePlayer.cpp
+    src/Playback/QueuePlayer.h
+    src/Playback/Track.cpp
+    src/Playback/Track.h
+    src/Remote/Host.cpp
+    src/Remote/Host.h
+    src/Remote/Names.h
+    src/ViewModel/ActivePlaylist.cpp
+    src/ViewModel/ActivePlaylist.h
+    src/ViewModel/NowPlaying.cpp
+    src/ViewModel/NowPlaying.h
+    src/ViewModel/Settings.cpp
+    src/ViewModel/Settings.h
+)
+target_include_directories(cloudmus-mobile-core PUBLIC
+    src/App src/Playback src/Remote src/ViewModel
+    ${QT_FRONT_SRC}/Net ${QT_FRONT_SRC}/Playback ${QT_FRONT_SRC}/Timing
+)
+target_link_libraries(cloudmus-mobile-core PUBLIC
+    cloudmus-mobile-log cloudmus-mobile-mpv Qt6::Core Qt6::Network Qt6::RemoteObjects)
+set_target_properties(cloudmus-mobile-core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# --- The views: QML and what it binds to. A library of their own so the
+# tests drive the same pages the app shows.
+qt_add_library(cloudmus-mobile-ui STATIC
+    src/Ui/Backend.cpp
+    src/Ui/Backend.h
+    src/Ui/Platform.cpp
+    src/Ui/Platform.h
+)
+target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote)
+target_link_libraries(cloudmus-mobile-ui PUBLIC
+    cloudmus-mobile-log Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
+if(NOT ANDROID)
+    # The desktop runs the core in the app; Android in the service.
+    target_link_libraries(cloudmus-mobile-ui PUBLIC cloudmus-mobile-core)
+endif()
+
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+qt_add_qml_module(cloudmus-mobile-ui
+    URI Cloudmus.Mobile
+    VERSION 1.0
+    QML_FILES
+        qml/Chip.qml
+        qml/Cover.qml
+        qml/DiagnosticsSheet.qml
+        qml/IconButton.qml
+        qml/LogPage.qml
+        qml/Main.qml
+        qml/MiniPlayer.qml
+        qml/NowPlayingPage.qml
+        qml/PlaylistPage.qml
+        qml/SeekBar.qml
+        qml/TextButton.qml
+        qml/Theme.qml
+        qml/Toast.qml
+    SOURCES
+        src/Ui/LogModel.cpp
+        src/Ui/LogModel.h
+)
+
+set(_icons arrow_back expand_less expand_more file_download history music_note pause play_arrow
+    skip_next skip_previous tune volume_up)
+set(_icon_files)
+foreach(_icon IN LISTS _icons)
+    set(_file ${QT_FRONT_RES}/icons/symbols/${_icon}.svg)
+    set_source_files_properties(${_file} PROPERTIES QT_RESOURCE_ALIAS ${_icon}.svg)
+    list(APPEND _icon_files ${_file})
+endforeach()
+set_source_files_properties(${QT_FRONT_RES}/icons/logo.svg PROPERTIES QT_RESOURCE_ALIAS logo.svg)
+qt_add_resources(cloudmus-mobile-ui "icons" PREFIX "/icons" FILES ${_icon_files} ${QT_FRONT_RES}/icons/logo.svg)
+set(_fonts)
+foreach(_weight Regular Medium SemiBold Bold)
+    set(_file ${QT_FRONT_RES}/fonts/Manrope-${_weight}.ttf)
+    set_source_files_properties(${_file} PROPERTIES QT_RESOURCE_ALIAS Manrope-${_weight}.ttf)
+    list(APPEND _fonts ${_file})
+endforeach()
+qt_add_resources(cloudmus-mobile-ui "fonts" PREFIX "/fonts" FILES ${_fonts})
+
+qt_add_executable(cloudmus-mobile src/Ui/main.cpp)
+target_link_libraries(cloudmus-mobile PRIVATE cloudmus-mobile-ui cloudmus-mobile-uiplugin)
+if(NOT ANDROID)
+    target_compile_definitions(cloudmus-mobile PRIVATE
+        CLOUDMUS_MOBILE_MEDIA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/media")
+endif()
+
+# --- Android: the playback service's library and the package.
+if(ANDROID)
+    add_library(cloudmus-core SHARED
+        src/Android/ServiceMain.cpp
+    )
+    target_link_libraries(cloudmus-core PRIVATE cloudmus-mobile-core)
+    # Plain names: CorePaths.java loads it with System.loadLibrary().
+    set_target_properties(cloudmus-core PROPERTIES OUTPUT_NAME cloudmus-core)
+
+    set(_mpv_libs)
+    foreach(_lib mpv avcodec avdevice avfilter avformat avutil postproc swresample swscale)
+        list(APPEND _mpv_libs "${CLOUDMUS_MPV_LIBS_DIR}/lib${_lib}.so")
+    endforeach()
+    add_dependencies(cloudmus-mobile cloudmus-core)
+    set_target_properties(cloudmus-mobile PROPERTIES
+        QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android
+        QT_ANDROID_EXTRA_LIBS "$<TARGET_FILE:cloudmus-core>;${_mpv_libs}"
+        QT_ANDROID_MIN_SDK_VERSION 26
+        QT_ANDROID_TARGET_SDK_VERSION 34
+        QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}
+        QT_ANDROID_VERSION_CODE 1
+        QT_ANDROID_PACKAGE_NAME dev.cloudmus.mobile
+    )
+endif()
+
+include(CTest)
+if(BUILD_TESTING AND NOT ANDROID)
+    add_subdirectory(tests)
+endif()
