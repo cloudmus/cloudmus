@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.KeyEvent;
 
 import org.qtproject.qt.android.bindings.QtActivity;
 
@@ -53,6 +54,40 @@ public class MainActivity extends QtActivity {
         CmLog.i(TAG, "permissions result: " + java.util.Arrays.toString(permissions) + " "
                 + java.util.Arrays.toString(results));
         CmLog.storageChanged();
+    }
+
+    // Whether the steering-wheel buttons come to the app on screen as plain
+    // keys (some head units do that instead of, or besides, the media
+    // session). Media keys and the ones Android doesn't know — vendor codes.
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (isMediaOrVendorKey(event.getKeyCode()))
+            CmLog.i(TAG, "key " + event);
+        return super.dispatchKeyEvent(event);
+    }
+
+    // KeyEvent.isMediaSessionKey() is Android 10+.
+    private static boolean isMediaOrVendorKey(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_UNKNOWN:
+            case KeyEvent.KEYCODE_HEADSETHOOK:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_STOP:
+            case KeyEvent.KEYCODE_MEDIA_NEXT:
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD:
+            case KeyEvent.KEYCODE_MEDIA_STEP_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD:
+            case KeyEvent.KEYCODE_MUTE:
+                return true;
+            default:
+                return code > KeyEvent.getMaxKeyCode();
+        }
     }
 
     @Override
