@@ -44,13 +44,37 @@ Popup {
         NumberAnimation { property: "position"; to: 0; duration: Theme.durationPage; easing.type: Easing.InCubic }
     }
 
-    // Lets go of a drag: back up, or closed if pulled down far enough.
+    // Lets go of a drag: back up, or closed if pulled down far enough — or
+    // flicked down, however short the pull was, as Android's sheets do.
     // open() wouldn't bring it back: to Qt the sheet is still open.
     function settle() {
-        if (sheet.position < 0.75)
+        if (sheet.position < 0.85 || sheet.releaseSpeed() > Theme.dp(400))
             sheet.close()
         else
             backUp.restart()
+    }
+
+    // Follows a drag, remembering the last ~100 ms of where it was, to know
+    // how fast it was let go. (Qt's own velocity of the gesture needs a dozen
+    // events to settle: wrong for a short flick.)
+    property var drag: []
+    function moveTo(position) {
+        const now = Date.now()
+        sheet.drag.push({ t: now, y: (1 - position) * sheet.height })
+        while (sheet.drag.length > 2 && now - sheet.drag[0].t > 100)
+            sheet.drag.shift()
+        sheet.position = Math.max(0, Math.min(1, position))
+    }
+    // Downward speed at the end of the drag, px/s: none if the finger had
+    // stopped before it was let go.
+    function releaseSpeed() {
+        const samples = sheet.drag
+        sheet.drag = []
+        if (samples.length < 2 || Date.now() - samples[samples.length - 1].t > 100)
+            return 0
+        const first = samples[0]
+        const last = samples[samples.length - 1]
+        return last.t > first.t ? (last.y - first.y) * 1000 / (last.t - first.t) : 0
     }
     NumberAnimation {
         id: backUp
@@ -88,7 +112,7 @@ Popup {
         DragHandler {
             target: null
             xAxis.enabled: false
-            onTranslationChanged: if (active) sheet.position = Math.max(0, Math.min(1, 1 - translation.y / sheet.height))
+            onTranslationChanged: if (active) sheet.moveTo(1 - translation.y / sheet.height)
             onActiveChanged: if (!active) sheet.settle()
         }
         TapHandler { onTapped: sheet.close() }
@@ -103,7 +127,7 @@ Popup {
         boundsBehavior: Flickable.DragOverBounds
         onVerticalOvershootChanged: {
             if (dragging && verticalOvershoot < 0)
-                sheet.position = Math.max(0, 1 + verticalOvershoot / sheet.height)
+                sheet.moveTo(1 + verticalOvershoot / sheet.height)
         }
         onDraggingChanged: if (!dragging && sheet.position < 1) sheet.settle()
         anchors.leftMargin: Theme.padding * 1.5
