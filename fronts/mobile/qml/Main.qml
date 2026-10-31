@@ -119,7 +119,6 @@ ApplicationWindow {
         NowPlayingPage {
             objectName: "nowPlaying"
             onCloseRequested: stack.close()
-            onStopRequested: window.stopAndQuit()
         }
     }
     Component {

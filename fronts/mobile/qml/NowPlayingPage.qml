@@ -13,7 +13,6 @@ Page {
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property bool wide: width > height * 1.1
     signal closeRequested()
-    signal stopRequested()
 
     background: Rectangle {
         color: Theme.surface0
@@ -58,12 +57,11 @@ Page {
                 font.capitalization: Font.AllUppercase
                 font.letterSpacing: Theme.dp(1)
             }
-            // Stops the music and closes the app: the player stays playing
-            // when the app is just swiped away.
-            IconButton {
-                iconName: "close"
-                onClicked: page.stopRequested()
-            }
+            // Balances the arrow, keeping the title centered. No "stop and
+            // close" here: next to "collapse" it read as closing the page,
+            // and in a car a slip would cut the music (it's in the
+            // notification and in Diagnostics).
+            Item { implicitWidth: Theme.touch }
         }
     }
 
