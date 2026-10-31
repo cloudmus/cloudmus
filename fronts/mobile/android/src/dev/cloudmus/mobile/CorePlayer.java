@@ -73,6 +73,12 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             durationMs = newDurationMs;
             if (wasPlaying != playing)
                 CmLog.i(TAG, "core " + (playing ? "plays" : "paused") + ", track " + index);
+            // Playback mostly starts past Media3 — the UI talks to the core
+            // directly, autoplay too — so the focus is taken when the core
+            // plays, whoever asked. Without it the other player kept the
+            // focus, and the car kept its steering-wheel buttons.
+            if (playing && !wasPlaying)
+                requestFocus();
             invalidateState();
         });
     }
