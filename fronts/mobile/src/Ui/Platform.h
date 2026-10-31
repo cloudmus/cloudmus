@@ -28,7 +28,8 @@ public:
     // user (where it went, or what went wrong).
     Q_INVOKABLE QString exportLogs() const;
     // The window's first frame: startup timing.
-    Q_INVOKABLE void markFirstFrame() const;
+    // Also logs how it's drawn (refresh rate, graphics API, render loop).
+    Q_INVOKABLE void markFirstFrame(QObject* window) const;
     // Starts the playback service (Android); the core comes up with it.
     static void startService();
 

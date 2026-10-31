@@ -57,7 +57,7 @@ Page {
                 }
             }
 
-            Flickable {
+            ScrollArea {
                 Layout.fillWidth: true
                 Layout.preferredHeight: chips.implicitHeight
                 contentWidth: chips.implicitWidth + Theme.padding * 2
@@ -121,7 +121,7 @@ Page {
         }
     }
 
-    ListView {
+    ScrollList {
         id: list
         anchors.fill: parent
         clip: true

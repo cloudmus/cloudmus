@@ -61,13 +61,12 @@ Page {
         }
     }
 
-    ListView {
+    ScrollList {
         id: list
         anchors.fill: parent
         anchors.bottomMargin: mini.visible ? mini.height : 0
         clip: true
         model: page.backend.tracks
-        boundsBehavior: Flickable.StopAtBounds
 
         delegate: ItemDelegate {
             id: row

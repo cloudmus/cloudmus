@@ -1,6 +1,8 @@
 #include "Platform.h"
 
 #include <QGuiApplication>
+#include <QLoggingCategory>
+#include <QQuickWindow>
 #include <QScreen>
 #include <QSysInfo>
 
@@ -13,6 +15,8 @@
 namespace Ui {
 
 namespace {
+
+Q_LOGGING_CATEGORY(lcPlatform, "cloudmus.ui.platform")
 
 #ifdef Q_OS_ANDROID
 QString bridgeString(const char* method)
@@ -79,7 +83,19 @@ QString Platform::exportLogs() const
 #endif
 }
 
-void Platform::markFirstFrame() const { Logging::mark(QStringLiteral("first frame")); }
+void Platform::markFirstFrame(QObject* window) const
+{
+    Logging::mark(QStringLiteral("first frame"));
+    auto* quickWindow = qobject_cast<QQuickWindow*>(window);
+    if (!quickWindow)
+        return;
+    const QScreen* screen = quickWindow->screen();
+    qCInfo(lcPlatform).nospace() << "drawing: " << (screen ? screen->refreshRate() : 0) << " Hz screen, graphics API "
+                                 << quickWindow->rendererInterface()->graphicsApi() << ", render loop "
+                                 << (qEnvironmentVariableIsSet("QSG_RENDER_LOOP") ? qgetenv("QSG_RENDER_LOOP")
+                                                                                  : QByteArray("default"))
+                                 << ", device pixel ratio " << quickWindow->devicePixelRatio();
+}
 
 void Platform::startService()
 {

@@ -12,6 +12,9 @@ Drawer {
     property QtObject platform
     // -1: automatic.
     property real userScale: -1
+    property real flickMaxVelocity: Theme.flickMaxVelocityBase
+    property real flickDeceleration: Theme.flickDecelerationBase
+    property bool showFps: false
     signal logRequested()
     signal stopRequested()
 
@@ -37,7 +40,7 @@ Drawer {
         thisBootOnly: true
     }
 
-    Flickable {
+    ScrollArea {
         anchors.fill: parent
         anchors.margins: Theme.padding * 1.5
         contentHeight: content.implicitHeight
@@ -125,6 +128,42 @@ Drawer {
                     text: qsTr("Auto")
                     enabled: sheet.userScale > 0
                     onClicked: sheet.userScale = -1
+                }
+            }
+
+            Heading { text: qsTr("Scrolling") }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.padding
+                Body { Layout.fillWidth: false; text: qsTr("Fling speed") }
+                Slider {
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.touch
+                    from: 2000; to: 20000; stepSize: 500
+                    value: sheet.flickMaxVelocity
+                    onMoved: sheet.flickMaxVelocity = value
+                }
+                Body { Layout.fillWidth: false; text: Math.round(sheet.flickMaxVelocity) }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.padding
+                Body { Layout.fillWidth: false; text: qsTr("Deceleration") }
+                Slider {
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.touch
+                    from: 500; to: 12000; stepSize: 250
+                    value: sheet.flickDeceleration
+                    onMoved: sheet.flickDeceleration = value
+                }
+                Body { Layout.fillWidth: false; text: Math.round(sheet.flickDeceleration) }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Body { text: qsTr("Show frames per second") }
+                Switch {
+                    checked: sheet.showFps
+                    onToggled: sheet.showFps = checked
                 }
             }
 

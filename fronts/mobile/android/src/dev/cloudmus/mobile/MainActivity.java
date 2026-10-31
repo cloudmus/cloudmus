@@ -16,11 +16,35 @@ public class MainActivity extends QtActivity {
         CmLog.mark("activity onCreate");
         CmLog.i(TAG, "onCreate, intent " + getIntent());
         super.onCreate(savedInstanceState);
+        preferFastestRefreshRate();
         // Shared Download/Cloudmus is a plain folder up to Android 10.
         if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT < 30
             && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
+    }
+
+    // Android leaves a surface that doesn't ask at 60 Hz, even on a 90 or
+    // 120 Hz screen: scrolling under the finger then stutters. The fastest
+    // mode at the current resolution.
+    private void preferFastestRefreshRate() {
+        android.view.Display display = getWindowManager().getDefaultDisplay();
+        android.view.Display.Mode current = display.getMode();
+        android.view.Display.Mode best = current;
+        StringBuilder modes = new StringBuilder();
+        for (android.view.Display.Mode mode : display.getSupportedModes()) {
+            modes.append(' ').append(mode.getPhysicalWidth()).append('x').append(mode.getPhysicalHeight())
+                .append('@').append(mode.getRefreshRate());
+            if (mode.getPhysicalWidth() == current.getPhysicalWidth()
+                && mode.getPhysicalHeight() == current.getPhysicalHeight()
+                && mode.getRefreshRate() > best.getRefreshRate())
+                best = mode;
+        }
+        android.view.WindowManager.LayoutParams params = getWindow().getAttributes();
+        params.preferredDisplayModeId = best.getModeId();
+        getWindow().setAttributes(params);
+        CmLog.i(TAG, "display modes:" + modes + "; current " + current.getRefreshRate() + " Hz, asked for "
+                + best.getRefreshRate() + " Hz");
     }
 
     @Override

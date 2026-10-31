@@ -118,12 +118,15 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/Chip.qml
         qml/Cover.qml
         qml/DiagnosticsSheet.qml
+        qml/FpsOverlay.qml
         qml/IconButton.qml
         qml/LogPage.qml
         qml/Main.qml
         qml/MiniPlayer.qml
         qml/NowPlayingPage.qml
         qml/PlaylistPage.qml
+        qml/ScrollArea.qml
+        qml/ScrollList.qml
         qml/SeekBar.qml
         qml/TextButton.qml
         qml/Theme.qml

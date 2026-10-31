@@ -20,7 +20,13 @@ ApplicationWindow {
         id: uiSettings
         category: "ui"
         property real scale: -1
+        property real flickMaxVelocity: 9000
+        property real flickDeceleration: 4000
+        property bool showFps: false
     }
+
+    Binding { target: Theme; property: "flickMaxVelocityBase"; value: uiSettings.flickMaxVelocity }
+    Binding { target: Theme; property: "flickDecelerationBase"; value: uiSettings.flickDeceleration }
 
     Binding {
         target: Theme
@@ -120,6 +126,12 @@ ApplicationWindow {
         platform: window.platform
         userScale: uiSettings.scale
         onUserScaleChanged: uiSettings.scale = userScale
+        flickMaxVelocity: uiSettings.flickMaxVelocity
+        onFlickMaxVelocityChanged: uiSettings.flickMaxVelocity = flickMaxVelocity
+        flickDeceleration: uiSettings.flickDeceleration
+        onFlickDecelerationChanged: uiSettings.flickDeceleration = flickDeceleration
+        showFps: uiSettings.showFps
+        onShowFpsChanged: uiSettings.showFps = showFps
         onLogRequested: stack.open(logPage, "slide")
         onStopRequested: window.stopAndQuit()
     }
@@ -144,6 +156,14 @@ ApplicationWindow {
         }
     }
 
+    FpsOverlay {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: Theme.dp(6)
+        z: 100
+        visible: uiSettings.showFps
+    }
+
     Component.onCompleted: frameMark.enabled = true
     Connections {
         id: frameMark
@@ -151,7 +171,7 @@ ApplicationWindow {
         target: window
         function onFrameSwapped() {
             frameMark.enabled = false
-            window.platform.markFirstFrame()
+            window.platform.markFirstFrame(window)
         }
     }
 }

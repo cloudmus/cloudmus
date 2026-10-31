@@ -57,6 +57,14 @@ QtObject {
     readonly property int rowHeight: dp(64)
     readonly property int barHeight: dp(56)
 
+    // Fling physics (ScrollList): Qt's defaults (2500, 1500) cut a fast
+    // swipe short, Android lets it fly up to ~8000 dp/s. Tunable in
+    // Diagnostics while finding what feels native.
+    property real flickMaxVelocityBase: 9000
+    property real flickDecelerationBase: 4000
+    readonly property real flickMaxVelocity: flickMaxVelocityBase * scale
+    readonly property real flickDeceleration: flickDecelerationBase * scale
+
     readonly property int durationFast: 150
     readonly property int durationPage: 320
 
