@@ -209,6 +209,26 @@ private slots:
         QVERIFY(diagnostics);
         QMetaObject::invokeMethod(diagnostics, "open");
         shot("diagnostics");
+
+        // A drag in the sheet scrolls its list; pulled down from the top the
+        // sheet follows and closes.
+        const QPoint inSheet(size.width() / 2, size.height() - 120);
+        auto drag = [&](int dy) {
+            QTest::mousePress(window, Qt::LeftButton, { }, inSheet);
+            for (int step = 1; step <= 20; ++step)
+                QTest::mouseMove(window, inSheet + QPoint(0, dy * step / 20), 16);
+            // Held still before letting go: no fling to carry the list on.
+            QTest::mouseMove(window, inSheet + QPoint(0, dy), 300);
+            QTest::mouseRelease(window, Qt::LeftButton, { }, inSheet + QPoint(0, dy), 16);
+            QTest::qWait(400);
+        };
+        drag(-200);
+        QTest::qWait(500);
+        QVERIFY(diagnostics->property("opened").toBool());
+        // Back to the top of the list, then on down: the sheet goes.
+        for (int i = 0; i < 4 && diagnostics->property("opened").toBool(); ++i)
+            drag(600);
+        QTRY_VERIFY_WITH_TIMEOUT(!diagnostics->property("visible").toBool(), 3000);
     }
 };
 

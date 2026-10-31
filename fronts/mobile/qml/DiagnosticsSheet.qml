@@ -23,8 +23,21 @@ Drawer {
 
     edge: Qt.BottomEdge
     width: parent.width
-    height: Math.min(parent.height * 0.9, content.implicitHeight + Theme.padding * 3)
+    height: Math.min(parent.height * 0.9, handle.height + content.implicitHeight + Theme.padding * 2)
     dim: true
+    // Drawer's own swipe took vertical drags from the list inside and closed
+    // the sheet instead of scrolling it. As Android's bottom sheets: a drag
+    // scrolls the list, and only once it's at the top does pulling further
+    // down take the sheet with it (see `list`); the handle drags it too.
+    interactive: false
+
+    // Lets go of a drag: back up, or closed if pulled down far enough.
+    function settle() {
+        if (sheet.position < 0.75)
+            sheet.close()
+        else
+            sheet.open()
+    }
     background: Rectangle {
         color: Theme.surface100
         radius: Theme.dp(18)
@@ -36,9 +49,44 @@ Drawer {
         }
     }
 
+    Item {
+        id: handle
+        anchors.top: parent.top
+        width: parent.width
+        height: Theme.touch
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Theme.dp(40)
+            height: Theme.dp(4)
+            radius: height / 2
+            color: Theme.borderStrong
+        }
+
+        DragHandler {
+            target: null
+            xAxis.enabled: false
+            onTranslationChanged: if (active) sheet.position = Math.max(0, Math.min(1, 1 - translation.y / sheet.height))
+            onActiveChanged: if (!active) sheet.settle()
+        }
+        TapHandler { onTapped: sheet.close() }
+    }
+
     ScrollArea {
+        id: list
         anchors.fill: parent
-        anchors.margins: Theme.padding * 1.5
+        anchors.topMargin: handle.height
+        // Dragging past the top is allowed but doesn't move the content
+        // (ScrollArea's boundsMovement): the overshoot moves the sheet.
+        boundsBehavior: Flickable.DragOverBounds
+        onVerticalOvershootChanged: {
+            if (dragging && verticalOvershoot < 0)
+                sheet.position = Math.max(0, 1 + verticalOvershoot / sheet.height)
+        }
+        onDraggingChanged: if (!dragging && sheet.position < 1) sheet.settle()
+        anchors.leftMargin: Theme.padding * 1.5
+        anchors.rightMargin: Theme.padding * 1.5
+        anchors.bottomMargin: Theme.padding
         contentHeight: content.implicitHeight
         clip: true
 
