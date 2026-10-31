@@ -3,11 +3,14 @@
 #include <QAbstractItemModel>
 #include <QObject>
 #include <QPointer>
+#include <QTimer>
+
+#include <functional>
 
 #include <memory>
 
 class QRemoteObjectNode;
-class QRemoteObjectDynamicReplica;
+class QRemoteObjectReplica;
 
 namespace App {
 class MobileCore;
@@ -19,7 +22,9 @@ namespace Ui {
 // when the core runs in this process, Qt Remote Objects replicas of them
 // when it runs in another one (the Android playback service; `--split` on
 // the desktop). Both have the same properties and slots, so QML doesn't
-// know which it got. Until `ready` the objects are null.
+// know which it got. Until `ready` the objects are null; a remote core
+// that goes away (its process killed) makes it not ready again until the
+// core is back, so the views never act on replicas that lead nowhere.
 class Backend : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
@@ -38,6 +43,10 @@ public:
     explicit Backend(const QString& socketPath, QObject* parent = nullptr);
     ~Backend() override;
 
+    // Called while a remote core is out of reach, every few seconds: brings
+    // its process up again (Android: starts the playback service).
+    void setRestartCore(std::function<void()> restart);
+
     bool ready() const { return ready_; }
     bool remote() const { return node_ != nullptr; }
     QObject* nowPlaying() const { return ready_ ? nowPlaying_.data() : nullptr; }
@@ -50,15 +59,19 @@ signals:
 
 private:
     void acquire(QPointer<QObject>& slot, const QString& name);
-    void checkReady();
+    void updateReady();
 
     std::unique_ptr<QRemoteObjectNode> node_;
     QPointer<QObject> nowPlaying_;
     QPointer<QObject> playlist_;
     QPointer<QObject> settings_;
     QPointer<QAbstractItemModel> tracks_;
-    int pending_ = 0;
+    QList<QRemoteObjectReplica*> replicas_;
+    bool tracksInitialized_ = false;
     bool ready_ = false;
+    bool everReady_ = false;
+    std::function<void()> restartCore_;
+    QTimer restartTimer_;
 };
 
 } // namespace Ui

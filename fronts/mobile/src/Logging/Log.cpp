@@ -93,6 +93,15 @@ void write(char level, const QString& tag, const QString& message)
 
 void handler(QtMsgType type, const QMessageLogContext& context, const QString& message)
 {
+    // Qt Remote Objects repeats this on every connection attempt, a few a
+    // second while the core is away. Its socket lives in the app's private
+    // dir on purpose (an abstract one is open to every app): once is enough.
+    static bool localAbstractHinted = false;
+    if (message.startsWith(QLatin1String("It is recommended to use 'localabstract'"))) {
+        if (localAbstractHinted)
+            return;
+        localAbstractHinted = true;
+    }
     const QString tag = context.category && qstrcmp(context.category, "default") != 0
         ? QString::fromLatin1(context.category)
         : QStringLiteral("qt");

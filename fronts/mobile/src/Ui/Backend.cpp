@@ -17,6 +17,8 @@ namespace Ui {
 
 namespace {
 Q_LOGGING_CATEGORY(lcBackend, "cloudmus.ui.backend")
+
+constexpr int kRestartIntervalMs = 3000;
 }
 
 #ifndef Q_OS_ANDROID
@@ -47,12 +49,23 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     auto* tracks = node_->acquireModel(Remote::Names::tracks);
     tracks->setParent(this);
     tracks_ = tracks;
-    ++pending_;
     connect(tracks, &QAbstractItemModelReplica::initialized, this, [this] {
-        --pending_;
-        checkReady();
+        tracksInitialized_ = true;
+        updateReady();
     });
+
+    // The core may be slow to come up, or gone (its process killed while
+    // the screen was off): ask for it again until it answers.
+    restartTimer_.setInterval(kRestartIntervalMs);
+    connect(&restartTimer_, &QTimer::timeout, this, [this] {
+        qCInfo(lcBackend) << "the core doesn't answer; starting it again";
+        if (restartCore_)
+            restartCore_();
+    });
+    restartTimer_.start();
 }
+
+void Backend::setRestartCore(std::function<void()> restart) { restartCore_ = std::move(restart); }
 
 Backend::~Backend()
 {
@@ -70,23 +83,34 @@ void Backend::acquire(QPointer<QObject>& slot, const QString& name)
     QRemoteObjectDynamicReplica* replica = node_->acquireDynamic(name);
     replica->setParent(this);
     slot = replica;
-    ++pending_;
+    replicas_.append(replica);
     // A dynamic replica only has its properties once the source has sent
-    // them; QML binds to the meta-object it sees, so it must wait for this.
-    connect(replica, &QRemoteObjectReplica::initialized, this, [this] {
-        --pending_;
-        checkReady();
+    // them (Valid); QML binds to the meta-object it sees, so it must wait.
+    connect(replica, &QRemoteObjectReplica::stateChanged, this, [this, name](QRemoteObjectReplica::State state) {
+        qCInfo(lcBackend) << name << "replica:" << state;
+        updateReady();
     });
-    connect(replica, &QRemoteObjectReplica::stateChanged, this,
-        [name](QRemoteObjectReplica::State state) { qCInfo(lcBackend) << name << "replica:" << state; });
 }
 
-void Backend::checkReady()
+void Backend::updateReady()
 {
-    if (ready_ || pending_ > 0)
+    bool ready = tracksInitialized_;
+    for (const QRemoteObjectReplica* replica : std::as_const(replicas_))
+        ready = ready && replica->state() == QRemoteObjectReplica::Valid;
+    if (ready == ready_)
         return;
-    ready_ = true;
-    Logging::mark(QStringLiteral("core replicas ready"));
+    ready_ = ready;
+    if (ready) {
+        restartTimer_.stop();
+        if (!everReady_)
+            Logging::mark(QStringLiteral("core replicas ready"));
+        else
+            qCInfo(lcBackend) << "the core is back";
+        everReady_ = true;
+    } else {
+        qCWarning(lcBackend) << "lost the core";
+        restartTimer_.start();
+    }
     emit readyChanged();
 }
 

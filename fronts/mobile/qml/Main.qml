@@ -47,6 +47,12 @@ ApplicationWindow {
     FontLoader { source: "qrc:/fonts/Manrope-SemiBold.ttf" }
     FontLoader { source: "qrc:/fonts/Manrope-Bold.ttf" }
 
+    property bool coreSeen: false
+    Connections {
+        target: window.backend
+        function onReadyChanged() { if (window.backend.ready) window.coreSeen = true }
+    }
+
     // Page transitions differ per page: Now Playing rises from the mini
     // player over a receding playlist, the log slides in from the side.
     property string transitionKind: "rise"
@@ -149,7 +155,8 @@ ApplicationWindow {
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: qsTr("Starting…")
+            // Gone after having been there: the player's process was ended.
+            text: window.coreSeen ? qsTr("Reconnecting to the player…") : qsTr("Starting…")
             color: Theme.inkSecondary
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontBody

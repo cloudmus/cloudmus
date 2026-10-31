@@ -104,6 +104,7 @@ int main(int argc, char* argv[])
     // service brings it up (if music isn't playing already).
     Ui::Platform::startService();
     backend = std::make_unique<Ui::Backend>(socketPath());
+    backend->setRestartCore(&Ui::Platform::startService);
 #else
     std::unique_ptr<App::MobileCore> core;
     std::unique_ptr<QProcess> coreProcess;

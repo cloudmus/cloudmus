@@ -94,6 +94,30 @@ private slots:
         QTRY_COMPARE(core.settings().autoplay(), false);
     }
 
+    // The core's process ends (Android kills it with the screen off): the
+    // views stop acting on dead replicas, ask for the core again, and are
+    // back once it is.
+    void replicasFollowTheCoreAway()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core(writeTracks(dir));
+        auto host = std::make_unique<Remote::Host>(core, dir.filePath("core.sock"));
+
+        Ui::Backend backend(dir.filePath("core.sock"));
+        int restarts = 0;
+        backend.setRestartCore([&restarts] { ++restarts; });
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+
+        host.reset();
+        QTRY_VERIFY_WITH_TIMEOUT(!backend.ready(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(restarts > 0, 5000);
+
+        host = std::make_unique<Remote::Host>(core, dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 10000);
+        QMetaObject::invokeMethod(backend.playlist(), "play", Q_ARG(int, 1));
+        QTRY_COMPARE(core.nowPlaying().currentIndex(), 1);
+    }
+
     void logModelReadsAndFilters()
     {
         QTemporaryDir dir;
