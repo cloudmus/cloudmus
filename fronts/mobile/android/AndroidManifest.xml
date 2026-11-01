@@ -72,6 +72,15 @@
                 <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
+            <!-- GWM head units: how the car's media widget finds its sources
+                 (a service with this filter and both meta-data). mediaType is
+                 the vendor's id of a source: 0-15 and 18 are taken. -->
+            <intent-filter>
+                <category android:name="com.gwm.app.media.server" />
+                <action android:name="com.gwm.app.media.action.session" />
+            </intent-filter>
+            <meta-data android:name="mediaType" android:value="100" />
+            <meta-data android:name="mediaMark" android:value="audio" />
             <!-- yandex.auto.uma: see the application's meta-data. -->
             <meta-data android:name="yandex.auto.uma.AudioSource" android:value="true" />
         </service>
