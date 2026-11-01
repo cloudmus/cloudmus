@@ -195,6 +195,19 @@ Popup {
                 }
             }
 
+            // GWM head units: what gets the player into the car's media widget.
+            TextButton {
+                visible: sheet.platform.android
+                text: qsTr("Connect to Media Center")
+                onClicked: mediaCenterResult.text = sheet.platform.connectToMediaCenter()
+            }
+            Body {
+                id: mediaCenterResult
+                visible: text.length > 0
+                color: Theme.inkSecondary
+                font.pixelSize: Theme.fontSmall
+            }
+
             Heading { text: qsTr("Interface scale") }
             RowLayout {
                 Layout.fillWidth: true

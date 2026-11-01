@@ -60,6 +60,7 @@ final class SystemProbe {
             for (String name : vendorPackages(pm))
                 logPackage(pm, name, "vendor/media");
             logHolders(pm, "android.permission.MEDIA_CONTENT_CONTROL");
+            logMediaCenterSource();
         } catch (RuntimeException error) {
             CmLog.e(TAG, "probe failed", error);
         }
@@ -125,6 +126,20 @@ final class SystemProbe {
                 text.append(' ').append(permission);
         }
         CmLog.i(TAG, text.toString());
+    }
+
+    // The app Media Center last connected to, which the GWM media widget adds
+    // to its list (UiBridge.connectToMediaCenter()). SystemProperties is
+    // hidden API; empty when unset or not readable by us.
+    private static void logMediaCenterSource() {
+        String key = "persist.gwm.carmediaapp.connectedthirdpackage";
+        try {
+            Object value = Class.forName("android.os.SystemProperties").getMethod("get", String.class)
+                .invoke(null, key);
+            CmLog.i(TAG, key + " = \"" + value + "\"");
+        } catch (ReflectiveOperationException error) {
+            CmLog.i(TAG, key + ": can't read: " + error);
+        }
     }
 
     private static void logHolders(PackageManager pm, String permission) {

@@ -36,6 +36,9 @@ public:
     // Packs the log into a zip a file manager can reach; what to tell the
     // user (where it went, or what went wrong).
     Q_INVOKABLE QString exportLogs() const;
+    // GWM head units: has Media Center pick this player, which is what puts
+    // it in the car's media widget; what to tell the user.
+    Q_INVOKABLE QString connectToMediaCenter() const;
     // The head unit's system APKs into a zip, for working out its media
     // widget at home (Android). Hundreds of MB: on a worker thread, the
     // progress in exportFraction/exportStatus, the outcome in

@@ -96,6 +96,15 @@ QString Platform::exportLogs() const
 #endif
 }
 
+QString Platform::connectToMediaCenter() const
+{
+#ifdef Q_OS_ANDROID
+    return bridgeString("connectToMediaCenter");
+#else
+    return tr("Android only");
+#endif
+}
+
 void Platform::exportSystemApps()
 {
 #ifdef Q_OS_ANDROID
