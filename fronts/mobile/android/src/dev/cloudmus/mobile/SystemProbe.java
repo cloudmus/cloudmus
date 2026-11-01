@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -195,6 +196,8 @@ final class SystemProbe {
         "com.gwm.app.car.media",
         "com.gwm.app.hardkey.server",
         "com.gwm.app.launcher",
+        // The app menu: some apps start from it, ours didn't.
+        "com.gwm.app.taskmanager",
         "yandex.auto.uma",
     };
 
@@ -237,6 +240,8 @@ final class SystemProbe {
             if (exportReason(app, home) != null) {
                 selected.add(app);
                 total += new File(app.sourceDir).length();
+                for (File file : oatFiles(app))
+                    total += file.length();
             }
         }
         exportTotalBytes = Math.max(1, total);
@@ -272,6 +277,20 @@ final class SystemProbe {
                     } catch (IOException error) {
                         index.append("can't read: ").append(error).append('\n');
                     }
+                    // A system app's code is mostly not in its APK but next
+                    // to it, compiled ahead: oat/<arch>/*.odex, and the dex
+                    // itself in the .vdex.
+                    File apkDir = apk.getParentFile();
+                    for (File file : oatFiles(app)) {
+                        String relative = file.getPath().substring(apkDir.getPath().length() + 1);
+                        index.append("  ").append(relative).append('\t').append(file.length()).append('\t');
+                        try {
+                            add(zip, app.packageName + "/" + relative, file);
+                            index.append("exported\n");
+                        } catch (IOException error) {
+                            index.append("can't read: ").append(error).append('\n');
+                        }
+                    }
                 }
                 exportCurrent = "index.txt";
                 zip.setLevel(Deflater.DEFAULT_COMPRESSION);
@@ -282,6 +301,27 @@ final class SystemProbe {
         });
         exportCurrent = "";
         return result;
+    }
+
+    private static List<File> oatFiles(ApplicationInfo app) {
+        List<File> files = new ArrayList<>();
+        File apkDir = new File(app.sourceDir).getParentFile();
+        if (apkDir != null)
+            collect(new File(apkDir, "oat"), files);
+        return files;
+    }
+
+    private static void collect(File dir, List<File> files) {
+        File[] entries = dir.listFiles();
+        if (entries == null)
+            return;
+        Arrays.sort(entries);
+        for (File entry : entries) {
+            if (entry.isDirectory())
+                collect(entry, files);
+            else
+                files.add(entry);
+        }
     }
 
     private static void add(ZipOutputStream zip, String entry, File file) throws IOException {
