@@ -33,6 +33,12 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
+        <!-- Yandex's media hub (yandex.auto.uma) on Russian head units lists
+             a source if it is in its white list or declares this: on the
+             browser service for the sources it browses, on the application
+             for the ones it finds by their playing media session. -->
+        <meta-data android:name="yandex.auto.uma.AudioSource" android:value="true" />
+
         <activity
             android:name="dev.cloudmus.mobile.MainActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
@@ -66,10 +72,7 @@
                 <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
-            <!-- Yandex's media hub on Russian GWM head units (yandex.auto.uma)
-                 may pick the car widget's sources by this: Yandex Music Auto,
-                 which the widget lists, declares it on its browser service.
-                 A guess until the hub's APK is read. -->
+            <!-- yandex.auto.uma: see the application's meta-data. -->
             <meta-data android:name="yandex.auto.uma.AudioSource" android:value="true" />
         </service>
 
