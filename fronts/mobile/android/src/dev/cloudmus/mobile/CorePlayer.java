@@ -122,8 +122,11 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             requestFocus();
             CoreBridge.command(CoreBridge.CMD_PLAY, 0);
         } else {
+            // The focus stays through a pause, as ExoPlayer keeps it: the
+            // head unit gives the steering-wheel buttons to whoever holds
+            // it, and having let go on pause, "play" never came back to us.
+            // Stop and release let it go; another player taking it pauses us.
             CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
-            abandonFocus();
         }
         return Futures.immediateVoidFuture();
     }
