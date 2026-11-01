@@ -35,6 +35,7 @@ enum Command {
 jclass bridgeClass = nullptr;
 jmethodID onStateMethod = nullptr;
 jmethodID onAutoplayMethod = nullptr;
+jmethodID onResumeAfterLossMethod = nullptr;
 jmethodID onReadyMethod = nullptr;
 jmethodID onStoppedMethod = nullptr;
 
@@ -96,6 +97,11 @@ void runCore(QString filesDir, QString mediaDir)
         env->CallStaticVoidMethod(bridgeClass, onAutoplayMethod, jboolean(enabled));
         Android::Jni::checkException(env, "CoreBridge.onAutoplayChanged");
     };
+    core.settings().onResumeAfterLossSecChanged = [](int seconds) {
+        JNIEnv* env = Android::Jni::env();
+        env->CallStaticVoidMethod(bridgeClass, onResumeAfterLossMethod, jint(seconds));
+        Android::Jni::checkException(env, "CoreBridge.onResumeAfterLossChanged");
+    };
 
     QObject context;
     {
@@ -137,6 +143,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     bridgeClass = static_cast<jclass>(env->NewGlobalRef(local));
     onStateMethod = env->GetStaticMethodID(bridgeClass, "onState", "(IZZJJ)V");
     onAutoplayMethod = env->GetStaticMethodID(bridgeClass, "onAutoplayChanged", "(Z)V");
+    onResumeAfterLossMethod = env->GetStaticMethodID(bridgeClass, "onResumeAfterLossChanged", "(I)V");
     onReadyMethod = env->GetStaticMethodID(bridgeClass, "onCoreReady", "()V");
     onStoppedMethod = env->GetStaticMethodID(bridgeClass, "onStopped", "()V");
     return JNI_VERSION_1_6;

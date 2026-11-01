@@ -176,6 +176,24 @@ Popup {
                     onToggled: sheet.backend.settings.setAutoplay(checked)
                 }
             }
+            // Another sound (the phone over Bluetooth) took the audio and
+            // paused us: play on once it's over, if it was that short.
+            Body { text: qsTr("Play on after another sound, if it took up to") }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.spacing
+                Repeater {
+                    model: [{ t: qsTr("Off"), v: 0 }, { t: qsTr("30 s"), v: 30 }, { t: qsTr("1 min"), v: 60 },
+                            { t: qsTr("5 min"), v: 300 }]
+                    Chip {
+                        required property var modelData
+                        text: modelData.t
+                        checked: sheet.backend.settings
+                                 && sheet.backend.settings.resumeAfterLossSec === modelData.v
+                        onClicked: sheet.backend.settings.setResumeAfterLossSec(modelData.v)
+                    }
+                }
+            }
 
             Heading { text: qsTr("Interface scale") }
             RowLayout {

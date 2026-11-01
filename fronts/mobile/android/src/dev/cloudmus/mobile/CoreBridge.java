@@ -16,6 +16,9 @@ public final class CoreBridge {
     private static final String TAG = "CoreBridge";
     public static final String PREFS = "core";
     public static final String PREF_AUTOPLAY = "autoplay";
+    public static final String PREF_RESUME_AFTER_LOSS = "resumeAfterLossSec";
+    // Keep in step with the core's Settings.
+    public static final int DEFAULT_RESUME_AFTER_LOSS_SEC = 60;
 
     public static final int CMD_PLAY = 1;
     public static final int CMD_PAUSE = 2;
@@ -47,6 +50,12 @@ public final class CoreBridge {
 
     public static boolean autoplayEnabled(Context context) {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PREF_AUTOPLAY, true);
+    }
+
+    // See ViewModel::Settings::resumeAfterLossSec; 0: off.
+    public static int resumeAfterLossSec(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getInt(PREF_RESUME_AFTER_LOSS, DEFAULT_RESUME_AFTER_LOSS_SEC);
     }
 
     public static synchronized void setListener(Listener value) {
@@ -147,6 +156,16 @@ public final class CoreBridge {
         Context context = CmLog.context();
         if (context != null)
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(PREF_AUTOPLAY, enabled).apply();
+    }
+
+    // From the core, when the user changes it in Diagnostics: CorePlayer
+    // reads it when the focus is lost.
+    @SuppressWarnings("unused")
+    static void onResumeAfterLossChanged(int seconds) {
+        CmLog.i(TAG, "resume after focus loss: " + (seconds > 0 ? "within " + seconds + " s" : "off"));
+        Context context = CmLog.context();
+        if (context != null)
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(PREF_RESUME_AFTER_LOSS, seconds).apply();
     }
 
     // From the core: a view stopped the player (NowPlaying::stop()).

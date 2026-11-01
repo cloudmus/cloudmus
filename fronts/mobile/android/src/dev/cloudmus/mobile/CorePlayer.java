@@ -77,8 +77,10 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             // directly, autoplay too — so the focus is taken when the core
             // plays, whoever asked. Without it the other player kept the
             // focus, and the car kept its steering-wheel buttons.
-            if (playing && !wasPlaying)
+            if (playing && !wasPlaying) {
+                cancelResume("playing again");
                 requestFocus();
+            }
             invalidateState();
         });
     }
@@ -118,6 +120,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     protected ListenableFuture<?> handleSetPlayWhenReady(boolean playWhenReady) {
         CmLog.i(TAG, "setPlayWhenReady(" + playWhenReady + ")");
         pausedByFocusLoss = false;
+        cancelResume(playWhenReady ? "play asked" : "pause asked");
         if (playWhenReady) {
             requestFocus();
             CoreBridge.command(CoreBridge.CMD_PLAY, 0);
@@ -148,6 +151,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     @NonNull
     @Override
     protected ListenableFuture<?> handleRelease() {
+        cancelResume("released");
         abandonFocus();
         return Futures.immediateVoidFuture();
     }
@@ -191,6 +195,83 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         return Futures.immediateVoidFuture();
     }
 
+    // Resuming after a lost focus. Android has a player stay paused when
+    // another one takes the focus for good; in the car that other one is
+    // mostly brief — the phone's camera shutter over Bluetooth took it, and
+    // the music stopped for good. So: once nothing plays any more, for a
+    // couple of seconds in a row, we take the focus back and play — if that
+    // came within the setting's time; past it the other sound is music the
+    // user chose. Any play or pause from the user calls it off.
+    private static final long RESUME_POLL_MS = 1000;
+    private static final int RESUME_QUIET_POLLS = 2;
+    private final Runnable resumePoll = this::pollResume;
+    private long resumeDeadline;
+    private long focusLostAt;
+    private int quietPolls;
+
+    private void armResume() {
+        int seconds = CoreBridge.resumeAfterLossSec(context);
+        if (seconds <= 0) {
+            CmLog.i(TAG, "focus lost for good: staying paused (resume is off)");
+            return;
+        }
+        focusLostAt = android.os.SystemClock.elapsedRealtime();
+        resumeDeadline = focusLostAt + seconds * 1000L;
+        quietPolls = 0;
+        CmLog.i(TAG, "focus lost for good: resuming if the other sound is over within " + seconds + " s");
+        resumeHandler().removeCallbacks(resumePoll);
+        resumeHandler().postDelayed(resumePoll, RESUME_POLL_MS);
+    }
+
+    private void cancelResume(String why) {
+        if (resumeDeadline == 0)
+            return;
+        resumeDeadline = 0;
+        resumeHandler().removeCallbacks(resumePoll);
+        CmLog.i(TAG, "resume after focus loss called off: " + why);
+    }
+
+    private void pollResume() {
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (now > resumeDeadline) {
+            cancelResume("the other sound went on past the limit");
+            return;
+        }
+        // Ours is paused: whatever plays music is the other one.
+        if (audioManager.isMusicActive()) {
+            quietPolls = 0;
+        } else if (++quietPolls >= RESUME_QUIET_POLLS) {
+            resumeDeadline = 0;
+            CmLog.i(TAG, "the other sound is over after " + (now - focusLostAt) / 1000 + " s: resuming");
+            requestFocus();
+            if (hasFocus)
+                CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+            return;
+        }
+        resumeHandler().postDelayed(resumePoll, RESUME_POLL_MS);
+    }
+
+    private android.os.Handler resumeHandler;
+
+    private android.os.Handler resumeHandler() {
+        if (resumeHandler == null)
+            resumeHandler = new android.os.Handler(getApplicationLooper());
+        return resumeHandler;
+    }
+
+    // Who took the focus, as far as an app may see: the kinds of sound
+    // playing (the players' owners are hidden from us).
+    private void logActivePlayers() {
+        StringBuilder text = new StringBuilder("focus lost for good; players now:");
+        for (android.media.AudioPlaybackConfiguration config : audioManager.getActivePlaybackConfigurations()) {
+            AudioAttributes attributes = config.getAudioAttributes();
+            text.append("\n  usage ").append(attributes.getUsage()).append(", content ")
+                .append(attributes.getContentType());
+        }
+        text.append("\n  music active: ").append(audioManager.isMusicActive());
+        CmLog.i(TAG, text.toString());
+    }
+
     private void requestFocus() {
         if (hasFocus)
             return;
@@ -219,7 +300,10 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             case AudioManager.AUDIOFOCUS_LOSS:
                 hasFocus = false;
                 pausedByFocusLoss = false;
+                logActivePlayers();
                 CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
+                if (playing)
+                    armResume();
                 break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:

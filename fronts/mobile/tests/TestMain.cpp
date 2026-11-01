@@ -122,6 +122,10 @@ private slots:
 
         QMetaObject::invokeMethod(backend.settings(), "setAutoplay", Q_ARG(bool, false));
         QTRY_COMPARE(core.settings().autoplay(), false);
+
+        QCOMPARE(core.settings().resumeAfterLossSec(), 60);
+        QMetaObject::invokeMethod(backend.settings(), "setResumeAfterLossSec", Q_ARG(int, 0));
+        QTRY_COMPARE(core.settings().resumeAfterLossSec(), 0);
     }
 
     // Title, artist and cover of the replica are those of the track that
