@@ -66,6 +66,11 @@
                 <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
+            <!-- Yandex's media hub on Russian GWM head units (yandex.auto.uma)
+                 may pick the car widget's sources by this: Yandex Music Auto,
+                 which the widget lists, declares it on its browser service.
+                 A guess until the hub's APK is read. -->
+            <meta-data android:name="yandex.auto.uma.AudioSource" android:value="true" />
         </service>
 
         <!-- Media buttons while nothing plays (the steering wheel after the
