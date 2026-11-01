@@ -15,12 +15,13 @@ QtObject {
 
     function dp(value) { return Math.round(value * scale) }
 
-    // Auto scale: a phone (~360-420 dp across) is 1.0; more room — a
-    // tablet, a head unit — grows the controls, up to half again, since
-    // they're used at arm's length.
+    // Auto scale: a phone (~360-420 dp across) is 1.0; more room grows the
+    // controls with it, up to twice: a 14" Full HD head unit (~1000 dp
+    // across, at 160 dpi) is 2.0 — at arm's length, in a moving car, 1.5
+    // was too small. A tablet comes in between (800 dp: 1.6).
     function autoScale(width, height) {
         const shortSide = Math.min(width, height)
-        return Math.max(1.0, Math.min(1.5, shortSide / 420))
+        return Math.max(1.0, Math.min(2.0, shortSide / 500))
     }
 
     readonly property color surface0: dark ? "#14100D" : "#EEE8E2"
