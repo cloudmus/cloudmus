@@ -36,7 +36,7 @@ final class SystemProbe {
     // The apps the head unit's widget does list; ours is compared to them.
     private static final String[] LISTED_APPS = {"ru.yandex.music", "com.vk.vkvideo"};
     // Vendor packages: the launcher with the widget, the "media source" service.
-    private static final Pattern VENDOR = Pattern.compile("gwm|haval|nobo|launcher|media|source|music|radio",
+    private static final Pattern VENDOR = Pattern.compile("gwm|haval|nobo|launcher|media|source|music|radio|yandex\\.auto",
         Pattern.CASE_INSENSITIVE);
     private static final String[] MEDIA_ACTIONS = {
         "android.media.browse.MediaBrowserService",
@@ -182,26 +182,34 @@ final class SystemProbe {
         return exportDoneBytes + "\t" + exportTotalBytes + "\t" + exportCurrent;
     }
 
-    // Whether a system package goes into the export: the vendor's own ones
-    // (anything not plain AOSP or Google — the widget's names are unknown),
-    // and among AOSP/Google the ones the widget could be in: the launcher,
-    // the status bar, whoever watches media sessions, and the name matches.
-    private static String exportReason(ApplicationInfo app, Set<String> home, Set<String> sessionWatchers) {
+    // What the export takes: on the GWM unit (Haval H7), the media card under
+    // the launcher (minibar = GWMMediaPlayerCard), the vendor's media source
+    // bus and its sources, the steering-wheel key server, the launcher, and
+    // Yandex's "UMA" that the listed Yandex Music declares itself an
+    // AudioSource for. All the vendor's system apps came to 3 GB, too much
+    // to carry; index.txt still names every package for a next round.
+    private static final String[] EXPORT_PREFIXES = {
+        "com.gwm.app.minibar",
+        "com.gwm.app.media.",
+        "com.gwm.media.",
+        "com.gwm.app.car.media",
+        "com.gwm.app.hardkey.server",
+        "com.gwm.app.launcher",
+        "yandex.auto.uma",
+    };
+
+    private static String exportReason(ApplicationInfo app, Set<String> home) {
         String name = app.packageName;
         if ((app.flags & ApplicationInfo.FLAG_SYSTEM) == 0)
             return null;
-        if (home.contains(name))
+        for (String prefix : EXPORT_PREFIXES) {
+            if (name.startsWith(prefix))
+                return "media/keys";
+        }
+        // Another head unit: its launcher, at least.
+        if (home.contains(name) && !name.startsWith("com.android."))
             return "launcher";
-        if (name.equals("com.android.systemui"))
-            return "system UI";
-        if (sessionWatchers.contains(name))
-            return "watches media sessions";
-        if (VENDOR.matcher(name).find())
-            return "name";
-        if (name.equals("android") || name.startsWith("com.android.") || name.startsWith("com.google.")
-            || name.startsWith("android."))
-            return null;
-        return "vendor";
+        return null;
     }
 
     // The head unit's system APKs, for decompiling at home: how the widget
@@ -220,17 +228,13 @@ final class SystemProbe {
         for (ResolveInfo info : pm.queryIntentActivities(
                  new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0))
             home.add(info.activityInfo.packageName);
-        Set<String> sessionWatchers = new TreeSet<>();
-        for (PackageInfo info : pm.getPackagesHoldingPermissions(
-                 new String[] {"android.permission.MEDIA_CONTENT_CONTROL"}, 0))
-            sessionWatchers.add(info.packageName);
 
         List<ApplicationInfo> apps = new ArrayList<>(pm.getInstalledApplications(0));
         Collections.sort(apps, (a, b) -> a.packageName.compareTo(b.packageName));
         List<ApplicationInfo> selected = new ArrayList<>();
         long total = 0;
         for (ApplicationInfo app : apps) {
-            if (exportReason(app, home, sessionWatchers) != null) {
+            if (exportReason(app, home) != null) {
                 selected.add(app);
                 total += new File(app.sourceDir).length();
             }
@@ -248,7 +252,7 @@ final class SystemProbe {
                         + "columns: package, system/user, why exported (or -), size, apk path, outcome\n\n",
                     apps.size(), selected.size()));
                 for (ApplicationInfo app : apps) {
-                    String reason = exportReason(app, home, sessionWatchers);
+                    String reason = exportReason(app, home);
                     File apk = new File(app.sourceDir);
                     index.append(app.packageName).append('\t')
                         .append((app.flags & ApplicationInfo.FLAG_SYSTEM) != 0 ? "system" : "user").append('\t')
