@@ -198,16 +198,22 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     // Resuming after a lost focus. Android has a player stay paused when
     // another one takes the focus for good; in the car that other one is
     // mostly brief — the phone's camera shutter over Bluetooth took it, and
-    // the music stopped for good. So: once nothing plays any more, for a
-    // couple of seconds in a row, we take the focus back and play — if that
-    // came within the setting's time; past it the other sound is music the
-    // user chose. Any play or pause from the user calls it off.
+    // the music stopped for good. So: once the other sound has played and
+    // nothing plays any more, for a couple of seconds in a row, we take the
+    // focus back and play — if that came within the setting's time; past it
+    // the other sound is music the user chose. The other sound has to be
+    // seen first: the car's radio holds the focus but plays through the
+    // tuner, unseen by isMusicActive(), and we cut in on it after two seconds.
+    // Any play or pause from the user calls it off.
     private static final long RESUME_POLL_MS = 1000;
     private static final int RESUME_QUIET_POLLS = 2;
+    private static final int RESUME_SEEN_WITHIN_POLLS = 3;
     private final Runnable resumePoll = this::pollResume;
     private long resumeDeadline;
     private long focusLostAt;
     private int quietPolls;
+    private int polls;
+    private boolean otherSoundSeen;
 
     private void armResume() {
         int seconds = CoreBridge.resumeAfterLossSec(context);
@@ -218,6 +224,8 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         focusLostAt = android.os.SystemClock.elapsedRealtime();
         resumeDeadline = focusLostAt + seconds * 1000L;
         quietPolls = 0;
+        polls = 0;
+        otherSoundSeen = false;
         CmLog.i(TAG, "focus lost for good: resuming if the other sound is over within " + seconds + " s");
         resumeHandler().removeCallbacks(resumePoll);
         resumeHandler().postDelayed(resumePoll, RESUME_POLL_MS);
@@ -238,8 +246,15 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             return;
         }
         // Ours is paused: whatever plays music is the other one.
+        ++polls;
         if (audioManager.isMusicActive()) {
+            otherSoundSeen = true;
             quietPolls = 0;
+        } else if (!otherSoundSeen) {
+            if (polls >= RESUME_SEEN_WITHIN_POLLS) {
+                cancelResume("no other sound to wait for: a source we can't see, like the radio");
+                return;
+            }
         } else if (++quietPolls >= RESUME_QUIET_POLLS) {
             resumeDeadline = 0;
             CmLog.i(TAG, "the other sound is over after " + (now - focusLostAt) / 1000 + " s: resuming");
