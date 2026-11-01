@@ -201,10 +201,21 @@ final class SystemProbe {
         "yandex.auto.uma",
     };
 
+    // Installed by the user, not the vendor, but part of the car's screen:
+    // Car Launcher, whose app list widget starts some apps and not ours.
+    private static final String[] EXPORT_USER_APPS = {
+        "com.autolauncher.motorcar",
+    };
+
     private static String exportReason(ApplicationInfo app, Set<String> home) {
         String name = app.packageName;
-        if ((app.flags & ApplicationInfo.FLAG_SYSTEM) == 0)
+        if ((app.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+            for (String userApp : EXPORT_USER_APPS) {
+                if (name.equals(userApp))
+                    return "car launcher";
+            }
             return null;
+        }
         for (String prefix : EXPORT_PREFIXES) {
             if (name.startsWith(prefix))
                 return "media/keys";
