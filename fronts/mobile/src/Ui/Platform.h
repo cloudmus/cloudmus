@@ -9,7 +9,7 @@ class QTimer;
 namespace Ui {
 
 // What the views need from the platform: where the log is, sending it out,
-// the device's description for the Diagnostics sheet.
+// the device's description for the Developer tools page.
 class Platform : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString logDirectory READ logDirectory CONSTANT)
@@ -39,6 +39,9 @@ public:
     // GWM head units: has Media Center pick this player, which is what puts
     // it in the car's media widget; what to tell the user.
     Q_INVOKABLE QString connectToMediaCenter() const;
+    // The head unit's media setup (launcher, media services, the apps the
+    // car's widget lists) into the log; what to tell the user.
+    Q_INVOKABLE QString logSystemProbe() const;
     // The head unit's system APKs into a zip, for working out its media
     // widget at home (Android). Hundreds of MB: on a worker thread, the
     // progress in exportFraction/exportStatus, the outcome in

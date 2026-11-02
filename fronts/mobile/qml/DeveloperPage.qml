@@ -1,0 +1,207 @@
+import QtQuick
+import QtQuick.Controls.Basic
+import QtQuick.Layouts
+import Cloudmus.Mobile
+
+// The test bench: the device, the log (the startup timeline is on the Log
+// page, "Startup"), what's learned about a head unit, scrolling and drawing.
+Page {
+    id: page
+
+    property QtObject backend
+    property QtObject platform
+    // Main.qml's uiSettings.
+    property QtObject ui
+    signal closeRequested()
+    signal logRequested()
+
+    background: Rectangle { color: Theme.surface0 }
+
+    header: PageBar {
+        title: qsTr("Developer tools")
+        onBackRequested: page.closeRequested()
+    }
+
+    ScrollArea {
+        anchors.fill: parent
+        anchors.margins: Theme.padding * 1.5
+        contentHeight: content.implicitHeight
+        clip: true
+
+        ColumnLayout {
+            id: content
+            width: parent.width
+            spacing: Theme.padding
+
+            SectionHeading { text: qsTr("Device") }
+            BodyText { text: page.platform.deviceInfo }
+
+            SectionHeading { text: qsTr("Log") }
+            BodyText {
+                text: page.platform.publicLogDirectory
+                    ? qsTr("Copied to %1").arg(page.platform.publicLogDirectory)
+                    : page.platform.logDirectory
+                color: Theme.inkSecondary
+                font.pixelSize: Theme.fontSmall
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: Theme.spacing
+                TextButton {
+                    text: qsTr("Open log")
+                    onClicked: page.logRequested()
+                }
+                TextButton {
+                    text: qsTr("Export zip")
+                    onClicked: exportResult.text = page.platform.exportLogs()
+                }
+            }
+
+            SectionHeading {
+                visible: page.platform.android
+                text: qsTr("Head unit")
+            }
+            Flow {
+                visible: page.platform.android
+                Layout.fillWidth: true
+                spacing: Theme.spacing
+                TextButton {
+                    text: qsTr("Log system probe")
+                    onClicked: exportResult.text = page.platform.logSystemProbe()
+                }
+                // The head unit's system apps, to decompile; a few hundred
+                // MB, so it shows how far along it is.
+                TextButton {
+                    enabled: !page.platform.exportingApps
+                    text: page.platform.exportingApps ? qsTr("Exporting…") : qsTr("Export system apps")
+                    onClicked: {
+                        exportResult.text = ""
+                        page.platform.exportSystemApps()
+                    }
+                }
+            }
+            ColumnLayout {
+                visible: page.platform.exportingApps
+                Layout.fillWidth: true
+                spacing: Theme.dp(6)
+                ProgressBar {
+                    id: exportBar
+                    Layout.fillWidth: true
+                    // Indeterminate (a moving stripe) while it counts the
+                    // packages: something moves from the first moment.
+                    indeterminate: page.platform.exportFraction < 0
+                    value: Math.max(0, page.platform.exportFraction)
+                    background: Rectangle {
+                        implicitHeight: Theme.dp(6)
+                        radius: height / 2
+                        color: Theme.surface300
+                    }
+                    contentItem: Item {
+                        implicitHeight: Theme.dp(6)
+                        clip: true
+                        Rectangle {
+                            visible: !exportBar.indeterminate
+                            width: exportBar.visualPosition * parent.width
+                            height: parent.height
+                            radius: height / 2
+                            color: Theme.accent
+                        }
+                        Rectangle {
+                            id: stripe
+                            visible: exportBar.indeterminate
+                            width: parent.width / 3
+                            height: parent.height
+                            radius: height / 2
+                            color: Theme.accent
+                            NumberAnimation on x {
+                                running: stripe.visible
+                                loops: Animation.Infinite
+                                from: -stripe.width
+                                to: stripe.parent.width
+                                duration: 1200
+                            }
+                        }
+                    }
+                }
+                BodyText {
+                    text: page.platform.exportStatus
+                    elide: Text.ElideMiddle
+                    wrapMode: Text.NoWrap
+                    color: Theme.inkSecondary
+                    font.pixelSize: Theme.fontSmall
+                }
+            }
+            Connections {
+                target: page.platform
+                function onSystemAppsExported(result) { exportResult.text = result }
+            }
+            BodyText {
+                id: exportResult
+                visible: text.length > 0
+                color: Theme.inkSecondary
+                font.pixelSize: Theme.fontSmall
+            }
+
+            SectionHeading { text: qsTr("Scrolling") }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.padding
+                BodyText { Layout.fillWidth: false; text: qsTr("Fling speed") }
+                Slider {
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.touch
+                    from: 2000; to: 20000; stepSize: 500
+                    value: page.ui.flickMaxVelocity
+                    onMoved: page.ui.flickMaxVelocity = value
+                }
+                BodyText { Layout.fillWidth: false; text: Math.round(page.ui.flickMaxVelocity) }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.padding
+                BodyText { Layout.fillWidth: false; text: qsTr("Deceleration") }
+                Slider {
+                    Layout.fillWidth: true
+                    implicitHeight: Theme.touch
+                    from: 500; to: 12000; stepSize: 250
+                    value: page.ui.flickDeceleration
+                    onMoved: page.ui.flickDeceleration = value
+                }
+                BodyText { Layout.fillWidth: false; text: Math.round(page.ui.flickDeceleration) }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                BodyText { text: qsTr("Show frames per second") }
+                Switch {
+                    checked: page.ui.showFps
+                    onToggled: page.ui.showFps = checked
+                }
+            }
+
+            // Experiments for a finger drag that stutters at a steady frame
+            // rate: how Qt draws and how it hands touches to the views.
+            SectionHeading { text: qsTr("Drawing (after a restart)") }
+            RowLayout {
+                spacing: Theme.spacing
+                BodyText { Layout.fillWidth: false; text: qsTr("Render loop") }
+                Repeater {
+                    model: [{ t: qsTr("Default"), v: "" }, { t: "threaded", v: "threaded" }, { t: "basic", v: "basic" }]
+                    Chip {
+                        required property var modelData
+                        text: modelData.t
+                        checked: page.ui.renderLoop === modelData.v
+                        onClicked: page.ui.renderLoop = modelData.v
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                BodyText { text: qsTr("Merge touch moves into one per frame") }
+                Switch {
+                    checked: page.ui.touchCompression
+                    onToggled: page.ui.touchCompression = checked
+                }
+            }
+        }
+    }
+}

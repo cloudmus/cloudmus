@@ -301,65 +301,26 @@ private slots:
 
         QMetaObject::invokeMethod(stack, "close");
         QTRY_COMPARE(stack->property("depth").toInt(), 1);
-        QMetaObject::invokeMethod(playlist, "logRequested");
+        // Settings, a page further the developer tools, and from there the log.
+        QMetaObject::invokeMethod(playlist, "settingsRequested");
         QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        shot("settings");
+        auto* settings = window->findChild<QQuickItem*>("settings");
+        QVERIFY(settings);
+        QMetaObject::invokeMethod(settings, "developerRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+        shot("developer");
+        auto* developer = window->findChild<QQuickItem*>("developer");
+        QVERIFY(developer);
+        QMetaObject::invokeMethod(developer, "logRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 4);
         shot("log");
-        QMetaObject::invokeMethod(stack, "close");
-        QTRY_COMPARE(stack->property("depth").toInt(), 1);
 
-        QObject* diagnostics = window->findChild<QObject*>("diagnostics");
-        QVERIFY(diagnostics);
-        QMetaObject::invokeMethod(diagnostics, "open");
-        shot("diagnostics");
-
-        // A drag in the sheet scrolls its list; pulled down from the top the
-        // sheet follows and closes.
-        // A finger's move takes time: the sheet judges how fast it was let go.
-        auto move = [&](const QPoint& to) {
-            QTest::mouseMove(window, to);
-            QTest::qWait(16);
-        };
-        const QPoint inSheet(size.width() / 2, size.height() - 120);
-        auto drag = [&](int dy) {
-            QTest::mousePress(window, Qt::LeftButton, { }, inSheet);
-            for (int step = 1; step <= 20; ++step)
-                move(inSheet + QPoint(0, dy * step / 20));
-            // Held still before letting go: no fling to carry the list on.
-            QTest::qWait(200);
-            QTest::mouseRelease(window, Qt::LeftButton, { }, inSheet + QPoint(0, dy), 16);
-            QTest::qWait(400);
-        };
-        drag(-200);
-        QTest::qWait(500);
-        QVERIFY(diagnostics->property("opened").toBool());
-        // Pulled down a little by the handle, not far enough: back up.
-        const QPoint handle(size.width() / 2, size.height() - diagnostics->property("height").toInt() + 10);
-        QTest::mousePress(window, Qt::LeftButton, { }, handle);
-        for (int step = 1; step <= 10; ++step)
-            move(handle + QPoint(0, 8 * step));
-        QTest::qWait(200); // held still: not a flick
-        QTest::mouseRelease(window, Qt::LeftButton, { }, handle + QPoint(0, 80), 16);
-        QTRY_COMPARE_WITH_TIMEOUT(diagnostics->property("position").toReal(), 1.0, 2000);
-        QVERIFY(diagnostics->property("opened").toBool());
-
-        // A short quick flick down closes it.
-        QTest::mousePress(window, Qt::LeftButton, { }, handle);
-        for (int step = 1; step <= 3; ++step)
-            move(handle + QPoint(0, 15 * step));
-        QTest::mouseRelease(window, Qt::LeftButton, { }, handle + QPoint(0, 45), 10);
-        QTRY_VERIFY_WITH_TIMEOUT(!diagnostics->property("visible").toBool(), 3000);
-        QMetaObject::invokeMethod(diagnostics, "open");
-        QTRY_VERIFY_WITH_TIMEOUT(diagnostics->property("opened").toBool(), 3000);
-
-        // A tap above the sheet closes it.
-        QTest::mouseClick(window, Qt::LeftButton, { }, QPoint(size.width() / 2, 20));
-        QTRY_VERIFY_WITH_TIMEOUT(!diagnostics->property("visible").toBool(), 3000);
-        QMetaObject::invokeMethod(diagnostics, "open");
-        QTRY_VERIFY_WITH_TIMEOUT(diagnostics->property("opened").toBool(), 3000);
-        // Back to the top of the list, then on down: the sheet goes.
-        for (int i = 0; i < 4 && diagnostics->property("opened").toBool(); ++i)
-            drag(600);
-        QTRY_VERIFY_WITH_TIMEOUT(!diagnostics->property("visible").toBool(), 3000);
+        // Back, a page at a time, to the playlist.
+        for (int depth = 3; depth >= 1; --depth) {
+            QMetaObject::invokeMethod(stack, "close");
+            QTRY_COMPARE(stack->property("depth").toInt(), depth);
+        }
     }
 };
 

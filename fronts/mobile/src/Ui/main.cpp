@@ -81,7 +81,7 @@ int runCore(int argc, char* argv[])
 }
 #endif
 
-// The drawing experiments of Diagnostics (Main.qml's uiSettings): they work
+// The drawing experiments of Developer tools (Main.qml's uiSettings): they work
 // through environment variables Qt reads as the app starts.
 void applyRenderingSettings()
 {

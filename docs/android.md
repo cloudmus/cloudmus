@@ -72,9 +72,15 @@ adb logcat -s CloudmusStart             # startup milestones
 - Open the app once: it asks for storage access (Android ≤ 9) so the log
   can go to `Download/Cloudmus/logs`. Android 10+ keeps it in
   `Android/data/dev.cloudmus.mobile/files/logs`; **Export zip** in
-  Diagnostics (or on the Log page) writes a zip to `Download/Cloudmus`.
-- Autoplay at boot is on by default; the switch is in Diagnostics.
-- The Log page (clock icon) filters by level, process, text, and "this boot".
+  Settings → Developer tools (or on the Log page) writes a zip to
+  `Download/Cloudmus`.
+- Autoplay at boot is on by default; the switch is in Settings (the sliders
+  icon on the playlist page).
+- Settings → Developer tools holds what's for working on the app: the device,
+  the Log page (it filters by level, process, text, and "this boot"), scrolling
+  and drawing experiments, and for a head unit **Export system apps** (the
+  launcher's and media apps' APKs with their compiled code, into a zip, to
+  decompile) and **Log system probe**.
 - To read the startup time: lines tagged `Startup` give `+N ms since process
   start` and `S s since boot`; `receiver:` lines name the broadcast that
   started the player. Head units differ in what they send when the car

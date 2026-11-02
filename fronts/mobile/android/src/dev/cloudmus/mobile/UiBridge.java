@@ -51,6 +51,14 @@ public final class UiBridge {
         return CmLog.exportZip();
     }
 
+    // What the head unit's media system looks like, into the log: a few
+    // seconds of package queries, so off the calling thread. Run by hand
+    // from Developer tools; at every start it filled the log.
+    public static String logSystemProbe(Context context) {
+        new Thread(() -> SystemProbe.logAll(context), "system-probe").start();
+        return "Written to the log";
+    }
+
     // Blocks for long: from a worker thread, the UI polls exportProgress().
     public static String exportSystemApps(Context context) {
         return SystemProbe.exportApks(context);

@@ -60,7 +60,7 @@ Page {
             // Balances the arrow, keeping the title centered. No "stop and
             // close" here: next to "collapse" it read as closing the page,
             // and in a car a slip would cut the music (it's in the
-            // notification and in Diagnostics).
+            // notification and in Settings).
             Item { implicitWidth: Theme.touch }
         }
     }

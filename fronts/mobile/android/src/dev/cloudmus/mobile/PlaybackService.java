@@ -84,8 +84,6 @@ public final class PlaybackService extends MediaLibraryService {
         // MediaController, so without this there was no notification at all.
         addSession(session);
         CmLog.mark("service ready, " + tracks.size() + " tracks");
-        // Off the main thread: startup time is what's measured in the car.
-        new Thread(() -> SystemProbe.logAll(this), "system-probe").start();
     }
 
     @Override

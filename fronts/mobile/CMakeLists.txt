@@ -115,19 +115,23 @@ qt_add_qml_module(cloudmus-mobile-ui
     URI Cloudmus.Mobile
     VERSION 1.0
     QML_FILES
+        qml/BodyText.qml
         qml/Chip.qml
         qml/Cover.qml
-        qml/DiagnosticsSheet.qml
+        qml/DeveloperPage.qml
         qml/FpsOverlay.qml
         qml/IconButton.qml
         qml/LogPage.qml
         qml/Main.qml
         qml/MiniPlayer.qml
         qml/NowPlayingPage.qml
+        qml/PageBar.qml
         qml/PlaylistPage.qml
         qml/ScrollArea.qml
         qml/ScrollList.qml
+        qml/SectionHeading.qml
         qml/SeekBar.qml
+        qml/SettingsPage.qml
         qml/TextButton.qml
         qml/Theme.qml
         qml/Toast.qml
@@ -136,7 +140,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         src/Ui/LogModel.h
 )
 
-set(_icons arrow_back close expand_less expand_more file_download history music_note pause play_arrow
+set(_icons arrow_back close expand_less expand_more file_download music_note pause play_arrow
     skip_next skip_previous tune volume_up)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)

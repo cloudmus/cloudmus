@@ -8,8 +8,7 @@ Page {
 
     property QtObject backend
     signal nowPlayingRequested()
-    signal logRequested()
-    signal diagnosticsRequested()
+    signal settingsRequested()
 
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property QtObject playlist: backend.playlist
@@ -51,12 +50,8 @@ Page {
                 }
             }
             IconButton {
-                iconName: "history"
-                onClicked: page.logRequested()
-            }
-            IconButton {
                 iconName: "tune"
-                onClicked: page.diagnosticsRequested()
+                onClicked: page.settingsRequested()
             }
         }
     }

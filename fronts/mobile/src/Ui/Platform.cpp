@@ -105,6 +105,15 @@ QString Platform::connectToMediaCenter() const
 #endif
 }
 
+QString Platform::logSystemProbe() const
+{
+#ifdef Q_OS_ANDROID
+    return bridgeString("logSystemProbe");
+#else
+    return tr("Android only");
+#endif
+}
+
 void Platform::exportSystemApps()
 {
 #ifdef Q_OS_ANDROID

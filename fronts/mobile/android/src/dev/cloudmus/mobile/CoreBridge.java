@@ -148,7 +148,7 @@ public final class CoreBridge {
             current.onState(index, playing, loading, positionMs, durationMs);
     }
 
-    // From the core, when the user changes autoplay in Diagnostics: kept
+    // From the core, when the user changes autoplay in Settings: kept
     // where the boot receiver can read it without starting the core.
     @SuppressWarnings("unused")
     static void onAutoplayChanged(boolean enabled) {
@@ -158,7 +158,7 @@ public final class CoreBridge {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(PREF_AUTOPLAY, enabled).apply();
     }
 
-    // From the core, when the user changes it in Diagnostics: CorePlayer
+    // From the core, when the user changes it in Settings: CorePlayer
     // reads it when the focus is lost.
     @SuppressWarnings("unused")
     static void onResumeAfterLossChanged(int seconds) {

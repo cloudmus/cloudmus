@@ -59,7 +59,7 @@ ApplicationWindow {
     }
 
     // Page transitions differ per page: Now Playing rises from the mini
-    // player over a receding playlist, the log slides in from the side.
+    // player over a receding playlist, the others slide in from the side.
     property string transitionKind: "rise"
 
     StackView {
@@ -91,7 +91,7 @@ ApplicationWindow {
         }
         function close() {
             if (depth > 1) {
-                window.transitionKind = currentItem.objectName === "log" ? "slide" : "rise"
+                window.transitionKind = currentItem.objectName === "nowPlaying" ? "rise" : "slide"
                 pop()
             }
         }
@@ -110,8 +110,7 @@ ApplicationWindow {
             objectName: "playlist"
             backend: window.backend
             onNowPlayingRequested: stack.open(nowPlayingPage, "rise")
-            onLogRequested: stack.open(logPage, "slide")
-            onDiagnosticsRequested: diagnostics.open()
+            onSettingsRequested: stack.open(settingsPage, "slide")
         }
     }
     Component {
@@ -122,32 +121,30 @@ ApplicationWindow {
         }
     }
     Component {
+        id: settingsPage
+        SettingsPage {
+            objectName: "settings"
+            ui: uiSettings
+            onCloseRequested: stack.close()
+            onDeveloperRequested: stack.open(developerPage, "slide")
+            onStopRequested: window.stopAndQuit()
+        }
+    }
+    Component {
+        id: developerPage
+        DeveloperPage {
+            objectName: "developer"
+            ui: uiSettings
+            onCloseRequested: stack.close()
+            onLogRequested: stack.open(logPage, "slide")
+        }
+    }
+    Component {
         id: logPage
         LogPage {
             objectName: "log"
             onCloseRequested: stack.close()
         }
-    }
-
-    DiagnosticsSheet {
-        id: diagnostics
-        objectName: "diagnostics"
-        backend: window.backend
-        platform: window.platform
-        userScale: uiSettings.scale
-        onUserScaleChanged: uiSettings.scale = userScale
-        flickMaxVelocity: uiSettings.flickMaxVelocity
-        onFlickMaxVelocityChanged: uiSettings.flickMaxVelocity = flickMaxVelocity
-        flickDeceleration: uiSettings.flickDeceleration
-        onFlickDecelerationChanged: uiSettings.flickDeceleration = flickDeceleration
-        showFps: uiSettings.showFps
-        onShowFpsChanged: uiSettings.showFps = showFps
-        renderLoop: uiSettings.renderLoop
-        onRenderLoopChanged: uiSettings.renderLoop = renderLoop
-        touchCompression: uiSettings.touchCompression
-        onTouchCompressionChanged: uiSettings.touchCompression = touchCompression
-        onLogRequested: stack.open(logPage, "slide")
-        onStopRequested: window.stopAndQuit()
     }
 
     // While the core comes up (in the playback service on Android).

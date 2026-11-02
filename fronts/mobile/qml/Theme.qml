@@ -9,7 +9,7 @@ QtObject {
     id: theme
 
     // Set by Main.qml from the window: auto from its short side unless the
-    // user picked a scale in Diagnostics.
+    // user picked a scale in Settings.
     property real scale: 1.0
     property bool dark: Qt.styleHints.colorScheme !== Qt.ColorScheme.Light
 
@@ -60,7 +60,7 @@ QtObject {
 
     // Fling physics (ScrollList): Qt's defaults (2500, 1500) cut a fast
     // swipe short and stop it hard. These felt native on a Pixel 7; still
-    // tunable in Diagnostics.
+    // tunable in Developer tools.
     property real flickMaxVelocityBase: 12000
     property real flickDecelerationBase: 2000
     readonly property real flickMaxVelocity: flickMaxVelocityBase * scale
