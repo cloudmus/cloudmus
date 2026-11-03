@@ -5,8 +5,10 @@ import QtQuick.Controls.impl
 import QtQuick.Layouts
 
 // The main screen: the active playlist and the track that plays. With width
-// to spare (a head unit) both are in view, the track on the driver's side; on
-// a phone the list fills the screen over a mini player that opens Now Playing.
+// to spare (a head unit) both are in view, the track on the driver's side, and
+// a button turns the screen over to the track: the list narrows to its covers,
+// the source's bar folds into a button, the cover grows beside the rest. On a
+// phone the list fills the screen over a mini player that opens Now Playing.
 Page {
     id: page
 
@@ -25,12 +27,27 @@ Page {
     readonly property string backgroundSeed: nowPlaying && nowPlaying.backgroundSeed ? nowPlaying.backgroundSeed
         : playlist && playlist.title ? playlist.title : ""
 
+    // 0 the normal screen .. 1 the track's: everything that moves follows this.
+    property real screenProgress: wide && ui.screenExpanded ? 1 : 0
+    Behavior on screenProgress { NumberAnimation { duration: Theme.durationPage * 1.5; easing.type: Easing.InOutCubic } }
+
+    function _part(from, to) { return Math.max(0, Math.min(1, (screenProgress - from) / (to - from))) }
+    // The bar folds first and the panel rises into the room it leaves.
+    readonly property real _barFolded: _part(0, 0.6)
+    readonly property real _panelRisen: _part(0.4, 1)
+
+    readonly property real _heroMargin: Theme.dp(12)
+    readonly property real _railWidth: Theme.touchLarge + _heroMargin * 2
+    readonly property real _coversWidth: Theme.dp(52) + Theme.dp(24)
+    readonly property real _listFullWidth: width * 0.58
+    readonly property real _listWidth: _listFullWidth + (_coversWidth - _listFullWidth) * screenProgress
+
     background: Rectangle { color: Theme.surface0 }
 
     Settings {
         id: ui
         category: "ui"
-        property bool sourceBarExpanded: false
+        property bool screenExpanded: false
     }
 
     component SourceButton: AbstractButton {
@@ -105,49 +122,53 @@ Page {
 
         // The track, on a head unit, over the generated background.
         Item {
+            id: hero
             visible: page.wide
             Layout.fillHeight: true
-            Layout.preferredWidth: page.width * 0.42
+            Layout.preferredWidth: page.width - page._listWidth
 
             AuraBackground {
                 anchors.fill: parent
                 visible: parent.visible
                 seed: page.backgroundSeed
             }
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: Theme.dp(12)
-                spacing: 0
-
-                // Room for the source's bar as it opens: the cover gives it up.
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: (sourceBar.height + Theme.dp(10)) * sourceBar.progress
-                }
-                TrackPanel {
-                    objectName: "trackPanel"
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    nowPlaying: page.nowPlaying
-                    overAura: true
-                    showMenu: page.backend.trackScreen !== null
-                    onMenuRequested: {
-                        page.backend.trackScreen.showPlaying()
-                        page.trackMenuRequested()
-                    }
+            TrackPanel {
+                objectName: "trackPanel"
+                x: page._heroMargin + (page._railWidth - page._heroMargin) * page.screenProgress
+                y: page._heroMargin + (sourceBar.height + Theme.dp(10)) * (1 - page._panelRisen)
+                width: parent.width - x - page._heroMargin
+                height: parent.height - y - page._heroMargin
+                progress: page.screenProgress
+                sideCoverShare: 1
+                nowPlaying: page.nowPlaying
+                overAura: true
+                showMenu: page.backend.trackScreen !== null
+                onMenuRequested: {
+                    page.backend.trackScreen.showPlaying()
+                    page.trackMenuRequested()
                 }
             }
             SourceBar {
                 id: sourceBar
                 objectName: "sourceBar"
-                x: Theme.dp(12)
-                y: Theme.dp(12)
-                fullWidth: parent.width - Theme.dp(24)
+                x: page._heroMargin
+                y: page._heroMargin
+                fullWidth: page.width * 0.42 - page._heroMargin * 2
+                folded: page._barFolded
                 library: page.library
                 playlist: page.playlist
-                expanded: ui.sourceBarExpanded
-                onExpandedChanged: ui.sourceBarExpanded = expanded
-                onLibraryRequested: page.libraryRequested()
+                onClicked: page.libraryRequested()
+            }
+            // In the screen's left column when it's the track's.
+            IconButton {
+                objectName: "railSettings"
+                x: page._heroMargin + (sourceBar.height - width) / 2
+                y: parent.height - height - page._heroMargin + Theme.dp(16) * (1 - page._panelRisen)
+                iconName: "tune"
+                color: "#FFFFFF"
+                opacity: page._panelRisen
+                visible: opacity > 0
+                onClicked: page.settingsRequested()
             }
         }
 
@@ -161,11 +182,13 @@ Page {
                 Layout.fillWidth: true
                 implicitHeight: Theme.barHeight + Theme.dp(16)
                 color: Theme.surface100
+                clip: true
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: Theme.dp(8)
-                    anchors.rightMargin: Theme.dp(4)
-                    spacing: Theme.dp(8)
+                    anchors.leftMargin: Theme.dp(8) * (1 - page.screenProgress)
+                    // In the middle of the covers when there's only those.
+                    anchors.rightMargin: Theme.dp(4) + ((page._coversWidth - Theme.touch) / 2 - Theme.dp(4)) * page.screenProgress
+                    spacing: Theme.dp(8) * (1 - page.screenProgress)
                     SourceButton {
                         visible: !page.wide
                         Layout.fillWidth: true
@@ -174,6 +197,7 @@ Page {
                         visible: page.wide
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.dp(8)
+                        opacity: Math.max(0, 1 - page.screenProgress * 2)
                         text: page.playlist ? page.playlist.title : ""
                         color: Theme.ink
                         font.family: Theme.fontFamily
@@ -182,14 +206,27 @@ Page {
                         elide: Text.ElideRight
                     }
                     IconButton {
+                        objectName: "listSettings"
+                        // Narrows away as it moves to the left column.
+                        Layout.preferredWidth: Theme.touch * (1 - page.screenProgress)
                         iconName: "tune"
+                        opacity: 1 - page.screenProgress
+                        visible: opacity > 0
                         onClicked: page.settingsRequested()
+                    }
+                    IconButton {
+                        objectName: "screenModeToggle"
+                        visible: page.wide
+                        iconName: "chevron_right"
+                        rotation: 180 * page.screenProgress
+                        onClicked: ui.screenExpanded = !ui.screenExpanded
                     }
                 }
             }
 
             ScrollList {
                 id: list
+                objectName: "mainList"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
@@ -197,6 +234,7 @@ Page {
                 delegate: TrackRow {
                     playing: page.nowPlaying && page.nowPlaying.playing === true
                     showMenu: page.backend.trackScreen !== null
+                    layoutWidth: page.wide ? page._listFullWidth : 0
                     onClicked: page.playlist.playRow(index)
                     onMenuRequested: {
                         page.backend.trackScreen.showActiveRow(index)
@@ -208,7 +246,7 @@ Page {
                 Column {
                     parent: list
                     anchors.centerIn: parent
-                    visible: list.count === 0 && page.library !== null
+                    visible: list.count === 0 && page.library !== null && page.screenProgress < 0.5
                     spacing: Theme.padding
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter

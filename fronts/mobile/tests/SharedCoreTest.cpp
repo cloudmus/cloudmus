@@ -431,6 +431,7 @@ private slots:
         QTest::addColumn<QSize>("size");
         QTest::newRow("phone") << QSize(420, 860);
         QTest::newRow("headunit") << QSize(1920, 1080);
+        QTest::newRow("smallunit") << QSize(1280, 720);
     }
 
     void pagesOpen()
@@ -470,33 +471,61 @@ private slots:
         };
         shot("main");
 
-        // On a head unit, the source's bar opens and folds with the cover
-        // giving room and taking it back.
+        // On a head unit, the two modes of the screen: everything has moved when
+        // the animation is over, the source's button clear of the cover in both,
+        // and turning back restores it all.
         if (size.width() > size.height()) {
             auto* bar = window->findChild<QQuickItem*>("sourceBar");
             auto* panel = window->findChild<QQuickItem*>("trackPanel");
-            QVERIFY(bar);
-            QVERIFY(panel);
-            QCOMPARE(bar->property("expanded").toBool(), false);
-            const qreal foldedWidth = bar->width();
-            const qreal tallest = panel->height();
-            QVERIFY(foldedWidth < panel->width() / 2);
-            bar->setProperty("expanded", true);
-            QTest::qWait(100);
-            shot("source-bar-moving");
-            QTRY_COMPARE(bar->property("progress").toReal(), 1.0);
-            QVERIFY(bar->width() > foldedWidth * 2);
-            QVERIFY(panel->height() < tallest);
-            shot("source-bar-open");
-            bar->setProperty("expanded", false);
-            QTRY_COMPARE(bar->property("progress").toReal(), 0.0);
-            QTRY_COMPARE(panel->height(), tallest);
-            QCOMPARE(bar->width(), foldedWidth);
+            auto* cover = window->findChild<QQuickItem*>("trackCover");
+            auto* details = window->findChild<QQuickItem*>("trackDetails");
+            auto* list = window->findChild<QQuickItem*>("mainList");
+            auto* railSettings = window->findChild<QQuickItem*>("railSettings");
+            auto* toggle = window->findChild<QObject*>("screenModeToggle");
+            QVERIFY(bar && panel && cover && details && list && railSettings && toggle);
+            const auto sceneRect = [](QQuickItem* item) {
+                return item->mapRectToScene(QRectF(0, 0, item->width(), item->height()));
+            };
+            const auto settled = [&](const QByteArray& expected) {
+                return playlist->property("screenProgress").toReal() == expected.toDouble();
+            };
+            QTRY_VERIFY(settled("0"));
+            const QRectF normalCover = sceneRect(cover);
+            const qreal normalList = list->width();
+            const qreal normalBar = bar->width();
+            QVERIFY(!sceneRect(bar).intersects(normalCover));
+            QVERIFY(!railSettings->isVisible());
+            QVERIFY(sceneRect(details).top() > normalCover.top());
 
-            // Its source part goes to the Library, on the active playlist's source.
-            auto* source = bar->findChild<QQuickItem*>("sourceBarSource");
-            QVERIFY(source);
-            QMetaObject::invokeMethod(source, "clicked");
+            QMetaObject::invokeMethod(toggle, "clicked");
+            QTest::qWait(150);
+            if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty()) {
+                window->grabWindow().save(
+                    QStringLiteral("%1/%2-mode-moving.png").arg(dir, QTest::currentDataTag()));
+            }
+            QTRY_VERIFY(settled("1"));
+            shot("mode-expanded");
+            const QRectF bigCover = sceneRect(cover);
+            QVERIFY(bigCover.height() > normalCover.height());
+            QVERIFY(!sceneRect(bar).intersects(bigCover));
+            QCOMPARE(bar->width(), bar->height());
+            QVERIFY(list->width() < normalList / 3);
+            QVERIFY(sceneRect(details).left() >= bigCover.right());
+            // Nothing of it pushed out of its place.
+            QVERIFY(details->implicitWidth() <= details->width());
+            QVERIFY(sceneRect(details).right() <= sceneRect(list).left());
+            QVERIFY(railSettings->isVisible());
+            QVERIFY(sceneRect(railSettings).bottom() > window->height() * 0.8);
+            QVERIFY(sceneRect(railSettings).right() <= bigCover.left());
+
+            QMetaObject::invokeMethod(toggle, "clicked");
+            QTRY_VERIFY(settled("0"));
+            QTRY_COMPARE(list->width(), normalList);
+            QCOMPARE(bar->width(), normalBar);
+            QVERIFY(!railSettings->isVisible());
+
+            // The source's button goes to the Library, on the active playlist's source.
+            QMetaObject::invokeMethod(bar, "clicked");
             QTRY_COMPARE(stack->property("depth").toInt(), 2);
             QCOMPARE(core.library().currentSourceId(), QStringLiteral("fake"));
             QMetaObject::invokeMethod(stack, "close");

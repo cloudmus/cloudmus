@@ -3,80 +3,63 @@ import QtQuick.Controls.Basic
 import QtQuick.Controls.impl
 import QtQuick.Layouts
 
-// The current source, on a head unit, where height is short. Collapsed it's a
-// two-part button floating over the panel, taking up no row: the source's icon
-// (the Library) and an arrow. The arrow opens it out to the full `fullWidth`,
-// with the source's and playlist's names, and turns round to fold it back.
-Item {
+// The current source and playlist, on a head unit: a bar across the track's
+// panel in the normal mode of the screen, folding into a button with just the
+// source's icon as `folded` goes to 1. Either opens the Library.
+AbstractButton {
     id: bar
 
     property QtObject library
     property QtObject playlist
     property real fullWidth: 0
-    property bool expanded: false
-    signal libraryRequested()
+    property real folded: 0
 
-    // 0 folded .. 1 open: what everything that moves follows, the panel under
-    // it too.
-    property real progress: expanded ? 1 : 0
-    Behavior on progress { NumberAnimation { duration: Theme.durationPage; easing.type: Easing.OutCubic } }
-
-    readonly property real _foldedWidth: Theme.touchLarge + Theme.touch
-    width: _foldedWidth + (fullWidth - _foldedWidth) * progress
+    width: height + (fullWidth - height) * (1 - folded)
     height: Theme.touchLarge
+    focusPolicy: Qt.NoFocus
+    enabled: library !== null
+    clip: true
 
-    Rectangle {
-        anchors.fill: parent
+    background: Rectangle {
         radius: Theme.radius
-        color: Theme.surface200
+        color: bar.down ? Theme.surface300 : Theme.surface200
         opacity: 0.82
     }
 
-    AbstractButton {
-        id: sourcePart
-        objectName: "sourceBarSource"
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        anchors.right: arrow.left
-        focusPolicy: Qt.NoFocus
-        enabled: bar.library !== null
-        onClicked: bar.libraryRequested()
-        background: Rectangle {
-            radius: Theme.radius
-            color: sourcePart.down ? "#26FFFFFF" : "transparent"
-        }
-        contentItem: Item {
-            clip: true
-            Item {
-                id: icon
-                x: (Theme.touchLarge - width) / 2
-                anchors.verticalCenter: parent.verticalCenter
-                width: Theme.dp(28)
-                height: Theme.dp(28)
-                IconImage {
-                    anchors.fill: parent
-                    visible: bar.library && bar.library.activeSourceIcon !== ""
-                    source: bar.library ? bar.library.activeSourceIcon : ""
-                    sourceSize.width: width
-                    sourceSize.height: height
-                    color: Theme.accent
-                }
-                Image {
-                    anchors.fill: parent
-                    visible: !bar.library || bar.library.activeSourceIcon === ""
-                    source: "qrc:/icons/logo.svg"
-                    sourceSize.width: width
-                    sourceSize.height: height
-                }
+    contentItem: Item {
+        Item {
+            x: (bar.height - width) / 2
+            anchors.verticalCenter: parent.verticalCenter
+            width: Theme.dp(28)
+            height: Theme.dp(28)
+            IconImage {
+                anchors.fill: parent
+                visible: bar.library && bar.library.activeSourceIcon !== ""
+                source: bar.library ? bar.library.activeSourceIcon : ""
+                sourceSize.width: width
+                sourceSize.height: height
+                color: Theme.accent
             }
+            Image {
+                anchors.fill: parent
+                visible: !bar.library || bar.library.activeSourceIcon === ""
+                source: "qrc:/icons/logo.svg"
+                sourceSize.width: width
+                sourceSize.height: height
+            }
+        }
+        // Keeps its full width, so that the text isn't laid out anew each frame
+        // as the bar folds over it.
+        RowLayout {
+            x: bar.height
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(0, bar.fullWidth - bar.height - Theme.dp(6))
+            spacing: Theme.dp(10)
+            opacity: Math.max(0, 1 - bar.folded * 2)
+            visible: opacity > 0
             ColumnLayout {
-                x: Theme.touchLarge
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(0, bar.fullWidth - bar._foldedWidth - Theme.dp(8))
+                Layout.fillWidth: true
                 spacing: 0
-                opacity: Math.max(0, bar.progress * 2 - 1)
-                visible: opacity > 0
                 Text {
                     Layout.fillWidth: true
                     text: bar.library && bar.library.activeSourceName ? bar.library.activeSourceName : "CloudMus"
@@ -96,40 +79,12 @@ Item {
                     elide: Text.ElideRight
                 }
             }
-        }
-    }
-
-    // Between the two parts, while they read as two.
-    Rectangle {
-        anchors.right: arrow.left
-        anchors.verticalCenter: parent.verticalCenter
-        width: Theme.dp(1)
-        height: parent.height * 0.5
-        color: Theme.borderStrong
-        opacity: 1 - bar.progress
-    }
-
-    AbstractButton {
-        id: arrow
-        objectName: "sourceBarToggle"
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        width: Theme.touch
-        focusPolicy: Qt.NoFocus
-        onClicked: bar.expanded = !bar.expanded
-        background: Rectangle {
-            radius: Theme.radius
-            color: arrow.down ? "#26FFFFFF" : "transparent"
-        }
-        contentItem: Item {
             IconImage {
-                anchors.centerIn: parent
-                source: "qrc:/icons/chevron_right.svg"
-                sourceSize.width: Theme.dp(26)
-                sourceSize.height: Theme.dp(26)
+                visible: bar.library !== null
+                source: "qrc:/icons/expand_more.svg"
+                sourceSize.width: Theme.dp(24)
+                sourceSize.height: Theme.dp(24)
                 color: Theme.inkSecondary
-                rotation: 180 * bar.progress
             }
         }
     }

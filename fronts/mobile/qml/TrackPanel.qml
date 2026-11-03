@@ -3,8 +3,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // The track that plays, big: cover, title, position and the transport. With
-// room to the side (`sideBySide`) the cover is left of the rest.
-GridLayout {
+// room to the side (`sideBySide`, or `progress` on the way there) the cover is
+// left of the rest.
+Item {
     id: panel
 
     property QtObject nowPlaying
@@ -17,38 +18,45 @@ GridLayout {
     property color inkSecondaryColor: overAura ? "#D9FFFFFF" : Theme.inkSecondary
     readonly property string seed: nowPlaying && nowPlaying.backgroundSeed ? nowPlaying.backgroundSeed : ""
 
-    flow: sideBySide ? GridLayout.LeftToRight : GridLayout.TopToBottom
-    columns: sideBySide ? 2 : 1
-    columnSpacing: Theme.padding * 2
-    rowSpacing: Theme.padding
+    // 0 the cover above the rest .. 1 beside it: animating this moves them from
+    // one place to the other, which a layout can't.
+    property real progress: sideBySide ? 1 : 0
+    // Of the width, what the cover may take when beside the rest.
+    property real sideCoverShare: 0.48
 
-    Item {
-        Layout.fillWidth: !panel.sideBySide
-        Layout.fillHeight: true
-        Layout.preferredWidth: panel.sideBySide ? Math.min(panel.height, panel.width * 0.48) : -1
-        Layout.minimumHeight: Theme.dp(120)
+    readonly property real _gap: Theme.padding
+    readonly property real _detailsHeight: details.implicitHeight
+    readonly property real _aboveSide: Math.max(Theme.dp(120), Math.min(width, height - _detailsHeight - _gap))
+    // As large as there's room for, leaving the rest the width it needs.
+    readonly property real _besideSide: Math.max(Theme.dp(120),
+        Math.min(height, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
+    readonly property real _besideDetailsX: _besideSide + _gap * 2
 
-        Cover {
-            id: cover
-            anchors.centerIn: parent
-            width: Math.min(parent.width, parent.height)
-            height: width
-            source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
-            seed: panel.seed
-            radius: Theme.dp(16)
-            // A slight breath while playing.
-            scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
-            Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
-        }
+    function _mix(from, to) { return from + (to - from) * progress }
+
+    Cover {
+        id: cover
+        objectName: "trackCover"
+        x: panel._mix((panel.width - panel._aboveSide) / 2, 0)
+        y: panel._mix((panel.height - panel._detailsHeight - panel._gap - panel._aboveSide) / 2,
+                      (panel.height - panel._besideSide) / 2)
+        width: panel._mix(panel._aboveSide, panel._besideSide)
+        height: width
+        source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
+        seed: panel.seed
+        radius: Theme.dp(16)
+        // A slight breath while playing.
+        scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
+        Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
     }
 
     ColumnLayout {
-        Layout.fillWidth: true
-        Layout.fillHeight: panel.sideBySide
-        Layout.alignment: Qt.AlignVCenter
+        id: details
+        objectName: "trackDetails"
+        x: panel._mix(0, panel._besideDetailsX)
+        y: panel._mix(panel.height - panel._detailsHeight, (panel.height - panel._detailsHeight) / 2)
+        width: panel._mix(panel.width, panel.width - panel._besideDetailsX)
         spacing: Theme.dp(8)
-
-        Item { Layout.fillHeight: true; visible: panel.sideBySide }
 
         Item {
             Layout.fillWidth: true
@@ -144,7 +152,5 @@ GridLayout {
                 onClicked: panel.nowPlaying.setLiked(!panel.nowPlaying.liked)
             }
         }
-
-        Item { Layout.fillHeight: true; visible: panel.sideBySide }
     }
 }

@@ -12,8 +12,30 @@ Item {
     // How far in the edges dissolve: 0 for a strip too thin for it.
     property real edgeFade: Theme.dp(45)
 
-    readonly property size _pixels: Qt.size(Math.max(1, Math.round(width * Screen.devicePixelRatio)),
-                                            Math.max(1, Math.round(height * Screen.devicePixelRatio)))
+    // Drawn anew at a new size only once that has settled: while it animates,
+    // what's there stretches, as on the desktop's hero.
+    property size _pixels: Qt.size(0, 0)
+    property size _pixelsBelow: _pixels
+    function _settle() {
+        const pixels = Qt.size(Math.max(1, Math.round(width * Screen.devicePixelRatio)),
+                               Math.max(1, Math.round(height * Screen.devicePixelRatio)))
+        if (pixels.width !== _pixels.width || pixels.height !== _pixels.height)
+            _pixels = pixels
+    }
+    function _sizeChanged() {
+        if (_pixels.width === 0)
+            _settle()
+        else
+            settling.restart()
+    }
+    onWidthChanged: _sizeChanged()
+    onHeightChanged: _sizeChanged()
+    Component.onCompleted: _sizeChanged()
+    Timer {
+        id: settling
+        interval: 400
+        onTriggered: aura._settle()
+    }
 
     function _url(text) {
         return "image://aura/h" + Theme.surface0.toString().substring(1) + "/"
@@ -26,7 +48,7 @@ Item {
     Image {
         id: below
         anchors.fill: parent
-        sourceSize: aura._pixels
+        sourceSize: aura._pixelsBelow
         cache: false
     }
     Image {
@@ -34,7 +56,7 @@ Item {
         anchors.fill: parent
         asynchronous: true
         sourceSize: aura._pixels
-        source: aura.width > 0 && aura.height > 0 ? aura._url(aura.seed) : ""
+        source: aura._pixels.width > 1 && aura._pixels.height > 1 ? aura._url(aura.seed) : ""
         cache: false
         opacity: 0
         onStatusChanged: {
@@ -50,7 +72,10 @@ Item {
             property: "opacity"
             to: 1
             duration: 500
-            onFinished: below.source = above.source
+            onFinished: {
+                aura._pixelsBelow = aura._pixels
+                below.source = above.source
+            }
         }
     }
 }

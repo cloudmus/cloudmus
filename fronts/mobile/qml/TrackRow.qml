@@ -25,6 +25,9 @@ ItemDelegate {
     // History's rows: when it played.
     required property var playedAt
     property bool showMenu: false
+    // For a list that narrows down to its covers: the width to lay itself out
+    // at whatever the row's own is.
+    property real layoutWidth: 0
     signal menuRequested()
     readonly property bool downloading: typeof downloadProgress === "number" && downloadProgress >= 0
     readonly property color faintAccent: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
@@ -61,93 +64,100 @@ ItemDelegate {
         }
     }
 
-    contentItem: RowLayout {
-        spacing: Theme.dp(14)
-        opacity: row.unavailable === true ? 0.45 : 1
-        Cover {
-            Layout.preferredWidth: Theme.dp(52)
-            Layout.preferredHeight: Theme.dp(52)
-            source: row.coverUrl || ""
+    contentItem: Item {
+        clip: row.layoutWidth > 0
+        RowLayout {
+            // At its own width, the row closing over it like a curtain: nothing
+            // is laid out anew each frame, and what's cut off can't be pressed.
+            width: Math.max(parent.width, row.layoutWidth - row.leftPadding - row.rightPadding)
+            height: parent.height
+            spacing: Theme.dp(14)
+            opacity: row.unavailable === true ? 0.45 : 1
+            Cover {
+                Layout.preferredWidth: Theme.dp(52)
+                Layout.preferredHeight: Theme.dp(52)
+                source: row.coverUrl || ""
 
-            // What plays now, over its cover.
-            Rectangle {
-                anchors.fill: parent
-                radius: parent.radius
-                visible: row.current && row.playing
-                color: "#80000000"
-                IconImage {
-                    anchors.centerIn: parent
-                    source: "qrc:/icons/volume_up.svg"
-                    sourceSize.width: Theme.dp(24)
-                    sourceSize.height: Theme.dp(24)
-                    color: Theme.accent
+                // What plays now, over its cover.
+                Rectangle {
+                    anchors.fill: parent
+                    radius: parent.radius
+                    visible: row.current && row.playing
+                    color: "#80000000"
+                    IconImage {
+                        anchors.centerIn: parent
+                        source: "qrc:/icons/volume_up.svg"
+                        sourceSize.width: Theme.dp(24)
+                        sourceSize.height: Theme.dp(24)
+                        color: Theme.accent
+                    }
                 }
             }
-        }
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Theme.dp(2)
-            Text {
+            ColumnLayout {
                 Layout.fillWidth: true
-                text: row.title || ""
-                color: row.current ? Theme.accent : Theme.ink
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBody
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
+                spacing: Theme.dp(2)
+                Text {
+                    Layout.fillWidth: true
+                    text: row.title || ""
+                    color: row.current ? Theme.accent : Theme.ink
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: text !== ""
+                    text: row.artist || ""
+                    color: Theme.inkSecondary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSmall
+                    elide: Text.ElideRight
+                }
             }
-            Text {
-                Layout.fillWidth: true
-                visible: text !== ""
-                text: row.artist || ""
+            RowLayout {
+                spacing: Theme.dp(8)
+                Rectangle {
+                    objectName: "cachedMark"
+                    visible: row.cached === true
+                    implicitWidth: Theme.dp(6)
+                    implicitHeight: Theme.dp(6)
+                    radius: width / 2
+                    color: row.faintAccent
+                }
+                IconImage {
+                    visible: row.liked === true || row.disliked === true
+                    source: row.liked === true ? "qrc:/icons/favorite.svg" : "qrc:/icons/heart_off.svg"
+                    sourceSize.width: Theme.dp(14)
+                    sourceSize.height: Theme.dp(14)
+                    color: row.liked === true ? Theme.accent : Theme.inkTertiary
+                }
+            }
+            ColumnLayout {
+                spacing: 0
+                Text {
+                    Layout.alignment: Qt.AlignRight
+                    text: Theme.formatTime(row.durationMs)
+                    color: Theme.inkTertiary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSmall
+                    font.features: { "tnum": 1 }
+                }
+                Text {
+                    Layout.alignment: Qt.AlignRight
+                    visible: text !== ""
+                    text: Theme.formatPlayedAt(row.playedAt)
+                    color: Theme.inkTertiary
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSmall
+                }
+            }
+            IconButton {
+                visible: row.showMenu
+                iconName: "more_vert"
                 color: Theme.inkSecondary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-                elide: Text.ElideRight
+                onClicked: row.menuRequested()
             }
-        }
-        RowLayout {
-            spacing: Theme.dp(8)
-            Rectangle {
-                objectName: "cachedMark"
-                visible: row.cached === true
-                implicitWidth: Theme.dp(6)
-                implicitHeight: Theme.dp(6)
-                radius: width / 2
-                color: row.faintAccent
-            }
-            IconImage {
-                visible: row.liked === true || row.disliked === true
-                source: row.liked === true ? "qrc:/icons/favorite.svg" : "qrc:/icons/heart_off.svg"
-                sourceSize.width: Theme.dp(14)
-                sourceSize.height: Theme.dp(14)
-                color: row.liked === true ? Theme.accent : Theme.inkTertiary
-            }
-        }
-        ColumnLayout {
-            spacing: 0
-            Text {
-                Layout.alignment: Qt.AlignRight
-                text: Theme.formatTime(row.durationMs)
-                color: Theme.inkTertiary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-                font.features: { "tnum": 1 }
-            }
-            Text {
-                Layout.alignment: Qt.AlignRight
-                visible: text !== ""
-                text: Theme.formatPlayedAt(row.playedAt)
-                color: Theme.inkTertiary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-            }
-        }
-        IconButton {
-            visible: row.showMenu
-            iconName: "more_vert"
-            color: Theme.inkSecondary
-            onClicked: row.menuRequested()
         }
     }
 }
