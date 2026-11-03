@@ -47,11 +47,4 @@ QVariant ActiveTracks::data(const QModelIndex& index, int role) const
     return TrackListModel::data(index, role);
 }
 
-QHash<int, QByteArray> ActiveTracks::roleNames() const
-{
-    QHash<int, QByteArray> names = TrackListModel::roleNames();
-    names.insert(IsCurrentRole, "isCurrent");
-    return names;
-}
-
 } // namespace ViewModel

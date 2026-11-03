@@ -22,12 +22,17 @@ ItemDelegate {
     required property var liked
     required property var disliked
     required property var unavailable
+    // History's rows: when it played.
+    required property var playedAt
+    property bool showMenu: false
+    signal menuRequested()
     readonly property bool downloading: typeof downloadProgress === "number" && downloadProgress >= 0
     readonly property color faintAccent: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
     readonly property bool current: isCurrent === true
     property bool playing: false
 
     width: ListView.view.width
+    onPressAndHold: if (showMenu) menuRequested()
     height: Theme.rowHeight + Theme.dp(8)
 
     background: Rectangle {
@@ -119,12 +124,30 @@ ItemDelegate {
                 color: row.liked === true ? Theme.accent : Theme.inkTertiary
             }
         }
-        Text {
-            text: Theme.formatTime(row.durationMs)
-            color: Theme.inkTertiary
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSmall
-            font.features: { "tnum": 1 }
+        ColumnLayout {
+            spacing: 0
+            Text {
+                Layout.alignment: Qt.AlignRight
+                text: Theme.formatTime(row.durationMs)
+                color: Theme.inkTertiary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSmall
+                font.features: { "tnum": 1 }
+            }
+            Text {
+                Layout.alignment: Qt.AlignRight
+                visible: text !== ""
+                text: Theme.formatPlayedAt(row.playedAt)
+                color: Theme.inkTertiary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSmall
+            }
+        }
+        IconButton {
+            visible: row.showMenu
+            iconName: "more_vert"
+            color: Theme.inkSecondary
+            onClicked: row.menuRequested()
         }
     }
 }

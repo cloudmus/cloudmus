@@ -13,6 +13,7 @@ Page {
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property bool wide: width > height * 1.1
     signal closeRequested()
+    signal trackMenuRequested()
 
     background: AuraBackground {
         seed: page.nowPlaying && page.nowPlaying.backgroundSeed ? page.nowPlaying.backgroundSeed
@@ -69,5 +70,10 @@ Page {
         nowPlaying: page.nowPlaying
         sideBySide: page.wide
         overAura: true
+        showMenu: page.backend.trackScreen !== null
+        onMenuRequested: {
+            page.backend.trackScreen.showPlaying()
+            page.trackMenuRequested()
+        }
     }
 }

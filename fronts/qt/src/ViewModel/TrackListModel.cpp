@@ -144,6 +144,16 @@ void TrackListModel::setCovers(Covers::CoverArtCache* covers)
     });
 }
 
+void TrackListModel::setCurrentTrack(const QString& sourceId, const QString& trackId)
+{
+    if (sourceId == currentSourceId_ && trackId == currentTrackId_)
+        return;
+    currentSourceId_ = sourceId;
+    currentTrackId_ = trackId;
+    if (!tracks_.isEmpty())
+        emit dataChanged(index(0), index(int(tracks_.size()) - 1), { IsCurrentRole });
+}
+
 void TrackListModel::onStateChanged(const QString& sourceId, const QString& trackId)
 {
     for (int row = 0; row < tracks_.size(); ++row) {
@@ -173,6 +183,7 @@ QHash<int, QByteArray> TrackListModel::roleNames() const
         { ExplicitRole, "isExplicit" },
         { WebUrlRole, "webUrl" },
         { CoverFileRole, "coverUrl" },
+        { IsCurrentRole, "isCurrent" },
         { LikedRole, "liked" },
         { DislikedRole, "disliked" },
         { UnavailableRole, "unavailable" },
@@ -228,6 +239,9 @@ QVariant TrackListModel::data(const QModelIndex& index, int role) const
             return t.title;
         case TrackIdRole:
             return t.id;
+        case IsCurrentRole:
+            return !currentTrackId_.isEmpty() && t.id == currentTrackId_
+                && sourceIdAt(index.row()) == currentSourceId_;
         case ArtistRole: {
             QStringList names;
             for (const Artist& artist : t.artists)

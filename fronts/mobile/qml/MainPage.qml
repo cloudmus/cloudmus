@@ -13,6 +13,7 @@ Page {
     signal nowPlayingRequested()
     signal settingsRequested()
     signal libraryRequested()
+    signal trackMenuRequested()
 
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property QtObject playlist: backend.playlist
@@ -120,6 +121,11 @@ Page {
                     Layout.fillHeight: true
                     nowPlaying: page.nowPlaying
                     overAura: true
+                    showMenu: page.backend.trackScreen !== null
+                    onMenuRequested: {
+                        page.backend.trackScreen.showPlaying()
+                        page.trackMenuRequested()
+                    }
                 }
             }
         }
@@ -169,7 +175,12 @@ Page {
                 model: page.backend.tracks
                 delegate: TrackRow {
                     playing: page.nowPlaying && page.nowPlaying.playing === true
+                    showMenu: page.backend.trackScreen !== null
                     onClicked: page.playlist.playRow(index)
+                    onMenuRequested: {
+                        page.backend.trackScreen.showActiveRow(index)
+                        page.trackMenuRequested()
+                    }
                 }
 
                 // Nothing active yet: the way to the Library.

@@ -11,6 +11,8 @@ GridLayout {
     property bool sideBySide: false
     // Over the generated background, which is dark in either theme.
     property bool overAura: false
+    property bool showMenu: false
+    signal menuRequested()
     property color inkColor: overAura ? "#FFFFFF" : Theme.ink
     property color inkSecondaryColor: overAura ? "#D9FFFFFF" : Theme.inkSecondary
     readonly property string seed: nowPlaying && nowPlaying.backgroundSeed ? nowPlaying.backgroundSeed : ""
@@ -48,22 +50,35 @@ GridLayout {
 
         Item { Layout.fillHeight: true; visible: panel.sideBySide }
 
-        Text {
+        RowLayout {
             Layout.fillWidth: true
-            text: panel.nowPlaying ? panel.nowPlaying.title : ""
-            color: panel.inkColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontTitle + Theme.dp(3)
-            font.weight: Font.Bold
-            elide: Text.ElideRight
-        }
-        Text {
-            Layout.fillWidth: true
-            text: panel.nowPlaying ? panel.nowPlaying.artist : ""
-            color: panel.inkSecondaryColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontBody
-            elide: Text.ElideRight
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.dp(2)
+                Text {
+                    Layout.fillWidth: true
+                    text: panel.nowPlaying ? panel.nowPlaying.title : ""
+                    color: panel.inkColor
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontTitle + Theme.dp(3)
+                    font.weight: Font.Bold
+                    elide: Text.ElideRight
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: panel.nowPlaying ? panel.nowPlaying.artist : ""
+                    color: panel.inkSecondaryColor
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
+                    elide: Text.ElideRight
+                }
+            }
+            IconButton {
+                visible: panel.showMenu && panel.nowPlaying && panel.nowPlaying.hasTrack === true
+                iconName: "more_vert"
+                color: panel.inkColor
+                onClicked: panel.menuRequested()
+            }
         }
 
         SeekBar {
@@ -100,11 +115,12 @@ GridLayout {
                 iconSize: Theme.dp(40)
                 onClicked: panel.nowPlaying.togglePause()
 
-                BusyIndicator {
+                Spinner {
                     anchors.fill: parent
                     anchors.margins: -Theme.dp(4)
-                    running: panel.nowPlaying && panel.nowPlaying.loading
-                    visible: running
+                    running: panel.nowPlaying && panel.nowPlaying.loading === true
+                    // Around the accent button, in what stands out from it.
+                    color: panel.inkColor
                 }
             }
             IconButton {

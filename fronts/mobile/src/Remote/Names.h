@@ -14,5 +14,9 @@ inline const QString library = QStringLiteral("Library");
 inline const QString sources = QStringLiteral("Sources");
 inline const QString favorites = QStringLiteral("Favorites");
 inline const QString otherPlaylists = QStringLiteral("OtherPlaylists");
+inline const QString playlistScreen = QStringLiteral("PlaylistScreen");
+inline const QString openTracks = QStringLiteral("OpenTracks");
+inline const QString trackScreen = QStringLiteral("TrackScreen");
+inline const QString trackPlaylists = QStringLiteral("TrackPlaylists");
 
 } // namespace Remote::Names

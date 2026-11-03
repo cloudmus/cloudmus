@@ -90,6 +90,10 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
         src/App/MobileCore.h
         src/ViewModel/LibraryScreen.cpp
         src/ViewModel/LibraryScreen.h
+        src/ViewModel/PlaylistScreen.cpp
+        src/ViewModel/PlaylistScreen.h
+        src/ViewModel/TrackScreen.cpp
+        src/ViewModel/TrackScreen.h
         src/ViewModel/RowsModel.cpp
         src/ViewModel/RowsModel.h
     )
@@ -160,6 +164,9 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/LogPage.qml
         qml/Main.qml
         qml/MiniPlayer.qml
+        qml/PlaylistPage.qml
+        qml/Spinner.qml
+        qml/TrackSheet.qml
         qml/NowPlayingPage.qml
         qml/PageBar.qml
         qml/LibraryPage.qml
@@ -180,8 +187,8 @@ qt_add_qml_module(cloudmus-mobile-ui
 )
 
 set(_icons arrow_back close expand_less expand_more favorite favorite_border file_download heart_off
-    heart_off_outline music_note pause play_arrow refresh skip_next skip_previous star star_border tune
-    volume_up warning)
+    heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
+    radio refresh skip_next skip_previous star star_border tune volume_up warning)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
     set(_file ${QT_FRONT_RES}/icons/symbols/${_icon}.svg)

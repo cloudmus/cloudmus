@@ -26,6 +26,7 @@ public:
         LikedRole,
         DislikedRole,
         UnavailableRole,
+        PlayedAtRole,
     };
 
     explicit TrackListModel(Playback::QueuePlayer& player, QObject* parent = nullptr);

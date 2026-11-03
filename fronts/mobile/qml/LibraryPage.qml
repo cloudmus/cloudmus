@@ -13,11 +13,17 @@ Page {
     property QtObject platform
     signal closeRequested()
     signal settingsRequested()
+    signal playlistRequested()
 
     readonly property QtObject library: backend.library
     readonly property bool wide: width > height * 1.1
 
     background: Rectangle { color: Theme.surface0 }
+
+    function openPlaylist(playlistId) {
+        backend.playlistScreen.openPlaylist(library.currentSourceId, playlistId)
+        playlistRequested()
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -113,6 +119,15 @@ Page {
                     }
                 }
                 IconButton {
+                    objectName: "history"
+                    Layout.alignment: Qt.AlignHCenter
+                    iconName: "history"
+                    onClicked: {
+                        page.backend.playlistScreen.openHistory()
+                        page.playlistRequested()
+                    }
+                }
+                IconButton {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.margins: Theme.dp(8)
                     iconName: "tune"
@@ -151,11 +166,8 @@ Page {
                         font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
-                    BusyIndicator {
-                        implicitWidth: Theme.dp(28)
-                        implicitHeight: Theme.dp(28)
+                    Spinner {
                         running: page.library && page.library.loading === true
-                        visible: running
                     }
                     IconButton {
                         iconName: "refresh"
@@ -234,7 +246,8 @@ Page {
                         height: tiles.cellHeight
                         focusPolicy: Qt.NoFocus
                         onClicked: page.library.playPlaylist(tile.playlistId)
-                        onPressAndHold: tileMenu.open()
+                        // To see its tracks; its star there takes it out of the favorites.
+                        onPressAndHold: page.openPlaylist(tile.playlistId)
                         contentItem: ColumnLayout {
                             spacing: Theme.dp(4)
                             Cover {
@@ -246,10 +259,9 @@ Page {
                                 outlined: tile.isActive === true
                                 radius: Theme.dp(8)
                                 opacity: tile.down ? 0.7 : 1
-                                BusyIndicator {
+                                Spinner {
                                     anchors.centerIn: parent
                                     running: tile.isStarting === true
-                                    visible: running
                                 }
                             }
                             Text {
@@ -263,13 +275,6 @@ Page {
                                 elide: Text.ElideRight
                             }
                             Item { Layout.fillHeight: true }
-                        }
-                        Menu {
-                            id: tileMenu
-                            MenuItem {
-                                text: qsTr("Remove from favorites")
-                                onTriggered: page.library.toggleFavorite(tile.playlistId)
-                            }
                         }
                     }
                 }
@@ -296,7 +301,7 @@ Page {
                         required property var isStarting
                         width: ListView.view.width
                         height: Theme.rowHeight
-                        onClicked: page.library.playPlaylist(other.playlistId)
+                        onClicked: page.openPlaylist(other.playlistId)
                         background: Rectangle { color: other.down ? Theme.surface200 : "transparent" }
                         contentItem: RowLayout {
                             spacing: Theme.dp(12)
@@ -327,11 +332,8 @@ Page {
                                     elide: Text.ElideRight
                                 }
                             }
-                            BusyIndicator {
-                                implicitWidth: Theme.dp(28)
-                                implicitHeight: Theme.dp(28)
+                            Spinner {
                                 running: other.isStarting === true
-                                visible: running
                             }
                             IconButton {
                                 iconName: "star_border"

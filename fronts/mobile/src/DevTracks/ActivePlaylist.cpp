@@ -64,6 +64,7 @@ QHash<int, QByteArray> TrackListModel::roleNames() const
         { LikedRole, "liked" },
         { DislikedRole, "disliked" },
         { UnavailableRole, "unavailable" },
+        { PlayedAtRole, "playedAt" },
     };
 }
 

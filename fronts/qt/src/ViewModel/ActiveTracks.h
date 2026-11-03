@@ -23,15 +23,10 @@ class ActiveTracks : public TrackListModel {
     Q_OBJECT
 
 public:
-    enum ExtraRole {
-        IsCurrentRole = CoverFileRole + 1,
-    };
-
     ActiveTracks(ActivePlaylist& activePlaylist, Playback::PlaybackController& playback,
         Library::TrackStates& trackStates, Preload& preload, Covers::CoverArtCache& covers, QObject* parent = nullptr);
 
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
-    QHash<int, QByteArray> roleNames() const override;
 
 private:
     void refill();

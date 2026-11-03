@@ -29,12 +29,16 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , settings_(&core.settings())
 #ifdef CLOUDMUS_MOBILE_SHARED_CORE
     , library_(&core.library())
+    , playlistScreen_(&core.playlistScreen())
+    , trackScreen_(&core.trackScreen())
 #endif
     , tracks_(&core.tracks())
 #ifdef CLOUDMUS_MOBILE_SHARED_CORE
     , sources_(&core.library().sourceRows())
     , favorites_(&core.library().favoriteRows())
     , otherPlaylists_(&core.library().otherRows())
+    , openTracks_(&core.playlistScreen().rows())
+    , trackPlaylists_(&core.trackScreen().playlistRows())
 #endif
     , ready_(true)
 {
@@ -60,6 +64,10 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquireModel(sources_, Remote::Names::sources);
     acquireModel(favorites_, Remote::Names::favorites);
     acquireModel(otherPlaylists_, Remote::Names::otherPlaylists);
+    acquire(playlistScreen_, Remote::Names::playlistScreen);
+    acquireModel(openTracks_, Remote::Names::openTracks);
+    acquire(trackScreen_, Remote::Names::trackScreen);
+    acquireModel(trackPlaylists_, Remote::Names::trackPlaylists);
 #endif
 
     // The core may be slow to come up, or gone (its process killed while
@@ -87,6 +95,10 @@ Backend::~Backend()
         delete sources_.data();
         delete favorites_.data();
         delete otherPlaylists_.data();
+        delete playlistScreen_.data();
+        delete openTracks_.data();
+        delete trackScreen_.data();
+        delete trackPlaylists_.data();
     }
 }
 

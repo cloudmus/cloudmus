@@ -69,6 +69,8 @@ public:
         // A local file to show the cover from, once at hand (see
         // setCovers()): empty until then.
         CoverFileRole,
+        // The row of the track that plays (see setCurrentTrack()).
+        IsCurrentRole,
     };
 
     // One row for setMixedSourceTracks() — see that method's doc comment
@@ -107,6 +109,8 @@ public:
     void setPreload(Preload* preload);
     // Where CoverFileRole comes from; without one it's empty.
     void setCovers(Covers::CoverArtCache* covers);
+    // Which track IsCurrentRole marks: none if empty.
+    void setCurrentTrack(const QString& sourceId, const QString& trackId);
 
     const QString& sourceId() const { return sourceId_; }
     bool isMixedSource() const { return mixedSource_; }
@@ -124,6 +128,8 @@ private:
     Library::TrackStates* states_ = nullptr;
     Preload* preload_ = nullptr;
     Covers::CoverArtCache* covers_ = nullptr;
+    QString currentSourceId_;
+    QString currentTrackId_;
     QString sourceId_;
     QVector<Track> tracks_;
     QVector<QString> mixedSourceIds_; // parallel to tracks_, only populated when mixedSource_

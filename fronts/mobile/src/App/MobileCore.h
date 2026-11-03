@@ -6,6 +6,8 @@
 #include "Core.h"
 #include "LibraryScreen.h"
 #include "PlatformSettings.h"
+#include "PlaylistScreen.h"
+#include "TrackScreen.h"
 
 namespace App {
 
@@ -29,12 +31,16 @@ public:
     ViewModel::ActiveTracks& tracks() { return core_.activeTracks(); }
     ViewModel::PlatformSettings& settings() { return settings_; }
     ViewModel::LibraryScreen& library() { return library_; }
+    ViewModel::PlaylistScreen& playlistScreen() { return playlistScreen_; }
+    ViewModel::TrackScreen& trackScreen() { return trackScreen_; }
 
 private:
     QSettings settingsStore_;
     Core core_;
     ViewModel::PlatformSettings settings_;
     ViewModel::LibraryScreen library_;
+    ViewModel::PlaylistScreen playlistScreen_;
+    ViewModel::TrackScreen trackScreen_;
 };
 
 } // namespace App

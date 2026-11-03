@@ -69,6 +69,21 @@ QtObject {
     readonly property int durationFast: 150
     readonly property int durationPage: 320
 
+    // When a track played, as on the desktop.
+    function formatPlayedAt(when) {
+        const date = new Date(when)
+        if (!when || isNaN(date))
+            return ""
+        const today = new Date()
+        const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
+        const same = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
+                               && a.getDate() === b.getDate()
+        const day = same(date, today) ? qsTr("Today")
+                  : same(date, yesterday) ? qsTr("Yesterday")
+                  : Qt.formatDate(date, "dd.MM.yyyy")
+        return day + ", " + Qt.formatTime(date, "HH:mm")
+    }
+
     function formatTime(ms) {
         if (!(ms > 0))
             return "0:00"

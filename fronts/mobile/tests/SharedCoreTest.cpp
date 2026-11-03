@@ -229,6 +229,45 @@ private slots:
             QStringLiteral("fake"), QStringLiteral("t1"), false, /*announce=*/false));
     }
 
+    // A playlist opened to look at, through a replica: its rows, the filter,
+    // playing a filtered row plays the right track and makes it active; the
+    // sheet picks a row, tells of it, and lists the user's playlists.
+    void playlistAndTrackScreens()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(QStringLiteral("fake")) != nullptr
+                && core.core().sources().playlists(QStringLiteral("fake")).size() == 2,
+            10000);
+
+        QObject* screen = backend.playlistScreen();
+        QAbstractItemModel* rows = backend.openTracks();
+        QMetaObject::invokeMethod(screen, "openPlaylist", Q_ARG(QString, QStringLiteral("fake")),
+            Q_ARG(QString, QStringLiteral("p1")));
+        QTRY_COMPARE(screen->property("title").toString(), QStringLiteral("First"));
+        QTRY_COMPARE(rows->rowCount(), 2);
+
+        QMetaObject::invokeMethod(screen, "setFilter", Q_ARG(QString, QStringLiteral("t2")));
+        QTRY_COMPARE(rows->rowCount(), 1);
+        QTRY_COMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "trackId")).toString(), QStringLiteral("t2"));
+
+        QObject* track = backend.trackScreen();
+        QMetaObject::invokeMethod(track, "showOpenRow", Q_ARG(int, 0));
+        QTRY_COMPARE(track->property("title").toString(), QStringLiteral("Track t2"));
+        QTRY_COMPARE(track->property("sourceName").toString(), QStringLiteral("Fake Source"));
+        QTRY_COMPARE(track->property("canPlay").toBool(), true);
+        QMetaObject::invokeMethod(track, "loadPlaylists");
+        QTRY_VERIFY(backend.trackPlaylists()->rowCount() > 0);
+
+        QMetaObject::invokeMethod(screen, "playRow", Q_ARG(int, 0));
+        QTRY_VERIFY(core.nowPlaying().hasTrack());
+        QTRY_COMPARE(core.nowPlaying().track().id, QStringLiteral("t2"));
+        QTRY_COMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
+    }
+
     // A row tells a track on disk and a download under way, not otherwise.
     void trackRowShowsTheCache()
     {
@@ -245,11 +284,11 @@ private slots:
                     anchors.fill: parent
                     model: ListModel {
                         ListElement { title: "Cached"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
-                                      cached: true; downloadProgress: -1; liked: true; disliked: false; unavailable: false }
+                                      cached: true; downloadProgress: -1; liked: true; disliked: false; unavailable: false; playedAt: "" }
                         ListElement { title: "Fetching"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
-                                      cached: false; downloadProgress: 0.4; liked: false; disliked: true; unavailable: false }
+                                      cached: false; downloadProgress: 0.4; liked: false; disliked: true; unavailable: false; playedAt: "" }
                         ListElement { title: "Neither"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
-                                      cached: false; downloadProgress: -1; liked: false; disliked: false; unavailable: true }
+                                      cached: false; downloadProgress: -1; liked: false; disliked: false; unavailable: true; playedAt: "" }
                     }
                     delegate: TrackRow {}
                 }
@@ -370,6 +409,23 @@ private slots:
         QMetaObject::invokeMethod(playlist, "nowPlayingRequested");
         QTRY_COMPARE(stack->property("depth").toInt(), 2);
         shot("nowplaying");
+        QMetaObject::invokeMethod(stack, "close");
+        QTRY_COMPARE(stack->property("depth").toInt(), 1);
+
+        // A playlist's page, and the sheet of a track from it.
+        QMetaObject::invokeMethod(playlist, "libraryRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        auto* library = window->findChild<QQuickItem*>("library");
+        QVERIFY(library);
+        QMetaObject::invokeMethod(library, "openPlaylist", Q_ARG(QVariant, QStringLiteral("p1")));
+        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+        QTRY_COMPARE(backend.openTracks()->rowCount(), 2);
+        shot("playlist");
+        auto* page = window->findChild<QQuickItem*>("playlistScreen");
+        QVERIFY(page);
+        core.trackScreen().showOpenRow(0);
+        QMetaObject::invokeMethod(page, "trackMenuRequested");
+        shot("track-sheet");
     }
 };
 

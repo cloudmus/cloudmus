@@ -112,6 +112,7 @@ ApplicationWindow {
             onNowPlayingRequested: stack.open(nowPlayingPage, "rise")
             onSettingsRequested: stack.open(settingsPage, "slide")
             onLibraryRequested: stack.open(libraryPage, "slide")
+            onTrackMenuRequested: trackSheet.open()
         }
     }
     Component {
@@ -120,7 +121,24 @@ ApplicationWindow {
             objectName: "library"
             onCloseRequested: stack.close()
             onSettingsRequested: stack.open(settingsPage, "slide")
+            onPlaylistRequested: stack.open(playlistPage, "slide")
         }
+    }
+    Component {
+        id: playlistPage
+        PlaylistPage {
+            objectName: "playlistScreen"
+            onCloseRequested: {
+                backend.playlistScreen.close()
+                stack.close()
+            }
+            onTrackMenuRequested: trackSheet.open()
+        }
+    }
+    TrackSheet {
+        id: trackSheet
+        objectName: "trackSheet"
+        backend: window.backend
     }
     // A playlist started from the Library: on to the main screen.
     Connections {
@@ -136,6 +154,7 @@ ApplicationWindow {
         NowPlayingPage {
             objectName: "nowPlaying"
             onCloseRequested: stack.close()
+            onTrackMenuRequested: trackSheet.open()
         }
     }
     Component {
