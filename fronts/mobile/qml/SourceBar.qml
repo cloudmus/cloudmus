@@ -5,7 +5,8 @@ import QtQuick.Layouts
 
 // The current source and playlist, on a head unit: a bar across the track's
 // panel in the normal mode of the screen, folding into a button with just the
-// source's icon as `folded` goes to 1. Either opens the Library.
+// source's icon, acting like the other round buttons, as `folded` goes to 1.
+// Either opens the Library.
 AbstractButton {
     id: bar
 
@@ -18,16 +19,33 @@ AbstractButton {
     height: Theme.touchLarge
     focusPolicy: Qt.NoFocus
     enabled: library !== null
-    clip: true
 
-    background: Rectangle {
-        radius: Theme.radius
-        color: bar.down ? Theme.surface300 : Theme.surface200
-        // Folded it's only the icon, with the panel behind it; pressed, it shows.
-        opacity: bar.down ? 0.82 : 0.82 * (1 - bar.folded)
+    hoverEnabled: true
+    // Folded it acts like the other round buttons: it gives under the finger.
+    scale: down ? 1 - 0.08 * folded : 1
+    Behavior on scale { NumberAnimation { duration: Theme.durationFast; easing.type: Easing.OutCubic } }
+
+    background: Item {
+        // The bar, going as it folds.
+        Rectangle {
+            anchors.fill: parent
+            radius: Theme.radius
+            color: bar.down ? Theme.surface300 : Theme.surface200
+            opacity: 0.82 * (1 - bar.folded)
+        }
+        // The button's light circle, as IconButton has it.
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: "#FFFFFF"
+            opacity: bar.folded * (bar.down ? 0.22 : (bar.hovered ? 0.12 : 0))
+            Behavior on opacity { NumberAnimation { duration: Theme.durationFast } }
+        }
     }
 
+    padding: 0
     contentItem: Item {
+        clip: true
         Item {
             x: (bar.height - width) / 2
             anchors.verticalCenter: parent.verticalCenter

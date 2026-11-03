@@ -35,6 +35,9 @@ ItemDelegate {
     property bool playing: false
 
     width: ListView.view.width
+    // Scaling with the rest: a column of covers takes them for its margins.
+    leftPadding: Theme.dp(10)
+    rightPadding: Theme.dp(10)
     onPressAndHold: if (showMenu) menuRequested()
     height: Theme.rowHeight + Theme.dp(8)
 
@@ -74,6 +77,7 @@ ItemDelegate {
             spacing: Theme.dp(14)
             opacity: row.unavailable === true ? 0.45 : 1
             Cover {
+                objectName: "rowCover"
                 Layout.preferredWidth: Theme.dp(52)
                 Layout.preferredHeight: Theme.dp(52)
                 source: row.coverUrl || ""

@@ -38,6 +38,7 @@ Rectangle {
     }
     // The picture on screen, and whether there is one.
     readonly property string shownSource: _front.source.toString()
+    readonly property int shownSide: _front.sourceSize.width
     readonly property bool _showing: _front.status === Image.Ready
 
     property Image _front: first
@@ -76,6 +77,8 @@ Rectangle {
     }
 
     on_WantedChanged: loading.restart()
+    // The same picture at another size has the same address.
+    on_SideChanged: loading.restart()
 
     function _load() {
         fade.stop()

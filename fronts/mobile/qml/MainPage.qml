@@ -38,7 +38,8 @@ Page {
 
     readonly property real _heroMargin: Theme.dp(12)
     readonly property real _railWidth: Theme.touchLarge + _heroMargin * 2
-    readonly property real _coversWidth: Theme.dp(52) + Theme.dp(24)
+    // A row's cover and its margins (TrackRow).
+    readonly property real _coversWidth: Theme.dp(52) + Theme.dp(10) * 2
     readonly property real _listFullWidth: width * 0.58
     readonly property real _listWidth: _listFullWidth + (_coversWidth - _listFullWidth) * screenProgress
 

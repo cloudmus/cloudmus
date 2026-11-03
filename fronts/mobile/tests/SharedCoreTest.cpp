@@ -229,7 +229,8 @@ private slots:
             QVERIFY(cover->property("_showing").toBool());
         }
         QTRY_COMPARE(cover->property("_side").toInt(), 200);
-        // Same picture, new size, and it never left the screen.
+        // Same picture, drawn anew at the new size, and it never left the screen.
+        QTRY_COMPARE(cover->property("shownSide").toInt(), 200);
         for (int i = 0; i < 30; ++i) {
             QVERIFY(cover->property("_showing").toBool());
             QTest::qWait(20);
@@ -239,6 +240,7 @@ private slots:
         // Back to a size it has had, which the cache has at hand: it stays.
         cover->setProperty("width", 100);
         QTRY_COMPARE(cover->property("_side").toInt(), 100);
+        QTRY_COMPARE(cover->property("shownSide").toInt(), 100);
         for (int i = 0; i < 30; ++i) {
             QVERIFY(cover->property("_showing").toBool());
             QTest::qWait(20);
@@ -591,12 +593,25 @@ private slots:
                 QTRY_VERIFY(cover->property("_showing").toBool());
             else
                 qInfo() << "cover: nothing wanted, hasTrack" << core.nowPlaying().hasTrack();
+            if (!cover->property("_wanted").toString().isEmpty())
+                QTRY_COMPARE(cover->property("shownSide").toInt(), cover->property("_side").toInt());
             shot("mode-expanded");
             const QRectF bigCover = sceneRect(cover);
             QVERIFY(bigCover.height() > normalCover.height());
             QVERIFY(!sceneRect(bar).intersects(bigCover));
             QCOMPARE(bar->width(), bar->height());
             QVERIFY(list->width() < normalList / 3);
+            // The covers in the middle of their column.
+            QQuickItem* rowCover = nullptr;
+            const std::function<void(QQuickItem*)> findCover = [&](QQuickItem* item) {
+                if (rowCover == nullptr && item->objectName() == QStringLiteral("rowCover"))
+                    rowCover = item;
+                for (QQuickItem* child : item->childItems())
+                    findCover(child);
+            };
+            findCover(list);
+            QVERIFY(rowCover);
+            QVERIFY(qAbs(sceneRect(rowCover).center().x() - sceneRect(list).center().x()) <= 1.5);
             QVERIFY(sceneRect(details).left() >= bigCover.right());
             // Nothing of it pushed out of its place.
             QVERIFY(details->implicitWidth() <= details->width());
