@@ -117,7 +117,7 @@ public final class PlaybackService extends MediaLibraryService {
         manager.createNotificationChannel(new NotificationChannel(CHANNEL_ID, "Playback", NotificationManager.IMPORTANCE_LOW));
         return new Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_cloudmus)
-            .setContentTitle("Cloudmus")
+            .setContentTitle("CloudMus")
             .setOngoing(true)
             .build();
     }
@@ -214,14 +214,14 @@ public final class PlaybackService extends MediaLibraryService {
         public ListenableFuture<LibraryResult<MediaItem>> onGetLibraryRoot(MediaLibrarySession session,
             MediaSession.ControllerInfo browser, @Nullable LibraryParams params) {
             CmLog.i(TAG, "library root for " + browser.getPackageName());
-            return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "Cloudmus"), params));
+            return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "CloudMus"), params));
         }
 
         @Override
         public ListenableFuture<LibraryResult<MediaItem>> onGetItem(MediaLibrarySession session,
             MediaSession.ControllerInfo browser, String mediaId) {
             if (ROOT_ID.equals(mediaId))
-                return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "Cloudmus"), null));
+                return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "CloudMus"), null));
             if (DEV_TRACKS_ID.equals(mediaId))
                 return Futures.immediateFuture(LibraryResult.ofItem(folder(DEV_TRACKS_ID, "Dev tracks"), null));
             for (Tracks.Entry entry : tracks) {

@@ -23,7 +23,7 @@
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="Cloudmus"
+        android:label="CloudMus"
         android:requestLegacyExternalStorage="true"
         android:allowBackup="false"
         android:fullBackupOnly="false">

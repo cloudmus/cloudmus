@@ -91,7 +91,7 @@ adb logcat -s CloudmusStart             # startup milestones
   Media Center, then the player's screen comes back; the pick is a `persist.`
   property, it stays across restarts). On any other Android, or if the
   property can't be read, nothing is asked. A tap on the player in the widget
-  opens Media Center, as for any third-party player there: its "Open Cloudmus"
+  opens Media Center, as for any third-party player there: its "Open CloudMus"
   button brings up the player's screen.
 - Settings → Developer tools holds what's for working on the app: the device,
   the Log page (it filters by level, process, text, and "this boot"), scrolling

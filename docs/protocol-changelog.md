@@ -1,6 +1,6 @@
 # Protocol changelog
 
-Tracks changes to the cloudmus front/backend JSON-RPC protocol
+Tracks changes to the CloudMus front/backend JSON-RPC protocol
 (`docs/protocol.md`). See that document §12 for versioning rules: MINOR bumps
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.

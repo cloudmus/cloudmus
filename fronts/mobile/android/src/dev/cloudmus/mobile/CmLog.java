@@ -425,7 +425,7 @@ public final class CmLog {
             version = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
         } catch (PackageManager.NameNotFoundException ignored) {
         }
-        i(TAG, "=== session start: Cloudmus mobile " + version + ", process " + processName() + " pid "
+        i(TAG, "=== session start: CloudMus mobile " + version + ", process " + processName() + " pid "
                 + Process.myPid() + "\n" + deviceInfo() + "\nScreen " + metrics.widthPixels + "x"
                 + metrics.heightPixels + " px, density " + metrics.density + " (" + metrics.densityDpi
                 + " dpi), xdpi " + metrics.xdpi + ", ydpi " + metrics.ydpi);

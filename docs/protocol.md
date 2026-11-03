@@ -1,4 +1,4 @@
-# cloudmus Source/Front RPC Protocol
+# CloudMus Source/Front RPC Protocol
 
 **Version:** `1.12` (see §12 for versioning rules)
 

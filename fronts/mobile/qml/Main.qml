@@ -13,7 +13,7 @@ ApplicationWindow {
     width: 420
     height: 860
     visible: true
-    title: "Cloudmus"
+    title: "CloudMus"
     color: Theme.surface0
 
     Settings {

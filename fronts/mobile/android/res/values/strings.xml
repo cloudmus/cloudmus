@@ -2,5 +2,5 @@
 <resources>
     <string name="playback_channel">Playback</string>
     <string name="close">Close</string>
-    <string name="open">Open Cloudmus</string>
+    <string name="open">Open CloudMus</string>
 </resources>

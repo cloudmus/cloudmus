@@ -1,7 +1,7 @@
 [project]
 name = "cloudmus-rpc-common"
 version = "0.1.0"
-description = "Shared NDJSON/JSON-RPC transport, envelope helpers, and conformance testing harness for cloudmus front/backend components"
+description = "Shared NDJSON/JSON-RPC transport, envelope helpers, and conformance testing harness for CloudMus front/backend components"
 requires-python = ">=3.11"
 dependencies = [
     "jsonschema>=4.17",

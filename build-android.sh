@@ -83,7 +83,7 @@ fi
 keystore=$work/dev.keystore
 if [ ! -f "$keystore" ]; then
     keytool -genkeypair -keystore "$keystore" -storepass android -keypass android -alias cloudmus-dev \
-        -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=Cloudmus dev" > /dev/null
+        -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=CloudMus dev" > /dev/null
 fi
 export QT_ANDROID_KEYSTORE_PATH=$keystore QT_ANDROID_KEYSTORE_ALIAS=cloudmus-dev \
     QT_ANDROID_KEYSTORE_STORE_PASS=android QT_ANDROID_KEYSTORE_KEY_PASS=android

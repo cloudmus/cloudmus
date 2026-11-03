@@ -35,7 +35,7 @@ Page {
                 spacing: 0
                 Text {
                     Layout.fillWidth: true
-                    text: "Cloudmus"
+                    text: "CloudMus"
                     color: Theme.ink
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontTitle
