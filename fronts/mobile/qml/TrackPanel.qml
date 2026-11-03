@@ -34,6 +34,8 @@ Item {
         Math.min(height * sideCoverHeightShare, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
     readonly property real _besideDetailsX: _besideSide + _gap * 2
 
+    readonly property int _textDirection: nowPlaying && nowPlaying.trackDirection === -1 ? -1 : 1
+
     function _mix(from, to) { return from + (to - from) * progress }
 
     Cover {
@@ -72,22 +74,23 @@ Item {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.dp(2)
-                    ShadowText {
+                    WipeText {
+                        objectName: "trackTitle"
                         Layout.fillWidth: true
                         text: panel.nowPlaying ? panel.nowPlaying.title : ""
+                        direction: panel._textDirection
                         color: panel.inkColor
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontTitle + Theme.dp(3)
                         font.weight: Font.Bold
-                        elide: Text.ElideRight
                     }
-                    ShadowText {
+                    WipeText {
                         Layout.fillWidth: true
                         text: panel.nowPlaying ? panel.nowPlaying.artist : ""
+                        direction: panel._textDirection
                         color: panel.inkSecondaryColor
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontBody
-                        elide: Text.ElideRight
                     }
                 }
                 IconButton {

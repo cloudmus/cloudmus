@@ -314,6 +314,69 @@ private slots:
         QCOMPARE(cover->property("shownSide").toInt(), 180);
     }
 
+    // A line's text: no wipe to the first, then one that ends in the new text
+    // alone; a change along the way goes straight on to the latest.
+    void wipeTextChanges()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Window {
+                width: 400; height: 100; visible: true; color: "midnightblue"
+                WipeText { objectName: "line"; x: 20; y: 30; width: 300; color: "white"; font.pixelSize: 28; text: "First" }
+            }
+        )", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(root.get());
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* line = window->findChild<QQuickItem*>(QStringLiteral("line"));
+        QVERIFY(line);
+        QCOMPARE(line->property("currentText").toString(), QStringLiteral("First"));
+        QVERIFY(!line->property("wiping").toBool());
+        // Long or short, the width is the layout's to give.
+        QCOMPARE(line->implicitWidth(), 0.0);
+
+        line->setProperty("text", QStringLiteral("Second"));
+        QVERIFY(line->property("wiping").toBool());
+        QCOMPARE(line->property("previousText").toString(), QStringLiteral("First"));
+        QCOMPARE(line->property("currentText").toString(), QStringLiteral("Second"));
+
+        line->setProperty("text", QStringLiteral("Third"));
+        QVERIFY(line->property("wiping").toBool());
+        QCOMPARE(line->property("previousText").toString(), QStringLiteral("Second"));
+        QTRY_VERIFY(!line->property("wiping").toBool());
+        QCOMPARE(line->property("currentText").toString(), QStringLiteral("Third"));
+        QCOMPARE(line->property("previousText").toString(), QString());
+
+        // Frames of it, both ways, to look at: the mask needs a GPU to show.
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        if (!shots.isEmpty()) {
+            QDir().mkpath(shots);
+            line->setProperty("duration", 4000);
+            for (const int direction : { 1, -1 }) {
+                line->setProperty("direction", direction);
+                line->setProperty("text", direction > 0 ? QStringLiteral("Forward going text") : QStringLiteral("Backward going text"));
+                QTest::qWait(2000);
+                window->grabWindow().save(QStringLiteral("%1/wipe-%2.png").arg(shots).arg(direction));
+                QTRY_VERIFY_WITH_TIMEOUT(!line->property("wiping").toBool(), 5000);
+            }
+            line->setProperty("duration", 600);
+            line->setProperty("text", QStringLiteral("Third"));
+            QTRY_VERIFY(!line->property("wiping").toBool());
+        }
+
+        line->setProperty("direction", -1);
+        line->setProperty("text", QStringLiteral("Third"));
+        QVERIFY(!line->property("wiping").toBool());
+        line->setProperty("text", QStringLiteral("Fourth"));
+        QVERIFY(line->property("wiping").toBool());
+        QCOMPARE(line->property("_direction").toInt(), -1);
+        QTRY_VERIFY(!line->property("wiping").toBool());
+    }
+
     // The hero's: its edges dissolve into the color given, its center is dark.
     void auraHeroHasEdgesAndAVignette()
     {
@@ -640,6 +703,8 @@ private slots:
             if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty()) {
                 window->grabWindow().save(
                     QStringLiteral("%1/%2-cover-changing.png").arg(dir, QTest::currentDataTag()));
+                QTest::qWait(150);
+                window->grabWindow().save(QStringLiteral("%1/%2-text-wiping.png").arg(dir, QTest::currentDataTag()));
             }
             QTRY_VERIFY(!cover->property("changing").toBool());
             QVERIFY(cover->property("_showing").toBool());

@@ -168,6 +168,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/PlaylistPage.qml
         qml/Spinner.qml
         qml/TrackSheet.qml
+        qml/WipeText.qml
         qml/NowPlayingPage.qml
         qml/PageBar.qml
         qml/LibraryPage.qml

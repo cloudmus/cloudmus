@@ -53,6 +53,9 @@ class NowPlaying : public QObject {
     Q_PROPERTY(QString artist READ artist NOTIFY artistChanged)
     Q_PROPERTY(QString coverUrl READ coverUrl NOTIFY coverUrlChanged)
     Q_PROPERTY(QString backgroundSeed READ backgroundSeed NOTIFY backgroundSeedChanged)
+    // Which way the queue went to this track: 1 on, -1 back. Told before the
+    // track's own properties, for a view to animate their change that way.
+    Q_PROPERTY(int trackDirection READ trackDirection NOTIFY trackDirectionChanged)
     Q_PROPERTY(bool playing READ playing NOTIFY playingChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
     Q_PROPERTY(qint64 positionMs READ positionMs NOTIFY positionMsChanged)
@@ -94,6 +97,7 @@ public:
     QString artist() const;
     // A local file's URL (see setCovers()), once the cover is at hand.
     QString coverUrl() const;
+    int trackDirection() const { return trackDirection_; }
     // What the generated background behind a track is made from: its album,
     // so it stays the same through an album, or else its title.
     static QString backgroundSeed(const Track& track);
@@ -173,6 +177,7 @@ signals:
     void artistChanged();
     void coverUrlChanged();
     void backgroundSeedChanged();
+    void trackDirectionChanged();
     void webUrlChanged();
     void shuffleChanged();
     void radioChanged();
@@ -200,6 +205,7 @@ signals:
 
 private:
     void emitTrackChanged();
+    void updateTrackDirection();
     QString coverSource() const;
     bool isCurrent(const QString& sourceId, const QString& trackId) const;
     bool isShownTrack(const QString& sourceId, const QString& trackId) const;
@@ -219,6 +225,9 @@ private:
 
     bool loading_ = false;
     qint64 durationMs_ = 0;
+    int trackDirection_ = 1;
+    QString lastSourceId_;
+    QString lastTrackId_;
     qint64 bufferedMs_ = 0;
     int volume_ = 100;
     int quietVolume_ = 30;

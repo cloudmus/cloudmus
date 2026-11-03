@@ -28,6 +28,7 @@ class NowPlaying : public QObject {
     Q_PROPERTY(QString artist READ artist NOTIFY artistChanged)
     Q_PROPERTY(QString coverUrl READ coverUrl NOTIFY coverUrlChanged)
     Q_PROPERTY(QString backgroundSeed READ title NOTIFY titleChanged)
+    Q_PROPERTY(int trackDirection READ trackDirection NOTIFY trackDirectionChanged)
     Q_PROPERTY(int currentIndex READ currentIndex NOTIFY currentIndexChanged)
     Q_PROPERTY(bool playing READ playing NOTIFY playingChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
@@ -38,6 +39,7 @@ public:
     explicit NowPlaying(Playback::QueuePlayer& player, QObject* parent = nullptr);
 
     bool hasTrack() const;
+    int trackDirection() const { return trackDirection_; }
     QString title() const;
     QString artist() const;
     QString coverUrl() const;
@@ -60,6 +62,7 @@ public slots:
 
 signals:
     void hasTrackChanged();
+    void trackDirectionChanged();
     void titleChanged();
     void artistChanged();
     void coverUrlChanged();
@@ -74,6 +77,8 @@ signals:
 private:
     Playback::QueuePlayer& player_;
     Timing::Throttle positionThrottle_;
+    int trackDirection_ = 1;
+    int lastIndex_ = -1;
 };
 
 } // namespace ViewModel

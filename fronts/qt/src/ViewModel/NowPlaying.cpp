@@ -180,9 +180,42 @@ void NowPlaying::setCovers(Covers::CoverArtCache* covers)
     });
 }
 
+void NowPlaying::updateTrackDirection()
+{
+    if (!hasTrack())
+        return;
+    // By where the last track is in the queue now, not by the indexes as they
+    // were: a radio drops what it has played, which moves them. Gone from the
+    // queue, it was played long ago.
+    const QVector<Playback::QueueEntry>& queue = playback_.queue();
+    const int current = playback_.currentIndex();
+    int last = -1;
+    for (int i = 0; i < queue.size(); ++i) {
+        if (queue[i].sourceId == lastSourceId_ && queue[i].track.id == lastTrackId_) {
+            last = i;
+            break;
+        }
+    }
+    int direction = last >= 0 && current < last ? -1 : 1;
+    // Around the end of a list that repeats, a step is a step.
+    if (playback_.repeatMode() == Playback::RepeatMode::All && queue.size() > 2) {
+        if (last == queue.size() - 1 && current == 0)
+            direction = 1;
+        else if (last == 0 && current == queue.size() - 1)
+            direction = -1;
+    }
+    lastSourceId_ = playback_.currentSourceId();
+    lastTrackId_ = track().id;
+    if (direction != trackDirection_) {
+        trackDirection_ = direction;
+        emit trackDirectionChanged();
+    }
+}
+
 void NowPlaying::emitTrackChanged()
 {
     durationMs_ = 0; // until the new track's position says
+    updateTrackDirection();
     emit trackChanged();
     emit hasTrackChanged();
     emit titleChanged();

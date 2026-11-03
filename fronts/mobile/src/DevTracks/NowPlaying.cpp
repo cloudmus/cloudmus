@@ -19,7 +19,15 @@ NowPlaying::NowPlaying(Playback::QueuePlayer& player, QObject* parent)
         emit durationMsChanged();
     })
 {
+    lastIndex_ = player_.currentIndex();
     connect(&player_, &Playback::QueuePlayer::currentChanged, this, [this] {
+        const int index = player_.currentIndex();
+        const int direction = index < lastIndex_ ? -1 : 1;
+        lastIndex_ = index;
+        if (direction != trackDirection_) {
+            trackDirection_ = direction;
+            emit trackDirectionChanged();
+        }
         emit hasTrackChanged();
         emit titleChanged();
         emit artistChanged();
