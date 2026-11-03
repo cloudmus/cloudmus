@@ -174,6 +174,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/TrackPanel.qml
         qml/TrackRow.qml
         qml/ScrollArea.qml
+        qml/ScrollEdgeFade.qml
         qml/ScrollList.qml
         qml/SectionHeading.qml
         qml/SeekBar.qml

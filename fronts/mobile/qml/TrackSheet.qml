@@ -125,11 +125,11 @@ Popup {
         }
     }
 
-    contentItem: Flickable {
+    contentItem: ScrollArea {
         contentWidth: width
         contentHeight: content.implicitHeight + Theme.padding * 2
         clip: true
-        boundsBehavior: Flickable.StopAtBounds
+        fadeColor: Theme.surface100
 
         ColumnLayout {
             id: content

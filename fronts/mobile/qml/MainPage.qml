@@ -185,6 +185,7 @@ Page {
 
                 // Nothing active yet: the way to the Library.
                 Column {
+                    parent: list
                     anchors.centerIn: parent
                     visible: list.count === 0 && page.library !== null
                     spacing: Theme.padding

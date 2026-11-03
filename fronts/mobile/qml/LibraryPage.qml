@@ -47,6 +47,7 @@ Page {
                 ScrollList {
                     id: sourceList
                     objectName: "sources"
+                    fadeColor: Theme.surface100
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
@@ -137,16 +138,13 @@ Page {
         }
 
         // The source picked.
-        Flickable {
+        ScrollArea {
             id: content
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             contentWidth: width
             contentHeight: column.implicitHeight + Theme.padding * 2
-            boundsBehavior: Flickable.StopAtBounds
-            maximumFlickVelocity: Theme.flickMaxVelocity
-            flickDeceleration: Theme.flickDeceleration
 
             ColumnLayout {
                 id: column

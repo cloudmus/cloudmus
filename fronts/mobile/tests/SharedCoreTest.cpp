@@ -286,6 +286,59 @@ private slots:
         QTRY_COMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
     }
 
+    // A list's items dissolve at an edge only with more beyond it, and that
+    // comes and goes with scrolling; a list that fits has none.
+    void listsDissolveAtEdgesWithMoreBeyond()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Window {
+                width: 300; height: 400; visible: true; color: Theme.surface0
+                ScrollList {
+                    objectName: "long"
+                    x: 0; width: 150; height: 400
+                    model: 50
+                    delegate: Rectangle { width: 150; height: 40; color: "red" }
+                }
+                ScrollList {
+                    objectName: "short"
+                    x: 150; width: 150; height: 400
+                    model: 2
+                    delegate: Rectangle { width: 150; height: 40; color: "red" }
+                }
+            }
+        )", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(root.get());
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        const auto opacity = [&](const char* list, const char* edge) {
+            auto* view = window->findChild<QQuickItem*>(QString::fromLatin1(list));
+            const QList<QQuickItem*> found = view->findChildren<QQuickItem*>(QString::fromLatin1(edge));
+            return found.isEmpty() ? -1.0 : found.first()->opacity();
+        };
+        QTRY_COMPARE(opacity("long", "fadeBottom"), 1.0);
+        QTRY_COMPARE(opacity("long", "fadeTop"), 0.0);
+        QTRY_COMPARE(opacity("short", "fadeBottom"), 0.0);
+        QTRY_COMPARE(opacity("short", "fadeTop"), 0.0);
+
+        auto* view = window->findChild<QQuickItem*>(QStringLiteral("long"));
+        view->setProperty("contentY", 200);
+        QTRY_COMPARE(opacity("long", "fadeTop"), 1.0);
+        QCOMPARE(opacity("long", "fadeBottom"), 1.0);
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        if (!shots.isEmpty())
+            window->grabWindow().save(shots + QStringLiteral("/edge-fades.png"));
+
+        // Scrolled to the very end: nothing below any more.
+        QMetaObject::invokeMethod(view, "positionViewAtEnd");
+        QTRY_COMPARE(opacity("long", "fadeBottom"), 0.0);
+        QCOMPARE(opacity("long", "fadeTop"), 1.0);
+    }
+
     // A row tells a track on disk and a download under way, not otherwise.
     void trackRowShowsTheCache()
     {

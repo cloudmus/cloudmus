@@ -136,6 +136,7 @@ Page {
                 }
             }
             BodyText {
+                parent: list
                 anchors.centerIn: parent
                 width: implicitWidth
                 visible: list.count === 0 && page.screen && !page.screen.loading
