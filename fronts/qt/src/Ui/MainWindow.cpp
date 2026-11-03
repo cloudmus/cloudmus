@@ -116,7 +116,7 @@ Playlist radioPromo(Playlist station)
 }
 } // namespace
 
-MainWindow::MainWindow(App::Core& core, QWidget* parent)
+MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     : QMainWindow(parent)
     , authStates_(&core.authStates())
     , sourceManager_(core.sourceManager())

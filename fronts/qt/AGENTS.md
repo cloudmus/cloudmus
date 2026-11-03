@@ -27,11 +27,16 @@ On macOS the app is `build/bin/CloudMus.app` (run
 
 Everything below the view (backends, playback, settings, state, and the
 view models in `src/ViewModel/`) builds into the `cloudmus-core` static
-library, which does **not** link Qt Widgets — no widget headers there.
-`App::Core` (`src/App/`) owns services and view models for the whole run;
-widgets (`cloudmus-ui`) only show state and forward actions, and
-`Ui::WindowHost` can replace the main window at any time. New logic goes
-into core (a service or view model) with a test, not into `MainWindow`.
+library (`core/CMakeLists.txt`), which does **not** link Qt Widgets — no
+widget headers there. `App::Core` (`src/App/`) owns services and view models
+for the whole run; widgets (`cloudmus-ui`) only show state and forward
+actions, and `Ui::WindowHost` can replace the main window at any time. New
+logic goes into core (a service or view model) with a test, not into
+`MainWindow`.
+
+The mobile front (`fronts/mobile`) builds `cloudmus-core` too, on Qt 6.7: keep
+it to 6.7 APIs. What only the desktop needs (hotkeys, updates, crash reports)
+goes into `cloudmus-desktop-core`, and `App::DesktopCore` owns it.
 
 ## Timing
 

@@ -17,8 +17,6 @@ Core::Core(QObject* parent)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
     , downloads_(sourceManager_, sourceSession_, trackStates_, coverArtCache_, settings_, messages_)
     , nowPlaying_(playback_, sourceManager_, trackStates_, playbackHistory_, settings_, downloads_, messages_)
-    , hotkeys_(settings_)
-    , hotkeyDispatcher_(nowPlaying_, hotkeys_)
     , playlistEditing_(sourceManager_, messages_)
     , sources_(sourceManager_, sourceSession_, authStates_, playlistEditing_, coverArtCache_, settings_, messages_)
     , activePlaylist_(playback_, sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_,
@@ -26,8 +24,6 @@ Core::Core(QObject* parent)
     , browse_(sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_, activePlaylist_,
           playlistEditing_, messages_)
     , sourcePage_(sourceSession_)
-    , updates_(settings_)
-    , starPrompt_(settings_, analytics_)
     , listeningTime_(playback_, analytics_)
 {
     // The language first: whatever is created or spawned below already
@@ -49,10 +45,8 @@ Core::Core(QObject* parent)
             playbackHistory_.record(sourceId, track);
             trackStates_.setLastPlayed(sourceId, track.id, QDateTime::currentDateTimeUtc());
             analytics_.recordPlayback(sourceId);
-            starPrompt_.recordUsage();
         });
     connect(&downloads_, &ViewModel::Downloads::completed, &analytics_, &Analytics::recordDownload);
-    connect(&hotkeyDispatcher_, &Hotkeys::Dispatcher::cueRequested, &cuePlayer_, &Playback::CuePlayer::play);
     connect(&playlistEditing_, &PlaylistEditing::playlistEdited, &analytics_,
         [this](const QString& sourceId, const Track&, const QString&, bool added, int) {
             analytics_.recordPlaylistChange(sourceId, added);

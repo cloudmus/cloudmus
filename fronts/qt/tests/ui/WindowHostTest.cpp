@@ -15,7 +15,7 @@
 #include <QTreeView>
 #include <QUrl>
 
-#include "Core.h"
+#include "DesktopCore.h"
 #include "DownloadsPanel.h"
 #include "FakeBackend.h"
 #include "HeroPanel.h"
@@ -47,7 +47,7 @@ private slots:
 
     void aRecreatedWindowShowsWhatTheOldOneDid()
     {
-        App::Core core;
+        App::DesktopCore core;
         Ui::WindowHost host(core);
         host.show();
         QSignalSpy loaded(&core.sources(), &ViewModel::Sources::playlistsLoaded);
@@ -86,7 +86,7 @@ private slots:
     // Every move would otherwise rewrite the config file mid-drag.
     void aSplitterDragIsSavedOnceItSettles()
     {
-        App::Core core;
+        App::DesktopCore core;
         Ui::WindowHost host(core);
         host.show();
         auto* sidebar = host.window()->findChild<QTreeView*>(QStringLiteral("sidebarView"));
@@ -123,7 +123,7 @@ private slots:
 
     void toolbarIconsFollowAThemeFlip()
     {
-        App::Core core;
+        App::DesktopCore core;
         Ui::WindowHost host(core);
         host.show();
         auto* bar = host.window()->findChild<Ui::NowPlayingBar*>();
@@ -158,7 +158,7 @@ private slots:
 
     void theDownloadsPanelListsWhatsUnderWay()
     {
-        App::Core core;
+        App::DesktopCore core;
         core.settings().setDownloadsEnabled(true);
         core.settings().setDownloadDirectory(QDir::temp().filePath(QStringLiteral("cloudmus-tests-downloads")));
         Ui::WindowHost host(core);
@@ -195,7 +195,7 @@ private slots:
 
     void playingTrackScrollsIntoView()
     {
-        App::Core core;
+        App::DesktopCore core;
         Ui::WindowHost host(core);
         host.show();
         QSignalSpy ready(&core.sourceManager(), &Rpc::SourceManager::sourceReady);
@@ -240,7 +240,7 @@ private slots:
 
     void savedTrackScrollsIntoViewWhenWindowOpens()
     {
-        App::Core core;
+        App::DesktopCore core;
         Playlist playlist;
         playlist.id = QStringLiteral("saved-scroll");
         playlist.title = QStringLiteral("Saved playlist");
@@ -288,7 +288,7 @@ private slots:
 
     void playButtonStartsAnAvailablePlaylist()
     {
-        App::Core core;
+        App::DesktopCore core;
         Ui::WindowHost host(core);
         host.show();
         QSignalSpy ready(&core.sourceManager(), &Rpc::SourceManager::sourceReady);
@@ -321,7 +321,7 @@ private slots:
 #ifdef Q_OS_LINUX
     void mprisSeekAndVolumeFollowThePlayer()
     {
-        App::Core core;
+        App::DesktopCore core;
         Ui::WindowHost host(core);
         host.show();
         QSignalSpy ready(&core.sourceManager(), &Rpc::SourceManager::sourceReady);

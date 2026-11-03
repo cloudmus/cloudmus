@@ -2,13 +2,13 @@
 
 #include <QTimer>
 
-#include "Core.h"
+#include "DesktopCore.h"
 #include "MainWindow.h"
 #include "Tokens.h"
 
 namespace Ui {
 
-WindowHost::WindowHost(App::Core& core, QObject* parent)
+WindowHost::WindowHost(App::DesktopCore& core, QObject* parent)
     : QObject(parent)
     , core_(core)
 {
