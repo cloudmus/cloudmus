@@ -76,6 +76,14 @@ adb logcat -s CloudmusStart             # startup milestones
   `Download/Cloudmus`.
 - Autoplay at boot is on by default; the switch is in Settings (the sliders
   icon on the playlist page).
+- GWM head units (Haval): the car's media widget follows a third-party player
+  only once the unit's Media Center has picked it. The player asks for that
+  itself, once, a couple of seconds after its screen first opens (a blink of
+  Media Center, then the player's screen comes back; the pick is a `persist.`
+  property, it stays across restarts). On any other Android, or if the
+  property can't be read, nothing is asked. A tap on the player in the widget
+  opens Media Center, as for any third-party player there: its "Open Cloudmus"
+  button brings up the player's screen.
 - Settings → Developer tools holds what's for working on the app: the device,
   the Log page (it filters by level, process, text, and "this boot"), scrolling
   and drawing experiments, and for a head unit **Export system apps** (the

@@ -107,6 +107,12 @@ public class MainActivity extends QtActivity {
     protected void onStart() {
         CmLog.i(TAG, "onStart");
         super.onStart();
+        // After the screen is up, not before: on a GWM head unit it's a
+        // blink of Media Center, once, to put the player in the car's widget.
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed())
+                GwmMediaCenter.connectIfNeeded(this);
+        }, 2000);
     }
 
     @Override

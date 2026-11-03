@@ -86,24 +86,6 @@ Page {
                 }
             }
 
-            // GWM head units: what gets the track and the controls into the
-            // car's media widget.
-            SectionHeading {
-                visible: page.platform.android
-                text: qsTr("Car")
-            }
-            TextButton {
-                visible: page.platform.android
-                text: qsTr("Connect to Media Center")
-                onClicked: mediaCenterResult.text = page.platform.connectToMediaCenter()
-            }
-            BodyText {
-                id: mediaCenterResult
-                visible: text.length > 0
-                color: Theme.inkSecondary
-                font.pixelSize: Theme.fontSmall
-            }
-
             SectionHeading { text: qsTr("App") }
             Flow {
                 Layout.fillWidth: true
