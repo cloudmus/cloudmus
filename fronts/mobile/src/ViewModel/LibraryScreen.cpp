@@ -83,6 +83,13 @@ void LibraryScreen::selectSource(const QString& sourceId)
     rebuild();
 }
 
+void LibraryScreen::selectActiveSource()
+{
+    const QString sourceId = activePlaylist_.context().sourceId;
+    if (!sourceId.isEmpty())
+        selectSource(sourceId);
+}
+
 void LibraryScreen::playPlaylist(const QString& playlistId)
 {
     const QList<Playlist> playlists = sources_.playlists(currentSourceId_);

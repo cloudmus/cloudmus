@@ -18,7 +18,22 @@ Rectangle {
 
     // In pixels, and whole, for the corners to come out the same in every
     // cover the same size.
-    readonly property int _side: Math.max(64, Math.round(width * Screen.devicePixelRatio))
+    // Grown to what it's shown at, never shrunk, and only once the size has
+    // settled: a cover that animates scales what's loaded, rather than drawing
+    // itself anew each frame, and reloading would blink.
+    property int _side: 64
+    onWidthChanged: {
+        if (_side === 64)
+            _growSide()
+        else
+            settle.restart()
+    }
+    function _growSide() { _side = Math.max(_side, Math.round(width * Screen.devicePixelRatio)) }
+    Timer {
+        id: settle
+        interval: 400
+        onTriggered: cover._growSide()
+    }
     readonly property int _radius: Math.round(radius * Screen.devicePixelRatio)
 
     Image {
@@ -31,6 +46,8 @@ Rectangle {
             return cover.seed !== "" ? prefix + "s" + encodeURIComponent(cover.seed) : ""
         }
         asynchronous: true
+        // It's often larger than shown.
+        mipmap: true
         sourceSize.width: cover._side
         sourceSize.height: cover._side
         visible: status === Image.Ready

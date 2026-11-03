@@ -469,6 +469,39 @@ private slots:
             }
         };
         shot("main");
+
+        // On a head unit, the source's bar opens and folds with the cover
+        // giving room and taking it back.
+        if (size.width() > size.height()) {
+            auto* bar = window->findChild<QQuickItem*>("sourceBar");
+            auto* panel = window->findChild<QQuickItem*>("trackPanel");
+            QVERIFY(bar);
+            QVERIFY(panel);
+            QCOMPARE(bar->property("expanded").toBool(), false);
+            const qreal foldedWidth = bar->width();
+            const qreal tallest = panel->height();
+            QVERIFY(foldedWidth < panel->width() / 2);
+            bar->setProperty("expanded", true);
+            QTest::qWait(100);
+            shot("source-bar-moving");
+            QTRY_COMPARE(bar->property("progress").toReal(), 1.0);
+            QVERIFY(bar->width() > foldedWidth * 2);
+            QVERIFY(panel->height() < tallest);
+            shot("source-bar-open");
+            bar->setProperty("expanded", false);
+            QTRY_COMPARE(bar->property("progress").toReal(), 0.0);
+            QTRY_COMPARE(panel->height(), tallest);
+            QCOMPARE(bar->width(), foldedWidth);
+
+            // Its source part goes to the Library, on the active playlist's source.
+            auto* source = bar->findChild<QQuickItem*>("sourceBarSource");
+            QVERIFY(source);
+            QMetaObject::invokeMethod(source, "clicked");
+            QTRY_COMPARE(stack->property("depth").toInt(), 2);
+            QCOMPARE(core.library().currentSourceId(), QStringLiteral("fake"));
+            QMetaObject::invokeMethod(stack, "close");
+            QTRY_COMPARE(stack->property("depth").toInt(), 1);
+        }
         QMetaObject::invokeMethod(playlist, "libraryRequested");
         QTRY_COMPARE(stack->property("depth").toInt(), 2);
         shot("library");

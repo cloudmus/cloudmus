@@ -60,6 +60,9 @@ public:
 
 public slots:
     void selectSource(const QString& sourceId);
+    // The active playlist's source, if there is one: where the Library opens
+    // from the main screen.
+    void selectActiveSource();
     // Starts the current source's playlist and, once it runs, activated().
     // The active one isn't started over: it only plays on if paused.
     void playPlaylist(const QString& playlistId);

@@ -178,6 +178,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/ScrollList.qml
         qml/SectionHeading.qml
         qml/SeekBar.qml
+        qml/SourceBar.qml
         qml/SettingsPage.qml
         qml/ShadowText.qml
         qml/TextButton.qml
@@ -188,7 +189,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         src/Ui/LogModel.h
 )
 
-set(_icons arrow_back close expand_less expand_more favorite favorite_border file_download heart_off
+set(_icons arrow_back chevron_right close expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     radio refresh skip_next skip_previous star star_border tune volume_up warning)
 set(_icon_files)

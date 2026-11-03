@@ -111,7 +111,11 @@ ApplicationWindow {
             backend: window.backend
             onNowPlayingRequested: stack.open(nowPlayingPage, "rise")
             onSettingsRequested: stack.open(settingsPage, "slide")
-            onLibraryRequested: stack.open(libraryPage, "slide")
+            onLibraryRequested: {
+                if (window.backend.library)
+                    window.backend.library.selectActiveSource()
+                stack.open(libraryPage, "slide")
+            }
             onTrackMenuRequested: trackSheet.open()
         }
     }

@@ -1,4 +1,5 @@
 import QtQuick
+import QtCore
 import QtQuick.Controls.Basic
 import QtQuick.Controls.impl
 import QtQuick.Layouts
@@ -26,6 +27,12 @@ Page {
 
     background: Rectangle { color: Theme.surface0 }
 
+    Settings {
+        id: ui
+        category: "ui"
+        property bool sourceBarExpanded: false
+    }
+
     component SourceButton: AbstractButton {
         id: sourceButton
         implicitHeight: Theme.touchLarge
@@ -35,7 +42,6 @@ Page {
         background: Rectangle {
             radius: Theme.radius
             color: sourceButton.down ? Theme.surface300 : Theme.surface200
-            opacity: page.wide ? 0.82 : 1
         }
         contentItem: RowLayout {
             spacing: Theme.dp(10)
@@ -111,12 +117,15 @@ Page {
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Theme.dp(12)
-                spacing: Theme.dp(10)
+                spacing: 0
 
-                SourceButton {
+                // Room for the source's bar as it opens: the cover gives it up.
+                Item {
                     Layout.fillWidth: true
+                    Layout.preferredHeight: (sourceBar.height + Theme.dp(10)) * sourceBar.progress
                 }
                 TrackPanel {
+                    objectName: "trackPanel"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     nowPlaying: page.nowPlaying
@@ -127,6 +136,18 @@ Page {
                         page.trackMenuRequested()
                     }
                 }
+            }
+            SourceBar {
+                id: sourceBar
+                objectName: "sourceBar"
+                x: Theme.dp(12)
+                y: Theme.dp(12)
+                fullWidth: parent.width - Theme.dp(24)
+                library: page.library
+                playlist: page.playlist
+                expanded: ui.sourceBarExpanded
+                onExpandedChanged: ui.sourceBarExpanded = expanded
+                onLibraryRequested: page.libraryRequested()
             }
         }
 
