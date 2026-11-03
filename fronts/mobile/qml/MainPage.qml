@@ -19,6 +19,9 @@ Page {
     readonly property QtObject library: backend.library
     readonly property bool wide: width > height * 1.1
     readonly property bool hasTrack: nowPlaying && nowPlaying.hasTrack === true
+    // As on the desktop: the track's, or with none playing the playlist's.
+    readonly property string backgroundSeed: nowPlaying && nowPlaying.backgroundSeed ? nowPlaying.backgroundSeed
+        : playlist && playlist.title ? playlist.title : ""
 
     background: Rectangle { color: Theme.surface0 }
 
@@ -31,6 +34,7 @@ Page {
         background: Rectangle {
             radius: Theme.radius
             color: sourceButton.down ? Theme.surface300 : Theme.surface200
+            opacity: page.wide ? 0.82 : 1
         }
         contentItem: RowLayout {
             spacing: Theme.dp(10)
@@ -92,22 +96,31 @@ Page {
         anchors.bottomMargin: mini.visible ? mini.height : 0
         spacing: 0
 
-        // The track, on a head unit.
-        ColumnLayout {
+        // The track, on a head unit, over the generated background.
+        Item {
             visible: page.wide
             Layout.fillHeight: true
             Layout.preferredWidth: page.width * 0.42
-            Layout.maximumWidth: page.width * 0.42
-            Layout.margins: Theme.dp(12)
-            spacing: Theme.dp(10)
 
-            SourceButton {
-                Layout.fillWidth: true
+            AuraBackground {
+                anchors.fill: parent
+                visible: parent.visible
+                seed: page.backgroundSeed
             }
-            TrackPanel {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                nowPlaying: page.nowPlaying
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dp(12)
+                spacing: Theme.dp(10)
+
+                SourceButton {
+                    Layout.fillWidth: true
+                }
+                TrackPanel {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    nowPlaying: page.nowPlaying
+                    overAura: true
+                }
             }
         }
 
@@ -187,6 +200,7 @@ Page {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         nowPlaying: page.nowPlaying
+        seed: page.backgroundSeed
         visible: !page.wide && page.hasTrack
         onOpenRequested: page.nowPlayingRequested()
     }

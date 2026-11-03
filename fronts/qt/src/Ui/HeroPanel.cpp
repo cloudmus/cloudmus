@@ -1,5 +1,7 @@
 #include "HeroPanel.h"
 
+#include "NowPlaying.h"
+
 #include <QFontMetrics>
 #include <QIcon>
 #include <QPaintEvent>
@@ -148,8 +150,7 @@ void HeroPanel::setTrack(const Track& track, bool showPlayButton)
     if (coverUrl.isEmpty() && track.album.has_value())
         coverUrl = track.album->coverUrl.value_or(QString());
 
-    const QString bgSeed
-        = (track.album.has_value() && !track.album->title.isEmpty()) ? track.album->title : track.title;
+    const QString bgSeed = ViewModel::NowPlaying::backgroundSeed(track);
 
     applyContent(Content { track.title, artistNames, coverUrl, bgSeed, /*isPromo=*/showPlayButton });
 }

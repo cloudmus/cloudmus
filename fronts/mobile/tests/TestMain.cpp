@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "AuraImageProvider.h"
 #include "Backend.h"
 #include "Host.h"
 #include "LogModel.h"
@@ -270,6 +271,7 @@ private slots:
         Ui::Platform platform(dir.path());
 
         QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
         engine.setInitialProperties({
             { "backend", QVariant::fromValue<QObject*>(&backend) },
             { "platform", QVariant::fromValue<QObject*>(&platform) },

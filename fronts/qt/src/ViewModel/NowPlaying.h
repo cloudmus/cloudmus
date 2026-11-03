@@ -52,10 +52,13 @@ class NowPlaying : public QObject {
     Q_PROPERTY(QString title READ title NOTIFY titleChanged)
     Q_PROPERTY(QString artist READ artist NOTIFY artistChanged)
     Q_PROPERTY(QString coverUrl READ coverUrl NOTIFY coverUrlChanged)
+    Q_PROPERTY(QString backgroundSeed READ backgroundSeed NOTIFY backgroundSeedChanged)
     Q_PROPERTY(bool playing READ playing NOTIFY playingChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
     Q_PROPERTY(qint64 positionMs READ positionMs NOTIFY positionMsChanged)
     Q_PROPERTY(qint64 durationMs READ durationMs NOTIFY durationMsChanged)
+    // How far the track has been fetched; -1 for a local file, which isn't.
+    Q_PROPERTY(qint64 bufferedMs READ bufferedMs NOTIFY bufferedChanged)
     Q_PROPERTY(bool queueAvailable READ queueAvailable NOTIFY queueAvailabilityChanged)
     Q_PROPERTY(QString webUrl READ webUrl NOTIFY webUrlChanged)
     Q_PROPERTY(bool shuffle READ shuffle WRITE setShuffle NOTIFY shuffleChanged)
@@ -91,6 +94,10 @@ public:
     QString artist() const;
     // A local file's URL (see setCovers()), once the cover is at hand.
     QString coverUrl() const;
+    // What the generated background behind a track is made from: its album,
+    // so it stays the same through an album, or else its title.
+    static QString backgroundSeed(const Track& track);
+    QString backgroundSeed() const { return hasTrack() ? backgroundSeed(track()) : QString(); }
     // Where coverUrl() comes from; without one it's empty.
     void setCovers(Covers::CoverArtCache* covers);
 
@@ -100,6 +107,7 @@ public:
     bool queueAvailable() const;
     qint64 positionMs() const;
     qint64 durationMs() const;
+    qint64 bufferedMs() const { return bufferedMs_; }
     // The level of the mode in effect: the quiet one while quiet(), else the
     // normal one. Quiet mode ducks the sound without pausing or muting, and
     // the playback volume glides between the two levels.
@@ -164,6 +172,7 @@ signals:
     void titleChanged();
     void artistChanged();
     void coverUrlChanged();
+    void backgroundSeedChanged();
     void webUrlChanged();
     void shuffleChanged();
     void radioChanged();
@@ -210,6 +219,7 @@ private:
 
     bool loading_ = false;
     qint64 durationMs_ = 0;
+    qint64 bufferedMs_ = 0;
     int volume_ = 100;
     int quietVolume_ = 30;
     bool quiet_ = false;

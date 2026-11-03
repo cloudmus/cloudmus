@@ -6,6 +6,8 @@ Rectangle {
     id: cover
 
     property string source
+    // With no cover: generated art from this, as on the desktop, if set.
+    property string seed
 
     color: Theme.surface300
     radius: Theme.dp(6)
@@ -14,10 +16,12 @@ Rectangle {
     Image {
         id: image
         anchors.fill: parent
-        source: cover.source
+        source: cover.source !== "" ? cover.source
+              : cover.seed !== "" ? "image://aura/s" + encodeURIComponent(cover.seed) : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         sourceSize.width: Math.max(64, cover.width * Screen.devicePixelRatio)
+        sourceSize.height: Math.max(64, cover.width * Screen.devicePixelRatio)
         visible: status === Image.Ready
     }
 

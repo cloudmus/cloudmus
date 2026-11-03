@@ -242,6 +242,7 @@ Page {
                                 Layout.rightMargin: Theme.dp(10)
                                 Layout.preferredHeight: width
                                 source: tile.coverUrl || ""
+                                seed: tile.title || ""
                                 border.width: tile.isActive === true ? Theme.dp(3) : 0
                                 border.color: Theme.accent
                                 opacity: tile.down ? 0.7 : 1
@@ -303,6 +304,7 @@ Page {
                                 Layout.preferredWidth: Theme.dp(48)
                                 Layout.preferredHeight: Theme.dp(48)
                                 source: other.coverUrl || ""
+                                seed: other.title || ""
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true

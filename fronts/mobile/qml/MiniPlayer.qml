@@ -7,11 +7,19 @@ Rectangle {
     id: mini
 
     property QtObject nowPlaying
+    // What the generated background behind it comes from.
+    property string seed
     signal openRequested()
 
     implicitHeight: Theme.dp(72)
     color: Theme.surface200
+    clip: true
     visible: nowPlaying && nowPlaying.hasTrack
+
+    AuraBackground {
+        anchors.fill: parent
+        seed: mini.seed
+    }
 
     // The track's progress along the top edge.
     Rectangle {
@@ -35,6 +43,7 @@ Rectangle {
             Layout.preferredWidth: Theme.dp(48)
             Layout.preferredHeight: Theme.dp(48)
             source: mini.nowPlaying ? mini.nowPlaying.coverUrl : ""
+            seed: mini.seed
         }
 
         ColumnLayout {
@@ -43,7 +52,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: mini.nowPlaying ? mini.nowPlaying.title : ""
-                color: Theme.ink
+                color: "#FFFFFF"
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontBody
                 font.weight: Font.DemiBold
@@ -52,7 +61,7 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 text: mini.nowPlaying ? mini.nowPlaying.artist : ""
-                color: Theme.inkSecondary
+                color: "#D9FFFFFF"
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSmall
                 elide: Text.ElideRight
@@ -62,10 +71,12 @@ Rectangle {
         IconButton {
             iconName: mini.nowPlaying && mini.nowPlaying.playing ? "pause" : "play_arrow"
             size: Theme.touchLarge
+            color: "#FFFFFF"
             onClicked: mini.nowPlaying.togglePause()
         }
         IconButton {
             iconName: "skip_next"
+            color: "#FFFFFF"
             onClicked: mini.nowPlaying.next()
         }
     }

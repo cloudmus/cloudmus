@@ -215,6 +215,7 @@ else()
 endif()
 
 add_library(cloudmus-ui STATIC
+    src/Covers/MeshAura.cpp
     src/Ui/MainWindow.cpp
     src/Ui/WindowHost.cpp
     src/Ui/DownloadsPanel.cpp

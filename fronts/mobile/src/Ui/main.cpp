@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "AuraImageProvider.h"
 #include "Backend.h"
 #include "Log.h"
 #include "Platform.h"
@@ -137,6 +138,7 @@ int main(int argc, char* argv[])
     Ui::Platform platform(logDir());
 
     QQmlApplicationEngine engine;
+    engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
     engine.setInitialProperties({
         { QStringLiteral("backend"), QVariant::fromValue<QObject*>(backend.get()) },
         { QStringLiteral("platform"), QVariant::fromValue<QObject*>(&platform) },

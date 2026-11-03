@@ -27,6 +27,7 @@ class NowPlaying : public QObject {
     Q_PROPERTY(QString title READ title NOTIFY titleChanged)
     Q_PROPERTY(QString artist READ artist NOTIFY artistChanged)
     Q_PROPERTY(QString coverUrl READ coverUrl NOTIFY coverUrlChanged)
+    Q_PROPERTY(QString backgroundSeed READ title NOTIFY titleChanged)
     Q_PROPERTY(int currentIndex READ currentIndex NOTIFY currentIndexChanged)
     Q_PROPERTY(bool playing READ playing NOTIFY playingChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)

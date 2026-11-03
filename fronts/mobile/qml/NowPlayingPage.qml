@@ -14,25 +14,9 @@ Page {
     readonly property bool wide: width > height * 1.1
     signal closeRequested()
 
-    background: Rectangle {
-        color: Theme.surface0
-
-        // The cover, blown up and faded, behind everything.
-        Image {
-            anchors.fill: parent
-            source: page.nowPlaying ? page.nowPlaying.coverUrl : ""
-            fillMode: Image.PreserveAspectCrop
-            sourceSize.width: 64
-            opacity: 0.18
-            smooth: true
-        }
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 1.0; color: Theme.surface0 }
-            }
-        }
+    background: AuraBackground {
+        seed: page.nowPlaying && page.nowPlaying.backgroundSeed ? page.nowPlaying.backgroundSeed
+            : page.backend.playlist ? page.backend.playlist.title : ""
     }
 
     header: Item {
@@ -44,13 +28,14 @@ Page {
             IconButton {
                 iconName: "expand_more"
                 iconSize: Theme.dp(32)
+                color: "#FFFFFF"
                 onClicked: page.closeRequested()
             }
             Text {
                 Layout.fillWidth: true
                 text: qsTr("Now playing")
                 horizontalAlignment: Text.AlignHCenter
-                color: Theme.inkSecondary
+                color: "#E6FFFFFF"
                 font.family: Theme.fontFamily
                 font.pixelSize: Theme.fontSmall
                 font.weight: Font.DemiBold
@@ -83,5 +68,6 @@ Page {
         anchors.topMargin: Theme.padding / 2
         nowPlaying: page.nowPlaying
         sideBySide: page.wide
+        overAura: true
     }
 }

@@ -9,6 +9,11 @@ GridLayout {
 
     property QtObject nowPlaying
     property bool sideBySide: false
+    // Over the generated background, which is dark in either theme.
+    property bool overAura: false
+    property color inkColor: overAura ? "#FFFFFF" : Theme.ink
+    property color inkSecondaryColor: overAura ? "#D9FFFFFF" : Theme.inkSecondary
+    readonly property string seed: nowPlaying && nowPlaying.backgroundSeed ? nowPlaying.backgroundSeed : ""
 
     flow: sideBySide ? GridLayout.LeftToRight : GridLayout.TopToBottom
     columns: sideBySide ? 2 : 1
@@ -27,6 +32,7 @@ GridLayout {
             width: Math.min(parent.width, parent.height)
             height: width
             source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
+            seed: panel.seed
             // A slight breath while playing.
             scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
             Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
@@ -44,7 +50,7 @@ GridLayout {
         Text {
             Layout.fillWidth: true
             text: panel.nowPlaying ? panel.nowPlaying.title : ""
-            color: Theme.ink
+            color: panel.inkColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontTitle + Theme.dp(3)
             font.weight: Font.Bold
@@ -53,7 +59,7 @@ GridLayout {
         Text {
             Layout.fillWidth: true
             text: panel.nowPlaying ? panel.nowPlaying.artist : ""
-            color: Theme.inkSecondary
+            color: panel.inkSecondaryColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontBody
             elide: Text.ElideRight
@@ -63,6 +69,10 @@ GridLayout {
             Layout.fillWidth: true
             positionMs: panel.nowPlaying ? panel.nowPlaying.positionMs : 0
             durationMs: panel.nowPlaying ? panel.nowPlaying.durationMs : 0
+            bufferedMs: panel.nowPlaying && panel.nowPlaying.bufferedMs !== undefined ? panel.nowPlaying.bufferedMs : -1
+            inkColor: panel.inkColor
+            inkSecondaryColor: panel.inkSecondaryColor
+            troughColor: panel.overAura ? "#40FFFFFF" : Theme.surface400
             onSeekRequested: (positionMs) => panel.nowPlaying.seek(positionMs)
         }
 
@@ -72,10 +82,12 @@ GridLayout {
             IconButton {
                 visible: panel.nowPlaying && panel.nowPlaying.dislikeSupported === true
                 iconName: panel.nowPlaying && panel.nowPlaying.disliked ? "heart_off" : "heart_off_outline"
+                color: panel.inkColor
                 onClicked: panel.nowPlaying.setDisliked(!panel.nowPlaying.disliked)
             }
             IconButton {
                 iconName: "skip_previous"
+                color: panel.inkColor
                 size: Theme.touchLarge
                 iconSize: Theme.dp(34)
                 onClicked: panel.nowPlaying.previous()
@@ -96,6 +108,7 @@ GridLayout {
             }
             IconButton {
                 iconName: "skip_next"
+                color: panel.inkColor
                 size: Theme.touchLarge
                 iconSize: Theme.dp(34)
                 onClicked: panel.nowPlaying.next()
@@ -103,7 +116,7 @@ GridLayout {
             IconButton {
                 visible: panel.nowPlaying && panel.nowPlaying.likeSupported === true
                 iconName: panel.nowPlaying && panel.nowPlaying.liked ? "favorite" : "favorite_border"
-                color: panel.nowPlaying && panel.nowPlaying.liked ? Theme.accent : Theme.ink
+                color: panel.nowPlaying && panel.nowPlaying.liked ? Theme.accent : panel.inkColor
                 onClicked: panel.nowPlaying.setLiked(!panel.nowPlaying.liked)
             }
         }

@@ -3,6 +3,8 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
+#include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSettings>
@@ -11,8 +13,12 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <algorithm>
 #include <cstring>
+#include <functional>
+#include <memory>
 
+#include "AuraImageProvider.h"
 #include "Backend.h"
 #include "FakeBackend.h"
 #include "Host.h"
@@ -157,6 +163,71 @@ private slots:
         QVERIFY(core.nowPlaying().title() != track);
     }
 
+    // The same seed gives the same picture, another seed another, opaque
+    // edge to edge, at the size asked for.
+    void auraDependsOnTheSeed()
+    {
+        Ui::AuraImageProvider provider;
+        QSize size;
+        const QImage first = provider.requestImage(QStringLiteral("sLiked"), &size, QSize(320, 180));
+        QCOMPARE(size, QSize(320, 180));
+        QCOMPARE(provider.requestImage(QStringLiteral("sLiked"), nullptr, QSize(320, 180)), first);
+        QVERIFY(provider.requestImage(QStringLiteral("s%D0%92%D0%BE%D0%BB%D0%BD%D0%B0"), nullptr, QSize(320, 180)) != first);
+        for (const QPoint corner : { QPoint(0, 0), QPoint(319, 0), QPoint(0, 179), QPoint(319, 179) })
+            QCOMPARE(qAlpha(first.pixel(corner)), 255);
+    }
+
+    // A row tells a track on disk and a download under way, not otherwise.
+    void trackRowShowsTheCache()
+    {
+        QQmlEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Window {
+                width: 420; height: 300; visible: true; color: Theme.surface0
+                ListView {
+                    anchors.fill: parent
+                    model: ListModel {
+                        ListElement { title: "Cached"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
+                                      cached: true; downloadProgress: 0 }
+                        ListElement { title: "Fetching"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
+                                      cached: false; downloadProgress: 0.4 }
+                        ListElement { title: "Neither"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
+                                      cached: false; downloadProgress: -1 }
+                    }
+                    delegate: TrackRow {}
+                }
+            }
+        )", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(root.get());
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QTest::qWait(100);
+        // By the visual tree: a delegate's QObject parent isn't the window.
+        QList<QQuickItem*> marks;
+        const std::function<void(QQuickItem*)> collect = [&](QQuickItem* item) {
+            if (item->objectName() == QStringLiteral("cachedMark"))
+                marks.append(item);
+            for (QQuickItem* child : item->childItems())
+                collect(child);
+        };
+        collect(window->contentItem());
+        QCOMPARE(marks.size(), 3);
+        const auto shown = [](const QList<QQuickItem*>& items) {
+            return std::count_if(items.cbegin(), items.cend(), [](QQuickItem* item) { return item->isVisible(); });
+        };
+        QCOMPARE(shown(marks), 1);
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        if (!shots.isEmpty()) {
+            QDir().mkpath(shots);
+            window->grabWindow().save(shots + QStringLiteral("/track-row.png"));
+        }
+    }
+
     void logModelReadsAndFilters()
     {
         QTemporaryDir dir;
@@ -209,6 +280,7 @@ private slots:
         playFake(core);
 
         QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
         engine.setInitialProperties({
             { "backend", QVariant::fromValue<QObject*>(&backend) },
             { "platform", QVariant::fromValue<QObject*>(&platform) },

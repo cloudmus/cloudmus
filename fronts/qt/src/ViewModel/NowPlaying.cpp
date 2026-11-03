@@ -86,7 +86,10 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
             emit positionChanged(positionMs, durationMs);
             positionThrottle_.trigger();
         });
-    connect(&playback_, &Playback::PlaybackController::bufferedChanged, this, &NowPlaying::bufferedChanged);
+    connect(&playback_, &Playback::PlaybackController::bufferedChanged, this, [this](qint64 bufferedMs) {
+        bufferedMs_ = bufferedMs;
+        emit bufferedChanged(bufferedMs);
+    });
     connect(&playback_, &Playback::PlaybackController::queueAvailabilityChanged, this,
         &NowPlaying::queueAvailabilityChanged);
     // However they were changed — here, or over MPRIS — play modes are
@@ -163,6 +166,11 @@ QString NowPlaying::coverUrl() const
     return file.isEmpty() ? QString() : QUrl::fromLocalFile(file).toString();
 }
 
+QString NowPlaying::backgroundSeed(const Track& track)
+{
+    return track.album && !track.album->title.isEmpty() ? track.album->title : track.title;
+}
+
 void NowPlaying::setCovers(Covers::CoverArtCache* covers)
 {
     covers_ = covers;
@@ -180,6 +188,7 @@ void NowPlaying::emitTrackChanged()
     emit titleChanged();
     emit artistChanged();
     emit coverUrlChanged();
+    emit backgroundSeedChanged();
     emit webUrlChanged();
     emit durationMsChanged();
 }

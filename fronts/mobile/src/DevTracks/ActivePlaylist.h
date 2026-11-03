@@ -20,6 +20,9 @@ public:
         DurationMsRole,
         CoverUrlRole,
         IsCurrentRole,
+        // Always empty: the dev tracks are files. For the same row as App::Core's.
+        CachedRole,
+        DownloadProgressRole,
     };
 
     explicit TrackListModel(Playback::QueuePlayer& player, QObject* parent = nullptr);

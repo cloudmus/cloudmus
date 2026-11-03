@@ -9,6 +9,11 @@ ColumnLayout {
 
     property real positionMs: 0
     property real durationMs: 0
+    // How far the track has been fetched; negative: nothing to fetch.
+    property real bufferedMs: -1
+    property color inkColor: Theme.ink
+    property color inkSecondaryColor: Theme.inkSecondary
+    property color troughColor: Theme.surface400
     signal seekRequested(real positionMs)
 
     spacing: Theme.dp(2)
@@ -29,9 +34,19 @@ ColumnLayout {
             width: slider.availableWidth
             height: Theme.dp(slider.pressed ? 6 : 4)
             radius: height / 2
-            color: Theme.surface400
+            color: bar.troughColor
             Behavior on height { NumberAnimation { duration: Theme.durationFast } }
 
+            Rectangle {
+                objectName: "buffered"
+                visible: bar.bufferedMs > 0 && bar.durationMs > 0
+                width: parent.width * Math.min(1, bar.bufferedMs / Math.max(1, bar.durationMs))
+                height: parent.height
+                radius: height / 2
+                color: bar.inkSecondaryColor
+                opacity: 0.45
+                Behavior on width { NumberAnimation { duration: Theme.durationFast } }
+            }
             Rectangle {
                 width: slider.visualPosition * parent.width
                 height: parent.height
@@ -45,7 +60,7 @@ ColumnLayout {
             width: Theme.dp(slider.pressed ? 22 : 16)
             height: width
             radius: width / 2
-            color: Theme.ink
+            color: bar.inkColor
             Behavior on width { NumberAnimation { duration: Theme.durationFast } }
         }
     }
@@ -54,7 +69,7 @@ ColumnLayout {
         Layout.fillWidth: true
         Text {
             text: Theme.formatTime(slider.pressed ? slider.value : bar.positionMs)
-            color: Theme.inkSecondary
+            color: bar.inkSecondaryColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSmall
             font.features: { "tnum": 1 }
@@ -62,7 +77,7 @@ ColumnLayout {
         Item { Layout.fillWidth: true }
         Text {
             text: Theme.formatTime(bar.durationMs)
-            color: Theme.inkSecondary
+            color: bar.inkSecondaryColor
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSmall
             font.features: { "tnum": 1 }

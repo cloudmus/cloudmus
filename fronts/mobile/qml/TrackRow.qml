@@ -14,6 +14,10 @@ ItemDelegate {
     required property var durationMs
     required property var coverUrl
     required property var isCurrent
+    // Whether it's on disk, or how far its download has got (0..1, else empty).
+    required property var cached
+    required property var downloadProgress
+    readonly property bool downloading: typeof downloadProgress === "number" && downloadProgress > 0
     readonly property bool current: isCurrent === true
     property bool playing: false
 
@@ -30,6 +34,17 @@ ItemDelegate {
             anchors.verticalCenter: parent.verticalCenter
             radius: width / 2
             color: Theme.accent
+        }
+        // Its download, along the bottom edge.
+        Rectangle {
+            objectName: "downloadBar"
+            visible: row.downloading
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            height: Theme.dp(2)
+            width: parent.width * (row.downloading ? row.downloadProgress : 0)
+            color: Theme.accent
+            Behavior on width { NumberAnimation { duration: Theme.durationFast } }
         }
     }
 
@@ -76,6 +91,22 @@ ItemDelegate {
                 font.pixelSize: Theme.fontSmall
                 elide: Text.ElideRight
             }
+        }
+        Text {
+            visible: row.downloading
+            text: row.downloading ? Math.round(row.downloadProgress * 100) + "%" : ""
+            color: Theme.accent
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontSmall
+            font.features: { "tnum": 1 }
+        }
+        IconImage {
+            objectName: "cachedMark"
+            visible: row.cached === true && !row.downloading
+            source: "qrc:/icons/check.svg"
+            sourceSize.width: Theme.dp(18)
+            sourceSize.height: Theme.dp(18)
+            color: Theme.success
         }
         Text {
             text: Theme.formatTime(row.durationMs)

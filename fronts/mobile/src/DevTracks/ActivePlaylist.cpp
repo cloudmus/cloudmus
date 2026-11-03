@@ -59,6 +59,8 @@ QHash<int, QByteArray> TrackListModel::roleNames() const
         { DurationMsRole, "durationMs" },
         { CoverUrlRole, "coverUrl" },
         { IsCurrentRole, "isCurrent" },
+        { CachedRole, "cached" },
+        { DownloadProgressRole, "downloadProgress" },
     };
 }
 

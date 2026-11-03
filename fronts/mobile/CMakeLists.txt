@@ -124,12 +124,15 @@ endif()
 # --- The views: QML and what it binds to. A library of their own so the
 # tests drive the same pages the app shows.
 qt_add_library(cloudmus-mobile-ui STATIC
+    ${QT_FRONT_SRC}/Covers/MeshAura.cpp
+    src/Ui/AuraImageProvider.cpp
+    src/Ui/AuraImageProvider.h
     src/Ui/Backend.cpp
     src/Ui/Backend.h
     src/Ui/Platform.cpp
     src/Ui/Platform.h
 )
-target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote)
+target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote ${QT_FRONT_SRC}/Covers)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
     cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
 if(CLOUDMUS_MOBILE_SHARED_CORE)
@@ -145,6 +148,7 @@ qt_add_qml_module(cloudmus-mobile-ui
     URI Cloudmus.Mobile
     VERSION 1.0
     QML_FILES
+        qml/AuraBackground.qml
         qml/BodyText.qml
         qml/Chip.qml
         qml/Cover.qml
@@ -173,7 +177,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         src/Ui/LogModel.h
 )
 
-set(_icons arrow_back close expand_less expand_more favorite favorite_border file_download heart_off
+set(_icons arrow_back check close expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline music_note pause play_arrow refresh skip_next skip_previous star star_border tune
     volume_up warning)
 set(_icon_files)
