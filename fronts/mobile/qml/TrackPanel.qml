@@ -23,13 +23,15 @@ Item {
     property real progress: sideBySide ? 1 : 0
     // Of the width, what the cover may take when beside the rest.
     property real sideCoverShare: 0.48
+    // Of the height, likewise.
+    property real sideCoverHeightShare: 1
 
     readonly property real _gap: Theme.padding
     readonly property real _detailsHeight: details.implicitHeight
     readonly property real _aboveSide: Math.max(Theme.dp(120), Math.min(width, height - _detailsHeight - _gap))
     // As large as there's room for, leaving the rest the width it needs.
     readonly property real _besideSide: Math.max(Theme.dp(120),
-        Math.min(height, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
+        Math.min(height * sideCoverHeightShare, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
     readonly property real _besideDetailsX: _besideSide + _gap * 2
 
     function _mix(from, to) { return from + (to - from) * progress }
@@ -45,6 +47,7 @@ Item {
         source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
         seed: panel.seed
         radius: Theme.dp(16)
+        liveCorners: true
         // A slight breath while playing.
         scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
         Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }

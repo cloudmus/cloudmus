@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Controls.impl
+import QtQuick.Effects
 
 // A track's cover with rounded corners, or a note on a surface when it has
 // none. The corners are in the image itself: see CoverImageProvider.
@@ -17,6 +18,11 @@ Rectangle {
     property string seed
     // An accent line around it, for the one that's active.
     property bool outlined: false
+    // For one that animates its size: corners masked live, the same at any size
+    // along the way. In the picture itself they'd stretch with it, and a list's
+    // worth of masks wouldn't scroll for free. Needs a GPU; else as in a list.
+    property bool liveCorners: false
+    readonly property bool _masked: liveCorners && GraphicsInfo.api !== GraphicsInfo.Software
 
     radius: Theme.dp(6)
     color: _showing ? "transparent" : Theme.surface300
@@ -27,7 +33,7 @@ Rectangle {
     readonly property string _wanted: {
         if (_side <= 0 || (source === "" && seed === ""))
             return ""
-        const prefix = "image://cover/" + Math.round(radius * Screen.devicePixelRatio) + "/"
+        const prefix = "image://cover/" + (_masked ? 0 : Math.round(radius * Screen.devicePixelRatio)) + "/"
         return prefix + (source !== "" ? "f" + encodeURIComponent(source) : "s" + encodeURIComponent(seed))
     }
     // The picture on screen, and whether there is one.
@@ -85,9 +91,13 @@ Rectangle {
         _back.source = ""
         _back.sourceSize = Qt.size(_side, _side)
         _back.source = _wanted
-        // At hand already (the cache): no need to make a show of it.
-        if (_back.status === Image.Ready)
+        // At hand already (the cache): no need to make a show of it. Its status
+        // has told so on the way, so a fade may have begun: it mustn't go on to
+        // swap the two a second time, leaving the empty one in front.
+        if (_back.status === Image.Ready) {
+            fade.stop()
             _reveal(false)
+        }
     }
 
     function _reveal(animated) {
@@ -140,21 +150,40 @@ Rectangle {
         color: Theme.inkTertiary
     }
 
-    Image {
-        id: first
+    Item {
         anchors.fill: parent
-        asynchronous: true
-        opacity: 0
-        visible: opacity > 0
-        onStatusChanged: cover._loaded(first)
+        layer.enabled: cover._masked
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskSource: mask
+            // A soft step at the edge: antialiased corners.
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 1.0
+        }
+
+        Image {
+            id: first
+            anchors.fill: parent
+            asynchronous: true
+            opacity: 0
+            visible: opacity > 0
+            onStatusChanged: cover._loaded(first)
+        }
+        Image {
+            id: second
+            anchors.fill: parent
+            asynchronous: true
+            opacity: 0
+            visible: opacity > 0
+            onStatusChanged: cover._loaded(second)
+        }
     }
-    Image {
-        id: second
+    Rectangle {
+        id: mask
         anchors.fill: parent
-        asynchronous: true
-        opacity: 0
-        visible: opacity > 0
-        onStatusChanged: cover._loaded(second)
+        radius: cover.radius
+        visible: false
+        layer.enabled: cover._masked
     }
 
     Rectangle {

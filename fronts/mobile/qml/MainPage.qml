@@ -140,6 +140,8 @@ Page {
                 height: parent.height - y - page._heroMargin
                 progress: page.screenProgress
                 sideCoverShare: 1
+                // With air around it.
+                sideCoverHeightShare: 0.8
                 nowPlaying: page.nowPlaying
                 overAura: true
                 showMenu: page.backend.trackScreen !== null

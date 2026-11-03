@@ -236,6 +236,20 @@ private slots:
         }
         QCOMPARE(shown(), first);
 
+        // Back to a size it has had, which the cache has at hand: it stays.
+        cover->setProperty("width", 100);
+        QTRY_COMPARE(cover->property("_side").toInt(), 100);
+        for (int i = 0; i < 30; ++i) {
+            QVERIFY(cover->property("_showing").toBool());
+            QTest::qWait(20);
+        }
+        cover->setProperty("width", 200);
+        QTRY_COMPARE(cover->property("_side").toInt(), 200);
+        for (int i = 0; i < 30; ++i) {
+            QVERIFY(cover->property("_showing").toBool());
+            QTest::qWait(20);
+        }
+
         // Another cover: the old one stays until the new one has come.
         cover->setProperty("source", blueUrl);
         QVERIFY(cover->property("_showing").toBool());
@@ -569,6 +583,14 @@ private slots:
                     QStringLiteral("%1/%2-mode-moving.png").arg(dir, QTest::currentDataTag()));
             }
             QTRY_VERIFY(settled("1"));
+            // A picture of the new size comes once it has settled, and is what's shown.
+            QTRY_COMPARE(cover->property("_side").toInt(), qRound(cover->width() * window->devicePixelRatio()));
+            // (Nothing to show if the fake's track, whose stream can't be fetched,
+            // has been given up on by now: then it's the note.)
+            if (!cover->property("_wanted").toString().isEmpty())
+                QTRY_VERIFY(cover->property("_showing").toBool());
+            else
+                qInfo() << "cover: nothing wanted, hasTrack" << core.nowPlaying().hasTrack();
             shot("mode-expanded");
             const QRectF bigCover = sceneRect(cover);
             QVERIFY(bigCover.height() > normalCover.height());
