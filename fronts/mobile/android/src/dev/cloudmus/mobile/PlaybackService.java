@@ -45,10 +45,16 @@ public final class PlaybackService extends MediaLibraryService {
     // the service, with its process, goes.
     static final String COMMAND_CLOSE = "dev.cloudmus.mobile.CLOSE";
     private static final SessionCommand CLOSE = new SessionCommand(COMMAND_CLOSE, Bundle.EMPTY);
+    // The car's media widget opens Media Center, not the player's screen, on
+    // a tap: a third-party player is shown there. This button, in Media
+    // Center's controls, gets to the screen.
+    static final String COMMAND_OPEN = "dev.cloudmus.mobile.OPEN";
+    private static final SessionCommand OPEN = new SessionCommand(COMMAND_OPEN, Bundle.EMPTY);
 
     private MediaLibrarySession session;
     private CorePlayer player;
     private List<Tracks.Entry> tracks;
+    private PendingIntent openScreen;
 
     @Override
     public void onCreate() {
@@ -60,15 +66,21 @@ public final class PlaybackService extends MediaLibraryService {
         CoreBridge.setListener(player);
         CoreBridge.setStopHandler(() -> new android.os.Handler(getMainLooper()).post(() -> close("stopped in the app")));
         Intent open = new Intent(this, MainActivity.class);
+        openScreen = PendingIntent.getActivity(this, 0, open,
+            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        CommandButton openButton = new CommandButton.Builder()
+            .setDisplayName(getString(R.string.open))
+            .setIconResId(R.drawable.ic_open)
+            .setSessionCommand(OPEN)
+            .build();
         CommandButton close = new CommandButton.Builder()
             .setDisplayName(getString(R.string.close))
             .setIconResId(R.drawable.ic_close)
             .setSessionCommand(CLOSE)
             .build();
         session = new MediaLibrarySession.Builder(this, player, new Callback())
-            .setSessionActivity(PendingIntent.getActivity(this, 0, open,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT))
-            .setCustomLayout(ImmutableList.of(close))
+            .setSessionActivity(openScreen)
+            .setCustomLayout(ImmutableList.of(openButton, close))
             .build();
         DefaultMediaNotificationProvider notifications = new DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
@@ -163,14 +175,23 @@ public final class PlaybackService extends MediaLibraryService {
         public MediaSession.ConnectionResult onConnect(MediaSession session, MediaSession.ControllerInfo controller) {
             CmLog.i(TAG, "controller connected: " + controller.getPackageName() + " (uid " + controller.getUid() + ")");
             MediaSession.ConnectionResult result = MediaLibrarySession.Callback.super.onConnect(session, controller);
-            // Everyone may close: the notification, the car's media widget.
-            SessionCommands commands = result.availableSessionCommands.buildUpon().add(CLOSE).build();
+            // Everyone may open and close: the notification, the car's media widget.
+            SessionCommands commands = result.availableSessionCommands.buildUpon().add(OPEN).add(CLOSE).build();
             return MediaSession.ConnectionResult.accept(commands, result.availablePlayerCommands);
         }
 
         @Override
         public ListenableFuture<SessionResult> onCustomCommand(MediaSession session,
             MediaSession.ControllerInfo controller, SessionCommand command, Bundle args) {
+            if (COMMAND_OPEN.equals(command.customAction)) {
+                CmLog.i(TAG, "opening the screen, asked by " + controller.getPackageName());
+                try {
+                    openScreen.send();
+                } catch (PendingIntent.CanceledException error) {
+                    CmLog.e(TAG, "can't open the screen", error);
+                }
+                return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+            }
             if (COMMAND_CLOSE.equals(command.customAction)) {
                 close("asked by " + controller.getPackageName());
                 return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
