@@ -30,7 +30,10 @@ AbstractButton {
         radius: width / 2
         color: control.filled
             ? (control.down ? Theme.accentPressed : Theme.accent)
-            : (control.down ? Theme.surface400 : (control.hovered ? Theme.surface300 : "transparent"))
+            // The ink itself, faint: what's behind (the generated background)
+            // shows through.
+            : Qt.rgba(control.color.r, control.color.g, control.color.b,
+                      control.down ? 0.22 : (control.hovered ? 0.12 : 0))
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
     }
 
