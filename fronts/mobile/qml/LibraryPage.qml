@@ -243,8 +243,8 @@ Page {
                                 Layout.preferredHeight: width
                                 source: tile.coverUrl || ""
                                 seed: tile.title || ""
-                                border.width: tile.isActive === true ? Theme.dp(3) : 0
-                                border.color: Theme.accent
+                                outlined: tile.isActive === true
+                                radius: Theme.dp(8)
                                 opacity: tile.down ? 0.7 : 1
                                 BusyIndicator {
                                     anchors.centerIn: parent

@@ -114,8 +114,8 @@ ItemDelegate {
             IconImage {
                 visible: row.liked === true || row.disliked === true
                 source: row.liked === true ? "qrc:/icons/favorite.svg" : "qrc:/icons/heart_off.svg"
-                sourceSize.width: Theme.dp(18)
-                sourceSize.height: Theme.dp(18)
+                sourceSize.width: Theme.dp(14)
+                sourceSize.height: Theme.dp(14)
                 color: row.liked === true ? Theme.accent : Theme.inkTertiary
             }
         }

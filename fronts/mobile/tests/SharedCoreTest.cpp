@@ -20,6 +20,7 @@
 
 #include "AuraImageProvider.h"
 #include "Backend.h"
+#include "CoverImageProvider.h"
 #include "FakeBackend.h"
 #include "Host.h"
 #include "LogModel.h"
@@ -177,11 +178,63 @@ private slots:
             QCOMPARE(qAlpha(first.pixel(corner)), 255);
     }
 
+    // Rounded corners in the image's own transparency, for a real file and for
+    // generated art, cut square whatever shape the file is.
+    void coversHaveRoundedCorners()
+    {
+        Ui::CoverImageProvider provider;
+        QTemporaryDir dir;
+        QImage wide(200, 100, QImage::Format_RGB32);
+        wide.fill(Qt::red);
+        QVERIFY(wide.save(dir.filePath("wide.png")));
+        const QString file = QString::fromLatin1(QUrl::toPercentEncoding(QUrl::fromLocalFile(dir.filePath("wide.png")).toString()));
+        for (const QString& id : { QStringLiteral("12/f") + file, QStringLiteral("12/sLiked") }) {
+            QSize size;
+            const QImage image = provider.requestImage(id, &size, QSize(64, 64));
+            QCOMPARE(size, QSize(64, 64));
+            for (const QPoint corner : { QPoint(0, 0), QPoint(63, 0), QPoint(0, 63), QPoint(63, 63) })
+                QCOMPARE(qAlpha(image.pixel(corner)), 0);
+            QCOMPARE(qAlpha(image.pixel(32, 32)), 255);
+            QCOMPARE(qAlpha(image.pixel(32, 0)), 255);
+        }
+        QVERIFY(provider.requestImage(QStringLiteral("12/ffile%3A%2F%2F%2Fnone.png"), nullptr, QSize(64, 64)).isNull());
+    }
+
+    // What the source says and what the user does reach the row's roles, and
+    // through a replica: the fake's liked list comes with `liked` set.
+    void likesReachTheRows()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+        playFake(core);
+        QAbstractItemModel* tracks = backend.tracks();
+        QTRY_COMPARE(tracks->rowCount(), 2);
+        const auto role = [&](int row, const QByteArray& name) {
+            return tracks->data(tracks->index(row, 0), roleOf(*tracks, name));
+        };
+        Tests::await(core.nowPlaying().setTrackLiked(
+            QStringLiteral("fake"), QStringLiteral("t2"), true, /*announce=*/false));
+        QTRY_COMPARE(role(1, "liked").toBool(), true);
+        QVERIFY(!role(0, "liked").toBool());
+        Tests::await(core.nowPlaying().setTrackDisliked(
+            QStringLiteral("fake"), QStringLiteral("t1"), true, /*announce=*/false));
+        QTRY_COMPARE(role(0, "disliked").toBool(), true);
+        // Undone, for what the other tests start from.
+        Tests::await(core.nowPlaying().setTrackLiked(
+            QStringLiteral("fake"), QStringLiteral("t2"), false, /*announce=*/false));
+        Tests::await(core.nowPlaying().setTrackDisliked(
+            QStringLiteral("fake"), QStringLiteral("t1"), false, /*announce=*/false));
+    }
+
     // A row tells a track on disk and a download under way, not otherwise.
     void trackRowShowsTheCache()
     {
         QQmlEngine engine;
         engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
         QQmlComponent component(&engine);
         component.setData(R"(
             import QtQuick
@@ -281,6 +334,7 @@ private slots:
 
         QQmlApplicationEngine engine;
         engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
         engine.setInitialProperties({
             { "backend", QVariant::fromValue<QObject*>(&backend) },
             { "platform", QVariant::fromValue<QObject*>(&platform) },

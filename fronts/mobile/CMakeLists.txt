@@ -129,6 +129,8 @@ qt_add_library(cloudmus-mobile-ui STATIC
     src/Ui/AuraImageProvider.h
     src/Ui/Backend.cpp
     src/Ui/Backend.h
+    src/Ui/CoverImageProvider.cpp
+    src/Ui/CoverImageProvider.h
     src/Ui/Platform.cpp
     src/Ui/Platform.h
 )

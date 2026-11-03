@@ -11,6 +11,7 @@
 
 #include "AuraImageProvider.h"
 #include "Backend.h"
+#include "CoverImageProvider.h"
 #include "Log.h"
 #include "Platform.h"
 
@@ -139,6 +140,7 @@ int main(int argc, char* argv[])
 
     QQmlApplicationEngine engine;
     engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+    engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
     engine.setInitialProperties({
         { QStringLiteral("backend"), QVariant::fromValue<QObject*>(backend.get()) },
         { QStringLiteral("platform"), QVariant::fromValue<QObject*>(&platform) },

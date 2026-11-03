@@ -33,6 +33,7 @@ GridLayout {
             height: width
             source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
             seed: panel.seed
+            radius: Theme.dp(16)
             // A slight breath while playing.
             scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
             Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
