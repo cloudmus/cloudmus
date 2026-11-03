@@ -79,6 +79,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             // focus, and the car kept its steering-wheel buttons.
             if (playing && !wasPlaying) {
                 cancelResume("playing again");
+                focusRetries = 0;
                 requestFocus();
             }
             invalidateState();
@@ -287,18 +288,45 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         CmLog.i(TAG, text.toString());
     }
 
+    // The system may refuse the focus when we ask for it: at boot, with the
+    // head unit's own sounds and other players starting at the same time, it
+    // did (result 0). The core plays all the same, so we'd play on without
+    // the focus — and without the steering-wheel buttons, the car's widget
+    // and a pause of the other player. Asking again until it's ours.
+    private static final long FOCUS_RETRY_MS = 3000;
+    private static final int FOCUS_RETRIES = 20;
+    private int focusRetries;
+    private final Runnable focusRetry = this::retryFocus;
+
     private void requestFocus() {
         if (hasFocus)
             return;
         int result = audioManager.requestAudioFocus(focusRequest);
         hasFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
         CmLog.i(TAG, "audio focus request: " + (hasFocus ? "granted" : "refused (" + result + ")"));
+        if (hasFocus) {
+            focusRetries = 0;
+            resumeHandler().removeCallbacks(focusRetry);
+        } else if (result == AudioManager.AUDIOFOCUS_REQUEST_FAILED && focusRetries < FOCUS_RETRIES) {
+            resumeHandler().removeCallbacks(focusRetry);
+            resumeHandler().postDelayed(focusRetry, FOCUS_RETRY_MS);
+        }
+    }
+
+    private void retryFocus() {
+        if (hasFocus || !playing)
+            return;
+        ++focusRetries;
+        CmLog.i(TAG, "audio focus: try " + (focusRetries + 1));
+        requestFocus();
     }
 
     private void abandonFocus() {
         if (hasFocus) {
             audioManager.abandonAudioFocusRequest(focusRequest);
             hasFocus = false;
+            focusRetries = 0;
+            resumeHandler().removeCallbacks(focusRetry);
             CmLog.i(TAG, "audio focus abandoned");
         }
     }
