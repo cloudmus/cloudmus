@@ -260,6 +260,60 @@ private slots:
         QVERIFY(cover->property("_showing").toBool());
     }
 
+    // The hero's cover changes as on the desktop: the new one settling in from
+    // larger, the old one on its way out; a new size of the same one just fades.
+    void heroCoverZoomsOnChangeOnly()
+    {
+        QTemporaryDir dir;
+        for (const char* name : { "red", "blue" }) {
+            QImage image(64, 64, QImage::Format_RGB32);
+            image.fill(QColor(QString::fromLatin1(name)));
+            QVERIFY(image.save(dir.filePath(QStringLiteral("%1.png").arg(QString::fromLatin1(name)))));
+        }
+        QQmlEngine engine;
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Window {
+                width: 400; height: 400; visible: true
+                Cover { objectName: "cover"; width: 100; height: width; zoomOnChange: true }
+            }
+        )", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(root.get());
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* cover = window->findChild<QQuickItem*>(QStringLiteral("cover"));
+        QVERIFY(cover);
+        const auto url = [&](const char* name) {
+            return QUrl::fromLocalFile(dir.filePath(QStringLiteral("%1.png").arg(QString::fromLatin1(name)))).toString();
+        };
+
+        cover->setProperty("source", url("red"));
+        QTRY_VERIFY(cover->property("_showing").toBool());
+        QTRY_VERIFY(!cover->property("changing").toBool());
+
+        // Another cover: it comes in larger, and settles.
+        cover->setProperty("source", url("blue"));
+        QTRY_VERIFY(cover->property("changing").toBool());
+        QVERIFY(cover->property("enteringScale").toReal() > 1.0);
+        QVERIFY(cover->property("_showing").toBool());
+        QTRY_VERIFY(!cover->property("changing").toBool());
+        QCOMPARE(cover->property("enteringScale").toReal(), 1.0);
+
+        // The same cover at a new size: no zoom along the way.
+        cover->setProperty("width", 180);
+        QTRY_VERIFY_WITH_TIMEOUT(cover->property("changing").toBool(), 2000);
+        while (cover->property("changing").toBool()) {
+            QCOMPARE(cover->property("enteringScale").toReal(), 1.0);
+            QTest::qWait(10);
+        }
+        QVERIFY(cover->property("_showing").toBool());
+        QCOMPARE(cover->property("shownSide").toInt(), 180);
+    }
+
     // The hero's: its edges dissolve into the color given, its center is dark.
     void auraHeroHasEdgesAndAVignette()
     {
@@ -578,6 +632,17 @@ private slots:
             QVERIFY(!sceneRect(bar).intersects(normalCover));
             QVERIFY(!railSettings->isVisible());
             QVERIFY(sceneRect(details).top() > normalCover.top());
+
+            // Another track: its cover comes as on the desktop, then is there alone.
+            core.activePlaylist().playRow(core.core().playback().currentIndex() == 0 ? 1 : 0);
+            QTRY_VERIFY(cover->property("changing").toBool());
+            QTest::qWait(120);
+            if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty()) {
+                window->grabWindow().save(
+                    QStringLiteral("%1/%2-cover-changing.png").arg(dir, QTest::currentDataTag()));
+            }
+            QTRY_VERIFY(!cover->property("changing").toBool());
+            QVERIFY(cover->property("_showing").toBool());
 
             QMetaObject::invokeMethod(toggle, "clicked");
             QTest::qWait(150);

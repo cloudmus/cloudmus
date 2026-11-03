@@ -1,10 +1,11 @@
 import QtQuick
+import QtQuick.Effects
 
 // A picture that never blinks: a new one (another address, or the same at
 // another size) loads behind the scenes and fades in over what's there, which
 // goes only then. One the cache has at hand is shown at once, no show made of
 // it, so a page can open with its picture already in place if someone has
-// loaded that beforehand.
+// loaded that beforehand, on a screen where there's nothing to replace.
 Item {
     id: root
 
@@ -12,10 +13,19 @@ Item {
     property string target
     property size pixels: Qt.size(0, 0)
     property int fadeDuration: 250
+    // Another picture coming as on the desktop's hero: the old one shrinks away
+    // fading, the new one settles in from larger. The same at another size
+    // always just fades in.
+    property bool zoomOnChange: false
+    // Corners to mask each picture with, live: on each, for a picture growing
+    // past the bounds not to be cut off by them.
+    property Item mask: null
 
     readonly property bool showing: _front.status === Image.Ready
     readonly property string shownSource: _front.source.toString()
     readonly property int shownWidth: _front.sourceSize.width
+    readonly property bool changing: change.running
+    readonly property real enteringScale: _back.scale
 
     property Image _front: first
     property Image _back: second
@@ -41,9 +51,10 @@ Item {
     }
 
     function _load() {
-        fade.stop()
-        if (_back.opacity > 0)
-            _swap() // one still fading in: it's the one showing now
+        const wasChanging = change.running
+        change.stop()
+        if (wasChanging)
+            _swap() // one still coming in: it's the one showing now
         if (target === "" || pixels.width <= 0) {
             if (target === "") {
                 _front.source = ""
@@ -57,25 +68,37 @@ Item {
         _back.source = ""
         _back.sourceSize = pixels
         _back.source = target
-        // Its status has told so on the way, so a fade may have begun: it mustn't
-        // go on to swap the two a second time, leaving the empty one in front.
+        // At hand already, and its status has told so on the way, so a change may
+        // have begun: this is the one that counts. With nothing to replace it's
+        // just there, for a page to open with it.
         if (_back.status === Image.Ready) {
-            fade.stop()
-            _reveal(false)
+            change.stop()
+            _reveal(showing)
         }
     }
 
     function _reveal(animated) {
         _back.z = 1
         _front.z = 0
-        if (animated) {
-            _back.opacity = 0
-            fade.target = _back
-            fade.start()
-        } else {
+        if (!animated) {
             _back.opacity = 1
             _swap()
+            return
         }
+        const zoom = zoomOnChange && _front.source.toString() !== _back.source.toString()
+        _back.opacity = 0
+        _back.scale = zoom ? 1.5 : 1
+        entering.target = _back
+        enteringScale_.target = _back
+        leaving.target = _front
+        leavingScale.target = _front
+        entering.duration = enteringScale_.duration = zoom ? 450 : fadeDuration
+        entering.easing.type = enteringScale_.easing.type = zoom ? Easing.OutCubic : Easing.InOutQuad
+        // The old one stays whole under a plain fade, for nothing to show through.
+        leaving.to = zoom ? 0 : 1
+        leavingScale.to = zoom ? 0.5 : 1
+        leaving.duration = leavingScale.duration = zoom ? 300 : fadeDuration
+        change.start()
     }
 
     // What came in is what's shown; the other waits for the next.
@@ -84,7 +107,9 @@ Item {
         _front = _back
         _back = old
         _front.opacity = 1
+        _front.scale = 1
         _back.opacity = 0
+        _back.scale = 1
         _back.source = ""
     }
 
@@ -97,13 +122,24 @@ Item {
             image.source = ""
     }
 
-    NumberAnimation {
-        id: fade
-        property: "opacity"
-        to: 1
-        duration: root.fadeDuration
-        easing.type: Easing.InOutQuad
+    ParallelAnimation {
+        id: change
+        NumberAnimation { id: entering; property: "opacity"; to: 1 }
+        NumberAnimation { id: enteringScale_; property: "scale"; to: 1 }
+        NumberAnimation { id: leaving; property: "opacity"; easing.type: Easing.InCubic }
+        NumberAnimation { id: leavingScale; property: "scale"; easing.type: Easing.InCubic }
         onFinished: root._swap()
+    }
+
+    Component {
+        id: masking
+        MultiEffect {
+            maskEnabled: true
+            maskSource: root.mask
+            // A soft step at the edge: antialiased corners.
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 1.0
+        }
     }
 
     Image {
@@ -112,6 +148,8 @@ Item {
         asynchronous: true
         opacity: 0
         visible: opacity > 0
+        layer.enabled: root.mask !== null && visible
+        layer.effect: masking
         onStatusChanged: root._loaded(first)
     }
     Image {
@@ -120,6 +158,8 @@ Item {
         asynchronous: true
         opacity: 0
         visible: opacity > 0
+        layer.enabled: root.mask !== null && visible
+        layer.effect: masking
         onStatusChanged: root._loaded(second)
     }
 }

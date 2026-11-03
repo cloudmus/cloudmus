@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Controls.impl
-import QtQuick.Effects
 
 // A track's cover with rounded corners, or a note on a surface when it has
 // none. The corners are in the image itself: see CoverImageProvider.
@@ -20,6 +19,10 @@ Rectangle {
     // along the way. In the picture itself they'd stretch with it, and a list's
     // worth of masks wouldn't scroll for free. Needs a GPU; else as in a list.
     property bool liveCorners: false
+    // Another cover comes as on the desktop's hero: see CrossfadeImage.
+    property bool zoomOnChange: false
+    readonly property bool changing: picture.changing
+    readonly property real enteringScale: picture.enteringScale
     readonly property bool _masked: liveCorners && GraphicsInfo.api !== GraphicsInfo.Software
 
     radius: Theme.dp(6)
@@ -79,17 +82,11 @@ Rectangle {
         anchors.fill: parent
         target: cover._wanted
         pixels: Qt.size(cover._side, cover._side)
-        layer.enabled: cover._masked
-        layer.effect: MultiEffect {
-            maskEnabled: true
-            maskSource: mask
-            // A soft step at the edge: antialiased corners.
-            maskThresholdMin: 0.5
-            maskSpreadAtMin: 1.0
-        }
+        mask: cover._masked ? maskShape : null
+        zoomOnChange: cover.zoomOnChange
     }
     Rectangle {
-        id: mask
+        id: maskShape
         anchors.fill: parent
         radius: cover.radius
         visible: false
