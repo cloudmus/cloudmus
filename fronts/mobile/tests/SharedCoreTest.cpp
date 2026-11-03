@@ -192,11 +192,11 @@ private slots:
                     anchors.fill: parent
                     model: ListModel {
                         ListElement { title: "Cached"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
-                                      cached: true; downloadProgress: 0 }
+                                      cached: true; downloadProgress: -1; liked: true; disliked: false; unavailable: false }
                         ListElement { title: "Fetching"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
-                                      cached: false; downloadProgress: 0.4 }
+                                      cached: false; downloadProgress: 0.4; liked: false; disliked: true; unavailable: false }
                         ListElement { title: "Neither"; artist: "A"; durationMs: 1000; coverUrl: ""; isCurrent: false
-                                      cached: false; downloadProgress: -1 }
+                                      cached: false; downloadProgress: -1; liked: false; disliked: false; unavailable: true }
                     }
                     delegate: TrackRow {}
                 }

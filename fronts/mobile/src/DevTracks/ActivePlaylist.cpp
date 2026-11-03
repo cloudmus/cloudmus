@@ -61,6 +61,9 @@ QHash<int, QByteArray> TrackListModel::roleNames() const
         { IsCurrentRole, "isCurrent" },
         { CachedRole, "cached" },
         { DownloadProgressRole, "downloadProgress" },
+        { LikedRole, "liked" },
+        { DislikedRole, "disliked" },
+        { UnavailableRole, "unavailable" },
     };
 }
 

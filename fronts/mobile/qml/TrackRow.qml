@@ -3,7 +3,9 @@ import QtQuick.Controls.Basic
 import QtQuick.Controls.impl
 import QtQuick.Layouts
 
-// A track in a list: cover, title, artist, how long it is.
+// A track in a list, marked as on the desktop (TrackRowDelegate): a dot if it's
+// downloaded, a line along the bottom while it downloads, a heart if liked or
+// disliked, and faded if it can't be played.
 ItemDelegate {
     id: row
 
@@ -17,7 +19,11 @@ ItemDelegate {
     // Whether it's on disk, or how far its download has got (0..1, else empty).
     required property var cached
     required property var downloadProgress
-    readonly property bool downloading: typeof downloadProgress === "number" && downloadProgress > 0
+    required property var liked
+    required property var disliked
+    required property var unavailable
+    readonly property bool downloading: typeof downloadProgress === "number" && downloadProgress >= 0
+    readonly property color faintAccent: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
     readonly property bool current: isCurrent === true
     property bool playing: false
 
@@ -39,17 +45,20 @@ ItemDelegate {
         Rectangle {
             objectName: "downloadBar"
             visible: row.downloading
-            anchors.left: parent.left
+            // From under the title to the row's right margin.
+            x: row.leftPadding + Theme.dp(52) + Theme.dp(14)
             anchors.bottom: parent.bottom
             height: Theme.dp(2)
-            width: parent.width * (row.downloading ? row.downloadProgress : 0)
-            color: Theme.accent
+            radius: height / 2
+            width: (parent.width - x - row.rightPadding) * (row.downloading ? Math.min(1, row.downloadProgress) : 0)
+            color: row.faintAccent
             Behavior on width { NumberAnimation { duration: Theme.durationFast } }
         }
     }
 
     contentItem: RowLayout {
         spacing: Theme.dp(14)
+        opacity: row.unavailable === true ? 0.45 : 1
         Cover {
             Layout.preferredWidth: Theme.dp(52)
             Layout.preferredHeight: Theme.dp(52)
@@ -92,21 +101,23 @@ ItemDelegate {
                 elide: Text.ElideRight
             }
         }
-        Text {
-            visible: row.downloading
-            text: row.downloading ? Math.round(row.downloadProgress * 100) + "%" : ""
-            color: Theme.accent
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSmall
-            font.features: { "tnum": 1 }
-        }
-        IconImage {
-            objectName: "cachedMark"
-            visible: row.cached === true && !row.downloading
-            source: "qrc:/icons/check.svg"
-            sourceSize.width: Theme.dp(18)
-            sourceSize.height: Theme.dp(18)
-            color: Theme.success
+        RowLayout {
+            spacing: Theme.dp(8)
+            Rectangle {
+                objectName: "cachedMark"
+                visible: row.cached === true
+                implicitWidth: Theme.dp(6)
+                implicitHeight: Theme.dp(6)
+                radius: width / 2
+                color: row.faintAccent
+            }
+            IconImage {
+                visible: row.liked === true || row.disliked === true
+                source: row.liked === true ? "qrc:/icons/favorite.svg" : "qrc:/icons/heart_off.svg"
+                sourceSize.width: Theme.dp(18)
+                sourceSize.height: Theme.dp(18)
+                color: row.liked === true ? Theme.accent : Theme.inkTertiary
+            }
         }
         Text {
             text: Theme.formatTime(row.durationMs)

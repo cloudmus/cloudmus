@@ -177,7 +177,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         src/Ui/LogModel.h
 )
 
-set(_icons arrow_back check close expand_less expand_more favorite favorite_border file_download heart_off
+set(_icons arrow_back close expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline music_note pause play_arrow refresh skip_next skip_previous star star_border tune
     volume_up warning)
 set(_icon_files)
