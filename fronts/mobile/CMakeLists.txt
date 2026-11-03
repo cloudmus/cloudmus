@@ -215,6 +215,32 @@ if(ANDROID)
         configure_file(${_file} ${_package}/assets/media/${_name} COPYONLY)
     endforeach()
 
+    # CPython and the backends (tools/bundle-python.sh), where there's a build
+    # of it for the ABI.
+    set(CLOUDMUS_PYTHON_ANDROID_DIR "" CACHE PATH "What tools/bundle-python.sh made for this ABI")
+    if(CLOUDMUS_PYTHON_ANDROID_DIR)
+        # In the package's jniLibs, not QT_ANDROID_EXTRA_LIBS: Qt loads those
+        # into the UI process as it starts. Only Python's process needs these.
+        set(_jni_libs ${_package}/libs/${ANDROID_ABI})
+        file(GLOB _python_libs CONFIGURE_DEPENDS "${CLOUDMUS_PYTHON_ANDROID_DIR}/libs/*.so")
+        file(GLOB _libpython "${CLOUDMUS_PYTHON_ANDROID_DIR}/libs/libpython3.*.so")
+        file(GLOB _python_include "${CLOUDMUS_PYTHON_ANDROID_DIR}/include/python3.*")
+        foreach(_lib IN LISTS _python_libs)
+            get_filename_component(_name ${_lib} NAME)
+            configure_file(${_lib} ${_jni_libs}/${_name} COPYONLY)
+        endforeach()
+        add_executable(cloudmus-python src/Android/PythonMain.c)
+        target_include_directories(cloudmus-python PRIVATE ${_python_include})
+        target_link_libraries(cloudmus-python PRIVATE ${_libpython})
+        set_target_properties(cloudmus-python PROPERTIES OUTPUT_NAME libcmpython SUFFIX .so)
+        add_custom_command(TARGET cloudmus-python POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:cloudmus-python> ${_jni_libs}/libcmpython.so)
+        add_dependencies(cloudmus-mobile cloudmus-python)
+        foreach(_file python.zip python.stamp)
+            configure_file(${CLOUDMUS_PYTHON_ANDROID_DIR}/${_file} ${_package}/assets/${_file} COPYONLY)
+        endforeach()
+    endif()
+
     add_dependencies(cloudmus-mobile cloudmus-mobile-service)
     set_target_properties(cloudmus-mobile PROPERTIES
         QT_ANDROID_PACKAGE_SOURCE_DIR ${_package}

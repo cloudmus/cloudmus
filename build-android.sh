@@ -98,6 +98,12 @@ for abi in "${abis[@]}"; do
         *) echo "unknown ABI $abi" >&2; exit 1 ;;
     esac
     build=$work/$abi
+    # CPython and the backends; no official build for 32-bit units.
+    python_args=()
+    if [ "$abi" != armeabi-v7a ]; then
+        fronts/mobile/tools/bundle-python.sh "$abi" "$work/python-$abi"
+        python_args=(-DCLOUDMUS_PYTHON_ANDROID_DIR="$work/python-$abi")
+    fi
     # aqtinstall leaves some kits' tools without the execute bit.
     [ -x "$QT_ROOT/$kit/bin/qt-cmake" ] || chmod +x "$QT_ROOT/$kit/bin/"*
     "$QT_ROOT/$kit/bin/qt-cmake" -S fronts/mobile -B "$build" -G Ninja \
@@ -105,7 +111,7 @@ for abi in "${abis[@]}"; do
         -DQT_HOST_PATH="$QT_ROOT/gcc_64" \
         -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
         -DQT_ANDROID_SIGN_APK=ON \
-        -DCLOUDMUS_MPV_ANDROID_DIR="$mpv_dir"
+        -DCLOUDMUS_MPV_ANDROID_DIR="$mpv_dir" "${python_args[@]}"
     cmake --build "$build" --target apk
     apk=$(find "$build" -name '*.apk' -path '*release*' | head -1)
     [ -n "$apk" ] || { echo "no APK built for $abi" >&2; exit 1; }

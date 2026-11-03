@@ -43,6 +43,28 @@ public final class UiBridge {
         return SystemProbe.exportApks(context);
     }
 
+    // Where Python is, for starting it: "<PYTHONHOME>\n<native library dir>",
+    // or empty when it can't be had (an APK without it). Blocks on the first
+    // run: from a worker thread.
+    public static String preparePython(Context context) {
+        try {
+            return PythonRuntime.prepare(context).getPath() + "\n" + context.getApplicationInfo().nativeLibraryDir;
+        } catch (Exception error) {
+            CmLog.e("UiBridge", "no Python", error);
+            return "";
+        }
+    }
+
+    // The Python probe asked for as the app was started (`am start ... --ez
+    // pythonProbe true`), once.
+    public static boolean pythonProbeRequested;
+
+    public static String takePythonProbeRequest(Context context) {
+        boolean requested = pythonProbeRequested;
+        pythonProbeRequested = false;
+        return requested ? "yes" : "";
+    }
+
     public static String exportProgress(Context context) {
         return SystemProbe.exportProgress();
     }

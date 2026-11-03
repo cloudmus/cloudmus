@@ -66,6 +66,13 @@ Page {
                 Layout.fillWidth: true
                 spacing: Theme.spacing
                 TextButton {
+                    text: qsTr("Python probe")
+                    onClicked: {
+                        exportResult.text = qsTr("Running, it takes a minute…")
+                        page.platform.runPythonProbe()
+                    }
+                }
+                TextButton {
                     text: qsTr("Log system probe")
                     onClicked: exportResult.text = page.platform.logSystemProbe()
                 }

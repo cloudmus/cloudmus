@@ -47,6 +47,9 @@ public:
     bool exportingApps() const { return exportThread_ != nullptr; }
     double exportFraction() const { return exportFraction_; }
     QString exportStatus() const { return exportStatus_; }
+    // Whether Python and the backends run on this device, into the log, the
+    // outcome in pythonProbeFinished().
+    Q_INVOKABLE void runPythonProbe();
     // The window's first frame: startup timing.
     // Also logs how it's drawn (refresh rate, graphics API, render loop).
     Q_INVOKABLE void markFirstFrame(QObject* window) const;
@@ -57,6 +60,7 @@ signals:
     void exportProgressChanged();
     // What to tell the user: where the zip went, or what went wrong.
     void systemAppsExported(const QString& result);
+    void pythonProbeFinished(const QString& result);
 
 private:
     void pollExportProgress();
