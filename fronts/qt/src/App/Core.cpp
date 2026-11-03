@@ -21,6 +21,7 @@ Core::Core(QObject* parent)
     , sources_(sourceManager_, sourceSession_, authStates_, playlistEditing_, coverArtCache_, settings_, messages_)
     , activePlaylist_(playback_, sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_,
           playlistEditing_, messages_)
+    , activeTracks_(activePlaylist_, playback_, trackStates_, preload_, coverArtCache_)
     , browse_(sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_, activePlaylist_,
           playlistEditing_, messages_)
     , sourcePage_(sourceSession_)

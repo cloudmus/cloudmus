@@ -59,40 +59,59 @@ if(ANDROID)
 endif()
 set_target_properties(cloudmus-mobile-log PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# --- The core: playback, view models, remoting. Qt Core, Network and
-# Remote Objects only — no Gui, so the playback service starts light.
+# --- The core: on the desktop App::Core, the desktop front's own, with the
+# real backends. The APK can't run those yet (they are Python): it stays on
+# src/DevTracks, a stand-in on Qt Core and Network alone, until it can.
+if(ANDROID)
+    set(_shared_core_default OFF)
+else()
+    set(_shared_core_default ON)
+endif()
+option(CLOUDMUS_MOBILE_SHARED_CORE "Run App::Core rather than the dev tracks" ${_shared_core_default})
+
 add_library(cloudmus-mobile-core STATIC
-    ${QT_FRONT_SRC}/Net/NetworkErrors.cpp
-    ${QT_FRONT_SRC}/Net/ParallelDownload.cpp
-    ${QT_FRONT_SRC}/Playback/AudioPlayer.cpp
-    ${QT_FRONT_SRC}/Playback/LevelFeed.cpp
-    ${QT_FRONT_SRC}/Playback/NetworkPool.cpp
-    ${QT_FRONT_SRC}/Playback/StreamDownload.cpp
-    ${QT_FRONT_SRC}/Playback/StreamRelay.cpp
-    ${QT_FRONT_SRC}/Timing/Throttle.cpp
-    src/App/MobileCore.cpp
-    src/App/MobileCore.h
-    src/Playback/QueuePlayer.cpp
-    src/Playback/QueuePlayer.h
-    src/Playback/Track.cpp
-    src/Playback/Track.h
     src/Remote/Host.cpp
     src/Remote/Host.h
     src/Remote/Names.h
-    src/ViewModel/ActivePlaylist.cpp
-    src/ViewModel/ActivePlaylist.h
-    src/ViewModel/NowPlaying.cpp
-    src/ViewModel/NowPlaying.h
-    src/ViewModel/Settings.cpp
-    src/ViewModel/Settings.h
+    src/ViewModel/PlatformSettings.cpp
+    src/ViewModel/PlatformSettings.h
 )
-target_include_directories(cloudmus-mobile-core PUBLIC
-    src/App src/Playback src/Remote src/ViewModel
-    ${QT_FRONT_SRC}/Net ${QT_FRONT_SRC}/Playback ${QT_FRONT_SRC}/Timing
-)
+target_include_directories(cloudmus-mobile-core PUBLIC src/Remote src/ViewModel)
 target_link_libraries(cloudmus-mobile-core PUBLIC
     cloudmus-mobile-log cloudmus-mobile-mpv Qt6::Core Qt6::Network Qt6::RemoteObjects)
 set_target_properties(cloudmus-mobile-core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+if(CLOUDMUS_MOBILE_SHARED_CORE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+    add_library(cloudmus-mpv ALIAS cloudmus-mobile-mpv)
+    add_subdirectory(../qt/core qt-core)
+    target_sources(cloudmus-mobile-core PRIVATE src/App/MobileCore.cpp src/App/MobileCore.h)
+    target_include_directories(cloudmus-mobile-core PUBLIC src/App)
+    target_link_libraries(cloudmus-mobile-core PUBLIC cloudmus-core)
+else()
+    target_sources(cloudmus-mobile-core PRIVATE
+        ${QT_FRONT_SRC}/Net/NetworkErrors.cpp
+        ${QT_FRONT_SRC}/Net/ParallelDownload.cpp
+        ${QT_FRONT_SRC}/Playback/AudioPlayer.cpp
+        ${QT_FRONT_SRC}/Playback/LevelFeed.cpp
+        ${QT_FRONT_SRC}/Playback/NetworkPool.cpp
+        ${QT_FRONT_SRC}/Playback/StreamDownload.cpp
+        ${QT_FRONT_SRC}/Playback/StreamRelay.cpp
+        ${QT_FRONT_SRC}/Timing/Throttle.cpp
+        src/DevTracks/ActivePlaylist.cpp
+        src/DevTracks/ActivePlaylist.h
+        src/DevTracks/MobileCore.cpp
+        src/DevTracks/MobileCore.h
+        src/DevTracks/NowPlaying.cpp
+        src/DevTracks/NowPlaying.h
+        src/DevTracks/QueuePlayer.cpp
+        src/DevTracks/QueuePlayer.h
+        src/DevTracks/Track.cpp
+        src/DevTracks/Track.h
+    )
+    target_include_directories(cloudmus-mobile-core PUBLIC
+        src/DevTracks ${QT_FRONT_SRC}/Net ${QT_FRONT_SRC}/Playback ${QT_FRONT_SRC}/Timing)
+endif()
 
 # --- The views: QML and what it binds to. A library of their own so the
 # tests drive the same pages the app shows.
@@ -167,12 +186,12 @@ endif()
 
 # --- Android: the playback service's library and the package.
 if(ANDROID)
-    add_library(cloudmus-core SHARED
+    add_library(cloudmus-mobile-service SHARED
         src/Android/ServiceMain.cpp
     )
-    target_link_libraries(cloudmus-core PRIVATE cloudmus-mobile-core)
+    target_link_libraries(cloudmus-mobile-service PRIVATE cloudmus-mobile-core)
     # Plain names: CorePaths.java loads it with System.loadLibrary().
-    set_target_properties(cloudmus-core PROPERTIES OUTPUT_NAME cloudmus-core)
+    set_target_properties(cloudmus-mobile-service PROPERTIES OUTPUT_NAME cloudmus-core)
 
     set(_mpv_libs)
     foreach(_lib mpv avcodec avdevice avfilter avformat avutil postproc swresample swscale)
@@ -196,10 +215,10 @@ if(ANDROID)
         configure_file(${_file} ${_package}/assets/media/${_name} COPYONLY)
     endforeach()
 
-    add_dependencies(cloudmus-mobile cloudmus-core)
+    add_dependencies(cloudmus-mobile cloudmus-mobile-service)
     set_target_properties(cloudmus-mobile PROPERTIES
         QT_ANDROID_PACKAGE_SOURCE_DIR ${_package}
-        QT_ANDROID_EXTRA_LIBS "$<TARGET_FILE:cloudmus-core>;${_mpv_libs}"
+        QT_ANDROID_EXTRA_LIBS "$<TARGET_FILE:cloudmus-mobile-service>;${_mpv_libs}"
         QT_ANDROID_MIN_SDK_VERSION 26
         QT_ANDROID_TARGET_SDK_VERSION 34
         QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}

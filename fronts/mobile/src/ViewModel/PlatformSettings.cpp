@@ -1,4 +1,4 @@
-#include "Settings.h"
+#include "PlatformSettings.h"
 
 namespace ViewModel {
 
@@ -9,15 +9,15 @@ const QString kResumeAfterLossKey = QStringLiteral("resumeAfterLossSec");
 constexpr int kResumeAfterLossDefault = 60;
 }
 
-Settings::Settings(QSettings& store, QObject* parent)
+PlatformSettings::PlatformSettings(QSettings& store, QObject* parent)
     : QObject(parent)
     , store_(store)
 {
 }
 
-bool Settings::autoplay() const { return store_.value(kAutoplayKey, true).toBool(); }
+bool PlatformSettings::autoplay() const { return store_.value(kAutoplayKey, true).toBool(); }
 
-void Settings::setAutoplay(bool autoplay)
+void PlatformSettings::setAutoplay(bool autoplay)
 {
     if (autoplay == this->autoplay())
         return;
@@ -28,12 +28,12 @@ void Settings::setAutoplay(bool autoplay)
     emit autoplayChanged();
 }
 
-int Settings::resumeAfterLossSec() const
+int PlatformSettings::resumeAfterLossSec() const
 {
     return store_.value(kResumeAfterLossKey, kResumeAfterLossDefault).toInt();
 }
 
-void Settings::setResumeAfterLossSec(int seconds)
+void PlatformSettings::setResumeAfterLossSec(int seconds)
 {
     seconds = qMax(0, seconds);
     if (seconds == resumeAfterLossSec())

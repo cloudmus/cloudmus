@@ -7,12 +7,16 @@ autoplays, and whether it shows up as the system media player.
 
 ## Layout
 
-- **Core** (`src/App`, `Playback`, `ViewModel`, `Remote`): Qt Core only. The
-  queue plays through the desktop front's own `Playback::AudioPlayer`
-  (libmpv), compiled from `fronts/qt/src/Playback` as is. View models are
-  named and shaped like the desktop's (`ViewModel::NowPlaying`,
-  `ActivePlaylist`) so those can replace these later; their actions are
-  slots, since on Android the views hold Qt Remote Objects replicas.
+- **Core**: the desktop front's own `App::Core` and view models
+  (`fronts/qt/core`, the `cloudmus-core` library), kept to Qt 6.7 APIs. On top,
+  `src/App/MobileCore` adds what only a phone or a car has, and `src/Remote`
+  offers it all to views in another process. A replica only carries
+  properties, signals and slots, so what is offered acts through slots, passes
+  plain types, and gives each property a notify signal of its own.
+- **APK, for now**: the backends are Python and don't run on Android yet, so
+  the APK (`CLOUDMUS_MOBILE_SHARED_CORE=OFF`, the default there) still plays
+  three dev tracks through the stand-ins in `src/DevTracks`. The desktop build
+  runs `App::Core` with the real backends.
 - **Views** (`qml/`, `src/Ui`): `Ui::Backend` hands QML the view models
   themselves (one process) or replicas of them (`Remote::Host`).
 - **Android** (`android/`): the player is a Media3 `MediaLibraryService` in
@@ -31,10 +35,15 @@ autoplays, and whether it shows up as the system media player.
 fronts/mobile/tools/fetch-dev-tracks.sh        # 3 tracks from ~/Music → media/ (gitignored)
 CMAKE_PREFIX_PATH=~/Qt/6.7.3/gcc_64 cmake -S fronts/mobile -B fronts/mobile/build -G Ninja
 cmake --build fronts/mobile/build
+export CLOUDMUS_DEV_BACKENDS=1                 # the backends of this checkout
 fronts/mobile/build/cloudmus-mobile            # one process
 fronts/mobile/build/cloudmus-mobile --split    # core in its own process, as on Android
 ctest --test-dir fronts/mobile/build           # CLOUDMUS_MOBILE_SHOTS=<dir> saves screenshots
 ```
+
+It shares the settings, sign-ins and history of an installed desktop CloudMus;
+set `XDG_CONFIG_HOME` and `XDG_CACHE_HOME` to keep them apart. Dev tracks are
+only for the APK.
 
 Any Qt ≥ 6.7 works on the desktop; keep to 6.7 APIs (see below).
 

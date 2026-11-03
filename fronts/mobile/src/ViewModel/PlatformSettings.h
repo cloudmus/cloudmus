@@ -9,7 +9,7 @@ namespace ViewModel {
 
 // The core's settings a view can change. Kept in the playback process:
 // that's where they are acted on — autoplay is read at boot, before any UI.
-class Settings : public QObject {
+class PlatformSettings : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool autoplay READ autoplay WRITE setAutoplay NOTIFY autoplayChanged)
     // Another sound (the phone over Bluetooth, a prompt) took the audio for
@@ -19,7 +19,7 @@ class Settings : public QObject {
                    resumeAfterLossSecChanged)
 
 public:
-    explicit Settings(QSettings& store, QObject* parent = nullptr);
+    explicit PlatformSettings(QSettings& store, QObject* parent = nullptr);
 
     bool autoplay() const;
     int resumeAfterLossSec() const;

@@ -76,7 +76,7 @@ Page {
 
             width: ListView.view.width
             height: Theme.rowHeight + Theme.dp(8)
-            onClicked: page.playlist.play(index)
+            onClicked: page.playlist.playRow(index)
 
             background: Rectangle {
                 color: row.down ? Theme.surface300 : (row.current ? Theme.surface200 : "transparent")

@@ -27,7 +27,7 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , nowPlaying_(&core.nowPlaying())
     , playlist_(&core.activePlaylist())
     , settings_(&core.settings())
-    , tracks_(&core.activePlaylist().tracks())
+    , tracks_(&core.tracks())
     , ready_(true)
 {
 }

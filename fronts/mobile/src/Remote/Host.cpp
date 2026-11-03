@@ -26,7 +26,7 @@ Host::Host(App::MobileCore& core, const QString& socketPath, QObject* parent)
     host_.enableRemoting(&core.nowPlaying(), Names::nowPlaying);
     host_.enableRemoting(&core.activePlaylist(), Names::activePlaylist);
     host_.enableRemoting(&core.settings(), Names::settings);
-    ViewModel::TrackListModel& tracks = core.activePlaylist().tracks();
+    auto& tracks = core.tracks();
     host_.enableRemoting(&tracks, Names::tracks, tracks.roleNames().keys().toVector());
     qCInfo(lcRemote) << "core offered on" << socketPath;
 }

@@ -4,6 +4,7 @@
 #include <QSet>
 
 #include "ActivePlaylist.h"
+#include "ActiveTracks.h"
 #include "Analytics.h"
 #include "AudioFileProbe.h"
 #include "AudioPulse.h"
@@ -58,6 +59,7 @@ public:
     PlaylistEditing& playlistEditing() { return playlistEditing_; }
     ViewModel::Sources& sources() { return sources_; }
     ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
+    ViewModel::ActiveTracks& activeTracks() { return activeTracks_; }
     ViewModel::Browse& browse() { return browse_; }
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
     ListeningTime& listeningTime() { return listeningTime_; }
@@ -90,6 +92,7 @@ private:
     PlaylistEditing playlistEditing_;
     ViewModel::Sources sources_;
     ViewModel::ActivePlaylist activePlaylist_;
+    ViewModel::ActiveTracks activeTracks_;
     // After activePlaylist_: it restores its page once the active
     // playlist has restored itself.
     ViewModel::Browse browse_;

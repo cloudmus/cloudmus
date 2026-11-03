@@ -50,6 +50,7 @@ public:
 
 public slots:
     void play(int row);
+    void playRow(int row) { play(row); }
 
 private:
     Playback::QueuePlayer& player_;
