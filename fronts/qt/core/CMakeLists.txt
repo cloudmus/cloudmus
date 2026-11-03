@@ -125,7 +125,9 @@ add_library(cloudmus-core STATIC
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Sources.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/ActivePlaylist.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/ActiveTracks.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/Browse.cpp
+    ${CLOUDMUS_QT_DIR}/src/ViewModel/OpenPlaylist.cpp
+    ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackActions.cpp
+    ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackFilterModel.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/SourcePage.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Downloads.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Preload.cpp

@@ -85,6 +85,7 @@ add_subdirectory(core)
 # updates, crash reports. No Qt Widgets either.
 add_library(cloudmus-desktop-core STATIC
     src/App/DesktopCore.cpp
+    src/ViewModel/Browse.cpp
     src/App/SingleInstance.cpp
     src/App/StarPrompt.cpp
 

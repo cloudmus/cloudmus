@@ -22,8 +22,7 @@ Core::Core(QObject* parent)
     , activePlaylist_(playback_, sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_,
           playlistEditing_, messages_)
     , activeTracks_(activePlaylist_, playback_, trackStates_, preload_, coverArtCache_)
-    , browse_(sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_, activePlaylist_,
-          playlistEditing_, messages_)
+    , trackActions_(sourceManager_, playback_, activePlaylist_, downloads_, playlistEditing_)
     , sourcePage_(sourceSession_)
     , listeningTime_(playback_, analytics_)
 {

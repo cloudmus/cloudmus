@@ -1,5 +1,7 @@
 #include "PlaylistSheet.h"
 
+#include "TrackFilterModel.h"
+
 #include <QAction>
 #include <QEvent>
 #include <QHBoxLayout>
@@ -10,7 +12,6 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QShortcut>
-#include <QSortFilterProxyModel>
 #include <QStackedWidget>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -168,42 +169,6 @@ private:
     QString logoPath_;
 };
 
-// Case-insensitive substring match on title, artist names and album.
-class PlaylistSheet::FilterProxy : public QSortFilterProxyModel {
-public:
-    using QSortFilterProxyModel::QSortFilterProxyModel;
-
-    void setNeedle(const QString& needle)
-    {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-        beginFilterChange();
-        needle_ = needle.trimmed();
-        endFilterChange(QSortFilterProxyModel::Direction::Rows);
-#else
-        needle_ = needle.trimmed();
-        invalidateFilter();
-#endif
-    }
-
-protected:
-    bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override
-    {
-        if (needle_.isEmpty())
-            return true;
-        const Track track
-            = sourceModel()->index(sourceRow, 0, sourceParent).data(TrackListModel::TrackRole).value<Track>();
-        if (track.title.contains(needle_, Qt::CaseInsensitive))
-            return true;
-        for (const Artist& artist : track.artists) {
-            if (artist.name.contains(needle_, Qt::CaseInsensitive))
-                return true;
-        }
-        return track.album.has_value() && track.album->title.contains(needle_, Qt::CaseInsensitive);
-    }
-
-private:
-    QString needle_;
-};
 
 PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
@@ -264,9 +229,9 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     });
 
     trackModel_ = new TrackListModel(this);
-    filterProxy_ = new FilterProxy(this);
+    filterProxy_ = new ViewModel::TrackFilterModel(this);
     filterProxy_->setSourceModel(trackModel_);
-    connect(filterEdit_, &QLineEdit::textChanged, filterProxy_, &FilterProxy::setNeedle);
+    connect(filterEdit_, &QLineEdit::textChanged, filterProxy_, &ViewModel::TrackFilterModel::setNeedle);
 
     trackDelegate_ = new TrackRowDelegate(coverCache, this);
     // Rows line up with the header: the thumbnail under the back button

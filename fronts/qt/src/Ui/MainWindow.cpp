@@ -138,6 +138,7 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     , sources_(core.sources())
     , activePlaylist_(core.activePlaylist())
     , browse_(core.browse())
+    , trackActions_(core.trackActions())
     , sourcePage_(core.sourcePage())
     , coverArtCache_(&core.coverArtCache())
     , playbackHistory_(&core.playbackHistory())
@@ -822,10 +823,7 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
 
 bool MainWindow::canDownloadPlaylist(const QString& sourceId, const Playlist& playlist) const
 {
-    if (!downloads_.isEnabled() || sourceId.isEmpty() || playlist.kind == QStringLiteral("radioStation"))
-        return false;
-    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    return client != nullptr && ViewModel::Downloads::canSave(client->capabilities());
+    return trackActions_.canDownloadPlaylist(sourceId, playlist);
 }
 
 void MainWindow::onHeroContextMenuRequested(const QPoint& pos)
@@ -1001,15 +999,11 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
 void MainWindow::showTrackMenu(
     const QString& sourceId, const Track& track, const QPoint& globalPos, std::function<void()> play)
 {
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
-    const QJsonObject feedback = capabilities.value(QStringLiteral("feedback")).toObject();
-    const bool likeSupported = feedback.value(QStringLiteral("like")).toBool();
-    const bool dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
-    const bool radioSupported
-        = capabilities.value(QStringLiteral("browse")).toObject().value(QStringLiteral("radio")).toBool();
-    // Only while downloads are on (Settings → Downloads).
-    const bool downloadSupported = downloads_.isEnabled() && ViewModel::Downloads::canSave(capabilities);
+    const ViewModel::TrackActions::Available available = trackActions_.available(sourceId);
+    const bool likeSupported = available.like;
+    const bool dislikeSupported = available.dislike;
+    const bool radioSupported = available.radio;
+    const bool downloadSupported = available.download;
     const QString webUrl = track.webUrl.value_or(QString());
 
     auto* menu = new QMenu(this);
@@ -1029,10 +1023,10 @@ void MainWindow::showTrackMenu(
     menu->addAction(
         Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), this, std::move(play));
     menu->addAction(Theme::icon(QStringLiteral("playlist_play"), Theme::IconColor::Ink, 16), tr("Play Next"), this,
-        [this, sourceId, track]() { playback_.enqueueNext(sourceId, track); });
+        [this, sourceId, track]() { trackActions_.playNext(sourceId, track); });
     menu->addAction(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Add to Queue"), this,
-        [this, sourceId, track]() { playback_.enqueueAtEnd(sourceId, track); });
-    if (playlistEditing_.canEdit(sourceId)) {
+        [this, sourceId, track]() { trackActions_.addToQueue(sourceId, track); });
+    if (available.playlists) {
         QMenu* playlists
             = menu->addMenu(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Playlists"));
         // Filled on first open only — getTrackPlaylists is a round-trip.
@@ -1075,22 +1069,9 @@ void MainWindow::showTrackMenu(
 
     if (radioSupported) {
         menu->addSeparator();
-        // The bare track id — each backend that declares browse.radio
-        // decides for itself how to turn a track id into whatever
-        // station-addressing scheme it needs (e.g. Yandex's rotor API
-        // wants a "track:<id>"-style address; YouTube's get_watch_playlist
-        // takes a plain videoId directly). A front-imposed prefix here
-        // broke YouTube radio (it received "track:<id>" as a literal,
-        // invalid videoId) — seed is source-defined per docs/protocol.md
-        // §7.1, so the front must not format it.
         menu->addAction(Theme::icon(QStringLiteral("radio"), Theme::IconColor::Ink, 16),
-            tr("Start Radio from This Track"), this, [this, sourceId, id = track.id, title = track.title]() {
-                // Not in the source's playlists, but saved with its tracks
-                // like any active playlist, so the next run restores it.
-                ActiveContext context { sourceId,
-                    Playlist { id, tr("Radio: %1").arg(title), std::nullopt, std::nullopt, 0,
-                        QStringLiteral("radioStation") } };
-                activePlaylist_.startRadio(sourceId, id, context).detach();
+            tr("Start Radio from This Track"), this, [this, sourceId, track]() {
+                trackActions_.startRadio(sourceId, track, tr("Radio: %1").arg(track.title));
             });
     }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Browse.h"
 #include "Core.h"
 #include "CuePlayer.h"
 #include "Dispatcher.h"
@@ -17,12 +18,14 @@ class DesktopCore : public Core {
 public:
     explicit DesktopCore(QObject* parent = nullptr);
 
+    ViewModel::Browse& browse() { return browse_; }
     Hotkeys::Registry& hotkeys() { return hotkeys_; }
     Hotkeys::Dispatcher& hotkeyDispatcher() { return hotkeyDispatcher_; }
     Update::UpdateChecker& updates() { return updates_; }
     StarPrompt& starPrompt() { return starPrompt_; }
 
 private:
+    ViewModel::Browse browse_;
     Hotkeys::Registry hotkeys_;
     Hotkeys::Dispatcher hotkeyDispatcher_;
     Playback::CuePlayer cuePlayer_;

@@ -230,6 +230,7 @@ private:
     ViewModel::ActivePlaylist& activePlaylist_;
     // What's open in the sheet, and signing in from a source's page.
     ViewModel::Browse& browse_;
+    ViewModel::TrackActions& trackActions_;
     ViewModel::SourcePage& sourcePage_;
 
     void repositionTrackListBusyIndicator();

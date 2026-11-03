@@ -9,7 +9,6 @@
 #include "AudioFileProbe.h"
 #include "AudioPulse.h"
 #include "AuthStates.h"
-#include "Browse.h"
 #include "CoverArtCache.h"
 #include "Downloads.h"
 #include "ListeningTime.h"
@@ -23,6 +22,7 @@
 #include "Settings.h"
 #include "SourceManager.h"
 #include "SourcePage.h"
+#include "TrackActions.h"
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TrackStates.h"
@@ -60,7 +60,7 @@ public:
     ViewModel::Sources& sources() { return sources_; }
     ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
     ViewModel::ActiveTracks& activeTracks() { return activeTracks_; }
-    ViewModel::Browse& browse() { return browse_; }
+    ViewModel::TrackActions& trackActions() { return trackActions_; }
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
     ListeningTime& listeningTime() { return listeningTime_; }
 
@@ -93,9 +93,7 @@ private:
     ViewModel::Sources sources_;
     ViewModel::ActivePlaylist activePlaylist_;
     ViewModel::ActiveTracks activeTracks_;
-    // After activePlaylist_: it restores its page once the active
-    // playlist has restored itself.
-    ViewModel::Browse browse_;
+    ViewModel::TrackActions trackActions_;
     ViewModel::SourcePage sourcePage_;
     ListeningTime listeningTime_;
 };

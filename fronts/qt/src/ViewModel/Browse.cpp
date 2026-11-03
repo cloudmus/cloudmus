@@ -1,47 +1,29 @@
 #include "Browse.h"
 
-#include <QLoggingCategory>
-
 #include "ActivePlaylist.h"
-#include "Messages.h"
-#include "PlaybackHistory.h"
-#include "PlaylistEditing.h"
 #include "Settings.h"
 #include "Sources.h"
-#include "TrackFetch.h"
 
 namespace ViewModel {
-
-namespace {
-Q_LOGGING_CATEGORY(lcBrowse, "cloudmus.viewmodel.browse")
-}
 
 Browse::Browse(Rpc::SourceManager& sourceManager, Library::TrackStates& trackStates,
     Covers::CoverArtCache& coverArtCache, History::PlaybackHistory& history, Config::Settings& settings,
     Sources& sources, ActivePlaylist& activePlaylist, App::PlaylistEditing& playlistEditing, Messages& messages,
     QObject* parent)
     : QObject(parent)
-    , sourceManager_(sourceManager)
-    , trackStates_(trackStates)
-    , coverArtCache_(coverArtCache)
-    , history_(history)
     , settings_(settings)
     , activePlaylist_(activePlaylist)
-    , messages_(messages)
+    , open_(sourceManager, trackStates, coverArtCache, history, activePlaylist, playlistEditing, messages)
 {
+    connect(&open_, &OpenPlaylist::rowsChanged, this, &Browse::rowsChanged);
+    connect(&open_, &OpenPlaylist::loadingChanged, this, &Browse::loadingChanged);
     // Playing something from here (or the sidebar) brings the main area
     // back to front.
     connect(&activePlaylist_, &ActivePlaylist::activated, this, &Browse::close);
     connect(&activePlaylist_, &ActivePlaylist::contextChanged, this, &Browse::remember);
-    connect(&history_, &History::PlaybackHistory::changed, this, [this]() {
-        // Refresh in place — a track just started playing.
-        if (page_ == Page::Playlist && context_.isHistory)
-            fillHistory();
-    });
-    connect(&playlistEditing, &App::PlaylistEditing::playlistEdited, this, &Browse::applyPlaylistEdit);
     connect(&sources, &Sources::sourceRemoved, this, [this](const QString& sourceId) {
         if ((page_ == Page::Source && sourceId_ == sourceId)
-            || (page_ == Page::Playlist && !context_.isHistory && context_.sourceId == sourceId))
+            || (page_ == Page::Playlist && !open_.context().isHistory && open_.context().sourceId == sourceId))
             close();
     });
 
@@ -67,11 +49,9 @@ void Browse::openPlaylist(const QString& sourceId, const Playlist& playlist)
         close();
         return;
     }
-    rows_.clear();
-    setPage(Page::Playlist, context, QString());
-    emit rowsChanged();
-    if (!context.isRadio())
-        load(context).detach();
+    open_.setContext(context);
+    setPage(Page::Playlist, QString());
+    open_.load();
 }
 
 void Browse::openHistory()
@@ -81,16 +61,17 @@ void Browse::openHistory()
         close();
         return;
     }
-    setPage(Page::Playlist, activePlaylist_.historyContext(), QString());
-    fillHistory();
+    open_.setContext(activePlaylist_.historyContext());
+    setPage(Page::Playlist, QString());
+    open_.fillHistory();
 }
 
 void Browse::openSource(const QString& sourceId)
 {
     pending_.clear();
-    rows_.clear();
-    setPage(Page::Source, PlaylistContext(), sourceId);
-    emit rowsChanged();
+    open_.setContext(PlaylistContext());
+    setPage(Page::Source, sourceId);
+    open_.announceRows();
 }
 
 void Browse::close()
@@ -98,41 +79,28 @@ void Browse::close()
     pending_.clear();
     if (page_ == Page::None)
         return;
-    rows_.clear();
-    if (loading_) {
-        loading_ = false;
-        emit loadingChanged(false);
-    }
-    setPage(Page::None, PlaylistContext(), QString());
-    emit rowsChanged();
+    open_.setContext(PlaylistContext());
+    setPage(Page::None, QString());
+    open_.announceRows();
 }
 
 void Browse::playRow(int row)
 {
-    if (page_ != Page::Playlist || row < 0 || row >= rows_.size())
-        return;
-    QVector<Playback::QueueEntry> entries;
-    entries.reserve(rows_.size());
-    for (const Row& r : std::as_const(rows_))
-        entries.append(Playback::QueueEntry { r.sourceId, r.track });
-    activePlaylist_.activate(context_, entries, row);
+    if (page_ == Page::Playlist)
+        open_.playRow(row);
 }
 
 void Browse::playAll()
 {
-    if (page_ != Page::Playlist)
-        return;
-    if (context_.isRadio())
-        activePlaylist_.activate(context_, { }, 0);
-    else
-        playRow(0);
+    if (page_ == Page::Playlist)
+        open_.playAll();
 }
 
 QString Browse::selectionKey() const
 {
     if (page_ == Page::Source)
         return QStringLiteral("source:") + sourceId_;
-    const PlaylistContext& context = page_ == Page::Playlist ? context_ : activePlaylist_.context();
+    const PlaylistContext& context = page_ == Page::Playlist ? open_.context() : activePlaylist_.context();
     if (!context.isValid())
         return QString();
     if (context.isHistory)
@@ -140,45 +108,12 @@ QString Browse::selectionKey() const
     return QStringLiteral("playlist:%1:%2").arg(context.sourceId, context.playlist.id);
 }
 
-void Browse::setPage(Page page, const PlaylistContext& context, const QString& sourceId)
+void Browse::setPage(Page page, const QString& sourceId)
 {
     page_ = page;
-    context_ = context;
     sourceId_ = sourceId;
     emit pageChanged();
     remember();
-}
-
-Rpc::Task<void> Browse::load(PlaylistContext context)
-{
-    loading_ = true;
-    emit loadingChanged(true);
-    QList<Row> rows;
-    try {
-        const QVector<Playback::QueueEntry> entries = co_await App::fetchTracks(
-            sourceManager_, trackStates_, coverArtCache_, context.sourceId, context.playlist);
-        rows.reserve(entries.size());
-        for (const Playback::QueueEntry& entry : entries)
-            rows.append(Row { entry.sourceId, entry.track, QDateTime() });
-    } catch (const std::exception& e) {
-        qCWarning(lcBrowse) << "loading tracks failed for" << context.sourceId << ":" << e.what();
-        messages_.error(QString::fromStdString(e.what()));
-    }
-    // The user may have opened something else while this was loading.
-    if (page_ != Page::Playlist || !context_.sameAs(context))
-        co_return;
-    rows_ = rows;
-    loading_ = false;
-    emit loadingChanged(false);
-    emit rowsChanged();
-}
-
-void Browse::fillHistory()
-{
-    rows_.clear();
-    for (const History::HistoryEntry& e : history_.entries())
-        rows_.append(Row { e.sourceId, e.track, e.playedAt });
-    emit rowsChanged();
 }
 
 void Browse::remember()
@@ -213,26 +148,6 @@ void Browse::restoreFrom(const QString& sourceId, const QList<Playlist>& playlis
             openPlaylist(sourceId, playlist);
         break;
     }
-}
-
-void Browse::applyPlaylistEdit(
-    const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount)
-{
-    if (page_ != Page::Playlist || context_.isHistory || context_.sourceId != sourceId
-        || context_.playlist.id != playlistId)
-        return;
-    context_.playlist.trackCount = trackCount;
-    if (added) {
-        rows_.append(Row { sourceId, track, QDateTime() });
-    } else {
-        for (int i = 0; i < rows_.size(); ++i) {
-            if (rows_[i].sourceId == sourceId && rows_[i].track.id == track.id) {
-                rows_.removeAt(i);
-                break;
-            }
-        }
-    }
-    emit rowsChanged();
 }
 
 } // namespace ViewModel
