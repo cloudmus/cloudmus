@@ -1,4 +1,5 @@
 #include <QAbstractItemModel>
+#include <QColor>
 #include <QDir>
 #include <QFile>
 #include <QGuiApplication>
@@ -641,7 +642,23 @@ private slots:
             Q_ARG(QString, QStringLiteral("p2")));
         QTRY_COMPARE_WITH_TIMEOUT(stack->property("depth").toInt(), 1, 10000);
         shot("main-after-tile");
+        // On a phone, Now Playing's background is drawn beforehand: the page has
+        // it from its very first frame, rather than rising transparent.
+        const bool narrow = size.width() <= size.height() * 1.1;
+        if (narrow) {
+            auto* preload = window->findChild<QObject*>("auraPreload");
+            QVERIFY(preload);
+            QTRY_COMPARE(preload->property("status").toInt(), 1); // Image.Ready
+        }
         QMetaObject::invokeMethod(playlist, "nowPlayingRequested");
+        if (narrow) {
+            auto* aura = window->findChild<QQuickItem*>("nowPlayingAura");
+            QVERIFY(aura);
+            QCOMPARE(aura->property("color").value<QColor>().alpha(), 255);
+            QVERIFY(aura->property("ready").toBool());
+            if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty())
+                window->grabWindow().save(QStringLiteral("%1/%2-nowplaying-first-frame.png").arg(dir, QTest::currentDataTag()));
+        }
         QTRY_COMPARE(stack->property("depth").toInt(), 2);
         shot("nowplaying");
         QMetaObject::invokeMethod(stack, "close");

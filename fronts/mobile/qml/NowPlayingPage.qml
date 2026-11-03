@@ -16,6 +16,7 @@ Page {
     signal trackMenuRequested()
 
     background: AuraBackground {
+        objectName: "nowPlayingAura"
         seed: page.nowPlaying && page.nowPlaying.backgroundSeed ? page.nowPlaying.backgroundSeed
             : page.backend.playlist ? page.backend.playlist.title : ""
     }

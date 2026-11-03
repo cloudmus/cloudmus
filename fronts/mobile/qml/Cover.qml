@@ -6,10 +6,8 @@ import QtQuick.Effects
 // A track's cover with rounded corners, or a note on a surface when it has
 // none. The corners are in the image itself: see CoverImageProvider.
 //
-// Nothing blinks. A new picture (another cover, or the cover coming to replace
-// the note) loads behind the scenes and fades in over what's there, which goes
-// only then. While the size changes, what's there stretches; once it has
-// settled, a picture of the new size comes the same way.
+// Nothing blinks: see CrossfadeImage. While the size changes, what's there
+// stretches; once it has settled, a picture of the new size comes that way.
 Rectangle {
     id: cover
 
@@ -37,12 +35,9 @@ Rectangle {
         return prefix + (source !== "" ? "f" + encodeURIComponent(source) : "s" + encodeURIComponent(seed))
     }
     // The picture on screen, and whether there is one.
-    readonly property string shownSource: _front.source.toString()
-    readonly property int shownSide: _front.sourceSize.width
-    readonly property bool _showing: _front.status === Image.Ready
-
-    property Image _front: first
-    property Image _back: second
+    readonly property string shownSource: picture.shownSource
+    readonly property int shownSide: picture.shownWidth
+    readonly property bool _showing: picture.showing
 
     function _pixels() { return Math.round(width * Screen.devicePixelRatio) }
     function _settleSize() {
@@ -58,8 +53,8 @@ Rectangle {
             settling.restart()
     }
     Component.onCompleted: _settleSize()
-    // Next turn of the event loop, once a layout has had its say. Timers, not
-    // Qt.callLater(): they go with the cover if a list drops it meanwhile.
+    // Next turn of the event loop, once a layout has had its say. A timer, not
+    // Qt.callLater(): it goes with the cover if a list drops it meanwhile.
     Timer {
         id: firstSize
         interval: 0
@@ -70,80 +65,6 @@ Rectangle {
         interval: 300
         onTriggered: cover._settleSize()
     }
-    Timer {
-        id: loading
-        interval: 0
-        onTriggered: cover._load()
-    }
-
-    on_WantedChanged: loading.restart()
-    // The same picture at another size has the same address.
-    on_SideChanged: loading.restart()
-
-    function _load() {
-        fade.stop()
-        if (_back.opacity > 0)
-            _swap() // one still fading in: it's the one showing now
-        if (_wanted === "") {
-            _front.source = ""
-            _back.source = ""
-            return
-        }
-        if (_front.source.toString() === _wanted && _side === _front.sourceSize.width)
-            return
-        _back.source = ""
-        _back.sourceSize = Qt.size(_side, _side)
-        _back.source = _wanted
-        // At hand already (the cache): no need to make a show of it. Its status
-        // has told so on the way, so a fade may have begun: it mustn't go on to
-        // swap the two a second time, leaving the empty one in front.
-        if (_back.status === Image.Ready) {
-            fade.stop()
-            _reveal(false)
-        }
-    }
-
-    function _reveal(animated) {
-        _back.z = 1
-        _front.z = 0
-        if (animated) {
-            _back.opacity = 0
-            fade.target = _back
-            fade.start()
-        } else {
-            _back.opacity = 1
-            _swap()
-        }
-    }
-
-    // What came in is what's shown; the other waits for the next.
-    function _swap() {
-        const old = _front
-        _front = _back
-        _back = old
-        _front.opacity = 1
-        _back.opacity = 0
-        _back.source = ""
-    }
-
-    function _loaded(image) {
-        if (image !== _back || image.source.toString() === "")
-            return
-        if (image.status === Image.Ready)
-            _reveal(true)
-        else if (image.status === Image.Error)
-            image.source = ""
-    }
-
-    NumberAnimation {
-        id: fade
-        property: "opacity"
-        to: 1
-        duration: 250
-        easing.type: Easing.InOutQuad
-        onFinished: cover._swap()
-    }
-
     IconImage {
         anchors.centerIn: parent
         visible: !cover._showing
@@ -153,8 +74,11 @@ Rectangle {
         color: Theme.inkTertiary
     }
 
-    Item {
+    CrossfadeImage {
+        id: picture
         anchors.fill: parent
+        target: cover._wanted
+        pixels: Qt.size(cover._side, cover._side)
         layer.enabled: cover._masked
         layer.effect: MultiEffect {
             maskEnabled: true
@@ -162,23 +86,6 @@ Rectangle {
             // A soft step at the edge: antialiased corners.
             maskThresholdMin: 0.5
             maskSpreadAtMin: 1.0
-        }
-
-        Image {
-            id: first
-            anchors.fill: parent
-            asynchronous: true
-            opacity: 0
-            visible: opacity > 0
-            onStatusChanged: cover._loaded(first)
-        }
-        Image {
-            id: second
-            anchors.fill: parent
-            asynchronous: true
-            opacity: 0
-            visible: opacity > 0
-            onStatusChanged: cover._loaded(second)
         }
     }
     Rectangle {

@@ -69,6 +69,13 @@ QtObject {
     readonly property int durationFast: 150
     readonly property int durationPage: 320
 
+    // The generated background (AuraBackground; AuraImageProvider for the
+    // form): one place, as whoever loads it beforehand must ask for the same.
+    function auraUrl(seed, edgeFadePixels) {
+        return "image://aura/h" + surface0.toString().substring(1) + "/" + edgeFadePixels + "/"
+            + encodeURIComponent(seed)
+    }
+
     // When a track played, as on the desktop.
     function formatPlayedAt(when) {
         const date = new Date(when)

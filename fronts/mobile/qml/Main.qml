@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls.Basic
 import QtQuick.Controls.impl
 import QtCore
@@ -138,6 +139,23 @@ ApplicationWindow {
             }
             onTrackMenuRequested: trackSheet.open()
         }
+    }
+    // Now Playing's background, ready before it's asked for: drawing one takes a
+    // moment, and it would come only once the page had risen. Kept current with
+    // the track; a page that opens finds it in the cache. A head unit has the
+    // background on screen all along.
+    Image {
+        objectName: "auraPreload"
+        visible: false
+        asynchronous: true
+        readonly property var _now: window.backend.nowPlaying
+        readonly property var _playlist: window.backend.playlist
+        sourceSize: Qt.size(Math.round(window.width * Screen.devicePixelRatio),
+                            Math.round(window.height * Screen.devicePixelRatio))
+        source: window.backend.ready && window.width <= window.height * 1.1
+            ? Theme.auraUrl(_now && _now.backgroundSeed ? _now.backgroundSeed : _playlist ? _playlist.title : "",
+                            Math.round(Theme.dp(45) * Screen.devicePixelRatio))
+            : ""
     }
     TrackSheet {
         id: trackSheet

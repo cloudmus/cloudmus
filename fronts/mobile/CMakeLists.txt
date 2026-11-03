@@ -158,6 +158,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/BodyText.qml
         qml/Chip.qml
         qml/Cover.qml
+        qml/CrossfadeImage.qml
         qml/DeveloperPage.qml
         qml/FpsOverlay.qml
         qml/IconButton.qml
