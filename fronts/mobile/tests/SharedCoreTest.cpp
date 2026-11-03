@@ -314,9 +314,10 @@ private slots:
         QCOMPARE(cover->property("shownSide").toInt(), 180);
     }
 
-    // A line's text: no wipe to the first, then one that ends in the new text
-    // alone; a change along the way goes straight on to the latest.
-    void wipeTextChanges()
+    // The title and artist as a block: nothing to wipe to the first time, then one
+    // wipe for the two together, ending in the new text; a change along the way
+    // goes straight on to the latest. The new text doesn't show before the front.
+    void titleBlockWipes()
     {
         QQmlEngine engine;
         QQmlComponent component(&engine);
@@ -324,57 +325,81 @@ private slots:
             import QtQuick
             import Cloudmus.Mobile
             Window {
-                width: 400; height: 100; visible: true; color: "midnightblue"
-                WipeText { objectName: "line"; x: 20; y: 30; width: 300; color: "white"; font.pixelSize: 28; text: "First" }
+                width: 500; height: 120; visible: true; color: "midnightblue"
+                TrackTitleBlock {
+                    objectName: "block"; x: 20; y: 30; width: 440
+                    titleColor: "white"; artistColor: "white"
+                    title: "First title"; artist: "First artist"
+                }
             }
         )", QUrl());
         std::unique_ptr<QObject> root(component.create());
         QVERIFY2(root, qPrintable(component.errorString()));
         auto* window = qobject_cast<QQuickWindow*>(root.get());
         QVERIFY(QTest::qWaitForWindowExposed(window));
-        auto* line = window->findChild<QQuickItem*>(QStringLiteral("line"));
-        QVERIFY(line);
-        QCOMPARE(line->property("currentText").toString(), QStringLiteral("First"));
-        QVERIFY(!line->property("wiping").toBool());
+        auto* block = window->findChild<QQuickItem*>(QStringLiteral("block"));
+        QVERIFY(block);
+        QCOMPARE(block->property("currentTitle").toString(), QStringLiteral("First title"));
+        QVERIFY(!block->property("wiping").toBool());
         // Long or short, the width is the layout's to give.
-        QCOMPARE(line->implicitWidth(), 0.0);
+        QCOMPARE(block->implicitWidth(), 0.0);
+        QTest::qWait(100);
+        const QImage before = window->grabWindow();
 
-        line->setProperty("text", QStringLiteral("Second"));
-        QVERIFY(line->property("wiping").toBool());
-        QCOMPARE(line->property("previousText").toString(), QStringLiteral("First"));
-        QCOMPARE(line->property("currentText").toString(), QStringLiteral("Second"));
+        // The two change one after the other: one wipe, and at its first frame
+        // the screen is still as it was.
+        QSignalSpy wipingChanged(block, SIGNAL(wipingChanged()));
+        block->setProperty("title", QStringLiteral("Second title"));
+        block->setProperty("artist", QStringLiteral("Second artist"));
+        QVERIFY(wipingChanged.wait(1000));
+        const QImage first = window->grabWindow();
+        if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty()) {
+            before.save(dir + QStringLiteral("/wipe-before.png"));
+            first.save(dir + QStringLiteral("/wipe-first.png"));
+        }
+        int differ = 0;
+        for (int y = 0; y < before.height(); ++y) {
+            for (int x = 0; x < before.width(); ++x) {
+                const QRgb a = before.pixel(x, y);
+                const QRgb b = first.pixel(x, y);
+                if (qAbs(qGray(a) - qGray(b)) > 48)
+                    ++differ;
+            }
+        }
+        QVERIFY2(differ < 20, qPrintable(QStringLiteral("%1 pixels changed").arg(differ)));
+        QCOMPARE(block->property("currentTitle").toString(), QStringLiteral("Second title"));
+        QCOMPARE(block->property("currentArtist").toString(), QStringLiteral("Second artist"));
+        QTRY_VERIFY(!block->property("wiping").toBool());
+        QCOMPARE(wipingChanged.count(), 2); // on and off: one wipe
 
-        line->setProperty("text", QStringLiteral("Third"));
-        QVERIFY(line->property("wiping").toBool());
-        QCOMPARE(line->property("previousText").toString(), QStringLiteral("Second"));
-        QTRY_VERIFY(!line->property("wiping").toBool());
-        QCOMPARE(line->property("currentText").toString(), QStringLiteral("Third"));
-        QCOMPARE(line->property("previousText").toString(), QString());
-
-        // Frames of it, both ways, to look at: the mask needs a GPU to show.
+        // A frame halfway, each way, to look at: the mask needs a GPU to show.
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
         if (!shots.isEmpty()) {
             QDir().mkpath(shots);
-            line->setProperty("duration", 4000);
+            block->setProperty("duration", 4000);
             for (const int direction : { 1, -1 }) {
-                line->setProperty("direction", direction);
-                line->setProperty("text", direction > 0 ? QStringLiteral("Forward going text") : QStringLiteral("Backward going text"));
-                QTest::qWait(2000);
-                window->grabWindow().save(QStringLiteral("%1/wipe-%2.png").arg(shots).arg(direction));
-                QTRY_VERIFY_WITH_TIMEOUT(!line->property("wiping").toBool(), 5000);
+                block->setProperty("direction", direction);
+                block->setProperty("title", direction > 0 ? QStringLiteral("Forward going title") : QStringLiteral("Backward going title"));
+                block->setProperty("artist", direction > 0 ? QStringLiteral("Forward artist") : QStringLiteral("Backward artist"));
+                QTest::qWait(1600);
+                window->grabWindow().save(QStringLiteral("%1/wipe-block-%2.png").arg(shots).arg(direction));
+                QTRY_VERIFY_WITH_TIMEOUT(!block->property("wiping").toBool(), 6000);
             }
-            line->setProperty("duration", 600);
-            line->setProperty("text", QStringLiteral("Third"));
-            QTRY_VERIFY(!line->property("wiping").toBool());
+            block->setProperty("duration", 600);
+            block->setProperty("direction", 1);
         }
 
-        line->setProperty("direction", -1);
-        line->setProperty("text", QStringLiteral("Third"));
-        QVERIFY(!line->property("wiping").toBool());
-        line->setProperty("text", QStringLiteral("Fourth"));
-        QVERIFY(line->property("wiping").toBool());
-        QCOMPARE(line->property("_direction").toInt(), -1);
-        QTRY_VERIFY(!line->property("wiping").toBool());
+        // A change along the way ends in the latest.
+        block->setProperty("title", QStringLiteral("Third"));
+        QTRY_VERIFY(block->property("wiping").toBool());
+        block->setProperty("title", QStringLiteral("Fourth"));
+        QTRY_COMPARE(block->property("currentTitle").toString(), QStringLiteral("Fourth"));
+        QTRY_VERIFY(!block->property("wiping").toBool());
+
+        // The same text again: nothing.
+        block->setProperty("title", QStringLiteral("Fourth"));
+        QTest::qWait(80);
+        QVERIFY(!block->property("wiping").toBool());
     }
 
     // The hero's: its edges dissolve into the color given, its center is dark.

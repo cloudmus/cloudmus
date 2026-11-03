@@ -71,27 +71,14 @@ Item {
             RowLayout {
                 id: titleRow
                 anchors.fill: parent
-                ColumnLayout {
+                TrackTitleBlock {
+                    objectName: "trackTitle"
                     Layout.fillWidth: true
-                    spacing: Theme.dp(2)
-                    WipeText {
-                        objectName: "trackTitle"
-                        Layout.fillWidth: true
-                        text: panel.nowPlaying ? panel.nowPlaying.title : ""
-                        direction: panel._textDirection
-                        color: panel.inkColor
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontTitle + Theme.dp(3)
-                        font.weight: Font.Bold
-                    }
-                    WipeText {
-                        Layout.fillWidth: true
-                        text: panel.nowPlaying ? panel.nowPlaying.artist : ""
-                        direction: panel._textDirection
-                        color: panel.inkSecondaryColor
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontBody
-                    }
+                    title: panel.nowPlaying ? panel.nowPlaying.title : ""
+                    artist: panel.nowPlaying ? panel.nowPlaying.artist : ""
+                    direction: panel._textDirection
+                    titleColor: panel.inkColor
+                    artistColor: panel.inkSecondaryColor
                 }
                 IconButton {
                     visible: panel.showMenu && panel.nowPlaying && panel.nowPlaying.hasTrack === true
