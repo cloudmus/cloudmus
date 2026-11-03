@@ -36,9 +36,6 @@ QImage blurImage(const QImage& src, qreal radius)
     return result;
 }
 
-// Shared by the cover and its edge fade so the two always match.
-const qreal kBlurRadius = Covers::meshAuraBlurRadius();
-const int kBlurPad = qCeil(kBlurRadius * 2.0);
 
 } // namespace
 
@@ -49,24 +46,7 @@ QPixmap generateMeshAuraGradientCover(const QString& title, const QSize& size)
 
 QPixmap generateMeshAuraEdgeFade(const QSize& size, const QColor& color)
 {
-    const int w = qMax(size.width(), 1);
-    const int h = qMax(size.height(), 1);
-
-    // An opaque rect blurred against transparency around it: its alpha is
-    // the coverage the cover itself would have had near its edges.
-    QImage coverage(w + 2 * kBlurPad, h + 2 * kBlurPad, QImage::Format_ARGB32_Premultiplied);
-    coverage.fill(Qt::transparent);
-    QPainter(&coverage).fillRect(kBlurPad, kBlurPad, w, h, Qt::white);
-    coverage = blurImage(coverage, kBlurRadius).copy(kBlurPad, kBlurPad, w, h);
-
-    // Whatever the cover doesn't cover, `color` shows through.
-    QImage fade(w, h, QImage::Format_ARGB32_Premultiplied);
-    fade.fill(color);
-    QPainter painter(&fade);
-    painter.setCompositionMode(QPainter::CompositionMode_DestinationOut);
-    painter.drawImage(0, 0, coverage);
-    painter.end();
-    return QPixmap::fromImage(fade);
+    return QPixmap::fromImage(Covers::meshAuraEdgeFade(size, color, &blurImage));
 }
 
 QPixmap fitCover(const QImage& source, const QSize& target)

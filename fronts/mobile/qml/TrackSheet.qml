@@ -41,14 +41,38 @@ Popup {
         NumberAnimation {
             property: "slide"
             to: 1
-            duration: Theme.durationFast
+            duration: Theme.durationPage
             easing.type: Easing.InCubic
         }
+    }
+
+    // What's behind goes black, and fades in and out with the sheet.
+    Overlay.modal: Rectangle {
+        color: "#80000000"
+        Behavior on opacity { NumberAnimation { duration: Theme.durationPage; easing.type: Easing.OutCubic } }
     }
 
     background: Rectangle {
         color: Theme.surface100
         radius: sheet.wide ? 0 : Theme.dp(16)
+
+        // Its shadow on what's behind: from its open edge, fading out. A
+        // gradient, not a blur: it's only a strip, and it costs nothing per frame.
+        Rectangle {
+            readonly property real depth: Theme.dp(28)
+            // Turned so that the gradient runs away from the edge.
+            width: sheet.wide ? parent.height : parent.width
+            height: depth
+            transformOrigin: Item.TopLeft
+            rotation: sheet.wide ? -90 : 0
+            x: sheet.wide ? -depth : 0
+            y: sheet.wide ? parent.height : -depth
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#00000000" }
+                GradientStop { position: 0.6; color: "#40000000" }
+                GradientStop { position: 1.0; color: "#A6000000" }
+            }
+        }
     }
 
     component Action: ItemDelegate {

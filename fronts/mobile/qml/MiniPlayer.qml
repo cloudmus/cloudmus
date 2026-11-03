@@ -19,6 +19,7 @@ Rectangle {
     AuraBackground {
         anchors.fill: parent
         seed: mini.seed
+        edgeFade: 0
     }
 
     // The track's progress along the top edge.

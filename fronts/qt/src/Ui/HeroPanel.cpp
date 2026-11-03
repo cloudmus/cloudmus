@@ -1,5 +1,6 @@
 #include "HeroPanel.h"
 
+#include "MeshAura.h"
 #include "NowPlaying.h"
 
 #include <QFontMetrics>
@@ -8,7 +9,6 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
-#include <QRadialGradient>
 #include <QResizeEvent>
 #include <QTimer>
 
@@ -463,19 +463,7 @@ void HeroPanel::paintEvent(QPaintEvent* event)
     }
     painter.drawPixmap(rect(), edgeFade_);
 
-    // Deliberately the *inverse* of a photographic vignette: dark at the
-    // panel's center, fading to transparent at the edges. The center is
-    // where the cover+text column sits (relayout() centers it there in
-    // fill mode), so this is what actually keeps them legible over a
-    // generated background that can be busy/bright at any given point —
-    // an edge-darkening vignette would darken exactly the area that least
-    // needs it here.
-    QRadialGradient vignette(rect().center(), 0.75 * qMax(width(), height()));
-    vignette.setColorAt(0.0, QColor(0, 0, 0, 190));
-    vignette.setColorAt(0.45, QColor(0, 0, 0, 120));
-    vignette.setColorAt(0.75, QColor(0, 0, 0, 40));
-    vignette.setColorAt(1.0, QColor(0, 0, 0, 0));
-    painter.fillRect(rect(), vignette);
+    Covers::paintMeshAuraVignette(painter, rect());
 
     // 2x Radius::md, not the bare token: this cover is large enough that
     // md's own 8px (right for #sourceAuthCard and other panels at their

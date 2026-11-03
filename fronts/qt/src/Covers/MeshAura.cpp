@@ -118,6 +118,44 @@ QImage gaussianBlur(const QImage& source, qreal radius)
     return image;
 }
 
+QImage meshAuraEdgeFade(const QSize& size, const QColor& color, const Blur& blur, qreal radius)
+{
+    const int w = qMax(size.width(), 1);
+    const int h = qMax(size.height(), 1);
+    const int pad = qCeil(radius * 2.0);
+
+    // An opaque rect blurred against transparency around it: its alpha is
+    // the coverage the cover itself would have had near its edges.
+    QImage coverage(w + 2 * pad, h + 2 * pad, QImage::Format_ARGB32_Premultiplied);
+    coverage.fill(Qt::transparent);
+    QPainter(&coverage).fillRect(pad, pad, w, h, Qt::white);
+    coverage = blur(coverage, radius).copy(pad, pad, w, h);
+
+    // Whatever the cover doesn't cover, `color` shows through.
+    QImage fade(w, h, QImage::Format_ARGB32_Premultiplied);
+    fade.fill(color);
+    QPainter painter(&fade);
+    painter.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+    painter.drawImage(0, 0, coverage);
+    painter.end();
+    return fade;
+}
+
+void paintMeshAuraVignette(QPainter& painter, const QRect& rect)
+{
+    // Deliberately the *inverse* of a photographic vignette: dark at the
+    // center, fading to transparent at the edges. The center is where the
+    // cover and text sit, so this is what actually keeps them legible over a
+    // generated background that can be busy/bright at any given point — an
+    // edge-darkening vignette would darken exactly the area that least needs it.
+    QRadialGradient vignette(rect.center(), 0.75 * qMax(rect.width(), rect.height()));
+    vignette.setColorAt(0.0, QColor(0, 0, 0, 190));
+    vignette.setColorAt(0.45, QColor(0, 0, 0, 120));
+    vignette.setColorAt(0.75, QColor(0, 0, 0, 40));
+    vignette.setColorAt(1.0, QColor(0, 0, 0, 0));
+    painter.fillRect(rect, vignette);
+}
+
 QImage meshAuraImage(const QString& title, const QSize& size, const Blur& blur, qreal renderScale)
 {
     const int fullWidth = qMax(size.width(), 1);

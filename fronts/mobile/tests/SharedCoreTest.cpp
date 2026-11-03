@@ -178,6 +178,24 @@ private slots:
             QCOMPARE(qAlpha(first.pixel(corner)), 255);
     }
 
+    // The hero's: its edges dissolve into the color given, its center is dark.
+    void auraHeroHasEdgesAndAVignette()
+    {
+        Ui::AuraImageProvider provider;
+        const QSize size(400, 400);
+        const QImage plain = provider.requestImage(QStringLiteral("sLiked"), nullptr, size);
+        const QImage hero = provider.requestImage(QStringLiteral("h102030/40/Liked"), nullptr, size);
+        QCOMPARE(hero.size(), size);
+        const auto brightness = [](const QImage& image, const QPoint& at) {
+            return qGray(image.pixel(at));
+        };
+        QVERIFY(brightness(hero, QPoint(200, 200)) < brightness(plain, QPoint(200, 200)));
+        // At the very edge about half of the fade's color, in the corner most of it.
+        const QColor corner = hero.pixelColor(0, 0);
+        QVERIFY(qAbs(corner.green() - 0x20) < 24);
+        QCOMPARE(qAlpha(hero.pixel(200, 200)), 255);
+    }
+
     // Rounded corners in the image's own transparency, for a real file and for
     // generated art, cut square whatever shape the file is.
     void coversHaveRoundedCorners()

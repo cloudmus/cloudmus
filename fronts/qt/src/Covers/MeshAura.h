@@ -1,10 +1,14 @@
 #pragma once
 
+#include <QColor>
 #include <QImage>
+#include <QRect>
 #include <QSize>
 #include <QString>
 
 #include <functional>
+
+class QPainter;
 
 namespace Covers {
 
@@ -29,5 +33,15 @@ QImage gaussianBlur(const QImage& source, qreal radius);
 // The blur's radius on a `meshAuraImage()`: what is to be left around it for
 // the blur not to pull transparency in at the edges.
 qreal meshAuraBlurRadius();
+
+// `color` fading in toward the edges of a `size` rect with a Gaussian falloff
+// of `radius`: exactly what blurring an image right up to its edges would have
+// let show through from a `color` backdrop. Painted over the art, the two look
+// like it softly dissolving into `color` at the edges.
+QImage meshAuraEdgeFade(const QSize& size, const QColor& color, const Blur& blur, qreal radius = meshAuraBlurRadius());
+
+// What keeps text legible over the art: dark at the center, where the text
+// sits, fading out toward the edges. Painted over everything else.
+void paintMeshAuraVignette(QPainter& painter, const QRect& rect);
 
 } // namespace Covers

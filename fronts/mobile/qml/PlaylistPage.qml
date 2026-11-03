@@ -29,6 +29,7 @@ Page {
             AuraBackground {
                 anchors.fill: parent
                 seed: page.screen ? page.screen.title : ""
+                edgeFade: Theme.dp(16)
             }
             RowLayout {
                 anchors.fill: parent

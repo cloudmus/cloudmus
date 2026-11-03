@@ -1,17 +1,24 @@
 import QtQuick
+import QtQuick.Window
 
 // The desktop's Mesh Aura behind what plays: its colors come from `seed` (an
 // album's or a track's title, a playlist's) and today's date. A new seed fades
-// in over the old one. Dimmed for the white text over it.
+// in over the old one. As on the desktop's hero, its edges dissolve into the
+// window's color and a vignette keeps the white text over it legible.
 Item {
     id: aura
 
     property string seed
-    property real dim: 0.28
+    // How far in the edges dissolve: 0 for a strip too thin for it.
+    property real edgeFade: Theme.dp(45)
 
-    readonly property size _pixels: Qt.size(Math.max(1, Math.round(width)), Math.max(1, Math.round(height)))
+    readonly property size _pixels: Qt.size(Math.max(1, Math.round(width * Screen.devicePixelRatio)),
+                                            Math.max(1, Math.round(height * Screen.devicePixelRatio)))
 
-    function _url(text) { return "image://aura/s" + encodeURIComponent(text) }
+    function _url(text) {
+        return "image://aura/h" + Theme.surface0.toString().substring(1) + "/"
+            + Math.round(edgeFade * Screen.devicePixelRatio) + "/" + encodeURIComponent(text)
+    }
 
     clip: true
 
@@ -45,10 +52,5 @@ Item {
             duration: 500
             onFinished: below.source = above.source
         }
-    }
-    Rectangle {
-        anchors.fill: parent
-        color: "#000000"
-        opacity: aura.dim
     }
 }
