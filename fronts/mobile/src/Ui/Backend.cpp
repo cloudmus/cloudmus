@@ -27,7 +27,15 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , nowPlaying_(&core.nowPlaying())
     , playlist_(&core.activePlaylist())
     , settings_(&core.settings())
+#ifdef CLOUDMUS_MOBILE_SHARED_CORE
+    , library_(&core.library())
+#endif
     , tracks_(&core.tracks())
+#ifdef CLOUDMUS_MOBILE_SHARED_CORE
+    , sources_(&core.library().sourceRows())
+    , favorites_(&core.library().favoriteRows())
+    , otherPlaylists_(&core.library().otherRows())
+#endif
     , ready_(true)
 {
 }
@@ -46,13 +54,13 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquire(playlist_, Remote::Names::activePlaylist);
     acquire(settings_, Remote::Names::settings);
 
-    auto* tracks = node_->acquireModel(Remote::Names::tracks);
-    tracks->setParent(this);
-    tracks_ = tracks;
-    connect(tracks, &QAbstractItemModelReplica::initialized, this, [this] {
-        tracksInitialized_ = true;
-        updateReady();
-    });
+    acquireModel(tracks_, Remote::Names::tracks);
+#ifdef CLOUDMUS_MOBILE_SHARED_CORE
+    acquire(library_, Remote::Names::library);
+    acquireModel(sources_, Remote::Names::sources);
+    acquireModel(favorites_, Remote::Names::favorites);
+    acquireModel(otherPlaylists_, Remote::Names::otherPlaylists);
+#endif
 
     // The core may be slow to come up, or gone (its process killed while
     // the screen was off): ask for it again until it answers.
@@ -74,7 +82,11 @@ Backend::~Backend()
         delete nowPlaying_.data();
         delete playlist_.data();
         delete settings_.data();
+        delete library_.data();
         delete tracks_.data();
+        delete sources_.data();
+        delete favorites_.data();
+        delete otherPlaylists_.data();
     }
 }
 
@@ -92,9 +104,21 @@ void Backend::acquire(QPointer<QObject>& slot, const QString& name)
     });
 }
 
+void Backend::acquireModel(QPointer<QAbstractItemModel>& slot, const QString& name)
+{
+    auto* model = node_->acquireModel(name);
+    model->setParent(this);
+    slot = model;
+    ++modelsAcquired_;
+    connect(model, &QAbstractItemModelReplica::initialized, this, [this] {
+        ++modelsInitialized_;
+        updateReady();
+    });
+}
+
 void Backend::updateReady()
 {
-    bool ready = tracksInitialized_;
+    bool ready = modelsInitialized_ >= modelsAcquired_;
     for (const QRemoteObjectReplica* replica : std::as_const(replicas_))
         ready = ready && replica->state() == QRemoteObjectReplica::Valid;
     if (ready == ready_)

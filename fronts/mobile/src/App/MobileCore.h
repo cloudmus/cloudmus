@@ -4,6 +4,7 @@
 #include <QSettings>
 
 #include "Core.h"
+#include "LibraryScreen.h"
 #include "PlatformSettings.h"
 
 namespace App {
@@ -27,11 +28,13 @@ public:
     ViewModel::ActivePlaylist& activePlaylist() { return core_.activePlaylist(); }
     ViewModel::ActiveTracks& tracks() { return core_.activeTracks(); }
     ViewModel::PlatformSettings& settings() { return settings_; }
+    ViewModel::LibraryScreen& library() { return library_; }
 
 private:
     QSettings settingsStore_;
     Core core_;
     ViewModel::PlatformSettings settings_;
+    ViewModel::LibraryScreen library_;
 };
 
 } // namespace App

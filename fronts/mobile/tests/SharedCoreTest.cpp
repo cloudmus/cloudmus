@@ -55,6 +55,15 @@ int roleOf(const QAbstractItemModel& model, const QByteArray& name) { return mod
 
 } // namespace
 
+// A slot for a signal of a replica, which has no member function to point at.
+class Receiver : public QObject {
+    Q_OBJECT
+public slots:
+    void run() { emit ran(); }
+signals:
+    void ran();
+};
+
 // App::Core behind the views, over the fake backend of the desktop's tests.
 class SharedCoreTest : public QObject {
     Q_OBJECT
@@ -103,6 +112,49 @@ private slots:
 
         QMetaObject::invokeMethod(backend.settings(), "setAutoplay", Q_ARG(bool, false));
         QTRY_COMPARE(core.settings().autoplay(), false);
+    }
+
+    // The Library through a replica: sources, tiles, the star, and a tile
+    // that starts playing, which says so; the active one isn't started over.
+    void libraryThroughAReplica()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+
+        QObject* library = backend.library();
+        QAbstractItemModel* sources = backend.sources();
+        QAbstractItemModel* favorites = backend.favorites();
+        QAbstractItemModel* others = backend.otherPlaylists();
+        QTRY_COMPARE_WITH_TIMEOUT(sources->rowCount(), 1, 10000);
+        QTRY_COMPARE(sources->data(sources->index(0, 0), roleOf(*sources, "name")).toString(),
+            QStringLiteral("Fake Source"));
+        QTRY_COMPARE(library->property("currentSourceId").toString(), QStringLiteral("fake"));
+        QTRY_COMPARE_WITH_TIMEOUT(others->rowCount() + favorites->rowCount(), 2, 10000);
+
+        const int before = core.library().favoriteRows().rowCount();
+        QMetaObject::invokeMethod(library, "toggleFavorite", Q_ARG(QString, QStringLiteral("p2")));
+        // In the core first, then through the replica.
+        QTRY_VERIFY(core.library().favoriteRows().rowCount() != before);
+        QTRY_COMPARE(favorites->rowCount(), core.library().favoriteRows().rowCount());
+
+        Receiver activated;
+        QVERIFY(QObject::connect(library, SIGNAL(activated()), &activated, SLOT(run())));
+        QSignalSpy spy(&activated, &Receiver::ran);
+        QMetaObject::invokeMethod(library, "playPlaylist", Q_ARG(QString, QStringLiteral("p1")));
+        QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 10000);
+        QTRY_VERIFY(core.nowPlaying().hasTrack());
+        QTRY_COMPARE(backend.tracks()->rowCount(), 2);
+        const QString track = core.nowPlaying().title();
+
+        QMetaObject::invokeMethod(backend.playlist(), "playRow", Q_ARG(int, 1));
+        QTRY_COMPARE(core.core().playback().currentIndex(), 1);
+        QMetaObject::invokeMethod(library, "playPlaylist", Q_ARG(QString, QStringLiteral("p1")));
+        QTRY_COMPARE(spy.count(), 2);
+        QCOMPARE(core.core().playback().currentIndex(), 1);
+        QVERIFY(core.nowPlaying().title() != track);
     }
 
     void logModelReadsAndFilters()
@@ -180,7 +232,15 @@ private slots:
                 window->grabWindow().save(QStringLiteral("%1/%2-%3.png").arg(shots, QTest::currentDataTag(), name));
             }
         };
-        shot("playlist");
+        shot("main");
+        QMetaObject::invokeMethod(playlist, "libraryRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        shot("library");
+        // A tile: plays, and back to the main screen.
+        QMetaObject::invokeMethod(&core.library(), "playPlaylist",
+            Q_ARG(QString, QStringLiteral("p2")));
+        QTRY_COMPARE_WITH_TIMEOUT(stack->property("depth").toInt(), 1, 10000);
+        shot("main-after-tile");
         QMetaObject::invokeMethod(playlist, "nowPlayingRequested");
         QTRY_COMPARE(stack->property("depth").toInt(), 2);
         shot("nowplaying");

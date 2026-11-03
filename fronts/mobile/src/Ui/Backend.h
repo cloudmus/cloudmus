@@ -33,6 +33,11 @@ class Backend : public QObject {
     Q_PROPERTY(QObject* playlist READ playlist NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* tracks READ tracks NOTIFY readyChanged)
     Q_PROPERTY(QObject* settings READ settings NOTIFY readyChanged)
+    // Null in an APK on the dev tracks: they have no sources to choose from.
+    Q_PROPERTY(QObject* library READ library NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* sources READ sources NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* favorites READ favorites NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* otherPlaylists READ otherPlaylists NOTIFY readyChanged)
 
 public:
 #ifndef Q_OS_ANDROID
@@ -53,21 +58,31 @@ public:
     QObject* playlist() const { return ready_ ? playlist_.data() : nullptr; }
     QAbstractItemModel* tracks() const { return ready_ ? tracks_.data() : nullptr; }
     QObject* settings() const { return ready_ ? settings_.data() : nullptr; }
+    QObject* library() const { return ready_ ? library_.data() : nullptr; }
+    QAbstractItemModel* sources() const { return ready_ ? sources_.data() : nullptr; }
+    QAbstractItemModel* favorites() const { return ready_ ? favorites_.data() : nullptr; }
+    QAbstractItemModel* otherPlaylists() const { return ready_ ? otherPlaylists_.data() : nullptr; }
 
 signals:
     void readyChanged();
 
 private:
     void acquire(QPointer<QObject>& slot, const QString& name);
+    void acquireModel(QPointer<QAbstractItemModel>& slot, const QString& name);
     void updateReady();
 
     std::unique_ptr<QRemoteObjectNode> node_;
     QPointer<QObject> nowPlaying_;
     QPointer<QObject> playlist_;
     QPointer<QObject> settings_;
+    QPointer<QObject> library_;
     QPointer<QAbstractItemModel> tracks_;
+    QPointer<QAbstractItemModel> sources_;
+    QPointer<QAbstractItemModel> favorites_;
+    QPointer<QAbstractItemModel> otherPlaylists_;
     QList<QRemoteObjectReplica*> replicas_;
-    bool tracksInitialized_ = false;
+    int modelsAcquired_ = 0;
+    int modelsInitialized_ = 0;
     bool ready_ = false;
     bool everReady_ = false;
     std::function<void()> restartCore_;

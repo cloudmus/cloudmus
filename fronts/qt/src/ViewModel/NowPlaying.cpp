@@ -44,6 +44,10 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
         emit durationMsChanged();
     })
 {
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::likedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::likeSupportedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::dislikedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::dislikeSupportedChanged);
     // The saved volume and play modes, applied to playback itself — mpv
     // otherwise starts at its own default (max) volume.
     volume_ = settings_.volume();

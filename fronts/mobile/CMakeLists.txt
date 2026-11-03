@@ -85,9 +85,17 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     add_library(cloudmus-mpv ALIAS cloudmus-mobile-mpv)
     add_subdirectory(../qt/core qt-core)
-    target_sources(cloudmus-mobile-core PRIVATE src/App/MobileCore.cpp src/App/MobileCore.h)
+    target_sources(cloudmus-mobile-core PRIVATE
+        src/App/MobileCore.cpp
+        src/App/MobileCore.h
+        src/ViewModel/LibraryScreen.cpp
+        src/ViewModel/LibraryScreen.h
+        src/ViewModel/RowsModel.cpp
+        src/ViewModel/RowsModel.h
+    )
     target_include_directories(cloudmus-mobile-core PUBLIC src/App)
     target_link_libraries(cloudmus-mobile-core PUBLIC cloudmus-core)
+    target_compile_definitions(cloudmus-mobile-core PUBLIC CLOUDMUS_MOBILE_SHARED_CORE)
 else()
     target_sources(cloudmus-mobile-core PRIVATE
         ${QT_FRONT_SRC}/Net/NetworkErrors.cpp
@@ -124,6 +132,9 @@ qt_add_library(cloudmus-mobile-ui STATIC
 target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
     cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
+if(CLOUDMUS_MOBILE_SHARED_CORE)
+    target_compile_definitions(cloudmus-mobile-ui PUBLIC CLOUDMUS_MOBILE_SHARED_CORE)
+endif()
 if(NOT ANDROID)
     # The desktop runs the core in the app; Android in the service.
     target_link_libraries(cloudmus-mobile-ui PUBLIC cloudmus-mobile-core)
@@ -145,7 +156,10 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/MiniPlayer.qml
         qml/NowPlayingPage.qml
         qml/PageBar.qml
-        qml/PlaylistPage.qml
+        qml/LibraryPage.qml
+        qml/MainPage.qml
+        qml/TrackPanel.qml
+        qml/TrackRow.qml
         qml/ScrollArea.qml
         qml/ScrollList.qml
         qml/SectionHeading.qml
@@ -159,8 +173,9 @@ qt_add_qml_module(cloudmus-mobile-ui
         src/Ui/LogModel.h
 )
 
-set(_icons arrow_back close expand_less expand_more file_download music_note pause play_arrow
-    skip_next skip_previous tune volume_up)
+set(_icons arrow_back close expand_less expand_more favorite favorite_border file_download heart_off
+    heart_off_outline music_note pause play_arrow refresh skip_next skip_previous star star_border tune
+    volume_up warning)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
     set(_file ${QT_FRONT_RES}/icons/symbols/${_icon}.svg)

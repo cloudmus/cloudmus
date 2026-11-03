@@ -67,7 +67,7 @@ ApplicationWindow {
         objectName: "stack"
         anchors.fill: parent
         visible: window.backend.ready
-        initialItem: playlistPage
+        initialItem: mainPage
 
         pushEnter: Transition {
             NumberAnimation { property: window.transitionKind === "rise" ? "y" : "x"; from: window.transitionKind === "rise" ? stack.height : stack.width; to: 0; duration: Theme.durationPage; easing.type: Easing.OutCubic }
@@ -105,12 +105,30 @@ ApplicationWindow {
     }
 
     Component {
-        id: playlistPage
-        PlaylistPage {
+        id: mainPage
+        MainPage {
             objectName: "playlist"
             backend: window.backend
             onNowPlayingRequested: stack.open(nowPlayingPage, "rise")
             onSettingsRequested: stack.open(settingsPage, "slide")
+            onLibraryRequested: stack.open(libraryPage, "slide")
+        }
+    }
+    Component {
+        id: libraryPage
+        LibraryPage {
+            objectName: "library"
+            onCloseRequested: stack.close()
+            onSettingsRequested: stack.open(settingsPage, "slide")
+        }
+    }
+    // A playlist started from the Library: on to the main screen.
+    Connections {
+        target: window.backend.library
+        ignoreUnknownSignals: true
+        function onActivated() {
+            window.transitionKind = "slide"
+            stack.pop(null)
         }
     }
     Component {

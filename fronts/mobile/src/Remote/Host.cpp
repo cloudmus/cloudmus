@@ -28,6 +28,16 @@ Host::Host(App::MobileCore& core, const QString& socketPath, QObject* parent)
     host_.enableRemoting(&core.settings(), Names::settings);
     auto& tracks = core.tracks();
     host_.enableRemoting(&tracks, Names::tracks, tracks.roleNames().keys().toVector());
+#ifdef CLOUDMUS_MOBILE_SHARED_CORE
+    ViewModel::LibraryScreen& library = core.library();
+    host_.enableRemoting(&library, Names::library);
+    const auto offerRows = [this](ViewModel::RowsModel& rows, const QString& name) {
+        host_.enableRemoting(&rows, name, rows.roleNames().keys().toVector());
+    };
+    offerRows(library.sourceRows(), Names::sources);
+    offerRows(library.favoriteRows(), Names::favorites);
+    offerRows(library.otherRows(), Names::otherPlaylists);
+#endif
     qCInfo(lcRemote) << "core offered on" << socketPath;
 }
 

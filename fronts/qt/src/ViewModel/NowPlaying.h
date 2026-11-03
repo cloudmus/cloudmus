@@ -60,6 +60,10 @@ class NowPlaying : public QObject {
     Q_PROPERTY(QString webUrl READ webUrl NOTIFY webUrlChanged)
     Q_PROPERTY(bool shuffle READ shuffle WRITE setShuffle NOTIFY shuffleChanged)
     Q_PROPERTY(bool radio READ isRadio NOTIFY radioChanged)
+    Q_PROPERTY(bool liked READ liked NOTIFY likedChanged)
+    Q_PROPERTY(bool likeSupported READ likeSupported NOTIFY likeSupportedChanged)
+    Q_PROPERTY(bool disliked READ disliked NOTIFY dislikedChanged)
+    Q_PROPERTY(bool dislikeSupported READ dislikeSupported NOTIFY dislikeSupportedChanged)
     Q_PROPERTY(int volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(bool quiet READ quiet WRITE setQuiet NOTIFY quietChanged)
 
@@ -127,8 +131,10 @@ public:
         bool playlistsSupported = false;
     };
     Feedback feedback() const;
-    void setLiked(bool liked);
-    void setDisliked(bool disliked);
+    bool liked() const { return feedback().liked; }
+    bool likeSupported() const { return feedback().likeSupported; }
+    bool disliked() const { return feedback().disliked; }
+    bool dislikeSupported() const { return feedback().dislikeSupported; }
     void download();
 
     // The same for any track (the track lists' context menus).
@@ -147,6 +153,8 @@ public slots:
     void previous();
     void stop();
     void seek(qint64 positionMs);
+    void setLiked(bool liked);
+    void setDisliked(bool disliked);
 
 signals:
     // A new track started, or the current one went away (hasTrack() false).
@@ -159,6 +167,10 @@ signals:
     void webUrlChanged();
     void shuffleChanged();
     void radioChanged();
+    void likedChanged();
+    void likeSupportedChanged();
+    void dislikedChanged();
+    void dislikeSupportedChanged();
     // At most a few times a second: they cross a process on mobile.
     void positionMsChanged();
     void durationMsChanged();
