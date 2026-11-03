@@ -1,10 +1,19 @@
 #include "TrackListModel.h"
 
-#include "Preload.h"
+#include <QUrl>
 
+#include "CoverArtCache.h"
+#include "Preload.h"
 #include "TrackStates.h"
 
-namespace Ui {
+namespace ViewModel {
+
+namespace {
+QString coverUrlOf(const Track& track)
+{
+    return track.coverUrl.value_or(track.album ? track.album->coverUrl.value_or(QString()) : QString());
+}
+} // namespace
 
 TrackListModel::TrackListModel(QObject* parent)
     : QAbstractListModel(parent)
@@ -104,10 +113,10 @@ void TrackListModel::setTrackStates(Library::TrackStates* states)
     });
 }
 
-void TrackListModel::setPreload(ViewModel::Preload* preload)
+void TrackListModel::setPreload(Preload* preload)
 {
     preload_ = preload;
-    connect(preload_, &ViewModel::Preload::trackChanged, this, [this](const QString& sourceId, const QString& trackId) {
+    connect(preload_, &Preload::trackChanged, this, [this](const QString& sourceId, const QString& trackId) {
         for (int row = 0; row < tracks_.size(); ++row) {
             if (tracks_[row].id == trackId && sourceIdAt(row) == sourceId) {
                 const QModelIndex idx = index(row);
@@ -116,9 +125,22 @@ void TrackListModel::setPreload(ViewModel::Preload* preload)
         }
     });
     // The cache dropped or gained something — which tracks, it doesn't say.
-    connect(preload_, &ViewModel::Preload::cacheUsedChanged, this, [this]() {
+    connect(preload_, &Preload::cacheUsedChanged, this, [this]() {
         if (!tracks_.isEmpty())
             emit dataChanged(index(0), index(tracks_.size() - 1), { CachedRole });
+    });
+}
+
+void TrackListModel::setCovers(Covers::CoverArtCache* covers)
+{
+    covers_ = covers;
+    connect(covers_, &Covers::CoverArtCache::pixmapReady, this, [this](const QString& url) {
+        for (int row = 0; row < tracks_.size(); ++row) {
+            if (coverUrlOf(tracks_[row]) == url) {
+                const QModelIndex idx = index(row);
+                emit dataChanged(idx, idx, { CoverFileRole });
+            }
+        }
     });
 }
 
@@ -137,6 +159,28 @@ int TrackListModel::rowCount(const QModelIndex& parent) const
     if (parent.isValid())
         return 0;
     return tracks_.size();
+}
+
+QHash<int, QByteArray> TrackListModel::roleNames() const
+{
+    return {
+        { SourceIdRole, "sourceId" },
+        { TrackIdRole, "trackId" },
+        { TitleRole, "title" },
+        { ArtistRole, "artist" },
+        { AlbumRole, "album" },
+        { DurationMsRole, "durationMs" },
+        { ExplicitRole, "isExplicit" },
+        { WebUrlRole, "webUrl" },
+        { CoverFileRole, "coverUrl" },
+        { LikedRole, "liked" },
+        { DislikedRole, "disliked" },
+        { UnavailableRole, "unavailable" },
+        { CachedRole, "cached" },
+        { DownloadProgressRole, "downloadProgress" },
+        { PlayedAtRole, "playedAt" },
+        { LastPlayedRole, "lastPlayedAt" },
+    };
 }
 
 QVariant TrackListModel::data(const QModelIndex& index, int role) const
@@ -173,17 +217,40 @@ QVariant TrackListModel::data(const QModelIndex& index, int role) const
         case CachedRole:
             if (preload_ == nullptr)
                 return { };
-            return preload_->stateFor(sourceIdAt(index.row()), t.id) == ViewModel::Preload::State::Ready;
+            return preload_->stateFor(sourceIdAt(index.row()), t.id) == Preload::State::Ready;
         case DownloadProgressRole:
             if (preload_ == nullptr
-                || preload_->stateFor(sourceIdAt(index.row()), t.id) != ViewModel::Preload::State::Downloading)
+                || preload_->stateFor(sourceIdAt(index.row()), t.id) != Preload::State::Downloading)
                 return { };
             return preload_->fractionFor(sourceIdAt(index.row()), t.id);
         case Qt::DisplayRole:
+        case TitleRole:
             return t.title;
+        case TrackIdRole:
+            return t.id;
+        case ArtistRole: {
+            QStringList names;
+            for (const Artist& artist : t.artists)
+                names.append(artist.name);
+            return names.join(QStringLiteral(", "));
+        }
+        case AlbumRole:
+            return t.album ? t.album->title : QString();
+        case DurationMsRole:
+            return t.durationMs;
+        case ExplicitRole:
+            return t.explicit_.value_or(false);
+        case WebUrlRole:
+            return t.webUrl.value_or(QString());
+        case CoverFileRole: {
+            if (covers_ == nullptr)
+                return QString();
+            const QString file = covers_->localFile(coverUrlOf(t));
+            return file.isEmpty() ? QString() : QUrl::fromLocalFile(file).toString();
+        }
         default:
             return { };
     }
 }
 
-} // namespace Ui
+} // namespace ViewModel

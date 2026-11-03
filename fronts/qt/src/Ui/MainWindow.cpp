@@ -73,6 +73,9 @@
 
 namespace Ui {
 
+using ViewModel::TrackListModel;
+using ViewModel::trackCountText;
+
 namespace {
 // Warning-level, so it always shows regardless of --debug/CLOUDMUS_QT_DEBUG
 // (see Logging.cpp's messageHandler) — every RPC/async failure this window

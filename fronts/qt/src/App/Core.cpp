@@ -125,6 +125,7 @@ Core::Core(QObject* parent)
                     track.coverUrl.value_or(track.album ? track.album->coverUrl.value_or(QString()) : QString()));
             }
         });
+    nowPlaying_.setCovers(&coverArtCache_);
     // Tracks are saved from the playback cache, or fetched for it.
     downloads_.setPreloader(&playback_.preloader());
     playback_.setStreamRouteProvider([this](const QString& sourceId) -> std::optional<QNetworkProxy> {

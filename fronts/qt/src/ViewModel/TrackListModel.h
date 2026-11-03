@@ -7,14 +7,16 @@
 
 #include "Models.h"
 
+namespace Covers {
+class CoverArtCache;
+}
 namespace Library {
 class TrackStates;
 }
-namespace ViewModel {
-class Preload;
-}
 
-namespace Ui {
+namespace ViewModel {
+
+class Preload;
 
 // "1 track" / "12 tracks" — the app ships no translation files, so
 // tr("%n track(s)") would show its raw "(s)" form.
@@ -23,8 +25,10 @@ inline QString trackCountText(int count)
     return count == 1 ? QStringLiteral("1 track") : QStringLiteral("%1 tracks").arg(count);
 }
 
-// Backs the center track-list view. One instance per MainWindow, repointed
-// at a new source/track set whenever the sidebar selection changes.
+// Tracks as rows, for any view of them: a QTableView-free list on the desktop
+// (one instance per MainWindow, repointed at a new source/track set whenever
+// the sidebar selection changes), QML on mobile. roleNames() lists the roles
+// of plain types, the ones that can cross a process (see fronts/mobile).
 class TrackListModel : public QAbstractListModel {
     Q_OBJECT
 
@@ -54,6 +58,17 @@ public:
         // (0..1; invalid when none is).
         CachedRole,
         DownloadProgressRole,
+        // The track's fields in plain types, for QML.
+        TrackIdRole,
+        TitleRole,
+        ArtistRole,
+        AlbumRole,
+        DurationMsRole,
+        ExplicitRole,
+        WebUrlRole,
+        // A local file to show the cover from, once at hand (see
+        // setCovers()): empty until then.
+        CoverFileRole,
     };
 
     // One row for setMixedSourceTracks() — see that method's doc comment
@@ -89,7 +104,9 @@ public:
     void setTrackStates(Library::TrackStates* states);
     // Where CachedRole/DownloadProgressRole come from; without one they're
     // empty.
-    void setPreload(ViewModel::Preload* preload);
+    void setPreload(Preload* preload);
+    // Where CoverFileRole comes from; without one it's empty.
+    void setCovers(Covers::CoverArtCache* covers);
 
     const QString& sourceId() const { return sourceId_; }
     bool isMixedSource() const { return mixedSource_; }
@@ -99,12 +116,14 @@ public:
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    QHash<int, QByteArray> roleNames() const override;
 
 private:
     void onStateChanged(const QString& sourceId, const QString& trackId);
 
     Library::TrackStates* states_ = nullptr;
-    ViewModel::Preload* preload_ = nullptr;
+    Preload* preload_ = nullptr;
+    Covers::CoverArtCache* covers_ = nullptr;
     QString sourceId_;
     QVector<Track> tracks_;
     QVector<QString> mixedSourceIds_; // parallel to tracks_, only populated when mixedSource_
@@ -112,4 +131,4 @@ private:
     bool mixedSource_ = false;
 };
 
-} // namespace Ui
+} // namespace ViewModel

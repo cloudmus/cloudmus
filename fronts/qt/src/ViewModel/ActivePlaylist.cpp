@@ -47,6 +47,8 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
     , sources_(sources)
     , messages_(messages)
 {
+    connect(this, &ActivePlaylist::contextChanged, this, &ActivePlaylist::titleChanged);
+    connect(this, &ActivePlaylist::entriesChanged, this, &ActivePlaylist::countChanged);
     connect(&playback_, &Playback::PlaybackController::queueChanged, this, [this]() {
         // A radio's track list grows through notifications, outside loadTracks().
         if (context_.isRadio() && playback_.isRadio())

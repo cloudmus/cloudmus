@@ -128,6 +128,7 @@ add_library(cloudmus-core STATIC
     ${CLOUDMUS_QT_DIR}/src/ViewModel/SourcePage.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Downloads.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Preload.cpp
+    ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackListModel.cpp
 
 
     ${CLOUDMUS_QT_DIR}/src/Timing/Debounce.cpp

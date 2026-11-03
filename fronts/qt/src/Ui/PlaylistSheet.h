@@ -16,12 +16,16 @@ namespace Covers {
 class CoverArtCache;
 }
 
+namespace ViewModel {
+class TrackListModel;
+}
+
 namespace Ui {
 
 class AnimatedPresenter;
 class HeroPanel;
 class SourcePanel;
-class TrackListModel;
+using ViewModel::TrackListModel;
 class TrackRowDelegate;
 
 // Full-cover sheet over the main content area (hero + active playlist)

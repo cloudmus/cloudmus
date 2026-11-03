@@ -36,6 +36,9 @@
 
 namespace Ui {
 
+using ViewModel::TrackListModel;
+using ViewModel::trackCountText;
+
 namespace {
 
 constexpr int kCoverSide = 56;

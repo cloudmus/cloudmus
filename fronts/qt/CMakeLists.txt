@@ -227,7 +227,6 @@ add_library(cloudmus-ui STATIC
     src/Ui/StarPromptFlow.cpp
     src/Ui/NavItemDelegate.cpp
     src/Ui/SidebarTreeView.cpp
-    src/Ui/TrackListModel.cpp
     src/Ui/TrackRowDelegate.cpp
     src/Ui/NowPlayingBar.cpp
     src/Ui/HeroPanel.cpp
@@ -565,6 +564,7 @@ add_executable(cloudmus-qt-tests
     tests/RpcClientTest.cpp
     tests/SourceSessionTest.cpp
     tests/NowPlayingTest.cpp
+    tests/RemotingTest.cpp
     tests/PlaylistEditingTest.cpp
     tests/SourcesTest.cpp
     tests/ActivePlaylistTest.cpp

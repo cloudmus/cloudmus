@@ -38,6 +38,10 @@ class Sources;
 // at once, and the source catches up behind it.
 class ActivePlaylist : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString title READ title NOTIFY titleChanged)
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(bool loading READ isLoading NOTIFY loadingChanged)
+    Q_PROPERTY(bool startingRadio READ isStartingRadio NOTIFY startingRadioChanged)
 
 public:
     ActivePlaylist(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
@@ -46,6 +50,8 @@ public:
         QObject* parent = nullptr);
 
     const PlaylistContext& context() const { return context_; }
+    QString title() const { return context_.isHistory ? tr("History") : context_.playlist.title; }
+    int count() const { return int(entries().size()); }
     // History, as a context.
     PlaylistContext historyContext() const;
     // What the main list shows: the queue once there is one, else the
@@ -70,6 +76,8 @@ public:
     // Starts a radio from `seed` and, once it runs, makes `context` active.
     Rpc::Task<void> startRadio(
         QString sourceId, QString seed, PlaylistContext context, std::optional<Track> resumeTrack = std::nullopt);
+
+public slots:
     // The hero's Play: (re)starts the active playlist.
     void play();
     // A row of the main list played.
@@ -78,6 +86,8 @@ public:
 signals:
     void contextChanged();
     void entriesChanged();
+    void titleChanged();
+    void countChanged();
     void loadingChanged(bool loading);
     void startingRadioChanged(bool starting);
     // Something started playing from here — the sheet steps aside.

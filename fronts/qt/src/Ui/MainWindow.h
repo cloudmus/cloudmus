@@ -45,10 +45,14 @@ namespace ViewModel {
 class SidebarModel;
 }
 
+namespace ViewModel {
+class TrackListModel;
+}
+
 namespace Ui {
 
 class NavItemDelegate;
-class TrackListModel;
+using ViewModel::TrackListModel;
 class TrackRowDelegate;
 class NowPlayingBar;
 class SourcePanel;

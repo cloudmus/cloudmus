@@ -6,7 +6,9 @@
 #include <QEasingCurve>
 #include <QJsonObject>
 #include <QLoggingCategory>
+#include <QUrl>
 
+#include "CoverArtCache.h"
 #include "Downloads.h"
 #include "Messages.h"
 #include "PlaybackController.h"
@@ -21,6 +23,9 @@ namespace ViewModel {
 
 namespace {
 Q_LOGGING_CATEGORY(lcNowPlaying, "cloudmus.viewmodel.nowplaying")
+
+// Fine enough for a seek bar, rare enough for a replica.
+constexpr int kPositionIntervalMs = 250;
 }
 
 NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
@@ -34,6 +39,10 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
     , settings_(settings)
     , downloads_(downloads)
     , messages_(messages)
+    , positionThrottle_(kPositionIntervalMs, [this] {
+        emit positionMsChanged();
+        emit durationMsChanged();
+    })
 {
     // The saved volume and play modes, applied to playback itself — mpv
     // otherwise starts at its own default (max) volume.
@@ -52,14 +61,14 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
 
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, [this]() {
         resetBusy();
-        emit trackChanged();
+        emitTrackChanged();
         emit feedbackChanged();
     });
     connect(&playback_, &Playback::PlaybackController::currentTrackAvailabilityChanged, this, [this](bool available) {
         if (available)
             return; // trackChanged() follows right away
         resetBusy();
-        emit trackChanged();
+        emitTrackChanged();
         emit feedbackChanged();
     });
     connect(&playback_, &Playback::PlaybackController::playingChanged, this, &NowPlaying::playingChanged);
@@ -67,7 +76,12 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
         loading_ = loading;
         emit loadingChanged(loading);
     });
-    connect(&playback_, &Playback::PlaybackController::positionChanged, this, &NowPlaying::positionChanged);
+    connect(&playback_, &Playback::PlaybackController::positionChanged, this,
+        [this](qint64 positionMs, qint64 durationMs) {
+            durationMs_ = durationMs;
+            emit positionChanged(positionMs, durationMs);
+            positionThrottle_.trigger();
+        });
     connect(&playback_, &Playback::PlaybackController::bufferedChanged, this, &NowPlaying::bufferedChanged);
     connect(&playback_, &Playback::PlaybackController::queueAvailabilityChanged, this,
         &NowPlaying::queueAvailabilityChanged);
@@ -77,6 +91,8 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
         settings_.setShuffle(playback_.shuffle());
         settings_.setRepeatMode(playback_.repeatMode());
         emit playModesChanged();
+        emit shuffleChanged();
+        emit radioChanged();
     });
     connect(
         &trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
@@ -115,6 +131,73 @@ QString NowPlaying::webUrl() const { return hasTrack() ? track().webUrl.value_or
 bool NowPlaying::playing() const { return playback_.isPlaying(); }
 
 bool NowPlaying::queueAvailable() const { return playback_.hasQueue(); }
+
+QString NowPlaying::title() const { return hasTrack() ? track().title : QString(); }
+
+QString NowPlaying::artist() const
+{
+    if (!hasTrack())
+        return { };
+    QStringList names;
+    for (const Artist& artist : track().artists)
+        names.append(artist.name);
+    return names.join(QStringLiteral(", "));
+}
+
+QString NowPlaying::coverSource() const
+{
+    if (!hasTrack())
+        return { };
+    return track().coverUrl.value_or(track().album ? track().album->coverUrl.value_or(QString()) : QString());
+}
+
+QString NowPlaying::coverUrl() const
+{
+    if (covers_ == nullptr)
+        return { };
+    const QString file = covers_->localFile(coverSource());
+    return file.isEmpty() ? QString() : QUrl::fromLocalFile(file).toString();
+}
+
+void NowPlaying::setCovers(Covers::CoverArtCache* covers)
+{
+    covers_ = covers;
+    connect(covers_, &Covers::CoverArtCache::pixmapReady, this, [this](const QString& url) {
+        if (url == coverSource())
+            emit coverUrlChanged();
+    });
+}
+
+void NowPlaying::emitTrackChanged()
+{
+    durationMs_ = 0; // until the new track's position says
+    emit trackChanged();
+    emit hasTrackChanged();
+    emit titleChanged();
+    emit artistChanged();
+    emit coverUrlChanged();
+    emit webUrlChanged();
+    emit durationMsChanged();
+}
+
+qint64 NowPlaying::durationMs() const
+{
+    if (durationMs_ > 0)
+        return durationMs_;
+    return hasTrack() ? track().durationMs : 0;
+}
+
+void NowPlaying::play()
+{
+    if (!playing())
+        playback_.togglePause();
+}
+
+void NowPlaying::pause()
+{
+    if (playing())
+        playback_.togglePause();
+}
 
 void NowPlaying::togglePause() { playback_.togglePause(); }
 

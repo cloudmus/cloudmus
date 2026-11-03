@@ -1,5 +1,8 @@
 #include "CoverArtCache.h"
 
+#include <QCryptographicHash>
+#include <QDir>
+#include <QFile>
 #include <QImage>
 #include <QNetworkDiskCache>
 #include <QNetworkProxyFactory>
@@ -46,8 +49,32 @@ CoverArtCache::CoverArtCache(QObject* parent)
     diskCache->setCacheDirectory(
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/covers"));
     network_.setCache(diskCache);
+    filesDir_ = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/cover-files");
     memoryCache_.setMaxCost(64);
     sourceCache_.setMaxCost(kSourceCacheBytes);
+}
+
+QString CoverArtCache::localFile(const QString& url)
+{
+    if (url.isEmpty())
+        return { };
+    const QString name = QString::fromLatin1(QCryptographicHash::hash(url.toUtf8(), QCryptographicHash::Sha1).toHex());
+    const QString file = filesDir_ + QLatin1Char('/') + name + QStringLiteral(".jpg");
+    if (QFile::exists(file))
+        return file;
+    const QImage* image = sourceCache_.object(url);
+    if (image == nullptr) {
+        request(url);
+        return { };
+    }
+    QDir().mkpath(filesDir_);
+    // Written whole under another name: the other process may read it at once.
+    const QString partial = file + QStringLiteral(".part");
+    if (!image->save(partial, "JPG", 90) || !QFile::rename(partial, file)) {
+        QFile::remove(partial);
+        return { };
+    }
+    return file;
 }
 
 QString CoverArtCache::cacheKey(const QString& url, QSize targetSize)
