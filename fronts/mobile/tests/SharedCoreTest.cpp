@@ -178,6 +178,71 @@ private slots:
             QCOMPARE(qAlpha(first.pixel(corner)), 255);
     }
 
+    // A cover: the note until the picture is in, drawn at the size shown; a
+    // change of size stretches what's there, and only once it's over is a new
+    // picture asked for, with the old one on screen until that's in.
+    void coverSwapsWithoutBlinking()
+    {
+        QTemporaryDir dir;
+        QImage red(64, 64, QImage::Format_RGB32);
+        red.fill(Qt::red);
+        QVERIFY(red.save(dir.filePath("red.png")));
+        QImage blue(64, 64, QImage::Format_RGB32);
+        blue.fill(Qt::blue);
+        QVERIFY(blue.save(dir.filePath("blue.png")));
+
+        QQmlEngine engine;
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Window {
+                width: 400; height: 400; visible: true
+                Cover { objectName: "cover"; width: 100; height: width }
+            }
+        )", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(root.get());
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* cover = window->findChild<QQuickItem*>(QStringLiteral("cover"));
+        QVERIFY(cover);
+        QVERIFY(!cover->property("_showing").toBool());
+
+        const QString redUrl = QUrl::fromLocalFile(dir.filePath("red.png")).toString();
+        const QString blueUrl = QUrl::fromLocalFile(dir.filePath("blue.png")).toString();
+        const auto shown = [&] { return QUrl::fromPercentEncoding(cover->property("shownSource").toString().toUtf8()); };
+
+        cover->setProperty("source", redUrl);
+        QTRY_VERIFY(shown().endsWith(redUrl));
+        QTRY_VERIFY(cover->property("_showing").toBool());
+        const QString first = shown();
+        // Drawn at the size it's shown at, the radius for that.
+        QCOMPARE(cover->property("_side").toInt(), 100);
+
+        // Resizing: nothing new is asked for along the way.
+        for (int width = 110; width <= 200; width += 10) {
+            cover->setProperty("width", width);
+            QTest::qWait(30);
+            QCOMPARE(cover->property("_side").toInt(), 100);
+            QVERIFY(cover->property("_showing").toBool());
+        }
+        QTRY_COMPARE(cover->property("_side").toInt(), 200);
+        // Same picture, new size, and it never left the screen.
+        for (int i = 0; i < 30; ++i) {
+            QVERIFY(cover->property("_showing").toBool());
+            QTest::qWait(20);
+        }
+        QCOMPARE(shown(), first);
+
+        // Another cover: the old one stays until the new one has come.
+        cover->setProperty("source", blueUrl);
+        QVERIFY(cover->property("_showing").toBool());
+        QTRY_VERIFY(shown().endsWith(blueUrl));
+        QVERIFY(cover->property("_showing").toBool());
+    }
+
     // The hero's: its edges dissolve into the color given, its center is dark.
     void auraHeroHasEdgesAndAVignette()
     {

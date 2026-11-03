@@ -23,7 +23,8 @@ AbstractButton {
     background: Rectangle {
         radius: Theme.radius
         color: bar.down ? Theme.surface300 : Theme.surface200
-        opacity: 0.82
+        // Folded it's only the icon, with the panel behind it; pressed, it shows.
+        opacity: bar.down ? 0.82 : 0.82 * (1 - bar.folded)
     }
 
     contentItem: Item {
