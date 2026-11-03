@@ -179,6 +179,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/SectionHeading.qml
         qml/SeekBar.qml
         qml/SettingsPage.qml
+        qml/ShadowText.qml
         qml/TextButton.qml
         qml/Theme.qml
         qml/Toast.qml

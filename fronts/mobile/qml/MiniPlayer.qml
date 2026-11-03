@@ -50,7 +50,7 @@ Rectangle {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: Theme.dp(2)
-            Text {
+            ShadowText {
                 Layout.fillWidth: true
                 text: mini.nowPlaying ? mini.nowPlaying.title : ""
                 color: "#FFFFFF"
@@ -59,7 +59,7 @@ Rectangle {
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
-            Text {
+            ShadowText {
                 Layout.fillWidth: true
                 text: mini.nowPlaying ? mini.nowPlaying.artist : ""
                 color: "#D9FFFFFF"

@@ -14,6 +14,8 @@ ColumnLayout {
     property color inkColor: Theme.ink
     property color inkSecondaryColor: Theme.inkSecondary
     property color troughColor: Theme.surface400
+    // Over the generated background: its times get a shadow.
+    property bool overAura: false
     signal seekRequested(real positionMs)
 
     spacing: Theme.dp(2)
@@ -67,7 +69,8 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        Text {
+        ShadowText {
+            shadowed: bar.overAura
             text: Theme.formatTime(slider.pressed ? slider.value : bar.positionMs)
             color: bar.inkSecondaryColor
             font.family: Theme.fontFamily
@@ -75,7 +78,8 @@ ColumnLayout {
             font.features: { "tnum": 1 }
         }
         Item { Layout.fillWidth: true }
-        Text {
+        ShadowText {
+            shadowed: bar.overAura
             text: Theme.formatTime(bar.durationMs)
             color: bar.inkSecondaryColor
             font.family: Theme.fontFamily

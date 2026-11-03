@@ -32,7 +32,7 @@ Page {
                 color: "#FFFFFF"
                 onClicked: page.closeRequested()
             }
-            Text {
+            ShadowText {
                 Layout.fillWidth: true
                 text: qsTr("Now playing")
                 horizontalAlignment: Text.AlignHCenter

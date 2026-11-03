@@ -51,7 +51,7 @@ Page {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.dp(2)
-                    Text {
+                    ShadowText {
                         Layout.fillWidth: true
                         text: page.screen ? page.screen.title : ""
                         color: "#FFFFFF"
@@ -62,7 +62,7 @@ Page {
                         maximumLineCount: 2
                         wrapMode: Text.Wrap
                     }
-                    Text {
+                    ShadowText {
                         Layout.fillWidth: true
                         visible: page.screen && !page.screen.isRadio
                         text: page.screen ? qsTr("%1 tracks").arg(page.screen.count) : ""

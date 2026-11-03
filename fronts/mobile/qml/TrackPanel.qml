@@ -54,32 +54,13 @@ GridLayout {
             Layout.fillWidth: true
             implicitHeight: titleRow.implicitHeight
 
-            // A soft shade under the title and artist, for them to stand out
-            // of whatever the art has there.
-            Rectangle {
-                visible: panel.overAura
-                anchors.fill: parent
-                anchors.topMargin: -Theme.dp(14)
-                anchors.bottomMargin: -Theme.dp(14)
-                // To the panel's edges, no further.
-                anchors.leftMargin: -Theme.dp(12)
-                anchors.rightMargin: -Theme.dp(12)
-                radius: Theme.dp(12)
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: "#00000000" }
-                    GradientStop { position: 0.3; color: "#59000000" }
-                    GradientStop { position: 0.7; color: "#59000000" }
-                    GradientStop { position: 1.0; color: "#00000000" }
-                }
-            }
-
             RowLayout {
                 id: titleRow
                 anchors.fill: parent
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: Theme.dp(2)
-                    Text {
+                    ShadowText {
                         Layout.fillWidth: true
                         text: panel.nowPlaying ? panel.nowPlaying.title : ""
                         color: panel.inkColor
@@ -88,7 +69,7 @@ GridLayout {
                         font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
-                    Text {
+                    ShadowText {
                         Layout.fillWidth: true
                         text: panel.nowPlaying ? panel.nowPlaying.artist : ""
                         color: panel.inkSecondaryColor
@@ -113,6 +94,7 @@ GridLayout {
             bufferedMs: panel.nowPlaying && panel.nowPlaying.bufferedMs !== undefined ? panel.nowPlaying.bufferedMs : -1
             inkColor: panel.inkColor
             inkSecondaryColor: panel.inkSecondaryColor
+            overAura: panel.overAura
             troughColor: panel.overAura ? "#40FFFFFF" : Theme.surface400
             onSeekRequested: (positionMs) => panel.nowPlaying.seek(positionMs)
         }
