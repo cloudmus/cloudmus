@@ -63,8 +63,11 @@ Item {
         // with the mask shut, between two frames.
         _direction = direction
         _progress = 0
+        // Where it had got to, for the old text not to jump as it goes.
         outgoingTitle.text = incomingTitle.text
+        outgoingTitle.scrollOffset = incomingTitle.scrollOffset
         outgoingArtist.text = incomingArtist.text
+        outgoingArtist.scrollOffset = incomingArtist.scrollOffset
         incomingTitle.text = title
         incomingArtist.text = artist
         wipe.start()
@@ -145,19 +148,19 @@ Item {
             y: root._pad
             width: root.width
             spacing: Theme.dp(2)
-            ShadowText {
+            MarqueeText {
                 id: outgoingTitle
                 width: parent.width
+                active: false
                 color: root.titleColor
                 font: incomingTitle.font
-                elide: Text.ElideRight
             }
-            ShadowText {
+            MarqueeText {
                 id: outgoingArtist
                 width: parent.width
+                active: false
                 color: root.artistColor
                 font: incomingArtist.font
-                elide: Text.ElideRight
             }
         }
     }
@@ -180,22 +183,21 @@ Item {
             y: root._pad
             width: root.width
             spacing: Theme.dp(2)
-            ShadowText {
+            MarqueeText {
                 id: incomingTitle
+                objectName: "incomingTitle"
                 width: parent.width
                 color: root.titleColor
                 font.family: Theme.fontFamily
                 font.pixelSize: root.titleSize
                 font.weight: Font.Bold
-                elide: Text.ElideRight
             }
-            ShadowText {
+            MarqueeText {
                 id: incomingArtist
                 width: parent.width
                 color: root.artistColor
                 font.family: Theme.fontFamily
                 font.pixelSize: root.artistSize
-                elide: Text.ElideRight
             }
         }
     }
