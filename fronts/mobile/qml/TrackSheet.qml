@@ -285,8 +285,58 @@ Popup {
         contentWidth: width
         contentHeight: content.implicitHeight + Theme.padding * 2
         clip: true
-        // Nothing to dissolve into on glass: the rows are simply cut off.
-        fadeColor: sheet._glass ? "transparent" : Theme.surface100
+        fadeColor: Theme.surface100
+        // Glass isn't one color to fade into: the rows themselves go see-through,
+        // where there's more beyond that edge.
+        fadeShown: !sheet._glass
+        layer.enabled: sheet._glass
+        layer.effect: MultiEffect {
+            autoPaddingEnabled: false
+            maskEnabled: true
+            maskSource: dissolve
+            // Together: the mask's own alpha, from 0 to 1. A threshold of 0 lets
+            // all of it through.
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 1
+        }
+        Item {
+            id: dissolve
+            parent: scroller
+            anchors.fill: parent
+            visible: false
+            layer.enabled: sheet._glass
+
+            readonly property real depth: Math.min(Theme.dp(28), height / 2)
+            property real topDepth: scroller.contentY > scroller.originY + 1 ? depth : 0
+            property real bottomDepth: scroller.contentY + scroller.height
+                                       < scroller.originY + scroller.contentHeight - 1 ? depth : 0
+            Behavior on topDepth { NumberAnimation { duration: 180 } }
+            Behavior on bottomDepth { NumberAnimation { duration: 180 } }
+
+            Rectangle {
+                width: parent.width
+                height: dissolve.topDepth
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#00FFFFFF" }
+                    GradientStop { position: 1.0; color: "#FFFFFFFF" }
+                }
+            }
+            Rectangle {
+                y: dissolve.topDepth
+                width: parent.width
+                height: parent.height - dissolve.topDepth - dissolve.bottomDepth
+                color: "#FFFFFFFF"
+            }
+            Rectangle {
+                y: parent.height - height
+                width: parent.width
+                height: dissolve.bottomDepth
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#FFFFFFFF" }
+                    GradientStop { position: 1.0; color: "#00FFFFFF" }
+                }
+            }
+        }
 
         ColumnLayout {
             id: content

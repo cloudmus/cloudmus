@@ -6,6 +6,9 @@ Flickable {
 
     // What's behind it, for the content to dissolve into.
     property alias fadeColor: edgeFade.color
+    // Off for a background that isn't one color, to dissolve the content some
+    // other way.
+    property alias fadeShown: edgeFade.visible
 
     boundsBehavior: Flickable.StopAtBounds
     boundsMovement: Flickable.StopAtBounds
