@@ -77,6 +77,13 @@
             <meta-data android:name="yandex.auto.uma.AudioSource" android:value="true" />
         </service>
 
+        <!-- Covers for a media browser in another app: see CoverProvider. -->
+        <provider
+            android:name="dev.cloudmus.mobile.CoverProvider"
+            android:authorities="dev.cloudmus.mobile.covers"
+            android:process=":playback"
+            android:exported="true" />
+
         <!-- Media buttons while nothing plays (the steering wheel after the
              car starts). Media3's own. -->
         <receiver android:name="androidx.media3.session.MediaButtonReceiver" android:exported="true">

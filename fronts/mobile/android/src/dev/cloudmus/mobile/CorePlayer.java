@@ -248,7 +248,12 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         playing = playWhenReady;
         if (playWhenReady) {
             requestFocus();
-            CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+            // A browser's pick comes with a "play" right after: that would
+            // bring back the old track until the new playlist has started.
+            boolean starting = android.os.SystemClock.elapsedRealtime() < startingMediaUntil;
+            startingMediaUntil = 0;
+            if (!starting)
+                CoreBridge.command(CoreBridge.CMD_PLAY, 0);
         } else {
             // The focus stays through a pause, as ExoPlayer keeps it: the
             // head unit gives the steering-wheel buttons to whoever holds
@@ -305,12 +310,22 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         return Futures.immediateVoidFuture();
     }
 
-    // "Play" with nothing loaded yet comes this way (see the service's
-    // onPlaybackResumption()); no items are offered to pick from so far.
+    private static final long STARTING_MEDIA_MS = 2000;
+    private long startingMediaUntil;
+
+    // A playlist picked in a media browser (the service's onGetChildren()), or
+    // "play" with nothing loaded yet (its onPlaybackResumption()).
     @NonNull
     @Override
     protected ListenableFuture<?> handleSetMediaItems(List<MediaItem> mediaItems, int startIndex, long startPositionMs) {
-        CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+        String id = mediaItems.isEmpty() ? "" : mediaItems.get(0).mediaId;
+        CmLog.i(TAG, "media items set: " + id);
+        if (id.startsWith(PlaybackService.PLAYLIST_ID_PREFIX)) {
+            startingMediaUntil = android.os.SystemClock.elapsedRealtime() + STARTING_MEDIA_MS;
+            CoreBridge.playMedia(id);
+        } else {
+            CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+        }
         requestFocus();
         return Futures.immediateVoidFuture();
     }

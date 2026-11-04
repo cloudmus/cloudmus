@@ -23,6 +23,10 @@ import androidx.media3.session.SessionResult;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
+
+import java.util.List;
 
 // The music player as the system sees it: a media session (the car's media
 // widget, the steering-wheel buttons, Android Auto, the notification) in a
@@ -35,6 +39,10 @@ public final class PlaybackService extends MediaLibraryService {
     public static final String ACTION_START = "dev.cloudmus.mobile.START";
     public static final String ACTION_AUTOPLAY = "dev.cloudmus.mobile.AUTOPLAY";
     private static final String ROOT_ID = "root";
+    // Keep in step with ViewModel::MediaTree.
+    static final String PLAYLIST_ID_PREFIX = "playlist/";
+    private static final long ROOT_WAIT_MS = 10000;
+    private static final long ROOT_POLL_MS = 500;
     private static final String CHANNEL_ID = "playback";
     private static final int NOTIFICATION_ID = DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID;
     // The notification's (and the app's) "stop it all": playback stops and
@@ -55,6 +63,8 @@ public final class PlaybackService extends MediaLibraryService {
     private CorePlayer player;
     private PendingIntent openScreen;
     private boolean autoplayed;
+    // The source folders browsers have opened.
+    private final java.util.Set<String> knownFolders = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     @Override
     public void onCreate() {
@@ -75,6 +85,7 @@ public final class PlaybackService extends MediaLibraryService {
             if (session != null)
                 session.setCustomLayout(buttons());
         });
+        CoreBridge.setLibraryListener(() -> new android.os.Handler(getMainLooper()).post(this::notifyLibraryChanged));
         DefaultMediaNotificationProvider notifications = new DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
             .setChannelName(R.string.playback_channel)
@@ -114,6 +125,40 @@ public final class PlaybackService extends MediaLibraryService {
             }
         }
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    // Browsers on MediaBrowserCompat ask for a folder again when told it changed.
+    // Those on the framework's MediaBrowser don't subscribe in a way Media3 sees,
+    // so they never hear: see listedRoot().
+    private void notifyLibraryChanged() {
+        if (session == null)
+            return;
+        CmLog.i(TAG, "the library changed");
+        session.notifyChildrenChanged(ROOT_ID, Integer.MAX_VALUE, null);
+        for (String folder : knownFolders)
+            session.notifyChildrenChanged(folder, Integer.MAX_VALUE, null);
+    }
+
+    // Media Center binds and asks the moment the car starts, with the sources
+    // still coming up, and a browser that isn't told of a change would stay on
+    // an empty list. So an empty root isn't answered until there's something
+    // in it, or it's clear there won't be for now: signed out, or no network
+    // and nothing saved. A browser shows its spinner meanwhile.
+    private ListenableFuture<List<CoreBridge.BrowseItem>> listedRoot() {
+        SettableFuture<List<CoreBridge.BrowseItem>> result = SettableFuture.create();
+        askRoot(result, android.os.SystemClock.elapsedRealtime() + ROOT_WAIT_MS);
+        return result;
+    }
+
+    private void askRoot(SettableFuture<List<CoreBridge.BrowseItem>> result, long deadline) {
+        ListenableFuture<List<CoreBridge.BrowseItem>> asked = CoreBridge.browse(ROOT_ID, false);
+        asked.addListener(() -> {
+            List<CoreBridge.BrowseItem> items = Futures.getUnchecked(asked);
+            if (!items.isEmpty() || android.os.SystemClock.elapsedRealtime() >= deadline)
+                result.set(items);
+            else
+                new android.os.Handler(getMainLooper()).postDelayed(() -> askRoot(result, deadline), ROOT_POLL_MS);
+        }, MoreExecutors.directExecutor());
     }
 
     // In the order the system takes them, which shows just the first two beside
@@ -194,6 +239,7 @@ public final class PlaybackService extends MediaLibraryService {
         CmLog.i(TAG, "service onDestroy");
         CoreBridge.setListener(null);
         CoreBridge.setStopHandler(null);
+        CoreBridge.setLibraryListener(null);
         if (session != null) {
             session.release();
             session = null;
@@ -265,16 +311,39 @@ public final class PlaybackService extends MediaLibraryService {
         @Override
         public ListenableFuture<LibraryResult<MediaItem>> onGetItem(MediaLibrarySession session,
             MediaSession.ControllerInfo browser, String mediaId) {
-            if (ROOT_ID.equals(mediaId))
-                return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "CloudMus"), null));
-            return Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE));
+            return Futures.transform(CoreBridge.browse(mediaId, true), items -> items.isEmpty()
+                    ? LibraryResult.<MediaItem>ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                    : LibraryResult.ofItem(browserItem(items.get(0)), null),
+                MoreExecutors.directExecutor());
         }
 
         @Override
         public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> onGetChildren(MediaLibrarySession session,
             MediaSession.ControllerInfo browser, String parentId, int page, int pageSize, @Nullable LibraryParams params) {
             CmLog.i(TAG, "children of " + parentId + " for " + browser.getPackageName());
-            return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params));
+            if (!ROOT_ID.equals(parentId))
+                knownFolders.add(parentId);
+            ListenableFuture<List<CoreBridge.BrowseItem>> listed = ROOT_ID.equals(parentId)
+                ? listedRoot() : CoreBridge.browse(parentId, false);
+            return Futures.transform(listed, items -> {
+                ImmutableList.Builder<MediaItem> children = ImmutableList.builder();
+                // In long: Media3's legacy side asks for a page of MAX_VALUE.
+                long from = (long) page * pageSize;
+                long to = Math.min(from + pageSize, items.size());
+                for (long i = from; i < to; ++i)
+                    children.add(browserItem(items.get((int) i)));
+                CmLog.i(TAG, "children of " + parentId + ": " + items.size());
+                return LibraryResult.ofItemList(children.build(), params);
+            }, MoreExecutors.directExecutor());
+        }
+
+        // What a browser sends back when one is tapped: an id and no stream,
+        // which is all the core wants. Media3 turns down items without a URI
+        // unless told otherwise. See CorePlayer.handleSetMediaItems().
+        @Override
+        public ListenableFuture<List<MediaItem>> onAddMediaItems(MediaSession session,
+            MediaSession.ControllerInfo controller, List<MediaItem> mediaItems) {
+            return Futures.immediateFuture(mediaItems);
         }
 
         // "Play" with nothing playing — the steering wheel after the car
@@ -300,6 +369,22 @@ public final class PlaybackService extends MediaLibraryService {
                     .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                     .build())
                 .build();
+        }
+
+        private MediaItem browserItem(CoreBridge.BrowseItem item) {
+            if (item.browsable)
+                return folder(item.id, item.title);
+            MediaMetadata.Builder metadata = new MediaMetadata.Builder()
+                .setTitle(item.title)
+                .setSubtitle(item.subtitle)
+                .setIsBrowsable(false)
+                .setIsPlayable(true)
+                .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST);
+            // A link, not the picture as with the playing track: Media3 puts
+            // pictures into the list, cutting it short at what a binder call takes.
+            if (!item.coverFile.isEmpty())
+                metadata.setArtworkUri(CoverProvider.uriFor(item.coverFile));
+            return new MediaItem.Builder().setMediaId(item.id).setMediaMetadata(metadata.build()).build();
         }
     }
 }

@@ -82,6 +82,10 @@ adb logcat -s CloudmusStart             # startup milestones
   `Download/Cloudmus`.
 - Autoplay at boot is on by default; the switch is in Settings (the sliders
   icon on the playlist page).
+- Media browsers (the car's Media Center, Android Auto) list the playlists:
+  with several sources a folder for each, with one its playlists straight away,
+  favorites first. A tap starts the playlist, waiting for its source if that's
+  still coming up. Tracks inside a playlist aren't listed.
 - GWM head units (Haval): the car's media widget follows a third-party player
   only once the unit's Media Center has picked it. The player asks for that
   itself, once, a couple of seconds after its screen first opens (a blink of

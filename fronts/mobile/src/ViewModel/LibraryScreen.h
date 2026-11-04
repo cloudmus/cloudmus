@@ -64,6 +64,8 @@ public:
     QString authCode() const;
     QString authError() const;
     bool canSignOut() const;
+    // playPlaylist() for any source: for what doesn't go through picking one.
+    void playPlaylistOf(const QString& sourceId, const QString& playlistId);
 
 public slots:
     void selectSource(const QString& sourceId);

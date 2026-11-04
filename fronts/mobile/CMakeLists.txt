@@ -89,6 +89,8 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
         src/ViewModel/DownloadsScreen.h
         src/ViewModel/MainScreen.cpp
         src/ViewModel/MainScreen.h
+        src/ViewModel/MediaTree.cpp
+        src/ViewModel/MediaTree.h
         src/ViewModel/PlaylistScreen.cpp
         src/ViewModel/PlaylistScreen.h
         src/ViewModel/TrackScreen.cpp

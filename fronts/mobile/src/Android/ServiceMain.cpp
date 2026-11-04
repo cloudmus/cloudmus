@@ -44,6 +44,8 @@ jmethodID onAutoplayMethod = nullptr;
 jmethodID onResumeAfterLossMethod = nullptr;
 jmethodID onReadyMethod = nullptr;
 jmethodID onStoppedMethod = nullptr;
+jmethodID onBrowseResultMethod = nullptr;
+jmethodID onLibraryChangedMethod = nullptr;
 
 std::mutex mutex;
 QObject* receiver = nullptr; // lives in the core thread, once it's up
@@ -101,6 +103,32 @@ void reportFeedback(App::MobileCore& core)
     env->CallStaticVoidMethod(bridgeClass, onFeedbackMethod, jboolean(now.likeSupported()), jboolean(now.liked()),
         jboolean(now.dislikeSupported()), jboolean(now.disliked()));
     Android::Jni::checkException(env, "CoreBridge.onFeedback");
+}
+
+// A media browser's answer, as flat strings: five for each item (see
+// CoreBridge.onBrowseResult()).
+void reportBrowseResult(jint requestId, const QList<ViewModel::MediaTree::Item>& items)
+{
+    JNIEnv* env = Android::Jni::env();
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray flat = env->NewObjectArray(jsize(items.size() * 5), stringClass, nullptr);
+    jsize at = 0;
+    const auto add = [&](const QString& text) {
+        jstring value = toJava(env, text);
+        env->SetObjectArrayElement(flat, at++, value);
+        env->DeleteLocalRef(value);
+    };
+    for (const ViewModel::MediaTree::Item& item : items) {
+        add(item.id);
+        add(item.title);
+        add(item.subtitle);
+        add(item.coverFile);
+        add(item.browsable ? QStringLiteral("1") : QString());
+    }
+    env->CallStaticVoidMethod(bridgeClass, onBrowseResultMethod, requestId, flat);
+    Android::Jni::checkException(env, "CoreBridge.onBrowseResult");
+    env->DeleteLocalRef(flat);
+    env->DeleteLocalRef(stringClass);
 }
 
 // What the backends find around them. Their Python and data are the app's,
@@ -168,6 +196,11 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
         env->CallStaticVoidMethod(bridgeClass, onStoppedMethod);
         Android::Jni::checkException(env, "CoreBridge.onStopped");
     });
+    QObject::connect(&core.mediaTree(), &ViewModel::MediaTree::changed, &core, [] {
+        JNIEnv* env = Android::Jni::env();
+        env->CallStaticVoidMethod(bridgeClass, onLibraryChangedMethod);
+        Android::Jni::checkException(env, "CoreBridge.onLibraryChanged");
+    });
     core.settings().onAutoplayChanged = [](bool enabled) {
         JNIEnv* env = Android::Jni::env();
         env->CallStaticVoidMethod(bridgeClass, onAutoplayMethod, jboolean(enabled));
@@ -227,6 +260,8 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     onResumeAfterLossMethod = env->GetStaticMethodID(bridgeClass, "onResumeAfterLossChanged", "(I)V");
     onReadyMethod = env->GetStaticMethodID(bridgeClass, "onCoreReady", "()V");
     onStoppedMethod = env->GetStaticMethodID(bridgeClass, "onStopped", "()V");
+    onBrowseResultMethod = env->GetStaticMethodID(bridgeClass, "onBrowseResult", "(I[Ljava/lang/String;)V");
+    onLibraryChangedMethod = env->GetStaticMethodID(bridgeClass, "onLibraryChanged", "()V");
     return JNI_VERSION_1_6;
 }
 
@@ -271,6 +306,32 @@ extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeComm
                 break;
             default:
                 break;
+        }
+    });
+}
+
+extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeBrowse(
+    JNIEnv* env, jclass, jint requestId, jstring id, jboolean itemItself)
+{
+    post([requestId, id = toQString(env, id), itemItself] {
+        QList<ViewModel::MediaTree::Item> items;
+        if (coreInstance && itemItself) {
+            const ViewModel::MediaTree::Item item = coreInstance->mediaTree().item(id);
+            if (!item.id.isEmpty())
+                items.append(item);
+        } else if (coreInstance) {
+            items = coreInstance->mediaTree().children(id);
+        }
+        reportBrowseResult(requestId, items);
+    });
+}
+
+extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativePlayMedia(JNIEnv* env, jclass, jstring id)
+{
+    post([id = toQString(env, id)] {
+        if (coreInstance) {
+            qInfo() << "system asks to play" << id;
+            coreInstance->mediaTree().play(id);
         }
     });
 }

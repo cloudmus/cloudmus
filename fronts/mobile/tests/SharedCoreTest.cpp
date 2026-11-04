@@ -190,6 +190,73 @@ private slots:
         QVERIFY(core.nowPlaying().title() != track);
     }
 
+    // What a car's Media Center lists: the one source's playlists straight
+    // away, favorites first, and a tap starts one.
+    void mediaBrowsersListThePlaylists()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        ViewModel::MediaTree& tree = core.mediaTree();
+        QSignalSpy changed(&tree, &ViewModel::MediaTree::changed);
+        QTRY_COMPARE_WITH_TIMEOUT(tree.children(QLatin1String(ViewModel::MediaTree::kRootId)).size(), 2, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(changed.count() > 0, 5000);
+
+        core.library().selectSource(QStringLiteral("fake"));
+        if (!core.core().sources().isFavorite(QStringLiteral("fake"), QStringLiteral("p2")))
+            core.library().toggleFavorite(QStringLiteral("p2"));
+        if (core.core().sources().isFavorite(QStringLiteral("fake"), QStringLiteral("p1")))
+            core.library().toggleFavorite(QStringLiteral("p1"));
+        const QList<ViewModel::MediaTree::Item> items = tree.children(QLatin1String(ViewModel::MediaTree::kRootId));
+        QCOMPARE(items.size(), 2);
+        QCOMPARE(items.first().id, QStringLiteral("playlist/fake/p2"));
+        for (const ViewModel::MediaTree::Item& item : items) {
+            QVERIFY(!item.browsable);
+            QVERIFY(!item.title.isEmpty());
+            QCOMPARE(tree.item(item.id), item);
+        }
+        QCOMPARE(tree.children(QStringLiteral("source/fake")), items);
+        QCOMPARE(tree.item(QStringLiteral("source/fake")).title, QStringLiteral("Fake Source"));
+        QVERIFY(tree.item(QStringLiteral("source/nothing")).id.isEmpty());
+        QVERIFY(tree.item(QStringLiteral("playlist/fake/nothing")).id.isEmpty());
+        QVERIFY(tree.item(QStringLiteral("nonsense")).id.isEmpty());
+        QVERIFY(tree.children(items.first().id).isEmpty());
+
+        // Asked again only when something else is listed.
+        QTest::qWait(1500); // what the toggles above said is told by now
+        changed.clear();
+        QTest::qWait(1500);
+        QCOMPARE(changed.count(), 0);
+        core.library().toggleFavorite(QStringLiteral("p2"));
+        QTRY_VERIFY_WITH_TIMEOUT(changed.count() > 0, 5000);
+
+        tree.play(QStringLiteral("playlist/fake/p1"));
+        QTRY_VERIFY_WITH_TIMEOUT(core.nowPlaying().hasTrack(), 10000);
+        QCOMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
+        // Nonsense does nothing.
+        tree.play(QStringLiteral("playlist/fake/nothing"));
+        tree.play(QStringLiteral("nonsense"));
+        QCOMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
+    }
+
+    // A car's Media Center lists what's saved the moment the car starts, and
+    // a tap on it can't be lost for the source not being up yet.
+    void aPickInAMediaBrowserWaitsForItsSource()
+    {
+        QTemporaryDir dir;
+        const App::MobileCore::Paths paths { QString(), dir.filePath("core.ini"), 500, 0 };
+        {
+            App::MobileCore core(paths);
+            QTRY_VERIFY_WITH_TIMEOUT(!core.mediaTree().children(QStringLiteral("root")).isEmpty(), 10000);
+        }
+        App::MobileCore core(paths);
+        QVERIFY(core.core().sourceManager().client(QStringLiteral("fake")) == nullptr);
+        QVERIFY(!core.mediaTree().children(QStringLiteral("root")).isEmpty());
+        core.mediaTree().play(QStringLiteral("playlist/fake/p1"));
+        QVERIFY(!core.nowPlaying().hasTrack());
+        QTRY_VERIFY_WITH_TIMEOUT(core.nowPlaying().hasTrack(), 10000);
+        QCOMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
+    }
+
     // The same seed gives the same picture, another seed another, opaque
     // edge to edge, at the size asked for.
     void auraDependsOnTheSeed()

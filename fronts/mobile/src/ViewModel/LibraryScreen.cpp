@@ -103,20 +103,22 @@ void LibraryScreen::selectActiveSource()
         selectSource(sourceId);
 }
 
-void LibraryScreen::playPlaylist(const QString& playlistId)
+void LibraryScreen::playPlaylist(const QString& playlistId) { playPlaylistOf(currentSourceId_, playlistId); }
+
+void LibraryScreen::playPlaylistOf(const QString& sourceId, const QString& playlistId)
 {
-    const QList<Playlist> playlists = sources_.playlists(currentSourceId_);
+    const QList<Playlist> playlists = sources_.playlists(sourceId);
     const auto it = std::find_if(
         playlists.cbegin(), playlists.cend(), [&](const Playlist& playlist) { return playlist.id == playlistId; });
     if (it == playlists.cend())
         return;
     const PlaylistContext& active = activePlaylist_.context();
-    if (nowPlaying_.hasTrack() && active.sourceId == currentSourceId_ && active.playlist.id == playlistId) {
+    if (nowPlaying_.hasTrack() && active.sourceId == sourceId && active.playlist.id == playlistId) {
         nowPlaying_.play();
         emit activated();
         return;
     }
-    start(currentSourceId_, *it).detach();
+    start(sourceId, *it).detach();
 }
 
 Rpc::Task<void> LibraryScreen::start(QString sourceId, Playlist playlist)

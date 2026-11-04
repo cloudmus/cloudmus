@@ -7,6 +7,7 @@
 #include "DownloadsScreen.h"
 #include "LibraryScreen.h"
 #include "MainScreen.h"
+#include "MediaTree.h"
 #include "PlatformSettings.h"
 #include "PlaylistScreen.h"
 #include "TrackScreen.h"
@@ -42,6 +43,7 @@ public:
     ViewModel::LibraryScreen& library() { return library_; }
     ViewModel::PlaylistScreen& playlistScreen() { return playlistScreen_; }
     ViewModel::TrackScreen& trackScreen() { return trackScreen_; }
+    ViewModel::MediaTree& mediaTree() { return mediaTree_; }
 
 private:
     void leaveUnstartedWhatAskedForSignIn();
@@ -54,6 +56,7 @@ private:
     ViewModel::DownloadsScreen downloadsScreen_;
     ViewModel::PlaylistScreen playlistScreen_;
     ViewModel::TrackScreen trackScreen_;
+    ViewModel::MediaTree mediaTree_;
 };
 
 } // namespace App

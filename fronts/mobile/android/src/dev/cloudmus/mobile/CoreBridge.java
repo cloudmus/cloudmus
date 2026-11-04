@@ -3,7 +3,15 @@ package dev.cloudmus.mobile;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
+
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 // The Java side of the core that runs, as C++, in this (:playback) process:
 // libcloudmus-core.so, with Qt Core and libmpv. It is loaded and started
@@ -45,6 +53,50 @@ public final class CoreBridge {
     public static native void nativeCommand(int command, long argument);
 
     public static native void nativeStop();
+
+    private static native void nativeBrowse(int requestId, String id, boolean itemItself);
+
+    private static native void nativePlayMedia(String id);
+
+    // One entry of what a media browser lists (ViewModel::MediaTree).
+    public static final class BrowseItem {
+        public final String id;
+        public final String title;
+        public final String subtitle;
+        public final String coverFile; // empty: none
+        public final boolean browsable;
+
+        BrowseItem(String id, String title, String subtitle, String coverFile, boolean browsable) {
+            this.id = id;
+            this.title = title;
+            this.subtitle = subtitle;
+            this.coverFile = coverFile;
+            this.browsable = browsable;
+        }
+    }
+
+    private static final AtomicInteger nextBrowseRequest = new AtomicInteger();
+    private static final Map<Integer, SettableFuture<List<BrowseItem>>> browseRequests = new ConcurrentHashMap<>();
+    private static Runnable libraryListener;
+
+    // What's in a folder of the core's tree. Answered once the core is up:
+    // a car's Media Center binds to the service and asks at once. `itemItself`:
+    // the entry for this id instead, on its own in the list, or none.
+    public static ListenableFuture<List<BrowseItem>> browse(String id, boolean itemItself) {
+        SettableFuture<List<BrowseItem>> result = SettableFuture.create();
+        int request = nextBrowseRequest.incrementAndGet();
+        browseRequests.put(request, result);
+        nativeBrowse(request, id, itemItself);
+        return result;
+    }
+
+    public static void playMedia(String id) {
+        nativePlayMedia(id);
+    }
+
+    public static synchronized void setLibraryListener(Runnable listener) {
+        libraryListener = listener;
+    }
 
     public static boolean autoplayEnabled(Context context) {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PREF_AUTOPLAY, true);
@@ -146,6 +198,30 @@ public final class CoreBridge {
         }
         if (current != null)
             current.onTrack(id, title, artist, album, durationMs, coverFile);
+    }
+
+    // From the core, on its thread: five strings for each item, in BrowseItem's
+    // order, a non-empty last one for a folder.
+    @SuppressWarnings("unused")
+    static void onBrowseResult(int request, String[] flat) {
+        SettableFuture<List<BrowseItem>> result = browseRequests.remove(request);
+        if (result == null)
+            return;
+        List<BrowseItem> items = new ArrayList<>(flat.length / 5);
+        for (int i = 0; i + 4 < flat.length; i += 5)
+            items.add(new BrowseItem(flat[i], flat[i + 1], flat[i + 2], flat[i + 3], !flat[i + 4].isEmpty()));
+        result.set(items);
+    }
+
+    // From the core, on its thread.
+    @SuppressWarnings("unused")
+    static void onLibraryChanged() {
+        Runnable listener;
+        synchronized (CoreBridge.class) {
+            listener = libraryListener;
+        }
+        if (listener != null)
+            listener.run();
     }
 
     // From the core, when the user changes autoplay in Settings: kept
