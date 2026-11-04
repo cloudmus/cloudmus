@@ -47,6 +47,9 @@ public:
     // empty result on success, else what went wrong (also posted as an
     // error message).
     Rpc::Task<QString> submitSignIn(QString sourceId, QJsonObject fields);
+    // A source left unstarted until it's needed comes up, and signs in as any
+    // source does. False if it was running already.
+    bool wake(const QString& sourceId);
     // Whether the source is one to sign out of, and signed in right now.
     bool canSignOut(const QString& sourceId) const;
     // auth.logout. The same outcome as submitSignIn().

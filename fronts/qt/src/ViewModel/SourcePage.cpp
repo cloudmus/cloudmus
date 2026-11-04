@@ -32,6 +32,8 @@ void SourcePage::submit(const QString& sourceId, const QJsonObject& fields)
                                                                       .detach();
 }
 
+bool SourcePage::wake(const QString& sourceId) { return sourceSession_.wake(sourceId); }
+
 bool SourcePage::canSignOut(const QString& sourceId) const { return sourceSession_.canSignOut(sourceId); }
 
 void SourcePage::signOut(const QString& sourceId)

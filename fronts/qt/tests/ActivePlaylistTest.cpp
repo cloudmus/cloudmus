@@ -237,6 +237,27 @@ private slots:
         messages_.setOfflineShownElsewhere(false);
     }
 
+    // With a delay asked for, what's saved stands for now and is freshened after.
+    void savedTracksCanBeFreshenedLater()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        active_->playRow(0);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        resetApp();
+        settings_ = std::make_unique<Config::Settings>(temp_->filePath(QStringLiteral("config.ini")));
+        start(false);
+        active_->setRefreshDelay(400);
+        QSignalSpy loading(active_.get(), &ViewModel::ActivePlaylist::loadingChanged);
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        QCOMPARE(active_->entries().size(), 2);
+        QCOMPARE(loading.size(), 0);
+        QTRY_VERIFY(loading.size() >= 1);
+    }
+
     void resumeWithNothingSavedDoesNothing()
     {
         start();

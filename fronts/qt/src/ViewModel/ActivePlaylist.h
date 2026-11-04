@@ -61,6 +61,10 @@ public:
     int resumeIndex() const;
     // The saved song, when it is still present in the restored playlist.
     std::optional<Playback::QueueEntry> savedEntry() const;
+    // How long what's saved may stand after the start before it's refreshed
+    // from its source, for that not to compete with what's coming up on screen
+    // and in the speakers. Call before the source lists its playlists.
+    void setRefreshDelay(int ms) { refreshDelayMs_ = ms; }
     // Its tracks are being fetched (the list's busy bar).
     bool isLoading() const { return loading_; }
     // A radio is starting (the hero's Play button spins).
@@ -135,6 +139,7 @@ private:
     Config::Settings::ActivePlaylistRef pendingRestore_;
     // tracks_ are the saved ones: loading them anew failed.
     bool tracksStale_ = false;
+    int refreshDelayMs_ = 0;
     // The restored playlist is to play once it's back (resumePlayback()).
     bool resumePending_ = false;
     quint64 likesRefreshGeneration_ = 0;

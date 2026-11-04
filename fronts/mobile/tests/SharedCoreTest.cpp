@@ -966,6 +966,47 @@ private slots:
         }
     }
 
+    // A source that asked for a sign-in isn't started the next time: it shows,
+    // asking for it, and comes up when opened. Once signed in, it starts again.
+    void aSourceToSignInToWaitsUntilOpened()
+    {
+        qputenv("CLOUDMUS_FAKE_AUTH", "1");
+        QTemporaryDir dir;
+        const QString fake = QStringLiteral("fake");
+        const QString settings = dir.filePath("core.ini");
+        QSettings(settings, QSettings::IniFormat).setValue(QStringLiteral("unstartedSources"), QStringList { fake });
+        {
+            App::MobileCore core({ QString(), settings });
+            QTest::qWait(300);
+            QVERIFY(core.core().sourceManager().client(fake) == nullptr);
+            QTRY_VERIFY(core.library().sourceRows().rowCount() >= 1);
+            core.library().selectSource(fake);
+            QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
+                    && core.core().sourceManager().client(fake)->available(),
+                10000);
+            QVERIFY(!core.core().sourceManager().isDeferred(fake));
+            core.core().authStates().setAuthenticated(fake);
+            QTRY_VERIFY(!QSettings(settings, QSettings::IniFormat)
+                    .value(QStringLiteral("unstartedSources")).toStringList().contains(fake));
+        }
+        {
+            App::MobileCore core({ QString(), settings });
+            QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr, 10000);
+        }
+        qunsetenv("CLOUDMUS_FAKE_AUTH");
+    }
+
+    // The processes wait; what's known of them doesn't.
+    void backendsStartAfterTheirAnnouncement()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini"), 300, 0 });
+        const QString fake = QStringLiteral("fake");
+        QVERIFY(core.core().sourceManager().client(fake) == nullptr);
+        QTRY_VERIFY(core.library().sourceRows().rowCount() >= 1);
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr, 5000);
+    }
+
     // No network is a state to see, not an error.
     void offlineIsShownNotComplainedAbout()
     {

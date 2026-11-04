@@ -127,7 +127,9 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
     Logging::mark(QStringLiteral("core thread started"));
 
     setUpBackends(filesDir, cacheDir, pythonHome, libraryDir);
-    App::MobileCore core({ QString(), filesDir + QStringLiteral("/core.ini") });
+    // A second for the UI to come up on what's saved; a few more before the
+    // saved lists are refreshed, behind the music that has started by then.
+    App::MobileCore core({ QString(), filesDir + QStringLiteral("/core.ini"), 1000, 5000 });
     // Without it no stream or cover loads, and nothing else says why.
     qInfo() << "TLS:" << QSslSocket::activeBackend() << QSslSocket::supportsSsl()
             << QSslSocket::sslLibraryVersionString();

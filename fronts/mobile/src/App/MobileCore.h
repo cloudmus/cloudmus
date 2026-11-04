@@ -23,6 +23,11 @@ public:
     struct Paths {
         QString media; // not used here: see src/DevTracks
         QString settingsFile;
+        // See Rpc::SourceManager::setSpawnDelay() and
+        // ViewModel::ActivePlaylist::setRefreshDelay(): for the phone and the
+        // car, where a start has to be quick on little CPU.
+        int spawnDelayMs = 0;
+        int refreshDelayMs = 0;
     };
 
     explicit MobileCore(const Paths& paths, QObject* parent = nullptr);
@@ -39,6 +44,8 @@ public:
     ViewModel::TrackScreen& trackScreen() { return trackScreen_; }
 
 private:
+    void leaveUnstartedWhatAskedForSignIn();
+
     QSettings settingsStore_;
     Core core_;
     ViewModel::PlatformSettings settings_;

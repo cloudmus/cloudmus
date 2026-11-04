@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLoggingCategory>
+#include <QTimer>
 #include <QSaveFile>
 #include <QSet>
 
@@ -101,8 +102,11 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
             loadTracks(context_).detach();
         if (context_.isRadio() && context_.sourceId == sourceId && playback_.awaitsStation())
             attachStation(sourceId, context_.playlist.id).detach();
-        if (context_.isRadio() && context_.sourceId == sourceId && !tracks_.isEmpty())
-            refreshRadioLikes(sourceId, context_.playlist.id).detach();
+        if (context_.isRadio() && context_.sourceId == sourceId && !tracks_.isEmpty()) {
+            const QString playlistId = context_.playlist.id;
+            QTimer::singleShot(refreshDelayMs_, this,
+                [this, sourceId, playlistId]() { refreshRadioLikes(sourceId, playlistId).detach(); });
+        }
     });
     if (saved.kind == QStringLiteral("history")) {
         if (!context_.isValid())
@@ -518,10 +522,19 @@ void ActivePlaylist::restoreFrom(const QString& sourceId, const QList<Playlist>&
         setContext(PlaylistContext { sourceId, playlist });
         // The restore itself isn't something else made active.
         resumePending_ = resume;
-        if (!context_.isRadio())
-            loadTracks(context_).detach();
-        else
+        if (context_.isRadio()) {
             resumePlayback();
+        } else if (refreshDelayMs_ > 0 && !tracks_.isEmpty()) {
+            // What's saved will do for now, and plays right away if it has to.
+            resumePlayback();
+            const PlaylistContext restored = context_;
+            QTimer::singleShot(refreshDelayMs_, this, [this, restored]() {
+                if (context_.sameAs(restored))
+                    loadTracks(context_).detach();
+            });
+        } else {
+            loadTracks(context_).detach();
+        }
         return;
     }
     // A radio started from a track isn't among the source's playlists:

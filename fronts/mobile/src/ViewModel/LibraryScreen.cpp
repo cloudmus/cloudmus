@@ -79,6 +79,9 @@ bool LibraryScreen::canSignOut() const { return sourcePage_.canSignOut(currentSo
 
 void LibraryScreen::selectSource(const QString& sourceId)
 {
+    // Picked: its turn to run, if it was left unstarted. It may be the one
+    // shown already, picked for having no other to show.
+    sourcePage_.wake(sourceId);
     if (sourceId == currentSourceId_)
         return;
     currentSourceId_ = sourceId;
@@ -136,6 +139,8 @@ void LibraryScreen::signOut()
 
 void LibraryScreen::signIn()
 {
+    if (sourcePage_.wake(currentSourceId_))
+        return; // signs in as it comes up
     if (!currentSourceId_.isEmpty())
         sourcePage_.signIn(currentSourceId_);
 }

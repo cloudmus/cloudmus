@@ -4,6 +4,7 @@ ym_player/downloader.py's playlist_tracks()."""
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import logging
 from typing import Callable, TypeVar
 
@@ -272,14 +273,22 @@ async def list_playlists(client: Client) -> dict:
     # This backend's capabilities always have browse.radio/likedTracks true,
     # so both are unconditional.
     def fetch() -> tuple[list[YPlaylist], int, str | None, list[Playlist], list[Playlist]]:
-        real_playlists = client.users_playlists_list() or []
-        likes.load(client)  # also refreshes every later track's liked/disliked
-        liked_cover = _best_effort(
-            "liked cover", lambda: _playlist_cover(client.users_playlists(LIKES_PLAYLIST_KIND)), None
-        )
-        stations = _best_effort("stations", lambda: _stations(client.rotor_stations_dashboard()), [])
-        personal = _best_effort("personal playlists", lambda: _personal_playlists(client.feed()), [])
-        return real_playlists, len(likes.liked), liked_cover, stations, personal
+        # All at once: the slowest decides, not the sum. Each is a request of
+        # its own, and this is what a start of the app waits for.
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            own = pool.submit(lambda: client.users_playlists_list() or [])
+            # Also refreshes every later track's liked/disliked.
+            loaded_likes = pool.submit(likes.load, client)
+            cover = pool.submit(
+                _best_effort,
+                "liked cover",
+                lambda: _playlist_cover(client.users_playlists(LIKES_PLAYLIST_KIND)),
+                None,
+            )
+            radio = pool.submit(_best_effort, "stations", lambda: _stations(client.rotor_stations_dashboard()), [])
+            feed = pool.submit(_best_effort, "personal playlists", lambda: _personal_playlists(client.feed()), [])
+            loaded_likes.result()
+            return own.result(), len(likes.liked), cover.result(), radio.result(), feed.result()
 
     real_playlists, liked_count, liked_cover, stations, personal = await asyncio.to_thread(fetch)
     membership.invalidate()  # the front's refresh point — contents may have changed elsewhere

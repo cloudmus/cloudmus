@@ -128,6 +128,14 @@ Rpc::Task<QString> SourceSession::submitSignIn(QString sourceId, QJsonObject fie
     co_return QString();
 }
 
+bool SourceSession::wake(const QString& sourceId)
+{
+    if (!sourceManager_.isDeferred(sourceId))
+        return false;
+    sourceManager_.startDeferred(sourceId);
+    return true;
+}
+
 bool SourceSession::canSignOut(const QString& sourceId) const
 {
     const Rpc::RpcClient* client = sourceManager_.client(sourceId);
