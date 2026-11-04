@@ -79,6 +79,9 @@ Item {
                     direction: panel._textDirection
                     titleColor: panel.inkColor
                     artistColor: panel.inkSecondaryColor
+                    // Larger with the room there is beside the cover.
+                    titleSize: Math.round(panel._mix(Theme.fontTitle + Theme.dp(3), Theme.dp(28)))
+                    artistSize: Math.round(panel._mix(Theme.fontBody, Theme.dp(19)))
                 }
                 IconButton {
                     visible: panel.showMenu && panel.nowPlaying && panel.nowPlaying.hasTrack === true

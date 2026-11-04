@@ -717,6 +717,8 @@ private slots:
             const QRectF normalCover = sceneRect(cover);
             const qreal normalList = list->width();
             const qreal normalBar = bar->width();
+            const int normalTitleSize = window->findChild<QQuickItem*>("trackTitle")->property("titleSize").toInt();
+            const int normalArtistSize = window->findChild<QQuickItem*>("trackTitle")->property("artistSize").toInt();
             QVERIFY(!sceneRect(bar).intersects(normalCover));
             QVERIFY(!railSettings->isVisible());
             QVERIFY(sceneRect(details).top() > normalCover.top());
@@ -753,6 +755,10 @@ private slots:
                 QTRY_COMPARE(cover->property("shownSide").toInt(), cover->property("_side").toInt());
             shot("mode-expanded");
             const QRectF bigCover = sceneRect(cover);
+            auto* titleBlock = window->findChild<QQuickItem*>("trackTitle");
+            QVERIFY(titleBlock);
+            QVERIFY(titleBlock->property("titleSize").toInt() > normalTitleSize);
+            QVERIFY(titleBlock->property("artistSize").toInt() > normalArtistSize);
             QVERIFY(bigCover.height() > normalCover.height());
             QVERIFY(!sceneRect(bar).intersects(bigCover));
             QCOMPARE(bar->width(), bar->height());

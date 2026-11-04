@@ -19,6 +19,8 @@ Item {
     property int direction: 1
     property color titleColor
     property color artistColor
+    property int titleSize: Theme.fontTitle + Theme.dp(3)
+    property int artistSize: Theme.fontBody
     property int duration: 600
 
     readonly property bool wiping: wipe.running
@@ -183,7 +185,7 @@ Item {
                 width: parent.width
                 color: root.titleColor
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontTitle + Theme.dp(3)
+                font.pixelSize: root.titleSize
                 font.weight: Font.Bold
                 elide: Text.ElideRight
             }
@@ -192,7 +194,7 @@ Item {
                 width: parent.width
                 color: root.artistColor
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBody
+                font.pixelSize: root.artistSize
                 elide: Text.ElideRight
             }
         }
