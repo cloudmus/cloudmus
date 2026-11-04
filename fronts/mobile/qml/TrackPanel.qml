@@ -1,6 +1,8 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls.Basic
 import QtQuick.Controls.impl
+import QtQuick.Effects
 import QtQuick.Layouts
 
 // The track that plays, big: cover, title, position and the transport. With
@@ -85,8 +87,6 @@ Item {
         readonly property alias enteringScale: cover.enteringScale
         readonly property alias shownSource: cover.shownSource
         readonly property alias shownSide: cover.shownSide
-        // A swipe stays within the cover's own place, away from the controls.
-        clip: panel._swiping
         // A slight breath while playing.
         scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
         Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
@@ -106,49 +106,102 @@ Item {
             liveCorners: true
             // Under a swipe the new one has come in already, as the neighbor.
             zoomOnChange: !panel._swiping
-            x: panel._swipeX
-            opacity: 1 - Math.min(1, Math.abs(panel._swipeX) / (panel._swipeSpan * 0.6))
+            // Going off, smaller, from its center: its own scale is from its corner.
+            readonly property real _going: panel._swipeScale(panel._oldFar)
+            x: panel._swipeX + coverBox.width * (1 - _going) / 2
+            y: coverBox.width * (1 - _going) / 2
+            opacity: Math.max(0, 1 - panel._oldFar / 0.85) * (1 - panel._landed)
+            layer.enabled: panel._swipeLayers
+            layer.textureSize: panel._swipeTexture
+            layer.effect: MultiEffect {
+                autoPaddingEnabled: true
+                blurEnabled: true
+                blurMax: 32
+                blur: Math.min(1, panel._oldFar * 1.3)
+            }
+            transform: Scale { xScale: cover._going; yScale: cover._going }
         }
-        // The track a swipe goes to, coming in from the side it goes away from.
+        // The track a swipe goes to, looking out from the side: only so far while
+        // the finger is on the old one, all the way once that's let go of.
         Cover {
             id: neighbor
             objectName: "trackCoverNeighbor"
             width: coverBox.width
             height: width
             visible: panel._swipeTo !== 0
-            source: !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextCoverUrl
-                  : panel._swipeTo < 0 ? panel.neighbors.previousCoverUrl : ""
-            seed: !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextSeed
+            source: panel._handingOver || panel._landed > 0 ? panel._frozenSource
+                : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextCoverUrl
+                : panel._swipeTo < 0 ? panel.neighbors.previousCoverUrl : ""
+            seed: panel._handingOver || panel._landed > 0 ? panel._frozenSeed
+                : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextSeed
                 : panel._swipeTo < 0 ? panel.neighbors.previousSeed : ""
-            x: panel._swipeX + panel._swipeTo * panel._swipeSpan
-            opacity: Math.min(1, Math.abs(panel._swipeX) / (panel._swipeSpan * 0.5))
+            x: panel._swipeTo * coverBox.width * 0.85 * (1 - panel._newNear)
+            opacity: Math.min(1, panel._newNear * 1.4)
+            scale: panel._swipeScale(1 - panel._newNear)
+            layer.enabled: panel._swipeLayers
+            layer.textureSize: panel._swipeTexture
+            layer.effect: MultiEffect {
+                autoPaddingEnabled: true
+                blurEnabled: true
+                blurMax: 32
+                blur: Math.min(1, (1 - panel._newNear) * 1.3)
+            }
         }
     }
-
-    // A swipe sideways: the cover goes with the finger, dissolving, and the track's
-    // neighbor comes into its place. Far enough or thrown, that's the track from
-    // then on; otherwise they go back. With nowhere to go it only gives a little.
+    // A swipe sideways: the cover goes with the finger, dissolving, shrinking a
+    // little and blurring the further it gets, never all that far. Its neighbor
+    // looks out the same way, lazily, only part of the way: let go of near, the one
+    // goes back and the other hides again; thrown, the neighbor takes its place.
+    // With nowhere to go the cover only gives a little.
     property real _swipeX: 0
     // Where it goes: 1 the next track, -1 the previous one, 0 nowhere.
     property int _swipeTo: 0
-    // Gone over to the neighbor, and waiting for the panel to catch up with it.
+    // Thrown: how far the neighbor has got, from where it was to its place.
+    property real _landed: 0
+    // Over to the neighbor, and waiting for the panel's own cover to catch up.
     property bool _handingOver: false
+    // Fixed once thrown: "next" is another track as soon as the track changes, and
+    // it would blink through that one's cover.
+    property string _frozenSource
+    property string _frozenSeed
+    property string _sourceBefore
     readonly property bool _swiping: _swipeTo !== 0 || _swipeX !== 0 || _handingOver
-    readonly property real _swipeSpan: coverBox.width + Theme.dp(16)
+    // How far the old one is: 0 in its place, 1 as far as it gets.
+    readonly property real _swipeReach: coverBox.width * 0.7
+    readonly property real _oldFar: _swipeReach > 0 ? Math.min(1, Math.abs(_swipeX) / _swipeReach) : 0
+    // How near the new one is: part of the way under a finger, then all of it.
+    readonly property real _newNear: (_swipeTo !== 0 ? _oldFar * 0.55 : 0) * (1 - _landed) + _landed
+    function _swipeScale(far) { return 1 - far * 0.18 }
+    readonly property bool _swipeLayers: _swipeTo !== 0 && _canBlur
+    // Half the pixels are plenty for what's dissolving, at this cost per frame.
+    readonly property size _swipeTexture: Qt.size(coverBox.width * Screen.devicePixelRatio / 2,
+                                                  coverBox.width * Screen.devicePixelRatio / 2)
+    readonly property bool _canBlur: GraphicsInfo.api !== GraphicsInfo.Software && GraphicsInfo.api !== GraphicsInfo.Unknown
     readonly property real _swipeVelocity: Theme.dp(500)
     function _canSwipe(to) {
         if (!neighbors)
             return false
         return to > 0 ? neighbors.canGoNext === true : neighbors.canGoPrevious === true
     }
+    // Follows the finger at first, then less and less: it can't be taken far.
+    function _swipePosition(dx) {
+        const reach = _swipeReach
+        return Math.sign(dx) * reach * (1 - Math.exp(-Math.abs(dx) / reach))
+    }
     function _swipeBack() {
-        swipeSettling.to = 0
-        swipeSettling.restart()
+        swipeBack.to = 0
+        swipeBack.restart()
+    }
+    function _throw() {
+        _frozenSource = neighbor.source
+        _frozenSeed = neighbor.seed
+        _sourceBefore = cover.source
+        swipeThrow.restart()
     }
     DragHandler {
         id: trackSwipe
         objectName: "trackSwipe"
-        enabled: panel.swipeEnabled && !panel._handingOver
+        enabled: panel.swipeEnabled && !panel._handingOver && panel._landed === 0
         target: null
         yAxis.enabled: false
         property real velocity: 0
@@ -158,38 +211,41 @@ Item {
                 return
             velocity = centroid.velocity.x
             movedAt = Date.now()
-            swipeSettling.stop()
+            swipeBack.stop()
             const to = activeTranslation.x < 0 ? 1 : -1
             const can = panel._canSwipe(to)
             panel._swipeTo = can ? to : 0
-            panel._swipeX = can ? activeTranslation.x : activeTranslation.x * 0.2
+            panel._swipeX = can ? panel._swipePosition(activeTranslation.x) : activeTranslation.x * 0.15
         }
         onActiveChanged: {
             if (active)
                 return
             // A finger that stopped before lifting hasn't thrown anything.
             const thrown = Date.now() - movedAt < 100 ? velocity : 0
-            const far = Math.abs(panel._swipeX) > panel._swipeSpan * 0.25
             const thrownThatWay = -thrown * panel._swipeTo > panel._swipeVelocity
-            if (panel._swipeTo !== 0 && (far || thrownThatWay)) {
-                swipeSettling.to = -panel._swipeTo * panel._swipeSpan
-                swipeSettling.restart()
-            } else {
+            if (panel._swipeTo !== 0 && (panel._oldFar > 0.45 || thrownThatWay))
+                panel._throw()
+            else
                 panel._swipeBack()
-            }
         }
     }
     NumberAnimation {
-        id: swipeSettling
+        id: swipeBack
         target: panel
         property: "_swipeX"
         duration: Theme.durationPage * 0.7
         easing.type: Easing.OutCubic
+        onFinished: panel._swipeTo = 0
+    }
+    NumberAnimation {
+        id: swipeThrow
+        target: panel
+        property: "_landed"
+        from: 0
+        to: 1
+        duration: Theme.durationPage
+        easing.type: Easing.OutCubic
         onFinished: {
-            if (panel._swipeX === 0) {
-                panel._swipeTo = 0
-                return
-            }
             // Only now: what a new track sets off doesn't get in the way of this.
             panel._handingOver = true
             caughtUpLate.restart()
@@ -208,30 +264,36 @@ Item {
         caughtUpLate.stop()
         _swipeTo = 0
         _swipeX = 0
+        _landed = 0
+    }
+    function _catchUpIfThere() {
+        if (!_handingOver || cover.changing || cover.shownSource !== cover._wanted)
+            return
+        // What's known is what's to be there. Not known beforehand (a station's
+        // next one, a cover yet to come): any other than the one before, of that track.
+        const there = _frozenSource !== "" ? cover.source === _frozenSource
+                                           : cover.source !== _sourceBefore && cover.seed === _frozenSeed
+        if (there)
+            _caughtUp()
     }
     Timer {
         id: caughtUpLate
-        interval: 1000
+        interval: 1500
         onTriggered: panel._caughtUp()
     }
     Connections {
         target: cover
-        function onShownSourceChanged() {
-            if (panel._handingOver && cover.shownSource === cover._wanted && !cover.changing)
-                panel._caughtUp()
-        }
-        function onChangingChanged() {
-            if (panel._handingOver && !cover.changing && cover.shownSource === cover._wanted)
-                panel._caughtUp()
-        }
+        function onShownSourceChanged() { panel._catchUpIfThere() }
+        function onChangingChanged() { panel._catchUpIfThere() }
+        function onSourceChanged() { panel._catchUpIfThere() }
     }
 
     // Beside the layout, not in it: fading in, it moves nothing.
     RowLayout {
+        id: playlistLine
         objectName: "trackPlaylist"
         x: details.x
         y: details.y - height - Theme.dp(6)
-        width: details.width
         visible: panel.progress > 0 && panel.playlistTitle !== ""
         opacity: panel.progress
         spacing: Theme.dp(8)
@@ -253,6 +315,16 @@ Item {
             font.pixelSize: Theme.fontBody
             font.weight: Font.DemiBold
         }
+    }
+
+    // Only when it has come to rest: laid out anew each frame, with the shadow
+    // around it, it'd cost as much as the title would (see there).
+    Binding {
+        target: playlistLine
+        property: "width"
+        value: details.width
+        when: panel._atRest
+        restoreMode: Binding.RestoreNone
     }
 
     ColumnLayout {

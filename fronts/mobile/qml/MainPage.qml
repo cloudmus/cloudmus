@@ -176,6 +176,9 @@ Page {
         Item {
             id: hero
             visible: page.wide
+            // A cover swiped this way stays on this side, over the list it'd show
+            // what's behind it through.
+            clip: true
             Layout.fillHeight: true
             Layout.preferredWidth: page.width - page._listWidth
 

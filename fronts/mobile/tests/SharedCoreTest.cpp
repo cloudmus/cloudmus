@@ -697,8 +697,11 @@ private slots:
             QVERIFY(neighbor->x() > 0 && neighbor->x() < cover->width() + 40);
             // It's dissolving as it goes.
             QVERIFY(findItem(cover, QStringLiteral("trackCoverPicture"))->opacity() < 1);
-            // ...and it stays in its own place.
-            QVERIFY(cover->clip());
+            // Not cut off where it was, but not to be taken far either.
+            QVERIFY(!cover->clip());
+            QVERIFY(qAbs(panel->property("_swipeX").toReal()) < cover->width());
+            // The neighbor only looks out: it comes in on the throw.
+            QVERIFY(panel->property("_newNear").toReal() < 0.6);
             QTest::touchEvent(window, finger.get()).release(0, QPoint(260, 300), window);
             QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
             QTRY_VERIFY(!neighbor->isVisible());
@@ -706,18 +709,32 @@ private slots:
 
             // Nothing before the first: it only gives a little, and goes back.
             sideways(60, 360, false);
-            QVERIFY(qAbs(panel->property("_swipeX").toReal()) < 80);
+            QVERIFY(qAbs(panel->property("_swipeX").toReal()) < 60);
             QVERIFY(!neighbor->isVisible());
             QTest::touchEvent(window, finger.get()).release(0, QPoint(360, 300), window);
             QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
             QCOMPARE(core.core().playback().currentIndex(), playing);
 
-            // All the way: the next track, and what's before it is known.
-            sideways(380, 40, true);
+            // All the way: the next track, and what's before it is known. What comes
+            // in stays what it was as the track changes under it.
+            QSignalSpy neighborChanged(neighbor, SIGNAL(seedChanged()));
+            sideways(380, 40, false);
+            const QString coming = neighbor->property("seed").toString();
+            QVERIFY(!coming.isEmpty());
+            QCOMPARE(core.mainScreen().nextSeed(), coming);
+            neighborChanged.clear();
+            QTest::touchEvent(window, finger.get()).release(0, QPoint(40, 300), window);
+            QTRY_VERIFY(panel->property("_handingOver").toBool() || core.core().playback().currentIndex() != playing);
+            QTRY_VERIFY(core.core().playback().currentIndex() != playing);
+            if (neighbor->isVisible())
+                QCOMPARE(neighbor->property("seed").toString(), coming);
             QTRY_VERIFY(core.core().playback().currentIndex() != playing);
             QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
             QTRY_VERIFY(!panel->property("_handingOver").toBool());
             QVERIFY(!neighbor->isVisible());
+            // At most going away with the rest once it's over, never to another's.
+            QVERIFY(neighborChanged.count() <= 1);
+            QVERIFY(neighbor->property("seed").toString().isEmpty());
             QCOMPARE(findItem(cover, QStringLiteral("trackCoverPicture"))->opacity(), 1.0);
             QCOMPARE(progress(), 1.0);
             QTRY_VERIFY(main.canGoPrevious());
@@ -2040,8 +2057,13 @@ private slots:
             QTRY_VERIFY(!cover->property("changing").toBool());
             QVERIFY(window->findChild<QQuickItem*>("trackCoverPicture")->property("_showing").toBool());
 
+            auto* playlistLine = findItem(window->contentItem(), QStringLiteral("trackPlaylist"));
+            QVERIFY(playlistLine);
+            const qreal lineWidth = playlistLine->width();
             QMetaObject::invokeMethod(toggle, "clicked");
             QTest::qWait(150);
+            // Under way nothing with a shadow is laid out anew each frame.
+            QCOMPARE(playlistLine->width(), lineWidth);
             if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty()) {
                 window->grabWindow().save(
                     QStringLiteral("%1/%2-mode-moving.png").arg(dir, QTest::currentDataTag()));
