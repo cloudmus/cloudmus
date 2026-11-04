@@ -1025,6 +1025,28 @@ private slots:
             Q_ARG(QString, QStringLiteral("p2")));
         QTRY_COMPARE_WITH_TIMEOUT(stack->property("depth").toInt(), 1, 10000);
         shot("main-after-tile");
+        // The mini player's title and cover change like the big panel's.
+        if (size.width() <= size.height() * 1.1) {
+            auto* miniTitle = window->findChild<QQuickItem*>("miniTitle");
+            auto* miniCover = window->findChild<QQuickItem*>("miniCover");
+            QVERIFY(miniTitle && miniCover);
+            QTRY_COMPARE(miniTitle->property("currentTitle").toString(), core.nowPlaying().title());
+            QTRY_VERIFY(!miniCover->property("changing").toBool());
+            QTRY_VERIFY(miniCover->property("_showing").toBool());
+            const QString before = core.nowPlaying().title();
+            core.activePlaylist().playRow(core.core().playback().currentIndex() == 0 ? 1 : 0);
+            QTRY_VERIFY(core.nowPlaying().title() != before);
+            QTRY_VERIFY(miniTitle->property("wiping").toBool());
+            QTRY_VERIFY(miniCover->property("changing").toBool());
+            QVERIFY(miniCover->property("enteringScale").toReal() > 1.0);
+            QTest::qWait(150);
+            if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty())
+                window->grabWindow().save(QStringLiteral("%1/%2-mini-changing.png").arg(dir, QTest::currentDataTag()));
+            QTRY_VERIFY(!miniTitle->property("wiping").toBool());
+            QTRY_COMPARE(miniTitle->property("currentTitle").toString(), core.nowPlaying().title());
+            QTRY_VERIFY(!miniCover->property("changing").toBool());
+        }
+
         // On a phone, Now Playing's background is drawn beforehand: the page has
         // it from its very first frame, rather than rising transparent.
         const bool narrow = size.width() <= size.height() * 1.1;

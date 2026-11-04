@@ -21,6 +21,7 @@ Item {
     property color artistColor
     property int titleSize: Theme.fontTitle + Theme.dp(3)
     property int artistSize: Theme.fontBody
+    property int titleWeight: Font.Bold
     property int duration: 600
 
     readonly property bool wiping: wipe.running
@@ -234,7 +235,7 @@ Item {
                 color: root.titleColor
                 font.family: Theme.fontFamily
                 font.pixelSize: root.titleSize
-                font.weight: Font.Bold
+                font.weight: root.titleWeight
             }
             MarqueeText {
                 id: incomingArtist

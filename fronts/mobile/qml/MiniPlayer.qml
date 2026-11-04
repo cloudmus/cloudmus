@@ -43,30 +43,23 @@ Rectangle {
             id: cover
             Layout.preferredWidth: Theme.dp(48)
             Layout.preferredHeight: Theme.dp(48)
+            objectName: "miniCover"
             source: mini.nowPlaying ? mini.nowPlaying.coverUrl : ""
             seed: mini.seed
+            zoomOnChange: true
         }
 
-        ColumnLayout {
+        TrackTitleBlock {
+            objectName: "miniTitle"
             Layout.fillWidth: true
-            spacing: Theme.dp(2)
-            ShadowText {
-                Layout.fillWidth: true
-                text: mini.nowPlaying ? mini.nowPlaying.title : ""
-                color: "#FFFFFF"
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBody
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-            ShadowText {
-                Layout.fillWidth: true
-                text: mini.nowPlaying ? mini.nowPlaying.artist : ""
-                color: "#D9FFFFFF"
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-                elide: Text.ElideRight
-            }
+            title: mini.nowPlaying ? mini.nowPlaying.title : ""
+            artist: mini.nowPlaying ? mini.nowPlaying.artist : ""
+            direction: mini.nowPlaying && mini.nowPlaying.trackDirection === -1 ? -1 : 1
+            titleColor: "#FFFFFF"
+            artistColor: "#D9FFFFFF"
+            titleSize: Theme.fontBody
+            titleWeight: Font.DemiBold
+            artistSize: Theme.fontSmall
         }
 
         IconButton {
