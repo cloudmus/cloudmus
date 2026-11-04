@@ -50,6 +50,67 @@ void TrackListModel::setMixedSourceTracks(const QList<MixedSourceEntry>& entries
     endResetModel();
 }
 
+void TrackListModel::updateMixedSourceTracks(const QList<MixedSourceEntry>& entries)
+{
+    const auto same = [&](int row, const MixedSourceEntry& entry) {
+        return tracks_[row].id == entry.track.id && mixedSourceIds_[row] == entry.sourceId;
+    };
+    const auto removeRows = [&](int first, int last) {
+        beginRemoveRows(QModelIndex(), first, last);
+        tracks_.remove(first, last - first + 1);
+        mixedSourceIds_.remove(first, last - first + 1);
+        playedAt_.remove(first, last - first + 1);
+        endRemoveRows();
+    };
+    // A station lets go of what it played long ago: the list starts further on.
+    int start = -1;
+    if (mixedSource_ && !entries.isEmpty()) {
+        for (int row = 0; row < tracks_.size() && start < 0; ++row) {
+            if (same(row, entries.first()))
+                start = row;
+        }
+    }
+    if (start < 0) {
+        setMixedSourceTracks(entries);
+        return;
+    }
+    if (start > 0)
+        removeRows(0, start - 1);
+
+    int head = 0;
+    while (head < tracks_.size() && head < entries.size() && same(head, entries[head]))
+        ++head;
+    int tail = 0;
+    while (tail < tracks_.size() - head && tail < entries.size() - head
+        && same(tracks_.size() - 1 - tail, entries[entries.size() - 1 - tail]))
+        ++tail;
+
+    if (tracks_.size() - tail > head)
+        removeRows(head, tracks_.size() - tail - 1);
+    const int added = int(entries.size()) - tail - head;
+    if (added > 0) {
+        beginInsertRows(QModelIndex(), head, head + added - 1);
+        for (int i = 0; i < added; ++i) {
+            const MixedSourceEntry& entry = entries[head + i];
+            tracks_.insert(head + i, entry.track);
+            mixedSourceIds_.insert(head + i, entry.sourceId);
+            playedAt_.insert(head + i, entry.playedAt);
+        }
+        endInsertRows();
+    }
+
+    // The rows kept: told of only if there's something new to show on them.
+    for (int row = 0; row < tracks_.size(); ++row) {
+        const Track& fresh = entries[row].track;
+        Track& kept = tracks_[row];
+        const bool looksDifferent = kept.title != fresh.title || kept.durationMs != fresh.durationMs
+            || kept.coverUrl != fresh.coverUrl;
+        kept = fresh;
+        if (looksDifferent)
+            emit dataChanged(index(row), index(row));
+    }
+}
+
 void TrackListModel::appendTracks(const QList<Track>& tracks)
 {
     if (tracks.isEmpty())

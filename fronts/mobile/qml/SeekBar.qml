@@ -53,7 +53,7 @@ ColumnLayout {
                 width: slider.visualPosition * parent.width
                 height: parent.height
                 radius: height / 2
-                color: Theme.accent
+                color: bar.overAura ? Theme.accentOnAura : Theme.accent
             }
         }
         handle: Rectangle {

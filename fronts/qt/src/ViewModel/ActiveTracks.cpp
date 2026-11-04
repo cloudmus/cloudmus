@@ -26,8 +26,10 @@ void ActiveTracks::refill()
     rows.reserve(entries.size());
     for (const Playback::QueueEntry& entry : entries)
         rows.append({ entry.sourceId, entry.track, QDateTime() });
-    setMixedSourceTracks(rows);
-    current_ = playback_.currentIndex();
+    updateMixedSourceTracks(rows);
+    // Past the rows that went: where the current one is may have moved, and no
+    // reset says so to whoever shows it any more.
+    markCurrent();
 }
 
 void ActiveTracks::markCurrent()

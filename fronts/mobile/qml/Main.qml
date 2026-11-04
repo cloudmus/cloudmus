@@ -39,7 +39,9 @@ ApplicationWindow {
         value: uiSettings.colorScheme === "auto" ? Qt.styleHints.colorScheme !== Qt.ColorScheme.Light
                                                  : uiSettings.colorScheme === "dark"
     }
-    Binding { target: Theme; property: "insetTop"; value: Math.round(window.platform.insetTop / Screen.devicePixelRatio) }
+    // Down, not to the nearest: rounded up it left a line of the window's color
+    // between the status bar and the page. The bar's opaque over what's under it.
+    Binding { target: Theme; property: "insetTop"; value: Math.floor(window.platform.insetTop / Screen.devicePixelRatio) }
     Binding { target: Theme; property: "insetBottom"; value: Math.round(window.platform.insetBottom / Screen.devicePixelRatio) }
     function applyAppearance() {
         window.platform.setAppearance(uiSettings.colorScheme, Theme.dark, Theme.surface100.toString(), Theme.surface0.toString())

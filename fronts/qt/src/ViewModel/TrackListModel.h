@@ -93,6 +93,11 @@ public:
     // just that track instead of queuing the rest of the list (see
     // MainWindow::onTrackDoubleClicked / isMixedSource()).
     void setMixedSourceTracks(const QList<MixedSourceEntry>& entries);
+    // The same for a list that changed rather than a new one: what's still there
+    // stays as it is, row for row, for a view to keep its scroll position and
+    // everything drawn. What's gone from the start or the end, or was replaced in
+    // between, goes alone; a list with nothing in common is a reset after all.
+    void updateMixedSourceTracks(const QList<MixedSourceEntry>& entries);
     void appendTracks(const QList<Track>& tracks);
     // One row in/out of a mixed-source list (setMixedSourceTracks) —
     // e.g. after adding a track to / removing it from the playlist shown.

@@ -29,10 +29,16 @@ Rectangle {
     // The track's progress along the top edge.
     Rectangle {
         anchors.top: parent.top
-        height: Theme.dp(2)
-        width: mini.nowPlaying && mini.nowPlaying.durationMs > 0
-            ? parent.width * mini.nowPlaying.positionMs / mini.nowPlaying.durationMs : 0
-        color: Theme.accent
+        width: parent.width
+        height: Theme.dp(4)
+        color: Qt.rgba(1, 1, 1, 0.25)
+        Rectangle {
+            objectName: "miniProgress"
+            height: parent.height
+            width: mini.nowPlaying && mini.nowPlaying.durationMs > 0
+                ? parent.width * mini.nowPlaying.positionMs / mini.nowPlaying.durationMs : 0
+            color: Theme.accentOnAura
+        }
     }
 
     TapHandler { onTapped: mini.openRequested() }
