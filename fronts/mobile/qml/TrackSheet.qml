@@ -64,7 +64,8 @@ Popup {
 
     // What's behind as it is when the sheet comes, blurred once and kept: moving
     // the sheet only moves that, and no list scrolling or bars going under it make
-    // it blur every frame. In half the pixels, as a blur has no use for more.
+    // it blur every frame. In a quarter of the pixels each way: a blur has no use
+    // for more, and from fewer it reaches further.
     ShaderEffectSource {
         id: snapshot
         visible: false
@@ -72,7 +73,7 @@ Popup {
         live: false
         width: sheet.behind ? sheet.behind.width : 0
         height: sheet.behind ? sheet.behind.height : 0
-        textureSize: Qt.size(width / 2, height / 2)
+        textureSize: Qt.size(width / 4, height / 4)
     }
 
     // Rounded where it meets what's behind, with a shadow that follows that edge.
@@ -120,13 +121,13 @@ Popup {
                 autoPaddingEnabled: false
                 blurEnabled: true
                 blur: 1
-                blurMax: 48
+                blurMax: 64
                 saturation: 0.2
             }
             Rectangle {
                 anchors.fill: parent
                 color: Theme.surface100
-                opacity: Theme.dark ? 0.72 : 0.62
+                opacity: Theme.dark ? 0.8 : 0.72
             }
         }
         // As the sheet's shape, for the mask: drawn only into a texture.
