@@ -34,6 +34,9 @@ class LibraryScreen : public QObject {
     // The active playlist's source, for the button that opens this screen.
     Q_PROPERTY(QString activeSourceName READ activeSourceName NOTIFY activeSourceNameChanged)
     Q_PROPERTY(QString activeSourceIcon READ activeSourceIcon NOTIFY activeSourceIconChanged)
+    // In full color, for where it stands out; the icons only for lists of them.
+    Q_PROPERTY(QString activeSourceLogo READ activeSourceLogo NOTIFY activeSourceLogoChanged)
+    Q_PROPERTY(QString currentSourceLogo READ currentSourceLogo NOTIFY currentSourceLogoChanged)
     // Signing in to the source picked: needed at all, then what it asks for.
     Q_PROPERTY(bool authNeeded READ authNeeded NOTIFY authNeededChanged)
     Q_PROPERTY(QString authUrl READ authUrl NOTIFY authUrlChanged)
@@ -54,6 +57,8 @@ public:
     bool loading() const;
     QString activeSourceName() const;
     QString activeSourceIcon() const;
+    QString activeSourceLogo() const;
+    QString currentSourceLogo() const;
     bool authNeeded() const;
     QString authUrl() const;
     QString authCode() const;
@@ -79,6 +84,8 @@ signals:
     void loadingChanged();
     void activeSourceNameChanged();
     void activeSourceIconChanged();
+    void activeSourceLogoChanged();
+    void currentSourceLogoChanged();
     void authNeededChanged();
     void authUrlChanged();
     void authCodeChanged();

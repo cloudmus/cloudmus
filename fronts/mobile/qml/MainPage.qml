@@ -31,6 +31,9 @@ Page {
     property real screenProgress: wide && ui.screenExpanded ? 1 : 0
     Behavior on screenProgress { NumberAnimation { duration: Theme.durationPage * 1.5; easing.type: Easing.InOutCubic } }
 
+    // The track's screen has no room for it.
+    onScreenProgressChanged: if (screenProgress > 0) filterOpen = false
+
     function _part(from, to) { return Math.max(0, Math.min(1, (screenProgress - from) / (to - from))) }
     // The bar folds first and the panel rises into the room it leaves.
     readonly property real _barFolded: _part(0, 0.6)
@@ -42,9 +45,8 @@ Page {
     readonly property real _coversWidth: Theme.dp(52) + Theme.dp(10) * 2
     readonly property real _listFullWidth: width * 0.5
 
-    // The list's filter: open under its bar, closed with it. Not on the dev tracks.
+    // The list's filter. Not on the dev tracks.
     property bool filterOpen: false
-    readonly property real _filterShown: filterOpen ? 1 - screenProgress : 0
     onFilterOpenChanged: {
         if (filterOpen) {
             filterField.forceActiveFocus()
@@ -81,25 +83,12 @@ Page {
         }
         contentItem: RowLayout {
             spacing: Theme.dp(10)
-            Item {
+            SourceLogo {
                 Layout.leftMargin: Theme.dp(10)
                 implicitWidth: Theme.dp(28)
                 implicitHeight: Theme.dp(28)
-                IconImage {
-                    anchors.fill: parent
-                    visible: page.library && page.library.activeSourceIcon !== ""
-                    source: page.library ? page.library.activeSourceIcon : ""
-                    sourceSize.width: width
-                    sourceSize.height: height
-                    color: Theme.accent
-                }
-                Image {
-                    anchors.fill: parent
-                    visible: !page.library || page.library.activeSourceIcon === ""
-                    source: "qrc:/icons/logo.svg"
-                    sourceSize.width: width
-                    sourceSize.height: height
-                }
+                logo: page.library && page.library.activeSourceLogo ? page.library.activeSourceLogo : ""
+                icon: page.library && page.library.activeSourceIcon ? page.library.activeSourceIcon : ""
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -241,13 +230,23 @@ Page {
                     // In the middle of the covers when there's only those.
                     anchors.rightMargin: Theme.dp(4) + ((page._coversWidth - Theme.touch) / 2 - Theme.dp(4)) * page.screenProgress
                     spacing: Theme.dp(8) * (1 - page.screenProgress)
+                    // The filter, in the title's place. A phone's bar has the way
+                    // to the sources there: on a phone it comes out under the bar.
+                    Item {
+                        id: filterInBar
+                        visible: page.wide && page.filterOpen
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.dp(8)
+                        implicitHeight: Theme.barHeight - Theme.dp(16)
+                    }
                     SourceButton {
                         visible: !page.wide
                         Layout.fillWidth: true
                     }
                     // The playlist, and how many tracks right after its name.
                     Item {
-                        visible: page.wide
+                        objectName: "listTitleBlock"
+                        visible: page.wide && !page.filterOpen
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.dp(8)
                         implicitHeight: listTitle.implicitHeight
@@ -278,7 +277,7 @@ Page {
                     }
                     OfflineBadge {
                         backend: page.backend
-                        iconOnly: !page.wide
+                        iconOnly: !page.wide || page.filterOpen
                         opacity: Math.max(0, 1 - page.screenProgress * 2)
                     }
                     IconButton {
@@ -308,32 +307,34 @@ Page {
                 }
             }
 
-            // The filter, sliding out from under the bar.
             Rectangle {
+                id: filterUnderBar
                 Layout.fillWidth: true
                 implicitHeight: Theme.barHeight * filterHeight
-                property real filterHeight: page._filterShown
+                property real filterHeight: page.filterOpen && !page.wide ? 1 : 0
                 Behavior on filterHeight { NumberAnimation { duration: Theme.durationFast; easing.type: Easing.OutCubic } }
                 visible: implicitHeight > 0
                 clip: true
                 color: Theme.surface100
-                TextField {
-                    id: filterField
-                    objectName: "mainFilter"
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.margins: Theme.dp(8)
-                    height: Theme.barHeight - Theme.dp(16)
-                    placeholderText: qsTr("Filter by title, artist or album")
-                    placeholderTextColor: Theme.inkTertiary
-                    color: Theme.ink
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    inputMethodHints: Qt.ImhNoPredictiveText
-                    background: Rectangle { radius: Theme.radius; color: Theme.surface200 }
-                    onTextChanged: if (page.backend.mainScreen) page.backend.mainScreen.setFilter(text)
-                }
+            }
+            TextField {
+                id: filterField
+                objectName: "mainFilter"
+                parent: page.wide ? filterInBar : filterUnderBar
+                visible: page.filterOpen
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: page.wide ? 0 : Theme.dp(8)
+                height: Theme.barHeight - Theme.dp(16)
+                placeholderText: qsTr("Filter by title, artist or album")
+                placeholderTextColor: Theme.inkTertiary
+                color: Theme.ink
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontBody
+                inputMethodHints: Qt.ImhNoPredictiveText
+                background: Rectangle { radius: Theme.radius; color: Theme.surface200 }
+                onTextChanged: if (page.backend.mainScreen) page.backend.mainScreen.setFilter(text)
             }
 
             // Going down to its covers it's only cut off: the list keeps its

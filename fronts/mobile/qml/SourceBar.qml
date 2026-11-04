@@ -35,26 +35,13 @@ AbstractButton {
     padding: 0
     contentItem: Item {
         clip: true
-        Item {
+        SourceLogo {
             x: (bar.height - width) / 2
             anchors.verticalCenter: parent.verticalCenter
             width: Theme.dp(28)
             height: Theme.dp(28)
-            IconImage {
-                anchors.fill: parent
-                visible: bar.library && bar.library.activeSourceIcon !== ""
-                source: bar.library ? bar.library.activeSourceIcon : ""
-                sourceSize.width: width
-                sourceSize.height: height
-                color: Theme.accent
-            }
-            Image {
-                anchors.fill: parent
-                visible: !bar.library || bar.library.activeSourceIcon === ""
-                source: "qrc:/icons/logo.svg"
-                sourceSize.width: width
-                sourceSize.height: height
-            }
+            logo: bar.library && bar.library.activeSourceLogo ? bar.library.activeSourceLogo : ""
+            icon: bar.library && bar.library.activeSourceIcon ? bar.library.activeSourceIcon : ""
         }
         // Keeps its full width, so that the text isn't laid out anew each frame
         // as the button folds over it.

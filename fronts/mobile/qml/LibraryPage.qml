@@ -176,6 +176,14 @@ Page {
 
                 RowLayout {
                     Layout.fillWidth: true
+                    spacing: Theme.dp(10)
+                    SourceLogo {
+                        objectName: "currentSourceLogo"
+                        visible: logo !== ""
+                        implicitWidth: Theme.dp(36)
+                        implicitHeight: Theme.dp(36)
+                        logo: page.library && page.library.currentSourceLogo ? page.library.currentSourceLogo : ""
+                    }
                     Text {
                         Layout.fillWidth: true
                         text: page.library ? page.library.currentSourceName : ""

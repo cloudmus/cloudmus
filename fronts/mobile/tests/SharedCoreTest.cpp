@@ -980,6 +980,9 @@ private slots:
             QTest::qWait(300);
             QVERIFY(core.core().sourceManager().client(fake) == nullptr);
             QTRY_VERIFY(core.library().sourceRows().rowCount() >= 1);
+            // Not running, and still called what it's called.
+            QTRY_COMPARE(core.library().currentSourceName(), QStringLiteral("Fake Source"));
+            QVERIFY(core.library().authNeeded());
             core.library().selectSource(fake);
             QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
                     && core.core().sourceManager().client(fake)->available(),
@@ -1289,6 +1292,16 @@ private slots:
         QVERIFY(filterField);
         filterField->setProperty("text", QStringLiteral("t2"));
         QTRY_COMPARE(backend.tracks()->rowCount(), 1);
+        // Wide, it takes the title's place; on a phone, whose bar has the way to
+        // the sources, it comes out under the bar.
+        QTRY_VERIFY(filterField->isVisible());
+        if (size.width() > size.height()) {
+            auto* titleBlock = window->findChild<QQuickItem*>("listTitleBlock");
+            QVERIFY(titleBlock && !titleBlock->isVisible());
+        }
+        QTest::qWait(300);
+        const auto listTop = window->findChild<QQuickItem*>("mainList")->mapToScene(QPointF(0, 0)).y();
+        QVERIFY(filterField->mapToScene(QPointF(0, filterField->height())).y() <= listTop);
         shot("main-filter");
         playlist->setProperty("filterOpen", false);
         QCOMPARE(filterField->property("text").toString(), QString());

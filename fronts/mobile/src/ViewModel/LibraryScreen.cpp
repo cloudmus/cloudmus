@@ -61,6 +61,14 @@ QString LibraryScreen::activeSourceIcon() const
     return fileUrl(sources_.iconPath(sourceId.isEmpty() ? currentSourceId_ : sourceId));
 }
 
+QString LibraryScreen::activeSourceLogo() const
+{
+    const QString sourceId = activePlaylist_.context().sourceId;
+    return fileUrl(sources_.logoPath(sourceId.isEmpty() ? currentSourceId_ : sourceId));
+}
+
+QString LibraryScreen::currentSourceLogo() const { return fileUrl(sources_.logoPath(currentSourceId_)); }
+
 bool LibraryScreen::authNeeded() const { return authStates_.state(currentSourceId_).hasProblem; }
 
 QString LibraryScreen::authUrl() const
@@ -217,6 +225,8 @@ void LibraryScreen::rebuild()
     emit loadingChanged();
     emit activeSourceNameChanged();
     emit activeSourceIconChanged();
+    emit activeSourceLogoChanged();
+    emit currentSourceLogoChanged();
     emit authNeededChanged();
     emit authUrlChanged();
     emit authCodeChanged();
