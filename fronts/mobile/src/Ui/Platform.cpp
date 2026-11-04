@@ -1,5 +1,6 @@
 #include "Platform.h"
 
+#include <QAccessible>
 #include <QClipboard>
 #include <QElapsedTimer>
 #include <QFutureWatcher>
@@ -14,6 +15,7 @@
 #include <QTimer>
 #include <QtConcurrent>
 
+#include <cstdlib>
 #include <memory>
 
 #ifdef Q_OS_ANDROID
@@ -93,6 +95,31 @@ bool Platform::android() const
     return true;
 #else
     return false;
+#endif
+}
+
+void Platform::exitNow(int code)
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("dev/cloudmus/mobile/CmLog", "cleanExit");
+    std::_Exit(code);
+#else
+    Q_UNUSED(code)
+#endif
+}
+
+void Platform::limitAccessibility()
+{
+#ifdef Q_OS_ANDROID
+    // With any accessibility service on (KDE Connect has one), Qt tells Android
+    // of every item that moves, and each such call holds Android's main thread
+    // until the Qt thread answers. An animation or a turn of the screen moves
+    // everything: the app stopped responding, for as long as a minute. A service
+    // that only watches the screen doesn't need any of it; a screen reader does.
+    if (bridgeString("screenReaderOn").isEmpty()) {
+        qCInfo(lcPlatform) << "no screen reader: Qt's accessibility updates are off";
+        QAccessible::installUpdateHandler([](QAccessibleEvent*) {});
+    }
 #endif
 }
 

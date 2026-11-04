@@ -110,24 +110,48 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     @Override
     public void onState(boolean newPlaying, boolean newLoading, long newPositionMs, long newDurationMs) {
         new android.os.Handler(getApplicationLooper()).post(() -> {
-            boolean wasPlaying = playing;
-            playing = newPlaying;
             loading = newLoading;
             positionMs = newPositionMs;
             durationMs = newDurationMs;
-            if (wasPlaying != playing)
-                CmLog.i(TAG, "core " + (playing ? "plays" : "paused"));
-            // Playback mostly starts past Media3 — the UI talks to the core
-            // directly, autoplay too — so the focus is taken when the core
-            // plays, whoever asked. Without it the other player kept the
-            // focus, and the car kept its steering-wheel buttons.
-            if (playing && !wasPlaying) {
-                cancelResume("playing again");
-                focusRetries = 0;
-                requestFocus();
+            // Getting the next track ready is still playing, as far as the
+            // system goes.
+            if (newPlaying || newLoading) {
+                resumeHandler().removeCallbacks(pauseAfterHold);
+                setPlaying(true);
+            } else if (playing) {
+                resumeHandler().removeCallbacks(pauseAfterHold);
+                resumeHandler().postDelayed(pauseAfterHold, PAUSE_HOLD_MS);
             }
             invalidateState();
         });
+    }
+
+    // The core is paused for a moment at each change of track, before it says
+    // it's loading the next. Told to Media3, that took the service out of the
+    // foreground, and with the app in the background Android doesn't let it
+    // back: a minute later it stopped the service, and the music with it. So a
+    // pause only counts once it has lasted.
+    private static final long PAUSE_HOLD_MS = 1000;
+    private final Runnable pauseAfterHold = () -> {
+        setPlaying(false);
+        invalidateState();
+    };
+
+    private void setPlaying(boolean now) {
+        boolean was = playing;
+        playing = now;
+        if (was == now)
+            return;
+        CmLog.i(TAG, "core " + (now ? "plays" : "paused"));
+        // Playback mostly starts past Media3 — the UI talks to the core
+        // directly, autoplay too — so the focus is taken when the core
+        // plays, whoever asked. Without it the other player kept the
+        // focus, and the car kept its steering-wheel buttons.
+        if (now) {
+            cancelResume("playing again");
+            focusRetries = 0;
+            requestFocus();
+        }
     }
 
     // The core alone knows what comes before and after the track (a radio's
@@ -178,6 +202,9 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         CmLog.i(TAG, "setPlayWhenReady(" + playWhenReady + ")");
         pausedByFocusLoss = false;
         cancelResume(playWhenReady ? "play asked" : "pause asked");
+        // Asked for, not a moment between tracks: at once.
+        resumeHandler().removeCallbacks(pauseAfterHold);
+        playing = playWhenReady;
         if (playWhenReady) {
             requestFocus();
             CoreBridge.command(CoreBridge.CMD_PLAY, 0);

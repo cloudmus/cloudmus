@@ -20,11 +20,24 @@ public class MainActivity extends QtActivity {
         UiBridge.pythonProbeRequested = getIntent().getBooleanExtra("pythonProbe", false);
         super.onCreate(savedInstanceState);
         preferFastestRefreshRate();
+        hideFromOtherAccessibility();
         // Shared Download/Cloudmus is a plain folder up to Android 10.
         if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT < 30
             && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
+    }
+
+    // Android asks a window for its content for accessibility services and for
+    // content capture, and each answer waits for Qt's thread (see
+    // Platform::limitAccessibility()). Only a screen reader gets one.
+    private void hideFromOtherAccessibility() {
+        if (!UiBridge.screenReaderOn(this).isEmpty())
+            return;
+        android.view.View root = getWindow().getDecorView();
+        root.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        if (Build.VERSION.SDK_INT >= 30)
+            root.setImportantForContentCapture(android.view.View.IMPORTANT_FOR_CONTENT_CAPTURE_NO_EXCLUDE_DESCENDANTS);
     }
 
     // Android leaves a surface that doesn't ask at 60 Hz, even on a 90 or
@@ -133,6 +146,16 @@ public class MainActivity extends QtActivity {
     @Override
     protected void onDestroy() {
         CmLog.i(TAG, "onDestroy, finishing " + isFinishing());
+        boolean finishing = isFinishing();
         super.onDestroy();
+        // The UI is done (swiped away): so is this process, the music has its
+        // own. Qt can't start again in a process it ran in, and a new launch that
+        // found this one alive stayed on the splash screen for good. Left to exit
+        // by itself it also crashed: the static destructors ran under the threads
+        // still going (a destroyed mutex, on the log's thread).
+        if (finishing) {
+            CmLog.cleanExit();
+            android.os.Process.killProcess(android.os.Process.myPid());
+        }
     }
 }

@@ -23,6 +23,13 @@ public final class UiBridge {
         }
     }
 
+    // Non-empty with a screen reader (TalkBack and the like) on.
+    public static String screenReaderOn(Context context) {
+        android.view.accessibility.AccessibilityManager manager
+            = context.getSystemService(android.view.accessibility.AccessibilityManager.class);
+        return manager != null && manager.isTouchExplorationEnabled() ? "yes" : "";
+    }
+
     public static String publicLogDirectory(Context context) {
         File dir = CmLog.publicDirectory();
         return dir == null ? "" : dir.getPath();

@@ -56,6 +56,11 @@ public:
     Q_INVOKABLE void markFirstFrame(QObject* window) const;
     // Starts the playback service (Android); the core comes up with it.
     static void startService();
+    // Ends the process at once, the log written (Android).
+    static void exitNow(int code);
+    // Keeps Qt's accessibility from the screen unless a screen reader needs it
+    // (Android): see the definition.
+    static void limitAccessibility();
 
 signals:
     void exportProgressChanged();

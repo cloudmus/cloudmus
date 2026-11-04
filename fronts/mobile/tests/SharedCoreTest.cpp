@@ -931,6 +931,41 @@ private slots:
     // The pages come up and switch over the real core and the dev tracks;
     // CLOUDMUS_MOBILE_SHOTS=<dir> also saves each, at a phone's and a head
     // unit's size, to look at.
+    // A phone turned on its side and back, with a track playing, the way the
+    // sizes come on a real one.
+    void turningThePhoneKeepsTheScreenAlive()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(411, 838);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QTest::qWait(300);
+        auto* page = window->findChild<QQuickItem*>("playlist");
+        QVERIFY(page);
+        for (int turn = 0; turn < 4; ++turn) {
+            window->resize(914, 387);
+            QTest::qWait(500);
+            QVERIFY(page->property("wide").toBool());
+            window->resize(411, 838);
+            QTest::qWait(500);
+            QVERIFY(!page->property("wide").toBool());
+        }
+    }
+
     // No network is a state to see, not an error.
     void offlineIsShownNotComplainedAbout()
     {

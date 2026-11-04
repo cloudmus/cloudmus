@@ -119,6 +119,7 @@ int main(int argc, char* argv[])
 #ifdef Q_OS_ANDROID
     // The core lives in the playback service's process; starting the
     // service brings it up (if music isn't playing already).
+    Ui::Platform::limitAccessibility();
     Ui::Platform::startService();
     backend = std::make_unique<Ui::Backend>(socketPath());
     backend->setRestartCore(&Ui::Platform::startService);
@@ -154,7 +155,10 @@ int main(int argc, char* argv[])
     Logging::mark(QStringLiteral("qml loaded"));
 
     const int result = app.exec();
-#ifndef Q_OS_ANDROID
+#ifdef Q_OS_ANDROID
+    // Not through the static destructors: see MainActivity.onDestroy().
+    Ui::Platform::exitNow(result);
+#else
     if (coreProcess) {
         coreProcess->terminate();
         coreProcess->waitForFinished(3000);
