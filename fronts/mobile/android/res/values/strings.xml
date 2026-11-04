@@ -3,4 +3,6 @@
     <string name="playback_channel">Playback</string>
     <string name="close">Close</string>
     <string name="open">Open CloudMus</string>
+    <string name="like">Like</string>
+    <string name="dislike">Dislike</string>
 </resources>

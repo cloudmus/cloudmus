@@ -28,6 +28,9 @@ namespace ViewModel {
 namespace {
 Q_LOGGING_CATEGORY(lcActivePlaylist, "cloudmus.viewmodel.activeplaylist")
 
+// What a process killed without notice loses of where it was.
+constexpr int kPositionSaveIntervalMs = 3000;
+
 QString cachedTracksPath(const Config::Settings& settings)
 {
     return QFileInfo(settings.filePath()).absolutePath() + QStringLiteral("/active-playlist.json");
@@ -47,7 +50,13 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
     , settings_(settings)
     , sources_(sources)
     , messages_(messages)
+    , positionSave_(kPositionSaveIntervalMs, [this]() { savePosition(); })
 {
+    connect(&playback_, &Playback::PlaybackController::positionChanged, &positionSave_, &Timing::Throttle::trigger);
+    connect(&playback_, &Playback::PlaybackController::playingChanged, this, [this](bool playing) {
+        if (!playing)
+            savePosition();
+    });
     connect(this, &ActivePlaylist::contextChanged, this, &ActivePlaylist::titleChanged);
     connect(this, &ActivePlaylist::entriesChanged, this, &ActivePlaylist::countChanged);
     connect(&playback_, &Playback::PlaybackController::queueChanged, this, [this]() {
@@ -548,6 +557,19 @@ void ActivePlaylist::restoreFrom(const QString& sourceId, const QList<Playlist>&
     resumePending_ = false; // the playlist is gone
 }
 
+void ActivePlaylist::savePosition()
+{
+    // Only of the track that's saved as the one left off at (not one someone
+    // queued into a radio).
+    if (playback_.hasCurrentTrack() && playback_.currentTrack().id == settings_.lastActiveTrackId())
+        settings_.setLastActivePositionMs(playback_.positionMs());
+}
+
+void ActivePlaylist::resumePosition()
+{
+    playback_.resumeAt(settings_.lastActiveTrackId(), settings_.lastActivePositionMs());
+}
+
 void ActivePlaylist::resumePlayback()
 {
     if (!resumePending_)
@@ -558,6 +580,7 @@ void ActivePlaylist::resumePlayback()
         return;
     if (!context_.isRadio() && tracks_.isEmpty())
         return;
+    resumePosition();
     qCInfo(lcActivePlaylist) << "resuming playback of" << context_.playlist.id;
     play();
 }
@@ -572,6 +595,7 @@ void ActivePlaylist::resumeFromCache()
         return;
     resumePending_ = false;
     qCInfo(lcActivePlaylist) << "resuming playback of" << context_.playlist.id << "from the cache";
+    resumePosition();
     // Not play()/activate(): the restore of the playlist (pendingRestore_)
     // is still to come, and freshens its tracks behind the playing queue.
     if (context_.isRadio())

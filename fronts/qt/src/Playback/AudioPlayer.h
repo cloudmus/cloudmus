@@ -52,6 +52,8 @@ public:
     // A file on disk, or a stream fetched as mpv reads it. `route`: fetch
     // the stream through this proxy (NoProxy: explicitly directly); none —
     // as the system has it.
+    // Where the next file to be played starts, instead of its beginning.
+    void setStartPosition(qint64 positionMs);
     void play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route = std::nullopt,
         const QMap<QString, QString>& headers = { });
     // A track `download` is fetching, played while it still comes.
@@ -101,6 +103,7 @@ private:
     static void mpvWakeup(void* ctx);
 
     void loadUrl(const QString& url);
+    bool startPositionSet_ = false;
     StreamRelay* relay();
 
     mpv_handle* mpv_ = nullptr;

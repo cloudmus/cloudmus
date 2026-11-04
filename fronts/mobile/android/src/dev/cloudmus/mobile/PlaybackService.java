@@ -46,10 +46,15 @@ public final class PlaybackService extends MediaLibraryService {
     // Center's controls, gets to the screen.
     static final String COMMAND_OPEN = "dev.cloudmus.mobile.OPEN";
     private static final SessionCommand OPEN = new SessionCommand(COMMAND_OPEN, Bundle.EMPTY);
+    static final String COMMAND_LIKE = "dev.cloudmus.mobile.LIKE";
+    private static final SessionCommand LIKE = new SessionCommand(COMMAND_LIKE, Bundle.EMPTY);
+    static final String COMMAND_DISLIKE = "dev.cloudmus.mobile.DISLIKE";
+    private static final SessionCommand DISLIKE = new SessionCommand(COMMAND_DISLIKE, Bundle.EMPTY);
 
     private MediaLibrarySession session;
     private CorePlayer player;
     private PendingIntent openScreen;
+    private boolean autoplayed;
 
     @Override
     public void onCreate() {
@@ -62,20 +67,14 @@ public final class PlaybackService extends MediaLibraryService {
         Intent open = new Intent(this, MainActivity.class);
         openScreen = PendingIntent.getActivity(this, 0, open,
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-        CommandButton openButton = new CommandButton.Builder()
-            .setDisplayName(getString(R.string.open))
-            .setIconResId(R.drawable.ic_open)
-            .setSessionCommand(OPEN)
-            .build();
-        CommandButton close = new CommandButton.Builder()
-            .setDisplayName(getString(R.string.close))
-            .setIconResId(R.drawable.ic_close)
-            .setSessionCommand(CLOSE)
-            .build();
         session = new MediaLibrarySession.Builder(this, player, new Callback())
             .setSessionActivity(openScreen)
-            .setCustomLayout(ImmutableList.of(openButton, close))
+            .setCustomLayout(buttons())
             .build();
+        player.setFeedbackListener(() -> {
+            if (session != null)
+                session.setCustomLayout(buttons());
+        });
         DefaultMediaNotificationProvider notifications = new DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
             .setChannelName(R.string.playback_channel)
@@ -101,9 +100,52 @@ public final class PlaybackService extends MediaLibraryService {
             // Started with startForegroundService(): must be foreground within
             // seconds, whether or not playback comes up in time.
             startForeground(NOTIFICATION_ID, placeholderNotification());
+            autoplayed = true;
             CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+        } else if (ACTION_START.equals(action) && !autoplayed) {
+            // The app opened, for the first time since this process started (by
+            // a car's media hub just looking, or a button, it doesn't count): the
+            // music goes on if that's the setting. Only then: opening the app again
+            // doesn't undo a pause.
+            autoplayed = true;
+            if (CoreBridge.autoplayEnabled(this)) {
+                CmLog.i(TAG, "autoplay: the app opened");
+                CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+            }
         }
         return super.onStartCommand(intent, flags, startId);
+    }
+
+    // In the order the system takes them, which shows just the first two beside
+    // play, next and previous since Android 13: the others are for what shows more,
+    // like the car's Media Center, where a tap doesn't get to the app otherwise.
+    private ImmutableList<CommandButton> buttons() {
+        ImmutableList.Builder<CommandButton> buttons = ImmutableList.builder();
+        if (player.dislikeSupported()) {
+            buttons.add(new CommandButton.Builder()
+                .setDisplayName(getString(R.string.dislike))
+                .setIconResId(player.disliked() ? R.drawable.ic_heart_off : R.drawable.ic_heart_off_outline)
+                .setSessionCommand(DISLIKE)
+                .build());
+        }
+        if (player.likeSupported()) {
+            buttons.add(new CommandButton.Builder()
+                .setDisplayName(getString(R.string.like))
+                .setIconResId(player.liked() ? R.drawable.ic_favorite : R.drawable.ic_favorite_border)
+                .setSessionCommand(LIKE)
+                .build());
+        }
+        buttons.add(new CommandButton.Builder()
+            .setDisplayName(getString(R.string.close))
+            .setIconResId(R.drawable.ic_close)
+            .setSessionCommand(CLOSE)
+            .build());
+        buttons.add(new CommandButton.Builder()
+            .setDisplayName(getString(R.string.open))
+            .setIconResId(R.drawable.ic_open)
+            .setSessionCommand(OPEN)
+            .build());
+        return buttons.build();
     }
 
     private Notification placeholderNotification() {
@@ -170,7 +212,8 @@ public final class PlaybackService extends MediaLibraryService {
             CmLog.i(TAG, "controller connected: " + controller.getPackageName() + " (uid " + controller.getUid() + ")");
             MediaSession.ConnectionResult result = MediaLibrarySession.Callback.super.onConnect(session, controller);
             // Everyone may open and close: the notification, the car's media widget.
-            SessionCommands commands = result.availableSessionCommands.buildUpon().add(OPEN).add(CLOSE).build();
+            SessionCommands commands =
+                result.availableSessionCommands.buildUpon().add(OPEN).add(CLOSE).add(LIKE).add(DISLIKE).build();
             return MediaSession.ConnectionResult.accept(commands, result.availablePlayerCommands);
         }
 
@@ -184,6 +227,14 @@ public final class PlaybackService extends MediaLibraryService {
                 } catch (PendingIntent.CanceledException error) {
                     CmLog.e(TAG, "can't open the screen", error);
                 }
+                return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+            }
+            if (COMMAND_LIKE.equals(command.customAction)) {
+                CoreBridge.command(CoreBridge.CMD_LIKE, 0);
+                return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+            }
+            if (COMMAND_DISLIKE.equals(command.customAction)) {
+                CoreBridge.command(CoreBridge.CMD_DISLIKE, 0);
                 return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
             }
             if (COMMAND_CLOSE.equals(command.customAction)) {

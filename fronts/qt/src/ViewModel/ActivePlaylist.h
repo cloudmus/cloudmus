@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Throttle.h"
+
 #include <QObject>
 #include <QVector>
 
@@ -107,6 +109,9 @@ private:
     // Plays the restored playlist from its saved song, once, if a resume
     // is still pending and nothing else has started meanwhile.
     void resumePlayback();
+    // The track started next goes on from where it was left.
+    void resumePosition();
+    void savePosition();
     // At startup: plays the saved song from what is on disk already, with
     // no wait for its source — see the constructor.
     void resumeFromCache();
@@ -139,6 +144,7 @@ private:
     Config::Settings::ActivePlaylistRef pendingRestore_;
     // tracks_ are the saved ones: loading them anew failed.
     bool tracksStale_ = false;
+    Timing::Throttle positionSave_;
     int refreshDelayMs_ = 0;
     // The restored playlist is to play once it's back (resumePlayback()).
     bool resumePending_ = false;

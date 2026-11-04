@@ -97,6 +97,9 @@ public:
     QString lastActiveTrackId() const;
     int lastActiveTrackIndex() const;
     void setLastActiveTrack(const QString& trackId, int index);
+    // How far into that track: back to 0 for another track.
+    qint64 lastActivePositionMs() const;
+    void setLastActivePositionMs(qint64 positionMs);
 
     // Start playing the restored playlist at startup if it was playing
     // when the app last quit (ViewModel::ActivePlaylist). Off by default.

@@ -258,6 +258,23 @@ private slots:
         QTRY_VERIFY(loading.size() >= 1);
     }
 
+    // Back to the song, and to where in it.
+    void resumingGoesOnFromWhereInTheSongItWas()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        settings_->setLastActiveTrack(QStringLiteral("t2"), 1);
+        settings_->setLastActivePositionMs(12000);
+        seedCached(QStringLiteral("t2"));
+        start();
+        active_->resume();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+        QTRY_VERIFY(playback_->positionMs() >= 12000);
+        // Another song starts from its beginning.
+        settings_->setLastActiveTrack(QStringLiteral("t1"), 0);
+        QCOMPARE(settings_->lastActivePositionMs(), qint64(0));
+    }
+
     void resumeWithNothingSavedDoesNothing()
     {
         start();

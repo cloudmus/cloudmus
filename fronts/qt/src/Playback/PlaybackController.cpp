@@ -19,6 +19,10 @@
 namespace Playback {
 
 namespace {
+constexpr qint64 kResumeMinLeftMs = 5000;
+}
+
+namespace {
 // A stream URL can be refused although it was just resolved (YouTube's
 // googlevideo answers some with 403 Forbidden); a fresh one usually plays.
 constexpr int kMaxStartRetries = 2;
@@ -629,6 +633,12 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
     startCurrentAudio(params.stream);
 }
 
+void PlaybackController::resumeAt(const QString& trackId, qint64 positionMs)
+{
+    resumeTrackId_ = trackId;
+    resumePositionMs_ = positionMs;
+}
+
 void PlaybackController::startCurrentAudio(const std::optional<StreamDescriptor>& stream)
 {
     // A stream that outlived its track has nothing to play; queue_[-1]
@@ -641,6 +651,10 @@ void PlaybackController::startCurrentAudio(const std::optional<StreamDescriptor>
     // TrayIcon::setNowPlayingTooltip.
     const QueueEntry entry = queue_[index_];
     const QString title = titleFor(entry.track);
+    if (resumeTrackId_ == entry.track.id && resumePositionMs_ > 0
+        && (entry.track.durationMs <= 0 || resumePositionMs_ < entry.track.durationMs - kResumeMinLeftMs))
+        audioPlayer_->setStartPosition(resumePositionMs_);
+    resumeTrackId_.clear();
 
     // Loading indicator / playTimeoutTimer_ stay active until
     // AudioPlayer::started() or failed().

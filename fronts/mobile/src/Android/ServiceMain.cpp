@@ -31,12 +31,15 @@ enum Command {
     Pause,
     Next,
     Previous,
-    Seek
+    Seek,
+    Like,
+    Dislike
 };
 
 jclass bridgeClass = nullptr;
 jmethodID onStateMethod = nullptr;
 jmethodID onTrackMethod = nullptr;
+jmethodID onFeedbackMethod = nullptr;
 jmethodID onAutoplayMethod = nullptr;
 jmethodID onResumeAfterLossMethod = nullptr;
 jmethodID onReadyMethod = nullptr;
@@ -88,6 +91,16 @@ void reportTrack(App::MobileCore& core)
     Android::Jni::checkException(env, "CoreBridge.onTrack");
     for (const jstring text : ids)
         env->DeleteLocalRef(text);
+}
+
+// Like and dislike, for the buttons in the notification.
+void reportFeedback(App::MobileCore& core)
+{
+    JNIEnv* env = Android::Jni::env();
+    auto& now = core.nowPlaying();
+    env->CallStaticVoidMethod(bridgeClass, onFeedbackMethod, jboolean(now.likeSupported()), jboolean(now.liked()),
+        jboolean(now.dislikeSupported()), jboolean(now.disliked()));
+    Android::Jni::checkException(env, "CoreBridge.onFeedback");
 }
 
 // What the backends find around them. Their Python and data are the app's,
@@ -142,6 +155,9 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
     auto& now = core.nowPlaying();
     auto track = [&core] { reportTrack(core); };
     QObject::connect(&now, &ViewModel::NowPlaying::trackChanged, &core, track);
+    auto feedback = [&core] { reportFeedback(core); };
+    QObject::connect(&now, &ViewModel::NowPlaying::trackChanged, &core, feedback);
+    QObject::connect(&now, &ViewModel::NowPlaying::feedbackChanged, &core, feedback);
     QObject::connect(&now, &ViewModel::NowPlaying::coverUrlChanged, &core, track);
     QObject::connect(&now, &ViewModel::NowPlaying::durationMsChanged, &core, report);
     QObject::connect(&now, &ViewModel::NowPlaying::playingChanged, &core, report);
@@ -172,6 +188,7 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
         pending.clear();
     }
     reportTrack(core);
+    reportFeedback(core);
     reportState(core);
     JNIEnv* env = Android::Jni::env();
     env->CallStaticVoidMethod(bridgeClass, onReadyMethod);
@@ -203,6 +220,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     jclass local = env->FindClass("dev/cloudmus/mobile/CoreBridge");
     bridgeClass = static_cast<jclass>(env->NewGlobalRef(local));
     onStateMethod = env->GetStaticMethodID(bridgeClass, "onState", "(ZZJJ)V");
+    onFeedbackMethod = env->GetStaticMethodID(bridgeClass, "onFeedback", "(ZZZZ)V");
     onTrackMethod = env->GetStaticMethodID(bridgeClass, "onTrack",
         "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)V");
     onAutoplayMethod = env->GetStaticMethodID(bridgeClass, "onAutoplayChanged", "(Z)V");
@@ -244,6 +262,12 @@ extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeComm
                 break;
             case Seek:
                 now.seek(argument);
+                break;
+            case Like:
+                now.setLiked(!now.liked());
+                break;
+            case Dislike:
+                now.setDisliked(!now.disliked());
                 break;
             default:
                 break;

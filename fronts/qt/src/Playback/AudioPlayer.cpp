@@ -175,6 +175,11 @@ void AudioPlayer::handleEvent(const mpv_event& event)
             break;
 
         case MPV_EVENT_PLAYBACK_RESTART:
+            // It has taken: not for what's queued behind it.
+            if (startPositionSet_) {
+                startPositionSet_ = false;
+                mpv_set_property_string(mpv_, "start", "none");
+            }
             emit started();
             break;
 
@@ -247,6 +252,15 @@ void AudioPlayer::handleEvent(const mpv_event& event)
         default:
             break;
     }
+}
+
+void AudioPlayer::setStartPosition(qint64 positionMs)
+{
+    // A property rather than an option of loadfile, whose form differs between
+    // the versions of mpv this runs on.
+    const QByteArray value = QByteArray::number(positionMs / 1000.0, 'f', 3);
+    mpv_set_property_string(mpv_, "start", value.constData());
+    startPositionSet_ = true;
 }
 
 void AudioPlayer::play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route,

@@ -107,6 +107,47 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         return out.toByteArray();
     }
 
+    private boolean likeSupported;
+    private boolean liked;
+    private boolean dislikeSupported;
+    private boolean disliked;
+    private Runnable feedbackListener;
+
+    boolean likeSupported() {
+        return likeSupported;
+    }
+
+    boolean liked() {
+        return liked;
+    }
+
+    boolean dislikeSupported() {
+        return dislikeSupported;
+    }
+
+    boolean disliked() {
+        return disliked;
+    }
+
+    void setFeedbackListener(Runnable listener) {
+        feedbackListener = listener;
+    }
+
+    @Override
+    public void onFeedback(boolean newLikeSupported, boolean newLiked, boolean newDislikeSupported, boolean newDisliked) {
+        new android.os.Handler(getApplicationLooper()).post(() -> {
+            if (likeSupported == newLikeSupported && liked == newLiked && dislikeSupported == newDislikeSupported
+                && disliked == newDisliked)
+                return;
+            likeSupported = newLikeSupported;
+            liked = newLiked;
+            dislikeSupported = newDislikeSupported;
+            disliked = newDisliked;
+            if (feedbackListener != null)
+                feedbackListener.run();
+        });
+    }
+
     @Override
     public void onState(boolean newPlaying, boolean newLoading, long newPositionMs, long newDurationMs) {
         new android.os.Handler(getApplicationLooper()).post(() -> {

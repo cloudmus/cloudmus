@@ -91,6 +91,9 @@ public:
     // played before the source is there to run it — see attachStation().
     void startRadio(
         const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks, int startIndex = 0);
+    // The track, when it next starts, goes on from there rather than from its
+    // beginning: what was playing when the app last ran. Not if little is left.
+    void resumeAt(const QString& trackId, qint64 positionMs);
     // A radio playing without a station behind it yet.
     bool awaitsStation() const { return waveMode_ && waveStationId_.isEmpty(); }
     // Puts a started station behind the radio that awaitsStation(): what
@@ -329,6 +332,8 @@ private:
     QTimer* playTimeoutTimer_ = nullptr;
     int startTimeoutMs_ = 10000;
     qint64 lastKnownPositionMs_ = 0;
+    QString resumeTrackId_;
+    qint64 resumePositionMs_ = 0;
     qint64 lastKnownDurationMs_ = 0;
     // What mpv has read ahead: all there is to show for a stream it
     // fetches itself (no download of ours).

@@ -21,12 +21,16 @@ public final class CoreBridge {
     public static final int CMD_NEXT = 3;
     public static final int CMD_PREVIOUS = 4;
     public static final int CMD_SEEK = 5;
+    public static final int CMD_LIKE = 6;
+    public static final int CMD_DISLIKE = 7;
 
     public interface Listener {
         // `id` empty: no track. `coverFile` empty: no cover at hand yet.
         void onTrack(String id, String title, String artist, String album, long durationMs, String coverFile);
 
         void onState(boolean playing, boolean loading, long positionMs, long durationMs);
+
+        void onFeedback(boolean likeSupported, boolean liked, boolean dislikeSupported, boolean disliked);
     }
 
     private static Listener listener;
@@ -120,6 +124,17 @@ public final class CoreBridge {
         }
         if (current != null)
             current.onState(playing, loading, positionMs, durationMs);
+    }
+
+    // From the core, on its thread.
+    @SuppressWarnings("unused")
+    static void onFeedback(boolean likeSupported, boolean liked, boolean dislikeSupported, boolean disliked) {
+        Listener current;
+        synchronized (CoreBridge.class) {
+            current = listener;
+        }
+        if (current != null)
+            current.onFeedback(likeSupported, liked, dislikeSupported, disliked);
     }
 
     // From the core, on its thread.
