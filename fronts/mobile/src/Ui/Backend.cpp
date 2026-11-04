@@ -30,6 +30,8 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
 #ifdef CLOUDMUS_MOBILE_SHARED_CORE
     , library_(&core.library())
     , mainScreen_(&core.mainScreen())
+    , downloadsScreen_(&core.downloadsScreen())
+    , downloads_(&core.downloadsScreen().rows())
     , playlistScreen_(&core.playlistScreen())
     , trackScreen_(&core.trackScreen())
 #endif
@@ -66,6 +68,8 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquireModel(favorites_, Remote::Names::favorites);
     acquireModel(otherPlaylists_, Remote::Names::otherPlaylists);
     acquire(mainScreen_, Remote::Names::mainScreen);
+    acquire(downloadsScreen_, Remote::Names::downloadsScreen);
+    acquireModel(downloads_, Remote::Names::downloads);
     acquire(playlistScreen_, Remote::Names::playlistScreen);
     acquireModel(openTracks_, Remote::Names::openTracks);
     acquire(trackScreen_, Remote::Names::trackScreen);
@@ -98,6 +102,8 @@ Backend::~Backend()
         delete favorites_.data();
         delete otherPlaylists_.data();
         delete mainScreen_.data();
+        delete downloadsScreen_.data();
+        delete downloads_.data();
         delete playlistScreen_.data();
         delete openTracks_.data();
         delete trackScreen_.data();

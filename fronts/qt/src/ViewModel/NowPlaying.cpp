@@ -322,7 +322,6 @@ void NowPlaying::toggleShuffle() { setShuffle(!shuffle()); }
 
 void NowPlaying::cycleRepeat() { setRepeatMode(nextRepeatMode(repeatMode(), isRadio())); }
 
-void NowPlaying::toggleQuiet() { setQuiet(!quiet()); }
 
 void NowPlaying::setShuffle(bool on) { playback_.setShuffle(on); }
 

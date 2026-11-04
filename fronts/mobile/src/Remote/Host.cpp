@@ -38,6 +38,8 @@ Host::Host(App::MobileCore& core, const QString& socketPath, QObject* parent)
     offerRows(library.favoriteRows(), Names::favorites);
     offerRows(library.otherRows(), Names::otherPlaylists);
     host_.enableRemoting(&core.mainScreen(), Names::mainScreen);
+    host_.enableRemoting(&core.downloadsScreen(), Names::downloadsScreen);
+    offerRows(core.downloadsScreen().rows(), Names::downloads);
     ViewModel::PlaylistScreen& playlist = core.playlistScreen();
     host_.enableRemoting(&playlist, Names::playlistScreen);
     host_.enableRemoting(&playlist.rows(), Names::openTracks, playlist.allRows().roleNames().keys().toVector());

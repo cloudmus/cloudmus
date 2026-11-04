@@ -45,44 +45,6 @@ constexpr int kCancelSide = 24;
 constexpr int kFadeMs = 150;
 #endif
 
-// "3.2 of 8.1 MB" — or in KB, for a file under a megabyte.
-QString sizeText(qint64 received, qint64 total)
-{
-    constexpr double kMb = 1024.0 * 1024.0;
-    if (total < 1024 * 1024)
-        return QObject::tr("%1 of %2 KB").arg((received + 1023) / 1024).arg((total + 1023) / 1024);
-    return QObject::tr("%1 of %2 MB")
-        .arg(QString::number(double(received) / kMb, 'f', 1), QString::number(double(total) / kMb, 'f', 1));
-}
-
-// What a download's second line says.
-QString statusText(const ViewModel::Downloads::Job& job)
-{
-    using State = ViewModel::Downloads::State;
-    switch (job.state) {
-        case State::Queued:
-            return QObject::tr("Waiting");
-        case State::Done:
-            return job.isPlaylist && job.failed > 0
-                ? QObject::tr("Saved %1 of %2 tracks").arg(job.saved).arg(job.tracks.size())
-                : QObject::tr("Saved");
-        case State::Failed:
-            return QObject::tr("Failed");
-        case State::Cancelled:
-            return QObject::tr("Cancelled");
-        case State::Running:
-            break;
-    }
-    if (job.isPlaylist) {
-        if (job.tracks.isEmpty())
-            return QObject::tr("Listing tracks…");
-        return QObject::tr("%1 of %2 tracks").arg(job.saved + job.failed).arg(job.tracks.size());
-    }
-    if (job.total > 0)
-        return sizeText(job.received, job.total);
-    return QObject::tr("Saving…");
-}
-
 // The downloads, painted — a row each, plus a line for the track a running
 // playlist is on. Cancel buttons are hit-tested here too.
 class Rows : public QWidget {
@@ -156,7 +118,7 @@ protected:
             painter.setFont(captionFont);
             painter.setPen(job.state == ViewModel::Downloads::State::Failed ? pal.danger : pal.inkSecondary);
             painter.drawText(QRect(row.left(), y, textRight - row.left(), caption.height()),
-                Qt::AlignLeft | Qt::AlignVCenter, statusText(job));
+                Qt::AlignLeft | Qt::AlignVCenter, ViewModel::Downloads::statusText(job));
             y += caption.height() + Theme::Spacing::space1;
             if (job.state == ViewModel::Downloads::State::Running)
                 drawBar(painter, QRect(row.left(), y, textRight - row.left(), kBarHeight), job.progress());
@@ -181,7 +143,7 @@ protected:
                 painter.setFont(captionFont);
                 painter.setPen(pal.inkSecondary);
                 const QString text = job.total > 0
-                    ? tr("%1 — %2").arg(job.currentTitle(), sizeText(job.received, job.total))
+                    ? tr("%1 — %2").arg(job.currentTitle(), ViewModel::Downloads::sizeText(job.received, job.total))
                     : job.currentTitle();
                 painter.drawText(QRect(sub.left(), sub.top(), subRight - sub.left(), caption.height()),
                     Qt::AlignLeft | Qt::AlignVCenter, caption.elidedText(text, Qt::ElideMiddle, subRight - sub.left()));

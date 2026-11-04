@@ -11,6 +11,7 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
     , library_(core_.sources(), core_.activePlaylist(), core_.nowPlaying(), core_.authStates(), core_.sourcePage(),
           core_.coverArtCache())
     , mainScreen_(core_)
+    , downloadsScreen_(core_)
     , playlistScreen_(core_)
     , trackScreen_(core_, mainScreen_, playlistScreen_)
 {

@@ -174,7 +174,6 @@ public slots:
     void setDisliked(bool disliked);
     void toggleShuffle();
     void cycleRepeat();
-    void toggleQuiet();
 
 signals:
     // A new track started, or the current one went away (hasTrack() false).

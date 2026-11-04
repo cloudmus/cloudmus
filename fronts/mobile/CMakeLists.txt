@@ -90,6 +90,8 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
         src/App/MobileCore.h
         src/ViewModel/LibraryScreen.cpp
         src/ViewModel/LibraryScreen.h
+        src/ViewModel/DownloadsScreen.cpp
+        src/ViewModel/DownloadsScreen.h
         src/ViewModel/MainScreen.cpp
         src/ViewModel/MainScreen.h
         src/ViewModel/PlaylistScreen.cpp
@@ -163,6 +165,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/CrossfadeImage.qml
         qml/DeveloperPage.qml
         qml/FpsOverlay.qml
+        qml/DownloadsPage.qml
         qml/IconButton.qml
         qml/LogPage.qml
         qml/Main.qml
@@ -196,7 +199,7 @@ qt_add_qml_module(cloudmus-mobile-ui
 
 set(_icons arrow_back chevron_right close expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
-    radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune volume_down
+    radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
     volume_up warning)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)

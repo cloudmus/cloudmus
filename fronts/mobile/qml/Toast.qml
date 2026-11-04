@@ -4,7 +4,10 @@ import QtQuick
 Rectangle {
     id: toast
 
-    function show(message) {
+    // `isError`: told apart by its color.
+    property bool isError: false
+    function show(message, error) {
+        isError = error === true
         label.text = message
         opacity = 1
         hideTimer.restart()
@@ -16,7 +19,7 @@ Rectangle {
     width: Math.min(parent.width - Theme.padding * 2, label.implicitWidth + Theme.padding * 2)
     height: label.implicitHeight + Theme.dp(20)
     radius: Theme.radius
-    color: Theme.surface400
+    color: isError ? Theme.danger : Theme.surface400
     opacity: 0
     visible: opacity > 0
     Behavior on opacity { NumberAnimation { duration: 200 } }
@@ -26,7 +29,7 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(implicitWidth, toast.parent.width - Theme.padding * 4)
         wrapMode: Text.Wrap
-        color: Theme.ink
+        color: toast.isError ? "#FFFFFF" : Theme.ink
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSmall
     }

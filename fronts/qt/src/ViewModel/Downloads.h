@@ -122,6 +122,10 @@ public:
     // All of what's queued or running, 0..1 — or -1 while nothing of it
     // can be measured yet.
     double progress() const;
+    // What a job's second line says, for every view of it.
+    static QString statusText(const Job& job);
+    // "3.2 of 8.1 MB" — or in KB, for a file under a megabyte.
+    static QString sizeText(qint64 received, qint64 total);
     // Whether the track is queued or being saved (as a track of its own or
     // in a playlist).
     bool isDownloading(const QString& sourceId, const QString& trackId) const;

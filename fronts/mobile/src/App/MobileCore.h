@@ -4,6 +4,7 @@
 #include <QSettings>
 
 #include "Core.h"
+#include "DownloadsScreen.h"
 #include "LibraryScreen.h"
 #include "MainScreen.h"
 #include "PlatformSettings.h"
@@ -31,6 +32,7 @@ public:
     ViewModel::ActivePlaylist& activePlaylist() { return core_.activePlaylist(); }
     ViewModel::TrackFilterModel& tracks() { return mainScreen_.rows(); }
     ViewModel::MainScreen& mainScreen() { return mainScreen_; }
+    ViewModel::DownloadsScreen& downloadsScreen() { return downloadsScreen_; }
     ViewModel::PlatformSettings& settings() { return settings_; }
     ViewModel::LibraryScreen& library() { return library_; }
     ViewModel::PlaylistScreen& playlistScreen() { return playlistScreen_; }
@@ -42,6 +44,7 @@ private:
     ViewModel::PlatformSettings settings_;
     ViewModel::LibraryScreen library_;
     ViewModel::MainScreen mainScreen_;
+    ViewModel::DownloadsScreen downloadsScreen_;
     ViewModel::PlaylistScreen playlistScreen_;
     ViewModel::TrackScreen trackScreen_;
 };

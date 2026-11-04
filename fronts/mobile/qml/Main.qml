@@ -127,6 +127,14 @@ ApplicationWindow {
             onCloseRequested: stack.close()
             onSettingsRequested: stack.open(settingsPage, "slide")
             onPlaylistRequested: stack.open(playlistPage, "slide")
+            onDownloadsRequested: stack.open(downloadsPage, "slide")
+        }
+    }
+    Component {
+        id: downloadsPage
+        DownloadsPage {
+            objectName: "downloadsPage"
+            onCloseRequested: stack.close()
         }
     }
     Component {
@@ -161,6 +169,19 @@ ApplicationWindow {
         id: trackSheet
         objectName: "trackSheet"
         backend: window.backend
+    }
+    // What the app has to tell the user, over everything.
+    Toast {
+        id: appToast
+        objectName: "appToast"
+        parent: Overlay.overlay
+        z: 1000
+    }
+    Connections {
+        target: window.backend.mainScreen
+        ignoreUnknownSignals: true
+        // ViewModel::Messages::Kind: 2 is Error.
+        function onMessage(kind, text) { appToast.show(text, kind === 2) }
     }
     // A playlist started from the Library: on to the main screen.
     Connections {

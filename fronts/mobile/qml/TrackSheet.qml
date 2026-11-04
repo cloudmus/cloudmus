@@ -220,15 +220,6 @@ Popup {
                 Layout.fillWidth: true
                 visible: !sheet.choosingPlaylist
                 spacing: 0
-                // The track that plays: the sound it plays at.
-                Action {
-                    visible: sheet.track && sheet.track.canPlay === false
-                             && sheet.backend.nowPlaying.quiet !== undefined
-                    iconName: "volume_down"
-                    tint: sheet.backend.nowPlaying.quiet === true ? Theme.accent : Theme.ink
-                    text: sheet.backend.nowPlaying.quiet === true ? qsTr("Quiet mode: on") : qsTr("Quiet mode: off")
-                    onClicked: sheet.backend.nowPlaying.toggleQuiet()
-                }
                 Action {
                     visible: sheet.track && sheet.track.canPlay === true
                     iconName: "play_arrow"

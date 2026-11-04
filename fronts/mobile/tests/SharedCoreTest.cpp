@@ -726,6 +726,55 @@ private slots:
         QCOMPARE(opacity("long", "fadeTop"), 1.0);
     }
 
+    // Messages reach the views, in plain types; the Downloads screen through a
+    // replica: off until asked for, a job's row while it's under way, cancelling it.
+    void messagesAndDownloads()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+
+        QSignalSpy messages(backend.mainScreen(), SIGNAL(message(int,QString)));
+        QVERIFY(messages.isValid());
+        core.core().messages().error(QStringLiteral("It broke"));
+        QTRY_COMPARE(messages.count(), 1);
+        QCOMPARE(messages.at(0).at(0).toInt(), int(ViewModel::Messages::Kind::Error));
+        QCOMPARE(messages.at(0).at(1).toString(), QStringLiteral("It broke"));
+
+        QObject* screen = backend.downloadsScreen();
+        QAbstractItemModel* rows = backend.downloads();
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(QStringLiteral("fake")) != nullptr
+                && core.core().sourceManager().client(QStringLiteral("fake"))->available(),
+            10000);
+        QMetaObject::invokeMethod(screen, "setEnabled", Q_ARG(bool, false));
+        QTRY_COMPARE(screen->property("enabled").toBool(), false);
+        QMetaObject::invokeMethod(screen, "setEnabled", Q_ARG(bool, true));
+        QTRY_COMPARE(screen->property("enabled").toBool(), true);
+        QVERIFY(!screen->property("directory").toString().isEmpty());
+
+        // Never ends by itself, in the fake: see FakeBackend.
+        Track slow;
+        slow.id = QStringLiteral("slow");
+        slow.title = QStringLiteral("Slow one");
+        slow.durationMs = 1000;
+        core.core().downloads().downloadTrack(QStringLiteral("fake"), slow);
+        QTRY_COMPARE(rows->rowCount(), 1);
+        QTRY_COMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "title")).toString(), QStringLiteral("Slow one"));
+        // (A replica's row is empty until fetched: wait for the real id.)
+        QTRY_VERIFY(rows->data(rows->index(0, 0), roleOf(*rows, "jobId")).toInt() > 0);
+        QCOMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "isOver")).toBool(), false);
+        const int jobId = rows->data(rows->index(0, 0), roleOf(*rows, "jobId")).toInt();
+        QMetaObject::invokeMethod(screen, "cancel", Q_ARG(int, jobId));
+        QTRY_COMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "isOver")).toBool(), true);
+        QTRY_COMPARE(screen->property("canClear").toBool(), true);
+        QMetaObject::invokeMethod(screen, "clearFinished");
+        QTRY_COMPARE(rows->rowCount(), 0);
+        QMetaObject::invokeMethod(screen, "setEnabled", Q_ARG(bool, false));
+        QTRY_COMPARE(core.core().downloads().isEnabled(), false);
+    }
+
     // The main list's filter, through a replica: a filtered row plays and shows
     // the right track. And the queue's modes from the buttons' slots.
     void mainFilterAndPlayModes()
@@ -767,11 +816,6 @@ private slots:
         QTRY_VERIFY(core.nowPlaying().repeat() != repeat);
         QTRY_COMPARE(now->property("repeat").toInt(), core.nowPlaying().repeat());
         core.nowPlaying().setRepeatMode(Playback::RepeatMode(repeat));
-
-        const bool quiet = core.nowPlaying().quiet();
-        QMetaObject::invokeMethod(now, "toggleQuiet");
-        QTRY_COMPARE(core.nowPlaying().quiet(), !quiet);
-        core.nowPlaying().setQuiet(quiet);
     }
 
     // A row tells a track on disk and a download under way, not otherwise.
@@ -1083,6 +1127,15 @@ private slots:
         core.trackScreen().showOpenRow(0);
         QMetaObject::invokeMethod(page, "trackMenuRequested");
         shot("track-sheet");
+        QMetaObject::invokeMethod(window->findChild<QObject*>("trackSheet"), "close");
+        QMetaObject::invokeMethod(stack, "close");
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        // The Downloads page, and a message over it.
+        QMetaObject::invokeMethod(library, "downloadsRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+        core.core().messages().error(QStringLiteral("Something went wrong"));
+        QTRY_COMPARE(window->findChild<QObject*>("appToast")->property("isError").toBool(), true);
+        shot("downloads");
     }
 };
 

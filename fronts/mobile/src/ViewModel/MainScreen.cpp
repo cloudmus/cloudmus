@@ -9,6 +9,8 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
     , core_(core)
 {
     filter_.setSourceModel(&core.activeTracks());
+    connect(&core.messages(), &Messages::posted, this,
+        [this](Messages::Kind kind, const QString& text) { emit message(int(kind), text); });
 }
 
 void MainScreen::setFilter(const QString& text) { filter_.setNeedle(text); }

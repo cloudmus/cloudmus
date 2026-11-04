@@ -26,6 +26,10 @@ public slots:
     // `row`: of the filtered rows.
     void playRow(int row);
 
+signals:
+    // What the app has to tell the user (ViewModel::Messages), in plain types.
+    void message(int kind, const QString& text);
+
 private:
     App::Core& core_;
     TrackFilterModel filter_;

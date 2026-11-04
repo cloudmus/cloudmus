@@ -14,6 +14,7 @@ Page {
     signal closeRequested()
     signal settingsRequested()
     signal playlistRequested()
+    signal downloadsRequested()
 
     readonly property QtObject library: backend.library
     readonly property bool wide: width > height * 1.1
@@ -118,6 +119,12 @@ Page {
                             }
                         }
                     }
+                }
+                IconButton {
+                    objectName: "downloadsButton"
+                    Layout.alignment: Qt.AlignHCenter
+                    iconName: "file_download"
+                    onClicked: page.downloadsRequested()
                 }
                 IconButton {
                     objectName: "history"
