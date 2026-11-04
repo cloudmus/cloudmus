@@ -26,9 +26,20 @@ public:
     void info(const QString& text) { emit posted(Kind::Info, text); }
     void success(const QString& text) { emit posted(Kind::Success, text); }
     void error(const QString& text) { emit posted(Kind::Error, text); }
+    // No network: an error to a view with nothing else to say it, not to one
+    // that shows App::Connectivity's state instead (setOfflineShownElsewhere()).
+    void offline(const QString& text)
+    {
+        if (!offlineShownElsewhere_)
+            error(text);
+    }
+    void setOfflineShownElsewhere(bool shown) { offlineShownElsewhere_ = shown; }
 
 signals:
     void posted(ViewModel::Messages::Kind kind, const QString& text);
+
+private:
+    bool offlineShownElsewhere_ = false;
 };
 
 } // namespace ViewModel

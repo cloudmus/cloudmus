@@ -185,6 +185,10 @@ Page {
                         font.weight: Font.Bold
                         elide: Text.ElideRight
                     }
+                    OfflineBadge {
+                        backend: page.backend
+                        iconOnly: !page.wide
+                    }
                     Spinner {
                         running: page.library && page.library.loading === true
                     }

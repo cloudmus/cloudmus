@@ -30,6 +30,8 @@ public:
     {
     }
     const RpcError& error() const { return error_; }
+    // The source can't reach its service (docs/protocol.md §9.1).
+    bool isOffline() const { return error_.data.value(QStringLiteral("reason")).toString() == QStringLiteral("offline"); }
 
 private:
     RpcError error_;

@@ -178,6 +178,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/Main.qml
         qml/MarqueeText.qml
         qml/MiniPlayer.qml
+        qml/OfflineBadge.qml
         qml/PlaylistPage.qml
         qml/Spinner.qml
         qml/TrackSheet.qml
@@ -204,7 +205,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         src/Ui/LogModel.h
 )
 
-set(_icons arrow_back chevron_right close content_copy expand_less expand_more favorite favorite_border file_download heart_off
+set(_icons arrow_back chevron_right close cloud_off content_copy expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
     volume_up warning)

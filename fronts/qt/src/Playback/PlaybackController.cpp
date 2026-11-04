@@ -157,7 +157,10 @@ void PlaybackController::loadQueue(const QVector<QueueEntry>& entries, int start
 void PlaybackController::reportError(const QString& sourceId, const QString& reason, const QString& message)
 {
     emit failed(sourceId, reason);
-    emit errorOccurred(message);
+    if (reason == QStringLiteral("offline"))
+        emit offlineNotice(message);
+    else
+        emit errorOccurred(message);
 }
 
 void PlaybackController::handleStartFailure(const QString& message, const QString& reason, AudioPlayer::Failure failure)
@@ -263,6 +266,8 @@ bool PlaybackController::handleTrackError(const QString& sourceId, const QJsonOb
     const bool offline = reason == QStringLiteral("offline");
     if (!unavailable && !offline)
         return false;
+    if (offline)
+        emit offlineSeen(sourceId);
     // Whatever the track is, the next time it comes up it is known.
     if (unavailable)
         setUnavailable(sourceId, trackId);
@@ -290,8 +295,10 @@ bool PlaybackController::handleTrackError(const QString& sourceId, const QJsonOb
     if (next >= 0) {
         ++skipStreak_;
         qCDebug(lcPlayback) << "the track can't be played (" << reason << "), going on to" << next;
-        emit errorOccurred(offline ? tr("No network connection: playing the next downloaded track")
-                                   : tr("\"%1\" is unavailable, skipped").arg(track.title));
+        if (offline)
+            emit offlineNotice(tr("No network connection: playing the next downloaded track"));
+        else
+            emit errorOccurred(tr("\"%1\" is unavailable, skipped").arg(track.title));
         playIndex(next);
         return true;
     }
@@ -538,8 +545,11 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
             startingIndex_ = -1;
             playTimeoutTimer_->stop();
             emit loadingChanged(false);
-            reportError(
-                entry.sourceId, QStringLiteral("rejected"), QString::fromStdString(e.error().message.toStdString()));
+            if (e.isOffline())
+                goOnOffline(index, entry.sourceId);
+            else
+                reportError(entry.sourceId, QStringLiteral("rejected"),
+                    QString::fromStdString(e.error().message.toStdString()));
         }
         co_return;
     }
@@ -562,6 +572,21 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
         earlyTrackError_.reset();
         handleTrackError(error.first, error.second);
     }
+}
+
+void PlaybackController::goOnOffline(int index, const QString& sourceId)
+{
+    emit offlineSeen(sourceId);
+    const int next = nextPlayableAfter(index, /*downloadedOnly=*/true);
+    if (next >= 0) {
+        ++skipStreak_;
+        qCDebug(lcPlayback) << "no network for track" << index << ", going on to" << next;
+        emit offlineNotice(tr("No network connection: playing the next downloaded track"));
+        playIndex(next);
+        return;
+    }
+    stopAfterFailure();
+    reportError(sourceId, QStringLiteral("offline"), tr("No network connection, and no downloaded track follows"));
 }
 
 void PlaybackController::becomeCurrent(int index, const QueueEntry& entry, bool isRetry)
@@ -677,6 +702,14 @@ void PlaybackController::advance(int delta, bool wasSkip)
     if (delta < 0) {
         // Before the first track: start the current one over.
         playIndex(hasCurrentTrack() ? index_ : 0);
+        return;
+    }
+    // A radio that never got its station: nothing will send more until the
+    // source can be reached, and nothing of it is left on disk.
+    if (awaitsStation()) {
+        stopAfterFailure();
+        reportError(hasCurrentTrack() ? currentSourceId() : QString(), QStringLiteral("offline"),
+            tr("No network connection, and no downloaded track follows"));
         return;
     }
     if (waveMode_) {

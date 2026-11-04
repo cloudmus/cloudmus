@@ -5,6 +5,12 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## Offline in any response (no version change)
+
+- **Additive, no wire change for older fronts** (§9.1): a failed request can
+  carry `data.reason: "offline"` with `1200`, as `error` notifications about
+  a track could. A front that doesn't look at it sees an ordinary error.
+
 ## Requests handled concurrently (no version change)
 
 - **Clarified, no wire change** (§3): a source handles requests

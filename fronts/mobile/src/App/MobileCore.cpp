@@ -15,6 +15,7 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
     , playlistScreen_(core_)
     , trackScreen_(core_, mainScreen_, playlistScreen_)
 {
+    core_.messages().setOfflineShownElsewhere(true); // mainScreen_.offline()
     // As the desktop's main() does: the streams go through a local relay.
     Net::bypassProxyForLoopback();
     core_.sourceManager().startAll();

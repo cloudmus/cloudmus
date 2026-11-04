@@ -564,6 +564,7 @@ add_executable(cloudmus-qt-tests
     tests/main.cpp
     tests/FakeBackend.cpp
     tests/RpcClientTest.cpp
+    tests/ConnectivityTest.cpp
     tests/SourceSessionTest.cpp
     tests/NowPlayingTest.cpp
     tests/RemotingTest.cpp

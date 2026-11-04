@@ -44,7 +44,11 @@ void SourceSession::wire(Rpc::RpcClient* client)
         // An error about the track being started moves playback on, saying
         // so itself; any other is shown as the source worded it.
         const QJsonObject data = e.data && e.data->isObject() ? e.data->toObject() : QJsonObject();
-        if (!playback_.handleTrackError(client->sourceId(), data))
+        if (playback_.handleTrackError(client->sourceId(), data))
+            return;
+        if (data.value(QStringLiteral("reason")).toString() == QStringLiteral("offline"))
+            messages_.offline(e.message);
+        else
             messages_.error(e.message);
     };
     client->notifications.onDownloadProgress

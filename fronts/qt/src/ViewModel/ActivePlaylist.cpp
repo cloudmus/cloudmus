@@ -95,6 +95,10 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
         // What played before its source was up gets going: downloads
         // behind it, and a radio's station.
         playback_.sourceCameUp(sourceId);
+        // What failed to load for lack of a network, now that there is one.
+        if (tracksStale_ && !context_.isHistory && context_.sourceId == sourceId
+            && pendingRestore_.playlistId.isEmpty() && !sources_.listingFailed(sourceId))
+            loadTracks(context_).detach();
         if (context_.isRadio() && context_.sourceId == sourceId && playback_.awaitsStation())
             attachStation(sourceId, context_.playlist.id).detach();
         if (context_.isRadio() && context_.sourceId == sourceId && !tracks_.isEmpty())
@@ -312,7 +316,11 @@ Rpc::Task<void> ActivePlaylist::activateAndPlay(QString sourceId, Playlist playl
         activate(context, entries, 0);
     } catch (const std::exception& e) {
         qCWarning(lcActivePlaylist) << "loading tracks failed for" << sourceId << ":" << e.what();
-        messages_.error(QString::fromStdString(e.what()));
+        const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
+        if (call != nullptr && call->isOffline())
+            messages_.offline(QString::fromStdString(e.what()));
+        else
+            messages_.error(QString::fromStdString(e.what()));
     }
 }
 
@@ -368,6 +376,14 @@ Rpc::Task<void> ActivePlaylist::startRadio(
         // list under the right playlist.
         setContext(context);
         playback_.startRadio(sourceId, result.stationId, initialTracks);
+    } catch (const Rpc::RpcCallException& e) {
+        qCWarning(lcActivePlaylist) << "starting radio failed for" << sourceId << ":" << e.what();
+        if (!e.isOffline())
+            messages_.error(QString::fromStdString(e.what()));
+        else if (!resumeTrack || !context_.sameAs(context) || tracks_.isEmpty())
+            messages_.offline(QString::fromStdString(e.what()));
+        else
+            playSavedRadio(); // what's saved of it plays; the station comes later
     } catch (const std::exception& e) {
         qCWarning(lcActivePlaylist) << "starting radio failed for" << sourceId << ":" << e.what();
         messages_.error(QString::fromStdString(e.what()));
@@ -428,6 +444,7 @@ Rpc::Task<void> ActivePlaylist::loadTracks(PlaylistContext context)
     // Only if it's still the active playlist.
     if (!context_.sameAs(context))
         co_return;
+    tracksStale_ = !loaded;
     if (loaded) {
         tracks_ = entries;
         saveCachedTracks();
@@ -544,14 +561,18 @@ void ActivePlaylist::resumeFromCache()
     qCInfo(lcActivePlaylist) << "resuming playback of" << context_.playlist.id << "from the cache";
     // Not play()/activate(): the restore of the playlist (pendingRestore_)
     // is still to come, and freshens its tracks behind the playing queue.
-    if (context_.isRadio()) {
-        QList<Track> tracks;
-        for (const Playback::QueueEntry& e : tracks_)
-            tracks.append(e.track);
-        playback_.startRadio(context_.sourceId, QString(), tracks, index);
-    } else {
+    if (context_.isRadio())
+        playSavedRadio();
+    else
         playback_.loadQueue(tracks_, index);
-    }
+}
+
+void ActivePlaylist::playSavedRadio()
+{
+    QList<Track> tracks;
+    for (const Playback::QueueEntry& e : tracks_)
+        tracks.append(e.track);
+    playback_.startRadio(context_.sourceId, QString(), tracks, resumeIndex());
 }
 
 Rpc::Task<void> ActivePlaylist::attachStation(QString sourceId, QString seed)

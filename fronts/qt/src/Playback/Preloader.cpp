@@ -268,6 +268,11 @@ Rpc::Task<void> Preloader::resolveAsync(QString key, int generation, Rpc::Task<S
     } catch (const Rpc::RpcCallException& e) {
         qCDebug(lcPreload) << "resolving a track failed:" << e.what();
         const QJsonObject& data = e.error().data;
+        if (alive && e.isOffline()) {
+            const auto it = entries_.find(key);
+            if (it != entries_.end())
+                emit offlineSeen(it->item.sourceId);
+        }
         // The source says it can never be played: tell, so it is skipped
         // rather than tried again whenever it comes up.
         if (alive && data.value(QStringLiteral("reason")).toString() == QStringLiteral("unavailable")) {

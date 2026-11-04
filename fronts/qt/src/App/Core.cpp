@@ -71,6 +71,29 @@ Core::Core(QObject* parent)
     connect(&playback_, &Playback::PlaybackController::trackChanged, &trackStates_,
         [this](const Track& track, const QString& sourceId) { trackStates_.requestStreamQuality(sourceId, track.id); });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
+    connect(&playback_, &Playback::PlaybackController::offlineNotice, &messages_, &ViewModel::Messages::offline);
+
+    // The network: what says it's gone, what says it's there, and going over
+    // the sources again until it is. A listing that works gets the rest going
+    // (ActivePlaylist: what's still to load, the station, the preloads).
+    connect(&playback_, &Playback::PlaybackController::offlineSeen, &connectivity_, &Connectivity::reportOffline);
+    connect(&playback_.preloader(), &Playback::Preloader::offlineSeen, &connectivity_, &Connectivity::reportOffline);
+    connect(&playback_.preloader(), &Playback::Preloader::failed, &connectivity_,
+        [this](const QString& sourceId, const QString&) { connectivity_.suspect(sourceId); });
+    connect(&sources_, &ViewModel::Sources::listingFailedWith, &connectivity_,
+        [this](const QString& sourceId, bool offline) {
+            if (offline)
+                connectivity_.reportOffline(sourceId);
+            else
+                connectivity_.suspect(sourceId);
+        });
+    connect(&sources_, &ViewModel::Sources::listingSucceeded, &connectivity_, [this](const QString& sourceId) {
+        // A source with only local files says nothing about the network.
+        const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+        if (client != nullptr && client->usesNetwork())
+            connectivity_.reportReached(sourceId);
+    });
+    connect(&connectivity_, &Connectivity::retryWanted, &sources_, &ViewModel::Sources::refresh);
     connect(&playback_, &Playback::PlaybackController::trackUnavailable, &trackStates_,
         &Library::TrackStates::setUnavailable);
 

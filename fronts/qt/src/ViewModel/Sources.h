@@ -50,6 +50,8 @@ public:
     // included), and whether they're being (re)loaded.
     QList<Playlist> playlists(const QString& sourceId) const { return model_.playlistsFor(sourceId); }
     bool isLoading(const QString& sourceId) const { return model_.isSourceLoading(sourceId); }
+    // The last listing of its playlists failed: playlists() are the last known.
+    bool listingFailed(const QString& sourceId) const { return failing_.contains(sourceId); }
     QString iconPath(const QString& sourceId) const { return model_.sourceIconPath(sourceId); }
     QString logoPath(const QString& sourceId) const { return logoPaths_.value(sourceId); }
 
@@ -76,6 +78,10 @@ signals:
     void sourceChanged(const QString& sourceId);
     // A source finished listing its playlists.
     void playlistsLoaded(const QString& sourceId, const QList<Playlist>& playlists);
+    // How a listing went, for whoever keeps track of the network. `offline`:
+    // the source says it can't reach its service.
+    void listingSucceeded(const QString& sourceId);
+    void listingFailedWith(const QString& sourceId, bool offline);
     // A source is gone from the sidebar (stopped, or failed to start).
     void sourceRemoved(const QString& sourceId);
 
@@ -83,6 +89,10 @@ private:
     Rpc::Task<void> load(Rpc::RpcClient* client);
     void removeSource(const QString& sourceId);
     void showAuthState(const QString& sourceId);
+    // What it listed last, kept for a start with no network.
+    QString listFile(const QString& sourceId) const;
+    QList<Playlist> savedList(const QString& sourceId) const;
+    void saveList(const QString& sourceId, const QList<Playlist>& playlists) const;
 
     Rpc::SourceManager& sourceManager_;
     Rpc::AuthStates& authStates_;
@@ -93,6 +103,7 @@ private:
     SidebarModel model_;
     QHash<QString, QString> logoPaths_;
     QSet<QString> collapsed_;
+    QSet<QString> failing_;
 };
 
 } // namespace ViewModel

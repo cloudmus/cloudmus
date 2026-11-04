@@ -175,6 +175,10 @@ signals:
     // preloading; says what it is (codec, bitrate) for the track's details.
     void streamResolved(const QString& sourceId, const QString& trackId, const StreamDescriptor& stream);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
+    // A source said it can't reach its service.
+    void offlineSeen(const QString& sourceId);
+    // What to say about it: not an error if a view shows that state.
+    void offlineNotice(const QString& message);
     void errorOccurred(QString message);
     // A source said this track can't be played at all (reason "unavailable").
     void trackUnavailable(const QString& sourceId, const QString& trackId);
@@ -246,6 +250,9 @@ private:
     void reportError(const QString& sourceId, const QString& reason, const QString& message);
     // Nothing plays now: shown as paused, Play loads the track again.
     void stopAfterFailure();
+    // The track can't be started for lack of a network: on to the next one
+    // that's on disk, or paused here.
+    void goOnOffline(int index, const QString& sourceId);
     // The first track after `from`, in play order, that isn't known to be
     // unavailable — and, with `downloadedOnly`, is downloaded; -1 if none
     // (or if skipping has already gone through the whole queue without a

@@ -131,6 +131,8 @@ public:
 
 signals:
     void ready(const QString& sourceId, const QString& trackId);
+    // The source said it can't reach its service.
+    void offlineSeen(const QString& sourceId);
     void failed(const QString& sourceId, const QString& trackId);
     // Resolving found that the source can't play the track at all
     // (error reason "unavailable"); failed() follows.

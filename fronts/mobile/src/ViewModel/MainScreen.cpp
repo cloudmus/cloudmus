@@ -11,7 +11,10 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
     filter_.setSourceModel(&core.activeTracks());
     connect(&core.messages(), &Messages::posted, this,
         [this](Messages::Kind kind, const QString& text) { emit message(int(kind), text); });
+    connect(&core.connectivity(), &App::Connectivity::offlineChanged, this, &MainScreen::offlineChanged);
 }
+
+bool MainScreen::offline() const { return core_.connectivity().offline(); }
 
 void MainScreen::setFilter(const QString& text) { filter_.setNeedle(text); }
 

@@ -34,6 +34,21 @@ void reply(const QJsonValue& id, const QJsonObject& result)
         { QStringLiteral("result"), result } });
 }
 
+// Switched by a test, while it runs: no network as long as this file exists.
+bool networkIsDown()
+{
+    const QString file = qEnvironmentVariable("CLOUDMUS_FAKE_OFFLINE_FILE");
+    return !file.isEmpty() && QFile::exists(file);
+}
+
+void replyOffline(const QJsonValue& id)
+{
+    send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
+        { QStringLiteral("error"),
+            QJsonObject { { QStringLiteral("code"), 1200 }, { QStringLiteral("message"), QStringLiteral("no network") },
+                { QStringLiteral("data"), QJsonObject { { QStringLiteral("reason"), QStringLiteral("offline") } } } } } });
+}
+
 void replyError(const QJsonValue& id, int code, const QString& message)
 {
     send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
@@ -125,6 +140,11 @@ int runFakeBackend()
         const QJsonValue id = request.value(QStringLiteral("id"));
         if (id.isUndefined())
             continue; // a notification from the front — nothing to answer
+
+        if (networkIsDown() && (method.startsWith(QStringLiteral("catalog.")) || method.startsWith(QStringLiteral("playback.")))) {
+            replyOffline(id);
+            continue;
+        }
 
         if (method == QStringLiteral("initialize")) {
             locale = request.value(QStringLiteral("params"))

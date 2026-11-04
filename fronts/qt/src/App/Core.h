@@ -17,6 +17,7 @@
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
 #include "PlaylistEditing.h"
+#include "Connectivity.h"
 #include "Preload.h"
 #include "ProxyRouting.h"
 #include "Settings.h"
@@ -63,6 +64,7 @@ public:
     ViewModel::TrackActions& trackActions() { return trackActions_; }
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
     ListeningTime& listeningTime() { return listeningTime_; }
+    Connectivity& connectivity() { return connectivity_; }
 
 private:
     // How a source reaches the network: its setting, except for a source
@@ -96,6 +98,7 @@ private:
     ViewModel::TrackActions trackActions_;
     ViewModel::SourcePage sourcePage_;
     ListeningTime listeningTime_;
+    Connectivity connectivity_;
 };
 
 } // namespace App

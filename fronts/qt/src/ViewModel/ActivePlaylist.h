@@ -106,6 +106,8 @@ private:
     // At startup: plays the saved song from what is on disk already, with
     // no wait for its source — see the constructor.
     void resumeFromCache();
+    // The saved tracks of a radio, from the saved one, with no station yet.
+    void playSavedRadio();
     // A radio resumed without its station gets one, once its source is up.
     Rpc::Task<void> attachStation(QString sourceId, QString seed);
     // What a station is started with: its seed, and the source's tracks
@@ -131,6 +133,8 @@ private:
     bool startingRadio_ = false;
     // The active playlist saved last run, until its source lists it.
     Config::Settings::ActivePlaylistRef pendingRestore_;
+    // tracks_ are the saved ones: loading them anew failed.
+    bool tracksStale_ = false;
     // The restored playlist is to play once it's back (resumePlayback()).
     bool resumePending_ = false;
     quint64 likesRefreshGeneration_ = 0;

@@ -15,11 +15,15 @@ namespace ViewModel {
 // A row here is not a row of the playlist, which is what this minds.
 class MainScreen : public QObject {
     Q_OBJECT
+    // No network: said here, for all to see, not as an error each time.
+    Q_PROPERTY(bool offline READ offline NOTIFY offlineChanged)
 
 public:
     explicit MainScreen(App::Core& core, QObject* parent = nullptr);
 
     TrackFilterModel& rows() { return filter_; }
+
+    bool offline() const;
 
 public slots:
     void setFilter(const QString& text);
@@ -29,6 +33,7 @@ public slots:
 signals:
     // What the app has to tell the user (ViewModel::Messages), in plain types.
     void message(int kind, const QString& text);
+    void offlineChanged();
 
 private:
     App::Core& core_;
