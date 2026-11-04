@@ -197,6 +197,7 @@ Item {
                     onClicked: panel.nowPlaying.cycleRepeat()
                 }
                 IconButton {
+                    objectName: "trackMenuButton"
                     visible: panel.showMenu && panel.nowPlaying && panel.nowPlaying.hasTrack === true
                     iconName: "more_vert"
                     color: panel.inkColor

@@ -82,8 +82,15 @@ ApplicationWindow {
         function onReadyChanged() { if (window.backend.ready) window.coreSeen = true }
     }
 
+    // All that's under what comes over it, as one: a track's sheet is glass over it.
+    Item {
+        id: pages
+        anchors.fill: parent
+    }
+
     StackView {
         id: stack
+        parent: pages
         objectName: "stack"
         anchors.fill: parent
         // A bar on the side, on a phone on its side: only the bottom is drawn under.
@@ -205,6 +212,10 @@ ApplicationWindow {
     Item {
         id: nowPlayingSheet
         objectName: "nowPlayingSheet"
+        parent: pages
+        // Over the pages, whichever order they got here in: under it they'd go on
+        // taking every press, however see-through.
+        z: 1
         anchors.fill: stack
         visible: progress > 0 || settling.running
 
@@ -274,6 +285,7 @@ ApplicationWindow {
     TrackSheet {
         id: trackSheet
         objectName: "trackSheet"
+        behind: pages
         backend: window.backend
     }
     // What the app has to tell the user, over everything.

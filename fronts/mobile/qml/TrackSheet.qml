@@ -11,6 +11,8 @@ Popup {
     id: sheet
 
     property QtObject backend
+    // What it's glass over.
+    property Item behind
     readonly property QtObject track: backend ? backend.trackScreen : null
     readonly property bool wide: parent && parent.width > parent.height * 1.1
     // The list of playlists, in place of the actions.
@@ -55,21 +57,87 @@ Popup {
         Behavior on opacity { NumberAnimation { duration: Theme.durationPage; easing.type: Easing.OutCubic } }
     }
 
-    // Rounded where it meets what's behind, with a shadow that follows that
-    // edge. Drawn once and kept: moving the sheet costs nothing per frame. Without
-    // a GPU an effect shows nothing at all, the sheet included: then it goes without.
-    background: Rectangle {
-        color: Theme.surface100
-        topLeftRadius: Theme.dp(20)
-        topRightRadius: sheet.wide ? 0 : topLeftRadius
-        bottomLeftRadius: sheet.wide ? topLeftRadius : 0
-        layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
-        layer.effect: MultiEffect {
-            autoPaddingEnabled: true
-            shadowEnabled: true
-            shadowColor: "#000000"
-            shadowOpacity: 0.55
-            shadowBlur: 0.7
+    // Frosted glass over what's behind, as the desktop's window is. Without a GPU
+    // an effect shows nothing at all, the sheet included: then it's plain.
+    readonly property bool _glass: behind !== null && background.hasGpu === true
+    onAboutToShow: if (_glass) snapshot.scheduleUpdate()
+
+    // What's behind as it is when the sheet comes, blurred once and kept: moving
+    // the sheet only moves that, and no list scrolling or bars going under it make
+    // it blur every frame. In half the pixels, as a blur has no use for more.
+    ShaderEffectSource {
+        id: snapshot
+        visible: false
+        sourceItem: sheet._glass ? sheet.behind : null
+        live: false
+        width: sheet.behind ? sheet.behind.width : 0
+        height: sheet.behind ? sheet.behind.height : 0
+        textureSize: Qt.size(width / 2, height / 2)
+    }
+
+    // Rounded where it meets what's behind, with a shadow that follows that edge.
+    background: Item {
+        // From an item: a Popup isn't one, and this can't be asked there.
+        readonly property bool hasGpu: GraphicsInfo.api !== GraphicsInfo.Software
+
+        Rectangle {
+            id: sheetShape
+            anchors.fill: parent
+            color: Theme.surface100
+            topLeftRadius: Theme.dp(20)
+            topRightRadius: sheet.wide ? 0 : topLeftRadius
+            bottomLeftRadius: sheet.wide ? topLeftRadius : 0
+            layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
+            layer.effect: MultiEffect {
+                autoPaddingEnabled: true
+                shadowEnabled: true
+                shadowColor: "#000000"
+                shadowOpacity: 0.55
+                shadowBlur: 0.7
+            }
+        }
+        // Within that shape: drawn as a whole and cut to it.
+        Item {
+            id: glass
+            anchors.fill: parent
+            visible: sheet._glass
+            clip: true
+            layer.enabled: sheet._glass
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: glassShape
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1
+            }
+            MultiEffect {
+                objectName: "sheetGlass"
+                // What's under it, wherever it has got to.
+                x: -sheet.x
+                y: -sheet.y
+                width: snapshot.width
+                height: snapshot.height
+                source: snapshot
+                autoPaddingEnabled: false
+                blurEnabled: true
+                blur: 1
+                blurMax: 48
+                saturation: 0.2
+            }
+            Rectangle {
+                anchors.fill: parent
+                color: Theme.surface100
+                opacity: Theme.dark ? 0.72 : 0.62
+            }
+        }
+        // As the sheet's shape, for the mask: drawn only into a texture.
+        Rectangle {
+            id: glassShape
+            anchors.fill: parent
+            visible: false
+            layer.enabled: sheet._glass
+            topLeftRadius: sheetShape.topLeftRadius
+            topRightRadius: sheetShape.topRightRadius
+            bottomLeftRadius: sheetShape.bottomLeftRadius
         }
     }
 
@@ -216,7 +284,8 @@ Popup {
         contentWidth: width
         contentHeight: content.implicitHeight + Theme.padding * 2
         clip: true
-        fadeColor: Theme.surface100
+        // Nothing to dissolve into on glass: the rows are simply cut off.
+        fadeColor: sheet._glass ? "transparent" : Theme.surface100
 
         ColumnLayout {
             id: content

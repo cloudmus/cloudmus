@@ -629,7 +629,20 @@ private slots:
         // Over Now Playing, a swipe takes the sheet and leaves that where it is.
         QVERIFY(QMetaObject::invokeMethod(sheet, "open"));
         QTRY_COMPARE(progress(), 1.0);
-        QVERIFY(QMetaObject::invokeMethod(trackSheet, "open"));
+        {
+            // With a finger on its own button.
+            QQuickItem* menu = nullptr;
+            forEachItem(findItem(window->contentItem(), QStringLiteral("nowPlaying")), [&](QQuickItem* item) {
+                if (item->objectName() == QStringLiteral("trackMenuButton"))
+                    menu = item;
+            });
+            QVERIFY(menu);
+            QTRY_VERIFY(menu->isVisible());
+            const QPoint at = menu->mapToScene(QPointF(menu->width() / 2, menu->height() / 2)).toPoint();
+            QTest::touchEvent(window, finger.get()).press(0, at, window);
+            QTest::qWait(30);
+            QTest::touchEvent(window, finger.get()).release(0, at, window);
+        }
         QTRY_VERIFY(trackSheet->property("opened").toBool());
         swipe(sheetTop() + 60, 850, false);
         QVERIFY(trackSheet->property("slide").toReal() > 0);
