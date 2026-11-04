@@ -19,7 +19,7 @@ AbstractButton {
         text: chip.text
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
-        color: chip.checked ? Theme.onAccent : Theme.ink
+        color: chip.checked ? Theme.inkOnAccent : Theme.ink
         font.family: Theme.fontFamily
         font.pixelSize: Theme.fontSmall
         font.weight: Font.DemiBold

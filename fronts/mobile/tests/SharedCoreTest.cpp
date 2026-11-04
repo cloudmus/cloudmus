@@ -415,6 +415,11 @@ private slots:
         QVERIFY(window);
         window->resize(360, 780);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
+        QVERIFY(theme);
+        QVERIFY(theme->setProperty("dark", false));
+        QCOMPARE(theme->property("inkOnAccent").value<QColor>(), QColor(Qt::white));
+        QVERIFY(theme->setProperty("dark", true));
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
         const auto shot = [&](const char* name) {
             if (!shots.isEmpty()) {

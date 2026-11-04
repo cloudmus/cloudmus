@@ -30,7 +30,7 @@ Switch {
             width: side
             height: side
             radius: side / 2
-            color: control.checked ? Theme.onAccent : Theme.inkSecondary
+            color: control.checked ? Theme.inkOnAccent : Theme.inkSecondary
             Behavior on x { NumberAnimation { duration: Theme.durationFast; easing.type: Easing.OutCubic } }
             Behavior on width { NumberAnimation { duration: Theme.durationFast } }
             Behavior on height { NumberAnimation { duration: Theme.durationFast } }

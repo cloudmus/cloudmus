@@ -36,7 +36,9 @@ QtObject {
     readonly property color inkTertiary: dark ? "#7C7167" : "#807165"
     readonly property color accent: dark ? "#FF6A45" : "#C23D16"
     readonly property color accentPressed: dark ? "#E85A38" : "#8E2A0C"
-    readonly property color onAccent: dark ? "#1C1006" : "#FFFFFF"
+    // Not "onAccent": QML takes a name like that for a signal handler, and the
+    // color came out black whatever it was set to.
+    readonly property color inkOnAccent: dark ? "#1C1006" : "#FFFFFF"
     readonly property color success: "#2E8B57"
     readonly property color danger: "#C6322B"
     readonly property color warning: "#D89A2B"

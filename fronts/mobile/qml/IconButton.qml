@@ -24,7 +24,7 @@ AbstractButton {
     icon.source: iconName ? "qrc:/icons/" + iconName + ".svg" : ""
     icon.width: iconSize
     icon.height: iconSize
-    icon.color: filled ? Theme.onAccent : (enabled ? color : Theme.inkTertiary)
+    icon.color: filled ? Theme.inkOnAccent : (enabled ? color : Theme.inkTertiary)
 
     background: Rectangle {
         radius: width / 2
