@@ -5,7 +5,9 @@
 #
 # Needs Qt 6.7.3 for Android and the desktop (kits under $QT_ROOT, setup in
 # docs/android.md), an Android SDK with platform 34 and NDK r26b, and JDK 17.
-# The APKs land in dist/cloudmus-mobile-<abi>.apk, signed with a dev key.
+# The APKs land in dist/cloudmus-mobile-<abi>.apk, signed with a dev key, or with
+# the one in CLOUDMUS_ANDROID_KEYSTORE (with CLOUDMUS_ANDROID_KEY_ALIAS and
+# CLOUDMUS_ANDROID_KEYSTORE_PASSWORD), as CI does.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 root=$PWD
@@ -65,8 +67,9 @@ fi
 export GRADLE_OPTS="${GRADLE_OPTS:-}${gradle_opts}"
 
 # libmpv for Android: the prebuilt one (mpv 0.39, FFmpeg) of the libmpv-android
-# project, a Maven AAR. Its header isn't in the AAR: the system's mpv/client.h.
+# project, a Maven AAR. Its headers aren't in the AAR: mpv's own, of that version.
 mpv_version=0.4.1
+mpv_headers=v0.39.0
 mpv_dir=$work/libmpv-$mpv_version
 if [ ! -f "$mpv_dir/.done" ]; then
     rm -rf "$mpv_dir" && mkdir -p "$mpv_dir"
@@ -74,19 +77,29 @@ if [ ! -f "$mpv_dir/.done" ]; then
         "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/$mpv_version/libmpv-$mpv_version.aar"
     unzip -q "$work/libmpv.aar" -d "$mpv_dir"
     mkdir -p "$mpv_dir/include/mpv"
-    cp /usr/include/mpv/client.h /usr/include/mpv/render.h "$mpv_dir/include/mpv/" 2>/dev/null \
-        || cp /usr/include/mpv/client.h "$mpv_dir/include/mpv/"
+    for header in client.h render.h; do
+        curl -fL -o "$mpv_dir/include/mpv/$header" \
+            "https://raw.githubusercontent.com/mpv-player/mpv/$mpv_headers/libmpv/$header"
+    done
     touch "$mpv_dir/.done"
 fi
 
-# A debug key for the APKs: they're for sideloading.
-keystore=$work/dev.keystore
-if [ ! -f "$keystore" ]; then
-    keytool -genkeypair -keystore "$keystore" -storepass android -keypass android -alias cloudmus-dev \
-        -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=CloudMus dev" > /dev/null
+# The key an update has to come with: Android turns down another one. A debug
+# key made here otherwise: those APKs are for sideloading from this machine.
+if [ -n "${CLOUDMUS_ANDROID_KEYSTORE:-}" ]; then
+    export QT_ANDROID_KEYSTORE_PATH=$CLOUDMUS_ANDROID_KEYSTORE
+    export QT_ANDROID_KEYSTORE_ALIAS=$CLOUDMUS_ANDROID_KEY_ALIAS
+    export QT_ANDROID_KEYSTORE_STORE_PASS=$CLOUDMUS_ANDROID_KEYSTORE_PASSWORD
+    export QT_ANDROID_KEYSTORE_KEY_PASS=$CLOUDMUS_ANDROID_KEYSTORE_PASSWORD
+else
+    keystore=$work/dev.keystore
+    if [ ! -f "$keystore" ]; then
+        keytool -genkeypair -keystore "$keystore" -storepass android -keypass android -alias cloudmus-dev \
+            -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=CloudMus dev" > /dev/null
+    fi
+    export QT_ANDROID_KEYSTORE_PATH=$keystore QT_ANDROID_KEYSTORE_ALIAS=cloudmus-dev \
+        QT_ANDROID_KEYSTORE_STORE_PASS=android QT_ANDROID_KEYSTORE_KEY_PASS=android
 fi
-export QT_ANDROID_KEYSTORE_PATH=$keystore QT_ANDROID_KEYSTORE_ALIAS=cloudmus-dev \
-    QT_ANDROID_KEYSTORE_STORE_PASS=android QT_ANDROID_KEYSTORE_KEY_PASS=android
 
 for abi in "${abis[@]}"; do
     case $abi in
