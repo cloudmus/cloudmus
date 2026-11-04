@@ -116,14 +116,29 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
         // whoever listens to playback is connected by then.
         QMetaObject::invokeMethod(this, &ActivePlaylist::resumeFromCache, Qt::QueuedConnection);
     }
-    if (resumePending_ && context_.isHistory) {
-        // History is back already, but a saved song that is not on disk
-        // can only play once the source it came from is up.
-        connect(&sources_, &Sources::playlistsLoaded, this, [this](const QString& sourceId, const QList<Playlist>&) {
-            if (resumePending_ && context_.isHistory && !tracks_.isEmpty()
-                && tracks_[resumeIndex()].sourceId == sourceId)
-                resumePlayback();
-        });
+    // History is back already, but a saved song that is not on disk can only
+    // play once the source it came from is up.
+    connect(&sources_, &Sources::playlistsLoaded, this, [this](const QString& sourceId, const QList<Playlist>&) {
+        if (resumePending_ && context_.isHistory && !tracks_.isEmpty() && tracks_[resumeIndex()].sourceId == sourceId)
+            resumePlayback();
+    });
+}
+
+void ActivePlaylist::resume()
+{
+    if (playback_.hasQueue())
+        return;
+    if (!context_.isValid() && pendingRestore_.playlistId.isEmpty())
+        return;
+    resumePending_ = true;
+    resumeFromCache();
+    if (!resumePending_ || !pendingRestore_.playlistId.isEmpty())
+        return; // playing already, or restoreFrom() takes it from here
+    if (context_.isRadio() || !tracks_.isEmpty()) {
+        const QString sourceId = context_.isHistory ? tracks_[resumeIndex()].sourceId : context_.sourceId;
+        const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+        if (client != nullptr && client->available())
+            resumePlayback();
     }
 }
 

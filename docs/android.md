@@ -1,9 +1,7 @@
 # Android (the mobile front, MVP)
 
 `fronts/mobile/` is a QML front for Android — phones and car head units —
-with a Linux build of the same code for debugging. It plays three dev tracks
-from the APK; it exists to answer how the player starts in a car, whether it
-autoplays, and whether it shows up as the system media player.
+with a Linux build of the same code for debugging.
 
 ## Layout
 
@@ -13,10 +11,11 @@ autoplays, and whether it shows up as the system media player.
   offers it all to views in another process. A replica only carries
   properties, signals and slots, so what is offered acts through slots, passes
   plain types, and gives each property a notify signal of its own.
-- **APK, for now**: the backends are Python and don't run on Android yet, so
-  the APK (`CLOUDMUS_MOBILE_SHARED_CORE=OFF`, the default there) still plays
-  three dev tracks through the stand-ins in `src/DevTracks`. The desktop build
-  runs `App::Core` with the real backends.
+- **Backends**: the APK carries CPython and the Yandex Music and YouTube Music
+  backends (`tools/bundle-python.sh`; no local folder source yet), unpacked
+  into the app's files on the first run. The service starts them like the
+  desktop does, through `libcmpython.so`, the one place Android lets an app
+  exec from. There's no CPython for 32-bit units, so no APK for them.
 - **Views** (`qml/`, `src/Ui`): `Ui::Backend` hands QML the view models
   themselves (one process) or replicas of them (`Remote::Host`).
 - **Android** (`android/`): the player is a Media3 `MediaLibraryService` in
@@ -32,7 +31,6 @@ autoplays, and whether it shows up as the system media player.
 ## Desktop
 
 ```bash
-fronts/mobile/tools/fetch-dev-tracks.sh        # 3 tracks from ~/Music → media/ (gitignored)
 CMAKE_PREFIX_PATH=~/Qt/6.7.3/gcc_64 cmake -S fronts/mobile -B fronts/mobile/build -G Ninja
 cmake --build fronts/mobile/build
 export CLOUDMUS_DEV_BACKENDS=1                 # the backends of this checkout
@@ -42,8 +40,7 @@ ctest --test-dir fronts/mobile/build           # CLOUDMUS_MOBILE_SHOTS=<dir> sav
 ```
 
 It shares the settings, sign-ins and history of an installed desktop CloudMus;
-set `XDG_CONFIG_HOME` and `XDG_CACHE_HOME` to keep them apart. Dev tracks are
-only for the APK.
+set `XDG_CONFIG_HOME` and `XDG_CACHE_HOME` to keep them apart.
 
 Any Qt ≥ 6.7 works on the desktop; keep to 6.7 APIs (see below).
 
@@ -56,7 +53,7 @@ Android 9. Setup:
 pip install aqtinstall
 aqt install-qt linux desktop 6.7.3 linux_gcc_64 -O ~/Qt -m qtremoteobjects
 aqt install-qt linux android 6.7.3 android_arm64_v8a -O ~/Qt -m qtremoteobjects
-aqt install-qt linux android 6.7.3 android_armv7 -O ~/Qt -m qtremoteobjects   # 32-bit units
+aqt install-qt linux android 6.7.3 android_x86_64 -O ~/Qt -m qtremoteobjects  # the emulator
 ```
 
 Plus an Android SDK with `platforms/android-34` and `build-tools/35.0.0`,
@@ -64,7 +61,7 @@ NDK r26b (`ndk/26.1.10909125`) and JDK 17 (`CLOUDMUS_JAVA17_HOME`).
 
 ```bash
 ./build-android.sh                    # arm64-v8a → dist/cloudmus-mobile-arm64-v8a.apk
-./build-android.sh armeabi-v7a x86_64 # several; x86_64 is for the emulator
+./build-android.sh x86_64             # for the emulator
 ```
 
 The script downloads the prebuilt libmpv (`dev.jdtech.mpv:libmpv` AAR,

@@ -9,6 +9,7 @@ import android.os.Looper;
 import androidx.annotation.NonNull;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.SimpleBasePlayer;
@@ -17,7 +18,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import java.util.ArrayList;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 // Media3's view of the core: a Player that does no playing itself — the
@@ -30,11 +34,11 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     private static final String TAG = "CorePlayer";
 
     private final Context context;
-    private final List<Tracks.Entry> tracks;
     private final AudioManager audioManager;
     private final AudioFocusRequest focusRequest;
 
-    private int index;
+    private String trackId = "";
+    private MediaItem trackItem;
     private boolean playing;
     private boolean loading;
     private long positionMs;
@@ -42,10 +46,9 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     private boolean hasFocus;
     private boolean pausedByFocusLoss;
 
-    CorePlayer(Context context, Looper looper, List<Tracks.Entry> tracks) {
+    CorePlayer(Context context, Looper looper) {
         super(looper);
         this.context = context;
-        this.tracks = tracks;
         audioManager = context.getSystemService(AudioManager.class);
         focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
             .setAudioAttributes(new AudioAttributes.Builder()
@@ -56,23 +59,64 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             .build();
     }
 
-    int trackCount() {
-        return tracks.size();
-    }
-
-    // The core's state arrives on its own thread; Player state is the
+    // The core's track and state arrive on its own thread; Player state is the
     // application looper's.
     @Override
-    public void onState(int newIndex, boolean newPlaying, boolean newLoading, long newPositionMs, long newDurationMs) {
+    public void onTrack(String id, String title, String artist, String album, long newDurationMs, String coverFile) {
+        new android.os.Handler(getApplicationLooper()).post(() -> {
+            trackId = id;
+            durationMs = newDurationMs;
+            trackItem = id.isEmpty() ? null : mediaItem(id, title, artist, album, coverFile);
+            invalidateState();
+        });
+    }
+
+    private static MediaItem mediaItem(String id, String title, String artist, String album, String coverFile) {
+        MediaMetadata.Builder metadata = new MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .setAlbumTitle(album)
+            .setIsBrowsable(false)
+            .setIsPlayable(true);
+        byte[] cover = coverFile.isEmpty() ? null : coverBytes(coverFile);
+        // Bytes, not a file URI: the controller in the car can't read our files.
+        if (cover != null)
+            metadata.setArtworkData(cover, MediaMetadata.PICTURE_TYPE_FRONT_COVER);
+        return new MediaItem.Builder().setMediaId(id).setMediaMetadata(metadata.build()).build();
+    }
+
+    // Small enough for a binder call, which is how the session hands it out.
+    private static final int COVER_MAX_SIDE = 512;
+
+    private static byte[] coverBytes(String file) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file, options);
+        options.inJustDecodeBounds = false;
+        options.inSampleSize = 1;
+        while (Math.max(options.outWidth, options.outHeight) / options.inSampleSize > COVER_MAX_SIDE)
+            options.inSampleSize *= 2;
+        Bitmap bitmap = BitmapFactory.decodeFile(file, options);
+        if (bitmap == null) {
+            CmLog.w(TAG, "can't read the cover " + file);
+            return null;
+        }
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out);
+        bitmap.recycle();
+        return out.toByteArray();
+    }
+
+    @Override
+    public void onState(boolean newPlaying, boolean newLoading, long newPositionMs, long newDurationMs) {
         new android.os.Handler(getApplicationLooper()).post(() -> {
             boolean wasPlaying = playing;
-            index = newIndex;
             playing = newPlaying;
             loading = newLoading;
             positionMs = newPositionMs;
             durationMs = newDurationMs;
             if (wasPlaying != playing)
-                CmLog.i(TAG, "core " + (playing ? "plays" : "paused") + ", track " + index);
+                CmLog.i(TAG, "core " + (playing ? "plays" : "paused"));
             // Playback mostly starts past Media3 — the UI talks to the core
             // directly, autoplay too — so the focus is taken when the core
             // plays, whoever asked. Without it the other player kept the
@@ -86,6 +130,14 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         });
     }
 
+    // The core alone knows what comes before and after the track (a radio's
+    // next one isn't even fetched yet), so around the current item there's a
+    // blank on each side: Media3 only passes on "next" and "previous" when it
+    // has an item to go to. COMMAND_GET_TIMELINE isn't offered, for controllers
+    // not to list the blanks as a queue.
+    private static final String BEFORE_ID = "before";
+    private static final String AFTER_ID = "after";
+
     @NonNull
     @Override
     protected State getState() {
@@ -93,27 +145,31 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             .addAll(COMMAND_PLAY_PAUSE, COMMAND_PREPARE, COMMAND_STOP, COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
                 COMMAND_SEEK_TO_NEXT, COMMAND_SEEK_TO_PREVIOUS, COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
                 COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, COMMAND_SEEK_TO_MEDIA_ITEM, COMMAND_GET_CURRENT_MEDIA_ITEM,
-                COMMAND_GET_TIMELINE, COMMAND_GET_METADATA, COMMAND_SET_MEDIA_ITEM, COMMAND_RELEASE)
+                COMMAND_GET_METADATA, COMMAND_SET_MEDIA_ITEM, COMMAND_RELEASE)
             .build();
         State.Builder state = new State.Builder().setAvailableCommands(commands);
-        if (tracks.isEmpty())
+        if (trackItem == null)
             return state.setPlaybackState(STATE_IDLE).build();
-        List<MediaItemData> items = new ArrayList<>();
-        for (int i = 0; i < tracks.size(); ++i) {
-            Tracks.Entry entry = tracks.get(i);
-            long duration = i == index && durationMs > 0 ? durationMs : entry.durationMs;
-            items.add(new MediaItemData.Builder(entry.id)
-                .setMediaItem(entry.item)
-                .setDurationUs(duration * 1000)
-                .setIsSeekable(true)
-                .build());
-        }
-        return state.setPlaylist(ImmutableList.copyOf(items))
-            .setCurrentMediaItemIndex(Math.max(0, Math.min(index, tracks.size() - 1)))
+        return state.setPlaylist(ImmutableList.of(new MediaItemData.Builder(BEFORE_ID).build(),
+                new MediaItemData.Builder(trackId)
+                    .setMediaItem(trackItem)
+                    .setDurationUs(durationMs > 0 ? durationMs * 1000 : C.TIME_UNSET)
+                    .setIsSeekable(true)
+                    .build(),
+                new MediaItemData.Builder(AFTER_ID).build()))
+            .setCurrentMediaItemIndex(1)
             .setPlaybackState(loading ? STATE_BUFFERING : STATE_READY)
             .setPlayWhenReady(playing, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
             .setContentPositionMs(positionMs)
             .build();
+    }
+
+    // A command's effect shows when the core reports it: not a moment of a
+    // blank item before that.
+    @NonNull
+    @Override
+    protected State getPlaceholderState(@NonNull State suggested) {
+        return getState();
     }
 
     @NonNull
@@ -171,28 +227,23 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                 CoreBridge.command(CoreBridge.CMD_PREVIOUS, 0);
                 break;
             default:
-                if (mediaItemIndex != index && mediaItemIndex >= 0)
-                    CoreBridge.command(CoreBridge.CMD_PLAY_INDEX, mediaItemIndex);
+                if (mediaItemIndex == 0)
+                    CoreBridge.command(CoreBridge.CMD_PREVIOUS, 0);
+                else if (mediaItemIndex == 2)
+                    CoreBridge.command(CoreBridge.CMD_NEXT, 0);
                 else
                     CoreBridge.command(CoreBridge.CMD_SEEK, Math.max(0, seekPositionMs));
         }
         return Futures.immediateVoidFuture();
     }
 
-    // Android Auto and the like ask to play an item by id.
+    // "Play" with nothing loaded yet comes this way (see the service's
+    // onPlaybackResumption()); no items are offered to pick from so far.
     @NonNull
     @Override
     protected ListenableFuture<?> handleSetMediaItems(List<MediaItem> mediaItems, int startIndex, long startPositionMs) {
-        if (!mediaItems.isEmpty()) {
-            String id = mediaItems.get(Math.max(0, startIndex == C.INDEX_UNSET ? 0 : startIndex)).mediaId;
-            for (int i = 0; i < tracks.size(); ++i) {
-                if (tracks.get(i).id.equals(id)) {
-                    CmLog.i(TAG, "play item " + id + " by request");
-                    CoreBridge.command(CoreBridge.CMD_PLAY_INDEX, i);
-                    requestFocus();
-                }
-            }
-        }
+        CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+        requestFocus();
         return Futures.immediateVoidFuture();
     }
 

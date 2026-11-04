@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds the mobile front's APK (fronts/mobile) on this machine.
 #
-#   ./build-android.sh [abi ...]      default: arm64-v8a  (also armeabi-v7a, x86_64)
+#   ./build-android.sh [abi ...]      default: arm64-v8a  (also x86_64)
 #
 # Needs Qt 6.7.3 for Android and the desktop (kits under $QT_ROOT, setup in
 # docs/android.md), an Android SDK with platform 34 and NDK r26b, and JDK 17.
@@ -88,29 +88,25 @@ fi
 export QT_ANDROID_KEYSTORE_PATH=$keystore QT_ANDROID_KEYSTORE_ALIAS=cloudmus-dev \
     QT_ANDROID_KEYSTORE_STORE_PASS=android QT_ANDROID_KEYSTORE_KEY_PASS=android
 
-[ -f fronts/mobile/media/tracks.json ] || fronts/mobile/tools/fetch-dev-tracks.sh
-
 for abi in "${abis[@]}"; do
     case $abi in
         arm64-v8a) kit=android_arm64_v8a ;;
-        armeabi-v7a) kit=android_armv7 ;;
+        armeabi-v7a) echo "no CPython for 32-bit units, so no sources there" >&2; exit 1 ;;
         x86_64) kit=android_x86_64 ;;
         *) echo "unknown ABI $abi" >&2; exit 1 ;;
     esac
     build=$work/$abi
-    # CPython and the backends; no official build for 32-bit units.
-    python_args=()
-    if [ "$abi" != armeabi-v7a ]; then
-        fronts/mobile/tools/bundle-python.sh "$abi" "$work/python-$abi"
-        python_args=(-DCLOUDMUS_PYTHON_ANDROID_DIR="$work/python-$abi")
-    fi
+    # CPython and the backends.
+    fronts/mobile/tools/bundle-python.sh "$abi" "$work/python-$abi"
+    python_args=(-DCLOUDMUS_PYTHON_ANDROID_DIR="$work/python-$abi")
+    rm -rf "$build/android-package/assets/media" # from before the real core
     # aqtinstall leaves some kits' tools without the execute bit.
     [ -x "$QT_ROOT/$kit/bin/qt-cmake" ] || chmod +x "$QT_ROOT/$kit/bin/"*
     "$QT_ROOT/$kit/bin/qt-cmake" -S fronts/mobile -B "$build" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DQT_HOST_PATH="$QT_ROOT/gcc_64" \
         -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
-        -DQT_ANDROID_SIGN_APK=ON \
+        -DQT_ANDROID_SIGN_APK=ON -DCLOUDMUS_MOBILE_SHARED_CORE=ON \
         -DCLOUDMUS_MPV_ANDROID_DIR="$mpv_dir" "${python_args[@]}"
     cmake --build "$build" --target apk
     apk=$(find "$build" -name '*.apk' -path '*release*' | head -1)

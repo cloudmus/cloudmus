@@ -178,6 +178,10 @@ public slots:
 signals:
     // A new track started, or the current one went away (hasTrack() false).
     void trackChanged();
+    // Play was asked for with nothing loaded: only a saved track, if that.
+    void resumeRequested();
+    // Asked to stop: on Android the playback service ends with it.
+    void stopped();
     // The same, per property (see the class's comment).
     void hasTrackChanged();
     void titleChanged();

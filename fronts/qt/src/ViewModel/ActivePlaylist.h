@@ -80,6 +80,9 @@ public:
 public slots:
     // The hero's Play: (re)starts the active playlist.
     void play();
+    // Whatever was playing last goes on: from the disk if it's there, else
+    // as soon as the source and the tracks are.
+    void resume();
     // A row of the main list played.
     void playRow(int row);
 

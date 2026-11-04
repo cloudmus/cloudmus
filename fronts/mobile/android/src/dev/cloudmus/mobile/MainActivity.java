@@ -104,6 +104,14 @@ public class MainActivity extends QtActivity {
         super.onNewIntent(intent);
     }
 
+    // The UI's own start may have come too early for Android, and the service
+    // ends when the music is closed: on screen, it's up.
+    @Override
+    protected void onResume() {
+        super.onResume();
+        UiBridge.startService(this);
+    }
+
     @Override
     protected void onStart() {
         CmLog.i(TAG, "onStart");

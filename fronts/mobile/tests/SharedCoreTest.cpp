@@ -29,6 +29,7 @@
 #include "LogModel.h"
 #include "MobileCore.h"
 #include "Platform.h"
+#include "QrImageProvider.h"
 #include "TestSupport.h"
 
 #include <QtQml/QQmlExtensionPlugin>
@@ -81,6 +82,25 @@ class SharedCoreTest : public QObject {
     QTemporaryDir settingsDir_;
 
 private slots:
+    void qrCodeIsSharpBlackAndWhite()
+    {
+        Ui::QrImageProvider provider;
+        QSize size;
+        const QImage image = provider.requestImage(
+            QString::fromLatin1(QUrl::toPercentEncoding(QStringLiteral("https://ya.ru/device"))), &size, QSize(240, 240));
+        QCOMPARE(size, image.size());
+        QVERIFY(size.width() > 0 && size.width() <= 240);
+        QCOMPARE(size.width(), size.height());
+        QSet<QRgb> colors;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x)
+                colors.insert(image.pixel(x, y));
+        }
+        QCOMPARE(colors, QSet<QRgb>({ qRgb(0, 0, 0), qRgb(255, 255, 255) }));
+        // The blank margin a scanner needs.
+        QCOMPARE(image.pixel(0, 0), qRgb(255, 255, 255));
+    }
+
     void initTestCase()
     {
         QVERIFY(settingsDir_.isValid());

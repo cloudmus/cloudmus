@@ -236,7 +236,9 @@ qint64 NowPlaying::durationMs() const
 
 void NowPlaying::play()
 {
-    if (!playing())
+    if (!playback_.hasCurrentTrack())
+        emit resumeRequested();
+    else if (!playing())
         playback_.togglePause();
 }
 
@@ -246,13 +248,23 @@ void NowPlaying::pause()
         playback_.togglePause();
 }
 
-void NowPlaying::togglePause() { playback_.togglePause(); }
+void NowPlaying::togglePause()
+{
+    if (playback_.hasCurrentTrack())
+        playback_.togglePause();
+    else
+        emit resumeRequested();
+}
 
 void NowPlaying::next() { playback_.next(); }
 
 void NowPlaying::previous() { playback_.previous(); }
 
-void NowPlaying::stop() { playback_.stop(); }
+void NowPlaying::stop()
+{
+    playback_.stop();
+    emit stopped();
+}
 
 void NowPlaying::seek(qint64 positionMs) { playback_.seek(positionMs); }
 

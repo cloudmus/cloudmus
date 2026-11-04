@@ -24,9 +24,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import java.util.ArrayList;
-import java.util.List;
-
 // The music player as the system sees it: a media session (the car's media
 // widget, the steering-wheel buttons, Android Auto, the notification) in a
 // foreground service in the :playback process, over the C++ core. It lives
@@ -38,7 +35,6 @@ public final class PlaybackService extends MediaLibraryService {
     public static final String ACTION_START = "dev.cloudmus.mobile.START";
     public static final String ACTION_AUTOPLAY = "dev.cloudmus.mobile.AUTOPLAY";
     private static final String ROOT_ID = "root";
-    private static final String DEV_TRACKS_ID = "dev-tracks";
     private static final String CHANNEL_ID = "playback";
     private static final int NOTIFICATION_ID = DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID;
     // The notification's (and the app's) "stop it all": playback stops and
@@ -53,7 +49,6 @@ public final class PlaybackService extends MediaLibraryService {
 
     private MediaLibrarySession session;
     private CorePlayer player;
-    private List<Tracks.Entry> tracks;
     private PendingIntent openScreen;
 
     @Override
@@ -61,8 +56,7 @@ public final class PlaybackService extends MediaLibraryService {
         CmLog.mark("service onCreate");
         super.onCreate();
         CoreBridge.start(this);
-        tracks = Tracks.load(this);
-        player = new CorePlayer(this, getMainLooper(), tracks);
+        player = new CorePlayer(this, getMainLooper());
         CoreBridge.setListener(player);
         CoreBridge.setStopHandler(() -> new android.os.Handler(getMainLooper()).post(() -> close("stopped in the app")));
         Intent open = new Intent(this, MainActivity.class);
@@ -95,7 +89,7 @@ public final class PlaybackService extends MediaLibraryService {
         // added here. Our UI reaches the core over Qt Remote Objects, not a
         // MediaController, so without this there was no notification at all.
         addSession(session);
-        CmLog.mark("service ready, " + tracks.size() + " tracks");
+        CmLog.mark("service ready");
     }
 
     @Override
@@ -222,12 +216,6 @@ public final class PlaybackService extends MediaLibraryService {
             MediaSession.ControllerInfo browser, String mediaId) {
             if (ROOT_ID.equals(mediaId))
                 return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "CloudMus"), null));
-            if (DEV_TRACKS_ID.equals(mediaId))
-                return Futures.immediateFuture(LibraryResult.ofItem(folder(DEV_TRACKS_ID, "Dev tracks"), null));
-            for (Tracks.Entry entry : tracks) {
-                if (entry.id.equals(mediaId))
-                    return Futures.immediateFuture(LibraryResult.ofItem(entry.item, null));
-            }
             return Futures.immediateFuture(LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE));
         }
 
@@ -235,14 +223,6 @@ public final class PlaybackService extends MediaLibraryService {
         public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> onGetChildren(MediaLibrarySession session,
             MediaSession.ControllerInfo browser, String parentId, int page, int pageSize, @Nullable LibraryParams params) {
             CmLog.i(TAG, "children of " + parentId + " for " + browser.getPackageName());
-            if (ROOT_ID.equals(parentId))
-                return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(folder(DEV_TRACKS_ID, "Dev tracks")), params));
-            if (DEV_TRACKS_ID.equals(parentId)) {
-                List<MediaItem> items = new ArrayList<>();
-                for (Tracks.Entry entry : tracks)
-                    items.add(entry.item);
-                return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params));
-            }
             return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params));
         }
 
@@ -252,10 +232,11 @@ public final class PlaybackService extends MediaLibraryService {
         public ListenableFuture<MediaSession.MediaItemsWithStartPosition> onPlaybackResumption(
             MediaSession session, MediaSession.ControllerInfo controller) {
             CmLog.i(TAG, "playback resumption requested by " + controller.getPackageName());
-            List<MediaItem> items = new ArrayList<>();
-            for (Tracks.Entry entry : tracks)
-                items.add(entry.item);
-            return Futures.immediateFuture(new MediaSession.MediaItemsWithStartPosition(items, 0, 0));
+            MediaItem item = new MediaItem.Builder()
+                .setMediaId("resume")
+                .setMediaMetadata(new MediaMetadata.Builder().setTitle("CloudMus").build())
+                .build();
+            return Futures.immediateFuture(new MediaSession.MediaItemsWithStartPosition(ImmutableList.of(item), 0, 0));
         }
 
         private MediaItem folder(String id, String title) {

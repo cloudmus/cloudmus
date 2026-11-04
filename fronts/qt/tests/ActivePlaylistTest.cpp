@@ -187,6 +187,27 @@ private slots:
         QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
     }
 
+    // A car starting, "play" on the steering wheel: asked for by hand, whatever
+    // the setting says, and before the source has even listed its playlists.
+    void resumeAskedForGoesOnFromTheSavedSong()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        settings_->setLastActiveTrack(QStringLiteral("t2"), 1);
+        start();
+        QVERIFY(!playback_->hasQueue());
+        active_->resume();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+    }
+
+    void resumeWithNothingSavedDoesNothing()
+    {
+        start();
+        active_->resume();
+        QTest::qWait(100);
+        QVERIFY(!playback_->hasQueue());
+    }
+
     void noResumeWhenItsOffOrPlaybackWasHalted()
     {
         settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });

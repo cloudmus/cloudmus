@@ -95,6 +95,7 @@ Core::Core(QObject* parent)
     connect(&activePlaylist_, &ViewModel::ActivePlaylist::entriesChanged, this, syncPreview);
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, syncPreview);
     syncPreview();
+    connect(&nowPlaying_, &ViewModel::NowPlaying::resumeRequested, &activePlaylist_, &ViewModel::ActivePlaylist::resume);
 
     // History's saved snapshots: when each track was last played, plus
     // whatever like state it was recorded with — only where nothing

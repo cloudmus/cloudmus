@@ -14,7 +14,13 @@ public final class UiBridge {
     public static void startService(Context context) {
         CmLog.i("UiBridge", "starting the playback service");
         Intent intent = new Intent(context, PlaybackService.class).setAction(PlaybackService.ACTION_START);
-        context.startService(intent);
+        try {
+            context.startService(intent);
+        } catch (IllegalStateException error) {
+            // Android allows it only with the app in front: MainActivity asks
+            // again once it is (the screen was off, or it isn't resumed yet).
+            CmLog.w("UiBridge", "the playback service can't start yet: " + error.getMessage());
+        }
     }
 
     public static String publicLogDirectory(Context context) {

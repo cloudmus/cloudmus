@@ -59,14 +59,9 @@ if(ANDROID)
 endif()
 set_target_properties(cloudmus-mobile-log PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# --- The core: on the desktop App::Core, the desktop front's own, with the
-# real backends. The APK can't run those yet (they are Python): it stays on
-# src/DevTracks, a stand-in on Qt Core and Network alone, until it can.
-if(ANDROID)
-    set(_shared_core_default OFF)
-else()
-    set(_shared_core_default ON)
-endif()
+# --- The core: App::Core, the desktop front's own, with the real backends. Off,
+# src/DevTracks stands in for it, on Qt Core and Network alone.
+set(_shared_core_default ON)
 option(CLOUDMUS_MOBILE_SHARED_CORE "Run App::Core rather than the dev tracks" ${_shared_core_default})
 
 add_library(cloudmus-mobile-core STATIC
@@ -129,6 +124,14 @@ else()
         src/DevTracks ${QT_FRONT_SRC}/Net ${QT_FRONT_SRC}/Playback ${QT_FRONT_SRC}/Timing)
 endif()
 
+# QR codes for signing in: one source file, no build of its own.
+include(FetchContent)
+FetchContent_Declare(qrcodegen
+    URL https://github.com/nayuki/QR-Code-generator/archive/refs/tags/v1.8.0.tar.gz
+    URL_HASH SHA256=2ec0a4d33d6f521c942eeaf473d42d5fe139abcfa57d2beffe10c5cf7d34ae60
+    DOWNLOAD_EXTRACT_TIMESTAMP ON)
+FetchContent_MakeAvailable(qrcodegen)
+
 # --- The views: QML and what it binds to. A library of their own so the
 # tests drive the same pages the app shows.
 qt_add_library(cloudmus-mobile-ui STATIC
@@ -141,7 +144,11 @@ qt_add_library(cloudmus-mobile-ui STATIC
     src/Ui/CoverImageProvider.h
     src/Ui/Platform.cpp
     src/Ui/Platform.h
+    src/Ui/QrImageProvider.cpp
+    src/Ui/QrImageProvider.h
+    ${qrcodegen_SOURCE_DIR}/cpp/qrcodegen.cpp
 )
+target_include_directories(cloudmus-mobile-ui PRIVATE ${qrcodegen_SOURCE_DIR}/cpp)
 target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote ${QT_FRONT_SRC}/Covers)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
     cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
@@ -238,23 +245,14 @@ if(ANDROID)
         list(APPEND _mpv_libs "${CLOUDMUS_MPV_LIBS_DIR}/lib${_lib}.so")
     endforeach()
 
-    # The package source: the android/ files plus the dev tracks as assets,
-    # copied (and again whenever one changes) into the build directory.
+    # The package source: the android/ files, copied (and again whenever one
+    # changes) into the build directory.
     set(_package ${CMAKE_CURRENT_BINARY_DIR}/android-package)
     file(GLOB_RECURSE _package_files CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/android
         ${CMAKE_CURRENT_SOURCE_DIR}/android/*)
     foreach(_file IN LISTS _package_files)
         configure_file(android/${_file} ${_package}/${_file} COPYONLY)
     endforeach()
-    file(GLOB _media CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/media/*)
-    if(NOT _media)
-        message(WARNING "No dev tracks in media/ (run tools/fetch-dev-tracks.sh): the APK will have none")
-    endif()
-    foreach(_file IN LISTS _media)
-        get_filename_component(_name ${_file} NAME)
-        configure_file(${_file} ${_package}/assets/media/${_name} COPYONLY)
-    endforeach()
-
     # CPython and the backends (tools/bundle-python.sh), where there's a build
     # of it for the ABI.
     set(CLOUDMUS_PYTHON_ANDROID_DIR "" CACHE PATH "What tools/bundle-python.sh made for this ABI")
@@ -273,9 +271,10 @@ if(ANDROID)
         target_include_directories(cloudmus-python PRIVATE ${_python_include})
         target_link_libraries(cloudmus-python PRIVATE ${_libpython})
         set_target_properties(cloudmus-python PROPERTIES OUTPUT_NAME libcmpython SUFFIX .so)
-        add_custom_command(TARGET cloudmus-python POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:cloudmus-python> ${_jni_libs}/libcmpython.so)
-        add_dependencies(cloudmus-mobile cloudmus-python)
+        # Every build, not only after a link: the package directory can be new.
+        add_custom_target(cloudmus-python-package
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:cloudmus-python> ${_jni_libs}/libcmpython.so)
+        add_dependencies(cloudmus-mobile cloudmus-python-package)
         foreach(_file python.zip python.stamp)
             configure_file(${CLOUDMUS_PYTHON_ANDROID_DIR}/${_file} ${_package}/assets/${_file} COPYONLY)
         endforeach()

@@ -187,39 +187,59 @@ Page {
                     implicitHeight: authColumn.implicitHeight + Theme.padding * 2
                     radius: Theme.radius
                     color: Theme.surface200
-                    ColumnLayout {
+                    RowLayout {
                         id: authColumn
                         anchors.fill: parent
                         anchors.margins: Theme.padding
-                        spacing: Theme.dp(8)
-                        Text {
-                            text: qsTr("Sign in to see the playlists")
-                            color: Theme.ink
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBody
-                            font.weight: Font.DemiBold
+                        spacing: Theme.padding
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            spacing: Theme.dp(8)
+                            Text {
+                                text: qsTr("Sign in to see the playlists")
+                                color: Theme.ink
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontBody
+                                font.weight: Font.DemiBold
+                            }
+                            BodyText {
+                                visible: text !== ""
+                                text: page.library && page.library.authError ? page.library.authError : ""
+                                color: Theme.danger
+                            }
+                            BodyText {
+                                visible: text !== ""
+                                text: page.library && page.library.authUrl
+                                      ? qsTr("Open %1 on any device and enter this code:").arg(page.library.authUrl) : ""
+                            }
+                            Text {
+                                visible: text !== ""
+                                text: page.library && page.library.authCode ? page.library.authCode : ""
+                                color: Theme.accent
+                                font.family: Theme.monoFamily
+                                font.pixelSize: Theme.fontHeadline
+                                font.weight: Font.Bold
+                            }
+                            // While a code is shown the source is waiting for
+                            // it: asking again would only change the code.
+                            TextButton {
+                                visible: !page.library || !page.library.authCode
+                                text: qsTr("Sign in")
+                                onClicked: page.library.signIn()
+                            }
                         }
-                        BodyText {
-                            visible: text !== ""
-                            text: page.library && page.library.authError ? page.library.authError : ""
-                            color: Theme.danger
-                        }
-                        BodyText {
-                            visible: text !== ""
-                            text: page.library && page.library.authUrl
-                                  ? qsTr("Open %1 on any device").arg(page.library.authUrl) : ""
-                        }
-                        Text {
-                            visible: text !== ""
-                            text: page.library ? page.library.authCode : ""
-                            color: Theme.accent
-                            font.family: Theme.monoFamily
-                            font.pixelSize: Theme.fontHeadline
-                            font.weight: Font.Bold
-                        }
-                        TextButton {
-                            text: qsTr("Sign in")
-                            onClicked: page.library.signIn()
+                        Image {
+                            objectName: "authQr"
+                            readonly property string url: page.library && page.library.authUrl
+                                                          ? page.library.authUrl : ""
+                            visible: url !== ""
+                            Layout.preferredWidth: Theme.dp(120)
+                            Layout.preferredHeight: Theme.dp(120)
+                            Layout.alignment: Qt.AlignTop
+                            sourceSize: Qt.size(width, height)
+                            source: url !== "" ? "image://qr/" + encodeURIComponent(url) : ""
+                            smooth: false
                         }
                     }
                 }

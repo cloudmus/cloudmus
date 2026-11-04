@@ -66,6 +66,24 @@ find "$site" -maxdepth 1 -name '*.dist-info' -type d -exec rm -rf {} +
 rm -rf "${site:?}/bin"
 cp "$here/../python/"* "$tree/"
 
+# Manifests for Rpc::discoverManifests(), icons beside them. Not the local
+# folder source: the app has no access to folders on the device for it.
+mkdir "$tree/backends"
+"$venv_python" - "$root/backends" "$tree/backends" <<'PY'
+import json, pathlib, shutil, sys
+
+sources, target = map(pathlib.Path, sys.argv[1:])
+for name in ("yandex-music", "youtube-music"):
+    source = sources / name
+    manifest = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
+    for key in ("icon", "logo"):
+        if key in manifest:
+            file = f"{manifest['id']}-{key}.svg"
+            shutil.copy(source / manifest[key], target / file)
+            manifest[key] = file
+    (target / f"{manifest['id']}.json").write_text(json.dumps(manifest), encoding="utf-8")
+PY
+
 (cd "$tree" && "$venv_python" -c "
 import os, zipfile
 with zipfile.ZipFile('../python.zip', 'w', zipfile.ZIP_DEFLATED) as z:

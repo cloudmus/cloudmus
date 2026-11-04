@@ -28,6 +28,8 @@ struct BackendManifest {
 // provided by the installed set), matching discovery.py's dev-mode
 // fallback. The repo root for dev-mode is CLOUDMUS_DEV_REPO_ROOT, a
 // compile-time constant set by CMakeLists.txt to the checkout's root.
+// Also the *.json in $CLOUDMUS_BACKENDS_DIR, with "python3" in their argv
+// replaced by $CLOUDMUS_BACKENDS_PYTHON.
 QList<BackendManifest> discoverManifests();
 
 } // namespace Rpc

@@ -124,6 +124,20 @@ QList<BackendManifest> discoverManifests()
         QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/../Resources/backends")), result, seenIds, true);
 #endif
 
+    // ...or that the app unpacks as it runs (Android: PythonRuntime.java), with
+    // the interpreter wherever the platform lets it be started from.
+    const QProcessEnvironment system = QProcessEnvironment::systemEnvironment();
+    const QString unpackedDir = system.value(QStringLiteral("CLOUDMUS_BACKENDS_DIR"));
+    if (!unpackedDir.isEmpty()) {
+        const qsizetype first = result.size();
+        scanDir(QDir(unpackedDir), result, seenIds);
+        const QString python = system.value(QStringLiteral("CLOUDMUS_BACKENDS_PYTHON"));
+        for (qsizetype i = first; i < result.size() && !python.isEmpty(); ++i) {
+            if (result[i].argv.first() == QStringLiteral("python3"))
+                result[i].argv[0] = python;
+        }
+    }
+
     const QString devFlag = QProcessEnvironment::systemEnvironment().value(QStringLiteral("CLOUDMUS_DEV_BACKENDS"));
     if (envFlagTruthy(devFlag)) {
         const QString repoRoot = QStringLiteral(CLOUDMUS_DEV_REPO_ROOT);
