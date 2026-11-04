@@ -32,15 +32,19 @@ Page {
 
     ScrollArea {
         anchors.fill: parent
-        anchors.margins: Theme.padding * 1.5
-        contentHeight: content.implicitHeight
+        anchors.leftMargin: Theme.padding
+        anchors.rightMargin: Theme.padding
+        contentHeight: content.implicitHeight + Theme.padding * 2
         clip: true
 
         ColumnLayout {
             id: content
+            y: Theme.padding
             width: parent.width
-            spacing: Theme.padding
+            spacing: Theme.settingsGroupGap
 
+            SettingsGroup {
+            SettingsCell {
             Flow {
                 Layout.fillWidth: true
                 spacing: Theme.spacing
@@ -56,6 +60,8 @@ Page {
                     onClicked: { page.kind = "socks5"; checked = Qt.binding(() => page.kind === "socks5") }
                 }
             }
+            }
+            SettingsCell {
             InputField {
                 id: nameField
                 objectName: "proxyName"
@@ -88,6 +94,8 @@ Page {
                 text: page.password
                 echoMode: TextInput.Password
                 placeholderText: qsTr("Password (optional)")
+            }
+            }
             }
             Flow {
                 Layout.fillWidth: true

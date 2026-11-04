@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// A line of text on the Settings and Developer tools pages.
+// A line of text.
 Text {
     Layout.fillWidth: true
     color: Theme.ink

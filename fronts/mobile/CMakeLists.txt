@@ -171,6 +171,8 @@ qt_add_qml_module(cloudmus-mobile-ui
     URI Cloudmus.Mobile
     VERSION 1.0
     QML_FILES
+        qml/AppSlider.qml
+        qml/AppSwitch.qml
         qml/AuraBackground.qml
         qml/BodyText.qml
         qml/Chip.qml
@@ -189,6 +191,11 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/PlaylistPage.qml
         qml/ProxyPage.qml
         qml/SettingField.qml
+        qml/SettingStepper.qml
+        qml/SettingSwitch.qml
+        qml/SettingText.qml
+        qml/SettingsCell.qml
+        qml/SettingsGroup.qml
         qml/SettingsRow.qml
         qml/SourceSettingsPage.qml
         qml/Stepper.qml

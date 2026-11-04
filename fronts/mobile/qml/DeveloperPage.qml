@@ -24,25 +24,31 @@ Page {
 
     ScrollArea {
         anchors.fill: parent
-        anchors.margins: Theme.padding * 1.5
-        contentHeight: content.implicitHeight
+        anchors.leftMargin: Theme.padding
+        anchors.rightMargin: Theme.padding
+        contentHeight: content.implicitHeight + Theme.padding * 2
         clip: true
 
         ColumnLayout {
             id: content
+            y: Theme.padding
             width: parent.width
-            spacing: Theme.padding
+            spacing: Theme.settingsGroupGap
 
-            SectionHeading { text: qsTr("Device") }
-            BodyText { text: page.platform.deviceInfo }
+            SettingsGroup {
+                title: qsTr("Device")
+                SettingsCell {
+                    BodyText { text: page.platform.deviceInfo }
+                }
+            }
 
-            SectionHeading { text: qsTr("Log") }
-            BodyText {
-                text: page.platform.publicLogDirectory
+            SettingsGroup {
+                title: qsTr("Log")
+                SettingsCell {
+            SettingText {
+                description: page.platform.publicLogDirectory
                     ? qsTr("Copied to %1").arg(page.platform.publicLogDirectory)
                     : page.platform.logDirectory
-                color: Theme.inkSecondary
-                font.pixelSize: Theme.fontSmall
             }
             Flow {
                 Layout.fillWidth: true
@@ -56,13 +62,14 @@ Page {
                     onClicked: exportResult.text = page.platform.exportLogs()
                 }
             }
-
-            SectionHeading {
-                visible: page.platform.android
-                text: qsTr("Head unit")
+                }
             }
+
+            SettingsGroup {
+                shown: page.platform.android
+                title: qsTr("Head unit")
+                SettingsCell {
             Flow {
-                visible: page.platform.android
                 Layout.fillWidth: true
                 spacing: Theme.spacing
                 TextButton {
@@ -148,65 +155,66 @@ Page {
                 color: Theme.inkSecondary
                 font.pixelSize: Theme.fontSmall
             }
+                }
+            }
 
-            SectionHeading { text: qsTr("Scrolling") }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.padding
-                BodyText { Layout.fillWidth: false; text: qsTr("Fling speed") }
-                Slider {
-                    Layout.fillWidth: true
-                    implicitHeight: Theme.touch
-                    from: 2000; to: 20000; stepSize: 500
-                    value: page.ui.flickMaxVelocity
-                    onMoved: page.ui.flickMaxVelocity = value
+            SettingsGroup {
+                title: qsTr("Scrolling")
+                SettingsCell {
+                    RowLayout {
+                        Layout.fillWidth: true
+                        SettingText { title: qsTr("Fling speed") }
+                        BodyText { Layout.fillWidth: false; text: Math.round(page.ui.flickMaxVelocity) }
+                    }
+                    AppSlider {
+                        from: 2000; to: 20000; stepSize: 500
+                        value: page.ui.flickMaxVelocity
+                        onMoved: page.ui.flickMaxVelocity = value
+                    }
                 }
-                BodyText { Layout.fillWidth: false; text: Math.round(page.ui.flickMaxVelocity) }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.padding
-                BodyText { Layout.fillWidth: false; text: qsTr("Deceleration") }
-                Slider {
-                    Layout.fillWidth: true
-                    implicitHeight: Theme.touch
-                    from: 500; to: 12000; stepSize: 250
-                    value: page.ui.flickDeceleration
-                    onMoved: page.ui.flickDeceleration = value
+                SettingsCell {
+                    RowLayout {
+                        Layout.fillWidth: true
+                        SettingText { title: qsTr("Deceleration") }
+                        BodyText { Layout.fillWidth: false; text: Math.round(page.ui.flickDeceleration) }
+                    }
+                    AppSlider {
+                        from: 500; to: 12000; stepSize: 250
+                        value: page.ui.flickDeceleration
+                        onMoved: page.ui.flickDeceleration = value
+                    }
                 }
-                BodyText { Layout.fillWidth: false; text: Math.round(page.ui.flickDeceleration) }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                BodyText { text: qsTr("Show frames per second") }
-                Switch {
+                SettingSwitch {
+                    title: qsTr("Show frames per second")
                     checked: page.ui.showFps
-                    onToggled: page.ui.showFps = checked
+                    onToggled: (checked) => page.ui.showFps = checked
                 }
             }
 
             // Experiments for a finger drag that stutters at a steady frame
             // rate: how Qt draws and how it hands touches to the views.
-            SectionHeading { text: qsTr("Drawing (after a restart)") }
-            RowLayout {
-                spacing: Theme.spacing
-                BodyText { Layout.fillWidth: false; text: qsTr("Render loop") }
-                Repeater {
-                    model: [{ t: qsTr("Default"), v: "" }, { t: "threaded", v: "threaded" }, { t: "basic", v: "basic" }]
-                    Chip {
-                        required property var modelData
-                        text: modelData.t
-                        checked: page.ui.renderLoop === modelData.v
-                        onClicked: page.ui.renderLoop = modelData.v
+            SettingsGroup {
+                title: qsTr("Drawing (after a restart)")
+                SettingsCell {
+                    SettingText { title: qsTr("Render loop") }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing
+                        Repeater {
+                            model: [{ t: qsTr("Default"), v: "" }, { t: "threaded", v: "threaded" }, { t: "basic", v: "basic" }]
+                            Chip {
+                                required property var modelData
+                                text: modelData.t
+                                checked: page.ui.renderLoop === modelData.v
+                                onClicked: page.ui.renderLoop = modelData.v
+                            }
+                        }
                     }
                 }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                BodyText { text: qsTr("Merge touch moves into one per frame") }
-                Switch {
+                SettingSwitch {
+                    title: qsTr("Merge touch moves into one per frame")
                     checked: page.ui.touchCompression
-                    onToggled: page.ui.touchCompression = checked
+                    onToggled: (checked) => page.ui.touchCompression = checked
                 }
             }
         }

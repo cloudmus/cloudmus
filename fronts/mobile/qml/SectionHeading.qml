@@ -1,6 +1,6 @@
 import QtQuick
 
-// The title of a group on the Settings and Developer tools pages.
+// The title of a group on the Library page.
 Text {
     color: Theme.inkSecondary
     font.family: Theme.fontFamily

@@ -30,194 +30,188 @@ Page {
 
     ScrollArea {
         anchors.fill: parent
-        anchors.margins: Theme.padding * 1.5
-        contentHeight: content.implicitHeight
+        anchors.leftMargin: Theme.padding
+        anchors.rightMargin: Theme.padding
+        contentHeight: content.implicitHeight + Theme.padding * 2
         clip: true
 
         ColumnLayout {
             id: content
+            y: Theme.padding
             width: parent.width
-            spacing: Theme.padding
+            spacing: Theme.settingsGroupGap
 
-            Text {
+            SettingsCell {
                 objectName: "spaceWarning"
-                Layout.fillWidth: true
-                visible: text !== ""
-                text: page.backend.mainScreen ? page.backend.mainScreen.spaceWarning : ""
-                wrapMode: Text.Wrap
-                color: Theme.danger
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontBody
-            }
-
-            SectionHeading { text: qsTr("Playback") }
-            RowLayout {
-                Layout.fillWidth: true
-                BodyText { text: qsTr("Play when the system starts") }
-                Switch {
-                    checked: page.backend.settings ? page.backend.settings.autoplay : false
-                    onToggled: page.backend.settings.setAutoplay(checked)
+                visible: warningText.text !== ""
+                Text {
+                    id: warningText
+                    Layout.fillWidth: true
+                    text: page.backend.mainScreen ? page.backend.mainScreen.spaceWarning : ""
+                    wrapMode: Text.Wrap
+                    color: Theme.danger
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
                 }
             }
-            // Another sound (the phone over Bluetooth) took the audio and
-            // paused us: play on once it's over, if it was that short.
-            BodyText { text: qsTr("Play on after another sound, if it took up to") }
-            Flow {
-                Layout.fillWidth: true
-                spacing: Theme.spacing
-                Repeater {
-                    model: [{ t: qsTr("Off"), v: 0 }, { t: qsTr("30 s"), v: 30 }, { t: qsTr("1 min"), v: 60 },
-                            { t: qsTr("5 min"), v: 300 }]
-                    Chip {
-                        required property var modelData
-                        text: modelData.t
-                        checked: page.backend.settings
-                                 && page.backend.settings.resumeAfterLossSec === modelData.v
-                        onClicked: page.backend.settings.setResumeAfterLossSec(modelData.v)
+
+            SettingsGroup {
+                title: qsTr("Playback")
+                SettingSwitch {
+                    objectName: "autoplay"
+                    title: qsTr("Play when the system starts")
+                    checked: page.backend.settings ? page.backend.settings.autoplay : false
+                    onToggled: (checked) => page.backend.settings.setAutoplay(checked)
+                }
+                // Another sound (the phone over Bluetooth) took the audio and
+                // paused us: play on once it's over, if it was that short.
+                SettingsCell {
+                    SettingText { title: qsTr("Play on after another sound, if it took up to") }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing
+                        Repeater {
+                            model: [{ t: qsTr("Off"), v: 0 }, { t: qsTr("30 s"), v: 30 }, { t: qsTr("1 min"), v: 60 },
+                                    { t: qsTr("5 min"), v: 300 }]
+                            Chip {
+                                required property var modelData
+                                text: modelData.t
+                                checked: page.backend.settings
+                                         && page.backend.settings.resumeAfterLossSec === modelData.v
+                                onClicked: page.backend.settings.setResumeAfterLossSec(modelData.v)
+                            }
+                        }
                     }
                 }
             }
 
-            SectionHeading { text: qsTr("Preloading") }
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("How many tracks after the playing one are downloaded in advance, so they start at once and play through a bad connection.")
-                wrapMode: Text.Wrap
-                color: Theme.inkSecondary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                BodyText { text: qsTr("Tracks ahead in a playlist") }
-                Stepper {
+            SettingsGroup {
+                title: qsTr("Preloading")
+                description: qsTr("How many tracks after the playing one are downloaded in advance, so they start at once and play through a bad connection.")
+                SettingStepper {
                     objectName: "preloadPlaylist"
+                    title: qsTr("Tracks ahead in a playlist")
                     value: page.screen ? page.screen.playlistTracks : 0
                     to: 50
                     onMoved: (value) => page.screen.setPlaylistTracks(value)
                 }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                BodyText { text: qsTr("Tracks ahead in a radio") }
-                Stepper {
+                SettingStepper {
+                    title: qsTr("Tracks ahead in a radio")
                     value: page.screen ? page.screen.radioTracks : 0
                     to: 50
                     onMoved: (value) => page.screen.setRadioTracks(value)
                 }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                BodyText { text: qsTr("Disk space for tracks") }
-                Stepper {
+                SettingStepper {
                     objectName: "cacheSize"
+                    title: qsTr("Disk space for tracks")
                     value: page.screen ? page.screen.cacheMaxMb : 0
                     to: 65536
                     step: 256
                     suffix: " " + qsTr("MB")
                     onMoved: (value) => page.screen.setCacheMaxMb(value)
                 }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                BodyText {
-                    objectName: "cacheUsed"
-                    text: qsTr("%1 used").arg(page.screen ? page.screen.cacheUsedText : "")
-                }
-                TextButton {
-                    objectName: "clearCache"
-                    text: qsTr("Clear")
-                    onClicked: page.screen.clearCache()
+                SettingsCell {
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.padding
+                        SettingText {
+                            objectName: "cacheUsed"
+                            title: qsTr("%1 used").arg(page.screen ? page.screen.cacheUsedText : "")
+                        }
+                        TextButton {
+                            objectName: "clearCache"
+                            text: qsTr("Clear")
+                            onClicked: page.screen.clearCache()
+                        }
+                    }
                 }
             }
 
-            SectionHeading { text: qsTr("Sources") }
-            Repeater {
-                model: page.backend.settingsSources
+            SettingsGroup {
+                title: qsTr("Sources")
+                Repeater {
+                    model: page.backend.settingsSources
+                    SettingsRow {
+                        required property string sourceId
+                        required property string name
+                        required property string iconUrl
+                        required property string status
+                        objectName: "sourceRow_" + sourceId
+                        text: name
+                        iconSource: iconUrl
+                        subtitle: status
+                        onClicked: page.sourceRequested(sourceId)
+                    }
+                }
+            }
+
+            SettingsGroup {
+                title: qsTr("Network")
+                description: qsTr("Proxies a source can connect through: choose one on the source's own page. Everything of that source goes through it: the source itself, its streams and its covers.")
+                Repeater {
+                    model: page.backend.settingsProxies
+                    SettingsRow {
+                        required property var model
+                        objectName: "proxyRow_" + model.title
+                        text: model.title
+                        subtitle: model.host + ":" + model.port
+                        onClicked: page.proxyRequested({
+                            proxyId: model.proxyId, name: model.name, kind: model.kind, host: model.host,
+                            port: model.port, username: model.username, password: model.password })
+                    }
+                }
                 SettingsRow {
-                    required property string sourceId
-                    required property string name
-                    required property string iconUrl
-                    required property string status
-                    objectName: "sourceRow_" + sourceId
-                    text: name
-                    iconSource: iconUrl
-                    subtitle: status
-                    onClicked: page.sourceRequested(sourceId)
+                    objectName: "addProxy"
+                    text: qsTr("Add proxy")
+                    onClicked: page.proxyRequested(null)
                 }
             }
 
-            SectionHeading { text: qsTr("Network") }
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("Proxies a source can connect through: choose one on the source's own page. Everything of that source goes through it: the source itself, its streams and its covers.")
-                wrapMode: Text.Wrap
-                color: Theme.inkSecondary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-            }
-            Repeater {
-                model: page.backend.settingsProxies
-                SettingsRow {
-                    required property var model
-                    objectName: "proxyRow_" + model.title
-                    text: model.title
-                    subtitle: model.host + ":" + model.port
-                    onClicked: page.proxyRequested({
-                        proxyId: model.proxyId, name: model.name, kind: model.kind, host: model.host,
-                        port: model.port, username: model.username, password: model.password })
-                }
-            }
-            TextButton {
-                objectName: "addProxy"
-                text: qsTr("Add proxy")
-                onClicked: page.proxyRequested(null)
-            }
-
-            SectionHeading { text: qsTr("Privacy") }
-            RowLayout {
-                Layout.fillWidth: true
-                BodyText { text: qsTr("Send usage statistics to Google Analytics") }
-                Switch {
+            SettingsGroup {
+                title: qsTr("Privacy")
+                SettingSwitch {
                     objectName: "analytics"
+                    title: qsTr("Send usage statistics to Google Analytics")
                     checked: page.screen ? page.screen.analytics : false
-                    onToggled: page.screen.setAnalytics(checked)
+                    onToggled: (checked) => page.screen.setAnalytics(checked)
                 }
             }
 
-            SectionHeading { text: qsTr("Interface scale") }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.padding
-                Slider {
-                    Layout.fillWidth: true
-                    implicitHeight: Theme.touch
-                    from: 0.75
-                    to: 2.5
-                    stepSize: 0.05
-                    value: Theme.scale
-                    onMoved: page.ui.scale = value
-                }
-                BodyText {
-                    Layout.fillWidth: false
-                    text: Theme.scale.toFixed(2) + "×"
-                }
-                TextButton {
-                    text: qsTr("Auto")
-                    enabled: page.ui.scale > 0
-                    onClicked: page.ui.scale = -1
+            SettingsGroup {
+                title: qsTr("Interface")
+                SettingsCell {
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.padding
+                        SettingText { title: qsTr("Scale") }
+                        BodyText {
+                            Layout.fillWidth: false
+                            text: Theme.scale.toFixed(2) + "×"
+                        }
+                        TextButton {
+                            text: qsTr("Auto")
+                            enabled: page.ui.scale > 0
+                            onClicked: page.ui.scale = -1
+                        }
+                    }
+                    AppSlider {
+                        from: 0.75
+                        to: 2.5
+                        stepSize: 0.05
+                        value: Theme.scale
+                        onMoved: page.ui.scale = value
+                    }
                 }
             }
 
-            SectionHeading { text: qsTr("App") }
-            Flow {
-                Layout.fillWidth: true
-                spacing: Theme.spacing
-                TextButton {
+            SettingsGroup {
+                title: qsTr("App")
+                SettingsRow {
                     text: qsTr("Stop and close")
+                    chevron: false
                     onClicked: page.stopRequested()
                 }
-                TextButton {
+                SettingsRow {
                     text: qsTr("Developer tools")
                     onClicked: page.developerRequested()
                 }

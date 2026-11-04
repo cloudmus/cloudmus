@@ -52,6 +52,11 @@ QtObject {
     readonly property int spacing: dp(8)
     readonly property int padding: dp(16)
     readonly property int radius: dp(10)
+    // Settings: a group's outer corners, where its cells meet, and the spaces.
+    readonly property int settingsCellRadius: dp(20)
+    readonly property int settingsCellInnerRadius: dp(4)
+    readonly property int settingsCellGap: dp(2)
+    readonly property int settingsGroupGap: dp(24)
     // Touch targets: 48 dp is the platform's minimum; 56 for the main ones.
     readonly property int touch: dp(48)
     readonly property int touchLarge: dp(56)

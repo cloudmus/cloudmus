@@ -17,7 +17,7 @@ SourceSettingsScreen::SourceSettingsScreen(App::Core& core, SourceSettings& sour
     , core_(core)
     , sourceSettings_(sourceSettings)
     , connectionRows_({ "connectionId", "title", "isCurrent" })
-    , fieldRows_({ "key", "groupTitle", "groupDescription", "label", "description", "type", "value", "isSet", "minimum",
+    , fieldRows_({ "key", "groupTitle", "groupDescription", "isFirst", "isLast", "label", "description", "type", "value", "isSet", "minimum",
           "maximum", "options", "placeholder", "error" })
 {
     Rpc::SourceManager& manager = core_.sourceManager();
@@ -266,10 +266,14 @@ void SourceSettingsScreen::rebuildFields()
         groups.append(group);
     for (const std::optional<SettingsGroup>& group : groups) {
         const QString groupId = group ? group->id : QString();
-        bool first = true;
+        QList<SettingField> fields;
         for (const SettingField& field : fields_.fields) {
-            if (field.group.value_or(QString()) != groupId)
-                continue;
+            if (field.group.value_or(QString()) == groupId)
+                fields.append(field);
+        }
+        for (qsizetype i = 0; i < fields.size(); ++i) {
+            const SettingField& field = fields.at(i);
+            const bool first = i == 0;
             QVariantList options;
             for (const SettingOption& option : field.options.value_or(QList<SettingOption>())) {
                 options.append(QVariantMap {
@@ -281,6 +285,8 @@ void SourceSettingsScreen::rebuildFields()
                 { QStringLiteral("groupTitle"), first && group ? group->title : QString() },
                 { QStringLiteral("groupDescription"),
                     first && group ? group->description.value_or(QString()) : QString() },
+                { QStringLiteral("isFirst"), first },
+                { QStringLiteral("isLast"), i == fields.size() - 1 },
                 { QStringLiteral("label"), field.label },
                 { QStringLiteral("description"), field.description.value_or(QString()) },
                 { QStringLiteral("type"), field.type },
@@ -292,7 +298,6 @@ void SourceSettingsScreen::rebuildFields()
                 { QStringLiteral("placeholder"), field.placeholder.value_or(QString()) },
                 { QStringLiteral("error"), fieldErrors_.value(field.key) },
             });
-            first = false;
         }
     }
     fieldRows_.setRows(rows);

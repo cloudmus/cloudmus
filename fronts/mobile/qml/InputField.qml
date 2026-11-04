@@ -18,7 +18,7 @@ TextField {
     inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
     background: Rectangle {
         radius: Theme.dp(10)
-        color: Theme.surface200
+        color: Theme.surface300
         border.width: field.activeFocus ? Theme.dp(2) : 0
         border.color: Theme.accent
     }

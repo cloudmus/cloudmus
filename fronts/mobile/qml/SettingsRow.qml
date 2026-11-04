@@ -3,26 +3,33 @@ import QtQuick.Controls.Basic
 import QtQuick.Controls.impl
 import QtQuick.Layouts
 
-// A line that leads to a page of its own: a source, a proxy.
+// A cell of a SettingsGroup that leads somewhere or does something.
 AbstractButton {
     id: row
 
     property string iconSource
     property string subtitle
+    property bool chevron: true
+    property bool roundTop: true
+    property bool roundBottom: true
 
     Layout.fillWidth: true
-    implicitHeight: Math.max(Theme.touch, content.implicitHeight + Theme.dp(12))
+    implicitHeight: Math.max(Theme.touchLarge, content.implicitHeight + Theme.padding * 1.5)
+    leftPadding: Theme.padding
+    rightPadding: Theme.padding
     focusPolicy: Qt.NoFocus
 
     background: Rectangle {
-        radius: Theme.dp(10)
-        color: row.down ? Theme.surface400 : Theme.surface200
+        color: row.down ? Theme.surface300 : Theme.surface200
+        topLeftRadius: row.roundTop ? Theme.settingsCellRadius : Theme.settingsCellInnerRadius
+        topRightRadius: topLeftRadius
+        bottomLeftRadius: row.roundBottom ? Theme.settingsCellRadius : Theme.settingsCellInnerRadius
+        bottomRightRadius: bottomLeftRadius
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
     }
     contentItem: RowLayout {
         id: content
         spacing: Theme.padding
-        Item { Layout.preferredWidth: Theme.dp(2) }
         IconImage {
             visible: row.iconSource !== ""
             source: row.iconSource
@@ -31,21 +38,9 @@ AbstractButton {
             Layout.preferredWidth: Theme.dp(24)
             Layout.preferredHeight: Theme.dp(24)
         }
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 0
-            BodyText { text: row.text; maximumLineCount: 1; elide: Text.ElideRight }
-            Text {
-                Layout.fillWidth: true
-                visible: text !== ""
-                text: row.subtitle
-                elide: Text.ElideRight
-                color: Theme.inkSecondary
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-            }
-        }
+        SettingText { title: row.text; description: row.subtitle }
         IconImage {
+            visible: row.chevron
             source: "qrc:/icons/chevron_right.svg"
             sourceSize: Qt.size(Theme.dp(22), Theme.dp(22))
             color: Theme.inkTertiary
