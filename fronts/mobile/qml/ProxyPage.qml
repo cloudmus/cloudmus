@@ -6,6 +6,7 @@ import QtQuick.Layouts
 // is of no use to the sources going through it, and they restart for a change.
 Page {
     id: page
+    bottomPadding: Theme.insetBottom
 
     property QtObject backend
     property QtObject platform

@@ -6,6 +6,7 @@ import QtQuick.Layouts
 // them, saving it, a star for the favorites, a filter.
 Page {
     id: page
+    bottomPadding: Theme.insetBottom
 
     property QtObject backend
     property QtObject platform
@@ -104,6 +105,9 @@ Page {
             implicitHeight: Theme.barHeight
             color: Theme.surface100
             TextField {
+                selectionColor: Theme.accent
+                selectedTextColor: Theme.inkOnAccent
+                cursorDelegate: TextCursor { }
                 id: filter
                 objectName: "filter"
                 anchors.fill: parent

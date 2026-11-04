@@ -23,6 +23,29 @@ public final class UiBridge {
         }
     }
 
+    // The theme in the views, for the system's part of it.
+    public static void setAppearance(Context context, String scheme, String dark, String barColor, String backColor) {
+        if (!(context instanceof android.app.Activity))
+            return;
+        android.app.Activity activity = (android.app.Activity) context;
+        activity.runOnUiThread(() -> Appearance.apply(activity, scheme, !dark.isEmpty(), barColor, backColor));
+    }
+
+    // "<top> <left> <right> <bottom>" in pixels: what the system's bars cover.
+    public static String windowInsets(Context context) {
+        return Appearance.insets();
+    }
+
+    private static native void nativeInsetsChanged();
+
+    static void insetsChanged() {
+        try {
+            nativeInsetsChanged();
+        } catch (UnsatisfiedLinkError notLoadedYet) {
+            // Qt's still loading: Platform asks for them when it comes up.
+        }
+    }
+
     // Non-empty with a screen reader (TalkBack and the like) on.
     public static String screenReaderOn(Context context) {
         android.view.accessibility.AccessibilityManager manager

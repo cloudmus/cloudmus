@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 // The track that plays, big: cover, title, position and the transport.
 // Landscape (a head unit) puts the cover left of the controls, portrait (a
-// phone) above them. Closed with the arrow, Back, or a swipe down.
+// phone) above them. Closed with the arrow, Back, or a swipe down (Main.qml moves it).
 Page {
     id: page
 
@@ -14,6 +14,9 @@ Page {
     readonly property bool wide: width > height * 1.1
     signal closeRequested()
     signal trackMenuRequested()
+    // A finger pushing it down, by so much; let go, at that speed.
+    signal pushed(real distance)
+    signal pushEnded(real velocity)
 
     background: AuraBackground {
         objectName: "nowPlayingAura"
@@ -52,22 +55,31 @@ Page {
         }
     }
 
-    // A swipe down closes the page, following the finger until let go.
+    // A swipe down closes the page, following the finger until let go. As the
+    // finger lifts the handler zeroes its translation first, then says it's over:
+    // that zero isn't a move, and the speed is the last one a move had.
     DragHandler {
         id: swipe
         target: null
         xAxis.enabled: false
-        onActiveChanged: {
-            if (!active && translation.y > page.height * 0.18)
-                page.closeRequested()
+        property real velocity: 0
+        property double movedAt: 0
+        onActiveTranslationChanged: {
+            if (!active || activeTranslation.y === 0)
+                return
+            velocity = centroid.velocity.y
+            movedAt = Date.now()
+            page.pushed(Math.max(0, activeTranslation.y))
         }
+        // A finger that stopped before lifting hasn't thrown anything.
+        onActiveChanged: if (!active) page.pushEnded(Date.now() - movedAt < 100 ? velocity : 0)
     }
-    transform: Translate { y: swipe.active ? Math.max(0, swipe.translation.y) : 0 }
 
     TrackPanel {
         anchors.fill: parent
         anchors.margins: Theme.padding * 1.5
         anchors.topMargin: Theme.padding / 2
+        anchors.bottomMargin: Theme.padding * 1.5 + Theme.insetBottom
         nowPlaying: page.nowPlaying
         sideBySide: page.wide
         overAura: true

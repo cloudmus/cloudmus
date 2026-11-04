@@ -7,6 +7,7 @@ import Cloudmus.Mobile
 // lines at the bottom, followed until scrolled up.
 Page {
     id: page
+    bottomPadding: Theme.insetBottom
 
     property QtObject backend
     property QtObject platform
@@ -108,6 +109,9 @@ Page {
             }
 
             TextField {
+                selectionColor: Theme.accent
+                selectedTextColor: Theme.inkOnAccent
+                cursorDelegate: TextCursor { }
                 id: search
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.padding

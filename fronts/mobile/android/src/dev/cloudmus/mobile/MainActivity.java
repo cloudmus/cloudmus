@@ -19,6 +19,7 @@ public class MainActivity extends QtActivity {
         CmLog.i(TAG, "onCreate, intent " + getIntent());
         UiBridge.pythonProbeRequested = getIntent().getBooleanExtra("pythonProbe", false);
         super.onCreate(savedInstanceState);
+        Appearance.setUp(this);
         preferFastestRefreshRate();
         hideFromOtherAccessibility();
         // Shared Download/Cloudmus is a plain folder up to Android 10.

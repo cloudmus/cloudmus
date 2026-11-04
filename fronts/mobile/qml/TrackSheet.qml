@@ -19,8 +19,10 @@ Popup {
     modal: true
     dim: true
     padding: 0
+    bottomPadding: Theme.insetBottom
+    topPadding: wide ? Theme.insetTop : 0
     width: wide ? Math.min(parent.width * 0.5, Theme.dp(460)) : parent.width
-    height: wide ? parent.height : Math.min(parent.height * 0.86, content.implicitHeight + Theme.padding * 2)
+    height: wide ? parent.height : Math.min(parent.height * 0.86, content.implicitHeight + Theme.padding * 2 + Theme.insetBottom)
     // Slid out by this share of its size. Not x and y themselves: an animation
     // would replace their bindings, and the sheet's height comes in later.
     property real slide: 1

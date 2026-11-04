@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">#FF6A45</color>
+    <color name="surface0">#14100D</color>
+    <color name="surface100">#1C1714</color>
+    <bool name="lightBars">false</bool>
+</resources>

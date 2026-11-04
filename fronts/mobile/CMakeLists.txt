@@ -218,6 +218,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/SettingsPage.qml
         qml/ShadowText.qml
         qml/TextButton.qml
+        qml/TextCursor.qml
         qml/Theme.qml
         qml/Toast.qml
     SOURCES
@@ -301,14 +302,37 @@ if(ANDROID)
         endforeach()
     endif()
 
+    # From the release tags, as the desktop's version is (fronts/qt/cmake/Version.cmake):
+    # "0.6.4" on one, "0.6.4-163-geaef2c2" after it. The code only has to grow,
+    # or Android won't take the update: x.y.z, then the commits since (a thousand
+    # is more than there are between two releases).
+    find_package(Git QUIET)
+    set(CLOUDMUS_APK_VERSION ${PROJECT_VERSION})
+    set(CLOUDMUS_APK_VERSION_CODE 1)
+    if(GIT_FOUND)
+        execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "[0-9]*"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE _described
+            OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+        if(_described MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-([0-9]+)-g)?")
+            set(CLOUDMUS_APK_VERSION ${_described})
+            set(_commits 0)
+            if(CMAKE_MATCH_5)
+                set(_commits ${CMAKE_MATCH_5})
+            endif()
+            math(EXPR CLOUDMUS_APK_VERSION_CODE
+                "${CMAKE_MATCH_1} * 10000000 + ${CMAKE_MATCH_2} * 100000 + ${CMAKE_MATCH_3} * 1000 + ${_commits}")
+        endif()
+    endif()
+    message(STATUS "APK version ${CLOUDMUS_APK_VERSION}, code ${CLOUDMUS_APK_VERSION_CODE}")
+
     add_dependencies(cloudmus-mobile cloudmus-mobile-service)
     set_target_properties(cloudmus-mobile PROPERTIES
         QT_ANDROID_PACKAGE_SOURCE_DIR ${_package}
         QT_ANDROID_EXTRA_LIBS "$<TARGET_FILE:cloudmus-mobile-service>;${_mpv_libs}"
         QT_ANDROID_MIN_SDK_VERSION 26
         QT_ANDROID_TARGET_SDK_VERSION 34
-        QT_ANDROID_VERSION_NAME ${PROJECT_VERSION}
-        QT_ANDROID_VERSION_CODE 1
+        QT_ANDROID_VERSION_NAME ${CLOUDMUS_APK_VERSION}
+        QT_ANDROID_VERSION_CODE ${CLOUDMUS_APK_VERSION_CODE}
     )
 endif()
 

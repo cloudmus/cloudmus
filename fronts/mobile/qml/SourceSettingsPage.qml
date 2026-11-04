@@ -5,6 +5,7 @@ import QtQuick.Layouts
 // What's set about one source; signing in to it is in the Library.
 Page {
     id: page
+    bottomPadding: Theme.insetBottom
 
     property QtObject backend
     property QtObject platform

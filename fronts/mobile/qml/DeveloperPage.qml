@@ -7,6 +7,7 @@ import Cloudmus.Mobile
 // page, "Startup"), what's learned about a head unit, scrolling and drawing.
 Page {
     id: page
+    bottomPadding: Theme.insetBottom
 
     property QtObject backend
     property QtObject platform

@@ -64,6 +64,12 @@ QtObject {
     readonly property int touchLarge: dp(56)
     readonly property int rowHeight: dp(64)
     readonly property int barHeight: dp(56)
+    // What the status bar covers at the top: nothing goes under that one.
+    property int insetTop: 0
+    // What the system's navigation bar covers at the bottom: the window goes on
+    // under it, for the generated background to reach the screen's edge, and
+    // what's to be read or pressed keeps clear of it. Set by Main.qml.
+    property int insetBottom: 0
 
     // Fling physics (ScrollList): Qt's defaults (2500, 1500) cut a fast
     // swipe short and stop it hard. These felt native on a Pixel 7; still

@@ -15,7 +15,7 @@ Rectangle {
 
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.bottom: parent.bottom
-    anchors.bottomMargin: Theme.dp(96)
+    anchors.bottomMargin: Theme.dp(96) + Theme.insetBottom
     width: Math.min(parent.width - Theme.padding * 2, label.implicitWidth + Theme.padding * 2)
     height: label.implicitHeight + Theme.dp(20)
     radius: Theme.radius

@@ -39,6 +39,19 @@ ApplicationWindow {
         value: uiSettings.colorScheme === "auto" ? Qt.styleHints.colorScheme !== Qt.ColorScheme.Light
                                                  : uiSettings.colorScheme === "dark"
     }
+    Binding { target: Theme; property: "insetTop"; value: Math.round(window.platform.insetTop / Screen.devicePixelRatio) }
+    Binding { target: Theme; property: "insetBottom"; value: Math.round(window.platform.insetBottom / Screen.devicePixelRatio) }
+    function applyAppearance() {
+        window.platform.setAppearance(uiSettings.colorScheme, Theme.dark, Theme.surface100.toString(), Theme.surface0.toString())
+    }
+    Connections {
+        target: Theme
+        function onDarkChanged() { window.applyAppearance() }
+    }
+    Connections {
+        target: uiSettings
+        function onColorSchemeChanged() { window.applyAppearance() }
+    }
     Binding { target: Theme; property: "flickMaxVelocityBase"; value: uiSettings.flickMaxVelocity }
     Binding { target: Theme; property: "flickDecelerationBase"; value: uiSettings.flickDeceleration }
 
@@ -67,20 +80,23 @@ ApplicationWindow {
         function onReadyChanged() { if (window.backend.ready) window.coreSeen = true }
     }
 
-    // Page transitions differ per page: Now Playing rises from the mini
-    // player over a receding playlist, the others slide in from the side.
-    property string transitionKind: "rise"
-
     StackView {
         id: stack
         objectName: "stack"
         anchors.fill: parent
+        // A bar on the side, on a phone on its side: only the bottom is drawn under.
+        anchors.topMargin: Theme.insetTop
+        anchors.leftMargin: Math.round(window.platform.insetLeft / Screen.devicePixelRatio)
+        anchors.rightMargin: Math.round(window.platform.insetRight / Screen.devicePixelRatio)
         visible: window.backend.ready
         initialItem: mainPage
+        // Receding as Now Playing comes up, and not drawn at all under it.
+        scale: 1 - 0.06 * nowPlayingSheet.progress
+        opacity: nowPlayingSheet.progress >= 1 ? 0 : 1 - 0.6 * nowPlayingSheet.progress
 
+        // Opaque all the way: fading in, a page let the one below show through.
         pushEnter: Transition {
-            NumberAnimation { property: window.transitionKind === "rise" ? "y" : "x"; from: window.transitionKind === "rise" ? stack.height : stack.width; to: 0; duration: Theme.durationPage; easing.type: Easing.OutCubic }
-            NumberAnimation { property: "opacity"; from: 0.6; to: 1; duration: Theme.durationPage }
+            NumberAnimation { property: "x"; from: stack.width; to: 0; duration: Theme.durationPage; easing.type: Easing.OutCubic }
         }
         pushExit: Transition {
             NumberAnimation { property: "scale"; from: 1; to: 0.94; duration: Theme.durationPage; easing.type: Easing.OutCubic }
@@ -91,25 +107,28 @@ ApplicationWindow {
             NumberAnimation { property: "opacity"; from: 0.4; to: 1; duration: Theme.durationPage }
         }
         popExit: Transition {
-            NumberAnimation { property: window.transitionKind === "rise" ? "y" : "x"; from: 0; to: window.transitionKind === "rise" ? stack.height : stack.width; duration: Theme.durationPage; easing.type: Easing.InCubic }
+            NumberAnimation { property: "x"; from: 0; to: stack.width; duration: Theme.durationPage; easing.type: Easing.InCubic }
         }
 
-        function open(component, kind, properties) {
-            window.transitionKind = kind
+        function open(component, properties) {
             push(component, Object.assign({ backend: window.backend, platform: window.platform }, properties))
         }
         function close() {
-            if (depth > 1) {
-                window.transitionKind = currentItem.objectName === "nowPlaying" ? "rise" : "slide"
+            if (depth > 1)
                 pop()
-            }
         }
 
-        Keys.onBackPressed: (event) => {
-            event.accepted = depth > 1
-            close()
+        function goBack() {
+            if (nowPlayingSheet.shown)
+                nowPlayingSheet.close()
+            else
+                close()
         }
-        Keys.onEscapePressed: close()
+        Keys.onBackPressed: (event) => {
+            event.accepted = depth > 1 || nowPlayingSheet.shown
+            goBack()
+        }
+        Keys.onEscapePressed: goBack()
         focus: true
     }
 
@@ -118,12 +137,14 @@ ApplicationWindow {
         MainPage {
             objectName: "playlist"
             backend: window.backend
-            onNowPlayingRequested: stack.open(nowPlayingPage, "rise")
-            onSettingsRequested: stack.open(settingsPage, "slide")
+            onNowPlayingRequested: nowPlayingSheet.open()
+            onNowPlayingPulled: (distance) => nowPlayingSheet.follow(distance / nowPlayingSheet.height)
+            onNowPlayingPullEnded: (velocity) => nowPlayingSheet.settleAfterPull(velocity)
+            onSettingsRequested: stack.open(settingsPage)
             onLibraryRequested: {
                 if (window.backend.library)
                     window.backend.library.selectActiveSource()
-                stack.open(libraryPage, "slide")
+                stack.open(libraryPage)
             }
             onTrackMenuRequested: trackSheet.open()
         }
@@ -133,9 +154,9 @@ ApplicationWindow {
         LibraryPage {
             objectName: "library"
             onCloseRequested: stack.close()
-            onSettingsRequested: stack.open(settingsPage, "slide")
-            onPlaylistRequested: stack.open(playlistPage, "slide")
-            onDownloadsRequested: stack.open(downloadsPage, "slide")
+            onSettingsRequested: stack.open(settingsPage)
+            onPlaylistRequested: stack.open(playlistPage)
+            onDownloadsRequested: stack.open(downloadsPage)
         }
     }
     Component {
@@ -173,6 +194,75 @@ ApplicationWindow {
                             Math.round(Theme.dp(45) * Screen.devicePixelRatio))
             : ""
     }
+    // Now Playing, on a phone: a layer over the pages rather than one of them, as
+    // it follows the finger both ways, from the mini player and back down.
+    Item {
+        id: nowPlayingSheet
+        objectName: "nowPlayingSheet"
+        anchors.fill: stack
+        visible: progress > 0 || settling.running
+
+        // How much of it is up: 0 to 1, so that it stays right as the screen turns.
+        property real progress: 0
+        readonly property bool shown: progress > 0
+        // Kept once made: making it under a finger costs a frame or two.
+        property bool wanted: false
+        // Far enough, or thrown: the rest of the way. Otherwise back.
+        readonly property real settleShare: 0.18
+        readonly property real settleVelocity: Theme.dp(600)
+
+        function open() {
+            settling.to = 1
+            settling.restart()
+            // Up already as it's made: its background is only drawn when visible.
+            wanted = true
+        }
+        function close() {
+            settling.to = 0
+            settling.restart()
+        }
+        function follow(share) {
+            settling.stop()
+            progress = Math.max(0, Math.min(1, share))
+            wanted = true
+        }
+        function settleAfterPull(velocity) {
+            if (progress > settleShare || velocity > settleVelocity)
+                open()
+            else
+                close()
+        }
+        function settleAfterPush(velocity) {
+            if (1 - progress > settleShare || velocity > settleVelocity)
+                close()
+            else
+                open()
+        }
+
+        NumberAnimation {
+            id: settling
+            target: nowPlayingSheet
+            property: "progress"
+            duration: Theme.durationPage
+            easing.type: Easing.OutCubic
+        }
+        Loader {
+            width: parent.width
+            height: parent.height
+            y: parent.height * (1 - parent.progress)
+            active: parent.wanted
+            sourceComponent: NowPlayingPage {
+                objectName: "nowPlaying"
+                backend: window.backend
+                platform: window.platform
+                onCloseRequested: nowPlayingSheet.close()
+                onTrackMenuRequested: trackSheet.open()
+                onPushed: (distance) => nowPlayingSheet.follow(1 - distance / nowPlayingSheet.height)
+                onPushEnded: (velocity) => nowPlayingSheet.settleAfterPush(velocity)
+            }
+        }
+    }
+
     TrackSheet {
         id: trackSheet
         objectName: "trackSheet"
@@ -196,16 +286,8 @@ ApplicationWindow {
         target: window.backend.library
         ignoreUnknownSignals: true
         function onActivated() {
-            window.transitionKind = "slide"
+            nowPlayingSheet.close()
             stack.pop(null)
-        }
-    }
-    Component {
-        id: nowPlayingPage
-        NowPlayingPage {
-            objectName: "nowPlaying"
-            onCloseRequested: stack.close()
-            onTrackMenuRequested: trackSheet.open()
         }
     }
     Component {
@@ -214,12 +296,12 @@ ApplicationWindow {
             objectName: "settings"
             ui: uiSettings
             onCloseRequested: stack.close()
-            onDeveloperRequested: stack.open(developerPage, "slide")
+            onDeveloperRequested: stack.open(developerPage)
             onSourceRequested: (sourceId) => {
                 window.backend.sourceSettings.open(sourceId)
-                stack.open(sourceSettingsPage, "slide")
+                stack.open(sourceSettingsPage)
             }
-            onProxyRequested: (proxy) => stack.open(proxyPage, "slide", proxy)
+            onProxyRequested: (proxy) => stack.open(proxyPage, proxy)
             onStopRequested: window.stopAndQuit()
         }
     }
@@ -243,7 +325,7 @@ ApplicationWindow {
             objectName: "developer"
             ui: uiSettings
             onCloseRequested: stack.close()
-            onLogRequested: stack.open(logPage, "slide")
+            onLogRequested: stack.open(logPage)
         }
     }
     Component {
@@ -283,7 +365,10 @@ ApplicationWindow {
         visible: uiSettings.showFps
     }
 
-    Component.onCompleted: frameMark.enabled = true
+    Component.onCompleted: {
+        frameMark.enabled = true
+        applyAppearance()
+    }
     Connections {
         id: frameMark
         enabled: false

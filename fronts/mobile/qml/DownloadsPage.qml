@@ -6,6 +6,7 @@ import QtQuick.Layouts
 // until asked for, as on the desktop.
 Page {
     id: page
+    bottomPadding: Theme.insetBottom
 
     property QtObject backend
     property QtObject platform

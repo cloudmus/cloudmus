@@ -7,6 +7,7 @@ import Cloudmus.Mobile
 // further, on DeveloperPage.
 Page {
     id: page
+    bottomPadding: Theme.insetBottom
 
     property QtObject backend
     property QtObject platform

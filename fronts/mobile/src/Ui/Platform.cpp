@@ -10,6 +10,8 @@
 #include <QQuickWindow>
 #include <QScreen>
 #include <QStringList>
+
+#include <atomic>
 #include <QSysInfo>
 #include <QThread>
 #include <QTimer>
@@ -31,6 +33,9 @@ namespace {
 Q_LOGGING_CATEGORY(lcPlatform, "cloudmus.ui.platform")
 
 #ifdef Q_OS_ANDROID
+// The one there is, for what Android calls with nothing to go by.
+std::atomic<Platform*> instance { nullptr };
+
 QString bridgeString(const char* method)
 {
     return QJniObject::callStaticMethod<jstring>(
@@ -48,6 +53,8 @@ Platform::Platform(QString logDirectory, QObject* parent)
 #ifdef Q_OS_ANDROID
     if (!bridgeString("takePythonProbeRequest").isEmpty())
         QTimer::singleShot(0, this, &Platform::runPythonProbe);
+    instance = this;
+    readInsets();
 #endif
 }
 
@@ -55,6 +62,9 @@ Platform::Platform(QString logDirectory, QObject* parent)
 // destroying a running thread.
 Platform::~Platform()
 {
+#ifdef Q_OS_ANDROID
+    instance = nullptr;
+#endif
     if (exportThread_)
         exportThread_->wait();
 }
@@ -263,6 +273,37 @@ void Platform::markFirstFrame(QObject* window) const
                                  << ", device pixel ratio " << quickWindow->devicePixelRatio();
 }
 
+void Platform::setAppearance(
+    const QString& scheme, bool dark, const QString& barColor, const QString& backColor) const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("dev/cloudmus/mobile/UiBridge", "setAppearance",
+        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+        QNativeInterface::QAndroidApplication::context().object(), QJniObject::fromString(scheme).object<jstring>(),
+        QJniObject::fromString(dark ? QStringLiteral("yes") : QString()).object<jstring>(),
+        QJniObject::fromString(barColor).object<jstring>(), QJniObject::fromString(backColor).object<jstring>());
+#else
+    Q_UNUSED(scheme)
+    Q_UNUSED(dark)
+    Q_UNUSED(barColor)
+    Q_UNUSED(backColor)
+#endif
+}
+
+void Platform::readInsets()
+{
+#ifdef Q_OS_ANDROID
+    const QStringList parts = bridgeString("windowInsets").split(QLatin1Char(' '));
+    if (parts.size() != 4)
+        return;
+    insetTop_ = parts.at(0).toInt();
+    insetLeft_ = parts.at(1).toInt();
+    insetRight_ = parts.at(2).toInt();
+    insetBottom_ = parts.at(3).toInt();
+    emit insetsChanged();
+#endif
+}
+
 void Platform::startService()
 {
 #ifdef Q_OS_ANDROID
@@ -272,3 +313,12 @@ void Platform::startService()
 }
 
 } // namespace Ui
+
+#ifdef Q_OS_ANDROID
+// From Android's main thread; the views' is another one.
+extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_UiBridge_nativeInsetsChanged(JNIEnv*, jclass)
+{
+    if (Ui::Platform* platform = Ui::instance.load())
+        QMetaObject::invokeMethod(platform, &Ui::Platform::readInsets, Qt::QueuedConnection);
+}
+#endif

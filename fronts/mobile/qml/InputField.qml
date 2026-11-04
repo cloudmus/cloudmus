@@ -12,6 +12,9 @@ TextField {
     leftPadding: Theme.padding
     rightPadding: Theme.padding
     placeholderTextColor: Theme.inkTertiary
+    selectionColor: Theme.accent
+    selectedTextColor: Theme.inkOnAccent
+    cursorDelegate: TextCursor { }
     color: Theme.ink
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontBody

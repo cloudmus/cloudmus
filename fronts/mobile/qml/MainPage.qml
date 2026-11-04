@@ -14,6 +14,8 @@ Page {
 
     property QtObject backend
     signal nowPlayingRequested()
+    signal nowPlayingPulled(real distance)
+    signal nowPlayingPullEnded(real velocity)
     signal settingsRequested()
     signal libraryRequested()
     signal trackMenuRequested()
@@ -149,12 +151,12 @@ Page {
                 x: page._heroMargin + (page._railWidth - page._heroMargin) * page.screenProgress
                 y: page._heroMargin + (sourceBar.height + Theme.dp(10)) * (1 - page._panelRisen)
                 width: parent.width - x - page._heroMargin
-                height: parent.height - y - page._heroMargin
+                height: parent.height - y - page._heroMargin - Theme.insetBottom
                 progress: page.screenProgress
                 // A phone on its side.
                 compact: page.height < Theme.dp(460)
                 // As large as it gets, beside the rest.
-                coverMaxSide: (page.height - page._heroMargin * 2) * sideCoverHeightShare
+                coverMaxSide: (page.height - page._heroMargin * 2 - Theme.insetBottom) * sideCoverHeightShare
                 // In the row with the source's button, until that folds away.
                 modesElsewhere: 1 - page._barFolded
                 sideCoverShare: 1
@@ -327,6 +329,9 @@ Page {
                 color: Theme.surface100
             }
             TextField {
+                selectionColor: Theme.accent
+                selectedTextColor: Theme.inkOnAccent
+                cursorDelegate: TextCursor { }
                 id: filterField
                 objectName: "mainFilter"
                 parent: page.wide ? filterInBar : filterUnderBar
@@ -358,6 +363,8 @@ Page {
                     objectName: "mainList"
                     width: page.wide ? page._listFullWidth : parent.width
                     height: parent.height
+                    // With the mini player below, it's that keeps clear of the bar.
+                    bottomMargin: mini.visible ? 0 : Theme.insetBottom
                     model: page.backend.tracks
                     delegate: TrackRow {
                         playing: page.nowPlaying && page.nowPlaying.playing === true
@@ -408,5 +415,7 @@ Page {
         seed: page.backgroundSeed
         visible: !page.wide && page.hasTrack
         onOpenRequested: page.nowPlayingRequested()
+        onPulled: (distance) => page.nowPlayingPulled(distance)
+        onPullEnded: (velocity) => page.nowPlayingPullEnded(velocity)
     }
 }

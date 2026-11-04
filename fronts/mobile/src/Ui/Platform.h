@@ -18,6 +18,11 @@ class Platform : public QObject {
     Q_PROPERTY(QString publicLogDirectory READ publicLogDirectory CONSTANT)
     Q_PROPERTY(QString deviceInfo READ deviceInfo CONSTANT)
     Q_PROPERTY(bool android READ android CONSTANT)
+    // What the system's bars cover of the window, in pixels.
+    Q_PROPERTY(int insetTop READ insetTop NOTIFY insetsChanged)
+    Q_PROPERTY(int insetLeft READ insetLeft NOTIFY insetsChanged)
+    Q_PROPERTY(int insetRight READ insetRight NOTIFY insetsChanged)
+    Q_PROPERTY(int insetBottom READ insetBottom NOTIFY insetsChanged)
     // exportSystemApps() under way, and how far: 0..1, -1 while it's still
     // counting what to copy; the package being copied.
     Q_PROPERTY(bool exportingApps READ exportingApps NOTIFY exportProgressChanged)
@@ -32,6 +37,16 @@ public:
     QString publicLogDirectory() const;
     QString deviceInfo() const;
     bool android() const;
+    int insetTop() const { return insetTop_; }
+    int insetLeft() const { return insetLeft_; }
+    int insetRight() const { return insetRight_; }
+    int insetBottom() const { return insetBottom_; }
+    // The theme for what's the system's to draw: the bars, the first frame of a
+    // start. `scheme`: "auto", "light" or "dark"; `dark`: what that comes to.
+    Q_INVOKABLE void setAppearance(
+        const QString& scheme, bool dark, const QString& barColor, const QString& backColor) const;
+    // Android told of new insets: from its thread.
+    void readInsets();
 
     // Packs the log into a zip a file manager can reach; what to tell the
     // user (where it went, or what went wrong).
@@ -63,6 +78,7 @@ public:
     static void limitAccessibility();
 
 signals:
+    void insetsChanged();
     void exportProgressChanged();
     // What to tell the user: where the zip went, or what went wrong.
     void systemAppsExported(const QString& result);
@@ -72,6 +88,10 @@ private:
     void pollExportProgress();
 
     QString logDirectory_;
+    int insetTop_ = 0;
+    int insetLeft_ = 0;
+    int insetRight_ = 0;
+    int insetBottom_ = 0;
     QThread* exportThread_ = nullptr;
     QTimer* exportPoll_ = nullptr;
     double exportFraction_ = -1;

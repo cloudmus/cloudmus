@@ -65,7 +65,8 @@ NDK r26b (`ndk/26.1.10909125`) and JDK 17 (`CLOUDMUS_JAVA17_HOME`).
 ```
 
 The script downloads the prebuilt libmpv (`dev.jdtech.mpv:libmpv` AAR,
-mpv 0.39) and signs with a dev key. Your head unit's ABI:
+mpv 0.39) and signs with a dev key, unless given another (see the script). CI
+builds and publishes the arm64 APK with the other platforms (`docs/releasing.md`). Your head unit's ABI:
 `adb shell getprop ro.product.cpu.abilist`.
 
 ## On a device
@@ -88,6 +89,11 @@ adb logcat -s CloudmusStart             # startup milestones
   (it goes on when there's room), and neither are covers saved or Python
   unpacked. A warning icon on the main screen leads to Settings, which says why.
   Other writers are bounded: logs, the covers' caches.
+- The window goes on under the system's navigation bar, which is see-through, so
+  the generated background reaches the screen's edge; `Theme.insetBottom` is what
+  the bar covers, and what's to be read or pressed keeps clear of it. Now Playing,
+  on a phone, is a layer over the pages (Main.qml) that follows the finger: up
+  from the mini player, down from itself.
 - Settings apply at once. A source's page (whether it runs, its connection and
   its own settings) restarts the source when a change takes that; opening it
   starts a source left unstarted for wanting a sign-in. There's no language

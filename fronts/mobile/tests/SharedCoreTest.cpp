@@ -513,6 +513,106 @@ private slots:
         QTRY_VERIFY(core.core().settings().proxies().isEmpty());
     }
 
+    // On a phone Now Playing follows the finger: up from the mini player, down
+    // from itself, staying where a short swipe leaves it.
+    void nowPlayingFollowsTheFinger()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(420, 860);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* sheet = window->findChild<QQuickItem*>("nowPlayingSheet");
+        QVERIFY(sheet);
+        QTRY_VERIFY(window->findChild<QQuickItem*>("miniTitle") != nullptr);
+        QTRY_VERIFY(window->findChild<QQuickItem*>("miniTitle")->isVisible());
+        const auto progress = [&] { return sheet->property("progress").toReal(); };
+        // Slowly, so that it's the distance that counts.
+        const auto drag = [&](int x, int fromY, int toY, bool release) {
+            QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, QPoint(x, fromY));
+            const int steps = 12;
+            for (int i = 1; i <= steps; ++i) {
+                QTest::qWait(30);
+                QTest::mouseMove(window, QPoint(x, fromY + (toY - fromY) * i / steps));
+            }
+            QTest::qWait(250);
+            QTest::mouseMove(window, QPoint(x, toY));
+            if (release)
+                QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, QPoint(x, toY));
+        };
+        const int miniY = 860 - 36;
+        const int titleX = 200;
+
+        // Follows, then falls back from a short pull.
+        drag(titleX, miniY, miniY - 100, false);
+        QVERIFY(progress() > 0.05 && progress() < 0.2);
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, QPoint(titleX, miniY - 100));
+        QTRY_COMPARE(progress(), 0.0);
+
+        // The rest of the way from a long one.
+        drag(titleX, miniY, miniY - 300, true);
+        QTRY_COMPARE(progress(), 1.0);
+        auto* page = window->findChild<QQuickItem*>("nowPlaying");
+        QVERIFY(page);
+
+        // Down from the top of it: a short push goes back up...
+        drag(210, 100, 180, true);
+        QTRY_COMPARE(progress(), 1.0);
+        // ...and a long one closes it.
+        drag(210, 100, 400, true);
+        QTRY_COMPARE(progress(), 0.0);
+    }
+
+    // The mini player in the light theme: its background comes in, and the
+    // text on it can be read.
+    void miniPlayerInTheLightTheme()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
+        QVERIFY(theme->setProperty("dark", false));
+        window->resize(420, 860);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        // A bar over the bottom: the background goes under it, the rest not.
+        QVERIFY(theme->setProperty("insetBottom", 40));
+        auto* mini = findItem(window->contentItem(), QStringLiteral("miniTitle"));
+        QVERIFY(mini != nullptr);
+        QTRY_VERIFY(mini->mapRectToScene(mini->boundingRect()).bottom() <= window->height() - 40);
+        QTest::qWait(1500);
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        if (!shots.isEmpty())
+            window->grabWindow().save(shots + QStringLiteral("/mini-light.png"));
+        QVERIFY(theme->setProperty("insetBottom", 0));
+        QVERIFY(theme->setProperty("dark", true));
+    }
+
     // The same seed gives the same picture, another seed another, opaque
     // edge to edge, at the size asked for.
     void auraDependsOnTheSeed()
@@ -1776,10 +1876,12 @@ private slots:
             if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty())
                 window->grabWindow().save(QStringLiteral("%1/%2-nowplaying-first-frame.png").arg(dir, QTest::currentDataTag()));
         }
-        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        auto* nowPlayingSheet = window->findChild<QQuickItem*>("nowPlayingSheet");
+        QVERIFY(nowPlayingSheet);
+        QTRY_COMPARE(nowPlayingSheet->property("progress").toReal(), 1.0);
         shot("nowplaying");
-        QMetaObject::invokeMethod(stack, "close");
-        QTRY_COMPARE(stack->property("depth").toInt(), 1);
+        QMetaObject::invokeMethod(nowPlayingSheet, "close");
+        QTRY_COMPARE(nowPlayingSheet->property("progress").toReal(), 0.0);
 
         // A playlist's page, and the sheet of a track from it.
         QMetaObject::invokeMethod(playlist, "libraryRequested");
