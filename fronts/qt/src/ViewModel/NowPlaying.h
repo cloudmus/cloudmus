@@ -66,6 +66,8 @@ class NowPlaying : public QObject {
     Q_PROPERTY(QString webUrl READ webUrl NOTIFY webUrlChanged)
     Q_PROPERTY(bool shuffle READ shuffle WRITE setShuffle NOTIFY shuffleChanged)
     Q_PROPERTY(bool radio READ isRadio NOTIFY radioChanged)
+    // Playback::RepeatMode, as an int for a replica.
+    Q_PROPERTY(int repeat READ repeat NOTIFY repeatChanged)
     Q_PROPERTY(bool liked READ liked NOTIFY likedChanged)
     Q_PROPERTY(bool likeSupported READ likeSupported NOTIFY likeSupportedChanged)
     Q_PROPERTY(bool disliked READ disliked NOTIFY dislikedChanged)
@@ -127,6 +129,9 @@ public:
     bool isRadio() const;
     void setShuffle(bool on);
     void setRepeatMode(Playback::RepeatMode mode);
+    int repeat() const { return int(repeatMode()); }
+    // What the repeat button goes to next: a radio has no list to repeat.
+    static Playback::RepeatMode nextRepeatMode(Playback::RepeatMode mode, bool radio);
 
     // --- what can be done about the track. `…Supported` is what its
     // source declares; `…Busy` is a request in flight — while it is,
@@ -167,6 +172,9 @@ public slots:
     void seek(qint64 positionMs);
     void setLiked(bool liked);
     void setDisliked(bool disliked);
+    void toggleShuffle();
+    void cycleRepeat();
+    void toggleQuiet();
 
 signals:
     // A new track started, or the current one went away (hasTrack() false).
@@ -181,6 +189,7 @@ signals:
     void webUrlChanged();
     void shuffleChanged();
     void radioChanged();
+    void repeatChanged();
     void likedChanged();
     void likeSupportedChanged();
     void dislikedChanged();

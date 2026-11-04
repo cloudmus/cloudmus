@@ -5,6 +5,7 @@
 
 #include "Core.h"
 #include "LibraryScreen.h"
+#include "MainScreen.h"
 #include "PlatformSettings.h"
 #include "PlaylistScreen.h"
 #include "TrackScreen.h"
@@ -28,7 +29,8 @@ public:
     Core& core() { return core_; }
     ViewModel::NowPlaying& nowPlaying() { return core_.nowPlaying(); }
     ViewModel::ActivePlaylist& activePlaylist() { return core_.activePlaylist(); }
-    ViewModel::ActiveTracks& tracks() { return core_.activeTracks(); }
+    ViewModel::TrackFilterModel& tracks() { return mainScreen_.rows(); }
+    ViewModel::MainScreen& mainScreen() { return mainScreen_; }
     ViewModel::PlatformSettings& settings() { return settings_; }
     ViewModel::LibraryScreen& library() { return library_; }
     ViewModel::PlaylistScreen& playlistScreen() { return playlistScreen_; }
@@ -39,6 +41,7 @@ private:
     Core core_;
     ViewModel::PlatformSettings settings_;
     ViewModel::LibraryScreen library_;
+    ViewModel::MainScreen mainScreen_;
     ViewModel::PlaylistScreen playlistScreen_;
     ViewModel::TrackScreen trackScreen_;
 };

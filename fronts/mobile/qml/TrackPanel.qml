@@ -83,6 +83,22 @@ Item {
                     titleSize: Math.round(panel._mix(Theme.fontTitle + Theme.dp(3), Theme.dp(28)))
                     artistSize: Math.round(panel._mix(Theme.fontBody, Theme.dp(19)))
                 }
+                // What a queue does: not on the dev tracks, which don't have them.
+                IconButton {
+                    objectName: "shuffleButton"
+                    visible: panel.nowPlaying && panel.nowPlaying.repeat !== undefined
+                    enabled: panel.nowPlaying && panel.nowPlaying.radio !== true
+                    iconName: "shuffle"
+                    color: panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
+                    onClicked: panel.nowPlaying.toggleShuffle()
+                }
+                IconButton {
+                    objectName: "repeatButton"
+                    visible: panel.nowPlaying && panel.nowPlaying.repeat !== undefined
+                    iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
+                    color: panel.nowPlaying && panel.nowPlaying.repeat > 0 ? Theme.accent : panel.inkColor
+                    onClicked: panel.nowPlaying.cycleRepeat()
+                }
                 IconButton {
                     visible: panel.showMenu && panel.nowPlaying && panel.nowPlaying.hasTrack === true
                     iconName: "more_vert"

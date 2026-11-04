@@ -16,6 +16,7 @@ class Core;
 
 namespace ViewModel {
 
+class MainScreen;
 class PlaylistScreen;
 
 // The details of one track, from any list, and what can be done with it: a
@@ -48,7 +49,7 @@ class TrackScreen : public QObject {
     Q_PROPERTY(bool playlistsFailed READ playlistsFailed NOTIFY playlistsFailedChanged)
 
 public:
-    TrackScreen(App::Core& core, PlaylistScreen& playlist, QObject* parent = nullptr);
+    TrackScreen(App::Core& core, MainScreen& mainScreen, PlaylistScreen& playlist, QObject* parent = nullptr);
 
     RowsModel& playlistRows() { return playlistRows_; }
 
@@ -76,7 +77,8 @@ public:
 
 public slots:
     // A row of the main list, of the Playlist screen, or what plays.
-    void showActiveRow(int row);
+    // (Rows as filtered there.)
+    void showActiveRow(int filteredRow);
     void showOpenRow(int filteredRow);
     void showPlaying();
 
@@ -122,6 +124,7 @@ private:
     Rpc::Task<void> changePlaylist(QString sourceId, Track track, Playlist playlist, bool in);
 
     App::Core& core_;
+    MainScreen& mainScreen_;
     PlaylistScreen& playlist_;
     RowsModel playlistRows_;
     QString sourceId_;

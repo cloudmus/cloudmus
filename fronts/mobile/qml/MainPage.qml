@@ -41,6 +41,24 @@ Page {
     // A row's cover and its margins (TrackRow).
     readonly property real _coversWidth: Theme.dp(52) + Theme.dp(10) * 2
     readonly property real _listFullWidth: width * 0.58
+
+    // The list's filter: open under its bar, closed with it. Not on the dev tracks.
+    property bool filterOpen: false
+    readonly property real _filterShown: filterOpen ? 1 - screenProgress : 0
+    onFilterOpenChanged: {
+        if (filterOpen) {
+            filterField.forceActiveFocus()
+        } else {
+            filterField.text = ""
+            filterField.focus = false
+        }
+    }
+    // Another playlist has its own rows.
+    Connections {
+        target: page.playlist
+        ignoreUnknownSignals: true
+        function onTitleChanged() { page.filterOpen = false }
+    }
     readonly property real _listWidth: _listFullWidth + (_coversWidth - _listFullWidth) * screenProgress
 
     background: Rectangle { color: Theme.surface0 }
@@ -209,6 +227,14 @@ Page {
                         elide: Text.ElideRight
                     }
                     IconButton {
+                        objectName: "filterButton"
+                        visible: page.backend.mainScreen !== null && opacity > 0
+                        Layout.preferredWidth: Theme.touch * (1 - page.screenProgress)
+                        iconName: page.filterOpen ? "close" : "search"
+                        opacity: 1 - page.screenProgress
+                        onClicked: page.filterOpen = !page.filterOpen
+                    }
+                    IconButton {
                         objectName: "listSettings"
                         // Narrows away as it moves to the left column.
                         Layout.preferredWidth: Theme.touch * (1 - page.screenProgress)
@@ -227,6 +253,34 @@ Page {
                 }
             }
 
+            // The filter, sliding out from under the bar.
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: Theme.barHeight * filterHeight
+                property real filterHeight: page._filterShown
+                Behavior on filterHeight { NumberAnimation { duration: Theme.durationFast; easing.type: Easing.OutCubic } }
+                visible: implicitHeight > 0
+                clip: true
+                color: Theme.surface100
+                TextField {
+                    id: filterField
+                    objectName: "mainFilter"
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Theme.dp(8)
+                    height: Theme.barHeight - Theme.dp(16)
+                    placeholderText: qsTr("Filter by title, artist or album")
+                    placeholderTextColor: Theme.inkTertiary
+                    color: Theme.ink
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontBody
+                    inputMethodHints: Qt.ImhNoPredictiveText
+                    background: Rectangle { radius: Theme.radius; color: Theme.surface200 }
+                    onTextChanged: if (page.backend.mainScreen) page.backend.mainScreen.setFilter(text)
+                }
+            }
+
             ScrollList {
                 id: list
                 objectName: "mainList"
@@ -238,7 +292,12 @@ Page {
                     playing: page.nowPlaying && page.nowPlaying.playing === true
                     showMenu: page.backend.trackScreen !== null
                     layoutWidth: page.wide ? page._listFullWidth : 0
-                    onClicked: page.playlist.playRow(index)
+                    onClicked: {
+                        if (page.backend.mainScreen)
+                            page.backend.mainScreen.playRow(index)
+                        else
+                            page.playlist.playRow(index)
+                    }
                     onMenuRequested: {
                         page.backend.trackScreen.showActiveRow(index)
                         page.trackMenuRequested()

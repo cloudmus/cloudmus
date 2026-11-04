@@ -5,13 +5,15 @@
 #include <algorithm>
 
 #include "Core.h"
+#include "MainScreen.h"
 #include "PlaylistScreen.h"
 
 namespace ViewModel {
 
-TrackScreen::TrackScreen(App::Core& core, PlaylistScreen& playlist, QObject* parent)
+TrackScreen::TrackScreen(App::Core& core, MainScreen& mainScreen, PlaylistScreen& playlist, QObject* parent)
     : QObject(parent)
     , core_(core)
+    , mainScreen_(mainScreen)
     , playlist_(playlist)
     , playlistRows_({ "playlistId", "title", "contains", "changing" })
 {
@@ -73,8 +75,9 @@ bool TrackScreen::canDownload() const { return core_.trackActions().available(so
 
 bool TrackScreen::canEditPlaylists() const { return core_.trackActions().available(sourceId_).playlists; }
 
-void TrackScreen::showActiveRow(int row)
+void TrackScreen::showActiveRow(int filteredRow)
 {
+    const int row = mainScreen_.rows().sourceRow(filteredRow);
     TrackListModel& tracks = core_.activeTracks();
     if (row < 0 || row >= tracks.rowCount())
         return;

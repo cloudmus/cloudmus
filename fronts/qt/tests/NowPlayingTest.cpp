@@ -68,6 +68,18 @@ private slots:
         trackStates_.reset();
     }
 
+    // What the repeat button goes through, with a radio having no list to repeat.
+    void repeatCycles()
+    {
+        using Playback::RepeatMode;
+        using ViewModel::NowPlaying;
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::Off, false), RepeatMode::All);
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::All, false), RepeatMode::One);
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::One, false), RepeatMode::Off);
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::Off, true), RepeatMode::One);
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::One, true), RepeatMode::Off);
+    }
+
     // Which way the queue went: on, back, and around the end of a repeating list.
     void trackDirectionFollowsTheQueue()
     {

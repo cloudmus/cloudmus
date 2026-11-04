@@ -100,6 +100,7 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
         emit playModesChanged();
         emit shuffleChanged();
         emit radioChanged();
+        emit repeatChanged();
     });
     connect(
         &trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
@@ -308,6 +309,20 @@ bool NowPlaying::shuffle() const { return playback_.shuffleActive(); }
 Playback::RepeatMode NowPlaying::repeatMode() const { return playback_.effectiveRepeatMode(); }
 
 bool NowPlaying::isRadio() const { return playback_.isRadio(); }
+
+Playback::RepeatMode NowPlaying::nextRepeatMode(Playback::RepeatMode mode, bool radio)
+{
+    using Playback::RepeatMode;
+    if (mode == RepeatMode::Off)
+        return radio ? RepeatMode::One : RepeatMode::All;
+    return mode == RepeatMode::All ? RepeatMode::One : RepeatMode::Off;
+}
+
+void NowPlaying::toggleShuffle() { setShuffle(!shuffle()); }
+
+void NowPlaying::cycleRepeat() { setRepeatMode(nextRepeatMode(repeatMode(), isRadio())); }
+
+void NowPlaying::toggleQuiet() { setQuiet(!quiet()); }
 
 void NowPlaying::setShuffle(bool on) { playback_.setShuffle(on); }
 

@@ -627,6 +627,54 @@ private slots:
         QCOMPARE(opacity("long", "fadeTop"), 1.0);
     }
 
+    // The main list's filter, through a replica: a filtered row plays and shows
+    // the right track. And the queue's modes from the buttons' slots.
+    void mainFilterAndPlayModes()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+        playFake(core);
+        QAbstractItemModel* tracks = backend.tracks();
+        QTRY_COMPARE(tracks->rowCount(), 2);
+
+        QMetaObject::invokeMethod(backend.mainScreen(), "setFilter", Q_ARG(QString, QStringLiteral("t2")));
+        QTRY_COMPARE(tracks->rowCount(), 1);
+        QTRY_COMPARE(tracks->data(tracks->index(0, 0), roleOf(*tracks, "trackId")).toString(), QStringLiteral("t2"));
+
+        QObject* track = backend.trackScreen();
+        QMetaObject::invokeMethod(track, "showActiveRow", Q_ARG(int, 0));
+        QTRY_COMPARE(track->property("title").toString(), QStringLiteral("Track t2"));
+
+        QMetaObject::invokeMethod(backend.mainScreen(), "playRow", Q_ARG(int, 0));
+        QTRY_COMPARE(core.core().playback().currentIndex(), 1);
+        QTRY_COMPARE(core.nowPlaying().track().id, QStringLiteral("t2"));
+
+        QMetaObject::invokeMethod(backend.mainScreen(), "setFilter", Q_ARG(QString, QString()));
+        QTRY_COMPARE(tracks->rowCount(), 2);
+
+        QObject* now = backend.nowPlaying();
+        const bool shuffle = core.nowPlaying().shuffle();
+        QMetaObject::invokeMethod(now, "toggleShuffle");
+        QTRY_COMPARE(core.nowPlaying().shuffle(), !shuffle);
+        QTRY_COMPARE(now->property("shuffle").toBool(), !shuffle);
+        QMetaObject::invokeMethod(now, "toggleShuffle");
+        QTRY_COMPARE(core.nowPlaying().shuffle(), shuffle);
+
+        const int repeat = core.nowPlaying().repeat();
+        QMetaObject::invokeMethod(now, "cycleRepeat");
+        QTRY_VERIFY(core.nowPlaying().repeat() != repeat);
+        QTRY_COMPARE(now->property("repeat").toInt(), core.nowPlaying().repeat());
+        core.nowPlaying().setRepeatMode(Playback::RepeatMode(repeat));
+
+        const bool quiet = core.nowPlaying().quiet();
+        QMetaObject::invokeMethod(now, "toggleQuiet");
+        QTRY_COMPARE(core.nowPlaying().quiet(), !quiet);
+        core.nowPlaying().setQuiet(quiet);
+    }
+
     // A row tells a track on disk and a download under way, not otherwise.
     void trackRowShowsTheCache()
     {
@@ -758,6 +806,17 @@ private slots:
             }
         };
         shot("main");
+
+        // The list's filter opens under its bar, and closes empty.
+        playlist->setProperty("filterOpen", true);
+        auto* filterField = window->findChild<QQuickItem*>("mainFilter");
+        QVERIFY(filterField);
+        filterField->setProperty("text", QStringLiteral("t2"));
+        QTRY_COMPARE(backend.tracks()->rowCount(), 1);
+        shot("main-filter");
+        playlist->setProperty("filterOpen", false);
+        QCOMPARE(filterField->property("text").toString(), QString());
+        QTRY_COMPARE(backend.tracks()->rowCount(), 2);
 
         // On a head unit, the two modes of the screen: everything has moved when
         // the animation is over, the source's button clear of the cover in both,
