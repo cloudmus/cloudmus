@@ -79,7 +79,9 @@ Popup {
     // Rounded where it meets what's behind, with a shadow that follows that edge.
     background: Item {
         // From an item: a Popup isn't one, and this can't be asked there.
-        readonly property bool hasGpu: GraphicsInfo.api !== GraphicsInfo.Software
+        // Not known until the window is up: not to be taken for one, for an effect
+        // to be made and taken away again.
+        readonly property bool hasGpu: GraphicsInfo.api !== GraphicsInfo.Software && GraphicsInfo.api !== GraphicsInfo.Unknown
 
         Rectangle {
             id: sheetShape
