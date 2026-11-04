@@ -154,8 +154,9 @@ Item {
         onFinished: {
             if (panel._swipeWay === 0)
                 return
-            // The new cover comes in once it's there: asked for now, it's only a
-            // moment. Not for long, though: a track may have no other cover.
+            // The new cover comes in once its picture is in, or the old one would
+            // come back first. Not waited for long: a track may have no other, or
+            // its picture may take long to get.
             panel._waitingForTrack = true
             newTrackLate.restart()
             if (panel._swipeWay < 0)
@@ -178,13 +179,12 @@ Item {
     }
     Timer {
         id: newTrackLate
-        interval: 400
+        interval: 700
         onTriggered: panel._swipeIn()
     }
     Connections {
-        target: panel.nowPlaying
-        ignoreUnknownSignals: true
-        function onCoverUrlChanged() { Qt.callLater(panel._swipeIn) }
+        target: cover
+        function onChangingChanged() { if (cover.changing) panel._swipeIn() }
     }
 
     // Beside the layout, not in it: fading in, it moves nothing.
