@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFile>
 #include <QImage>
+#include <QLoggingCategory>
 #include <QNetworkDiskCache>
 #include <QNetworkProxyFactory>
 #include <QNetworkReply>
@@ -16,6 +17,8 @@
 namespace Covers {
 
 namespace {
+
+Q_LOGGING_CATEGORY(lcCovers, "cloudmus.covers")
 constexpr int kMaxRedirects = 5;
 // Enough for a screenful of ordinary covers; a huge one (embedded art of a
 // local file can be tens of megabytes decoded) is simply not kept.
@@ -71,6 +74,7 @@ QString CoverArtCache::localFile(const QString& url)
     // Written whole under another name: the other process may read it at once.
     const QString partial = file + QStringLiteral(".part");
     if (!image->save(partial, "JPG", 90) || !QFile::rename(partial, file)) {
+        qCWarning(lcCovers) << "can't write the cover to" << file;
         QFile::remove(partial);
         return { };
     }
@@ -171,12 +175,16 @@ void CoverArtCache::fetch(const QString& url, const QUrl& requestUrl, int redire
             return;
         }
         const QList<QSize> sizes = inFlight_.take(url);
-        if (reply->error() != QNetworkReply::NoError)
+        if (reply->error() != QNetworkReply::NoError) {
+            qCWarning(lcCovers) << "fetching" << url << "failed:" << reply->errorString();
             return;
+        }
 
         QImage full;
-        if (!full.loadFromData(reply->readAll()))
+        if (!full.loadFromData(reply->readAll())) {
+            qCWarning(lcCovers) << "can't decode the cover" << url;
             return;
+        }
         for (const QSize& size : sizes)
             store(url, size, full);
         // After the sizes above: an insert that doesn't fit deletes the image.

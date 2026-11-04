@@ -28,7 +28,14 @@ Item {
 
     readonly property real _gap: Theme.padding
     readonly property real _detailsHeight: details.implicitHeight
-    readonly property real _aboveSide: Math.max(Theme.dp(120), Math.min(width, height - _detailsHeight - _gap))
+    // Below the title: the same in every layout.
+    readonly property real _belowTitle: seekBar.implicitHeight + transport.implicitHeight + details.spacing * 2
+    // Too low for a cover above the title (a phone on its side): beside it,
+    // with the position and the transport under both.
+    readonly property real _coverOnTop: height - _belowTitle - titleRow.implicitHeight - _gap
+    readonly property bool compact: _coverOnTop < Theme.dp(140)
+    readonly property real _compactRow: Math.max(0, height - _belowTitle)
+    readonly property real _aboveSide: compact ? Math.min(_compactRow, width * 0.42) : Math.min(width, _coverOnTop)
     // As large as there's room for, leaving the rest the width it needs.
     readonly property real _besideSide: Math.max(Theme.dp(120),
         Math.min(height * sideCoverHeightShare, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
@@ -41,14 +48,15 @@ Item {
     Cover {
         id: cover
         objectName: "trackCover"
-        x: panel._mix((panel.width - panel._aboveSide) / 2, 0)
-        y: panel._mix((panel.height - panel._detailsHeight - panel._gap - panel._aboveSide) / 2,
+        x: panel._mix(panel.compact ? 0 : (panel.width - panel._aboveSide) / 2, 0)
+        y: panel._mix(panel.compact ? (panel._compactRow - panel._aboveSide) / 2
+                                    : (panel.height - panel._detailsHeight - panel._gap - panel._aboveSide) / 2,
                       (panel.height - panel._besideSide) / 2)
         width: panel._mix(panel._aboveSide, panel._besideSide)
         height: width
         source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
         seed: panel.seed
-        radius: Theme.dp(16)
+        radius: Theme.dp(20)
         liveCorners: true
         zoomOnChange: true
         // A slight breath while playing.
@@ -66,7 +74,9 @@ Item {
 
         Item {
             Layout.fillWidth: true
-            implicitHeight: titleRow.implicitHeight
+            Layout.leftMargin: panel.compact ? (panel._aboveSide + panel._gap) * (1 - panel.progress) : 0
+            Layout.preferredHeight: panel.compact ? panel._mix(panel._compactRow, titleRow.implicitHeight)
+                                                  : titleRow.implicitHeight
 
             RowLayout {
                 id: titleRow
@@ -109,6 +119,7 @@ Item {
         }
 
         SeekBar {
+            id: seekBar
             Layout.fillWidth: true
             positionMs: panel.nowPlaying ? panel.nowPlaying.positionMs : 0
             durationMs: panel.nowPlaying ? panel.nowPlaying.durationMs : 0
@@ -121,8 +132,9 @@ Item {
         }
 
         RowLayout {
+            id: transport
             Layout.alignment: Qt.AlignHCenter
-            spacing: Theme.dp(10)
+            spacing: panel.compact ? Theme.dp(2) : Theme.dp(10)
             IconButton {
                 visible: panel.nowPlaying && panel.nowPlaying.dislikeSupported === true
                 iconName: panel.nowPlaying && panel.nowPlaying.disliked ? "heart_off" : "heart_off_outline"
@@ -139,8 +151,8 @@ Item {
             IconButton {
                 iconName: panel.nowPlaying && panel.nowPlaying.playing ? "pause" : "play_arrow"
                 filled: true
-                size: Theme.dp(72)
-                iconSize: Theme.dp(40)
+                size: panel.compact ? Theme.dp(60) : Theme.dp(72)
+                iconSize: panel.compact ? Theme.dp(34) : Theme.dp(40)
                 onClicked: panel.nowPlaying.togglePause()
 
                 Spinner {

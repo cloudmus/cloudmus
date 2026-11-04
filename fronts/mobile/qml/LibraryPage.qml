@@ -62,6 +62,7 @@ Page {
                         required property var isLoading
                         required property var hasError
                         required property var isCurrent
+                        readonly property bool troubled: needsSignIn === true || hasError === true
                         width: ListView.view.width
                         height: Theme.touchLarge + Theme.dp(4)
                         onClicked: page.library.selectSource(sourceRow.sourceId)
@@ -99,6 +100,19 @@ Page {
                                     font.pixelSize: Theme.fontTitle
                                     font.weight: Font.Bold
                                 }
+                                // No room beside it in the narrow column: on its corner.
+                                IconImage {
+                                    objectName: "sourceWarningBadge"
+                                    visible: !page.wide && sourceRow.troubled
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    anchors.rightMargin: -Theme.dp(6)
+                                    anchors.bottomMargin: -Theme.dp(4)
+                                    source: "qrc:/icons/warning.svg"
+                                    sourceSize.width: Theme.dp(16)
+                                    sourceSize.height: Theme.dp(16)
+                                    color: Theme.warning
+                                }
                             }
                             Text {
                                 visible: page.wide
@@ -111,7 +125,7 @@ Page {
                                 elide: Text.ElideRight
                             }
                             IconImage {
-                                visible: sourceRow.needsSignIn === true || sourceRow.hasError === true
+                                visible: page.wide && sourceRow.troubled
                                 source: "qrc:/icons/warning.svg"
                                 sourceSize.width: Theme.dp(18)
                                 sourceSize.height: Theme.dp(18)
@@ -187,20 +201,19 @@ Page {
                     implicitHeight: authColumn.implicitHeight + Theme.padding * 2
                     radius: Theme.radius
                     color: Theme.surface200
-                    RowLayout {
+                    GridLayout {
                         id: authColumn
                         anchors.fill: parent
                         anchors.margins: Theme.padding
-                        spacing: Theme.padding
+                        columns: page.wide ? 2 : 1
+                        columnSpacing: Theme.padding
+                        rowSpacing: Theme.padding
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignTop
                             spacing: Theme.dp(8)
-                            Text {
+                            BodyText {
                                 text: qsTr("Sign in to see the playlists")
-                                color: Theme.ink
-                                font.family: Theme.fontFamily
-                                font.pixelSize: Theme.fontBody
                                 font.weight: Font.DemiBold
                             }
                             BodyText {
@@ -209,22 +222,57 @@ Page {
                                 color: Theme.danger
                             }
                             BodyText {
+                                objectName: "authLink"
                                 visible: text !== ""
+                                textFormat: Text.StyledText
+                                linkColor: Theme.accent
                                 text: page.library && page.library.authUrl
-                                      ? qsTr("Open %1 on any device and enter this code:").arg(page.library.authUrl) : ""
+                                      ? qsTr("Open %1 on any device and enter this code:")
+                                            .arg("<a href=\"" + page.library.authUrl + "\">" + page.library.authUrl + "</a>")
+                                      : ""
+                                onLinkActivated: (link) => Qt.openUrlExternally(link)
                             }
-                            Text {
-                                visible: text !== ""
-                                text: page.library && page.library.authCode ? page.library.authCode : ""
-                                color: Theme.accent
-                                font.family: Theme.monoFamily
-                                font.pixelSize: Theme.fontHeadline
-                                font.weight: Font.Bold
+                            RowLayout {
+                                visible: authCode.text !== ""
+                                spacing: Theme.dp(8)
+                                Text {
+                                    id: authCode
+                                    objectName: "authCode"
+                                    text: page.library && page.library.authCode ? page.library.authCode : ""
+                                    color: Theme.accent
+                                    font.family: Theme.monoFamily
+                                    font.pixelSize: Theme.fontHeadline
+                                    font.weight: Font.Bold
+                                    TapHandler { onTapped: copyCode.clicked() }
+                                }
+                                IconButton {
+                                    id: copyCode
+                                    objectName: "copyAuthCode"
+                                    iconName: "content_copy"
+                                    onClicked: {
+                                        page.platform.copyText(authCode.text)
+                                        copied.visible = true
+                                        copiedTimeout.restart()
+                                    }
+                                }
+                                Text {
+                                    id: copied
+                                    visible: false
+                                    text: qsTr("Copied")
+                                    color: Theme.inkSecondary
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSmall
+                                    Timer {
+                                        id: copiedTimeout
+                                        interval: 2000
+                                        onTriggered: copied.visible = false
+                                    }
+                                }
                             }
                             // While a code is shown the source is waiting for
                             // it: asking again would only change the code.
                             TextButton {
-                                visible: !page.library || !page.library.authCode
+                                visible: authCode.text === ""
                                 text: qsTr("Sign in")
                                 onClicked: page.library.signIn()
                             }
@@ -236,7 +284,7 @@ Page {
                             visible: url !== ""
                             Layout.preferredWidth: Theme.dp(120)
                             Layout.preferredHeight: Theme.dp(120)
-                            Layout.alignment: Qt.AlignTop
+                            Layout.alignment: page.wide ? Qt.AlignTop : Qt.AlignHCenter
                             sourceSize: Qt.size(width, height)
                             source: url !== "" ? "image://qr/" + encodeURIComponent(url) : ""
                             smooth: false
@@ -282,7 +330,7 @@ Page {
                                 source: tile.coverUrl || ""
                                 seed: tile.title || ""
                                 outlined: tile.isActive === true
-                                radius: Theme.dp(8)
+                                radius: Theme.dp(14)
                                 opacity: tile.down ? 0.7 : 1
                                 Spinner {
                                     anchors.centerIn: parent
@@ -371,6 +419,13 @@ Page {
                     visible: page.library && !page.library.loading && !page.library.authNeeded
                              && tiles.count === 0 && others.count === 0
                     text: page.library && page.library.currentSourceId ? qsTr("No playlists") : qsTr("No sources")
+                }
+                // Last in the list, out of the way of a stray tap in a car.
+                TextButton {
+                    objectName: "signOut"
+                    visible: page.library && page.library.canSignOut === true
+                    text: qsTr("Sign out")
+                    onClicked: page.library.signOut()
                 }
             }
         }

@@ -73,9 +73,11 @@ public final class CoreBridge {
         // (set by its own JNI_OnLoad, which only runs for a library loaded
         // by name — not one pulled in as a dependency) and a context to ask
         // the system things with (the service, the way Qt's own services do).
-        loadQtCore();
+        // In this order: Qt Core reads the context while it loads, and without
+        // one QStandardPaths comes back empty, so nothing gets saved.
         if (context instanceof android.app.Service)
             org.qtproject.qt.android.QtNative.setService((android.app.Service) context);
+        loadQtCore();
         System.loadLibrary("cloudmus-core");
         CmLog.mark("core: library loaded");
         Context application = context.getApplicationContext();

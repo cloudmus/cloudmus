@@ -75,6 +75,8 @@ QString LibraryScreen::authCode() const
 
 QString LibraryScreen::authError() const { return authStates_.state(currentSourceId_).errorMessage; }
 
+bool LibraryScreen::canSignOut() const { return sourcePage_.canSignOut(currentSourceId_); }
+
 void LibraryScreen::selectSource(const QString& sourceId)
 {
     if (sourceId == currentSourceId_)
@@ -124,6 +126,12 @@ void LibraryScreen::refresh()
 {
     if (!currentSourceId_.isEmpty())
         sources_.refresh(currentSourceId_);
+}
+
+void LibraryScreen::signOut()
+{
+    if (!currentSourceId_.isEmpty())
+        sourcePage_.signOut(currentSourceId_);
 }
 
 void LibraryScreen::signIn()
@@ -208,6 +216,7 @@ void LibraryScreen::rebuild()
     emit authUrlChanged();
     emit authCodeChanged();
     emit authErrorChanged();
+    emit canSignOutChanged();
 }
 
 } // namespace ViewModel

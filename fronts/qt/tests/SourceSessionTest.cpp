@@ -56,6 +56,24 @@ private slots:
         QCOMPARE(errors.count(), 0);
     }
 
+    void aSourceWithNoSignInHasNothingToSignOutOf()
+    {
+        QVERIFY(!session_->canSignOut(QStringLiteral("fake")));
+    }
+
+    void signingOutLeavesTheSourceAskingToSignIn()
+    {
+        cleanup();
+        qputenv("CLOUDMUS_FAKE_AUTH", "1");
+        init();
+        qunsetenv("CLOUDMUS_FAKE_AUTH");
+        authStates_.setAuthenticated(QStringLiteral("fake"));
+        QVERIFY(session_->canSignOut(QStringLiteral("fake")));
+        QCOMPARE(await(session_->signOut(QStringLiteral("fake"))), QString());
+        QVERIFY(authStates_.state(QStringLiteral("fake")).hasProblem);
+        QVERIFY(!session_->canSignOut(QStringLiteral("fake")));
+    }
+
     void aRejectedSubmitReturnsAndReportsWhy()
     {
         QSignalSpy errors(&messages_, &ViewModel::Messages::posted);

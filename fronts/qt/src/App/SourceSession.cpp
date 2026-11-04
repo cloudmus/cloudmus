@@ -124,4 +124,30 @@ Rpc::Task<QString> SourceSession::submitSignIn(QString sourceId, QJsonObject fie
     co_return QString();
 }
 
+bool SourceSession::canSignOut(const QString& sourceId) const
+{
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    return client != nullptr && client->available()
+        && client->capabilities().value(QStringLiteral("auth")).toObject().value(QStringLiteral("required")).toBool()
+        && !authStates_.state(sourceId).hasProblem;
+}
+
+Rpc::Task<QString> SourceSession::signOut(QString sourceId)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return QString();
+    try {
+        co_await Rpc::authLogout(*client);
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcSourceSession) << "auth.logout failed for" << sourceId << ":" << message;
+        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
+        co_return message;
+    }
+    // auth.logout sends no notification.
+    authStates_.setSignedOut(sourceId);
+    co_return QString();
+}
+
 } // namespace App

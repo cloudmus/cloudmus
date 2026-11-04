@@ -72,6 +72,11 @@ QJsonObject capabilities()
         { QStringLiteral("auth"),
             QJsonObject { { QStringLiteral("required"), false }, { QStringLiteral("flow"), QStringLiteral("none") } } },
     };
+    // Switched by a test: a source to sign in to.
+    if (qEnvironmentVariable("CLOUDMUS_FAKE_AUTH") == QStringLiteral("1")) {
+        caps.insert(QStringLiteral("auth"),
+            QJsonObject { { QStringLiteral("required"), true }, { QStringLiteral("flow"), QStringLiteral("deviceCode") } });
+    }
     // Switched by a test: a source that only reads local files.
     if (qEnvironmentVariable("CLOUDMUS_FAKE_NETWORK") == QStringLiteral("0"))
         caps.insert(QStringLiteral("network"), false);
@@ -337,6 +342,8 @@ int runFakeBackend()
             }
         } else if (method == QStringLiteral("auth.getStatus")) {
             reply(id, { { QStringLiteral("status"), QStringLiteral("authenticated") } });
+        } else if (method == QStringLiteral("auth.logout")) {
+            reply(id, { });
         } else if (method == QStringLiteral("auth.submit")) {
             replyError(id, 1002, QStringLiteral("wrong password"));
         } else if (method == QStringLiteral("shutdown")) {

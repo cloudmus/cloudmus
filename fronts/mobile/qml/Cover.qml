@@ -25,7 +25,7 @@ Rectangle {
     readonly property real enteringScale: picture.enteringScale
     readonly property bool _masked: liveCorners && GraphicsInfo.api !== GraphicsInfo.Software
 
-    radius: Theme.dp(6)
+    radius: Theme.dp(10)
     color: _showing ? "transparent" : Theme.surface300
 
     // What's to be shown, drawn at the size it is shown at: its corners are
@@ -93,11 +93,14 @@ Rectangle {
         layer.enabled: cover._masked
     }
 
+    // Reaching a little past the picture: right on its edge, the picture's
+    // antialiased corners showed outside the line's.
     Rectangle {
         anchors.fill: parent
+        anchors.margins: -Theme.dp(1)
         z: 2
         visible: cover.outlined
-        radius: cover.radius
+        radius: cover.radius + Theme.dp(1)
         color: "transparent"
         border.width: Theme.dp(3)
         border.color: Theme.accent

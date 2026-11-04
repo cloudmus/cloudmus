@@ -1,5 +1,6 @@
 #include "Platform.h"
 
+#include <QClipboard>
 #include <QElapsedTimer>
 #include <QFutureWatcher>
 #include <QGuiApplication>
@@ -94,6 +95,8 @@ bool Platform::android() const
     return false;
 #endif
 }
+
+void Platform::copyText(const QString& text) const { QGuiApplication::clipboard()->setText(text); }
 
 void Platform::runPythonProbe()
 {

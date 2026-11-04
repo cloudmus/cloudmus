@@ -21,6 +21,8 @@
 #include <functional>
 #include <memory>
 
+#include <QClipboard>
+
 #include "AuraImageProvider.h"
 #include "Backend.h"
 #include "CoverImageProvider.h"
@@ -925,6 +927,111 @@ private slots:
     // The pages come up and switch over the real core and the dev tracks;
     // CLOUDMUS_MOBILE_SHOTS=<dir> also saves each, at a phone's and a head
     // unit's size, to look at.
+    // A phone on its side has no height for a cover above the title: it goes
+    // beside it, clear of the source's button and of the text.
+    void aLowPanelPutsTheCoverBesideTheTitle()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(720, 330);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QTest::qWait(500);
+
+        auto* panel = window->findChild<QQuickItem*>("trackPanel");
+        auto* cover = window->findChild<QQuickItem*>("trackCover");
+        auto* title = window->findChild<QQuickItem*>("trackTitle");
+        auto* bar = window->findChild<QQuickItem*>("sourceBar");
+        QVERIFY(panel && cover && title && bar);
+        QVERIFY(panel->property("compact").toBool());
+        const auto scene = [](QQuickItem* item) { return item->mapRectToScene(item->boundingRect()); };
+        QVERIFY(cover->width() >= 60);
+        QVERIFY2(!scene(cover).intersects(scene(bar)), "the cover runs into the source's button");
+        QVERIFY2(!scene(cover).intersects(scene(title)), "the cover runs into the title");
+        QVERIFY(scene(cover).bottom() <= scene(panel).bottom() + 1);
+        auto* details = window->findChild<QQuickItem*>("trackDetails");
+        QVERIFY(details);
+        QVERIFY2(details->implicitWidth() <= panel->width(),
+            qPrintable(QStringLiteral("the panel's content takes %1 of %2").arg(details->implicitWidth()).arg(panel->width())));
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        if (!shots.isEmpty())
+            window->grabWindow().save(shots + QStringLiteral("/phone-landscape.png"));
+    }
+
+    // Signing in on a narrow screen: all of it fits, the code copies, and once
+    // signed in there's a way out.
+    void signingInFitsAPhoneAndCanBeUndone()
+    {
+        qputenv("CLOUDMUS_FAKE_AUTH", "1");
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        const QString fake = QStringLiteral("fake");
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
+                && core.core().sourceManager().client(fake)->available(),
+            10000);
+        qunsetenv("CLOUDMUS_FAKE_AUTH");
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(360, 780);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+
+        core.library().selectSource(fake);
+        core.core().authStates().setPrompt(fake,
+            { { QStringLiteral("flow"), QStringLiteral("deviceCode") }, { QStringLiteral("url"), QStringLiteral("https://ya.ru/device") },
+                { QStringLiteral("code"), QStringLiteral("abc123") } });
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "libraryRequested"));
+        QTest::qWait(600);
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        if (!shots.isEmpty())
+            window->grabWindow().save(shots + QStringLiteral("/phone-signin.png"));
+
+        for (const char* name : { "authLink", "authCode", "copyAuthCode", "authQr" }) {
+            auto* item = window->findChild<QQuickItem*>(name);
+            QVERIFY2(item != nullptr, name);
+            QVERIFY2(item->isVisible(), name);
+            const QRectF rect = item->mapRectToScene(item->boundingRect());
+            QVERIFY2(rect.left() >= 0 && rect.right() <= window->width(), name);
+        }
+        QVERIFY(window->findChild<QQuickItem*>("authLink")->property("text").toString().contains(
+            QStringLiteral("<a href=\"https://ya.ru/device\">")));
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("copyAuthCode"), "clicked"));
+        QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("abc123"));
+
+        auto* signOut = window->findChild<QQuickItem*>("signOut");
+        QVERIFY(signOut);
+        QVERIFY(!signOut->isVisible());
+        core.core().authStates().setAuthenticated(fake);
+        QTRY_VERIFY(signOut->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(signOut, "clicked"));
+        QTRY_VERIFY(core.library().authNeeded());
+        QTRY_VERIFY(!signOut->isVisible());
+    }
+
     void pagesOpen_data()
     {
         QTest::addColumn<QSize>("size");

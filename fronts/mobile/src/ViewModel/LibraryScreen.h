@@ -39,6 +39,7 @@ class LibraryScreen : public QObject {
     Q_PROPERTY(QString authUrl READ authUrl NOTIFY authUrlChanged)
     Q_PROPERTY(QString authCode READ authCode NOTIFY authCodeChanged)
     Q_PROPERTY(QString authError READ authError NOTIFY authErrorChanged)
+    Q_PROPERTY(bool canSignOut READ canSignOut NOTIFY canSignOutChanged)
 
 public:
     LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, NowPlaying& nowPlaying, Rpc::AuthStates& authStates,
@@ -57,6 +58,7 @@ public:
     QString authUrl() const;
     QString authCode() const;
     QString authError() const;
+    bool canSignOut() const;
 
 public slots:
     void selectSource(const QString& sourceId);
@@ -69,6 +71,7 @@ public slots:
     void toggleFavorite(const QString& playlistId);
     void refresh();
     void signIn();
+    void signOut();
 
 signals:
     void currentSourceIdChanged();
@@ -80,6 +83,7 @@ signals:
     void authUrlChanged();
     void authCodeChanged();
     void authErrorChanged();
+    void canSignOutChanged();
     // Something started playing from here: time for the main screen.
     void activated();
 

@@ -132,7 +132,6 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
     qInfo() << "TLS:" << QSslSocket::activeBackend() << QSslSocket::supportsSsl()
             << QSslSocket::sslLibraryVersionString();
     qInfo() << "image formats:" << QImageWriter::supportedImageFormats();
-    coreInstance = &core;
     Remote::Host host(core, filesDir + QStringLiteral("/core.sock"));
     Logging::mark(QStringLiteral("core: remote host listening"));
 

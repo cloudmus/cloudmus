@@ -25,6 +25,8 @@ public:
     bool isBusy(const QString& sourceId) const { return busy_.contains(sourceId); }
     void signIn(const QString& sourceId);
     void submit(const QString& sourceId, const QJsonObject& fields);
+    bool canSignOut(const QString& sourceId) const;
+    void signOut(const QString& sourceId);
 
 signals:
     void busyChanged(const QString& sourceId, bool busy);

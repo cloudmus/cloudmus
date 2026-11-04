@@ -36,6 +36,7 @@ public:
     // Packs the log into a zip a file manager can reach; what to tell the
     // user (where it went, or what went wrong).
     Q_INVOKABLE QString exportLogs() const;
+    Q_INVOKABLE void copyText(const QString& text) const;
     // The head unit's media setup (launcher, media services, the apps the
     // car's widget lists) into the log; what to tell the user.
     Q_INVOKABLE QString logSystemProbe() const;
