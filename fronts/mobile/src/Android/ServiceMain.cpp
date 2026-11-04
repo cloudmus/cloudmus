@@ -130,6 +130,7 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
     // A second for the UI to come up on what's saved; a few more before the
     // saved lists are refreshed, behind the music that has started by then.
     App::MobileCore core({ QString(), filesDir + QStringLiteral("/core.ini"), 1000, 5000 });
+    coreInstance = &core;
     // Without it no stream or cover loads, and nothing else says why.
     qInfo() << "TLS:" << QSslSocket::activeBackend() << QSslSocket::supportsSsl()
             << QSslSocket::sslLibraryVersionString();
@@ -222,8 +223,11 @@ extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeComm
     JNIEnv*, jclass, jint command, jlong argument)
 {
     post([command, argument] {
-        if (!coreInstance)
+        if (!coreInstance) {
+            qWarning() << "system command" << command << "with no core to take it";
             return;
+        }
+        qInfo() << "system command" << command << argument;
         auto& now = coreInstance->nowPlaying();
         switch (command) {
             case Play:
