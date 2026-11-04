@@ -40,7 +40,7 @@ Page {
     readonly property real _railWidth: Theme.touchLarge + _heroMargin * 2
     // A row's cover and its margins (TrackRow).
     readonly property real _coversWidth: Theme.dp(52) + Theme.dp(10) * 2
-    readonly property real _listFullWidth: width * 0.58
+    readonly property real _listFullWidth: width * 0.5
 
     // The list's filter: open under its bar, closed with it. Not on the dev tracks.
     property bool filterOpen: false
@@ -158,6 +158,10 @@ Page {
                 width: parent.width - x - page._heroMargin
                 height: parent.height - y - page._heroMargin
                 progress: page.screenProgress
+                // A phone on its side.
+                compact: page.height < Theme.dp(460)
+                // In the row with the source's button, until that folds away.
+                modesElsewhere: 1 - page._barFolded
                 sideCoverShare: 1
                 // With air around it.
                 sideCoverHeightShare: 0.8
@@ -174,11 +178,32 @@ Page {
                 objectName: "sourceBar"
                 x: page._heroMargin
                 y: page._heroMargin
-                fullWidth: page.width * 0.42 - page._heroMargin * 2
+                fullWidth: hero.width - page._heroMargin * 2 - Theme.touch * 2 - Theme.dp(8)
                 folded: page._barFolded
                 library: page.library
-                playlist: page.playlist
                 onClicked: page.libraryRequested()
+            }
+            RowLayout {
+                objectName: "topModes"
+                anchors.right: parent.right
+                anchors.rightMargin: page._heroMargin
+                y: page._heroMargin + (sourceBar.height - height) / 2
+                spacing: 0
+                opacity: 1 - page._barFolded
+                visible: opacity > 0 && page.nowPlaying && page.nowPlaying.repeat !== undefined
+                IconButton {
+                    objectName: "topShuffle"
+                    enabled: page.nowPlaying && page.nowPlaying.radio !== true
+                    iconName: "shuffle"
+                    color: page.nowPlaying && page.nowPlaying.shuffle === true ? Theme.accent : "#FFFFFF"
+                    onClicked: page.nowPlaying.toggleShuffle()
+                }
+                IconButton {
+                    objectName: "topRepeat"
+                    iconName: page.nowPlaying && page.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
+                    color: page.nowPlaying && page.nowPlaying.repeat > 0 ? Theme.accent : "#FFFFFF"
+                    onClicked: page.nowPlaying.cycleRepeat()
+                }
             }
             // In the screen's left column when it's the track's.
             IconButton {
@@ -214,17 +239,41 @@ Page {
                         visible: !page.wide
                         Layout.fillWidth: true
                     }
-                    Text {
+                    // The playlist, and how many tracks right after its name.
+                    Item {
                         visible: page.wide
                         Layout.fillWidth: true
                         Layout.leftMargin: Theme.dp(8)
+                        implicitHeight: listTitle.implicitHeight
                         opacity: Math.max(0, 1 - page.screenProgress * 2)
-                        text: page.playlist ? page.playlist.title : ""
-                        color: Theme.ink
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontTitle
-                        font.weight: Font.Bold
-                        elide: Text.ElideRight
+                        Text {
+                            id: listTitle
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.min(implicitWidth, parent.width - listCount.implicitWidth - Theme.dp(8))
+                            text: page.playlist ? page.playlist.title : ""
+                            color: Theme.ink
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontTitle
+                            font.weight: Font.Bold
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            id: listCount
+                            objectName: "playlistCount"
+                            x: listTitle.width + Theme.dp(8)
+                            anchors.baseline: listTitle.baseline
+                            visible: text !== ""
+                            text: page.playlist && page.playlist.title && page.playlist.count !== undefined
+                                  ? String(page.playlist.count) : ""
+                            color: Theme.inkSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontBody
+                        }
+                    }
+                    OfflineBadge {
+                        backend: page.backend
+                        iconOnly: !page.wide
+                        opacity: Math.max(0, 1 - page.screenProgress * 2)
                     }
                     IconButton {
                         objectName: "filterButton"

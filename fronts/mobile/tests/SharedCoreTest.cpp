@@ -761,9 +761,13 @@ private slots:
         QSignalSpy messages(backend.mainScreen(), SIGNAL(message(int,QString)));
         QVERIFY(messages.isValid());
         core.core().messages().error(QStringLiteral("It broke"));
-        QTRY_COMPARE(messages.count(), 1);
-        QCOMPARE(messages.at(0).at(0).toInt(), int(ViewModel::Messages::Kind::Error));
-        QCOMPARE(messages.at(0).at(1).toString(), QStringLiteral("It broke"));
+        // The fake source may have a word of its own in ahead of it.
+        const auto ourMessage = [&messages]() {
+            return std::find_if(messages.cbegin(), messages.cend(),
+                [](const QList<QVariant>& message) { return message.at(1).toString() == QStringLiteral("It broke"); });
+        };
+        QTRY_VERIFY(ourMessage() != messages.cend());
+        QCOMPARE(ourMessage()->at(0).toInt(), int(ViewModel::Messages::Kind::Error));
 
         QObject* screen = backend.downloadsScreen();
         QAbstractItemModel* rows = backend.downloads();
@@ -927,6 +931,40 @@ private slots:
     // The pages come up and switch over the real core and the dev tracks;
     // CLOUDMUS_MOBILE_SHOTS=<dir> also saves each, at a phone's and a head
     // unit's size, to look at.
+    // No network is a state to see, not an error.
+    void offlineIsShownNotComplainedAbout()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1280, 720);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* badge = window->findChild<QQuickItem*>("offlineBadge");
+        QVERIFY(badge);
+        core.core().connectivity().reportReached(QStringLiteral("fake"));
+        QVERIFY(!badge->isVisible());
+
+        QSignalSpy messages(&core.mainScreen(), &ViewModel::MainScreen::message);
+        core.core().connectivity().reportOffline(QStringLiteral("fake"));
+        core.core().messages().offline(QStringLiteral("no network"));
+        QTRY_VERIFY(badge->isVisible());
+        QCOMPARE(messages.size(), 0);
+
+        core.core().connectivity().reportReached(QStringLiteral("fake"));
+        QTRY_VERIFY(!badge->isVisible());
+    }
+
     // A phone on its side has no height for a cover above the title: it goes
     // beside it, clear of the source's button and of the text.
     void aLowPanelPutsTheCoverBesideTheTitle()
@@ -962,10 +1000,31 @@ private slots:
         QVERIFY2(!scene(cover).intersects(scene(bar)), "the cover runs into the source's button");
         QVERIFY2(!scene(cover).intersects(scene(title)), "the cover runs into the title");
         QVERIFY(scene(cover).bottom() <= scene(panel).bottom() + 1);
+        // Shuffle and repeat are up in the source's row, and the title has their room.
+        auto* topShuffle = window->findChild<QQuickItem*>("topShuffle");
+        QVERIFY(topShuffle && topShuffle->isVisible());
+        QVERIFY(!window->findChild<QQuickItem*>("shuffleButton")->isVisible());
+        QVERIFY(!scene(topShuffle).intersects(scene(bar)));
+        QVERIFY(scene(title).width() >= 120);
+        // The count went up to the list's title.
+        QVERIFY(window->findChild<QQuickItem*>("playlistCount")->isVisible());
+        QTRY_COMPARE(window->findChild<QQuickItem*>("playlistCount")->property("text").toString(), QStringLiteral("2"));
         auto* details = window->findChild<QQuickItem*>("trackDetails");
         QVERIFY(details);
         QVERIFY2(details->implicitWidth() <= panel->width(),
             qPrintable(QStringLiteral("the panel's content takes %1 of %2").arg(details->implicitWidth()).arg(panel->width())));
+        // It didn't get here by itself: the mode changing sizes that decide the
+        // mode froze the screen. To the track's screen and back, to the end.
+        auto* toggle = window->findChild<QQuickItem*>("screenModeToggle");
+        QVERIFY(toggle);
+        const qreal normalSide = cover->width();
+        QVERIFY(QMetaObject::invokeMethod(toggle, "clicked"));
+        QTRY_VERIFY(cover->width() > normalSide * 1.3);
+        QTRY_COMPARE(panel->property("progress").toReal(), 1.0);
+        QVERIFY(window->findChild<QQuickItem*>("shuffleButton")->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(toggle, "clicked"));
+        QTRY_COMPARE(panel->property("progress").toReal(), 0.0);
+        QTRY_COMPARE(cover->width(), normalSide);
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
         if (!shots.isEmpty())
             window->grabWindow().save(shots + QStringLiteral("/phone-landscape.png"));

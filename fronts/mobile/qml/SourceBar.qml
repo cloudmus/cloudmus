@@ -3,44 +3,33 @@ import QtQuick.Controls.Basic
 import QtQuick.Controls.impl
 import QtQuick.Layouts
 
-// The current source and playlist, on a head unit: a bar across the track's
-// panel in the normal mode of the screen, folding into a button with just the
-// source's icon, acting like the other round buttons, as `folded` goes to 1.
-// Either opens the Library.
+// The current source, on a head unit or a phone on its side: its icon and name
+// in the normal mode of the screen, folding down to the icon as `folded` goes
+// to 1. Acts like the other round buttons either way, and opens the Library.
 AbstractButton {
     id: bar
 
     property QtObject library
-    property QtObject playlist
+    // The most it may take.
     property real fullWidth: 0
     property real folded: 0
 
-    width: height + (fullWidth - height) * (1 - folded)
+    readonly property real _openWidth: Math.min(fullWidth, height + name.implicitWidth + Theme.dp(16))
+    width: height + (_openWidth - height) * (1 - folded)
     height: Theme.touchLarge
     focusPolicy: Qt.NoFocus
     enabled: library !== null
 
     hoverEnabled: true
-    // Folded it acts like the other round buttons: it gives under the finger.
-    scale: down ? 1 - 0.08 * folded : 1
+    scale: down ? 0.92 : 1
     Behavior on scale { NumberAnimation { duration: Theme.durationFast; easing.type: Easing.OutCubic } }
 
-    background: Item {
-        // The bar, going as it folds.
-        Rectangle {
-            anchors.fill: parent
-            radius: Theme.radius
-            color: bar.down ? Theme.surface300 : Theme.surface200
-            opacity: 0.82 * (1 - bar.folded)
-        }
-        // The button's light circle, as IconButton has it.
-        Rectangle {
-            anchors.fill: parent
-            radius: width / 2
-            color: "#FFFFFF"
-            opacity: bar.folded * (bar.down ? 0.22 : (bar.hovered ? 0.12 : 0))
-            Behavior on opacity { NumberAnimation { duration: Theme.durationFast } }
-        }
+    // The light IconButton has, faint: the generated background shows through.
+    background: Rectangle {
+        radius: height / 2
+        color: "#FFFFFF"
+        opacity: bar.down ? 0.22 : (bar.hovered ? 0.12 : 0)
+        Behavior on opacity { NumberAnimation { duration: Theme.durationFast } }
     }
 
     padding: 0
@@ -68,43 +57,20 @@ AbstractButton {
             }
         }
         // Keeps its full width, so that the text isn't laid out anew each frame
-        // as the bar folds over it.
-        RowLayout {
+        // as the button folds over it.
+        Text {
+            id: name
             x: bar.height
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(0, bar.fullWidth - bar.height - Theme.dp(6))
-            spacing: Theme.dp(10)
+            width: Math.max(0, bar._openWidth - bar.height - Theme.dp(16))
             opacity: Math.max(0, 1 - bar.folded * 2)
             visible: opacity > 0
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
-                Text {
-                    Layout.fillWidth: true
-                    text: bar.library && bar.library.activeSourceName ? bar.library.activeSourceName : "CloudMus"
-                    color: Theme.ink
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontBody
-                    font.weight: Font.Bold
-                    elide: Text.ElideRight
-                }
-                Text {
-                    Layout.fillWidth: true
-                    visible: text !== ""
-                    text: bar.playlist && bar.playlist.title ? bar.playlist.title + " · " + bar.playlist.count : ""
-                    color: Theme.inkSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSmall
-                    elide: Text.ElideRight
-                }
-            }
-            IconImage {
-                visible: bar.library !== null
-                source: "qrc:/icons/expand_more.svg"
-                sourceSize.width: Theme.dp(24)
-                sourceSize.height: Theme.dp(24)
-                color: Theme.inkSecondary
-            }
+            text: bar.library && bar.library.activeSourceName ? bar.library.activeSourceName : "CloudMus"
+            color: "#FFFFFF"
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            font.weight: Font.Bold
+            elide: Text.ElideRight
         }
     }
 }

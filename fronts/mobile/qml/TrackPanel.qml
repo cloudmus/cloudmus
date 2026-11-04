@@ -30,12 +30,16 @@ Item {
     readonly property real _detailsHeight: details.implicitHeight
     // Below the title: the same in every layout.
     readonly property real _belowTitle: seekBar.implicitHeight + transport.implicitHeight + details.spacing * 2
-    // Too low for a cover above the title (a phone on its side): beside it,
-    // with the position and the transport under both.
     readonly property real _coverOnTop: height - _belowTitle - titleRow.implicitHeight - _gap
-    readonly property bool compact: _coverOnTop < Theme.dp(140)
+    // Too low for a cover above the title (a phone on its side): beside it,
+    // with the position and the transport under both. Set from outside: worked
+    // out here from the sizes it changes, it would flip back and forth for good.
+    property bool compact: false
     readonly property real _compactRow: Math.max(0, height - _belowTitle)
-    readonly property real _aboveSide: compact ? Math.min(_compactRow, width * 0.42) : Math.min(width, _coverOnTop)
+    readonly property real _aboveSide: compact ? Math.min(_compactRow, width * 0.42)
+                                               : Math.max(0, Math.min(width, _coverOnTop))
+    // 1: shuffle and repeat are shown somewhere else; the title takes their room.
+    property real modesElsewhere: 0
     // As large as there's room for, leaving the rest the width it needs.
     readonly property real _besideSide: Math.max(Theme.dp(120),
         Math.min(height * sideCoverHeightShare, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
@@ -96,7 +100,9 @@ Item {
                 // What a queue does: not on the dev tracks, which don't have them.
                 IconButton {
                     objectName: "shuffleButton"
-                    visible: panel.nowPlaying && panel.nowPlaying.repeat !== undefined
+                    Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
+                    opacity: 1 - panel.modesElsewhere
+                    visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
                     enabled: panel.nowPlaying && panel.nowPlaying.radio !== true
                     iconName: "shuffle"
                     color: panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
@@ -104,7 +110,9 @@ Item {
                 }
                 IconButton {
                     objectName: "repeatButton"
-                    visible: panel.nowPlaying && panel.nowPlaying.repeat !== undefined
+                    Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
+                    opacity: 1 - panel.modesElsewhere
+                    visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
                     iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
                     color: panel.nowPlaying && panel.nowPlaying.repeat > 0 ? Theme.accent : panel.inkColor
                     onClicked: panel.nowPlaying.cycleRepeat()
@@ -134,7 +142,7 @@ Item {
         RowLayout {
             id: transport
             Layout.alignment: Qt.AlignHCenter
-            spacing: panel.compact ? Theme.dp(2) : Theme.dp(10)
+            spacing: panel._mix(panel.compact ? Theme.dp(2) : Theme.dp(10), Theme.dp(10))
             IconButton {
                 visible: panel.nowPlaying && panel.nowPlaying.dislikeSupported === true
                 iconName: panel.nowPlaying && panel.nowPlaying.disliked ? "heart_off" : "heart_off_outline"
@@ -151,8 +159,8 @@ Item {
             IconButton {
                 iconName: panel.nowPlaying && panel.nowPlaying.playing ? "pause" : "play_arrow"
                 filled: true
-                size: panel.compact ? Theme.dp(60) : Theme.dp(72)
-                iconSize: panel.compact ? Theme.dp(34) : Theme.dp(40)
+                size: Math.round(panel._mix(panel.compact ? Theme.dp(60) : Theme.dp(72), Theme.dp(72)))
+                iconSize: Math.round(size * 0.55)
                 onClicked: panel.nowPlaying.togglePause()
 
                 Spinner {
