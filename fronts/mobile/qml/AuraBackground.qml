@@ -28,7 +28,9 @@ Rectangle {
         const h = artSize.height > 0 ? artSize.height : height
         if (w <= 0 || h <= 0 || !visible)
             return
-        const pixels = Qt.size(Math.round(w * Screen.devicePixelRatio), Math.round(h * Screen.devicePixelRatio))
+        // Not the screen's every pixel: it's all soft, and a picture this large takes
+        // long to make and stops a frame to reach the GPU, on each new track.
+        const pixels = Qt.size(Math.round(w), Math.round(h))
         if (pixels.width !== _pixels.width || pixels.height !== _pixels.height)
             _pixels = pixels
     }
@@ -55,6 +57,6 @@ Rectangle {
         fadeDuration: 500
         pixels: aura._pixels
         target: aura._pixels.width > 0
-            ? Theme.auraUrl(aura.seed, Math.round(aura.edgeFade * Screen.devicePixelRatio)) : ""
+            ? Theme.auraUrl(aura.seed, Math.round(aura.edgeFade)) : ""
     }
 }

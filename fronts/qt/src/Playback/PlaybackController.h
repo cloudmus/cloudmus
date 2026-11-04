@@ -165,6 +165,10 @@ public:
     const QString& currentSourceId() const { return queue_[index_].sourceId; }
     const QVector<QueueEntry>& queue() const { return queue_; }
     int currentIndex() const { return index_; }
+    // Which entry next() (1) or previous() (-1) would go to, changing nothing; -1
+    // if there's none: the end of the list, or where a shuffled list would start
+    // another round, whose order isn't known yet.
+    int neighborIndex(int delta) const;
 
 signals:
     void trackChanged(const Track& track, const QString& sourceId);

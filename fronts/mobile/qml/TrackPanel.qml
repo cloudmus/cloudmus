@@ -17,6 +17,11 @@ Item {
     // Swiping sideways goes to the next or the previous track. Off under what's
     // over the panel.
     property bool swipeEnabled: true
+    // Where a swipe would go and what comes in: ViewModel::MainScreen.
+    property QtObject neighbors
+    // A finger going sideways, or the cover not back from that. It stays that way
+    // until it's lifted: nothing else is to take it up or down meanwhile.
+    readonly property bool swipedSideways: trackSwipe.active || _swiping
     // What it plays from, shown above the title with the cover beside it: where
     // the list that says so is folded away. Empty: nothing is shown.
     property string playlistTitle
@@ -80,9 +85,8 @@ Item {
         readonly property alias enteringScale: cover.enteringScale
         readonly property alias shownSource: cover.shownSource
         readonly property alias shownSide: cover.shownSide
-        // Following a swipe, and going off with it.
-        transform: Translate { x: panel._swipeX }
-        opacity: panel._swipeOpacity
+        // A swipe stays within the cover's own place, away from the controls.
+        clip: panel._swiping
         // A slight breath while playing.
         scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
         Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
@@ -100,23 +104,51 @@ Item {
             // GPU, it can't follow.
             radius: _masked && scale > 0 ? Theme.coverRadius / scale : Theme.coverRadius
             liveCorners: true
-            zoomOnChange: true
+            // Under a swipe the new one has come in already, as the neighbor.
+            zoomOnChange: !panel._swiping
+            x: panel._swipeX
+            opacity: 1 - Math.min(1, Math.abs(panel._swipeX) / (panel._swipeSpan * 0.6))
+        }
+        // The track a swipe goes to, coming in from the side it goes away from.
+        Cover {
+            id: neighbor
+            objectName: "trackCoverNeighbor"
+            width: coverBox.width
+            height: width
+            visible: panel._swipeTo !== 0
+            source: !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextCoverUrl
+                  : panel._swipeTo < 0 ? panel.neighbors.previousCoverUrl : ""
+            seed: !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextSeed
+                : panel._swipeTo < 0 ? panel.neighbors.previousSeed : ""
+            x: panel._swipeX + panel._swipeTo * panel._swipeSpan
+            opacity: Math.min(1, Math.abs(panel._swipeX) / (panel._swipeSpan * 0.5))
         }
     }
 
-    // A swipe sideways: the cover goes with the finger, and far enough or thrown it
-    // goes off that way, the track changes and its cover comes in from the other
-    // side. Otherwise it goes back.
+    // A swipe sideways: the cover goes with the finger, dissolving, and the track's
+    // neighbor comes into its place. Far enough or thrown, that's the track from
+    // then on; otherwise they go back. With nowhere to go it only gives a little.
     property real _swipeX: 0
-    readonly property real _swipeOpacity: width > 0 ? 1 - Math.min(1, Math.abs(_swipeX) / width) * 0.6 : 1
-    readonly property real _swipeDistance: width * 0.2
+    // Where it goes: 1 the next track, -1 the previous one, 0 nowhere.
+    property int _swipeTo: 0
+    // Gone over to the neighbor, and waiting for the panel to catch up with it.
+    property bool _handingOver: false
+    readonly property bool _swiping: _swipeTo !== 0 || _swipeX !== 0 || _handingOver
+    readonly property real _swipeSpan: coverBox.width + Theme.dp(16)
     readonly property real _swipeVelocity: Theme.dp(500)
-    // The way the cover went: -1 left, for the next track; 0 none.
-    property int _swipeWay: 0
-    property bool _waitingForTrack: false
+    function _canSwipe(to) {
+        if (!neighbors)
+            return false
+        return to > 0 ? neighbors.canGoNext === true : neighbors.canGoPrevious === true
+    }
+    function _swipeBack() {
+        swipeSettling.to = 0
+        swipeSettling.restart()
+    }
     DragHandler {
+        id: trackSwipe
         objectName: "trackSwipe"
-        enabled: panel.swipeEnabled
+        enabled: panel.swipeEnabled && !panel._handingOver
         target: null
         yAxis.enabled: false
         property real velocity: 0
@@ -127,64 +159,71 @@ Item {
             velocity = centroid.velocity.x
             movedAt = Date.now()
             swipeSettling.stop()
-            panel._swipeX = activeTranslation.x
+            const to = activeTranslation.x < 0 ? 1 : -1
+            const can = panel._canSwipe(to)
+            panel._swipeTo = can ? to : 0
+            panel._swipeX = can ? activeTranslation.x : activeTranslation.x * 0.2
         }
         onActiveChanged: {
-            if (active) {
-                swipeSettling.stop()
-                panel._swipeWay = 0
-                panel._waitingForTrack = false
+            if (active)
                 return
-            }
             // A finger that stopped before lifting hasn't thrown anything.
             const thrown = Date.now() - movedAt < 100 ? velocity : 0
-            const towardsNext = panel._swipeX < -panel._swipeDistance || thrown < -panel._swipeVelocity
-            const towardsPrevious = panel._swipeX > panel._swipeDistance || thrown > panel._swipeVelocity
-            panel._swipeWay = towardsNext ? -1 : towardsPrevious ? 1 : 0
-            swipeSettling.to = panel._swipeWay * panel.width
-            swipeSettling.easing.type = panel._swipeWay !== 0 ? Easing.InCubic : Easing.OutCubic
-            swipeSettling.duration = Theme.durationFast
-            swipeSettling.restart()
+            const far = Math.abs(panel._swipeX) > panel._swipeSpan * 0.25
+            const thrownThatWay = -thrown * panel._swipeTo > panel._swipeVelocity
+            if (panel._swipeTo !== 0 && (far || thrownThatWay)) {
+                swipeSettling.to = -panel._swipeTo * panel._swipeSpan
+                swipeSettling.restart()
+            } else {
+                panel._swipeBack()
+            }
         }
     }
     NumberAnimation {
         id: swipeSettling
         target: panel
         property: "_swipeX"
+        duration: Theme.durationPage * 0.7
+        easing.type: Easing.OutCubic
         onFinished: {
-            if (panel._swipeWay === 0)
+            if (panel._swipeX === 0) {
+                panel._swipeTo = 0
                 return
-            // The new cover comes in once its picture is in, or the old one would
-            // come back first. Not waited for long: a track may have no other, or
-            // its picture may take long to get.
-            panel._waitingForTrack = true
-            newTrackLate.restart()
-            if (panel._swipeWay < 0)
+            }
+            // Only now: what a new track sets off doesn't get in the way of this.
+            panel._handingOver = true
+            caughtUpLate.restart()
+            if (panel._swipeTo > 0)
                 panel.nowPlaying.next()
             else
                 panel.nowPlaying.previous()
         }
     }
-    function _swipeIn() {
-        if (!_waitingForTrack)
+    // The panel's own cover has what the neighbor shows: the one takes over from
+    // the other, with nothing to see.
+    function _caughtUp() {
+        if (!_handingOver)
             return
-        _waitingForTrack = false
-        newTrackLate.stop()
-        _swipeX = -_swipeWay * width
-        _swipeWay = 0
-        swipeSettling.to = 0
-        swipeSettling.easing.type = Easing.OutCubic
-        swipeSettling.duration = Theme.durationPage
-        swipeSettling.restart()
+        _handingOver = false
+        caughtUpLate.stop()
+        _swipeTo = 0
+        _swipeX = 0
     }
     Timer {
-        id: newTrackLate
-        interval: 700
-        onTriggered: panel._swipeIn()
+        id: caughtUpLate
+        interval: 1000
+        onTriggered: panel._caughtUp()
     }
     Connections {
         target: cover
-        function onChangingChanged() { if (cover.changing) panel._swipeIn() }
+        function onShownSourceChanged() {
+            if (panel._handingOver && cover.shownSource === cover._wanted && !cover.changing)
+                panel._caughtUp()
+        }
+        function onChangingChanged() {
+            if (panel._handingOver && !cover.changing && cover.shownSource === cover._wanted)
+                panel._caughtUp()
+        }
     }
 
     // Beside the layout, not in it: fading in, it moves nothing.

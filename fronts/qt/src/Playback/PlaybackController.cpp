@@ -763,6 +763,23 @@ int PlaybackController::peekNext(int from) const
     return effectiveRepeatMode() == RepeatMode::All ? 0 : -1;
 }
 
+int PlaybackController::neighborIndex(int delta) const
+{
+    if (delta > 0 && preparedIndex_ >= 0 && effectiveRepeatMode() != RepeatMode::One)
+        return preparedIndex_;
+    const int count = int(queue_.size());
+    if (!hasCurrentTrack())
+        return -1;
+    if (shuffleActive() && order_.size() == count) {
+        const int position = int(order_.indexOf(index_)) + delta;
+        return position >= 0 && position < count ? order_[position] : -1;
+    }
+    const int index = index_ + delta;
+    if (index >= 0 && index < count)
+        return index;
+    return effectiveRepeatMode() == RepeatMode::All ? (index + count) % count : -1;
+}
+
 int PlaybackController::stepFrom(int delta)
 {
     const int count = int(queue_.size());

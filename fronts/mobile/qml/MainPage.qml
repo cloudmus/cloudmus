@@ -15,6 +15,8 @@ Page {
     property QtObject backend
     // Off under what's over the page, for a swipe there not to reach here.
     property bool gesturesEnabled: true
+    // All under Now Playing: nothing of the mini player to keep drawing.
+    property bool covered: false
     signal nowPlayingRequested()
     signal nowPlayingPulled(real distance)
     signal nowPlayingPullEnded(real velocity)
@@ -202,9 +204,12 @@ Page {
                 sideCoverShare: 1
                 // With air around it.
                 sideCoverHeightShare: 0.8
-                nowPlaying: page.nowPlaying
+                // Hidden on a phone, where a cover of this size would be decoded for nothing
+                // at every change of track.
+                nowPlaying: page.wide ? page.nowPlaying : null
                 overAura: true
                 swipeEnabled: page.gesturesEnabled
+                neighbors: page.backend.mainScreen
                 playlistTitle: page.playlist && page.playlist.title ? page.playlist.title : ""
                 preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
                 showMenu: page.backend.trackScreen !== null
@@ -463,7 +468,7 @@ Page {
         seed: page.backgroundSeed
         preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
         pullEnabled: page.gesturesEnabled
-        visible: !page.wide && page.hasTrack
+        visible: !page.wide && page.hasTrack && !page.covered
         onOpenRequested: page.nowPlayingRequested()
         onPulled: (distance) => page.nowPlayingPulled(distance)
         onPullEnded: (velocity) => page.nowPlayingPullEnded(velocity)

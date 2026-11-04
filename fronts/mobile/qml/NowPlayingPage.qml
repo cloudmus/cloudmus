@@ -61,7 +61,8 @@ Page {
     // that zero isn't a move, and the speed is the last one a move had.
     DragHandler {
         id: swipe
-        enabled: page.swipeEnabled
+        // One way for a whole gesture, whichever it began as.
+        enabled: page.swipeEnabled && !trackPanel.swipedSideways
         target: null
         xAxis.enabled: false
         property real velocity: 0
@@ -78,6 +79,7 @@ Page {
     }
 
     TrackPanel {
+        id: trackPanel
         anchors.fill: parent
         anchors.margins: Theme.padding * 1.5
         anchors.topMargin: Theme.padding / 2
@@ -85,7 +87,8 @@ Page {
         nowPlaying: page.nowPlaying
         sideBySide: page.wide
         overAura: true
-        swipeEnabled: page.swipeEnabled
+        swipeEnabled: page.swipeEnabled && !swipe.active
+        neighbors: page.backend.mainScreen
         preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
         showMenu: page.backend.trackScreen !== null
         onMenuRequested: {

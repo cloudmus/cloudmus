@@ -149,6 +149,7 @@ ApplicationWindow {
             objectName: "playlist"
             backend: window.backend
             gesturesEnabled: !trackSheet.visible
+            covered: nowPlayingSheet.progress >= 1
             onNowPlayingRequested: nowPlayingSheet.open()
             onNowPlayingPulled: (distance) => nowPlayingSheet.follow(distance / nowPlayingSheet.height)
             onNowPlayingPullEnded: (velocity) => nowPlayingSheet.settleAfterPull(velocity)
@@ -200,11 +201,11 @@ ApplicationWindow {
         readonly property var _now: window.backend.nowPlaying
         readonly property var _playlist: window.backend.playlist
         // As CrossfadeImage asks for it: the cache goes by that.
-        sourceSize: Qt.size(Math.ceil(Math.round(window.width * Screen.devicePixelRatio) / Screen.devicePixelRatio),
-                            Math.ceil(Math.round(window.height * Screen.devicePixelRatio) / Screen.devicePixelRatio))
+        sourceSize: Qt.size(Math.ceil(Math.round(window.width) / Screen.devicePixelRatio),
+                            Math.ceil(Math.round(window.height) / Screen.devicePixelRatio))
         source: window.backend.ready && window.width <= window.height * 1.1
             ? Theme.auraUrl(_now && _now.backgroundSeed ? _now.backgroundSeed : _playlist ? _playlist.title : "",
-                            Math.round(Theme.dp(45) * Screen.devicePixelRatio))
+                            Math.round(Theme.dp(45)))
             : ""
     }
     // Now Playing, on a phone: a layer over the pages rather than one of them, as

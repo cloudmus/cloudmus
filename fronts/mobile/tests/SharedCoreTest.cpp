@@ -644,18 +644,82 @@ private slots:
                 if (release)
                     QTest::touchEvent(window, finger.get()).release(0, QPoint(toX, 300), window);
             };
-            const int playing = core.core().playback().currentIndex();
-            sideways(300, 240, false);
+            // Begun sideways, a gesture stays that: going down from there doesn't
+            // take the panel with it, and begun downwards it doesn't change the track.
+            QTest::touchEvent(window, finger.get()).press(0, QPoint(300, 300), window);
+            for (int i = 1; i <= 6; ++i) {
+                QTest::qWait(30);
+                QTest::touchEvent(window, finger.get()).move(0, QPoint(300 - i * 10, 300), window);
+            }
+            for (int i = 1; i <= 10; ++i) {
+                QTest::qWait(30);
+                QTest::touchEvent(window, finger.get()).move(0, QPoint(240, 300 + i * 30), window);
+            }
+            QCOMPARE(progress(), 1.0);
             QVERIFY(panel->property("_swipeX").toReal() < 0);
-            QTest::touchEvent(window, finger.get()).release(0, QPoint(240, 300), window);
+            QTest::qWait(150);
+            QTest::touchEvent(window, finger.get()).release(0, QPoint(240, 600), window);
+            QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
+            QCOMPARE(progress(), 1.0);
+
+            QTest::touchEvent(window, finger.get()).press(0, QPoint(300, 200), window);
+            for (int i = 1; i <= 6; ++i) {
+                QTest::qWait(30);
+                QTest::touchEvent(window, finger.get()).move(0, QPoint(300, 200 + i * 10), window);
+            }
+            QTRY_VERIFY(progress() < 1.0);
+            for (int i = 1; i <= 10; ++i) {
+                QTest::qWait(30);
+                QTest::touchEvent(window, finger.get()).move(0, QPoint(300 - i * 25, 260), window);
+            }
+            QCOMPARE(panel->property("_swipeX").toReal(), 0.0);
+            QTest::qWait(150);
+            QTest::touchEvent(window, finger.get()).release(0, QPoint(50, 260), window);
+            QTRY_COMPARE(progress(), 1.0);
+
+            // What's next and what's before it, for it to come in.
+            core.activePlaylist().playRow(0);
+            ViewModel::MainScreen& main = core.mainScreen();
+            QTRY_VERIFY(main.canGoNext());
+            QVERIFY(!main.canGoPrevious());
+            QVERIFY(!main.nextSeed().isEmpty());
+            const int playing = 0;
+            QTRY_COMPARE(core.core().playback().currentIndex(), playing);
+
+            // A short way: back, and the track stays.
+            sideways(300, 260, false);
+            QVERIFY(panel->property("_swipeX").toReal() < 0);
+            auto* neighbor = findItem(cover, QStringLiteral("trackCoverNeighbor"));
+            QVERIFY(neighbor);
+            QVERIFY(neighbor->isVisible());
+            QVERIFY(neighbor->x() > 0 && neighbor->x() < cover->width() + 40);
+            // It's dissolving as it goes.
+            QVERIFY(findItem(cover, QStringLiteral("trackCoverPicture"))->opacity() < 1);
+            // ...and it stays in its own place.
+            QVERIFY(cover->clip());
+            QTest::touchEvent(window, finger.get()).release(0, QPoint(260, 300), window);
+            QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
+            QTRY_VERIFY(!neighbor->isVisible());
+            QCOMPARE(core.core().playback().currentIndex(), playing);
+
+            // Nothing before the first: it only gives a little, and goes back.
+            sideways(60, 360, false);
+            QVERIFY(qAbs(panel->property("_swipeX").toReal()) < 80);
+            QVERIFY(!neighbor->isVisible());
+            QTest::touchEvent(window, finger.get()).release(0, QPoint(360, 300), window);
             QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
             QCOMPARE(core.core().playback().currentIndex(), playing);
-            sideways(360, 60, true);
+
+            // All the way: the next track, and what's before it is known.
+            sideways(380, 40, true);
             QTRY_VERIFY(core.core().playback().currentIndex() != playing);
             QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
-            QVERIFY(!panel->property("_waitingForTrack").toBool());
+            QTRY_VERIFY(!panel->property("_handingOver").toBool());
+            QVERIFY(!neighbor->isVisible());
+            QCOMPARE(findItem(cover, QStringLiteral("trackCoverPicture"))->opacity(), 1.0);
             QCOMPARE(progress(), 1.0);
-            sideways(60, 360, true);
+            QTRY_VERIFY(main.canGoPrevious());
+            sideways(40, 380, true);
             QTRY_COMPARE(core.core().playback().currentIndex(), playing);
             QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
         }

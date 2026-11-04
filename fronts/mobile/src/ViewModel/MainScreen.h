@@ -23,6 +23,15 @@ class MainScreen : public QObject {
     // How far each track downloaded ahead has got, 0 to 1, in play order.
     Q_PROPERTY(QVariantList preloadFractions READ preloadFractions NOTIFY preloadFractionsChanged)
 
+    // Where swiping the track panel would go, and what to show coming in. Without
+    // a next one a station can still go on: its next one is fetched on going there.
+    Q_PROPERTY(bool canGoNext READ canGoNext NOTIFY canGoNextChanged)
+    Q_PROPERTY(QString nextCoverUrl READ nextCoverUrl NOTIFY nextCoverUrlChanged)
+    Q_PROPERTY(QString nextSeed READ nextSeed NOTIFY nextSeedChanged)
+    Q_PROPERTY(bool canGoPrevious READ canGoPrevious NOTIFY canGoPreviousChanged)
+    Q_PROPERTY(QString previousCoverUrl READ previousCoverUrl NOTIFY previousCoverUrlChanged)
+    Q_PROPERTY(QString previousSeed READ previousSeed NOTIFY previousSeedChanged)
+
 public:
     explicit MainScreen(App::Core& core, QObject* parent = nullptr);
 
@@ -31,6 +40,12 @@ public:
     bool offline() const;
     QString spaceWarning() const;
     QVariantList preloadFractions() const;
+    bool canGoNext() const { return next_.exists || radioGoesOn(); }
+    QString nextCoverUrl() const { return next_.coverUrl; }
+    QString nextSeed() const { return next_.seed; }
+    bool canGoPrevious() const { return previous_.exists; }
+    QString previousCoverUrl() const { return previous_.coverUrl; }
+    QString previousSeed() const { return previous_.seed; }
 
 public slots:
     void setFilter(const QString& text);
@@ -47,9 +62,27 @@ signals:
     // not among them). Only then, for a view to go to it: a row that merely
     // moved isn't news.
     void playingRowChanged(int row);
+    void canGoNextChanged();
+    void nextCoverUrlChanged();
+    void nextSeedChanged();
+    void canGoPreviousChanged();
+    void previousCoverUrlChanged();
+    void previousSeedChanged();
 
 private:
+    struct Neighbor {
+        bool exists = false;
+        QString coverUrl;
+        QString seed;
+        bool operator==(const Neighbor&) const = default;
+    };
+    Neighbor neighbor(int delta) const;
+    bool radioGoesOn() const;
+    void refreshNeighbors();
+
     App::Core& core_;
+    Neighbor next_;
+    Neighbor previous_;
     TrackFilterModel filter_;
 };
 
