@@ -21,6 +21,8 @@ ApplicationWindow {
         id: uiSettings
         category: "ui"
         property real scale: -1
+        // "auto": as the system has it; "light"; "dark".
+        property string colorScheme: "auto"
         property real flickMaxVelocity: 12000
         property real flickDeceleration: 2000
         // Read by main() before the window exists (see applyRenderingSettings()).
@@ -31,6 +33,12 @@ ApplicationWindow {
         property bool showFps: false
     }
 
+    Binding {
+        target: Theme
+        property: "dark"
+        value: uiSettings.colorScheme === "auto" ? Qt.styleHints.colorScheme !== Qt.ColorScheme.Light
+                                                 : uiSettings.colorScheme === "dark"
+    }
     Binding { target: Theme; property: "flickMaxVelocityBase"; value: uiSettings.flickMaxVelocity }
     Binding { target: Theme; property: "flickDecelerationBase"; value: uiSettings.flickDeceleration }
 

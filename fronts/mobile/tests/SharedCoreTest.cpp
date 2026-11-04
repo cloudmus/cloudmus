@@ -12,6 +12,7 @@
 #include <QSGRendererInterface>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QStyleHints>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -417,9 +418,6 @@ private slots:
         QVERIFY(QTest::qWaitForWindowExposed(window));
         auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
         QVERIFY(theme);
-        QVERIFY(theme->setProperty("dark", false));
-        QCOMPARE(theme->property("inkOnAccent").value<QColor>(), QColor(Qt::white));
-        QVERIFY(theme->setProperty("dark", true));
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
         const auto shot = [&](const char* name) {
             if (!shots.isEmpty()) {
@@ -449,6 +447,23 @@ private slots:
         QTest::qWait(500); // it slides in
         fits(settings);
         shot("settings");
+
+        // The theme: the user's, or the system's, at once.
+        const QColor pageColor = theme->property("surface0").value<QColor>();
+        press(settings, "scheme_light");
+        QTRY_VERIFY(findItem(settings, QStringLiteral("scheme_light"))->property("checked").toBool());
+        QCOMPARE(theme->property("dark").toBool(), false);
+        // Black until it was renamed: QML takes "on..." for a signal handler.
+        QCOMPARE(theme->property("inkOnAccent").value<QColor>(), QColor(Qt::white));
+        const QColor lightPage = theme->property("surface0").value<QColor>();
+        press(settings, "scheme_dark");
+        QCOMPARE(theme->property("dark").toBool(), true);
+        QVERIFY(theme->property("surface0").value<QColor>() != lightPage);
+        QVERIFY(!findItem(settings, QStringLiteral("scheme_light"))->property("checked").toBool());
+        press(settings, "scheme_auto");
+        QCOMPARE(theme->property("surface0").value<QColor>(), pageColor); // the config file outlives a test
+        const auto systemDark = QGuiApplication::styleHints()->colorScheme() != Qt::ColorScheme::Light;
+        QCOMPARE(theme->property("dark").toBool(), systemDark);
 
         // A step at a time, and no further than it goes.
         auto* cache = findItem(settings, QStringLiteral("cacheSize"));

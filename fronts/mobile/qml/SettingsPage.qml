@@ -180,6 +180,27 @@ Page {
             SettingsGroup {
                 title: qsTr("Interface")
                 SettingsCell {
+                    SettingText { title: qsTr("Theme") }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing
+                        Repeater {
+                            model: [{ t: qsTr("Auto"), v: "auto" }, { t: qsTr("Light"), v: "light" },
+                                    { t: qsTr("Dark"), v: "dark" }]
+                            Chip {
+                                required property var modelData
+                                objectName: "scheme_" + modelData.v
+                                text: modelData.t
+                                checked: page.ui.colorScheme === modelData.v
+                                onClicked: {
+                                    page.ui.colorScheme = modelData.v
+                                    checked = Qt.binding(() => page.ui.colorScheme === modelData.v)
+                                }
+                            }
+                        }
+                    }
+                }
+                SettingsCell {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.padding
