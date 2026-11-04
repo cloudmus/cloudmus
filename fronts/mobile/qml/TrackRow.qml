@@ -68,7 +68,7 @@ ItemDelegate {
     }
 
     contentItem: Item {
-        clip: row.layoutWidth > 0
+        clip: row.width < row.layoutWidth - 1
         RowLayout {
             // At its own width, the row closing over it like a curtain: nothing
             // is laid out anew each frame, and what's cut off can't be pressed.

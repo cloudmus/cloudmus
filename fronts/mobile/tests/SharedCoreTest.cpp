@@ -1007,6 +1007,74 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr, 5000);
     }
 
+    // Turning the screen over moves things and scales them, a GPU's work and
+    // next to nothing. What must not happen on the way is what costs on a head
+    // unit: text and its shadow laid out and drawn anew, textures of masks made
+    // anew, a picture decoded or generated.
+    void turningTheScreenOverRedrawsNothingHeavy_data()
+    {
+        QTest::addColumn<QSize>("size");
+        QTest::newRow("headunit") << QSize(1920, 1080);
+        QTest::newRow("phone-landscape") << QSize(820, 362);
+    }
+
+    void turningTheScreenOverRedrawsNothingHeavy()
+    {
+        QFETCH(QSize, size);
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(size);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QTest::qWait(1200); // the first size settled, on everything
+
+        auto* toggle = window->findChild<QQuickItem*>("screenModeToggle");
+        auto* panel = window->findChild<QQuickItem*>("trackPanel");
+        auto* title = window->findChild<QQuickItem*>("trackTitle");
+        auto* picture = window->findChild<QQuickItem*>("trackCoverPicture");
+        if (picture == nullptr)
+            picture = window->findChild<QQuickItem*>("trackCover");
+        auto* aura = window->findChild<QQuickItem*>("heroAura");
+        auto* list = window->findChild<QQuickItem*>("mainList");
+        QVERIFY(toggle && panel && title && picture && aura && list);
+
+        QSignalSpy titleWidth(title, SIGNAL(widthChanged()));
+        QSignalSpy titleFont(title, SIGNAL(titleSizeChanged()));
+        QSignalSpy coverSize(picture, SIGNAL(widthChanged()));
+        QSignalSpy coverPixels(picture, SIGNAL(_sideChanged()));
+        QSignalSpy auraPixels(aura, SIGNAL(_pixelsChanged()));
+        QSignalSpy listWidth(list, SIGNAL(widthChanged()));
+
+        for (const qreal end : { 1.0, 0.0 }) {
+            QVERIFY(QMetaObject::invokeMethod(toggle, "clicked"));
+            QTRY_COMPARE(panel->property("progress").toReal(), end);
+            QTest::qWait(800); // what used to follow the end of the animation
+        }
+        qInfo().noquote() << QStringLiteral(
+            "there and back: title width %1, title font %2, cover size %3, cover pixels %4, background pixels %5, "
+            "list width %6").arg(titleWidth.size()).arg(titleFont.size()).arg(coverSize.size())
+            .arg(coverPixels.size()).arg(auraPixels.size()).arg(listWidth.size());
+        // Only at the ends for the title, which is laid out for where it arrives.
+        QVERIFY(titleWidth.size() <= 4);
+        QVERIFY(titleFont.size() <= 2);
+        QCOMPARE(coverSize.size(), 0);
+        QCOMPARE(coverPixels.size(), 0);
+        QCOMPARE(auraPixels.size(), 0);
+        QCOMPARE(listWidth.size(), 0);
+    }
+
     // No network is a state to see, not an error.
     void offlineIsShownNotComplainedAbout()
     {
@@ -1231,7 +1299,8 @@ private slots:
             auto* panel = window->findChild<QQuickItem*>("trackPanel");
             auto* cover = window->findChild<QQuickItem*>("trackCover");
             auto* details = window->findChild<QQuickItem*>("trackDetails");
-            auto* list = window->findChild<QQuickItem*>("mainList");
+            // What shows of it: the list itself keeps its width, and is cut off.
+            auto* list = window->findChild<QQuickItem*>("mainList")->parentItem();
             auto* railSettings = window->findChild<QQuickItem*>("railSettings");
             auto* toggle = window->findChild<QObject*>("screenModeToggle");
             QVERIFY(bar && panel && cover && details && list && railSettings && toggle);
@@ -1262,7 +1331,7 @@ private slots:
                 window->grabWindow().save(QStringLiteral("%1/%2-text-wiping.png").arg(dir, QTest::currentDataTag()));
             }
             QTRY_VERIFY(!cover->property("changing").toBool());
-            QVERIFY(cover->property("_showing").toBool());
+            QVERIFY(window->findChild<QQuickItem*>("trackCoverPicture")->property("_showing").toBool());
 
             QMetaObject::invokeMethod(toggle, "clicked");
             QTest::qWait(150);
@@ -1272,15 +1341,15 @@ private slots:
             }
             QTRY_VERIFY(settled("1"));
             // A picture of the new size comes once it has settled, and is what's shown.
-            QTRY_COMPARE(cover->property("_side").toInt(), qRound(cover->width() * window->devicePixelRatio()));
+            QTRY_COMPARE(window->findChild<QQuickItem*>("trackCoverPicture")->property("_side").toInt(), qRound(window->findChild<QQuickItem*>("trackCoverPicture")->width() * window->devicePixelRatio()));
             // (Nothing to show if the fake's track, whose stream can't be fetched,
             // has been given up on by now: then it's the note.)
             if (!cover->property("_wanted").toString().isEmpty())
-                QTRY_VERIFY(cover->property("_showing").toBool());
+                QTRY_VERIFY(window->findChild<QQuickItem*>("trackCoverPicture")->property("_showing").toBool());
             else
                 qInfo() << "cover: nothing wanted, hasTrack" << core.nowPlaying().hasTrack();
             if (!cover->property("_wanted").toString().isEmpty())
-                QTRY_COMPARE(cover->property("shownSide").toInt(), cover->property("_side").toInt());
+                QTRY_COMPARE(cover->property("shownSide").toInt(), window->findChild<QQuickItem*>("trackCoverPicture")->property("_side").toInt());
             shot("mode-expanded");
             const QRectF bigCover = sceneRect(cover);
             auto* titleBlock = window->findChild<QQuickItem*>("trackTitle");

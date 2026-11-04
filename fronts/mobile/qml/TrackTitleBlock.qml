@@ -181,6 +181,7 @@ Item {
         height: mask.height
         opacity: root._masked ? 1 : 1 - root._progress
         layer.enabled: root._masked
+        layer.smooth: true // for the panel scaling it on its way
         layer.effect: MultiEffect {
             maskEnabled: true
             maskInverted: true
@@ -215,6 +216,7 @@ Item {
         height: mask.height
         opacity: root._masked ? 1 : root._progress
         layer.enabled: root._masked
+        layer.smooth: true // for the panel scaling it on its way
         layer.effect: MultiEffect {
             maskEnabled: true
             maskSource: mask

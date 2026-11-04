@@ -147,9 +147,13 @@ Page {
             Layout.preferredWidth: page.width - page._listWidth
 
             AuraBackground {
+                objectName: "heroAura"
                 anchors.fill: parent
                 visible: parent.visible
                 seed: page.backgroundSeed
+                // One picture for both modes, stretched: it's soft enough not to
+                // show, and generating it is what costs.
+                artSize: Qt.size(page.width - page._coversWidth, page.height)
             }
             TrackPanel {
                 objectName: "trackPanel"
@@ -160,6 +164,8 @@ Page {
                 progress: page.screenProgress
                 // A phone on its side.
                 compact: page.height < Theme.dp(460)
+                // As large as it gets, beside the rest.
+                coverMaxSide: (page.height - page._heroMargin * 2) * sideCoverHeightShare
                 // In the row with the source's button, until that folds away.
                 modesElsewhere: 1 - page._barFolded
                 sideCoverShare: 1
@@ -330,46 +336,53 @@ Page {
                 }
             }
 
-            ScrollList {
-                id: list
-                objectName: "mainList"
+            // Going down to its covers it's only cut off: the list keeps its
+            // width, and nothing in it is laid out anew each frame.
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true
-                model: page.backend.tracks
-                delegate: TrackRow {
-                    playing: page.nowPlaying && page.nowPlaying.playing === true
-                    showMenu: page.backend.trackScreen !== null
-                    layoutWidth: page.wide ? page._listFullWidth : 0
-                    onClicked: {
-                        if (page.backend.mainScreen)
-                            page.backend.mainScreen.playRow(index)
-                        else
-                            page.playlist.playRow(index)
-                    }
-                    onMenuRequested: {
-                        page.backend.trackScreen.showActiveRow(index)
-                        page.trackMenuRequested()
-                    }
-                }
+                clip: page.wide
 
-                // Nothing active yet: the way to the Library.
-                Column {
-                    parent: list
-                    anchors.centerIn: parent
-                    visible: list.count === 0 && page.library !== null && page.screenProgress < 0.5
-                    spacing: Theme.padding
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: qsTr("Nothing is playing")
-                        color: Theme.inkSecondary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontBody
+                ScrollList {
+                    id: list
+                    objectName: "mainList"
+                    width: page.wide ? page._listFullWidth : parent.width
+                    height: parent.height
+                    model: page.backend.tracks
+                    delegate: TrackRow {
+                        playing: page.nowPlaying && page.nowPlaying.playing === true
+                        showMenu: page.backend.trackScreen !== null
+                        layoutWidth: page.wide ? page._listFullWidth : 0
+                        onClicked: {
+                            if (page.backend.mainScreen)
+                                page.backend.mainScreen.playRow(index)
+                            else
+                                page.playlist.playRow(index)
+                        }
+                        onMenuRequested: {
+                            page.backend.trackScreen.showActiveRow(index)
+                            page.trackMenuRequested()
+                        }
                     }
-                    TextButton {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: qsTr("Open the Library")
-                        onClicked: page.libraryRequested()
+
+                    // Nothing active yet: the way to the Library.
+                    Column {
+                        parent: list
+                        anchors.centerIn: parent
+                        visible: list.count === 0 && page.library !== null && page.screenProgress < 0.5
+                        spacing: Theme.padding
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: qsTr("Nothing is playing")
+                            color: Theme.inkSecondary
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontBody
+                        }
+                        TextButton {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: qsTr("Open the Library")
+                            onClicked: page.libraryRequested()
+                        }
                     }
                 }
             }

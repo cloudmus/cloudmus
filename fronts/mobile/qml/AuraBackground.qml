@@ -13,6 +13,9 @@ Rectangle {
     // How far in the edges dissolve: 0 for a strip too thin for it.
     property real edgeFade: Theme.dp(45)
     readonly property bool ready: picture.showing
+    // The size to draw it at, if not its own: a size that changes then only
+    // stretches what's there, with nothing generated anew.
+    property size artSize: Qt.size(0, 0)
 
     color: Theme.surface0
     clip: true
@@ -21,10 +24,11 @@ Rectangle {
     // what's there stretches, as on the desktop's hero.
     property size _pixels: Qt.size(0, 0)
     function _settle() {
-        if (width <= 0 || height <= 0)
+        const w = artSize.width > 0 ? artSize.width : width
+        const h = artSize.height > 0 ? artSize.height : height
+        if (w <= 0 || h <= 0 || !visible)
             return
-        const pixels = Qt.size(Math.round(width * Screen.devicePixelRatio),
-                               Math.round(height * Screen.devicePixelRatio))
+        const pixels = Qt.size(Math.round(w * Screen.devicePixelRatio), Math.round(h * Screen.devicePixelRatio))
         if (pixels.width !== _pixels.width || pixels.height !== _pixels.height)
             _pixels = pixels
     }
@@ -34,8 +38,10 @@ Rectangle {
         else
             settling.restart()
     }
-    onWidthChanged: _sizeChanged()
-    onHeightChanged: _sizeChanged()
+    onArtSizeChanged: _sizeChanged()
+    onVisibleChanged: _sizeChanged()
+    onWidthChanged: if (artSize.width <= 0) _sizeChanged()
+    onHeightChanged: if (artSize.height <= 0) _sizeChanged()
     Component.onCompleted: _sizeChanged()
     Timer {
         id: settling

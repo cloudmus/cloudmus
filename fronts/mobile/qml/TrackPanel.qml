@@ -48,9 +48,26 @@ Item {
     readonly property int _textDirection: nowPlaying && nowPlaying.trackDirection === -1 ? -1 : 1
 
     function _mix(from, to) { return from + (to - from) * progress }
+    function _titleSizeAt(at) { return Theme.fontTitle + Theme.dp(3) + (Theme.dp(28) - Theme.fontTitle - Theme.dp(3)) * at }
+    // Not on the way from one layout to the other.
+    readonly property bool _atRest: progress <= 0 || progress >= 1
+    property real _restProgress: progress
+    Binding {
+        target: panel
+        property: "_restProgress"
+        value: panel.progress
+        when: panel._atRest
+        restoreMode: Binding.RestoreNone
+    }
+    // The side of the picture the cover keeps, whatever it's shown at; 0: as shown,
+    // for a panel that stays in one layout. Not worked out from this panel's size,
+    // which changes on the way.
+    property real coverMaxSide: 0
 
-    Cover {
-        id: cover
+    // The picture stays one size, scaled to what's asked for: its mask's texture
+    // isn't made anew each frame, nor the picture decoded again at the other end.
+    Item {
+        id: coverBox
         objectName: "trackCover"
         x: panel._mix(panel.compact ? 0 : (panel.width - panel._aboveSide) / 2, 0)
         y: panel._mix(panel.compact ? (panel._compactRow - panel._aboveSide) / 2
@@ -58,14 +75,29 @@ Item {
                       (panel.height - panel._besideSide) / 2)
         width: panel._mix(panel._aboveSide, panel._besideSide)
         height: width
-        source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
-        seed: panel.seed
-        radius: Theme.dp(20)
-        liveCorners: true
-        zoomOnChange: true
+        readonly property alias changing: cover.changing
+        readonly property alias enteringScale: cover.enteringScale
+        readonly property alias shownSource: cover.shownSource
+        readonly property alias shownSide: cover.shownSide
         // A slight breath while playing.
         scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
         Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
+
+        Cover {
+            id: cover
+            objectName: "trackCoverPicture"
+            width: panel.coverMaxSide > 0 ? panel.coverMaxSide : coverBox.width
+            height: width
+            transformOrigin: Item.TopLeft
+            scale: coverBox.width / width
+            source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
+            seed: panel.seed
+            // The same on screen at any scale. In the picture itself, without a
+            // GPU, it can't follow.
+            radius: _masked && scale > 0 ? Theme.dp(20) / scale : Theme.dp(20)
+            liveCorners: true
+            zoomOnChange: true
+        }
     }
 
     ColumnLayout {
@@ -85,17 +117,35 @@ Item {
             RowLayout {
                 id: titleRow
                 anchors.fill: parent
-                TrackTitleBlock {
-                    objectName: "trackTitle"
+                // The text keeps its size and width for the way, scaled to what's
+                // wanted, and is laid out once at the end: redrawn each frame, with
+                // the shadows and masks around it, it's the costliest thing here.
+                Item {
+                    id: titleSlot
                     Layout.fillWidth: true
-                    title: panel.nowPlaying ? panel.nowPlaying.title : ""
-                    artist: panel.nowPlaying ? panel.nowPlaying.artist : ""
-                    direction: panel._textDirection
-                    titleColor: panel.inkColor
-                    artistColor: panel.inkSecondaryColor
-                    // Larger with the room there is beside the cover.
-                    titleSize: Math.round(panel._mix(Theme.fontTitle + Theme.dp(3), Theme.dp(28)))
-                    artistSize: Math.round(panel._mix(Theme.fontBody, Theme.dp(19)))
+                    implicitHeight: titleBlock.implicitHeight * titleBlock.scale
+                    TrackTitleBlock {
+                        id: titleBlock
+                        objectName: "trackTitle"
+                        y: (titleSlot.height - titleSlot.implicitHeight) / 2
+                        transformOrigin: Item.TopLeft
+                        scale: panel._titleSizeAt(panel.progress) / panel._titleSizeAt(panel._restProgress)
+                        title: panel.nowPlaying ? panel.nowPlaying.title : ""
+                        artist: panel.nowPlaying ? panel.nowPlaying.artist : ""
+                        direction: panel._textDirection
+                        titleColor: panel.inkColor
+                        artistColor: panel.inkSecondaryColor
+                        // Larger with the room there is beside the cover.
+                        titleSize: Math.round(panel._titleSizeAt(panel._restProgress))
+                        artistSize: Math.round(Theme.fontBody + (Theme.dp(19) - Theme.fontBody) * panel._restProgress)
+                    }
+                    Binding {
+                        target: titleBlock
+                        property: "width"
+                        value: titleSlot.width
+                        when: panel._atRest
+                        restoreMode: Binding.RestoreNone
+                    }
                 }
                 // What a queue does: not on the dev tracks, which don't have them.
                 IconButton {
