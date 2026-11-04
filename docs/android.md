@@ -82,6 +82,10 @@ adb logcat -s CloudmusStart             # startup milestones
   `Download/Cloudmus`.
 - Autoplay at boot is on by default; the switch is in Settings (the sliders
   icon on the playlist page).
+- Settings apply at once. A source's page (whether it runs, its connection and
+  its own settings) restarts the source when a change takes that; opening it
+  starts a source left unstarted for wanting a sign-in. There's no language
+  setting yet: the QML has no translations. No download folder either.
 - Media browsers (the car's Media Center, Android Auto) list the playlists:
   with several sources a folder for each, with one its playlists straight away,
   favorites first. A tap starts the playlist, waiting for its source if that's

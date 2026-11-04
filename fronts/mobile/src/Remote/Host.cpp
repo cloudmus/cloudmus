@@ -45,6 +45,14 @@ Host::Host(App::MobileCore& core, const QString& socketPath, QObject* parent)
     host_.enableRemoting(&playlist.rows(), Names::openTracks, playlist.allRows().roleNames().keys().toVector());
     host_.enableRemoting(&core.trackScreen(), Names::trackScreen);
     offerRows(core.trackScreen().playlistRows(), Names::trackPlaylists);
+    ViewModel::SettingsScreen& settingsScreen = core.settingsScreen();
+    host_.enableRemoting(&settingsScreen, Names::settingsScreen);
+    offerRows(settingsScreen.sourceRows(), Names::settingsSources);
+    offerRows(settingsScreen.proxyRows(), Names::settingsProxies);
+    ViewModel::SourceSettingsScreen& sourceSettings = core.sourceSettingsScreen();
+    host_.enableRemoting(&sourceSettings, Names::sourceSettings);
+    offerRows(sourceSettings.connectionRows(), Names::sourceConnections);
+    offerRows(sourceSettings.fieldRows(), Names::sourceFields);
 #endif
     qCInfo(lcRemote) << "core offered on" << socketPath;
 }

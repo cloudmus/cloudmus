@@ -45,6 +45,12 @@ class Backend : public QObject {
     Q_PROPERTY(QAbstractItemModel* openTracks READ openTracks NOTIFY readyChanged)
     Q_PROPERTY(QObject* trackScreen READ trackScreen NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* trackPlaylists READ trackPlaylists NOTIFY readyChanged)
+    Q_PROPERTY(QObject* settingsScreen READ settingsScreen NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* settingsSources READ settingsSources NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* settingsProxies READ settingsProxies NOTIFY readyChanged)
+    Q_PROPERTY(QObject* sourceSettings READ sourceSettings NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* sourceConnections READ sourceConnections NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* sourceFields READ sourceFields NOTIFY readyChanged)
 
 public:
 #ifndef Q_OS_ANDROID
@@ -76,6 +82,12 @@ public:
     QAbstractItemModel* openTracks() const { return ready_ ? openTracks_.data() : nullptr; }
     QObject* trackScreen() const { return ready_ ? trackScreen_.data() : nullptr; }
     QAbstractItemModel* trackPlaylists() const { return ready_ ? trackPlaylists_.data() : nullptr; }
+    QObject* settingsScreen() const { return ready_ ? settingsScreen_.data() : nullptr; }
+    QAbstractItemModel* settingsSources() const { return ready_ ? settingsSources_.data() : nullptr; }
+    QAbstractItemModel* settingsProxies() const { return ready_ ? settingsProxies_.data() : nullptr; }
+    QObject* sourceSettings() const { return ready_ ? sourceSettings_.data() : nullptr; }
+    QAbstractItemModel* sourceConnections() const { return ready_ ? sourceConnections_.data() : nullptr; }
+    QAbstractItemModel* sourceFields() const { return ready_ ? sourceFields_.data() : nullptr; }
 
 signals:
     void readyChanged();
@@ -95,12 +107,18 @@ private:
     QPointer<QAbstractItemModel> downloads_;
     QPointer<QObject> playlistScreen_;
     QPointer<QObject> trackScreen_;
+    QPointer<QObject> settingsScreen_;
+    QPointer<QObject> sourceSettings_;
     QPointer<QAbstractItemModel> tracks_;
     QPointer<QAbstractItemModel> sources_;
     QPointer<QAbstractItemModel> favorites_;
     QPointer<QAbstractItemModel> otherPlaylists_;
     QPointer<QAbstractItemModel> openTracks_;
     QPointer<QAbstractItemModel> trackPlaylists_;
+    QPointer<QAbstractItemModel> settingsSources_;
+    QPointer<QAbstractItemModel> settingsProxies_;
+    QPointer<QAbstractItemModel> sourceConnections_;
+    QPointer<QAbstractItemModel> sourceFields_;
     QList<QRemoteObjectReplica*> replicas_;
     int modelsAcquired_ = 0;
     int modelsInitialized_ = 0;

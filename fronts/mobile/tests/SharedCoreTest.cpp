@@ -66,6 +66,26 @@ void playFake(App::MobileCore& core)
 
 int roleOf(const QAbstractItemModel& model, const QByteArray& name) { return model.roleNames().key(name, -1); }
 
+// By what's shown inside what: a Repeater's items aren't its page's QObject
+// children, which findChild() goes by.
+QQuickItem* findItem(QQuickItem* root, const QString& name)
+{
+    if (root->objectName() == name)
+        return root;
+    for (QQuickItem* child : root->childItems()) {
+        if (QQuickItem* found = findItem(child, name))
+            return found;
+    }
+    return nullptr;
+}
+
+void forEachItem(QQuickItem* root, const std::function<void(QQuickItem*)>& visit)
+{
+    visit(root);
+    for (QQuickItem* child : root->childItems())
+        forEachItem(child, visit);
+}
+
 } // namespace
 
 // A slot for a signal of a replica, which has no member function to point at.
@@ -255,6 +275,222 @@ private slots:
         QVERIFY(!core.nowPlaying().hasTrack());
         QTRY_VERIFY_WITH_TIMEOUT(core.nowPlaying().hasTrack(), 10000);
         QCOMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
+    }
+
+    // The settings as a phone reaches them: over a replica, applied at once,
+    // with a source's own form and its restart.
+    void settingsThroughAReplica()
+    {
+        qputenv("CLOUDMUS_FAKE_SETTINGS", "1");
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        // The config file outlives a test.
+        core.core().settings().setProxies({ });
+        core.core().settings().setSourceConnection(QStringLiteral("fake"), QLatin1String(Config::Settings::kSystemConnection));
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+        const QString fake = QStringLiteral("fake");
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
+                && core.core().sourceManager().client(fake)->available(),
+            10000);
+        qunsetenv("CLOUDMUS_FAKE_SETTINGS");
+
+        QObject* screen = backend.settingsScreen();
+        const int tracks = core.core().preload().playlistTracks() + 1;
+        QMetaObject::invokeMethod(screen, "setPlaylistTracks", Q_ARG(int, tracks));
+        QTRY_COMPARE(core.core().settings().preloadPlaylistTracks(), tracks);
+        QTRY_COMPARE(screen->property("playlistTracks").toInt(), tracks);
+        QMetaObject::invokeMethod(screen, "setCacheMaxMb", Q_ARG(int, 512));
+        QTRY_COMPARE(screen->property("cacheMaxMb").toInt(), 512);
+        const bool analytics = core.core().settings().analyticsEnabled();
+        QMetaObject::invokeMethod(screen, "setAnalytics", Q_ARG(bool, !analytics));
+        QTRY_COMPARE(screen->property("analytics").toBool(), !analytics);
+        QMetaObject::invokeMethod(screen, "setAnalytics", Q_ARG(bool, analytics));
+        QVERIFY(!screen->property("cacheUsedText").toString().isEmpty());
+
+        QAbstractItemModel* sources = backend.settingsSources();
+        QTRY_COMPARE(sources->rowCount(), 1);
+        QTRY_COMPARE(sources->data(sources->index(0, 0), roleOf(*sources, "name")).toString(), QStringLiteral("Fake Source"));
+
+        // A proxy: saved, listed, offered to the source.
+        QAbstractItemModel* proxies = backend.settingsProxies();
+        QMetaObject::invokeMethod(screen, "saveProxy", Q_ARG(QString, QString()), Q_ARG(QString, QStringLiteral("Home")),
+            Q_ARG(QString, QStringLiteral("socks5")), Q_ARG(QString, QStringLiteral("10.0.0.1")), Q_ARG(int, 1081),
+            Q_ARG(QString, QStringLiteral("me")), Q_ARG(QString, QStringLiteral("secret")));
+        QTRY_COMPARE(proxies->rowCount(), 1);
+        const Config::ProxyConfig saved = core.core().settings().proxies().first();
+        QCOMPARE(saved.type, Config::ProxyConfig::Type::Socks5);
+        QCOMPARE(saved.port, 1081);
+        QTRY_COMPARE(proxies->data(proxies->index(0, 0), roleOf(*proxies, "kind")).toString(), QStringLiteral("socks5"));
+
+        QObject* page = backend.sourceSettings();
+        QAbstractItemModel* connections = backend.sourceConnections();
+        QAbstractItemModel* fields = backend.sourceFields();
+        QMetaObject::invokeMethod(page, "open", Q_ARG(QString, fake));
+        QTRY_COMPARE(page->property("name").toString(), QStringLiteral("Fake Source"));
+        QTRY_COMPARE(connections->rowCount(), 3);
+        QTRY_COMPARE(connections->data(connections->index(0, 0), roleOf(*connections, "isCurrent")).toBool(), true);
+        QTRY_COMPARE_WITH_TIMEOUT(fields->rowCount(), 5, 5000);
+        const auto field = [&](int row, const char* role) { return fields->data(fields->index(row, 0), roleOf(*fields, role)); };
+        // The untitled group first, its heading on the first of a titled one.
+        QTRY_COMPARE(field(0, "key").toString(), QStringLiteral("quality"));
+        QTRY_COMPARE(field(1, "groupTitle").toString(), QStringLiteral("More"));
+        QTRY_COMPARE(field(2, "groupTitle").toString(), QString());
+        QTRY_COMPARE(field(0, "options").toList().size(), 2);
+        QTRY_COMPARE(field(0, "options").toList().first().toMap().value(QStringLiteral("label")).toString(), QStringLiteral("High"));
+
+        // What the source turns down says so in its row, and goes when it's taken.
+        QMetaObject::invokeMethod(page, "setFieldText", Q_ARG(QString, QStringLiteral("name")), Q_ARG(QString, QStringLiteral("bad")));
+        QTRY_COMPARE(field(3, "error").toString(), QStringLiteral("Not that name"));
+        QMetaObject::invokeMethod(page, "setFieldText", Q_ARG(QString, QStringLiteral("name")), Q_ARG(QString, QStringLiteral(" good ")));
+        QTRY_COMPARE(field(3, "error").toString(), QString());
+        QTRY_COMPARE(field(3, "value").toString(), QStringLiteral("good"));
+        // A secret isn't sent back or shown.
+        QVERIFY(!field(4, "isSet").toBool());
+        QMetaObject::invokeMethod(page, "setFieldText", Q_ARG(QString, QStringLiteral("token")), Q_ARG(QString, QStringLiteral("t")));
+        QTRY_VERIFY(field(4, "isSet").toBool());
+        QVERIFY(field(4, "value").toString().isEmpty());
+
+        // A setting that takes a restart: the source comes back, and its form.
+        const Rpc::RpcClient* before = core.core().sourceManager().client(fake);
+        QSignalSpy ready(&core.core().sourceManager(), &Rpc::SourceManager::sourceReady);
+        qputenv("CLOUDMUS_FAKE_SETTINGS", "1");
+        QMetaObject::invokeMethod(page, "setFieldBool", Q_ARG(QString, QStringLiteral("flag")), Q_ARG(bool, true));
+        QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+        QTRY_COMPARE_WITH_TIMEOUT(fields->rowCount(), 5, 5000);
+
+        // A connection: saved, and the source restarts on it.
+        ready.clear();
+        QMetaObject::invokeMethod(page, "setConnection", Q_ARG(QString, saved.id));
+        QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+        QCOMPARE(core.core().settings().sourceConnection(fake), saved.id);
+        QTRY_COMPARE(connections->data(connections->index(2, 0), roleOf(*connections, "isCurrent")).toBool(), true);
+        // Its proxy goes: it falls back, says so, and restarts.
+        ready.clear();
+        QMetaObject::invokeMethod(screen, "removeProxy", Q_ARG(QString, saved.id));
+        QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+        QTRY_COMPARE(proxies->rowCount(), 0);
+        qunsetenv("CLOUDMUS_FAKE_SETTINGS");
+        QTRY_VERIFY(page->property("connectionHint").toString().contains(QStringLiteral("removed")));
+        QTRY_COMPARE(connections->data(connections->index(0, 0), roleOf(*connections, "isCurrent")).toBool(), true);
+
+        // Off, it's off for good; on, it comes back.
+        QMetaObject::invokeMethod(page, "setEnabled", Q_ARG(bool, false));
+        QTRY_VERIFY(!core.core().sourceManager().isEnabled(fake));
+        QTRY_COMPARE(page->property("enabled").toBool(), false);
+        QTRY_VERIFY(!page->property("status").toString().isEmpty());
+        QTRY_COMPARE(sources->data(sources->index(0, 0), roleOf(*sources, "status")).toString(), QStringLiteral("Off"));
+        ready.clear();
+        QMetaObject::invokeMethod(page, "setEnabled", Q_ARG(bool, true));
+        QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    }
+
+    // The pages on a phone: all of it can be reached and nothing runs off the
+    // side, in the narrowest there is.
+    void settingsPagesFitAPhone()
+    {
+        qputenv("CLOUDMUS_FAKE_SETTINGS", "1");
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        core.core().settings().setProxies({ }); // the config file outlives a test
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        const QString fake = QStringLiteral("fake");
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
+                && core.core().sourceManager().client(fake)->available(),
+            10000);
+        qunsetenv("CLOUDMUS_FAKE_SETTINGS");
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(360, 780);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        const auto shot = [&](const char* name) {
+            if (!shots.isEmpty()) {
+                QTest::qWait(500);
+                window->grabWindow().save(shots + QLatin1Char('/') + QLatin1String(name) + QStringLiteral(".png"));
+            }
+        };
+        const auto fits = [&](QQuickItem* page) {
+            QVERIFY(page != nullptr);
+            forEachItem(page, [&](QQuickItem* item) {
+                if (!item->isVisible() || item->objectName().isEmpty())
+                    return;
+                const QRectF rect = item->mapRectToScene(item->boundingRect());
+                QVERIFY2(rect.left() >= 0 && rect.right() <= window->width() + 0.5, qPrintable(item->objectName()));
+            });
+        };
+        const auto press = [&](QQuickItem* page, const char* name) {
+            auto* item = findItem(page, QLatin1String(name));
+            QVERIFY2(item != nullptr, name);
+            QVERIFY2(QMetaObject::invokeMethod(item, "clicked"), name);
+        };
+
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "settingsRequested"));
+        QTRY_VERIFY(window->findChild<QQuickItem*>("settings") != nullptr);
+        auto* settings = window->findChild<QQuickItem*>("settings");
+        QTRY_VERIFY(findItem(settings, QStringLiteral("sourceRow_fake")) != nullptr);
+        QTest::qWait(500); // it slides in
+        fits(settings);
+        shot("settings");
+
+        // A step at a time, and no further than it goes.
+        auto* cache = findItem(settings, QStringLiteral("cacheSize"));
+        QVERIFY(cache);
+        const int megabytes = core.core().preload().cacheMaxMb();
+        QVERIFY(QMetaObject::invokeMethod(findItem(cache, QStringLiteral("stepUp")), "clicked"));
+        QCOMPARE(core.core().preload().cacheMaxMb(), megabytes + 256);
+
+        // A source's page, with its own form.
+        press(settings, "sourceRow_fake");
+        QTRY_VERIFY(window->findChild<QQuickItem*>("sourceSettings") != nullptr);
+        auto* source = window->findChild<QQuickItem*>("sourceSettings");
+        QTRY_VERIFY_WITH_TIMEOUT(findItem(source, QStringLiteral("option_low")) != nullptr, 5000);
+        QTest::qWait(400);
+        fits(source);
+        shot("source-settings");
+        press(source, "option_low");
+        QTRY_VERIFY(findItem(source, QStringLiteral("option_low"))->property("checked").toBool());
+        QTRY_VERIFY(!findItem(source, QStringLiteral("option_high"))->property("checked").toBool());
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QObject*>("stack"), "close"));
+        QTRY_VERIFY(window->findChild<QQuickItem*>("sourceSettings") == nullptr);
+
+        // A new proxy: not without a host; then listed, and open to edit.
+        press(settings, "addProxy");
+        QTRY_VERIFY(window->findChild<QQuickItem*>("proxy") != nullptr);
+        auto* proxy = window->findChild<QQuickItem*>("proxy");
+        QTest::qWait(400);
+        fits(proxy);
+        shot("proxy");
+        auto* save = findItem(proxy, QStringLiteral("proxySave"));
+        QVERIFY(save);
+        QVERIFY(!save->isEnabled());
+        QVERIFY(findItem(proxy, QStringLiteral("proxyHost"))->setProperty("text", QStringLiteral("10.0.0.1")));
+        QTRY_VERIFY(save->isEnabled());
+        QVERIFY(!findItem(proxy, QStringLiteral("proxyRemove"))->isVisible());
+        press(proxy, "proxySave");
+        QTRY_VERIFY(window->findChild<QQuickItem*>("proxy") == nullptr);
+        QCOMPARE(core.core().settings().proxies().first().host, QStringLiteral("10.0.0.1"));
+        QCOMPARE(core.core().settings().proxies().first().port, 1080);
+        QTRY_VERIFY(findItem(settings, QStringLiteral("proxyRow_10.0.0.1")) != nullptr);
+        press(settings, "proxyRow_10.0.0.1");
+        QTRY_VERIFY(window->findChild<QQuickItem*>("proxy") != nullptr);
+        proxy = window->findChild<QQuickItem*>("proxy");
+        QTRY_COMPARE(findItem(proxy, QStringLiteral("proxyHost"))->property("text").toString(), QStringLiteral("10.0.0.1"));
+        QVERIFY(findItem(proxy, QStringLiteral("proxyRemove"))->isVisible());
+        press(proxy, "proxyRemove");
+        QTRY_VERIFY(core.core().settings().proxies().isEmpty());
     }
 
     // The same seed gives the same picture, another seed another, opaque

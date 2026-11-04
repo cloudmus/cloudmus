@@ -15,6 +15,11 @@ Page {
     signal closeRequested()
     signal developerRequested()
     signal stopRequested()
+    // `proxy`: the row of the one to edit, null for a new one.
+    signal sourceRequested(string sourceId)
+    signal proxyRequested(var proxy)
+
+    readonly property QtObject screen: backend.settingsScreen
 
     background: Rectangle { color: Theme.surface0 }
 
@@ -59,6 +64,113 @@ Page {
                                  && page.backend.settings.resumeAfterLossSec === modelData.v
                         onClicked: page.backend.settings.setResumeAfterLossSec(modelData.v)
                     }
+                }
+            }
+
+            SectionHeading { text: qsTr("Preloading") }
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("How many tracks after the playing one are downloaded in advance, so they start at once and play through a bad connection.")
+                wrapMode: Text.Wrap
+                color: Theme.inkSecondary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSmall
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                BodyText { text: qsTr("Tracks ahead in a playlist") }
+                Stepper {
+                    objectName: "preloadPlaylist"
+                    value: page.screen ? page.screen.playlistTracks : 0
+                    to: 50
+                    onMoved: (value) => page.screen.setPlaylistTracks(value)
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                BodyText { text: qsTr("Tracks ahead in a radio") }
+                Stepper {
+                    value: page.screen ? page.screen.radioTracks : 0
+                    to: 50
+                    onMoved: (value) => page.screen.setRadioTracks(value)
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                BodyText { text: qsTr("Disk space for tracks") }
+                Stepper {
+                    objectName: "cacheSize"
+                    value: page.screen ? page.screen.cacheMaxMb : 0
+                    to: 65536
+                    step: 256
+                    suffix: " " + qsTr("MB")
+                    onMoved: (value) => page.screen.setCacheMaxMb(value)
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                BodyText {
+                    objectName: "cacheUsed"
+                    text: qsTr("%1 used").arg(page.screen ? page.screen.cacheUsedText : "")
+                }
+                TextButton {
+                    objectName: "clearCache"
+                    text: qsTr("Clear")
+                    onClicked: page.screen.clearCache()
+                }
+            }
+
+            SectionHeading { text: qsTr("Sources") }
+            Repeater {
+                model: page.backend.settingsSources
+                SettingsRow {
+                    required property string sourceId
+                    required property string name
+                    required property string iconUrl
+                    required property string status
+                    objectName: "sourceRow_" + sourceId
+                    text: name
+                    iconSource: iconUrl
+                    subtitle: status
+                    onClicked: page.sourceRequested(sourceId)
+                }
+            }
+
+            SectionHeading { text: qsTr("Network") }
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("Proxies a source can connect through: choose one on the source's own page. Everything of that source goes through it: the source itself, its streams and its covers.")
+                wrapMode: Text.Wrap
+                color: Theme.inkSecondary
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSmall
+            }
+            Repeater {
+                model: page.backend.settingsProxies
+                SettingsRow {
+                    required property var model
+                    objectName: "proxyRow_" + model.title
+                    text: model.title
+                    subtitle: model.host + ":" + model.port
+                    onClicked: page.proxyRequested({
+                        proxyId: model.proxyId, name: model.name, kind: model.kind, host: model.host,
+                        port: model.port, username: model.username, password: model.password })
+                }
+            }
+            TextButton {
+                objectName: "addProxy"
+                text: qsTr("Add proxy")
+                onClicked: page.proxyRequested(null)
+            }
+
+            SectionHeading { text: qsTr("Privacy") }
+            RowLayout {
+                Layout.fillWidth: true
+                BodyText { text: qsTr("Send usage statistics to Google Analytics") }
+                Switch {
+                    objectName: "analytics"
+                    checked: page.screen ? page.screen.analytics : false
+                    onToggled: page.screen.setAnalytics(checked)
                 }
             }
 

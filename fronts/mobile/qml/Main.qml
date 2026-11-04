@@ -86,9 +86,9 @@ ApplicationWindow {
             NumberAnimation { property: window.transitionKind === "rise" ? "y" : "x"; from: 0; to: window.transitionKind === "rise" ? stack.height : stack.width; duration: Theme.durationPage; easing.type: Easing.InCubic }
         }
 
-        function open(component, kind) {
+        function open(component, kind, properties) {
             window.transitionKind = kind
-            push(component, { backend: window.backend, platform: window.platform })
+            push(component, Object.assign({ backend: window.backend, platform: window.platform }, properties))
         }
         function close() {
             if (depth > 1) {
@@ -207,7 +207,26 @@ ApplicationWindow {
             ui: uiSettings
             onCloseRequested: stack.close()
             onDeveloperRequested: stack.open(developerPage, "slide")
+            onSourceRequested: (sourceId) => {
+                window.backend.sourceSettings.open(sourceId)
+                stack.open(sourceSettingsPage, "slide")
+            }
+            onProxyRequested: (proxy) => stack.open(proxyPage, "slide", proxy)
             onStopRequested: window.stopAndQuit()
+        }
+    }
+    Component {
+        id: sourceSettingsPage
+        SourceSettingsPage {
+            objectName: "sourceSettings"
+            onCloseRequested: stack.close()
+        }
+    }
+    Component {
+        id: proxyPage
+        ProxyPage {
+            objectName: "proxy"
+            onCloseRequested: stack.close()
         }
     }
     Component {

@@ -15,6 +15,9 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
     , playlistScreen_(core_)
     , trackScreen_(core_, mainScreen_, playlistScreen_)
     , mediaTree_(core_.sources(), core_.sourceManager(), library_, core_.coverArtCache())
+    , sourceSettings_(core_.sourceManager(), core_.settings())
+    , settingsScreen_(core_, sourceSettings_)
+    , sourceSettingsScreen_(core_, sourceSettings_)
 {
     core_.messages().setOfflineShownElsewhere(true); // mainScreen_.offline()
     core_.activePlaylist().setRefreshDelay(paths.refreshDelayMs);

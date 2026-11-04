@@ -97,6 +97,10 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
         src/ViewModel/TrackScreen.h
         src/ViewModel/RowsModel.cpp
         src/ViewModel/RowsModel.h
+        src/ViewModel/SettingsScreen.cpp
+        src/ViewModel/SettingsScreen.h
+        src/ViewModel/SourceSettingsScreen.cpp
+        src/ViewModel/SourceSettingsScreen.h
     )
     target_include_directories(cloudmus-mobile-core PUBLIC src/App)
     target_link_libraries(cloudmus-mobile-core PUBLIC cloudmus-core)
@@ -176,12 +180,18 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/FpsOverlay.qml
         qml/DownloadsPage.qml
         qml/IconButton.qml
+        qml/InputField.qml
         qml/LogPage.qml
         qml/Main.qml
         qml/MarqueeText.qml
         qml/MiniPlayer.qml
         qml/OfflineBadge.qml
         qml/PlaylistPage.qml
+        qml/ProxyPage.qml
+        qml/SettingField.qml
+        qml/SettingsRow.qml
+        qml/SourceSettingsPage.qml
+        qml/Stepper.qml
         qml/Spinner.qml
         qml/TrackSheet.qml
         qml/TrackTitleBlock.qml

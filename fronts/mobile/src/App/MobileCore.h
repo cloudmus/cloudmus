@@ -10,6 +10,9 @@
 #include "MediaTree.h"
 #include "PlatformSettings.h"
 #include "PlaylistScreen.h"
+#include "SettingsScreen.h"
+#include "SourceSettings.h"
+#include "SourceSettingsScreen.h"
 #include "TrackScreen.h"
 
 namespace App {
@@ -44,6 +47,8 @@ public:
     ViewModel::PlaylistScreen& playlistScreen() { return playlistScreen_; }
     ViewModel::TrackScreen& trackScreen() { return trackScreen_; }
     ViewModel::MediaTree& mediaTree() { return mediaTree_; }
+    ViewModel::SettingsScreen& settingsScreen() { return settingsScreen_; }
+    ViewModel::SourceSettingsScreen& sourceSettingsScreen() { return sourceSettingsScreen_; }
 
 private:
     void leaveUnstartedWhatAskedForSignIn();
@@ -57,6 +62,9 @@ private:
     ViewModel::PlaylistScreen playlistScreen_;
     ViewModel::TrackScreen trackScreen_;
     ViewModel::MediaTree mediaTree_;
+    ViewModel::SourceSettings sourceSettings_;
+    ViewModel::SettingsScreen settingsScreen_;
+    ViewModel::SourceSettingsScreen sourceSettingsScreen_;
 };
 
 } // namespace App

@@ -34,6 +34,8 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , downloads_(&core.downloadsScreen().rows())
     , playlistScreen_(&core.playlistScreen())
     , trackScreen_(&core.trackScreen())
+    , settingsScreen_(&core.settingsScreen())
+    , sourceSettings_(&core.sourceSettingsScreen())
 #endif
     , tracks_(&core.tracks())
 #ifdef CLOUDMUS_MOBILE_SHARED_CORE
@@ -42,6 +44,10 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , otherPlaylists_(&core.library().otherRows())
     , openTracks_(&core.playlistScreen().rows())
     , trackPlaylists_(&core.trackScreen().playlistRows())
+    , settingsSources_(&core.settingsScreen().sourceRows())
+    , settingsProxies_(&core.settingsScreen().proxyRows())
+    , sourceConnections_(&core.sourceSettingsScreen().connectionRows())
+    , sourceFields_(&core.sourceSettingsScreen().fieldRows())
 #endif
     , ready_(true)
 {
@@ -74,6 +80,12 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquireModel(openTracks_, Remote::Names::openTracks);
     acquire(trackScreen_, Remote::Names::trackScreen);
     acquireModel(trackPlaylists_, Remote::Names::trackPlaylists);
+    acquire(settingsScreen_, Remote::Names::settingsScreen);
+    acquireModel(settingsSources_, Remote::Names::settingsSources);
+    acquireModel(settingsProxies_, Remote::Names::settingsProxies);
+    acquire(sourceSettings_, Remote::Names::sourceSettings);
+    acquireModel(sourceConnections_, Remote::Names::sourceConnections);
+    acquireModel(sourceFields_, Remote::Names::sourceFields);
 #endif
 
     // The core may be slow to come up, or gone (its process killed while
@@ -108,6 +120,12 @@ Backend::~Backend()
         delete openTracks_.data();
         delete trackScreen_.data();
         delete trackPlaylists_.data();
+        delete settingsScreen_.data();
+        delete settingsSources_.data();
+        delete settingsProxies_.data();
+        delete sourceSettings_.data();
+        delete sourceConnections_.data();
+        delete sourceFields_.data();
     }
 }
 
