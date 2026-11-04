@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Controls.impl
 import QtQuick.Layouts
 
 // The track that plays, big: cover, title, position and the transport. With
@@ -13,7 +14,12 @@ Item {
     // Over the generated background, which is dark in either theme.
     property bool overAura: false
     property bool showMenu: false
+    // What it plays from, shown above the title with the cover beside it: where
+    // the list that says so is folded away. Empty: nothing is shown.
+    property string playlistTitle
     signal menuRequested()
+    // How far the tracks after this one have got (PreloadCells).
+    property var preloadFractions: []
     property color inkColor: overAura ? "#FFFFFF" : Theme.ink
     property color inkSecondaryColor: overAura ? "#D9FFFFFF" : Theme.inkSecondary
     readonly property string seed: nowPlaying && nowPlaying.backgroundSeed ? nowPlaying.backgroundSeed : ""
@@ -89,6 +95,35 @@ Item {
             radius: _masked && scale > 0 ? Theme.dp(20) / scale : Theme.dp(20)
             liveCorners: true
             zoomOnChange: true
+        }
+    }
+
+    // Beside the layout, not in it: fading in, it moves nothing.
+    RowLayout {
+        objectName: "trackPlaylist"
+        x: details.x
+        y: details.y - height - Theme.dp(6)
+        width: details.width
+        visible: panel.progress > 0 && panel.playlistTitle !== ""
+        opacity: panel.progress
+        spacing: Theme.dp(8)
+        IconImage {
+            source: "qrc:/icons/playlist_play.svg"
+            sourceSize.width: Theme.dp(22)
+            sourceSize.height: Theme.dp(22)
+            color: panel.inkSecondaryColor
+        }
+        ShadowText {
+            objectName: "trackPlaylistTitle"
+            Layout.fillWidth: true
+            shadowed: panel.overAura
+            text: panel.playlistTitle
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            color: panel.inkSecondaryColor
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            font.weight: Font.DemiBold
         }
     }
 
@@ -179,6 +214,7 @@ Item {
             inkColor: panel.inkColor
             inkSecondaryColor: panel.inkSecondaryColor
             overAura: panel.overAura
+            preloadFractions: panel.preloadFractions
             troughColor: panel.overAura ? "#40FFFFFF" : Theme.surface400
             onSeekRequested: (positionMs) => panel.nowPlaying.seek(positionMs)
         }

@@ -88,12 +88,9 @@ ItemDelegate {
                     radius: parent.radius
                     visible: row.current && row.playing
                     color: "#80000000"
-                    IconImage {
+                    EqualizerBars {
+                        objectName: "playingBars"
                         anchors.centerIn: parent
-                        source: "qrc:/icons/volume_up.svg"
-                        sourceSize.width: Theme.dp(24)
-                        sourceSize.height: Theme.dp(24)
-                        color: Theme.accent
                     }
                 }
             }

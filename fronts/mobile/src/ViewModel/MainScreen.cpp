@@ -15,11 +15,20 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
         [this](Messages::Kind kind, const QString& text) { emit message(int(kind), text); });
     connect(&core.connectivity(), &App::Connectivity::offlineChanged, this, &MainScreen::offlineChanged);
     connect(&core.preload(), &Preload::spaceWarningChanged, this, &MainScreen::spaceWarningChanged);
+    connect(&core.preload(), &Preload::progressChanged, this, &MainScreen::preloadFractionsChanged);
 }
 
 bool MainScreen::offline() const { return core_.connectivity().offline(); }
 
 QString MainScreen::spaceWarning() const { return core_.preload().spaceWarning(); }
+
+QVariantList MainScreen::preloadFractions() const
+{
+    QVariantList fractions;
+    for (const Preload::Slot& slot : core_.preload().tracks())
+        fractions.append(slot.fraction);
+    return fractions;
+}
 
 void MainScreen::setFilter(const QString& text) { filter_.setNeedle(text); }
 

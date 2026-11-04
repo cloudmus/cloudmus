@@ -11,14 +11,22 @@ ColumnLayout {
     property real durationMs: 0
     // How far the track has been fetched; negative: nothing to fetch.
     property real bufferedMs: -1
+    // How far the tracks after it have got (PreloadCells).
+    property var preloadFractions: []
     property color inkColor: Theme.ink
     property color inkSecondaryColor: Theme.inkSecondary
     property color troughColor: Theme.surface400
     // Over the generated background: its times get a shadow.
     property bool overAura: false
+    readonly property color bufferedColor: overAura ? Qt.rgba(1, 1, 1, 0.6)
+        : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
     signal seekRequested(real positionMs)
 
     spacing: Theme.dp(2)
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.dp(6)
 
     Slider {
         id: slider
@@ -45,8 +53,7 @@ ColumnLayout {
                 width: parent.width * Math.min(1, bar.bufferedMs / Math.max(1, bar.durationMs))
                 height: parent.height
                 radius: height / 2
-                color: bar.inkSecondaryColor
-                opacity: 0.45
+                color: bar.bufferedColor
                 Behavior on width { NumberAnimation { duration: Theme.durationFast } }
             }
             Rectangle {
@@ -65,6 +72,15 @@ ColumnLayout {
             color: bar.inkColor
             Behavior on width { NumberAnimation { duration: Theme.durationFast } }
         }
+    }
+
+    PreloadCells {
+        objectName: "seekPreload"
+        Layout.alignment: Qt.AlignVCenter
+        fractions: bar.preloadFractions
+        troughColor: bar.troughColor
+        fillColor: bar.bufferedColor
+    }
     }
 
     RowLayout {

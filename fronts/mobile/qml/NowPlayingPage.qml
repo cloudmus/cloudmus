@@ -83,6 +83,7 @@ Page {
         nowPlaying: page.nowPlaying
         sideBySide: page.wide
         overAura: true
+        preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
         showMenu: page.backend.trackScreen !== null
         onMenuRequested: {
             page.backend.trackScreen.showPlaying()

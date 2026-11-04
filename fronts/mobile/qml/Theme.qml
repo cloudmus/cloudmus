@@ -25,6 +25,8 @@ QtObject {
     }
 
     readonly property color surface0: dark ? "#14100D" : "#EEE8E2"
+    // Under all the pages, seen as they change, and the splash: plain white or dark.
+    readonly property color windowBackground: dark ? "#14100D" : "#FFFFFF"
     readonly property color surface100: dark ? "#1C1714" : "#FFFFFF"
     readonly property color surface200: dark ? "#241E1A" : "#FFFFFF"
     readonly property color surface300: dark ? "#2E2621" : "#E2D9D1"

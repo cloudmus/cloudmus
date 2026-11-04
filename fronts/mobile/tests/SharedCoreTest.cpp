@@ -11,6 +11,7 @@
 #include <QQuickWindow>
 #include <QSGRendererInterface>
 #include <QSettings>
+#include <QPointingDevice>
 #include <QSignalSpy>
 #include <QStyleHints>
 #include <QStandardPaths>
@@ -556,6 +557,21 @@ private slots:
         const int miniY = 860 - 36;
         const int titleX = 200;
 
+        // The mini player's controls: what's asked of the core.
+        auto* contentRoot = window->contentItem();
+        for (const char* name : { "miniDislike", "miniPrevious", "miniPlay", "miniNext", "miniLike" }) {
+            auto* button = findItem(contentRoot, QLatin1String(name));
+            QVERIFY2(button && button->isVisible(), name);
+            QVERIFY2(button->mapRectToScene(button->boundingRect()).bottom() <= 860, name);
+        }
+        QTRY_VERIFY(findItem(contentRoot, QStringLiteral("miniLike"))->isEnabled());
+        QVERIFY(!core.nowPlaying().liked());
+        QVERIFY(QMetaObject::invokeMethod(findItem(contentRoot, QStringLiteral("miniLike")), "clicked"));
+        QTRY_VERIFY(core.nowPlaying().liked());
+        QTRY_COMPARE(findItem(contentRoot, QStringLiteral("miniLike"))->property("iconName").toString(), QStringLiteral("favorite"));
+        QVERIFY(QMetaObject::invokeMethod(findItem(contentRoot, QStringLiteral("miniLike")), "clicked"));
+        QTRY_VERIFY(!core.nowPlaying().liked());
+
         // Follows, then falls back from a short pull.
         drag(titleX, miniY, miniY - 100, false);
         QVERIFY(progress() > 0.05 && progress() < 0.2);
@@ -574,6 +590,108 @@ private slots:
         // ...and a long one closes it.
         drag(210, 100, 400, true);
         QTRY_COMPARE(progress(), 0.0);
+
+        // A track's sheet goes the same way, and a press on a row in it isn't
+        // taken for a press of the row.
+        core.trackScreen().showActiveRow(0);
+        auto* trackSheet = window->findChild<QObject*>("trackSheet");
+        QVERIFY(trackSheet);
+        QVERIFY(QMetaObject::invokeMethod(trackSheet, "open"));
+        QTRY_VERIFY(trackSheet->property("opened").toBool());
+        const auto sheetTop = [&] { return 860 - trackSheet->property("height").toInt(); };
+        QTRY_VERIFY(sheetTop() < 800);
+        const QString track = core.nowPlaying().title();
+        // A finger, as a phone has: a mouse moves differently under a popup.
+        std::unique_ptr<QPointingDevice> finger(QTest::createTouchDevice());
+        const auto swipe = [&](int fromY, int toY, bool release) {
+            QTest::touchEvent(window, finger.get()).press(0, QPoint(300, fromY), window);
+            const int steps = 12;
+            for (int i = 1; i <= steps; ++i) {
+                QTest::qWait(30);
+                QTest::touchEvent(window, finger.get()).move(0, QPoint(300, fromY + (toY - fromY) * i / steps), window);
+            }
+            QTest::qWait(250);
+            if (release)
+                QTest::touchEvent(window, finger.get()).release(0, QPoint(300, toY), window);
+        };
+        // From the part with nothing to press, a short way: back up.
+        const int inSheet = sheetTop() + 60;
+        swipe(inSheet, inSheet + 60, false);
+        QVERIFY(trackSheet->property("slide").toReal() > 0);
+        QTest::touchEvent(window, finger.get()).release(0, QPoint(300, inSheet + 60), window);
+        QTRY_COMPARE(trackSheet->property("slide").toReal(), 0.0);
+        QVERIFY(trackSheet->property("opened").toBool());
+        // Starting on a row, all the way: it goes, and the row isn't pressed.
+        swipe(sheetTop() + 260, 850, true);
+        QTRY_VERIFY(!trackSheet->property("visible").toBool());
+        QCOMPARE(core.nowPlaying().title(), track);
+    }
+
+    // What's downloaded ahead, as on the desktop: a cell each, thinner if there
+    // are more, one bar if there are many.
+    void preloadCellsFitWhatsAhead()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            PreloadCells { width: implicitWidth; fractions: [] })", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* cells = qobject_cast<QQuickItem*>(root.get());
+        const auto set = [&](int count, double fraction) {
+            QVariantList list;
+            for (int i = 0; i < count; ++i)
+                list.append(fraction);
+            QVERIFY(cells->setProperty("fractions", list));
+        };
+        QVERIFY(!cells->isVisible());
+        QCOMPARE(cells->implicitWidth(), 0.0);
+        set(3, 0.5);
+        QCOMPARE(cells->property("shownCount").toInt(), 3);
+        QVERIFY(cells->property("asCells").toBool());
+        const qreal three = cells->implicitWidth();
+        set(6, 0.5);
+        const qreal most = cells->implicitWidth();
+        QVERIFY(most > three);
+        set(10, 0.5);
+        QVERIFY(!cells->property("asCells").toBool());
+        QVERIFY(!cells->property("asBar").toBool());
+        QCOMPARE(cells->property("shownCount").toInt(), 10);
+        QVERIFY(cells->implicitWidth() <= most + 0.5);
+        set(50, 0.25);
+        QVERIFY(cells->property("asBar").toBool());
+        QCOMPARE(cells->property("shownCount").toInt(), 1);
+        QVERIFY(cells->implicitWidth() <= most + 0.5);
+        QVariant overall;
+        QVERIFY(QMetaObject::invokeMethod(cells, "fractionOf", Q_RETURN_ARG(QVariant, overall), Q_ARG(QVariant, 0)));
+        QCOMPARE(overall.toDouble(), 0.25);
+    }
+
+    // What plays is marked by bars that move, and they rest with the music.
+    void thePlayingRowHasMovingBars()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Item {
+                width: 100; height: 100
+                property alias shown: bars.visible
+                EqualizerBars { id: bars; objectName: "bars" }
+            })", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* bars = root->findChild<QQuickItem*>("bars");
+        QVERIFY(bars);
+        auto* bar = bars->findChild<QQuickItem*>("bar2");
+        QVERIFY(bar);
+        const qreal first = bar->height();
+        QVERIFY(first > 0);
+        QTRY_VERIFY(!qFuzzyCompare(bar->height(), first));
+        QVERIFY(bar->height() <= bars->height() + 0.5);
     }
 
     // The mini player in the light theme: its background comes in, and the
@@ -1778,6 +1896,21 @@ private slots:
                     QStringLiteral("%1/%2-mode-moving.png").arg(dir, QTest::currentDataTag()));
             }
             QTRY_VERIFY(settled("1"));
+            // The list that names the playlist is folded away: it's named here, and
+            // in the clear of what's on the way down and up from it.
+            {
+                auto* named = findItem(window->contentItem(), QStringLiteral("trackPlaylist"));
+                auto* title = findItem(window->contentItem(), QStringLiteral("trackPlaylistTitle"));
+                auto* details = findItem(window->contentItem(), QStringLiteral("trackDetails"));
+                QVERIFY(named && title && details);
+                QVERIFY(named->isVisible());
+                QCOMPARE(named->opacity(), 1.0);
+                QCOMPARE(title->property("text").toString(), core.activePlaylist().title());
+                QVERIFY(!title->property("text").toString().isEmpty());
+                const QRectF rect = named->mapRectToScene(named->boundingRect());
+                QVERIFY(rect.top() >= 0);
+                QVERIFY(rect.bottom() <= details->mapRectToScene(details->boundingRect()).top());
+            }
             // A picture of the new size comes once it has settled, and is what's shown.
             QTRY_COMPARE(window->findChild<QQuickItem*>("trackCoverPicture")->property("_side").toInt(), qRound(window->findChild<QQuickItem*>("trackCoverPicture")->width() * window->devicePixelRatio()));
             // (Nothing to show if the fake's track, whose stream can't be fetched,

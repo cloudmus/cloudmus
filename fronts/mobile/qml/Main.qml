@@ -15,7 +15,7 @@ ApplicationWindow {
     height: 860
     visible: true
     title: "CloudMus"
-    color: Theme.surface0
+    color: Theme.windowBackground
 
     Settings {
         id: uiSettings
@@ -44,7 +44,7 @@ ApplicationWindow {
     Binding { target: Theme; property: "insetTop"; value: Math.floor(window.platform.insetTop / Screen.devicePixelRatio) }
     Binding { target: Theme; property: "insetBottom"; value: Math.round(window.platform.insetBottom / Screen.devicePixelRatio) }
     function applyAppearance() {
-        window.platform.setAppearance(uiSettings.colorScheme, Theme.dark, Theme.surface100.toString(), Theme.surface0.toString())
+        window.platform.setAppearance(uiSettings.colorScheme, Theme.dark, Theme.surface100.toString(), Theme.windowBackground.toString())
     }
     Connections {
         target: Theme
@@ -121,13 +121,15 @@ ApplicationWindow {
         }
 
         function goBack() {
-            if (nowPlayingSheet.shown)
+            if (trackSheet.visible)
+                trackSheet.close()
+            else if (nowPlayingSheet.shown)
                 nowPlayingSheet.close()
             else
                 close()
         }
         Keys.onBackPressed: (event) => {
-            event.accepted = depth > 1 || nowPlayingSheet.shown
+            event.accepted = depth > 1 || nowPlayingSheet.shown || trackSheet.visible
             goBack()
         }
         Keys.onEscapePressed: goBack()

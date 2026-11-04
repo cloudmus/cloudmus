@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Controls.impl
+import QtQuick.Effects
 import QtQuick.Layouts
 
 // One track in detail, and what can be done with it, from any list: a sheet
@@ -54,27 +55,42 @@ Popup {
         Behavior on opacity { NumberAnimation { duration: Theme.durationPage; easing.type: Easing.OutCubic } }
     }
 
+    // Rounded where it meets what's behind, with a shadow that follows that
+    // edge. Drawn once and kept: moving the sheet costs nothing per frame. Without
+    // a GPU an effect shows nothing at all, the sheet included: then it goes without.
     background: Rectangle {
         color: Theme.surface100
-        radius: sheet.wide ? 0 : Theme.dp(16)
-
-        // Its shadow on what's behind: from its open edge, fading out. A
-        // gradient, not a blur: it's only a strip, and it costs nothing per frame.
-        Rectangle {
-            readonly property real depth: Theme.dp(28)
-            // Turned so that the gradient runs away from the edge.
-            width: sheet.wide ? parent.height : parent.width
-            height: depth
-            transformOrigin: Item.TopLeft
-            rotation: sheet.wide ? -90 : 0
-            x: sheet.wide ? -depth : 0
-            y: sheet.wide ? parent.height : -depth
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "#00000000" }
-                GradientStop { position: 0.6; color: "#40000000" }
-                GradientStop { position: 1.0; color: "#A6000000" }
-            }
+        topLeftRadius: Theme.dp(20)
+        topRightRadius: sheet.wide ? 0 : topLeftRadius
+        bottomLeftRadius: sheet.wide ? topLeftRadius : 0
+        layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software
+        layer.effect: MultiEffect {
+            autoPaddingEnabled: true
+            shadowEnabled: true
+            shadowColor: "#000000"
+            shadowOpacity: 0.55
+            shadowBlur: 0.7
         }
+    }
+
+    // A swipe towards the edge it came from takes it away, following the finger.
+    // Far enough or thrown, it goes on; otherwise it comes back.
+    readonly property real _dismissShare: 0.25
+    readonly property real _dismissVelocity: Theme.dp(600)
+    function _letGo(velocity) {
+        if (slide > _dismissShare || velocity > _dismissVelocity) {
+            close()
+        } else {
+            slideBack.to = 0
+            slideBack.restart()
+        }
+    }
+    NumberAnimation {
+        id: slideBack
+        target: sheet
+        property: "slide"
+        duration: Theme.durationFast
+        easing.type: Easing.OutCubic
     }
 
     component Action: ItemDelegate {
@@ -128,6 +144,75 @@ Popup {
     }
 
     contentItem: ScrollArea {
+        id: scroller
+        // Down a phone: scrolled to the top, what's left of the finger's way moves
+        // the sheet. Watched rather than grabbed, as the scrolling may have the
+        // finger, from a layer over it all: a row would keep its press from what's
+        // behind it, and this one has to see that too.
+        Item {
+            parent: scroller
+            anchors.fill: parent
+            z: 1
+
+        PointHandler {
+            id: pull
+            enabled: !sheet.wide
+            readonly property real threshold: Theme.dp(10)
+            property real from: 0
+            property bool following: false
+            property real velocity: 0
+            property double movedAt: 0
+            onPointChanged: {
+                if (!active)
+                    return
+                const y = point.scenePosition.y
+                const distance = y - from
+                if (!scroller.atYBeginning || distance <= 0) {
+                    from = y
+                    if (following)
+                        sheet.slide = 0
+                    return
+                }
+                velocity = point.velocity.y
+                movedAt = Date.now()
+                if (!following) {
+                    if (distance < threshold)
+                        return
+                    following = true
+                    from = y
+                    slideBack.stop()
+                }
+                sheet.slide = Math.min(1, (y - from) / sheet.height)
+            }
+            onActiveChanged: {
+                if (active) {
+                    from = point.scenePosition.y
+                } else if (following) {
+                    following = false
+                    // A finger that stopped before lifting hasn't thrown anything.
+                    sheet._letGo(Date.now() - movedAt < 100 ? velocity : 0)
+                }
+            }
+        }
+        }
+        // Across a head unit's: nothing else moves that way.
+        DragHandler {
+            enabled: sheet.wide
+            target: null
+            yAxis.enabled: false
+            property real velocity: 0
+            property double movedAt: 0
+            onActiveTranslationChanged: {
+                if (!active || activeTranslation.x === 0)
+                    return
+                velocity = centroid.velocity.x
+                movedAt = Date.now()
+                slideBack.stop()
+                sheet.slide = Math.max(0, Math.min(1, activeTranslation.x / sheet.width))
+            }
+            onActiveChanged: if (!active) sheet._letGo(Date.now() - movedAt < 100 ? velocity : 0)
+        }
+
         contentWidth: width
         contentHeight: content.implicitHeight + Theme.padding * 2
         clip: true
@@ -135,6 +220,8 @@ Popup {
 
         ColumnLayout {
             id: content
+            // Under a swipe a row pressed at its start isn't pressed any more.
+            enabled: !pull.following
             x: Theme.padding
             y: Theme.padding
             width: parent.width - Theme.padding * 2

@@ -164,6 +164,8 @@ Page {
                 sideCoverHeightShare: 0.8
                 nowPlaying: page.nowPlaying
                 overAura: true
+                playlistTitle: page.playlist && page.playlist.title ? page.playlist.title : ""
+                preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
                 showMenu: page.backend.trackScreen !== null
                 onMenuRequested: {
                     page.backend.trackScreen.showPlaying()
@@ -413,6 +415,7 @@ Page {
         anchors.bottom: parent.bottom
         nowPlaying: page.nowPlaying
         seed: page.backgroundSeed
+        preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
         visible: !page.wide && page.hasTrack
         onOpenRequested: page.nowPlayingRequested()
         onPulled: (distance) => page.nowPlayingPulled(distance)

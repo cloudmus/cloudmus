@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QVariantList>
 #include <QString>
 
 #include "TrackFilterModel.h"
@@ -19,6 +20,8 @@ class MainScreen : public QObject {
     Q_PROPERTY(bool offline READ offline NOTIFY offlineChanged)
     // Too little room on the disk, and what that stopped; empty otherwise.
     Q_PROPERTY(QString spaceWarning READ spaceWarning NOTIFY spaceWarningChanged)
+    // How far each track downloaded ahead has got, 0 to 1, in play order.
+    Q_PROPERTY(QVariantList preloadFractions READ preloadFractions NOTIFY preloadFractionsChanged)
 
 public:
     explicit MainScreen(App::Core& core, QObject* parent = nullptr);
@@ -27,6 +30,7 @@ public:
 
     bool offline() const;
     QString spaceWarning() const;
+    QVariantList preloadFractions() const;
 
 public slots:
     void setFilter(const QString& text);
@@ -38,6 +42,7 @@ signals:
     void message(int kind, const QString& text);
     void offlineChanged();
     void spaceWarningChanged();
+    void preloadFractionsChanged();
 
 private:
     App::Core& core_;
