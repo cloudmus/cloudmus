@@ -130,6 +130,7 @@ add_library(cloudmus-core STATIC
     ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackActions.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackFilterModel.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/SourcePage.cpp
+    ${CLOUDMUS_QT_DIR}/src/ViewModel/SourceSettings.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Downloads.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Preload.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackListModel.cpp

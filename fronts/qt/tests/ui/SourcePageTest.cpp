@@ -7,6 +7,7 @@
 #include "Settings.h"
 #include "Settings/RestartRequests.h"
 #include "Settings/SourcePage.h"
+#include "SourceSettings.h"
 #include "SourceManager.h"
 #include "TestSupport.h"
 #include "ToastNotifier.h"
@@ -22,13 +23,14 @@ private slots:
     {
         settings_ = std::make_unique<Config::Settings>(dir_.filePath(QStringLiteral("config.ini")));
         sourceManager_ = std::make_unique<Rpc::SourceManager>();
+        sourceSettings_ = std::make_unique<ViewModel::SourceSettings>(*sourceManager_, *settings_);
         widget_ = std::make_unique<QWidget>();
         toasts_ = std::make_unique<Ui::ToastNotifier>(widget_.get());
         Rpc::BackendManifest manifest;
         manifest.id = QStringLiteral("fake");
         manifest.name = QStringLiteral("Fake");
         page_ = std::make_unique<Ui::Settings::SourcePage>(
-            *settings_, *sourceManager_, authStates_, *toasts_, restarts_, manifest);
+            *settings_, *sourceManager_, *sourceSettings_, authStates_, *toasts_, restarts_, manifest);
         // Says dirtyChanged() while still building itself, and is asked
         // isDirty() right then — as the Settings dialog does.
         connect(page_.get(), &Ui::Settings::Page::dirtyChanged, this, [this]() { page_->isDirty(); });
@@ -102,6 +104,7 @@ private:
     Ui::Settings::RestartRequests restarts_;
     std::unique_ptr<Config::Settings> settings_;
     std::unique_ptr<Rpc::SourceManager> sourceManager_;
+    std::unique_ptr<ViewModel::SourceSettings> sourceSettings_;
     std::unique_ptr<QWidget> widget_;
     std::unique_ptr<Ui::ToastNotifier> toasts_;
     std::unique_ptr<Ui::Settings::SourcePage> page_;

@@ -17,6 +17,10 @@ namespace Config {
 class Settings;
 }
 
+namespace ViewModel {
+class SourceSettings;
+}
+
 namespace Rpc {
 class AuthStates;
 class RpcClient;
@@ -47,7 +51,7 @@ public:
     // in the window the user is looking at.
     // `restarts`: where to leave "restart me" for once the whole Apply is
     // done (a new connection only takes effect in a fresh process).
-    SourcePage(Config::Settings& settings, Rpc::SourceManager& sourceManager, Rpc::AuthStates& authStates,
+    SourcePage(Config::Settings& settings, Rpc::SourceManager& sourceManager, ViewModel::SourceSettings& sourceSettings, Rpc::AuthStates& authStates,
         ToastNotifier& toasts, RestartRequests& restarts, Rpc::BackendManifest manifest, QObject* parent = nullptr);
 
     // The proxies Connection offers — NetworkPage's list as edited, saved
@@ -88,6 +92,7 @@ private:
 
     Config::Settings& settings_;
     Rpc::SourceManager& sourceManager_;
+    ViewModel::SourceSettings& sourceSettings_;
     Rpc::AuthStates& authStates_;
     ToastNotifier& toasts_;
     RestartRequests& restarts_;
