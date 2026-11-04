@@ -565,12 +565,14 @@ private slots:
             QVERIFY2(button->mapRectToScene(button->boundingRect()).bottom() <= 860, name);
         }
         QTRY_VERIFY(findItem(contentRoot, QStringLiteral("miniLike"))->isEnabled());
-        QVERIFY(!core.nowPlaying().liked());
+        // From whichever way it is: what's saved of a track outlives a test.
+        const bool liked = core.nowPlaying().liked();
         QVERIFY(QMetaObject::invokeMethod(findItem(contentRoot, QStringLiteral("miniLike")), "clicked"));
-        QTRY_VERIFY(core.nowPlaying().liked());
-        QTRY_COMPARE(findItem(contentRoot, QStringLiteral("miniLike"))->property("iconName").toString(), QStringLiteral("favorite"));
+        QTRY_COMPARE(core.nowPlaying().liked(), !liked);
+        QTRY_COMPARE(findItem(contentRoot, QStringLiteral("miniLike"))->property("iconName").toString(),
+            liked ? QStringLiteral("favorite_border") : QStringLiteral("favorite"));
         QVERIFY(QMetaObject::invokeMethod(findItem(contentRoot, QStringLiteral("miniLike")), "clicked"));
-        QTRY_VERIFY(!core.nowPlaying().liked());
+        QTRY_COMPARE(core.nowPlaying().liked(), liked);
 
         // Follows, then falls back from a short pull.
         drag(titleX, miniY, miniY - 100, false);
