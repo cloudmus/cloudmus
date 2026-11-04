@@ -85,6 +85,7 @@ Page {
         nowPlaying: page.nowPlaying
         sideBySide: page.wide
         overAura: true
+        swipeEnabled: page.swipeEnabled
         preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
         showMenu: page.backend.trackScreen !== null
         onMenuRequested: {

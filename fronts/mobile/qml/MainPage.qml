@@ -204,6 +204,7 @@ Page {
                 sideCoverHeightShare: 0.8
                 nowPlaying: page.nowPlaying
                 overAura: true
+                swipeEnabled: page.gesturesEnabled
                 playlistTitle: page.playlist && page.playlist.title ? page.playlist.title : ""
                 preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
                 showMenu: page.backend.trackScreen !== null

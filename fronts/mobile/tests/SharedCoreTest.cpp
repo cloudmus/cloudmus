@@ -630,6 +630,36 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(sheet, "open"));
         QTRY_COMPARE(progress(), 1.0);
         {
+            // Sideways it changes the track, the cover going with the finger: not
+            // for a short way, and it doesn't take Now Playing down.
+            auto* cover = findItem(findItem(window->contentItem(), QStringLiteral("nowPlaying")), QStringLiteral("trackCover"));
+            auto* panel = cover->parentItem();
+            const auto sideways = [&](int fromX, int toX, bool release) {
+                QTest::touchEvent(window, finger.get()).press(0, QPoint(fromX, 300), window);
+                for (int i = 1; i <= 10; ++i) {
+                    QTest::qWait(30);
+                    QTest::touchEvent(window, finger.get()).move(0, QPoint(fromX + (toX - fromX) * i / 10, 300), window);
+                }
+                QTest::qWait(200);
+                if (release)
+                    QTest::touchEvent(window, finger.get()).release(0, QPoint(toX, 300), window);
+            };
+            const int playing = core.core().playback().currentIndex();
+            sideways(300, 240, false);
+            QVERIFY(panel->property("_swipeX").toReal() < 0);
+            QTest::touchEvent(window, finger.get()).release(0, QPoint(240, 300), window);
+            QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
+            QCOMPARE(core.core().playback().currentIndex(), playing);
+            sideways(360, 60, true);
+            QTRY_VERIFY(core.core().playback().currentIndex() != playing);
+            QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
+            QVERIFY(!panel->property("_waitingForTrack").toBool());
+            QCOMPARE(progress(), 1.0);
+            sideways(60, 360, true);
+            QTRY_COMPARE(core.core().playback().currentIndex(), playing);
+            QTRY_COMPARE(panel->property("_swipeX").toReal(), 0.0);
+        }
+        {
             // With a finger on its own button.
             QQuickItem* menu = nullptr;
             forEachItem(findItem(window->contentItem(), QStringLiteral("nowPlaying")), [&](QQuickItem* item) {

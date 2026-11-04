@@ -14,6 +14,9 @@ Item {
     // Over the generated background, which is dark in either theme.
     property bool overAura: false
     property bool showMenu: false
+    // Swiping sideways goes to the next or the previous track. Off under what's
+    // over the panel.
+    property bool swipeEnabled: true
     // What it plays from, shown above the title with the cover beside it: where
     // the list that says so is folded away. Empty: nothing is shown.
     property string playlistTitle
@@ -77,6 +80,9 @@ Item {
         readonly property alias enteringScale: cover.enteringScale
         readonly property alias shownSource: cover.shownSource
         readonly property alias shownSide: cover.shownSide
+        // Following a swipe, and going off with it.
+        transform: Translate { x: panel._swipeX }
+        opacity: panel._swipeOpacity
         // A slight breath while playing.
         scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
         Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
@@ -96,6 +102,89 @@ Item {
             liveCorners: true
             zoomOnChange: true
         }
+    }
+
+    // A swipe sideways: the cover goes with the finger, and far enough or thrown it
+    // goes off that way, the track changes and its cover comes in from the other
+    // side. Otherwise it goes back.
+    property real _swipeX: 0
+    readonly property real _swipeOpacity: width > 0 ? 1 - Math.min(1, Math.abs(_swipeX) / width) * 0.6 : 1
+    readonly property real _swipeDistance: width * 0.2
+    readonly property real _swipeVelocity: Theme.dp(500)
+    // The way the cover went: -1 left, for the next track; 0 none.
+    property int _swipeWay: 0
+    property bool _waitingForTrack: false
+    DragHandler {
+        objectName: "trackSwipe"
+        enabled: panel.swipeEnabled
+        target: null
+        yAxis.enabled: false
+        property real velocity: 0
+        property double movedAt: 0
+        onActiveTranslationChanged: {
+            if (!active || activeTranslation.x === 0)
+                return
+            velocity = centroid.velocity.x
+            movedAt = Date.now()
+            swipeSettling.stop()
+            panel._swipeX = activeTranslation.x
+        }
+        onActiveChanged: {
+            if (active) {
+                swipeSettling.stop()
+                panel._swipeWay = 0
+                panel._waitingForTrack = false
+                return
+            }
+            // A finger that stopped before lifting hasn't thrown anything.
+            const thrown = Date.now() - movedAt < 100 ? velocity : 0
+            const towardsNext = panel._swipeX < -panel._swipeDistance || thrown < -panel._swipeVelocity
+            const towardsPrevious = panel._swipeX > panel._swipeDistance || thrown > panel._swipeVelocity
+            panel._swipeWay = towardsNext ? -1 : towardsPrevious ? 1 : 0
+            swipeSettling.to = panel._swipeWay * panel.width
+            swipeSettling.easing.type = panel._swipeWay !== 0 ? Easing.InCubic : Easing.OutCubic
+            swipeSettling.duration = Theme.durationFast
+            swipeSettling.restart()
+        }
+    }
+    NumberAnimation {
+        id: swipeSettling
+        target: panel
+        property: "_swipeX"
+        onFinished: {
+            if (panel._swipeWay === 0)
+                return
+            // The new cover comes in once it's there: asked for now, it's only a
+            // moment. Not for long, though: a track may have no other cover.
+            panel._waitingForTrack = true
+            newTrackLate.restart()
+            if (panel._swipeWay < 0)
+                panel.nowPlaying.next()
+            else
+                panel.nowPlaying.previous()
+        }
+    }
+    function _swipeIn() {
+        if (!_waitingForTrack)
+            return
+        _waitingForTrack = false
+        newTrackLate.stop()
+        _swipeX = -_swipeWay * width
+        _swipeWay = 0
+        swipeSettling.to = 0
+        swipeSettling.easing.type = Easing.OutCubic
+        swipeSettling.duration = Theme.durationPage
+        swipeSettling.restart()
+    }
+    Timer {
+        id: newTrackLate
+        interval: 400
+        onTriggered: panel._swipeIn()
+    }
+    Connections {
+        target: panel.nowPlaying
+        ignoreUnknownSignals: true
+        function onCoverUrlChanged() { Qt.callLater(panel._swipeIn) }
     }
 
     // Beside the layout, not in it: fading in, it moves nothing.
