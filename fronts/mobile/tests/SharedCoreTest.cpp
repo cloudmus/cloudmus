@@ -1,6 +1,7 @@
 #include <QAbstractItemModel>
 #include <QColor>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -8,6 +9,7 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QSGRendererInterface>
 #include <QSettings>
 #include <QSignalSpy>
 #include <QStandardPaths>
@@ -105,6 +107,7 @@ private slots:
         QAbstractItemModel* tracks = backend.tracks();
         QTRY_COMPARE(playlist->property("title").toString(), QStringLiteral("Playlist One"));
         QTRY_COMPARE(tracks->rowCount(), 2);
+        QTRY_VERIFY_WITH_TIMEOUT(core.nowPlaying().hasTrack(), 10000);
         QTRY_COMPARE(nowPlaying->property("title").toString(), core.nowPlaying().title());
         QVERIFY(!nowPlaying->property("title").toString().isEmpty());
         const QString first = nowPlaying->property("title").toString();
@@ -314,9 +317,9 @@ private slots:
         QCOMPARE(cover->property("shownSide").toInt(), 180);
     }
 
-    // A line that doesn't fit goes back and forth, dissolving only at an edge with
-    // more cut off there; one that fits stays put with its edges whole.
-    void marqueeScrollsOnlyWhenCutOff()
+    // However little a line has moved, the edge it has moved past shows no cut:
+    // right at the edge there's nothing of it, and the fade is as wide as the move.
+    void marqueeEdgeNeverShowsACut()
     {
         QQmlEngine engine;
         QQmlComponent component(&engine);
@@ -324,11 +327,10 @@ private slots:
             import QtQuick
             import Cloudmus.Mobile
             Window {
-                width: 300; height: 100; visible: true; color: "midnightblue"
+                width: 240; height: 80; visible: true; color: "black"
                 MarqueeText {
-                    objectName: "line"; x: 20; y: 30; width: 200; color: "white"; pauseMs: 100
-                    speed: 400; font.pixelSize: 24
-                    text: "Short"
+                    objectName: "line"; x: 20; y: 20; width: 200; color: "white"; font.pixelSize: 28
+                    text: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
                 }
             }
         )", QUrl());
@@ -338,44 +340,141 @@ private slots:
         QVERIFY(QTest::qWaitForWindowExposed(window));
         auto* line = window->findChild<QQuickItem*>(QStringLiteral("line"));
         QVERIFY(line);
-        const auto real = [&](const char* name) { return line->property(name).toReal(); };
+        const qreal max = line->property("maxOffset").toReal();
+        QVERIFY(max > 100);
 
-        QVERIFY(!line->property("overflowing").toBool());
-        QTest::qWait(300);
-        QCOMPARE(real("scrollOffset"), 0.0);
-        QCOMPARE(real("leftFade"), 0.0);
-        QCOMPARE(real("rightFade"), 0.0);
-
-        line->setProperty("text", QStringLiteral("A very long title that certainly does not fit here at all"));
-        QVERIFY(line->property("overflowing").toBool());
-        // At the start: only the right edge is cut off.
-        QCOMPARE(real("scrollOffset"), 0.0);
-        QCOMPARE(real("leftFade"), 0.0);
-        QCOMPARE(real("rightFade"), 1.0);
-        // At the far end: only the left one.
-        const qreal end = real("maxOffset");
-        QVERIFY(end > 0);
-        QTRY_COMPARE_WITH_TIMEOUT(real("scrollOffset"), end, 5000);
-        QCOMPARE(real("rightFade"), 0.0);
-        QCOMPARE(real("leftFade"), 1.0);
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
-        if (!shots.isEmpty()) {
-            QDir().mkpath(shots);
-            window->grabWindow().save(shots + QStringLiteral("/marquee-end.png"));
-            // Midway, cut off at both.
-            QTRY_VERIFY(real("leftFade") >= 1 && real("rightFade") >= 1);
-            window->grabWindow().save(shots + QStringLiteral("/marquee-middle.png"));
+        for (const qreal offset : { 0.0, 4.0, 60.0 }) {
+            line->setProperty("phase", offset / max);
+            QTest::qWait(100);
+            QCOMPARE(line->property("leftFadeWidth").toReal(), qMin(offset, line->property("_fade").toReal()));
+            const QImage image = window->grabWindow();
+            if (!shots.isEmpty()) {
+                QDir().mkpath(shots);
+                image.scaled(image.size() * 3, Qt::KeepAspectRatio, Qt::FastTransformation)
+                    .save(QStringLiteral("%1/edge-%2.png").arg(shots).arg(int(offset)));
+            }
+            // Where a mask can do it: the last column before the edge has nothing
+            // of the line that has moved past it.
+            if (offset > 0 && window->rendererInterface()->graphicsApi() != QSGRendererInterface::Software) {
+                int brightest = 0;
+                for (int y = 0; y < image.height(); ++y)
+                    brightest = qMax(brightest, qGray(image.pixel(qRound(line->x() * image.devicePixelRatio()), y)));
+                QVERIFY2(brightest < 64, qPrintable(QStringLiteral("%1 at the edge").arg(brightest)));
+                // ...and well inside the fade, some of it is there: it fades, it
+                // isn't cut further in.
+                const qreal fade = line->property("leftFadeWidth").toReal();
+                if (fade >= 20) {
+                    const int inside = qRound((line->x() + fade * 0.85) * image.devicePixelRatio());
+                    int seen = 0;
+                    for (int x = inside - 3; x <= inside + 3; ++x) {
+                        for (int y = 0; y < image.height(); ++y)
+                            seen = qMax(seen, qGray(image.pixel(x, y)));
+                    }
+                    QVERIFY2(seen > 100, qPrintable(QStringLiteral("%1 inside the fade").arg(seen)));
+                }
+            }
         }
-        // And back.
-        QTRY_COMPARE_WITH_TIMEOUT(real("scrollOffset"), 0.0, 5000);
+    }
 
-        // Another text starts from the beginning; one that fits stops it.
-        QTRY_VERIFY(real("scrollOffset") > 0);
-        line->setProperty("text", QStringLiteral("Another very long title that does not fit in here either"));
-        QCOMPARE(real("scrollOffset"), 0.0);
-        line->setProperty("text", QStringLiteral("Short"));
+    // Lines that don't fit go back and forth as one, however different their
+    // lengths: at the same point of the way all the time, there and back; each
+    // dissolving only at an edge with more cut off there. One that fits stays put.
+    void longLinesMoveTogether()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Window {
+                width: 300; height: 120; visible: true; color: "midnightblue"
+                TrackTitleBlock {
+                    objectName: "block"; x: 20; y: 30; width: 200
+                    titleColor: "white"; artistColor: "white"; pauseMs: 100; speed: 400; duration: 50
+                    title: "Short"; artist: "Short too"
+                }
+            }
+        )", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(root.get());
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* block = window->findChild<QQuickItem*>(QStringLiteral("block"));
+        QVERIFY(block);
+        // Children by the visual tree's way of finding: they're in a layer's item.
+        const auto lineNamed = [&](const QString& name) {
+            QQuickItem* found = nullptr;
+            const std::function<void(QQuickItem*)> look = [&](QQuickItem* item) {
+                if (item->objectName() == name)
+                    found = item;
+                for (QQuickItem* child : item->childItems())
+                    look(child);
+            };
+            look(block);
+            return found;
+        };
+        auto* title = lineNamed(QStringLiteral("incomingTitle"));
+        auto* artist = lineNamed(QStringLiteral("incomingArtist"));
+        QVERIFY(title && artist);
+        const auto real = [](QQuickItem* item, const char* name) { return item->property(name).toReal(); };
+
+        QVERIFY(!title->property("overflowing").toBool());
         QTest::qWait(300);
-        QCOMPARE(real("scrollOffset"), 0.0);
+        QCOMPARE(block->property("scrollPhase").toReal(), 0.0);
+        QCOMPARE(real(title, "leftFade"), 0.0);
+        QCOMPARE(real(title, "rightFade"), 0.0);
+
+        // Lengths far apart.
+        block->setProperty("title", QStringLiteral("A very long title that certainly does not fit here at all, by a good way"));
+        block->setProperty("artist", QStringLiteral("An artist whose name is rather too long to fit in here"));
+        QTRY_VERIFY(title->property("overflowing").toBool());
+        QTRY_VERIFY(artist->property("overflowing").toBool());
+        QVERIFY(real(title, "maxOffset") > real(artist, "maxOffset") * 1.5);
+        // At the start: only the right edges are cut off.
+        QCOMPARE(real(title, "leftFade"), 0.0);
+        QCOMPARE(real(title, "rightFade"), 1.0);
+
+        // A little way along: already dissolving right down to nothing at the
+        // edge, over as much as has gone past it.
+        QTRY_VERIFY(real(title, "_offset") > 0);
+        {
+            const qreal offset = real(title, "_offset");
+            QCOMPARE(real(title, "leftFadeWidth"), qMin(real(title, "_fade"), offset));
+        }
+
+        // Several rounds: never apart, with both reaching both ends together.
+        int ends = 0, starts = 0;
+        qreal last = 0;
+        QElapsedTimer clock;
+        clock.start();
+        while ((ends < 3 || starts < 3) && clock.elapsed() < 20000) {
+            const qreal phaseTitle = real(title, "_offset") / real(title, "maxOffset");
+            const qreal phaseArtist = real(artist, "_offset") / real(artist, "maxOffset");
+            QVERIFY2(qAbs(phaseTitle - phaseArtist) < 0.001,
+                qPrintable(QStringLiteral("%1 and %2").arg(phaseTitle).arg(phaseArtist)));
+            const qreal phase = block->property("scrollPhase").toReal();
+            if (phase == 1.0 && last != 1.0) {
+                ++ends;
+                QCOMPARE(real(title, "rightFade"), 0.0);
+                QCOMPARE(real(artist, "rightFade"), 0.0);
+                QCOMPARE(real(title, "leftFade"), 1.0);
+                QCOMPARE(real(artist, "leftFade"), 1.0);
+            }
+            if (phase == 0.0 && last != 0.0)
+                ++starts;
+            last = phase;
+            QTest::qWait(5);
+        }
+        QVERIFY(ends >= 3 && starts >= 3);
+
+        // Another track starts from the beginning; lines that fit stop it.
+        block->setProperty("title", QStringLiteral("Another very long title that does not fit in here either, not at all"));
+        QTRY_COMPARE(title->property("text").toString(), QStringLiteral("Another very long title that does not fit in here either, not at all"));
+        block->setProperty("title", QStringLiteral("Short"));
+        block->setProperty("artist", QStringLiteral("Short too"));
+        QTRY_VERIFY(!title->property("overflowing").toBool());
+        QTRY_COMPARE(block->property("scrollPhase").toReal(), 0.0);
     }
 
     // The title and artist as a block: nothing to wipe to the first time, then one

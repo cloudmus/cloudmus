@@ -47,6 +47,7 @@ Item {
     function _showAtOnce() {
         outgoingTitle.text = incomingTitle.text = title
         outgoingArtist.text = incomingArtist.text = artist
+        _startScrolling()
     }
 
     function _change() {
@@ -65,12 +66,56 @@ Item {
         _progress = 0
         // Where it had got to, for the old text not to jump as it goes.
         outgoingTitle.text = incomingTitle.text
-        outgoingTitle.scrollOffset = incomingTitle.scrollOffset
+        outgoingTitle.phase = scrollPhase
         outgoingArtist.text = incomingArtist.text
-        outgoingArtist.scrollOffset = incomingArtist.scrollOffset
+        outgoingArtist.phase = scrollPhase
         incomingTitle.text = title
         incomingArtist.text = artist
         wipe.start()
+        _startScrolling()
+    }
+
+    // Lines that don't fit go back and forth as one: a single course for the two,
+    // as long as the longer one's way takes, each going its own way along it. On
+    // courses of their own, of different lengths, they'd drift apart.
+    property int pauseMs: 1800
+    property real speed: Theme.dp(36) // per second, on the longer way
+    property real scrollPhase: 0
+    readonly property real _longestWay: Math.max(incomingTitle.maxOffset, incomingArtist.maxOffset)
+    readonly property int _wayDuration: Math.max(1, _longestWay / speed * 1000)
+    // Settling first: the width changes every frame as the screen changes mode.
+    on_LongestWayChanged: settling.restart()
+    onVisibleChanged: _startScrolling()
+    Timer {
+        id: settling
+        interval: 300
+        onTriggered: root._startScrolling()
+    }
+    function _startScrolling() {
+        scrolling.stop()
+        scrollPhase = 0
+        if (_longestWay > 0 && visible)
+            scrolling.start()
+    }
+    SequentialAnimation {
+        id: scrolling
+        loops: Animation.Infinite
+        PauseAnimation { duration: root.pauseMs }
+        NumberAnimation {
+            target: root
+            property: "scrollPhase"
+            to: 1
+            duration: root._wayDuration
+            easing.type: Easing.InOutSine
+        }
+        PauseAnimation { duration: root.pauseMs }
+        NumberAnimation {
+            target: root
+            property: "scrollPhase"
+            to: 0
+            duration: root._wayDuration
+            easing.type: Easing.InOutSine
+        }
     }
 
     property int _direction: 1
@@ -151,14 +196,12 @@ Item {
             MarqueeText {
                 id: outgoingTitle
                 width: parent.width
-                active: false
                 color: root.titleColor
                 font: incomingTitle.font
             }
             MarqueeText {
                 id: outgoingArtist
                 width: parent.width
-                active: false
                 color: root.artistColor
                 font: incomingArtist.font
             }
@@ -186,6 +229,7 @@ Item {
             MarqueeText {
                 id: incomingTitle
                 objectName: "incomingTitle"
+                phase: root.scrollPhase
                 width: parent.width
                 color: root.titleColor
                 font.family: Theme.fontFamily
@@ -194,6 +238,8 @@ Item {
             }
             MarqueeText {
                 id: incomingArtist
+                objectName: "incomingArtist"
+                phase: root.scrollPhase
                 width: parent.width
                 color: root.artistColor
                 font.family: Theme.fontFamily
