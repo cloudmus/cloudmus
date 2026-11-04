@@ -263,7 +263,9 @@ void Sources::saveList(const QString& sourceId, const QList<Playlist>& playlists
 void Sources::showAuthState(const QString& sourceId)
 {
     const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
+    // A source that isn't running (yet) has its name from its manifest.
+    const QString known = model_.sourceName(sourceId);
+    const QString sourceName = client != nullptr ? client->sourceName() : known.isEmpty() ? sourceId : known;
     model_.setSourceAuthProblem(sourceId, sourceName, authStates_.state(sourceId).hasProblem);
 }
 
