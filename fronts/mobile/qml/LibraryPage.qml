@@ -343,7 +343,6 @@ Page {
                                 source: tile.coverUrl || ""
                                 seed: tile.title || ""
                                 outlined: tile.isActive === true
-                                radius: Theme.dp(14)
                                 opacity: tile.down ? 0.7 : 1
                                 Spinner {
                                     anchors.centerIn: parent

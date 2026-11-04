@@ -233,7 +233,6 @@ Popup {
                 Cover {
                     Layout.preferredWidth: Theme.dp(96)
                     Layout.preferredHeight: Theme.dp(96)
-                    radius: Theme.dp(14)
                     source: sheet.track ? sheet.track.coverUrl : ""
                     seed: sheet.track ? sheet.track.seed : ""
                 }

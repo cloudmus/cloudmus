@@ -58,6 +58,8 @@ QtObject {
     readonly property int spacing: dp(8)
     readonly property int padding: dp(16)
     readonly property int radius: dp(10)
+    // Of every cover, at any size, and of what's drawn over or around one.
+    readonly property int coverRadius: dp(12)
     // Settings: a group's outer corners, where its cells meet, and the spaces.
     readonly property int settingsCellRadius: dp(20)
     readonly property int settingsCellInnerRadius: dp(4)

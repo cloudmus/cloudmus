@@ -1,5 +1,6 @@
 #include "MainScreen.h"
 
+#include "PlaybackController.h"
 #include "Preload.h"
 
 #include "Core.h"
@@ -16,6 +17,11 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
     connect(&core.connectivity(), &App::Connectivity::offlineChanged, this, &MainScreen::offlineChanged);
     connect(&core.preload(), &Preload::spaceWarningChanged, this, &MainScreen::spaceWarningChanged);
     connect(&core.preload(), &Preload::progressChanged, this, &MainScreen::preloadFractionsChanged);
+    connect(&core.playback(), &Playback::PlaybackController::trackChanged, this, [this]() {
+        const int current = core_.playback().currentIndex();
+        const QModelIndex source = core_.activeTracks().index(current);
+        emit playingRowChanged(source.isValid() ? filter_.mapFromSource(source).row() : -1);
+    });
 }
 
 bool MainScreen::offline() const { return core_.connectivity().offline(); }

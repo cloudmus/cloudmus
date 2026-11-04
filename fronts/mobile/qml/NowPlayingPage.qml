@@ -12,6 +12,7 @@ Page {
     property QtObject platform
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property bool wide: width > height * 1.1
+    property bool swipeEnabled: true
     signal closeRequested()
     signal trackMenuRequested()
     // A finger pushing it down, by so much; let go, at that speed.
@@ -60,6 +61,7 @@ Page {
     // that zero isn't a move, and the speed is the last one a move had.
     DragHandler {
         id: swipe
+        enabled: page.swipeEnabled
         target: null
         xAxis.enabled: false
         property real velocity: 0

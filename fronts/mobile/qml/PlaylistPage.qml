@@ -45,7 +45,6 @@ Page {
                 Cover {
                     Layout.preferredWidth: Theme.dp(page.wide ? 88 : 96)
                     Layout.preferredHeight: Theme.dp(page.wide ? 88 : 96)
-                    radius: Theme.dp(8)
                     source: page.screen ? page.screen.coverUrl : ""
                     seed: page.screen ? page.screen.title : ""
                 }

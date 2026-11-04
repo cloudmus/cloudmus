@@ -625,6 +625,32 @@ private slots:
         swipe(sheetTop() + 260, 850, true);
         QTRY_VERIFY(!trackSheet->property("visible").toBool());
         QCOMPARE(core.nowPlaying().title(), track);
+
+        // Over Now Playing, a swipe takes the sheet and leaves that where it is.
+        QVERIFY(QMetaObject::invokeMethod(sheet, "open"));
+        QTRY_COMPARE(progress(), 1.0);
+        QVERIFY(QMetaObject::invokeMethod(trackSheet, "open"));
+        QTRY_VERIFY(trackSheet->property("opened").toBool());
+        swipe(sheetTop() + 60, 850, false);
+        QVERIFY(trackSheet->property("slide").toReal() > 0);
+        QCOMPARE(progress(), 1.0);
+        QTest::touchEvent(window, finger.get()).release(0, QPoint(300, 850), window);
+        QTRY_VERIFY(!trackSheet->property("visible").toBool());
+        QTest::qWait(400);
+        QCOMPARE(progress(), 1.0);
+        QVERIFY(QMetaObject::invokeMethod(sheet, "close"));
+        QTRY_COMPARE(progress(), 0.0);
+
+        // Playback going on brings the list to its row; a finger may take it
+        // away again, and the next track brings it back.
+        window->resize(320, 300); // still taller than wide enough to be a phone
+        auto* list = findItem(window->contentItem(), QStringLiteral("mainList"));
+        QVERIFY(list);
+        QTRY_VERIFY(list->height() < list->property("contentHeight").toReal());
+        core.activePlaylist().playRow(0);
+        QTRY_COMPARE(list->property("contentY").toReal(), 0.0);
+        core.activePlaylist().playRow(1);
+        QTRY_VERIFY(list->property("contentY").toReal() > 0);
     }
 
     // What's downloaded ahead, as on the desktop: a cell each, thinner if there
@@ -1168,6 +1194,18 @@ private slots:
                 QCOMPARE(qAlpha(image.pixel(corner)), 0);
             QCOMPARE(qAlpha(image.pixel(32, 32)), 255);
             QCOMPARE(qAlpha(image.pixel(32, 0)), 255);
+        }
+        // The radius asked for, in the picture's pixels: along the top edge it's
+        // clear up to where the curve begins, solid past it.
+        {
+            const QImage image = provider.requestImage(QStringLiteral("32/sRoad"), nullptr, QSize(389, 389));
+            int firstSolid = -1;
+            for (int x = 0; x < image.width() && firstSolid < 0; ++x) {
+                if (qAlpha(image.pixel(x, 0)) == 255)
+                    firstSolid = x;
+            }
+            qInfo() << "first solid on the top edge:" << firstSolid;
+            QVERIFY(firstSolid >= 26 && firstSolid <= 34);
         }
         QVERIFY(provider.requestImage(QStringLiteral("12/ffile%3A%2F%2F%2Fnone.png"), nullptr, QSize(64, 64)).isNull());
     }

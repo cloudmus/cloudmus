@@ -25,7 +25,7 @@ Rectangle {
     readonly property real enteringScale: picture.enteringScale
     readonly property bool _masked: liveCorners && GraphicsInfo.api !== GraphicsInfo.Software
 
-    radius: Theme.dp(10)
+    radius: Theme.coverRadius
     color: _showing ? "transparent" : Theme.surface300
 
     // What's to be shown, drawn at the size it is shown at: its corners are

@@ -43,6 +43,10 @@ signals:
     void offlineChanged();
     void spaceWarningChanged();
     void preloadFractionsChanged();
+    // Playback went on to another track, in this row of the filtered ones (-1:
+    // not among them). Only then, for a view to go to it: a row that merely
+    // moved isn't news.
+    void playingRowChanged(int row);
 
 private:
     App::Core& core_;

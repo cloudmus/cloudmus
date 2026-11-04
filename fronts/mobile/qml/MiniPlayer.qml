@@ -12,6 +12,7 @@ Rectangle {
     property string seed
     // How far the tracks after this one have got (PreloadCells).
     property var preloadFractions: []
+    property bool pullEnabled: true
     signal openRequested()
     // A finger pulling it up, by so much; let go, at that speed upwards.
     signal pulled(real distance)
@@ -70,6 +71,7 @@ Rectangle {
     // As the finger lifts the handler zeroes its translation first, then says it's
     // over: that zero isn't a move, and the speed is the last one a move had.
     DragHandler {
+        enabled: mini.pullEnabled
         target: null
         xAxis.enabled: false
         property real velocity: 0

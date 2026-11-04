@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Effects
 
 // A picture that never blinks: a new one (another address, or the same at
@@ -12,6 +13,12 @@ Item {
     // What's to be shown: empty for nothing.
     property string target
     property size pixels: Qt.size(0, 0)
+    // What an Image is told: Qt asks a provider for its sourceSize multiplied by
+    // the screen's density, so told pixels it made each picture that many times
+    // too large, on a phone seven times the memory, with whatever was drawn into
+    // it in pixels (a cover's corners) that much too small.
+    readonly property size _sourceSize: Qt.size(Math.ceil(pixels.width / Screen.devicePixelRatio),
+                                                Math.ceil(pixels.height / Screen.devicePixelRatio))
     property int fadeDuration: 250
     // Another picture coming as on the desktop's hero: the old one shrinks away
     // fading, the new one settles in from larger. The same at another size
@@ -23,7 +30,7 @@ Item {
 
     readonly property bool showing: _front.status === Image.Ready
     readonly property string shownSource: _front.source.toString()
-    readonly property int shownWidth: _front.sourceSize.width
+    readonly property int shownWidth: Math.round(_front.sourceSize.width * Screen.devicePixelRatio)
     readonly property bool changing: change.running
     readonly property real enteringScale: _back.scale
 
@@ -63,10 +70,10 @@ Item {
             }
             return
         }
-        if (_front.source.toString() === target && _front.sourceSize === pixels)
+        if (_front.source.toString() === target && _front.sourceSize === _sourceSize)
             return
         _back.source = ""
-        _back.sourceSize = pixels
+        _back.sourceSize = _sourceSize
         _back.source = target
         // At hand already, and its status has told so on the way, so a change may
         // have begun: this is the one that counts. With nothing to replace it's

@@ -141,6 +141,7 @@ ApplicationWindow {
         MainPage {
             objectName: "playlist"
             backend: window.backend
+            gesturesEnabled: !trackSheet.visible
             onNowPlayingRequested: nowPlayingSheet.open()
             onNowPlayingPulled: (distance) => nowPlayingSheet.follow(distance / nowPlayingSheet.height)
             onNowPlayingPullEnded: (velocity) => nowPlayingSheet.settleAfterPull(velocity)
@@ -191,8 +192,9 @@ ApplicationWindow {
         asynchronous: true
         readonly property var _now: window.backend.nowPlaying
         readonly property var _playlist: window.backend.playlist
-        sourceSize: Qt.size(Math.round(window.width * Screen.devicePixelRatio),
-                            Math.round(window.height * Screen.devicePixelRatio))
+        // As CrossfadeImage asks for it: the cache goes by that.
+        sourceSize: Qt.size(Math.ceil(Math.round(window.width * Screen.devicePixelRatio) / Screen.devicePixelRatio),
+                            Math.ceil(Math.round(window.height * Screen.devicePixelRatio) / Screen.devicePixelRatio))
         source: window.backend.ready && window.width <= window.height * 1.1
             ? Theme.auraUrl(_now && _now.backgroundSeed ? _now.backgroundSeed : _playlist ? _playlist.title : "",
                             Math.round(Theme.dp(45) * Screen.devicePixelRatio))
@@ -259,6 +261,8 @@ ApplicationWindow {
                 objectName: "nowPlaying"
                 backend: window.backend
                 platform: window.platform
+                // Under a track's sheet, a swipe is the sheet's.
+                swipeEnabled: !trackSheet.visible
                 onCloseRequested: nowPlayingSheet.close()
                 onTrackMenuRequested: trackSheet.open()
                 onPushed: (distance) => nowPlayingSheet.follow(1 - distance / nowPlayingSheet.height)

@@ -13,6 +13,8 @@ Page {
     id: page
 
     property QtObject backend
+    // Off under what's over the page, for a swipe there not to reach here.
+    property bool gesturesEnabled: true
     signal nowPlayingRequested()
     signal nowPlayingPulled(real distance)
     signal nowPlayingPullEnded(real velocity)
@@ -57,6 +59,44 @@ Page {
             filterField.focus = false
         }
     }
+    // Playback goes on to another track: the list goes to it, unless a finger
+    // has it, and then a finger may take it anywhere until the next one.
+    property int _followRow: -1
+    function _follow() {
+        const row = _followRow
+        if (row < 0 || row >= list.count)
+            return // its row may be yet to come
+        _followRow = -1
+        if (list.moving)
+            return
+        const item = list.itemAtIndex(row)
+        // Clear of the edges, where rows dissolve.
+        const margin = Math.min(Theme.rowHeight / 2, list.height / 4)
+        if (item && item.y >= list.contentY + margin && item.y + item.height <= list.contentY + list.height - margin)
+            return
+        following.stop()
+        const from = list.contentY
+        list.positionViewAtIndex(row, ListView.Center)
+        following.to = list.contentY
+        list.contentY = from
+        following.start()
+    }
+    NumberAnimation {
+        id: following
+        target: list
+        property: "contentY"
+        duration: Theme.durationPage * 1.5
+        easing.type: Easing.InOutCubic
+    }
+    Connections {
+        target: page.backend.mainScreen
+        ignoreUnknownSignals: true
+        function onPlayingRowChanged(row) {
+            page._followRow = row
+            Qt.callLater(page._follow)
+        }
+    }
+
     // Another playlist has its own rows.
     Connections {
         target: page.playlist
@@ -363,6 +403,11 @@ Page {
                 ScrollList {
                     id: list
                     objectName: "mainList"
+                    onMovementStarted: {
+                        following.stop()
+                        page._followRow = -1
+                    }
+                    onCountChanged: if (page._followRow >= 0) Qt.callLater(page._follow)
                     width: page.wide ? page._listFullWidth : parent.width
                     height: parent.height
                     // With the mini player below, it's that keeps clear of the bar.
@@ -416,6 +461,7 @@ Page {
         nowPlaying: page.nowPlaying
         seed: page.backgroundSeed
         preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
+        pullEnabled: page.gesturesEnabled
         visible: !page.wide && page.hasTrack
         onOpenRequested: page.nowPlayingRequested()
         onPulled: (distance) => page.nowPlayingPulled(distance)

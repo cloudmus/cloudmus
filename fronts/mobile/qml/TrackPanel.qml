@@ -92,7 +92,7 @@ Item {
             seed: panel.seed
             // The same on screen at any scale. In the picture itself, without a
             // GPU, it can't follow.
-            radius: _masked && scale > 0 ? Theme.dp(20) / scale : Theme.dp(20)
+            radius: _masked && scale > 0 ? Theme.coverRadius / scale : Theme.coverRadius
             liveCorners: true
             zoomOnChange: true
         }
