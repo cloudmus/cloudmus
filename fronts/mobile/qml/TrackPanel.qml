@@ -51,14 +51,6 @@ Item {
     function _titleSizeAt(at) { return Theme.fontTitle + Theme.dp(3) + (Theme.dp(28) - Theme.fontTitle - Theme.dp(3)) * at }
     // Not on the way from one layout to the other.
     readonly property bool _atRest: progress <= 0 || progress >= 1
-    property real _restProgress: progress
-    Binding {
-        target: panel
-        property: "_restProgress"
-        value: panel.progress
-        when: panel._atRest
-        restoreMode: Binding.RestoreNone
-    }
     // The side of the picture the cover keeps, whatever it's shown at; 0: as shown,
     // for a panel that stays in one layout. Not worked out from this panel's size,
     // which changes on the way.
@@ -117,9 +109,11 @@ Item {
             RowLayout {
                 id: titleRow
                 anchors.fill: parent
-                // The text keeps its size and width for the way, scaled to what's
-                // wanted, and is laid out once at the end: redrawn each frame, with
-                // the shadows and masks around it, it's the costliest thing here.
+                // The text is always laid out at its largest and scaled to what's
+                // wanted: laid out anew each frame, with the shadows and masks
+                // around it, it would cost the most of anything here, and laid out
+                // anew at the end of the way, it would jump. Only its width follows,
+                // at the end, for a line that fits now or doesn't any more.
                 Item {
                     id: titleSlot
                     Layout.fillWidth: true
@@ -129,20 +123,20 @@ Item {
                         objectName: "trackTitle"
                         y: (titleSlot.height - titleSlot.implicitHeight) / 2
                         transformOrigin: Item.TopLeft
-                        scale: panel._titleSizeAt(panel.progress) / panel._titleSizeAt(panel._restProgress)
+                        scale: panel._titleSizeAt(panel.progress) / panel._titleSizeAt(1)
                         title: panel.nowPlaying ? panel.nowPlaying.title : ""
                         artist: panel.nowPlaying ? panel.nowPlaying.artist : ""
                         direction: panel._textDirection
                         titleColor: panel.inkColor
                         artistColor: panel.inkSecondaryColor
-                        // Larger with the room there is beside the cover.
-                        titleSize: Math.round(panel._titleSizeAt(panel._restProgress))
-                        artistSize: Math.round(Theme.fontBody + (Theme.dp(19) - Theme.fontBody) * panel._restProgress)
+                        titleSize: Math.round(panel._titleSizeAt(1))
+                        // Theme.fontBody when the panel has the cover above the text.
+                        artistSize: Math.round(Theme.fontBody * panel._titleSizeAt(1) / panel._titleSizeAt(0))
                     }
                     Binding {
                         target: titleBlock
                         property: "width"
-                        value: titleSlot.width
+                        value: titleSlot.width / titleBlock.scale
                         when: panel._atRest
                         restoreMode: Binding.RestoreNone
                     }

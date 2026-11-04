@@ -1067,8 +1067,8 @@ private slots:
             "list width %6").arg(titleWidth.size()).arg(titleFont.size()).arg(coverSize.size())
             .arg(coverPixels.size()).arg(auraPixels.size()).arg(listWidth.size());
         // Only at the ends for the title, which is laid out for where it arrives.
-        QVERIFY(titleWidth.size() <= 4);
-        QVERIFY(titleFont.size() <= 2);
+        QVERIFY(titleWidth.size() <= 6);
+        QCOMPARE(titleFont.size(), 0); // it jumps otherwise, at the end of the way
         QCOMPARE(coverSize.size(), 0);
         QCOMPARE(coverPixels.size(), 0);
         QCOMPARE(auraPixels.size(), 0);
@@ -1314,8 +1314,7 @@ private slots:
             const QRectF normalCover = sceneRect(cover);
             const qreal normalList = list->width();
             const qreal normalBar = bar->width();
-            const int normalTitleSize = window->findChild<QQuickItem*>("trackTitle")->property("titleSize").toInt();
-            const int normalArtistSize = window->findChild<QQuickItem*>("trackTitle")->property("artistSize").toInt();
+            const qreal normalTitleScale = window->findChild<QQuickItem*>("trackTitle")->scale();
             QVERIFY(!sceneRect(bar).intersects(normalCover));
             QVERIFY(!railSettings->isVisible());
             QVERIFY(sceneRect(details).top() > normalCover.top());
@@ -1354,8 +1353,7 @@ private slots:
             const QRectF bigCover = sceneRect(cover);
             auto* titleBlock = window->findChild<QQuickItem*>("trackTitle");
             QVERIFY(titleBlock);
-            QVERIFY(titleBlock->property("titleSize").toInt() > normalTitleSize);
-            QVERIFY(titleBlock->property("artistSize").toInt() > normalArtistSize);
+            QVERIFY(titleBlock->scale() > normalTitleScale);
             QVERIFY(bigCover.height() > normalCover.height());
             QVERIFY(!sceneRect(bar).intersects(bigCover));
             QCOMPARE(bar->width(), bar->height());
