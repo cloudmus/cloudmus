@@ -341,7 +341,7 @@ Page {
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: page.wide
+                clip: true
 
                 ScrollList {
                     id: list

@@ -1279,6 +1279,9 @@ private slots:
             }
         };
         shot("main");
+        // Scrolled, its rows don't come out over the bar above it.
+        auto* mainList = window->findChild<QQuickItem*>("mainList");
+        QVERIFY(mainList && (mainList->clip() || mainList->parentItem()->clip()));
 
         // The list's filter opens under its bar, and closes empty.
         playlist->setProperty("filterOpen", true);
