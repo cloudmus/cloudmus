@@ -280,6 +280,15 @@ Page {
                         iconOnly: !page.wide || page.filterOpen
                         opacity: Math.max(0, 1 - page.screenProgress * 2)
                     }
+                    // Settings says what it's about in full.
+                    IconButton {
+                        objectName: "spaceWarning"
+                        visible: page.backend.mainScreen !== null && page.backend.mainScreen.spaceWarning !== ""
+                        iconName: "warning"
+                        color: Theme.danger
+                        opacity: Math.max(0, 1 - page.screenProgress * 2)
+                        onClicked: page.settingsRequested()
+                    }
                     IconButton {
                         objectName: "filterButton"
                         visible: page.backend.mainScreen !== null && opacity > 0

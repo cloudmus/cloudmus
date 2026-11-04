@@ -87,6 +87,9 @@ public:
     qint64 cacheUsedBytes() const;
     // Everything but the playing track and the ones about to play.
     Q_INVOKABLE void clearCache();
+    // What's held back for lack of room on the disk, and why, for the user;
+    // empty while there's room. See Playback::TrackCache::Space.
+    QString spaceWarning() const;
 
     // The tracks after the playing one that are downloaded ahead, in play
     // order: one row each, with the roles above.
@@ -111,6 +114,7 @@ public:
 signals:
     void settingsChanged();
     void cacheUsedChanged();
+    void spaceWarningChanged();
     // upcoming() or the totals changed.
     void progressChanged();
     // stateFor()/fractionFor() changed for this track.

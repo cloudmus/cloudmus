@@ -17,6 +17,8 @@ class MainScreen : public QObject {
     Q_OBJECT
     // No network: said here, for all to see, not as an error each time.
     Q_PROPERTY(bool offline READ offline NOTIFY offlineChanged)
+    // Too little room on the disk, and what that stopped; empty otherwise.
+    Q_PROPERTY(QString spaceWarning READ spaceWarning NOTIFY spaceWarningChanged)
 
 public:
     explicit MainScreen(App::Core& core, QObject* parent = nullptr);
@@ -24,6 +26,7 @@ public:
     TrackFilterModel& rows() { return filter_; }
 
     bool offline() const;
+    QString spaceWarning() const;
 
 public slots:
     void setFilter(const QString& text);
@@ -34,6 +37,7 @@ signals:
     // What the app has to tell the user (ViewModel::Messages), in plain types.
     void message(int kind, const QString& text);
     void offlineChanged();
+    void spaceWarningChanged();
 
 private:
     App::Core& core_;

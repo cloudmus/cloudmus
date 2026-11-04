@@ -1,5 +1,7 @@
 #include "MainScreen.h"
 
+#include "Preload.h"
+
 #include "Core.h"
 
 namespace ViewModel {
@@ -12,9 +14,12 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
     connect(&core.messages(), &Messages::posted, this,
         [this](Messages::Kind kind, const QString& text) { emit message(int(kind), text); });
     connect(&core.connectivity(), &App::Connectivity::offlineChanged, this, &MainScreen::offlineChanged);
+    connect(&core.preload(), &Preload::spaceWarningChanged, this, &MainScreen::spaceWarningChanged);
 }
 
 bool MainScreen::offline() const { return core_.connectivity().offline(); }
+
+QString MainScreen::spaceWarning() const { return core_.preload().spaceWarning(); }
 
 void MainScreen::setFilter(const QString& text) { filter_.setNeedle(text); }
 

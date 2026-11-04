@@ -164,6 +164,8 @@ private:
     void pinWanted();
     // A fresh start for a track that failed (a stream known now, or asked for).
     void restart(const QString& key);
+    // Whether the disk has room for this one (TrackCache::Space).
+    bool mayDownload(const QString& key) const;
     void schedule();
     void scheduleLater();
     // False: it can't even be started — failed on the spot.

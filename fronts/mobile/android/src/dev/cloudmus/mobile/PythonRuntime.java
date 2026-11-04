@@ -19,6 +19,10 @@ final class PythonRuntime {
     private PythonRuntime() {
     }
 
+    // A full disk can leave a head unit unable to boot: rather no sources. Keep
+    // in step with Playback::DiskSpace::kCriticalBytes.
+    private static final long MIN_FREE_BYTES = 1024L * 1024 * 1024;
+
     // The directory for PYTHONHOME. Blocks for seconds on the first run.
     static synchronized File prepare(Context context) throws IOException {
         String stamp;
@@ -37,6 +41,10 @@ final class PythonRuntime {
         byte[] buffer = new byte[64 * 1024];
         try (ZipInputStream zip = new ZipInputStream(context.getAssets().open("python.zip"))) {
             for (ZipEntry entry; (entry = zip.getNextEntry()) != null;) {
+                if (context.getFilesDir().getUsableSpace() < MIN_FREE_BYTES) {
+                    deleteTree(base);
+                    throw new IOException("too little free space to unpack");
+                }
                 File file = new File(home, entry.getName());
                 if (!file.getCanonicalPath().startsWith(home.getCanonicalPath() + File.separator))
                     throw new IOException("a bad path in the archive: " + entry.getName());

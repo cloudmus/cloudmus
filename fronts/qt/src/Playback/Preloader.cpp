@@ -29,6 +29,10 @@ Preloader::Preloader(TrackCache& cache, QObject* parent)
     , cache_(cache)
     , network_(new NetworkPool(this))
 {
+    connect(&cache_, &TrackCache::spaceChanged, this, [this]() {
+        scheduleLater();
+        emit progressChanged();
+    });
 }
 
 Preloader::~Preloader() = default;
@@ -183,6 +187,20 @@ void Preloader::scheduleLater()
         Qt::QueuedConnection);
 }
 
+bool Preloader::mayDownload(const QString& key) const
+{
+    switch (cache_.space()) {
+        case TrackCache::Space::Fine:
+            return true;
+        case TrackCache::Space::Low:
+            // What's listened to, and what was asked for by name.
+            return (!order_.isEmpty() && order_.first() == key) || demanded_.contains(key);
+        case TrackCache::Space::Critical:
+            break;
+    }
+    return false;
+}
+
 void Preloader::schedule()
 {
     // Over a copy: what a signal emitted on the way leads to may change
@@ -203,6 +221,9 @@ void Preloader::schedule()
             continue;
         // Found out above, and nothing to wait for.
         if (it->item.local)
+            continue;
+        // Held back, not failed: it goes on when there's room again.
+        if (!mayDownload(key))
             continue;
         if (it->state == State::Downloading) {
             active = key;
@@ -322,7 +343,10 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
         entry.download = new StreamDownload(*network_, cache_.partPath(key), this);
         connect(entry.download, &StreamDownload::completed, this, [this, key]() { onCompleted(key); });
         connect(entry.download, &StreamDownload::failed, this, [this, key](bool expired) { onFailed(key, expired); });
-        connect(entry.download, &StreamDownload::progressed, this, &Preloader::progressChanged);
+        connect(entry.download, &StreamDownload::progressed, this, [this]() {
+            cache_.writing();
+            emit progressChanged();
+        });
     }
     qCDebug(lcPreload) << "downloading" << entry.item.title << "from byte" << entry.download->bytesAvailable();
     entry.download->setSource(StreamSource { url, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)),
@@ -330,6 +354,11 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
     const int wanted = connectionsProvider_ ? connectionsProvider_(entry.item.sourceId) : 0;
     entry.download->setConnections(
         qBound(1, wanted > 0 ? wanted : stream.maxConnections.value_or(1), Config::Settings::kMaxDownloadConnections));
+    // The disk may have filled up while the URL was being asked for.
+    if (!mayDownload(key)) {
+        setState(key, State::Waiting);
+        return;
+    }
     setState(key, State::Downloading);
     entry.download->start();
 }

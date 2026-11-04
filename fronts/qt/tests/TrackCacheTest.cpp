@@ -6,6 +6,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include "DiskSpace.h"
 #include "TrackCache.h"
 
 namespace Tests {
@@ -49,6 +50,72 @@ private slots:
         QVERIFY(!cache.contains(key));
         QVERIFY(!QFileInfo::exists(path));
         QCOMPARE(cache.totalBytes(), qint64(0));
+    }
+
+    // Whatever the limit: a disk filling up costs the tracks not in use, and
+    // says so, on the way down and back.
+    void aFillingDiskTakesTheCacheAndSaysSo()
+    {
+        using Space = Playback::TrackCache::Space;
+        namespace Disk = Playback::DiskSpace;
+        QTemporaryDir dir;
+        QVERIFY(makeFile(dir.filePath(QStringLiteral("oldest")), 1000, 900));
+        QVERIFY(makeFile(dir.filePath(QStringLiteral("old")), 1000, 300));
+        QVERIFY(makeFile(dir.filePath(QStringLiteral("pinned")), 1000, 1200));
+        Playback::TrackCache cache(dir.path());
+        cache.setPinned({ QStringLiteral("pinned") });
+        qint64 free = Disk::kLowBytes * 2;
+        Playback::TrackCache* cacheAt = &cache;
+        // Each file gone gives its share back, a lot of it for the test's sake.
+        qint64 freedPerFile = 0;
+        const qint64 total = cache.totalBytes();
+        cache.setFreeSpaceProvider([&]() { return free + (total - cacheAt->totalBytes()) / 1000 * freedPerFile; });
+        QCOMPARE(cache.space(), Space::Fine);
+        QCOMPARE(cache.totalBytes(), total);
+        QSignalSpy space(&cache, &Playback::TrackCache::spaceChanged);
+
+        // Short by less than a file: the oldest is enough, the warning stays off.
+        freedPerFile = 1024 * 1024 * 1024;
+        free = Disk::kLowBytes - 1024 * 1024;
+        cache.setFreeSpaceProvider([&]() { return free + (total - cacheAt->totalBytes()) / 1000 * freedPerFile; });
+        QCOMPARE(cache.space(), Space::Fine);
+        QVERIFY(!cache.contains(QStringLiteral("oldest")));
+        QVERIFY(cache.contains(QStringLiteral("old")));
+        QCOMPARE(space.size(), 0);
+
+        // Nothing left to free but what's pinned: never that, and it's told.
+        freedPerFile = 0;
+        free = Disk::kLowBytes - 1;
+        cache.setFreeSpaceProvider([&]() { return free; });
+        QVERIFY(!cache.contains(QStringLiteral("old")));
+        QVERIFY(cache.contains(QStringLiteral("pinned")));
+        QCOMPARE(cache.space(), Space::Low);
+        QCOMPARE(space.size(), 1);
+        free = Disk::kCriticalBytes - 1;
+        cache.setFreeSpaceProvider([&]() { return free; });
+        QCOMPARE(cache.space(), Space::Critical);
+        QCOMPARE(space.size(), 2);
+
+        // Back only with a margin: a line crossed to and fro warns once.
+        free = Disk::kCriticalBytes + 1;
+        cache.setFreeSpaceProvider([&]() { return free; });
+        QCOMPARE(cache.space(), Space::Critical);
+        free = Disk::kLowBytes + 1;
+        cache.setFreeSpaceProvider([&]() { return free; });
+        QCOMPARE(cache.space(), Space::Low);
+        free = Disk::kLowBytes * 2;
+        cache.setFreeSpaceProvider([&]() { return free; });
+        QCOMPARE(cache.space(), Space::Fine);
+    }
+
+    // Not knowing frees nothing.
+    void anUnknownDiskRemovesNothing()
+    {
+        QTemporaryDir dir;
+        QVERIFY(makeFile(dir.filePath(QStringLiteral("a")), 1000));
+        Playback::TrackCache cache(dir.path());
+        cache.setFreeSpaceProvider([]() { return qint64(-1); });
+        QVERIFY(cache.contains(QStringLiteral("a")));
     }
 
     void whatWasPlayedLongestAgoGoesFirst()

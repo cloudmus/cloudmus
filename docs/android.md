@@ -82,6 +82,12 @@ adb logcat -s CloudmusStart             # startup milestones
   `Download/Cloudmus`.
 - Autoplay at boot is on by default; the switch is in Settings (the sliders
   icon on the playlist page).
+- A head unit whose disk fills up may not boot again, so the disk is watched.
+  Under 2 GB free nothing is downloaded ahead and cached tracks not in use are
+  removed; under 1 GB nothing is downloaded at all, the playing track included
+  (it goes on when there's room), and neither are covers saved or Python
+  unpacked. A warning icon on the main screen leads to Settings, which says why.
+  Other writers are bounded: logs, the covers' caches.
 - Settings apply at once. A source's page (whether it runs, its connection and
   its own settings) restarts the source when a change takes that; opening it
   starts a source left unstarted for wanting a sign-in. There's no language

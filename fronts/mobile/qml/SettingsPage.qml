@@ -39,6 +39,17 @@ Page {
             width: parent.width
             spacing: Theme.padding
 
+            Text {
+                objectName: "spaceWarning"
+                Layout.fillWidth: true
+                visible: text !== ""
+                text: page.backend.mainScreen ? page.backend.mainScreen.spaceWarning : ""
+                wrapMode: Text.Wrap
+                color: Theme.danger
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontBody
+            }
+
             SectionHeading { text: qsTr("Playback") }
             RowLayout {
                 Layout.fillWidth: true

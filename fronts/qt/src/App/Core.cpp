@@ -1,6 +1,7 @@
 #include "Core.h"
 
 #include <QStandardPaths>
+#include <QTimer>
 
 #include "Preloader.h"
 #include "ProxyRouting.h"
@@ -72,6 +73,15 @@ Core::Core(QObject* parent)
         [this](const Track& track, const QString& sourceId) { trackStates_.requestStreamQuality(sourceId, track.id); });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
     connect(&playback_, &Playback::PlaybackController::offlineNotice, &messages_, &ViewModel::Messages::offline);
+    // Each time it gets worse, and once at the start: the view may only be
+    // coming up then, hence later.
+    const auto warnOfSpace = [this]() {
+        const QString warning = preload_.spaceWarning();
+        if (!warning.isEmpty())
+            messages_.error(warning);
+    };
+    connect(&preload_, &ViewModel::Preload::spaceWarningChanged, this, warnOfSpace);
+    QTimer::singleShot(0, this, warnOfSpace);
 
     // The network: what says it's gone, what says it's there, and going over
     // the sources again until it is. A listing that works gets the rest going

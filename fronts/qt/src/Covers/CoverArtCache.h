@@ -70,6 +70,7 @@ signals:
     void pixmapReady(QString url);
 
 private:
+    void trimFiles();
     friend class RoutingProxyFactory;
 
     // `requestUrl`: where to fetch from — `url` itself, or where it

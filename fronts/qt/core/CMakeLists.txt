@@ -87,6 +87,7 @@ add_library(cloudmus-core STATIC
     ${CLOUDMUS_QT_DIR}/src/Playback/AudioPlayer.cpp
     ${CLOUDMUS_QT_DIR}/src/Playback/AudioFileProbe.cpp
     ${CLOUDMUS_QT_DIR}/src/Playback/StreamRelay.cpp
+    ${CLOUDMUS_QT_DIR}/src/Playback/DiskSpace.cpp
     ${CLOUDMUS_QT_DIR}/src/Playback/NetworkPool.cpp
     ${CLOUDMUS_QT_DIR}/src/Playback/StreamDownload.cpp
     ${CLOUDMUS_QT_DIR}/src/Playback/TrackCache.cpp

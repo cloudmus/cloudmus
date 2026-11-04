@@ -3,6 +3,7 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QImage>
 #include <QLoggingCategory>
 #include <QNetworkDiskCache>
@@ -10,8 +11,10 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QUrl>
 
+#include "DiskSpace.h"
 #include "ProxyRouting.h"
 
 namespace Covers {
@@ -23,6 +26,10 @@ constexpr int kMaxRedirects = 5;
 // Enough for a screenful of ordinary covers; a huge one (embedded art of a
 // local file can be tens of megabytes decoded) is simply not kept.
 constexpr int kSourceCacheBytes = 24 * 1024 * 1024;
+// Each is a picture of a track or playlist, kept for the other process and for
+// browsers to read; only the mobile front asks for any.
+constexpr qint64 kFilesMaxBytes = qint64(200) * 1024 * 1024;
+constexpr int kFilesTrimDelayMs = 30000;
 } // namespace
 
 // Asks the cache, per request, which proxy that URL's source uses —
@@ -55,6 +62,20 @@ CoverArtCache::CoverArtCache(QObject* parent)
     filesDir_ = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/cover-files");
     memoryCache_.setMaxCost(64);
     sourceCache_.setMaxCost(kSourceCacheBytes);
+    // Later: a long listing, at a start that has more pressing things to do.
+    QTimer::singleShot(kFilesTrimDelayMs, this, [this]() { trimFiles(); });
+}
+
+void CoverArtCache::trimFiles()
+{
+    // They come back by themselves when wanted, and nothing else bounds them.
+    QFileInfoList files = QDir(filesDir_).entryInfoList(QDir::Files, QDir::Time);
+    qint64 total = 0;
+    for (const QFileInfo& file : files) {
+        total += file.size();
+        if (total > kFilesMaxBytes)
+            QFile::remove(file.filePath());
+    }
 }
 
 QString CoverArtCache::localFile(const QString& url)
@@ -70,6 +91,8 @@ QString CoverArtCache::localFile(const QString& url)
         request(url);
         return { };
     }
+    if (!Playback::DiskSpace::hasRoom(filesDir_))
+        return { };
     QDir().mkpath(filesDir_);
     // Written whole under another name: the other process may read it at once.
     const QString partial = file + QStringLiteral(".part");

@@ -1,6 +1,7 @@
 #include "Downloads.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QPointer>
@@ -12,6 +13,7 @@
 #include <utility>
 
 #include "CoverArtCache.h"
+#include "DiskSpace.h"
 #include "DownloadPaths.h"
 #include "Messages.h"
 #include "Preloader.h"
@@ -288,6 +290,8 @@ Rpc::Task<void> Downloads::run(int jobId)
         // docs/protocol.md §7.5: destDir must already exist.
         if (!QDir().mkpath(destDir)) {
             lastError = tr("Can't create the folder %1").arg(destDir);
+        } else if (!Playback::DiskSpace::hasRoom(destDir)) {
+            lastError = tr("Not enough free space on the disk");
         } else {
             try {
                 // The front saves it where it can; the source itself is
@@ -474,6 +478,10 @@ Rpc::Task<void> Downloads::saveFromStream(int jobId, QString sourceId, Track tra
         cover = coverArtCache_.source(coverUrl);
     }
 
+    if (!Playback::DiskSpace::hasRoom(destDir, QFileInfo(file).size())) {
+        finishDemand();
+        throw std::runtime_error(tr("Not enough free space on the disk").toStdString());
+    }
     const QString saved = Library::saveTrackFile(file, destDir, track, cover);
     finishDemand();
     if (saved.isEmpty())
