@@ -14,12 +14,13 @@ Item {
     property color fillColor: Theme.accent
     property int barHeight: Theme.dp(4)
 
-    readonly property int cellWidth: Theme.dp(12)
-    readonly property int cellGap: Theme.dp(3)
-    readonly property int maxFullCells: 6
+    // Less than on the desktop: a phone's progress bar has little width to give.
+    readonly property int cellWidth: Theme.dp(8)
+    readonly property int cellGap: Theme.dp(2)
+    readonly property int maxFullCells: 4
     readonly property real maxWidth: maxFullCells * cellWidth + (maxFullCells - 1) * cellGap
     readonly property real tickGap: Theme.dp(1)
-    readonly property real minTickWidth: Theme.dp(3)
+    readonly property real minTickWidth: Theme.dp(2)
 
     readonly property int count: fractions ? fractions.length : 0
     readonly property bool asCells: count <= maxFullCells

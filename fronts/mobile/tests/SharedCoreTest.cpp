@@ -655,6 +655,10 @@ private slots:
         set(6, 0.5);
         const qreal most = cells->implicitWidth();
         QVERIFY(most > three);
+        // However many, they take no more of the bar's width than this.
+        set(7, 0.5);
+        QVERIFY(cells->implicitWidth() <= most + 0.5);
+        QVERIFY(cells->property("shownWidth").toReal() < cells->property("cellWidth").toReal());
         set(10, 0.5);
         QVERIFY(!cells->property("asCells").toBool());
         QVERIFY(!cells->property("asBar").toBool());
