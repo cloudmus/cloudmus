@@ -96,11 +96,12 @@ ApplicationWindow {
 
     // Under the status bar, which is see-through: a page with its own picture
     // (the generated background) draws it on up there itself, any other has the
-    // bar's color. On a head unit's main page the picture is only the track's side
-    // of it, and the icons are light for that: in the light theme the rest of the
-    // bar goes dark to keep them legible, as it'd be a dark bar over a light page.
-    readonly property bool pageHasAura: stack.currentItem !== null && stack.currentItem.auraUnderStatusBar === true
-    readonly property bool statusOverAura: pageHasAura || nowPlayingSheet.progress > 0.5
+    // bar's color. The icons turn light only where the picture is all of the bar's
+    // width; on a head unit's main page it's just the track's side, and they stay
+    // as the theme has them (black in the light theme: the lesser evil).
+    readonly property bool statusOverAura: nowPlayingSheet.progress > 0.5
+        || (stack.currentItem !== null && stack.currentItem.auraUnderStatusBar === true
+            && stack.currentItem.auraSpansStatusBar === true)
     onStatusOverAuraChanged: platform.setStatusBarOverAura(statusOverAura)
     Rectangle {
         objectName: "statusFill"
@@ -108,7 +109,7 @@ ApplicationWindow {
         z: -1
         width: parent.width
         height: Theme.insetTop
-        color: window.pageHasAura && !Theme.dark ? "#1C1714" : Theme.surface100
+        color: Theme.surface100
     }
 
     StackView {
@@ -258,8 +259,11 @@ ApplicationWindow {
             // Up already as it's made: its background is only drawn when visible.
             wanted = true
         }
+        // A little past the bottom: easing out, it'd slow down to a stop at the edge
+        // and vanish from there, short of it by the look of it. Going through
+        // it still moving, it leaves; progress is set right at the end.
         function close() {
-            settling.to = 0
+            settling.to = -0.06
             settling.restart()
         }
         function follow(share) {
@@ -286,6 +290,7 @@ ApplicationWindow {
             property: "progress"
             duration: Theme.durationPage
             easing.type: Easing.OutCubic
+            onFinished: if (nowPlayingSheet.progress < 0) nowPlayingSheet.progress = 0
         }
         Loader {
             width: parent.width

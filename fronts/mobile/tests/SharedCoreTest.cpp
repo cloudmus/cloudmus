@@ -598,6 +598,18 @@ private slots:
         drag(210, 100, 400, true);
         QTRY_COMPARE(progress(), 0.0);
 
+        // Closing runs all the way down: no piece of it left on screen when it goes.
+        QMetaObject::invokeMethod(sheet, "open");
+        QTRY_COMPARE(progress(), 1.0);
+        QMetaObject::invokeMethod(sheet, "close");
+        qreal lastTop = 0;
+        for (int i = 0; i < 80 && sheet->isVisible(); ++i) {
+            lastTop = page->mapToScene(QPointF(0, 0)).y();
+            QTest::qWait(8);
+        }
+        qInfo() << "last top seen" << lastTop << "of" << window->height() << "progress" << progress();
+        QVERIFY2(lastTop > window->height() - 24, qPrintable(QString::number(lastTop)));
+
         // A track's sheet goes the same way, and a press on a row in it isn't
         // taken for a press of the row.
         core.trackScreen().showActiveRow(0);

@@ -20,6 +20,7 @@ Page {
     background: Rectangle { color: Theme.surface0 }
     // The header's picture goes on up under the status bar, which is see-through.
     readonly property bool auraUnderStatusBar: true
+    readonly property bool auraSpansStatusBar: true
 
     ColumnLayout {
         anchors.fill: parent

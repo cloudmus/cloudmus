@@ -20,6 +20,7 @@ Page {
     // The track's side of a head unit's screen goes on up under the status bar,
     // which is see-through.
     readonly property bool auraUnderStatusBar: wide
+    readonly property bool auraSpansStatusBar: false
     signal nowPlayingRequested()
     signal nowPlayingPulled(real distance)
     signal nowPlayingPullEnded(real velocity)
