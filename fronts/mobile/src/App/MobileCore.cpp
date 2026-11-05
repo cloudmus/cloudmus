@@ -1,5 +1,6 @@
 #include "MobileCore.h"
 
+#include "PlaybackController.h"
 #include "ProxyRouting.h"
 
 namespace App {
@@ -23,9 +24,34 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
     core_.activePlaylist().setRefreshDelay(paths.refreshDelayMs);
     core_.sourceManager().setSpawnDelay(paths.spawnDelayMs);
     leaveUnstartedWhatAskedForSignIn();
+    applyPlaybackExperiments();
     // As the desktop's main() does: the streams go through a local relay.
     Net::bypassProxyForLoopback();
     core_.sourceManager().startAll();
+}
+
+void MobileCore::applyPlaybackExperiments()
+{
+    Playback::PlaybackController& playback = core_.playback();
+    auto applyOutput = [this, &playback] {
+        // The other one stays behind it, for a device where this one fails.
+        const QByteArray output
+            = settings_.audioOutput() == QLatin1String("audiotrack") ? "audiotrack,opensles" : "opensles,audiotrack";
+        playback.setOutput(output, settings_.outputChunkFrames());
+    };
+    auto applyEdges = [this, &playback] { playback.setEdges(settings_.fadeMs(), settings_.fadeSettleMs()); };
+#ifdef Q_OS_ANDROID
+    // The desktop's outputs have no such options: there it plays as the
+    // desktop front does.
+    applyOutput();
+    connect(&settings_, &ViewModel::PlatformSettings::audioOutputChanged, this, applyOutput);
+    connect(&settings_, &ViewModel::PlatformSettings::outputChunkFramesChanged, this, applyOutput);
+#else
+    Q_UNUSED(applyOutput)
+#endif
+    applyEdges();
+    connect(&settings_, &ViewModel::PlatformSettings::fadeMsChanged, this, applyEdges);
+    connect(&settings_, &ViewModel::PlatformSettings::fadeSettleMsChanged, this, applyEdges);
 }
 
 void MobileCore::leaveUnstartedWhatAskedForSignIn()

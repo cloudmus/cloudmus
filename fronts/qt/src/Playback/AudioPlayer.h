@@ -1,15 +1,20 @@
 #pragma once
 
 #include <QByteArray>
+#include <QElapsedTimer>
+#include <QList>
 #include <QMap>
 #include <QNetworkProxy>
 #include <QObject>
 #include <QString>
 #include <QVector>
 
+#include <functional>
 #include <optional>
 
 #include "LevelFeed.h"
+
+class QTimer;
 
 struct mpv_handle;
 struct mpv_event;
@@ -69,6 +74,20 @@ public:
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
 
+    // Soft edges: a pause, a stop, a seek or a track changed by hand first
+    // takes the sound down over `fadeMs` and waits `settleMs` more for that
+    // silence to reach the speakers, and only then does it — mpv cuts the
+    // wave wherever it is, and the output's flush that follows (AudioTrack's
+    // and OpenSL's alike) lets that be heard as a click. What starts after
+    // comes up over the same `fadeMs`. 0: cut at once, as before. The fade is
+    // mpv's volume gain, applied a whole output chunk at a time, so it's only
+    // smooth with small chunks (setOutput()).
+    void setEdges(int fadeMs, int settleMs);
+    // mpv's audio output (its `ao` list) and, for OpenSL ES, how many frames
+    // it hands over at a time (0: mpv's default, the whole 250 ms buffer).
+    // Reopens the output.
+    void setOutput(const QByteArray& output, int openslesFramesPerEnqueue);
+
     // Loudness readings of what plays (before the volume control), for
     // views that move with the music. Off by default: they cost a stream of
     // log lines from mpv while on.
@@ -104,6 +123,39 @@ private:
 
     void loadUrl(const QString& url);
     bool startPositionSet_ = false;
+
+    // mpv commands and property changes go through these: while the sound
+    // fades out they queue up, in order, until it's silent (see setEdges()).
+    void command(QList<QByteArray> args);
+    void setProperty(const QByteArray& name, const QByteArray& value);
+    void setPaused(bool paused);
+    // Before something that cuts the sound: fade out first if it's heard.
+    void fadeOutFirst();
+    // Before a load or a seek with soft edges: what starts comes up from
+    // silence once mpv says it restarted.
+    void startSilent();
+    void fadeTo(double level);
+    void onFadeTick();
+    void runQueued();
+    void applyLevel(double level);
+    bool heard() const;
+
+    int fadeMs_ = 0;
+    int settleMs_ = 0;
+    QTimer* fadeTimer_ = nullptr;
+    QTimer* settleTimer_ = nullptr;
+    QElapsedTimer fadeClock_;
+    double level_ = 1.0; // 0..1, the fade's own, on top of the volume
+    double fadeFrom_ = 1.0;
+    double fadeTarget_ = 1.0;
+    int fadeSpanMs_ = 0;
+    bool deferring_ = false;
+    QList<std::function<void()>> queued_;
+    // Logical state, as asked for — mpv's own lags while commands queue.
+    bool paused_ = false;
+    bool stopped_ = true;
+    // A load or seek went out: the sound comes up on PLAYBACK_RESTART.
+    bool awaitingRestart_ = false;
     StreamRelay* relay();
 
     mpv_handle* mpv_ = nullptr;

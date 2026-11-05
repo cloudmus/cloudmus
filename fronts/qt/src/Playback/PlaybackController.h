@@ -137,6 +137,9 @@ public:
     void previous();
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
+    // See AudioPlayer::setEdges() and setOutput().
+    void setEdges(int fadeMs, int settleMs);
+    void setOutput(const QByteArray& output, int openslesFramesPerEnqueue);
 
     // Play modes, kept as the user set them; a radio overrides what it
     // can't do (its queue grows as it plays, so there's no whole list to

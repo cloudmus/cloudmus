@@ -1153,6 +1153,13 @@ void PlaybackController::seek(qint64 positionMs)
 
 void PlaybackController::setVolume(int volume0To100) { audioPlayer_->setVolume(volume0To100); }
 
+void PlaybackController::setEdges(int fadeMs, int settleMs) { audioPlayer_->setEdges(fadeMs, settleMs); }
+
+void PlaybackController::setOutput(const QByteArray& output, int openslesFramesPerEnqueue)
+{
+    audioPlayer_->setOutput(output, openslesFramesPerEnqueue);
+}
+
 void PlaybackController::setLevelsEnabled(bool enabled) { audioPlayer_->setLevelsEnabled(enabled); }
 
 QVector<LevelReading> PlaybackController::takeLevels()

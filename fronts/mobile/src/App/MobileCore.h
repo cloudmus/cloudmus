@@ -51,6 +51,9 @@ public:
     ViewModel::SourceSettingsScreen& sourceSettingsScreen() { return sourceSettingsScreen_; }
 
 private:
+    // Developer tools' audio output and soft edges (PlatformSettings), kept
+    // applied to the player.
+    void applyPlaybackExperiments();
     void leaveUnstartedWhatAskedForSignIn();
 
     QSettings settingsStore_;

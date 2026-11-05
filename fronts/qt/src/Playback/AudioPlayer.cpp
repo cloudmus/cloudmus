@@ -1,7 +1,10 @@
 #include "AudioPlayer.h"
 
 #include <clocale>
+#include <cmath>
 #include <cstring>
+#include <numbers>
+#include <utility>
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -9,6 +12,7 @@
 #include <QLoggingCategory>
 #include <QMetaObject>
 #include <QNetworkProxy>
+#include <QTimer>
 #include <QUrl>
 
 #include <mpv/client.h>
@@ -36,6 +40,13 @@ constexpr char kLevelFilter[] = "@cmlevel:lavfi=[asplit[play][an];"
                                 "ametadata=mode=print:key=lavfi.astats.1.RMS_level,"
                                 "ametadata=mode=print:key=lavfi.astats.2.RMS_level,anullsink;"
                                 "[play]anull]";
+
+// The fade's floor: mpv's volume-gain goes no lower by default, and it's
+// below anything audible.
+constexpr double kSilentDb = -96.0;
+// A step of the fade: finer than an OpenSL chunk of 256 frames, so each
+// chunk the output takes has a level of its own.
+constexpr int kFadeTickMs = 4;
 }
 
 AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
@@ -124,6 +135,15 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
     mpv_observe_property(mpv_, 0, "demuxer-cache-time", MPV_FORMAT_DOUBLE);
     mpv_set_wakeup_callback(mpv_, &AudioPlayer::mpvWakeup, this);
 
+    fadeTimer_ = new QTimer(this);
+    fadeTimer_->setTimerType(Qt::PreciseTimer);
+    fadeTimer_->setInterval(kFadeTickMs);
+    connect(fadeTimer_, &QTimer::timeout, this, &AudioPlayer::onFadeTick);
+    settleTimer_ = new QTimer(this);
+    settleTimer_->setSingleShot(true);
+    settleTimer_->setTimerType(Qt::PreciseTimer);
+    connect(settleTimer_, &QTimer::timeout, this, &AudioPlayer::runQueued);
+
     // mpv's own internal log (network/demuxer/protocol errors — much more
     // specific than the generic mpv_error_string() surfaced from
     // MPV_END_FILE_REASON_ERROR, e.g. "unrecognized file format" gives no
@@ -180,14 +200,21 @@ void AudioPlayer::handleEvent(const mpv_event& event)
                 startPositionSet_ = false;
                 mpv_set_property_string(mpv_, "start", "none");
             }
+            awaitingRestart_ = false;
+            if (fadeMs_ > 0 && !paused_ && !deferring_)
+                fadeTo(1.0);
             emit started();
             break;
 
         case MPV_EVENT_END_FILE: {
             const auto* data = static_cast<mpv_event_end_file*>(event.data);
             if (data->reason == MPV_END_FILE_REASON_EOF) {
+                // Nothing heard until the next file (queued or not) restarts:
+                // a change now has no sound to fade out.
+                awaitingRestart_ = true;
                 emit endOfFile();
             } else if (data->reason == MPV_END_FILE_REASON_ERROR) {
+                awaitingRestart_ = true;
                 const QString message = QString::fromUtf8(mpv_error_string(data->error));
                 qCWarning(lcAudioPlayer) << "playback failed:" << message;
                 Failure failure = Failure::Stream;
@@ -258,19 +285,18 @@ void AudioPlayer::setStartPosition(qint64 positionMs)
 {
     // A property rather than an option of loadfile, whose form differs between
     // the versions of mpv this runs on.
-    const QByteArray value = QByteArray::number(positionMs / 1000.0, 'f', 3);
-    mpv_set_property_string(mpv_, "start", value.constData());
+    setProperty("start", QByteArray::number(positionMs / 1000.0, 'f', 3));
     startPositionSet_ = true;
 }
 
 void AudioPlayer::play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route,
     const QMap<QString, QString>& headers)
 {
+    fadeOutFirst();
     clearPrepared();
     // Set before loadfile, not after, so the incoming file picks it up
     // immediately instead of racing mpv's own URL-derived fallback title.
-    const QByteArray titleUtf8 = title.toUtf8();
-    mpv_set_property_string(mpv_, "force-media-title", titleUtf8.constData());
+    setProperty("force-media-title", title.toUtf8());
 
     // A file on disk has no connection to route, and the relay can't serve
     // it (Qt's file reply has no HTTP status) — whatever route or headers
@@ -295,9 +321,9 @@ void AudioPlayer::play(const QString& url, const QString& title, const std::opti
 
 void AudioPlayer::play(StreamDownload* download, const QString& title)
 {
+    fadeOutFirst();
     clearPrepared();
-    const QByteArray titleUtf8 = title.toUtf8();
-    mpv_set_property_string(mpv_, "force-media-title", titleUtf8.constData());
+    setProperty("force-media-title", title.toUtf8());
     loadUrl(relay()->urlFor(download).toString());
 }
 
@@ -305,9 +331,7 @@ void AudioPlayer::prepare(const QString& file, const QString& title)
 {
     clearPrepared();
     preparedTitle_ = title;
-    const QByteArray value = file.toUtf8();
-    const char* args[] = { "loadfile", value.constData(), "append", nullptr };
-    mpv_command_async(mpv_, 0, args);
+    command({ "loadfile", file.toUtf8(), "append" });
     preparedQueued_ = true;
     emit prepared();
 }
@@ -321,10 +345,8 @@ StreamRelay* AudioPlayer::relay()
 
 void AudioPlayer::clearPrepared()
 {
-    if (preparedQueued_ || preparedPromoting_) {
-        const char* args[] = { "playlist-clear", nullptr };
-        mpv_command_async(mpv_, 0, args);
-    }
+    if (preparedQueued_ || preparedPromoting_)
+        command({ "playlist-clear" });
     preparedQueued_ = false;
     preparedPromoting_ = false;
     preparedTitle_.clear();
@@ -332,12 +354,15 @@ void AudioPlayer::clearPrepared()
 
 void AudioPlayer::usePrepared(bool manual)
 {
-    const QByteArray title = preparedTitle_.toUtf8();
-    mpv_set_property_string(mpv_, "force-media-title", title.constData());
+    if (manual)
+        fadeOutFirst();
+    setProperty("force-media-title", preparedTitle_.toUtf8());
     if (manual) {
-        const char* args[] = { "playlist-next", nullptr };
-        mpv_command_async(mpv_, 0, args);
-        resume();
+        stopped_ = false;
+        startSilent();
+        command({ "playlist-next" });
+        paused_ = false;
+        setPaused(false);
     }
     preparedQueued_ = false;
     preparedPromoting_ = true;
@@ -346,44 +371,173 @@ void AudioPlayer::usePrepared(bool manual)
 void AudioPlayer::loadUrl(const QString& url)
 {
     qCDebug(lcAudioPlayer) << "loading URL:" << url;
+    fadeOutFirst();
     levelFeed_.clear();
 
     // mpv's "pause" property isn't reset by loadfile, so a new track must
     // clear it to always start audible regardless of whatever pause state
     // was left over from before.
-    resume();
-
-    const QByteArray urlUtf8 = url.toUtf8();
-    const char* args[] = { "loadfile", urlUtf8.constData(), "replace", nullptr };
-    mpv_command_async(mpv_, 0, args);
+    paused_ = false;
+    stopped_ = false;
+    setPaused(false);
+    startSilent();
+    command({ "loadfile", url.toUtf8(), "replace" });
 }
 
 void AudioPlayer::pause()
 {
-    int flag = 1;
-    mpv_set_property(mpv_, "pause", MPV_FORMAT_FLAG, &flag);
+    fadeOutFirst();
+    paused_ = true;
+    setPaused(true);
 }
 
 void AudioPlayer::resume()
 {
-    int flag = 0;
-    mpv_set_property(mpv_, "pause", MPV_FORMAT_FLAG, &flag);
+    paused_ = false;
+    setPaused(false);
+    // While a fade out is under way runQueued() brings it back up; after a
+    // load or a seek, PLAYBACK_RESTART does.
+    if (fadeMs_ > 0 && !deferring_ && !stopped_ && !awaitingRestart_)
+        fadeTo(1.0);
 }
 
 void AudioPlayer::stop()
 {
+    fadeOutFirst();
+    stopped_ = true;
     clearPrepared();
-    const char* args[] = { "stop", nullptr };
-    mpv_command_async(mpv_, 0, args);
+    command({ "stop" });
     levelFeed_.clear();
 }
 
 void AudioPlayer::seek(qint64 positionMs)
 {
-    const QByteArray posSeconds = QByteArray::number(positionMs / 1000.0, 'f', 3);
-    const char* args[] = { "seek", posSeconds.constData(), "absolute", nullptr };
-    mpv_command_async(mpv_, 0, args);
+    fadeOutFirst();
+    startSilent();
+    command({ "seek", QByteArray::number(positionMs / 1000.0, 'f', 3), "absolute" });
     levelFeed_.clear();
+}
+
+void AudioPlayer::setEdges(int fadeMs, int settleMs)
+{
+    fadeMs_ = qMax(0, fadeMs);
+    settleMs_ = qMax(0, settleMs);
+    if (fadeMs_ > 0)
+        return;
+    // Off: whatever was faded or waiting goes on at once, at full level.
+    fadeTimer_->stop();
+    settleTimer_->stop();
+    if (deferring_)
+        runQueued();
+    awaitingRestart_ = false;
+    applyLevel(1.0);
+}
+
+void AudioPlayer::setOutput(const QByteArray& output, int openslesFramesPerEnqueue)
+{
+    qCInfo(lcAudioPlayer) << "audio output" << output << "opensles frames per enqueue" << openslesFramesPerEnqueue;
+    mpv_set_property_string(mpv_, "ao", output.constData());
+    const QByteArray frames = QByteArray::number(qMax(0, openslesFramesPerEnqueue));
+    mpv_set_property_string(mpv_, "opensles-frames-per-enqueue", frames.constData());
+    // The new options only take with an output opened anew.
+    const char* args[] = { "ao-reload", nullptr };
+    mpv_command_async(mpv_, 0, args);
+}
+
+void AudioPlayer::command(QList<QByteArray> args)
+{
+    auto run = [this, args = std::move(args)] {
+        QVector<const char*> argv;
+        for (const QByteArray& arg : args)
+            argv.append(arg.constData());
+        argv.append(nullptr);
+        mpv_command_async(mpv_, 0, argv.data());
+    };
+    if (deferring_)
+        queued_.append(std::move(run));
+    else
+        run();
+}
+
+void AudioPlayer::setProperty(const QByteArray& name, const QByteArray& value)
+{
+    auto run = [this, name, value] { mpv_set_property_string(mpv_, name.constData(), value.constData()); };
+    if (deferring_)
+        queued_.append(std::move(run));
+    else
+        run();
+}
+
+void AudioPlayer::setPaused(bool paused) { setProperty("pause", paused ? "yes" : "no"); }
+
+bool AudioPlayer::heard() const { return !paused_ && !stopped_ && !awaitingRestart_ && level_ > 0.0; }
+
+void AudioPlayer::fadeOutFirst()
+{
+    if (fadeMs_ <= 0 || deferring_ || !heard())
+        return;
+    qCDebug(lcAudioPlayer) << "fading out over" << qRound(fadeMs_ * level_) << "ms, then" << settleMs_
+                           << "ms to settle";
+    deferring_ = true;
+    fadeClock_.start();
+    fadeTo(0.0);
+}
+
+void AudioPlayer::startSilent()
+{
+    if (fadeMs_ <= 0)
+        return;
+    awaitingRestart_ = true;
+    // While fading out it gets to silence before the load goes out anyway.
+    if (!deferring_) {
+        fadeTimer_->stop();
+        applyLevel(0.0);
+    }
+}
+
+void AudioPlayer::fadeTo(double level)
+{
+    fadeFrom_ = level_;
+    fadeTarget_ = level;
+    // A fade from halfway takes half as long: the same slope.
+    fadeSpanMs_ = qMax(1, qRound(fadeMs_ * std::abs(level - level_)));
+    fadeClock_.start();
+    if (!fadeTimer_->isActive())
+        fadeTimer_->start();
+    onFadeTick();
+}
+
+void AudioPlayer::onFadeTick()
+{
+    const double t = qMin(1.0, double(fadeClock_.elapsed()) / fadeSpanMs_);
+    // Raised cosine: no corner where the fade starts or ends.
+    const double shape = 0.5 - 0.5 * std::cos(std::numbers::pi * t);
+    applyLevel(fadeFrom_ + (fadeTarget_ - fadeFrom_) * shape);
+    if (t < 1.0)
+        return;
+    fadeTimer_->stop();
+    if (fadeTarget_ == 0.0 && deferring_)
+        settleTimer_->start(settleMs_);
+}
+
+void AudioPlayer::runQueued()
+{
+    deferring_ = false;
+    const QList<std::function<void()>> queued = std::exchange(queued_, { });
+    qCDebug(lcAudioPlayer) << "silent; running" << queued.size() << "queued after" << fadeClock_.elapsed() << "ms";
+    for (const auto& run : queued)
+        run();
+    // A pause taken back while it faded: up again. A load or a seek comes up
+    // on PLAYBACK_RESTART instead.
+    if (fadeMs_ > 0 && !paused_ && !stopped_ && !awaitingRestart_)
+        fadeTo(1.0);
+}
+
+void AudioPlayer::applyLevel(double level)
+{
+    level_ = level;
+    double db = level <= 0.0 ? kSilentDb : qMax(kSilentDb, 20.0 * std::log10(level));
+    mpv_set_property(mpv_, "volume-gain", MPV_FORMAT_DOUBLE, &db);
 }
 
 void AudioPlayer::setVolume(int volume0To100)

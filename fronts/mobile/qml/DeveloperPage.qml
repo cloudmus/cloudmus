@@ -159,6 +159,60 @@ Page {
                 }
             }
 
+            // Against the click of a pause or a track changed by hand: mpv's
+            // volume fades a whole output chunk at a time, so it's smooth only
+            // with OpenSL's small chunks (see Playback::AudioPlayer::setEdges()).
+            SettingsGroup {
+                id: playback
+                readonly property QtObject settings: page.backend ? page.backend.settings : null
+                title: qsTr("Playback")
+                description: qsTr("An experiment against the click of a pause or a track changed by hand: fade out first, then wait for the silence to reach the speakers. Off by default: mpv's volume changes in steps, and each step can be heard.")
+                SettingsCell {
+                    visible: page.platform.android
+                    SettingText { title: qsTr("Audio output") }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing
+                        Repeater {
+                            model: [{ t: "OpenSL ES", v: "opensles" }, { t: "AudioTrack", v: "audiotrack" }]
+                            Chip {
+                                required property var modelData
+                                text: modelData.t
+                                checked: playback.settings && playback.settings.audioOutput === modelData.v
+                                onClicked: playback.settings.setAudioOutput(modelData.v)
+                            }
+                        }
+                    }
+                }
+                SettingStepper {
+                    visible: page.platform.android && !!playback.settings && playback.settings.audioOutput === "opensles"
+                    title: qsTr("OpenSL chunk")
+                    description: qsTr("Frames handed to the output at a time; 480 is 10 ms at 48 kHz. Smaller makes the fade smoother; too small and a slow device crackles.")
+                    value: playback.settings ? playback.settings.outputChunkFrames : 0
+                    from: 32
+                    to: 4096
+                    step: 32
+                    onMoved: (value) => playback.settings.setOutputChunkFrames(value)
+                }
+                SettingStepper {
+                    title: qsTr("Fade")
+                    value: playback.settings ? playback.settings.fadeMs : 0
+                    to: 500
+                    step: 10
+                    suffix: " " + qsTr("ms")
+                    fromText: qsTr("Off")
+                    onMoved: (value) => playback.settings.setFadeMs(value)
+                }
+                SettingStepper {
+                    title: qsTr("Wait after the fade")
+                    value: playback.settings ? playback.settings.fadeSettleMs : 0
+                    to: 500
+                    step: 10
+                    suffix: " " + qsTr("ms")
+                    onMoved: (value) => playback.settings.setFadeSettleMs(value)
+                }
+            }
+
             SettingsGroup {
                 title: qsTr("Scrolling")
                 SettingsCell {
