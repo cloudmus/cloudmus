@@ -37,16 +37,18 @@ Page {
                 color: "#FFFFFF"
                 onClicked: page.closeRequested()
             }
+            // What it plays from: that it's playing goes without saying here.
             ShadowText {
+                objectName: "nowPlayingPlaylist"
                 Layout.fillWidth: true
-                text: qsTr("Now playing")
+                text: page.backend.playlist && page.backend.playlist.title ? page.backend.playlist.title : qsTr("Now playing")
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
                 horizontalAlignment: Text.AlignHCenter
                 color: "#E6FFFFFF"
                 font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
+                font.pixelSize: Theme.fontBody
                 font.weight: Font.DemiBold
-                font.capitalization: Font.AllUppercase
-                font.letterSpacing: Theme.dp(1)
             }
             // Balances the arrow, keeping the title centered. No "stop and
             // close" here: next to "collapse" it read as closing the page,

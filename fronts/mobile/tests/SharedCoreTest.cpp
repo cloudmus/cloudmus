@@ -585,6 +585,11 @@ private slots:
         QTRY_COMPARE(progress(), 1.0);
         auto* page = window->findChild<QQuickItem*>("nowPlaying");
         QVERIFY(page);
+        // It says what it plays from.
+        auto* playlistName = findItem(page, QStringLiteral("nowPlayingPlaylist"));
+        QVERIFY(playlistName);
+        QTRY_COMPARE(playlistName->property("text").toString(), core.activePlaylist().title());
+        QVERIFY(!playlistName->property("text").toString().isEmpty());
 
         // Down from the top of it: a short push goes back up...
         drag(210, 100, 180, true);
