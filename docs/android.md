@@ -121,6 +121,54 @@ adb logcat -s CloudmusStart             # startup milestones
   starts (many sleep rather than reboot, so `BOOT_COMPLETED` may not come):
   the log lists every broadcast the receiver gets.
 
+## Open issue: a click on pause and track change
+
+On Android (phone and head unit alike) a pause, a seek or a track changed by
+hand clicks; the switch at a track's natural end (gapless) is clean. Not heard
+on the desktop.
+
+**Cause** (mpv 0.39 sources, `audio/out/`): `ao_audiotrack` has no pause of
+its own, so a pause, a seek and a `loadfile`/`playlist-next` all reach its
+`stop()`, which calls `AudioTrack.pause()` and at once `flush()`. The flush
+throws the buffer away before Android has ramped the volume down, and the
+wave is cut wherever it is.
+
+**What the prebuilt AAR leaves to work with** (`dev.jdtech.mpv:libmpv`):
+- `libavfilter` is cut down to ~125 KB, with no `afade`, `aeval`, `volume`,
+  `astats`. So no fade in mpv's filter chain, and the level analyzer
+  (`@cmlevel` in `AudioPlayer.cpp`, behind `AudioPulse`) most likely gives
+  nothing on Android either.
+- No `ao-volume`: `ao_audiotrack` never calls `AudioTrack.setVolume`.
+- mpv's own volume (`volume`, `volume-gain`) is applied in `ao.c`
+  (`process_plane`) at one gain for a whole chunk the output pulls. That's
+  75–150 ms for AudioTrack (its whole buffer) and 250 ms by default for OpenSL
+  ES (`opensles-frames-per-enqueue` can make it smaller).
+
+**Tried (commit 51d9fa4, kept off):** `AudioPlayer::setEdges()` fades
+`volume-gain` from a 4 ms timer (raised cosine), waits for the silence to
+reach the speakers, and only then sends the pause/seek/load. Commands sent in
+the meantime queue in order, and the sound comes back up after. Settings are in
+Settings → Developer tools → Playback (`PlatformSettings`: output, OpenSL
+chunk, fade, wait), applied in `App::MobileCore::applyPlaybackExperiments()`.
+On a phone it was worse: each step of the gain was heard as a tick of its own,
+with either output and with longer fades. Not checked: whether
+`opensles-frames-per-enqueue` set at runtime plus `ao-reload` took effect. The
+log's `AO: [opensles]` lines and `fading out …` / `silent; running …` would
+show it. Even with ~10 ms chunks a stepped gain may still be audible on loud
+music.
+
+**Next: a libmpv of our own** instead of the AAR (build mpv + FFmpeg for
+Android; `build-android.sh` unpacks the AAR today, `CLOUDMUS_MPV_ANDROID_DIR`
+in `fronts/mobile/CMakeLists.txt`). Two small patches, either one is enough:
+- In `ao.c`, ramp the gain per sample across a chunk from the last value to
+  the new one. The existing `setEdges()` code then gives a smooth fade on any
+  output, and only the defaults need turning on.
+- In `ao_audiotrack.c` `stop()`, call `AudioTrack.setVolume(0)` and wait for
+  Android's ramp (a few ms) before `pause()`/`flush()`. That fixes it at the
+  source, without `setEdges()`.
+
+A full `libavfilter` in the same build would bring the level analyzer back.
+
 ## Emulator
 
 Android 9, landscape 1920×1080 at 160 dpi mimics a head unit: use `-gpu host`
