@@ -45,6 +45,9 @@ public:
     // start. `scheme`: "auto", "light" or "dark"; `dark`: what that comes to.
     Q_INVOKABLE void setAppearance(
         const QString& scheme, bool dark, const QString& barColor, const QString& backColor) const;
+    // A page's own picture is under the status bar: its icons go light, whatever
+    // the theme.
+    Q_INVOKABLE void setStatusBarOverAura(bool over) const;
     // Android told of new insets: from its thread.
     void readInsets();
 

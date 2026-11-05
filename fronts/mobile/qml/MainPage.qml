@@ -17,6 +17,9 @@ Page {
     property bool gesturesEnabled: true
     // All under Now Playing: nothing of the mini player to keep drawing.
     property bool covered: false
+    // The track's side of a head unit's screen goes on up under the status bar,
+    // which is see-through.
+    readonly property bool auraUnderStatusBar: wide
     signal nowPlayingRequested()
     signal nowPlayingPulled(real distance)
     signal nowPlayingPullEnded(real velocity)
@@ -182,14 +185,20 @@ Page {
             Layout.fillHeight: true
             Layout.preferredWidth: page.width - page._listWidth
 
+            // Not inside: the hero clips, and this goes on up under the status bar.
             AuraBackground {
                 objectName: "heroAura"
-                anchors.fill: parent
-                visible: parent.visible
+                parent: page
+                z: -0.5
+                x: 0
+                y: -Theme.insetTop
+                width: hero.width
+                height: page.height + Theme.insetTop
+                visible: hero.visible
                 seed: page.backgroundSeed
                 // One picture for both modes, stretched: it's soft enough not to
                 // show, and generating it is what costs.
-                artSize: Qt.size(page.width - page._coversWidth, page.height)
+                artSize: Qt.size(page.width - page._coversWidth, page.height + Theme.insetTop)
             }
             TrackPanel {
                 objectName: "trackPanel"

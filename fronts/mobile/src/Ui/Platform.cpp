@@ -290,6 +290,17 @@ void Platform::setAppearance(
 #endif
 }
 
+void Platform::setStatusBarOverAura(bool over) const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("dev/cloudmus/mobile/UiBridge", "setStatusBarOverAura",
+        "(Landroid/content/Context;Ljava/lang/String;)V", QNativeInterface::QAndroidApplication::context().object(),
+        QJniObject::fromString(over ? QStringLiteral("yes") : QString()).object<jstring>());
+#else
+    Q_UNUSED(over)
+#endif
+}
+
 void Platform::readInsets()
 {
 #ifdef Q_OS_ANDROID

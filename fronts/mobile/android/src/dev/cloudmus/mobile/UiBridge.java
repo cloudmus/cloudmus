@@ -31,6 +31,14 @@ public final class UiBridge {
         activity.runOnUiThread(() -> Appearance.apply(activity, scheme, !dark.isEmpty(), barColor, backColor));
     }
 
+    // A page's own picture is under the status bar: light icons on it.
+    public static void setStatusBarOverAura(Context context, String over) {
+        if (!(context instanceof android.app.Activity))
+            return;
+        android.app.Activity activity = (android.app.Activity) context;
+        activity.runOnUiThread(() -> Appearance.setOverAura(activity, !over.isEmpty()));
+    }
+
     // "<top> <left> <right> <bottom>" in pixels: what the system's bars cover.
     public static String windowInsets(Context context) {
         return Appearance.insets();

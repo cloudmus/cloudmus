@@ -94,6 +94,23 @@ ApplicationWindow {
         anchors.fill: parent
     }
 
+    // Under the status bar, which is see-through: a page with its own picture
+    // (the generated background) draws it on up there itself, any other has the
+    // bar's color. On a head unit's main page the picture is only the track's side
+    // of it, and the icons are light for that: in the light theme the rest of the
+    // bar goes dark to keep them legible, as it'd be a dark bar over a light page.
+    readonly property bool pageHasAura: stack.currentItem !== null && stack.currentItem.auraUnderStatusBar === true
+    readonly property bool statusOverAura: pageHasAura || nowPlayingSheet.progress > 0.5
+    onStatusOverAuraChanged: platform.setStatusBarOverAura(statusOverAura)
+    Rectangle {
+        objectName: "statusFill"
+        parent: pages
+        z: -1
+        width: parent.width
+        height: Theme.insetTop
+        color: window.pageHasAura && !Theme.dark ? "#1C1714" : Theme.surface100
+    }
+
     StackView {
         id: stack
         parent: pages

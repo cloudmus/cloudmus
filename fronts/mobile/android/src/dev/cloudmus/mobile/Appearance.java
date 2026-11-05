@@ -14,8 +14,9 @@ import android.view.WindowInsets;
 // The system's part of the theme: the bars and what's behind the window. The
 // window goes on under the navigation bar, which is see-through, so the generated
 // background reaches the bottom of the screen; the views keep clear of the bars by
-// the insets told to them (Platform). Qt lays its window out under the status bar
-// then too, and the status bar is opaque over it.
+// the insets told to them (Platform). The same under the status bar, which is
+// see-through too: the views paint what's under it, the generated background
+// where a page has one (see Main.qml), and its icons are light or dark to suit.
 final class Appearance {
     private static final String PREFS = "appearance";
 
@@ -24,6 +25,10 @@ final class Appearance {
     private static int insetLeft;
     private static int insetRight;
     private static int insetBottom;
+    // What last came to the system's theme, and whether a page's own picture is
+    // under the status bar: its icons then are light whatever the theme.
+    private static boolean themeDark = true;
+    private static boolean overAura;
 
     private Appearance() {
     }
@@ -33,8 +38,11 @@ final class Appearance {
         SharedPreferences prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         Window window = activity.getWindow();
         window.setNavigationBarColor(Color.TRANSPARENT);
-        if (Build.VERSION.SDK_INT >= 29)
+        window.setStatusBarColor(Color.TRANSPARENT);
+        if (Build.VERSION.SDK_INT >= 29) {
             window.setNavigationBarContrastEnforced(false);
+            window.setStatusBarContrastEnforced(false);
+        }
         View decor = window.getDecorView();
         if (prefs.contains("dark"))
             paint(activity, prefs.getBoolean("dark", true), prefs.getInt("bar", 0), prefs.getInt("back", 0));
@@ -84,11 +92,23 @@ final class Appearance {
         }
     }
 
+    // A page with its own picture under the status bar, or not any more.
+    static void setOverAura(Activity activity, boolean over) {
+        if (over == overAura)
+            return;
+        overAura = over;
+        Window window = activity.getWindow();
+        SharedPreferences prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        paint(activity, themeDark, prefs.getInt("bar", 0), prefs.getInt("back", 0));
+    }
+
+    // `bar` is no longer the status bar's color (it's see-through: Main.qml
+    // paints under it), but still comes with the rest of the theme.
     private static void paint(Activity activity, boolean dark, int bar, int back) {
         Window window = activity.getWindow();
+        themeDark = dark;
         window.setBackgroundDrawable(new ColorDrawable(back));
-        window.setStatusBarColor(bar);
-        int light = dark ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+        int light = dark || overAura ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
         if (!dark && Build.VERSION.SDK_INT >= 27)
             light |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
         layOutUnderNavigationBar(window.getDecorView(), light);

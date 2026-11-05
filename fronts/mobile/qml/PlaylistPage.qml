@@ -18,6 +18,8 @@ Page {
     readonly property bool wide: width > height * 1.1
 
     background: Rectangle { color: Theme.surface0 }
+    // The header's picture goes on up under the status bar, which is see-through.
+    readonly property bool auraUnderStatusBar: true
 
     ColumnLayout {
         anchors.fill: parent
@@ -28,7 +30,11 @@ Page {
             Layout.fillWidth: true
             implicitHeight: Theme.dp(page.wide ? 112 : 136)
             AuraBackground {
-                anchors.fill: parent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.topMargin: -Theme.insetTop
                 seed: page.screen ? page.screen.title : ""
                 edgeFade: Theme.dp(16)
             }

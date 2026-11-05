@@ -19,8 +19,11 @@ Page {
     signal pushed(real distance)
     signal pushEnded(real velocity)
 
+    // On up under the status bar, which is see-through.
     background: AuraBackground {
         objectName: "nowPlayingAura"
+        y: -Theme.insetTop
+        height: page.height + Theme.insetTop
         seed: page.nowPlaying && page.nowPlaying.backgroundSeed ? page.nowPlaying.backgroundSeed
             : page.backend.playlist ? page.backend.playlist.title : ""
     }
