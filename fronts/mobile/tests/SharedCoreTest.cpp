@@ -877,8 +877,9 @@ private slots:
     }
 
     // A head unit's screen left turned to the track's comes up that way, not
-    // unfolding from the other; the track's panel over it has a grip, and its
-    // glass follows what's behind unless told not to.
+    // unfolding from the other; the track's panel over it has a grip (as the
+    // sheet on a phone has), and its glass follows what's behind unless told
+    // not to.
     void anExpandedScreenStartsExpanded()
     {
         QSettings().setValue(QStringLiteral("ui/screenExpanded"), true);
@@ -921,10 +922,16 @@ private slots:
             QCOMPARE(snapshot->property("live").toBool(), true);
             QVERIFY(QMetaObject::invokeMethod(trackSheet, "close"));
             QTRY_VERIFY(!trackSheet->property("visible").toBool());
-            // Not on a phone, where the sheet rises from the bottom.
+            QVERIFY(handle->height() > handle->width());
+            // On a phone, where the sheet rises from the bottom, it lies across the top.
             window->resize(420, 860);
             QTRY_VERIFY(!trackSheet->property("wide").toBool());
-            QVERIFY(!handle->isVisible());
+            QVERIFY(QMetaObject::invokeMethod(trackSheet, "open"));
+            QTRY_VERIFY(trackSheet->property("opened").toBool());
+            QVERIFY(handle->isVisible());
+            QVERIFY(handle->width() > handle->height());
+            QVERIFY(QMetaObject::invokeMethod(trackSheet, "close"));
+            QTRY_VERIFY(!trackSheet->property("visible").toBool());
         }
         QSettings().remove(QStringLiteral("ui/screenExpanded"));
     }

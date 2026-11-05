@@ -23,9 +23,13 @@ Popup {
     dim: true
     padding: 0
     bottomPadding: Theme.insetBottom
-    topPadding: wide ? Theme.insetTop : 0
+    // Room for the grip on the edge it came from, clear of what's in it.
+    readonly property real _gripRoom: Theme.dp(16)
+    topPadding: wide ? Theme.insetTop : _gripRoom
+    leftPadding: wide ? _gripRoom : 0
     width: wide ? Math.min(parent.width * 0.5, Theme.dp(460)) : parent.width
-    height: wide ? parent.height : Math.min(parent.height * 0.86, content.implicitHeight + Theme.padding * 2 + Theme.insetBottom)
+    height: wide ? parent.height
+                 : Math.min(parent.height * 0.86, content.implicitHeight + Theme.padding * 2 + _gripRoom + Theme.insetBottom)
     // Slid out by this share of its size. Not x and y themselves: an animation
     // would replace their bindings, and the sheet's height comes in later.
     property real slide: 1
@@ -135,14 +139,14 @@ Popup {
                 opacity: Theme.dark ? 0.88 : 0.84
             }
         }
-        // Across a head unit's: a grip at the edge it can be pushed back over.
+        // A grip at the edge it can be pushed back over: the top on a phone,
+        // the left across a head unit's.
         Rectangle {
             objectName: "sheetHandle"
-            visible: sheet.wide
-            x: Theme.dp(8)
-            anchors.verticalCenter: parent.verticalCenter
-            width: Theme.dp(4)
-            height: Theme.dp(40)
+            x: sheet.wide ? Theme.dp(8) : (parent.width - width) / 2
+            y: sheet.wide ? (parent.height - height) / 2 : Theme.dp(8)
+            width: sheet.wide ? Theme.dp(4) : Theme.dp(40)
+            height: sheet.wide ? Theme.dp(40) : Theme.dp(4)
             radius: width / 2
             color: Theme.inkTertiary
             opacity: 0.5
