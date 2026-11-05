@@ -151,6 +151,31 @@ Popup {
             color: Theme.inkTertiary
             opacity: 0.5
         }
+        // The strip the grip is on, outside the content and its handlers: taken
+        // by the grip, it moves the sheet as the content does.
+        Item {
+            objectName: "sheetGrip"
+            width: sheet.wide ? sheet.leftPadding : parent.width
+            height: sheet.wide ? parent.height : sheet.topPadding
+            DragHandler {
+                target: null
+                xAxis.enabled: sheet.wide
+                yAxis.enabled: !sheet.wide
+                property real velocity: 0
+                property double movedAt: 0
+                onActiveTranslationChanged: {
+                    const distance = sheet.wide ? activeTranslation.x : activeTranslation.y
+                    if (!active || distance === 0)
+                        return
+                    velocity = sheet.wide ? centroid.velocity.x : centroid.velocity.y
+                    movedAt = Date.now()
+                    slideBack.stop()
+                    sheet.slide = Math.max(0, Math.min(1, distance / (sheet.wide ? sheet.width : sheet.height)))
+                }
+                // A finger that stopped before lifting hasn't thrown anything.
+                onActiveChanged: if (!active) sheet._letGo(Date.now() - movedAt < 100 ? velocity : 0)
+            }
+        }
         // As the sheet's shape, for the mask: drawn only into a texture.
         Rectangle {
             id: glassShape

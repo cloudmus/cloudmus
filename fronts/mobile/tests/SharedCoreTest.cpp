@@ -920,9 +920,23 @@ private slots:
             QTRY_VERIFY(trackSheet->property("opened").toBool());
             QVERIFY(handle->isVisible());
             QCOMPARE(snapshot->property("live").toBool(), true);
-            QVERIFY(QMetaObject::invokeMethod(trackSheet, "close"));
-            QTRY_VERIFY(!trackSheet->property("visible").toBool());
             QVERIFY(handle->height() > handle->width());
+            // Taken by the grip, the panel goes with the finger.
+            std::unique_ptr<QPointingDevice> finger(QTest::createTouchDevice());
+            const auto dragGrip = [&](QPoint by) {
+                const QPoint from = handle->mapToScene(QPointF(handle->width() / 2, handle->height() / 2)).toPoint();
+                QTest::touchEvent(window, finger.get()).press(0, from, window);
+                for (int i = 1; i <= 10; ++i) {
+                    QTest::qWait(20);
+                    QTest::touchEvent(window, finger.get()).move(0, from + by * i / 10, window);
+                }
+                QTest::qWait(20);
+                const qreal slid = trackSheet->property("slide").toReal();
+                QTest::touchEvent(window, finger.get()).release(0, from + by, window);
+                return slid;
+            };
+            QVERIFY(dragGrip(QPoint(400, 0)) > 0.3);
+            QTRY_VERIFY(!trackSheet->property("visible").toBool());
             // On a phone, where the sheet rises from the bottom, it lies across the top.
             window->resize(420, 860);
             QTRY_VERIFY(!trackSheet->property("wide").toBool());
@@ -930,7 +944,8 @@ private slots:
             QTRY_VERIFY(trackSheet->property("opened").toBool());
             QVERIFY(handle->isVisible());
             QVERIFY(handle->width() > handle->height());
-            QVERIFY(QMetaObject::invokeMethod(trackSheet, "close"));
+            QTest::qWait(400);
+            QVERIFY(dragGrip(QPoint(0, 400)) > 0.3);
             QTRY_VERIFY(!trackSheet->property("visible").toBool());
         }
         QSettings().remove(QStringLiteral("ui/screenExpanded"));
