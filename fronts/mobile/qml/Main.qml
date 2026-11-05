@@ -31,7 +31,7 @@ ApplicationWindow {
         // frame out of step with the screen, and drags stutter (Pixel 7).
         property bool touchCompression: false
         property bool showFps: false
-        property bool dynamicBlur: false
+        property bool dynamicBlur: true
     }
 
     Binding {

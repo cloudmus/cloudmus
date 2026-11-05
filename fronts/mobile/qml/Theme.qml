@@ -80,15 +80,16 @@ QtObject {
     // Fling physics (ScrollList): Qt's defaults (2500, 1500) cut a fast
     // swipe short and stop it hard. These felt native on a Pixel 7; still
     // tunable in Developer tools.
-    property real flickMaxVelocityBase: 12000
-    property real flickDecelerationBase: 2000
+    property real flickMaxVelocityBase: 20000
+    property real flickDecelerationBase: 1000
     readonly property real flickMaxVelocity: flickMaxVelocityBase * scale
     readonly property real flickDeceleration: flickDecelerationBase * scale
 
     // Blur what's behind glass again for each frame it changes in, rather than once
-    // as the glass comes. Costs the GPU that all along: a Developer tools setting,
-    // to see how it does on a device. Set by Main.qml.
-    property bool dynamicBlur: false
+    // as the glass comes. Costs the GPU that all along, but a still picture behind
+    // a panel that's open for a while looked stale: on by default, off in
+    // Developer tools for a device that can't keep up. Set by Main.qml.
+    property bool dynamicBlur: true
 
     readonly property int durationFast: 150
     readonly property int durationPage: 320

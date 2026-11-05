@@ -645,8 +645,8 @@ private slots:
         QTRY_VERIFY(!trackSheet->property("visible").toBool());
         QCOMPARE(core.nowPlaying().title(), track);
 
-        // Glass is blurred once, unless the Developer tools setting says otherwise,
-        // and then only while it's there.
+        // Glass is blurred anew as what's behind changes, only while it's there,
+        // and once when the Developer tools setting turns that off.
         {
             auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
             QVERIFY(theme);

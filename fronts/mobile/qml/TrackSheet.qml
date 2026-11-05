@@ -62,10 +62,12 @@ Popup {
     readonly property bool _glass: behind !== null && background.hasGpu === true
     onAboutToShow: if (_glass) snapshot.scheduleUpdate()
 
-    // What's behind as it is when the sheet comes, blurred once and kept: moving
-    // the sheet only moves that, and no list scrolling or bars going under it make
-    // it blur every frame (unless asked for: Theme.dynamicBlur). In a quarter of the pixels each way: a blur has no use
-    // for more, and from fewer it reaches further.
+    // What's behind, blurred anew as it changes while the sheet is up
+    // (Theme.dynamicBlur, on by default). With that off, as it is when the sheet
+    // comes, blurred once and kept: moving the sheet only moves that, and no list
+    // scrolling or bars going under it make it blur every frame. In a quarter of
+    // the pixels each way: a blur has no use for more, and from fewer it reaches
+    // further.
     ShaderEffectSource {
         id: snapshot
         objectName: "sheetSnapshot"
@@ -130,8 +132,20 @@ Popup {
             Rectangle {
                 anchors.fill: parent
                 color: Theme.surface100
-                opacity: Theme.dark ? 0.8 : 0.72
+                opacity: Theme.dark ? 0.88 : 0.84
             }
+        }
+        // Across a head unit's: a grip at the edge it can be pushed back over.
+        Rectangle {
+            objectName: "sheetHandle"
+            visible: sheet.wide
+            x: Theme.dp(8)
+            anchors.verticalCenter: parent.verticalCenter
+            width: Theme.dp(4)
+            height: Theme.dp(40)
+            radius: width / 2
+            color: Theme.inkTertiary
+            opacity: 0.5
         }
         // As the sheet's shape, for the mask: drawn only into a texture.
         Rectangle {
