@@ -189,6 +189,9 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         // plays, whoever asked. Without it the other player kept the
         // focus, and the car kept its steering-wheel buttons.
         if (now) {
+            // Played by the user meanwhile, from the app: what comes after that
+            // is theirs, the end of the call doesn't play it again.
+            pausedByFocusLoss = false;
             cancelResume("playing again");
             focusRetries = 0;
             requestFocus();
@@ -224,7 +227,10 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                 new MediaItemData.Builder(AFTER_ID).build()))
             .setCurrentMediaItemIndex(1)
             .setPlaybackState(loading ? STATE_BUFFERING : STATE_READY)
-            .setPlayWhenReady(playing, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+            .setPlayWhenReady(playing || awaitingResume(), PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+            .setPlaybackSuppressionReason(!playing && awaitingResume()
+                ? PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS
+                : PLAYBACK_SUPPRESSION_REASON_NONE)
             .setContentPositionMs(positionMs)
             .build();
     }
@@ -330,6 +336,23 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         return Futures.immediateVoidFuture();
     }
 
+    // Silent for now but about to play on, like through a phone call: to Media3
+    // that's still playing, suppressed, as ExoPlayer has it. Told it's a pause,
+    // Media3 takes the service out of the foreground, Android doesn't let a
+    // background app back in, and stops the service soon after the music has
+    // come back: see PAUSE_HOLD_MS.
+    private boolean awaitingResume() {
+        return pausedByFocusLoss || resumeDeadline != 0;
+    }
+
+    // The core is told to play and hasn't said so yet: `playing` goes first, for
+    // Media3 not to see a pause between the two.
+    private void resumeCore() {
+        playing = true;
+        CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+        invalidateState();
+    }
+
     // Resuming after a lost focus. Android has a player stay paused when
     // another one takes the focus for good; in the car that other one is
     // mostly brief — the phone's camera shutter over Bluetooth took it, and
@@ -372,6 +395,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         resumeDeadline = 0;
         resumeHandler().removeCallbacks(resumePoll);
         CmLog.i(TAG, "resume after focus loss called off: " + why);
+        invalidateState();
     }
 
     private void pollResume() {
@@ -395,7 +419,9 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             CmLog.i(TAG, "the other sound is over after " + (now - focusLostAt) / 1000 + " s: resuming");
             requestFocus();
             if (hasFocus)
-                CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+                resumeCore();
+            else
+                invalidateState();
             return;
         }
         resumeHandler().postDelayed(resumePoll, RESUME_POLL_MS);
@@ -471,7 +497,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             case AudioManager.AUDIOFOCUS_GAIN:
                 if (pausedByFocusLoss) {
                     pausedByFocusLoss = false;
-                    CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+                    resumeCore();
                 }
                 break;
             case AudioManager.AUDIOFOCUS_LOSS:
@@ -481,12 +507,14 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                 CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
                 if (playing)
                     armResume();
+                invalidateState();
                 break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                 if (playing) {
                     pausedByFocusLoss = true;
                     CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
+                    invalidateState();
                 }
                 break;
             default:
