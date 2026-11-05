@@ -31,6 +31,7 @@ ApplicationWindow {
         // frame out of step with the screen, and drags stutter (Pixel 7).
         property bool touchCompression: false
         property bool showFps: false
+        property bool dynamicBlur: false
     }
 
     Binding {
@@ -54,6 +55,7 @@ ApplicationWindow {
         target: uiSettings
         function onColorSchemeChanged() { window.applyAppearance() }
     }
+    Binding { target: Theme; property: "dynamicBlur"; value: uiSettings.dynamicBlur }
     Binding { target: Theme; property: "flickMaxVelocityBase"; value: uiSettings.flickMaxVelocity }
     Binding { target: Theme; property: "flickDecelerationBase"; value: uiSettings.flickDeceleration }
 

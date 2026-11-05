@@ -192,6 +192,17 @@ Page {
                 }
             }
 
+            SettingsGroup {
+                title: qsTr("Blur")
+                SettingSwitch {
+                    objectName: "dynamicBlur"
+                    title: qsTr("Dynamic blur behind glass")
+                    description: qsTr("The panel over the screen shows what's behind it as it changes, not as it was when the panel came up. Takes more of the GPU while such a panel is open.")
+                    checked: page.ui.dynamicBlur
+                    onToggled: (checked) => page.ui.dynamicBlur = checked
+                }
+            }
+
             // Experiments for a finger drag that stutters at a steady frame
             // rate: how Qt draws and how it hands touches to the views.
             SettingsGroup {

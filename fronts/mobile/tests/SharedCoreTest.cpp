@@ -628,6 +628,24 @@ private slots:
         QTRY_VERIFY(!trackSheet->property("visible").toBool());
         QCOMPARE(core.nowPlaying().title(), track);
 
+        // Glass is blurred once, unless the Developer tools setting says otherwise,
+        // and then only while it's there.
+        {
+            auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
+            QVERIFY(theme);
+            auto* snapshot = trackSheet->findChild<QObject*>("sheetSnapshot");
+            QVERIFY(snapshot);
+            QVERIFY(theme->setProperty("dynamicBlur", true));
+            QCOMPARE(snapshot->property("live").toBool(), false);
+            QVERIFY(QMetaObject::invokeMethod(trackSheet, "open"));
+            QTRY_VERIFY(trackSheet->property("opened").toBool());
+            QCOMPARE(snapshot->property("live").toBool(), true);
+            QVERIFY(theme->setProperty("dynamicBlur", false));
+            QCOMPARE(snapshot->property("live").toBool(), false);
+            QVERIFY(QMetaObject::invokeMethod(trackSheet, "close"));
+            QTRY_VERIFY(!trackSheet->property("visible").toBool());
+        }
+
         // Over Now Playing, a swipe takes the sheet and leaves that where it is.
         QVERIFY(QMetaObject::invokeMethod(sheet, "open"));
         QTRY_COMPARE(progress(), 1.0);

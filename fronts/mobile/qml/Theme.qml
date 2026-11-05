@@ -85,6 +85,11 @@ QtObject {
     readonly property real flickMaxVelocity: flickMaxVelocityBase * scale
     readonly property real flickDeceleration: flickDecelerationBase * scale
 
+    // Blur what's behind glass again for each frame it changes in, rather than once
+    // as the glass comes. Costs the GPU that all along: a Developer tools setting,
+    // to see how it does on a device. Set by Main.qml.
+    property bool dynamicBlur: false
+
     readonly property int durationFast: 150
     readonly property int durationPage: 320
 

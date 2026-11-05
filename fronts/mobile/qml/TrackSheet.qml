@@ -64,13 +64,14 @@ Popup {
 
     // What's behind as it is when the sheet comes, blurred once and kept: moving
     // the sheet only moves that, and no list scrolling or bars going under it make
-    // it blur every frame. In a quarter of the pixels each way: a blur has no use
+    // it blur every frame (unless asked for: Theme.dynamicBlur). In a quarter of the pixels each way: a blur has no use
     // for more, and from fewer it reaches further.
     ShaderEffectSource {
         id: snapshot
+        objectName: "sheetSnapshot"
         visible: false
         sourceItem: sheet._glass ? sheet.behind : null
-        live: false
+        live: Theme.dynamicBlur && sheet.visible
         width: sheet.behind ? sheet.behind.width : 0
         height: sheet.behind ? sheet.behind.height : 0
         textureSize: Qt.size(width / 4, height / 4)
