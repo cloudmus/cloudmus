@@ -77,6 +77,18 @@ private slots:
         await(client.shutdown());
     }
 
+    // A phone's backend takes seconds to come up; a call made meanwhile must
+    // not time out on that (it did: the radio at a cold start).
+    void aCallMadeWhileTheBackendStartsDoesNotTimeOutOnTheStart()
+    {
+        Rpc::RpcClient client(fakeManifest());
+        client.start(QProcessEnvironment::systemEnvironment()).detach();
+        // 1 ms: far less than any start takes.
+        const QJsonObject result = await(client.callRaw(QStringLiteral("catalog.listPlaylists"), { }, 1));
+        QVERIFY(result.contains(QStringLiteral("playlists")));
+        await(client.shutdown());
+    }
+
     void anErrorReplyThrowsWithItsCode()
     {
         Rpc::RpcClient client(fakeManifest());

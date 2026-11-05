@@ -105,8 +105,10 @@ public:
     // Only registerPending() needs to be callable from outside (the
     // CallAwaiter in RpcClient.cpp) — kept public rather than friended
     // since it's a small, self-contained primitive.
-    void registerPending(
-        int id, int timeoutMs, std::function<void(const QJsonObject&)> onResult, std::function<void(RpcError)> onError);
+    // `timeNow` false: the timeout runs from the end of the handshake instead
+    // (for a call made before it).
+    void registerPending(int id, int timeoutMs, bool timeNow, std::function<void(const QJsonObject&)> onResult,
+        std::function<void(RpcError)> onError);
 
     bool available() const { return available_; }
     // The process went down while it was in use — not by our shutdown()
@@ -142,6 +144,7 @@ private:
     void handleMessage(const QJsonObject& msg);
     void dispatchNotification(const QString& method, const QJsonObject& params);
     void failAllPending(const RpcError& err);
+    void armTimeout(int id, int timeoutMs);
 
     struct PendingEntry {
         std::function<void(const QJsonObject&)> onResult;
@@ -152,6 +155,7 @@ private:
     NdjsonTransport transport_;
     int nextId_ = 1;
     QHash<int, PendingEntry> pending_;
+    QHash<int, int> untimed_; // id -> timeout, for calls waiting for the handshake
     bool available_ = false;
     bool exitedUnexpectedly_ = false;
     QString sourceId_;
