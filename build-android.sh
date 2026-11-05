@@ -5,7 +5,9 @@
 #
 # Needs Qt 6.7.3 for Android and the desktop (kits under $QT_ROOT, setup in
 # docs/android.md), an Android SDK with platform 34 and NDK r26b, and JDK 17.
-# The APKs land in dist/cloudmus-mobile-<abi>.apk, signed with a dev key, or with
+# The APKs land in dist/CloudMus-<version>-<abi>.apk (<version> as in the other
+# platforms' builds: `git describe`, so 0.6.5 on a release tag, 0.6.5-12-gabc1234
+# between them), signed with a dev key, or with
 # the one in CLOUDMUS_ANDROID_KEYSTORE (with CLOUDMUS_ANDROID_KEY_ALIAS and
 # CLOUDMUS_ANDROID_KEYSTORE_PASSWORD), as CI does.
 set -euo pipefail
@@ -36,6 +38,12 @@ ANDROID_SDK_ROOT=$sdk
 export ANDROID_SDK_ROOT ANDROID_NDK_ROOT JAVA_HOME
 export ANDROID_HOME=$ANDROID_SDK_ROOT
 export PATH=$JAVA_HOME/bin:$PATH
+
+version="$(git describe --tags --dirty --match '[0-9]*' 2>/dev/null || true)"
+if [ -z "$version" ]; then
+    commit="$(git describe --always --dirty=.dirty 2>/dev/null || true)"
+    version="0.1.0${commit:+\+g${commit}}"
+fi
 
 abis=("$@")
 [ ${#abis[@]} -gt 0 ] || abis=(arm64-v8a)
@@ -124,6 +132,6 @@ for abi in "${abis[@]}"; do
     cmake --build "$build" --target apk
     apk=$(find "$build" -name '*.apk' -path '*release*' | head -1)
     [ -n "$apk" ] || { echo "no APK built for $abi" >&2; exit 1; }
-    cp "$apk" "dist/cloudmus-mobile-$abi.apk"
-    echo "dist/cloudmus-mobile-$abi.apk"
+    cp "$apk" "dist/CloudMus-$version-$abi.apk"
+    echo "dist/CloudMus-$version-$abi.apk"
 done

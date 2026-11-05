@@ -210,9 +210,6 @@ jobs:
           base64 -d <<< "$KEYSTORE_BASE64" > "$CLOUDMUS_ANDROID_KEYSTORE"
           export ANDROID_SDK_ROOT="$ANDROID_HOME" CLOUDMUS_JAVA17_HOME="$JAVA_HOME_17_X64" QT_ROOT="$HOME/Qt/6.7.3"
           ./build-android.sh arm64-v8a
-          # Named like the other builds, from the same `git describe`.
-          version="$(git describe --tags --dirty --match '[0-9]*')"
-          mv dist/cloudmus-mobile-arm64-v8a.apk "dist/CloudMus-${version}-arm64-v8a.apk"
 
       - uses: actions/upload-artifact@v7
         with:

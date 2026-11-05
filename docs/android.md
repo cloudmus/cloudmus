@@ -60,7 +60,7 @@ Plus an Android SDK with `platforms/android-34` and `build-tools/35.0.0`,
 NDK r26b (`ndk/26.1.10909125`) and JDK 17 (`CLOUDMUS_JAVA17_HOME`).
 
 ```bash
-./build-android.sh                    # arm64-v8a → dist/cloudmus-mobile-arm64-v8a.apk
+./build-android.sh                    # arm64-v8a → dist/CloudMus-<version>-arm64-v8a.apk
 ./build-android.sh x86_64             # for the emulator
 ```
 
@@ -72,7 +72,7 @@ builds and publishes the arm64 APK with the other platforms (`docs/releasing.md`
 ## On a device
 
 ```bash
-adb install -r -g dist/cloudmus-mobile-arm64-v8a.apk
+adb install -r -g dist/CloudMus-*-arm64-v8a.apk
 adb logcat -s CloudmusStart             # startup milestones
 ```
 
