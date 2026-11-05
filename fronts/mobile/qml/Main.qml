@@ -73,6 +73,10 @@ ApplicationWindow {
         Qt.callLater(Qt.quit)
     }
 
+    // Back on the main page closes the window on purpose; anywhere else it's a bug
+    // that the log should be able to tell apart.
+    onClosing: console.info("the window closes: depth", stack.depth, "now playing", nowPlayingSheet.shown)
+
     FontLoader { source: "qrc:/fonts/Manrope-Regular.ttf" }
     FontLoader { source: "qrc:/fonts/Manrope-Medium.ttf" }
     FontLoader { source: "qrc:/fonts/Manrope-SemiBold.ttf" }
