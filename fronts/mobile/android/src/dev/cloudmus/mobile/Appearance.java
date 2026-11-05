@@ -50,6 +50,9 @@ final class Appearance {
             layOutUnderNavigationBar(decor, 0);
         decor.setOnApplyWindowInsetsListener((view, insets) -> {
             remember(insets);
+            // A turn of the screen (and Qt's own flags with it) can take the icons'
+            // color back to what the system likes: say it again once that's done.
+            view.post(() -> paintIcons(activity));
             return view.onApplyWindowInsets(insets);
         });
     }
@@ -98,7 +101,6 @@ final class Appearance {
             return;
         overAura = over;
         CmLog.i("Appearance", "status bar icons: " + (themeDark || over ? "light" : "dark") + ", over a picture: " + over);
-        Window window = activity.getWindow();
         SharedPreferences prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         paint(activity, themeDark, prefs.getInt("bar", 0), prefs.getInt("back", 0));
     }
@@ -109,10 +111,29 @@ final class Appearance {
         Window window = activity.getWindow();
         themeDark = dark;
         window.setBackgroundDrawable(new ColorDrawable(back));
-        int light = dark || overAura ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-        if (!dark && Build.VERSION.SDK_INT >= 27)
-            light |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        int light = 0;
+        if (Build.VERSION.SDK_INT < 30) {
+            light = dark || overAura ? 0 : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (!dark && Build.VERSION.SDK_INT >= 27)
+                light |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
         layOutUnderNavigationBar(window.getDecorView(), light);
+        paintIcons(activity);
+    }
+
+    // From Android 11 the icons' color is the window controller's, and the old
+    // flags above only get in its way (a call without them makes the icons dark
+    // or light again, as they were not asked for).
+    private static void paintIcons(Activity activity) {
+        if (Build.VERSION.SDK_INT < 30)
+            return;
+        android.view.WindowInsetsController controller = activity.getWindow().getInsetsController();
+        if (controller == null)
+            return;
+        int status = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
+        int navigation = android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+        controller.setSystemBarsAppearance(themeDark || overAura ? 0 : status, status);
+        controller.setSystemBarsAppearance(themeDark ? 0 : navigation, navigation);
     }
 
     private static void layOutUnderNavigationBar(View decor, int otherFlags) {
