@@ -212,6 +212,7 @@ Page {
                 nowPlaying: page.wide ? page.nowPlaying : null
                 overAura: true
                 swipeEnabled: page.gesturesEnabled
+                swipeSurface: hero
                 neighbors: page.backend.mainScreen
                 playlistTitle: page.playlist && page.playlist.title ? page.playlist.title : ""
                 preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []

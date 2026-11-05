@@ -797,6 +797,65 @@ private slots:
         QTRY_VERIFY(list->property("contentY").toReal() > 0);
     }
 
+    // On a head unit a swipe works all over the panel's side of the screen, in
+    // either layout, also where the panel itself has moved away from: not on the
+    // list beside it.
+    void aSwipeWorksAllOverTheHeadUnitsPanel()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1280, 720);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QTest::qWait(600);
+        core.activePlaylist().playRow(1);
+        QTRY_VERIFY(core.mainScreen().canGoPrevious());
+        auto* panel = window->findChild<QQuickItem*>("trackPanel");
+        auto* toggle = window->findChild<QQuickItem*>("screenModeToggle");
+        QVERIFY(panel && toggle);
+        std::unique_ptr<QPointingDevice> finger(QTest::createTouchDevice());
+        const auto reaches = [&](int fromX, int y) {
+            QTest::touchEvent(window, finger.get()).press(0, QPoint(fromX, y), window);
+            for (int i = 1; i <= 8; ++i) {
+                QTest::qWait(30);
+                QTest::touchEvent(window, finger.get()).move(0, QPoint(fromX + i * 8, y), window);
+            }
+            const bool moved = panel->property("_swipeX").toReal() != 0;
+            QTest::qWait(200);
+            QTest::touchEvent(window, finger.get()).release(0, QPoint(fromX + 64, y), window);
+            QTest::qWaitFor([&]() { return panel->property("_swipeX").toReal() == 0; }, 3000);
+            return moved;
+        };
+        const int edge = 4;
+        for (const bool expanded : { false, true }) {
+            if (expanded) {
+                QVERIFY(QMetaObject::invokeMethod(toggle, "clicked"));
+                QTRY_COMPARE(panel->property("progress").toReal(), 1.0);
+                QTest::qWait(100);
+            }
+            // The very edge, away from the buttons up and down it; and over the panel.
+            QVERIFY2(reaches(edge, 360), expanded ? "edge, expanded" : "edge, normal");
+            QVERIFY2(reaches(int(panel->mapToScene(QPointF(panel->width() / 2, 0)).x()), 360),
+                expanded ? "panel, expanded" : "panel, normal");
+        }
+        // Over the list it scrolls the list.
+        QVERIFY(!reaches(window->width() - 40, 360));
+        QVERIFY(QMetaObject::invokeMethod(toggle, "clicked"));
+        QTRY_COMPARE(panel->property("progress").toReal(), 0.0);
+    }
+
     // A source can take seconds to start the next track. Until then the cover
     // thrown in stays, rather than the old one coming back, and no animation of a
     // new cover plays once the track has come.

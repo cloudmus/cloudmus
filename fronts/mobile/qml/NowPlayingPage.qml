@@ -89,6 +89,7 @@ Page {
         overAura: true
         swipeEnabled: page.swipeEnabled && !swipe.active
         neighbors: page.backend.mainScreen
+        swipeSurface: page
         preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
         showMenu: page.backend.trackScreen !== null
         onMenuRequested: {

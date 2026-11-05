@@ -19,6 +19,9 @@ Item {
     // Swiping sideways goes to the next or the previous track. Off under what's
     // over the panel.
     property bool swipeEnabled: true
+    // Where a swipe can begin: all around the panel, as far as what it's in goes,
+    // not just on what the panel takes up at the moment.
+    property Item swipeSurface: panel
     // Where a swipe would go and what comes in: ViewModel::MainScreen.
     property QtObject neighbors
     // A finger going sideways, or the cover not back from that. It stays that way
@@ -202,6 +205,7 @@ Item {
     DragHandler {
         id: trackSwipe
         objectName: "trackSwipe"
+        parent: panel.swipeSurface
         enabled: panel.swipeEnabled && !panel._handingOver && panel._landed === 0
         target: null
         yAxis.enabled: false
