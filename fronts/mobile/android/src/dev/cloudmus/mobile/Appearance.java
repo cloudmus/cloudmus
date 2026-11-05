@@ -97,6 +97,7 @@ final class Appearance {
         if (over == overAura)
             return;
         overAura = over;
+        CmLog.i("Appearance", "status bar icons: " + (themeDark || over ? "light" : "dark") + ", over a picture: " + over);
         Window window = activity.getWindow();
         SharedPreferences prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         paint(activity, themeDark, prefs.getInt("bar", 0), prefs.getInt("back", 0));
