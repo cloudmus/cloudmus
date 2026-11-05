@@ -876,6 +876,59 @@ private slots:
         QTRY_COMPARE(panel->property("progress").toReal(), 0.0);
     }
 
+    // A head unit's screen left turned to the track's comes up that way, not
+    // unfolding from the other; the track's panel over it has a grip, and its
+    // glass follows what's behind unless told not to.
+    void anExpandedScreenStartsExpanded()
+    {
+        QSettings().setValue(QStringLiteral("ui/screenExpanded"), true);
+        {
+            QTemporaryDir dir;
+            App::MobileCore core({ QString(), dir.filePath("core.ini") });
+            Ui::Backend backend(core);
+            Ui::Platform platform(dir.path());
+            playFake(core);
+            QQmlApplicationEngine engine;
+            engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+            engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+            engine.setInitialProperties({
+                { "backend", QVariant::fromValue<QObject*>(&backend) },
+                { "platform", QVariant::fromValue<QObject*>(&platform) },
+            });
+            engine.loadFromModule("Cloudmus.Mobile", "Main");
+            auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+            QVERIFY(window);
+            auto* page = window->findChild<QQuickItem*>("playlist");
+            QVERIFY(page);
+            QList<qreal> drawn;
+            connect(window, &QQuickWindow::frameSwapped, window,
+                [&]() { drawn.append(page->property("screenProgress").toReal()); });
+            window->resize(1280, 720);
+            QVERIFY(QTest::qWaitForWindowExposed(window));
+            QTest::qWait(800);
+            QCOMPARE(page->property("screenProgress").toReal(), 1.0);
+            for (const qreal progress : std::as_const(drawn))
+                QVERIFY2(progress == 0.0 || progress == 1.0, qPrintable(QString::number(progress)));
+
+            auto* trackSheet = window->findChild<QObject*>("trackSheet");
+            QVERIFY(trackSheet);
+            auto* handle = trackSheet->findChild<QQuickItem*>("sheetHandle");
+            auto* snapshot = trackSheet->findChild<QObject*>("sheetSnapshot");
+            QVERIFY(handle && snapshot);
+            QVERIFY(QMetaObject::invokeMethod(trackSheet, "open"));
+            QTRY_VERIFY(trackSheet->property("opened").toBool());
+            QVERIFY(handle->isVisible());
+            QCOMPARE(snapshot->property("live").toBool(), true);
+            QVERIFY(QMetaObject::invokeMethod(trackSheet, "close"));
+            QTRY_VERIFY(!trackSheet->property("visible").toBool());
+            // Not on a phone, where the sheet rises from the bottom.
+            window->resize(420, 860);
+            QTRY_VERIFY(!trackSheet->property("wide").toBool());
+            QVERIFY(!handle->isVisible());
+        }
+        QSettings().remove(QStringLiteral("ui/screenExpanded"));
+    }
+
     // A source can take seconds to start the next track. Until then the cover
     // thrown in stays, rather than the old one coming back, and no animation of a
     // new cover plays once the track has come.

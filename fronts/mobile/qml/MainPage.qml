@@ -39,7 +39,17 @@ Page {
 
     // 0 the normal screen .. 1 the track's: everything that moves follows this.
     property real screenProgress: wide && ui.screenExpanded ? 1 : 0
-    Behavior on screenProgress { NumberAnimation { duration: Theme.durationPage * 1.5; easing.type: Easing.InOutCubic } }
+    // Moving only when the user turns it: an app that starts with the screen
+    // turned (or a phone turned on its side) shows it so at once, not unfolding.
+    property bool _animatingScreen: false
+    Behavior on screenProgress {
+        enabled: page._animatingScreen
+        NumberAnimation {
+            duration: Theme.durationPage * 1.5
+            easing.type: Easing.InOutCubic
+            onRunningChanged: if (!running) page._animatingScreen = false
+        }
+    }
 
     // The track's screen has no room for it.
     onScreenProgressChanged: if (screenProgress > 0) filterOpen = false
@@ -376,7 +386,10 @@ Page {
                         visible: page.wide
                         iconName: "chevron_right"
                         rotation: 180 * page.screenProgress
-                        onClicked: ui.screenExpanded = !ui.screenExpanded
+                        onClicked: {
+                            page._animatingScreen = true
+                            ui.screenExpanded = !ui.screenExpanded
+                        }
                     }
                 }
             }
