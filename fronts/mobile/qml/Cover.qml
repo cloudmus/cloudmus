@@ -42,6 +42,9 @@ Rectangle {
     readonly property int shownSide: picture.shownWidth
     readonly property bool _showing: picture.showing
 
+    // What's shown goes at once: see CrossfadeImage.clear().
+    function clear() { picture.clear() }
+
     function _pixels() { return Math.round(width * Screen.devicePixelRatio) }
     function _settleSize() {
         const pixels = _pixels()

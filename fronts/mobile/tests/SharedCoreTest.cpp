@@ -954,6 +954,77 @@ private slots:
     // A source can take seconds to start the next track. Until then the cover
     // thrown in stays, rather than the old one coming back, and no animation of a
     // new cover plays once the track has come.
+    // A swipe turned the other way, quickly, before the last has gone back: the
+    // neighbor that looks out is the other one, never with the first one's
+    // cover on it while its own comes.
+    void aTurnedSwipeShowsOnlyItsOwnNeighbor()
+    {
+        QQmlEngine engine;
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Item {
+                width: 400; height: 800
+                property alias panel: thePanel
+                QtObject {
+                    id: now
+                    property string title: "Now"
+                    property string artist: ""
+                    property string coverUrl: ""
+                    property string backgroundSeed: "Now"
+                    property bool hasTrack: true
+                    property bool playing: true
+                    property real positionMs: 0
+                    property real durationMs: 1000
+                    property real bufferedMs: -1
+                    function next() {}
+                    function previous() {}
+                }
+                QtObject {
+                    id: around
+                    objectName: "around"
+                    property bool canGoNext: true
+                    property bool canGoPrevious: true
+                    property string nextCoverUrl: ""
+                    property string nextSeed: "Next"
+                    property string previousCoverUrl: ""
+                    property string previousSeed: "Previous"
+                }
+                TrackPanel { id: thePanel; anchors.fill: parent; nowPlaying: now; neighbors: around }
+            })", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* panel = root->property("panel").value<QObject*>();
+        auto* neighbor = panel->findChild<QObject*>("trackCoverNeighbor");
+        QVERIFY(neighbor);
+        const auto shown = [&]() { return neighbor->property("shownSource").toString(); };
+        const auto turn = [&](int to, const QString& own, const QString& other) {
+            QVERIFY(panel->setProperty("_swipeTo", to));
+            QVERIFY(panel->setProperty("_swipeX", -60.0 * to));
+            QElapsedTimer watching;
+            watching.start();
+            while (!shown().endsWith(own) && watching.elapsed() < 3000) {
+                QVERIFY2(!shown().endsWith(other), qPrintable(QStringLiteral("%1 in place of %2").arg(other, own)));
+                QTest::qWait(5);
+            }
+            QVERIFY(shown().endsWith(own));
+        };
+        const QString next = QStringLiteral("/sNext");
+        const QString previous = QStringLiteral("/sPrevious");
+        // Left, then right; right, then left.
+        turn(1, next, previous);
+        turn(-1, previous, next);
+        turn(1, next, previous);
+        // Both ways one album: its cover comes back.
+        auto* around = root->findChild<QObject*>(QStringLiteral("around"));
+        QVERIFY(around);
+        QVERIFY(around->setProperty("previousSeed", QStringLiteral("Next")));
+        QVERIFY(panel->setProperty("_swipeTo", -1));
+        QTRY_VERIFY(shown().endsWith(next));
+    }
+
     void aThrownCoverWaitsForASlowTrack()
     {
         QQmlEngine engine;

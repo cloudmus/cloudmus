@@ -108,6 +108,22 @@ Item {
         change.start()
     }
 
+    // Away with what's shown, at once and with no fade: for a picture that isn't
+    // the one before it changed into (a swipe turned the other way), which
+    // mustn't be seen as the new one's. Not loaded again here: the target may
+    // not have changed yet. On the next turn, the target as it is by then (the
+    // same as before too: two tracks with one album's cover).
+    function clear() {
+        change.stop()
+        _front.source = ""
+        _front.opacity = 0
+        _front.scale = 1
+        _back.source = ""
+        _back.opacity = 0
+        _back.scale = 1
+        loading.restart()
+    }
+
     // What came in is what's shown; the other waits for the next.
     function _swap() {
         const old = _front

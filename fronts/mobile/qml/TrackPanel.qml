@@ -158,6 +158,9 @@ Item {
     property real _swipeX: 0
     // Where it goes: 1 the next track, -1 the previous one, 0 nowhere.
     property int _swipeTo: 0
+    // The neighbor is one for both ways: turned the other way, quickly, it would
+    // show the cover from the other side until its own came. Nothing until then.
+    on_SwipeToChanged: neighbor.clear()
     // Thrown: how far the neighbor has got, from where it was to its place.
     property real _landed: 0
     // Over to the neighbor, and waiting for the panel's own cover to catch up.
