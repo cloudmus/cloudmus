@@ -2266,6 +2266,16 @@ private slots:
             findCover(list);
             QVERIFY(rowCover);
             QVERIFY(qAbs(sceneRect(rowCover).center().x() - sceneRect(list).center().x()) <= 1.5);
+            // And as far from the row's top as from its bottom.
+            QQuickItem* row = rowCover;
+            while (row && !QByteArray(row->metaObject()->className()).startsWith("TrackRow"))
+                row = row->parentItem();
+            QVERIFY(row);
+            const QRectF rowRect = sceneRect(row);
+            const QRectF coverRect = sceneRect(rowCover);
+            QVERIFY2(qAbs((coverRect.top() - rowRect.top()) - (rowRect.bottom() - coverRect.bottom())) <= 1.0,
+                qPrintable(QStringLiteral("cover %1..%2 in a row %3..%4")
+                               .arg(coverRect.top()).arg(coverRect.bottom()).arg(rowRect.top()).arg(rowRect.bottom())));
             QVERIFY(sceneRect(details).left() >= bigCover.right());
             // Nothing of it pushed out of its place.
             QVERIFY(details->implicitWidth() <= details->width());
@@ -2286,6 +2296,28 @@ private slots:
             QCOMPARE(core.library().currentSourceId(), QStringLiteral("fake"));
             QMetaObject::invokeMethod(stack, "close");
             QTRY_COMPARE(stack->property("depth").toInt(), 1);
+        }
+        {
+            // Each cover as far from its row's top as from its bottom.
+            QTest::qWait(500);
+            int checked = 0;
+            const std::function<void(QQuickItem*)> each = [&](QQuickItem* item) {
+                if (item->objectName() == QStringLiteral("rowCover")) {
+                    QQuickItem* row = item;
+                    while (row && !QByteArray(row->metaObject()->className()).startsWith("TrackRow"))
+                        row = row->parentItem();
+                    if (row && item->isVisible()) {
+                        const QRectF r(row->mapToScene(QPointF(0, 0)), QSizeF(row->width(), row->height()));
+                        const QRectF c(item->mapToScene(QPointF(0, 0)), QSizeF(item->width(), item->height()));
+                        QVERIFY2(qAbs((c.top() - r.top()) - (r.bottom() - c.bottom())) <= 1.0, "cover off centre");
+                        ++checked;
+                    }
+                }
+                for (QQuickItem* child : item->childItems())
+                    each(child);
+            };
+            each(playlist->findChild<QQuickItem*>("list") ? playlist->findChild<QQuickItem*>("list") : window->contentItem());
+            QVERIFY(checked > 0);
         }
         QMetaObject::invokeMethod(playlist, "libraryRequested");
         QTRY_COMPARE(stack->property("depth").toInt(), 2);

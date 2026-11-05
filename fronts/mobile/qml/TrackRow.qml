@@ -38,6 +38,9 @@ ItemDelegate {
     // Scaling with the rest: a column of covers takes them for its margins.
     leftPadding: Theme.dp(10)
     rightPadding: Theme.dp(10)
+    // Basic's ItemDelegate pads more at the top than at the bottom.
+    topPadding: 0
+    bottomPadding: 0
     onPressAndHold: if (showMenu) menuRequested()
     height: Theme.rowHeight + Theme.dp(8)
 
