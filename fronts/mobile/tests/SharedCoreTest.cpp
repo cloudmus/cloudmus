@@ -779,6 +779,69 @@ private slots:
         QTRY_VERIFY(list->property("contentY").toReal() > 0);
     }
 
+    // A source can take seconds to start the next track. Until then the cover
+    // thrown in stays, rather than the old one coming back, and no animation of a
+    // new cover plays once the track has come.
+    void aThrownCoverWaitsForASlowTrack()
+    {
+        QQmlEngine engine;
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            Item {
+                id: root
+                width: 400; height: 800
+                property alias panel: thePanel
+                QtObject {
+                    id: now
+                    property string title: "Old"
+                    property string artist: ""
+                    property string coverUrl: ""
+                    property string backgroundSeed: "Old"
+                    property bool hasTrack: true
+                    property bool playing: true
+                    property real positionMs: 0
+                    property real durationMs: 1000
+                    property real bufferedMs: -1
+                    property int asked: 0
+                    function next() { asked++ }
+                    function previous() {}
+                }
+                property alias now: now
+                QtObject {
+                    id: around
+                    property bool canGoNext: true
+                    property bool canGoPrevious: false
+                    property string nextCoverUrl: ""
+                    property string nextSeed: "New"
+                    property string previousCoverUrl: ""
+                    property string previousSeed: ""
+                }
+                TrackPanel { id: thePanel; anchors.fill: parent; nowPlaying: now; neighbors: around }
+            })", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* panel = root->property("panel").value<QObject*>();
+        auto* now = root->property("now").value<QObject*>();
+        QVERIFY(panel->setProperty("_swipeTo", 1));
+        QVERIFY(panel->setProperty("_swipeX", -100.0));
+        QVERIFY(QMetaObject::invokeMethod(panel, "_throw"));
+        QTRY_VERIFY(panel->property("_handingOver").toBool());
+        QCOMPARE(now->property("asked").toInt(), 1);
+
+        // Longer than a cover ever gets: still waiting, not back on the old one.
+        QTest::qWait(1800);
+        QVERIFY(panel->property("_handingOver").toBool());
+        QVERIFY(panel->property("_swipeX").toReal() != 0);
+
+        QVERIFY(now->setProperty("title", QStringLiteral("New")));
+        QVERIFY(now->setProperty("backgroundSeed", QStringLiteral("New")));
+        QTRY_VERIFY_WITH_TIMEOUT(!panel->property("_handingOver").toBool(), 3000);
+        QCOMPARE(panel->property("_swipeX").toReal(), 0.0);
+    }
+
     // What's downloaded ahead, as on the desktop: a cell each, thinner if there
     // are more, one bar if there are many.
     void preloadCellsFitWhatsAhead()
@@ -1768,6 +1831,11 @@ private slots:
         QSignalSpy coverPixels(picture, SIGNAL(_sideChanged()));
         QSignalSpy auraPixels(aura, SIGNAL(_pixelsChanged()));
         QSignalSpy listWidth(list, SIGNAL(widthChanged()));
+        // The cover a swipe brings in: hidden, and its note's a picture to load anew
+        // at each size.
+        auto* neighbor = findItem(panel, QStringLiteral("trackCoverNeighbor"));
+        QVERIFY(neighbor);
+        QSignalSpy neighborWidth(neighbor, SIGNAL(widthChanged()));
 
         for (const qreal end : { 1.0, 0.0 }) {
             QVERIFY(QMetaObject::invokeMethod(toggle, "clicked"));
@@ -1785,6 +1853,8 @@ private slots:
         QCOMPARE(coverPixels.size(), 0);
         QCOMPARE(auraPixels.size(), 0);
         QCOMPARE(listWidth.size(), 0);
+        // At the ends as well: it was hundreds, one for each frame.
+        QVERIFY(neighborWidth.size() <= 12);
     }
 
     // No network is a state to see, not an error.

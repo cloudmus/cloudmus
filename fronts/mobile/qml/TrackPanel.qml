@@ -126,7 +126,6 @@ Item {
         Cover {
             id: neighbor
             objectName: "trackCoverNeighbor"
-            width: coverBox.width
             height: width
             visible: panel._swipeTo !== 0
             source: panel._handingOver || panel._landed > 0 ? panel._frozenSource
@@ -165,6 +164,8 @@ Item {
     property string _frozenSource
     property string _frozenSeed
     property string _sourceBefore
+    // The new track has come: it can take a while, a source's stream to be asked for.
+    property bool _trackArrived: false
     readonly property bool _swiping: _swipeTo !== 0 || _swipeX !== 0 || _handingOver
     // How far the old one is: 0 in its place, 1 as far as it gets.
     readonly property real _swipeReach: coverBox.width * 0.7
@@ -248,6 +249,8 @@ Item {
         onFinished: {
             // Only now: what a new track sets off doesn't get in the way of this.
             panel._handingOver = true
+            panel._trackArrived = false
+            caughtUpLate.interval = panel._trackTimeout
             caughtUpLate.restart()
             if (panel._swipeTo > 0)
                 panel.nowPlaying.next()
@@ -261,25 +264,46 @@ Item {
         if (!_handingOver)
             return
         _handingOver = false
+        _trackArrived = false
         caughtUpLate.stop()
+        trackSettling.stop()
         _swipeTo = 0
         _swipeX = 0
         _landed = 0
     }
     function _catchUpIfThere() {
-        if (!_handingOver || cover.changing || cover.shownSource !== cover._wanted)
+        if (!_handingOver || !_trackArrived || cover.changing || cover.shownSource !== cover._wanted)
             return
-        // What's known is what's to be there. Not known beforehand (a station's
-        // next one, a cover yet to come): any other than the one before, of that track.
-        const there = _frozenSource !== "" ? cover.source === _frozenSource
-                                           : cover.source !== _sourceBefore && cover.seed === _frozenSeed
-        if (there)
-            _caughtUp()
+        // Its picture yet to come: until it does, or it doesn't, the neighbor stays.
+        if (cover.source === "" && _frozenSource !== "")
+            return
+        _caughtUp()
     }
+    // A track that's slow to start is no reason to go back to the old cover, which
+    // is the panel's own until then: only one that isn't coming at all.
+    readonly property int _trackTimeout: 30000
+    // Once it has come: how long for its cover.
+    readonly property int _coverTimeout: 1500
     Timer {
         id: caughtUpLate
-        interval: 1500
         onTriggered: panel._caughtUp()
+    }
+    // The track's properties come one by one over a replica, its cover after its
+    // title: a moment for that.
+    Timer {
+        id: trackSettling
+        interval: 100
+        onTriggered: {
+            panel._trackArrived = true
+            caughtUpLate.interval = panel._coverTimeout
+            caughtUpLate.restart()
+            panel._catchUpIfThere()
+        }
+    }
+    Connections {
+        target: panel.nowPlaying
+        ignoreUnknownSignals: true
+        function onTitleChanged() { if (panel._handingOver) trackSettling.restart() }
     }
     Connections {
         target: cover
@@ -317,6 +341,15 @@ Item {
         }
     }
 
+    // Only at rest too: hidden as it is, at each new size its note, a picture, would
+    // be loaded anew on every frame of turning the screen over.
+    Binding {
+        target: neighbor
+        property: "width"
+        value: coverBox.width
+        when: panel._atRest
+        restoreMode: Binding.RestoreNone
+    }
     // Only when it has come to rest: laid out anew each frame, with the shadow
     // around it, it'd cost as much as the title would (see there).
     Binding {
