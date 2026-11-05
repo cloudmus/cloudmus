@@ -211,12 +211,13 @@ Page {
                 // A phone on its side.
                 compact: page.height < Theme.dp(460)
                 // As large as it gets, beside the rest.
-                coverMaxSide: (page.height - page._heroMargin * 2 - Theme.insetBottom) * sideCoverHeightShare
+                coverMaxSide: (page.height - page._heroMargin * 2 - Theme.insetBottom) * 0.8
                 // In the row with the source's button, until that folds away.
                 modesElsewhere: 1 - page._barFolded
                 sideCoverShare: 1
-                // With air around it.
-                sideCoverHeightShare: 0.8
+                // With air around it; smaller on the track's screen, for the
+                // title to have the room. The picture stays at the larger size.
+                sideCoverHeightShare: 0.8 - 0.15 * page.screenProgress
                 // Hidden on a phone, where a cover of this size would be decoded for nothing
                 // at every change of track.
                 nowPlaying: page.wide ? page.nowPlaying : null

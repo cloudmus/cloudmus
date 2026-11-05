@@ -864,7 +864,10 @@ private slots:
             }
             // The very edge, away from the buttons up and down it; and over the panel.
             QVERIFY2(reaches(edge, 360), expanded ? "edge, expanded" : "edge, normal");
-            QVERIFY2(reaches(int(panel->mapToScene(QPointF(panel->width() / 2, 0)).x()), 360),
+            // On the cover: the details beside it, the seek bar, take a drag themselves.
+            auto* cover = window->findChild<QQuickItem*>("trackCover");
+            QVERIFY(cover);
+            QVERIFY2(reaches(int(cover->mapToScene(QPointF(cover->width() / 2, 0)).x()), 360),
                 expanded ? "panel, expanded" : "panel, normal");
         }
         // Over the list it scrolls the list.
