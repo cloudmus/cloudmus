@@ -80,13 +80,37 @@ void SourceManager::setLocale(const QString& locale)
 
 void SourceManager::setDisabledIds(const QStringList& ids) { disabledIds_ = QSet<QString>(ids.begin(), ids.end()); }
 
+void SourceManager::setDeferredIds(const QStringList& ids) { deferredIds_ = QSet<QString>(ids.begin(), ids.end()); }
+
+void SourceManager::startDeferred(const QString& sourceId)
+{
+    if (!deferredIds_.remove(sourceId) || !isEnabled(sourceId))
+        return;
+    for (const auto& manifest : manifests()) {
+        if (manifest.id == sourceId) {
+            emit sourceStarting(manifest);
+            startOne(manifest);
+        }
+    }
+}
+
 void SourceManager::startAll()
 {
     for (const auto& manifest : manifests()) {
-        if (!isEnabled(manifest.id))
-            continue;
-        emit sourceStarting(manifest);
-        startOne(manifest);
+        if (isEnabled(manifest.id))
+            emit sourceStarting(manifest);
+    }
+    if (spawnDelayMs_ > 0)
+        QTimer::singleShot(spawnDelayMs_, this, &SourceManager::spawnWaiting);
+    else
+        spawnWaiting();
+}
+
+void SourceManager::spawnWaiting()
+{
+    for (const auto& manifest : manifests()) {
+        if (isEnabled(manifest.id) && !isDeferred(manifest.id) && !clientsById_.contains(manifest.id))
+            startOne(manifest);
     }
 }
 

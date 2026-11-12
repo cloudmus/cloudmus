@@ -15,6 +15,7 @@
 #include <limits>
 
 #include "PasswordReveal.h"
+#include "SourceSettings.h"
 #include "Spacing.h"
 #include "Typography.h"
 
@@ -102,7 +103,7 @@ QWidget* SettingsForm::makeEditor(Row& row, QWidget* parent)
 {
     const SettingField& field = row.field;
     // What the source reported, or its default if it reported nothing usable.
-    const QJsonValue initial = field.value.isUndefined() || field.value.isNull() ? field.default_ : field.value;
+    const QJsonValue initial = ViewModel::SourceSettings::initialValue(field);
     const QString type = field.type;
 
     if (type == QStringLiteral("boolean")) {

@@ -19,6 +19,10 @@
 namespace Playback {
 
 namespace {
+constexpr qint64 kResumeMinLeftMs = 5000;
+}
+
+namespace {
 // A stream URL can be refused although it was just resolved (YouTube's
 // googlevideo answers some with 403 Forbidden); a fresh one usually plays.
 constexpr int kMaxStartRetries = 2;
@@ -157,7 +161,10 @@ void PlaybackController::loadQueue(const QVector<QueueEntry>& entries, int start
 void PlaybackController::reportError(const QString& sourceId, const QString& reason, const QString& message)
 {
     emit failed(sourceId, reason);
-    emit errorOccurred(message);
+    if (reason == QStringLiteral("offline"))
+        emit offlineNotice(message);
+    else
+        emit errorOccurred(message);
 }
 
 void PlaybackController::handleStartFailure(const QString& message, const QString& reason, AudioPlayer::Failure failure)
@@ -263,6 +270,8 @@ bool PlaybackController::handleTrackError(const QString& sourceId, const QJsonOb
     const bool offline = reason == QStringLiteral("offline");
     if (!unavailable && !offline)
         return false;
+    if (offline)
+        emit offlineSeen(sourceId);
     // Whatever the track is, the next time it comes up it is known.
     if (unavailable)
         setUnavailable(sourceId, trackId);
@@ -290,8 +299,10 @@ bool PlaybackController::handleTrackError(const QString& sourceId, const QJsonOb
     if (next >= 0) {
         ++skipStreak_;
         qCDebug(lcPlayback) << "the track can't be played (" << reason << "), going on to" << next;
-        emit errorOccurred(offline ? tr("No network connection: playing the next downloaded track")
-                                   : tr("\"%1\" is unavailable, skipped").arg(track.title));
+        if (offline)
+            emit offlineNotice(tr("No network connection: playing the next downloaded track"));
+        else
+            emit errorOccurred(tr("\"%1\" is unavailable, skipped").arg(track.title));
         playIndex(next);
         return true;
     }
@@ -538,8 +549,11 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
             startingIndex_ = -1;
             playTimeoutTimer_->stop();
             emit loadingChanged(false);
-            reportError(
-                entry.sourceId, QStringLiteral("rejected"), QString::fromStdString(e.error().message.toStdString()));
+            if (e.isOffline())
+                goOnOffline(index, entry.sourceId);
+            else
+                reportError(entry.sourceId, QStringLiteral("rejected"),
+                    QString::fromStdString(e.error().message.toStdString()));
         }
         co_return;
     }
@@ -562,6 +576,21 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
         earlyTrackError_.reset();
         handleTrackError(error.first, error.second);
     }
+}
+
+void PlaybackController::goOnOffline(int index, const QString& sourceId)
+{
+    emit offlineSeen(sourceId);
+    const int next = nextPlayableAfter(index, /*downloadedOnly=*/true);
+    if (next >= 0) {
+        ++skipStreak_;
+        qCDebug(lcPlayback) << "no network for track" << index << ", going on to" << next;
+        emit offlineNotice(tr("No network connection: playing the next downloaded track"));
+        playIndex(next);
+        return;
+    }
+    stopAfterFailure();
+    reportError(sourceId, QStringLiteral("offline"), tr("No network connection, and no downloaded track follows"));
 }
 
 void PlaybackController::becomeCurrent(int index, const QueueEntry& entry, bool isRetry)
@@ -604,6 +633,12 @@ void PlaybackController::handleStreamReady(const QString& sourceId, const Stream
     startCurrentAudio(params.stream);
 }
 
+void PlaybackController::resumeAt(const QString& trackId, qint64 positionMs)
+{
+    resumeTrackId_ = trackId;
+    resumePositionMs_ = positionMs;
+}
+
 void PlaybackController::startCurrentAudio(const std::optional<StreamDescriptor>& stream)
 {
     // A stream that outlived its track has nothing to play; queue_[-1]
@@ -616,6 +651,10 @@ void PlaybackController::startCurrentAudio(const std::optional<StreamDescriptor>
     // TrayIcon::setNowPlayingTooltip.
     const QueueEntry entry = queue_[index_];
     const QString title = titleFor(entry.track);
+    if (resumeTrackId_ == entry.track.id && resumePositionMs_ > 0
+        && (entry.track.durationMs <= 0 || resumePositionMs_ < entry.track.durationMs - kResumeMinLeftMs))
+        audioPlayer_->setStartPosition(resumePositionMs_);
+    resumeTrackId_.clear();
 
     // Loading indicator / playTimeoutTimer_ stay active until
     // AudioPlayer::started() or failed().
@@ -679,6 +718,14 @@ void PlaybackController::advance(int delta, bool wasSkip)
         playIndex(hasCurrentTrack() ? index_ : 0);
         return;
     }
+    // A radio that never got its station: nothing will send more until the
+    // source can be reached, and nothing of it is left on disk.
+    if (awaitsStation()) {
+        stopAfterFailure();
+        reportError(hasCurrentTrack() ? currentSourceId() : QString(), QStringLiteral("offline"),
+            tr("No network connection, and no downloaded track follows"));
+        return;
+    }
     if (waveMode_) {
         // The feedback just sent makes the station push more tracks;
         // handleTracksAdded() picks playback up from there.
@@ -714,6 +761,23 @@ int PlaybackController::peekNext(int from) const
     if (from + 1 < count)
         return from + 1;
     return effectiveRepeatMode() == RepeatMode::All ? 0 : -1;
+}
+
+int PlaybackController::neighborIndex(int delta) const
+{
+    if (delta > 0 && preparedIndex_ >= 0 && effectiveRepeatMode() != RepeatMode::One)
+        return preparedIndex_;
+    const int count = int(queue_.size());
+    if (!hasCurrentTrack())
+        return -1;
+    if (shuffleActive() && order_.size() == count) {
+        const int position = int(order_.indexOf(index_)) + delta;
+        return position >= 0 && position < count ? order_[position] : -1;
+    }
+    const int index = index_ + delta;
+    if (index >= 0 && index < count)
+        return index;
+    return effectiveRepeatMode() == RepeatMode::All ? (index + count) % count : -1;
 }
 
 int PlaybackController::stepFrom(int delta)
@@ -1088,6 +1152,13 @@ void PlaybackController::seek(qint64 positionMs)
 }
 
 void PlaybackController::setVolume(int volume0To100) { audioPlayer_->setVolume(volume0To100); }
+
+void PlaybackController::setEdges(int fadeMs, int settleMs) { audioPlayer_->setEdges(fadeMs, settleMs); }
+
+void PlaybackController::setOutput(const QByteArray& output, int openslesFramesPerEnqueue)
+{
+    audioPlayer_->setOutput(output, openslesFramesPerEnqueue);
+}
 
 void PlaybackController::setLevelsEnabled(bool enabled) { audioPlayer_->setLevelsEnabled(enabled); }
 

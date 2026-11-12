@@ -1,5 +1,9 @@
+#include <QFile>
 #include <QProcessEnvironment>
+#include <QTemporaryDir>
 #include <QTest>
+
+#include <algorithm>
 
 #include "FakeBackend.h"
 #include "RpcClient.h"
@@ -23,6 +27,26 @@ class RpcClientTest : public QObject {
     Q_OBJECT
 
 private slots:
+    // Android unpacks its backends as it runs, and can only start its Python
+    // from the native library directory.
+    void manifestsCanComeFromADirectoryNamedByTheEnvironment()
+    {
+        QTemporaryDir dir;
+        QFile file(dir.filePath(QStringLiteral("unpacked.json")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(R"({"id": "unpacked", "name": "Unpacked", "argv": ["python3", "-m", "backend"]})");
+        file.close();
+        qputenv("CLOUDMUS_BACKENDS_DIR", dir.path().toUtf8());
+        qputenv("CLOUDMUS_BACKENDS_PYTHON", "/lib/libpython.so");
+        const QList<Rpc::BackendManifest> manifests = Rpc::discoverManifests();
+        qunsetenv("CLOUDMUS_BACKENDS_DIR");
+        qunsetenv("CLOUDMUS_BACKENDS_PYTHON");
+        const auto found = std::find_if(manifests.begin(), manifests.end(),
+            [](const Rpc::BackendManifest& manifest) { return manifest.id == QStringLiteral("unpacked"); });
+        QVERIFY(found != manifests.end());
+        QCOMPARE(found->argv, QStringList({ QStringLiteral("/lib/libpython.so"), QStringLiteral("-m"), QStringLiteral("backend") }));
+    }
+
     void startReadsTheSourceFromInitialize()
     {
         Rpc::RpcClient client(fakeManifest());
@@ -50,6 +74,18 @@ private slots:
         QCOMPARE(result.playlists.first().id, QStringLiteral("p1"));
         QCOMPARE(result.playlists.first().trackCount, 2);
         QCOMPARE(notified, QStringLiteral("heads up"));
+        await(client.shutdown());
+    }
+
+    // A phone's backend takes seconds to come up; a call made meanwhile must
+    // not time out on that (it did: the radio at a cold start).
+    void aCallMadeWhileTheBackendStartsDoesNotTimeOutOnTheStart()
+    {
+        Rpc::RpcClient client(fakeManifest());
+        client.start(QProcessEnvironment::systemEnvironment()).detach();
+        // 1 ms: far less than any start takes.
+        const QJsonObject result = await(client.callRaw(QStringLiteral("catalog.listPlaylists"), { }, 1));
+        QVERIFY(result.contains(QStringLiteral("playlists")));
         await(client.shutdown());
     }
 

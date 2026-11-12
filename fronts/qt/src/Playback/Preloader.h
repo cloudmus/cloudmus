@@ -131,6 +131,8 @@ public:
 
 signals:
     void ready(const QString& sourceId, const QString& trackId);
+    // The source said it can't reach its service.
+    void offlineSeen(const QString& sourceId);
     void failed(const QString& sourceId, const QString& trackId);
     // Resolving found that the source can't play the track at all
     // (error reason "unavailable"); failed() follows.
@@ -162,6 +164,8 @@ private:
     void pinWanted();
     // A fresh start for a track that failed (a stream known now, or asked for).
     void restart(const QString& key);
+    // Whether the disk has room for this one (TrackCache::Space).
+    bool mayDownload(const QString& key) const;
     void schedule();
     void scheduleLater();
     // False: it can't even be started — failed on the spot.

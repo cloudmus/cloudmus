@@ -187,6 +187,102 @@ private slots:
         QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
     }
 
+    // A car starting, "play" on the steering wheel: asked for by hand, whatever
+    // the setting says, and before the source has even listed its playlists.
+    void resumeAskedForGoesOnFromTheSavedSong()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        settings_->setLastActiveTrack(QStringLiteral("t2"), 1);
+        start();
+        QVERIFY(!playback_->hasQueue());
+        active_->resume();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+    }
+
+    // No network, and a song that isn't on disk: on to the next one that is,
+    // quietly. The playlist and its tracks come from what was saved.
+    void withNoNetworkItPlaysWhatIsOnDisk()
+    {
+        const QString down = temp_->filePath(QStringLiteral("network-down"));
+        qputenv("CLOUDMUS_FAKE_OFFLINE_FILE", down.toUtf8());
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        active_->playRow(0);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        resetApp();
+        settings_ = std::make_unique<Config::Settings>(temp_->filePath(QStringLiteral("config.ini")));
+        QFile(down).open(QIODevice::WriteOnly);
+        seedCached(QStringLiteral("t2"));
+        messages_.setOfflineShownElsewhere(true);
+        start();
+        QCOMPARE(active_->entries().size(), 2);
+        QSignalSpy errors(playback_.get(), &Playback::PlaybackController::errorOccurred);
+        QSignalSpy notices(playback_.get(), &Playback::PlaybackController::offlineNotice);
+        active_->resume();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+        QCOMPARE(errors.size(), 0);
+        QVERIFY(notices.size() >= 1);
+
+        // Back: the tracks that couldn't load are asked for again.
+        QFile::remove(down);
+        QSignalSpy loading(active_.get(), &ViewModel::ActivePlaylist::loadingChanged);
+        sources_->refresh(QStringLiteral("fake"));
+        QTRY_VERIFY(loading.size() >= 2);
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2")); // not started over
+        qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
+        messages_.setOfflineShownElsewhere(false);
+    }
+
+    // With a delay asked for, what's saved stands for now and is freshened after.
+    void savedTracksCanBeFreshenedLater()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        active_->playRow(0);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        resetApp();
+        settings_ = std::make_unique<Config::Settings>(temp_->filePath(QStringLiteral("config.ini")));
+        start(false);
+        active_->setRefreshDelay(400);
+        QSignalSpy loading(active_.get(), &ViewModel::ActivePlaylist::loadingChanged);
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        QCOMPARE(active_->entries().size(), 2);
+        QCOMPARE(loading.size(), 0);
+        QTRY_VERIFY(loading.size() >= 1);
+    }
+
+    // Back to the song, and to where in it.
+    void resumingGoesOnFromWhereInTheSongItWas()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        settings_->setLastActiveTrack(QStringLiteral("t2"), 1);
+        settings_->setLastActivePositionMs(12000);
+        seedCached(QStringLiteral("t2"));
+        start();
+        active_->resume();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+        QTRY_VERIFY(playback_->positionMs() >= 12000);
+        // Another song starts from its beginning.
+        settings_->setLastActiveTrack(QStringLiteral("t1"), 0);
+        QCOMPARE(settings_->lastActivePositionMs(), qint64(0));
+    }
+
+    void resumeWithNothingSavedDoesNothing()
+    {
+        start();
+        active_->resume();
+        QTest::qWait(100);
+        QVERIFY(!playback_->hasQueue());
+    }
+
     void noResumeWhenItsOffOrPlaybackWasHalted()
     {
         settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });

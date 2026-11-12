@@ -1,5 +1,7 @@
 #pragma once
 
+#include "SourceSettings.h"
+
 #include <QDialog>
 #include <QModelIndex>
 
@@ -75,6 +77,7 @@ private:
 
     Config::Settings& settings_;
     Rpc::SourceManager& sourceManager_;
+    ViewModel::SourceSettings sourceSettings_;
     Settings::RestartRequests restarts_;
     std::vector<Settings::Page*> pages_;
     // pages_[i]'s row in sidebarModel_.

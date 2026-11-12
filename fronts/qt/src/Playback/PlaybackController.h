@@ -91,6 +91,9 @@ public:
     // played before the source is there to run it — see attachStation().
     void startRadio(
         const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks, int startIndex = 0);
+    // The track, when it next starts, goes on from there rather than from its
+    // beginning: what was playing when the app last ran. Not if little is left.
+    void resumeAt(const QString& trackId, qint64 positionMs);
     // A radio playing without a station behind it yet.
     bool awaitsStation() const { return waveMode_ && waveStationId_.isEmpty(); }
     // Puts a started station behind the radio that awaitsStation(): what
@@ -134,6 +137,9 @@ public:
     void previous();
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
+    // See AudioPlayer::setEdges() and setOutput().
+    void setEdges(int fadeMs, int settleMs);
+    void setOutput(const QByteArray& output, int openslesFramesPerEnqueue);
 
     // Play modes, kept as the user set them; a radio overrides what it
     // can't do (its queue grows as it plays, so there's no whole list to
@@ -162,6 +168,10 @@ public:
     const QString& currentSourceId() const { return queue_[index_].sourceId; }
     const QVector<QueueEntry>& queue() const { return queue_; }
     int currentIndex() const { return index_; }
+    // Which entry next() (1) or previous() (-1) would go to, changing nothing; -1
+    // if there's none: the end of the list, or where a shuffled list would start
+    // another round, whose order isn't known yet.
+    int neighborIndex(int delta) const;
 
 signals:
     void trackChanged(const Track& track, const QString& sourceId);
@@ -175,6 +185,10 @@ signals:
     // preloading; says what it is (codec, bitrate) for the track's details.
     void streamResolved(const QString& sourceId, const QString& trackId, const StreamDescriptor& stream);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
+    // A source said it can't reach its service.
+    void offlineSeen(const QString& sourceId);
+    // What to say about it: not an error if a view shows that state.
+    void offlineNotice(const QString& message);
     void errorOccurred(QString message);
     // A source said this track can't be played at all (reason "unavailable").
     void trackUnavailable(const QString& sourceId, const QString& trackId);
@@ -246,6 +260,9 @@ private:
     void reportError(const QString& sourceId, const QString& reason, const QString& message);
     // Nothing plays now: shown as paused, Play loads the track again.
     void stopAfterFailure();
+    // The track can't be started for lack of a network: on to the next one
+    // that's on disk, or paused here.
+    void goOnOffline(int index, const QString& sourceId);
     // The first track after `from`, in play order, that isn't known to be
     // unavailable — and, with `downloadedOnly`, is downloaded; -1 if none
     // (or if skipping has already gone through the whole queue without a
@@ -322,6 +339,8 @@ private:
     QTimer* playTimeoutTimer_ = nullptr;
     int startTimeoutMs_ = 10000;
     qint64 lastKnownPositionMs_ = 0;
+    QString resumeTrackId_;
+    qint64 resumePositionMs_ = 0;
     qint64 lastKnownDurationMs_ = 0;
     // What mpv has read ahead: all there is to show for a stream it
     // fetches itself (no download of ours).

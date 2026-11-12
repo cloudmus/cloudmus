@@ -1,7 +1,7 @@
 [project]
 name = "cloudmus-backend-local-folder"
 version = "0.1.0"
-description = "cloudmus backend: plays music from a local directory tree (subfolders as playlists)"
+description = "CloudMus backend: plays music from a local directory tree (subfolders as playlists)"
 requires-python = ">=3.11"
 dependencies = [
     "cloudmus-rpc-common",

@@ -5,6 +5,7 @@ jsonrpc.make_error and are not redefined here.
 """
 from __future__ import annotations
 
+import socket
 from typing import Any
 
 # 1000-1099: auth errors
@@ -36,6 +37,27 @@ class OfflineError(Exception):
     """A backend's stream resolution failed because its service can't be
     reached at all (no network, DNS down) — as opposed to the service
     answering "no". Maps to UPSTREAM_UNREACHABLE with reason "offline"."""
+
+
+def is_offline_failure(exc: BaseException) -> bool:
+    """Whether the service couldn't be reached at all, judging by the exception
+    or what it wraps (a library's own error around a failed connection). A
+    reply with an HTTP error is the service answering, and files aren't the
+    network."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, (OfflineError, ConnectionError, TimeoutError, socket.gaierror)):
+            return True
+        if (
+            isinstance(current, OSError)
+            and type(current).__module__.split(".")[0] in ("requests", "urllib3")
+            and getattr(current, "response", None) is None
+        ):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
 
 
 def app_error_data(

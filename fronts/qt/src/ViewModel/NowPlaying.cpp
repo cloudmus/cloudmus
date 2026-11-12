@@ -6,7 +6,9 @@
 #include <QEasingCurve>
 #include <QJsonObject>
 #include <QLoggingCategory>
+#include <QUrl>
 
+#include "CoverArtCache.h"
 #include "Downloads.h"
 #include "Messages.h"
 #include "PlaybackController.h"
@@ -21,6 +23,9 @@ namespace ViewModel {
 
 namespace {
 Q_LOGGING_CATEGORY(lcNowPlaying, "cloudmus.viewmodel.nowplaying")
+
+// Fine enough for a seek bar, rare enough for a replica.
+constexpr int kPositionIntervalMs = 250;
 }
 
 NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
@@ -34,7 +39,15 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
     , settings_(settings)
     , downloads_(downloads)
     , messages_(messages)
+    , positionThrottle_(kPositionIntervalMs, [this] {
+        emit positionMsChanged();
+        emit durationMsChanged();
+    })
 {
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::likedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::likeSupportedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::dislikedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::dislikeSupportedChanged);
     // The saved volume and play modes, applied to playback itself — mpv
     // otherwise starts at its own default (max) volume.
     volume_ = settings_.volume();
@@ -52,14 +65,14 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
 
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, [this]() {
         resetBusy();
-        emit trackChanged();
+        emitTrackChanged();
         emit feedbackChanged();
     });
     connect(&playback_, &Playback::PlaybackController::currentTrackAvailabilityChanged, this, [this](bool available) {
         if (available)
             return; // trackChanged() follows right away
         resetBusy();
-        emit trackChanged();
+        emitTrackChanged();
         emit feedbackChanged();
     });
     connect(&playback_, &Playback::PlaybackController::playingChanged, this, &NowPlaying::playingChanged);
@@ -67,8 +80,16 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
         loading_ = loading;
         emit loadingChanged(loading);
     });
-    connect(&playback_, &Playback::PlaybackController::positionChanged, this, &NowPlaying::positionChanged);
-    connect(&playback_, &Playback::PlaybackController::bufferedChanged, this, &NowPlaying::bufferedChanged);
+    connect(&playback_, &Playback::PlaybackController::positionChanged, this,
+        [this](qint64 positionMs, qint64 durationMs) {
+            durationMs_ = durationMs;
+            emit positionChanged(positionMs, durationMs);
+            positionThrottle_.trigger();
+        });
+    connect(&playback_, &Playback::PlaybackController::bufferedChanged, this, [this](qint64 bufferedMs) {
+        bufferedMs_ = bufferedMs;
+        emit bufferedChanged(bufferedMs);
+    });
     connect(&playback_, &Playback::PlaybackController::queueAvailabilityChanged, this,
         &NowPlaying::queueAvailabilityChanged);
     // However they were changed — here, or over MPRIS — play modes are
@@ -77,6 +98,9 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
         settings_.setShuffle(playback_.shuffle());
         settings_.setRepeatMode(playback_.repeatMode());
         emit playModesChanged();
+        emit shuffleChanged();
+        emit radioChanged();
+        emit repeatChanged();
     });
     connect(
         &trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
@@ -116,13 +140,131 @@ bool NowPlaying::playing() const { return playback_.isPlaying(); }
 
 bool NowPlaying::queueAvailable() const { return playback_.hasQueue(); }
 
-void NowPlaying::togglePause() { playback_.togglePause(); }
+QString NowPlaying::title() const { return hasTrack() ? track().title : QString(); }
+
+QString NowPlaying::artist() const
+{
+    if (!hasTrack())
+        return { };
+    QStringList names;
+    for (const Artist& artist : track().artists)
+        names.append(artist.name);
+    return names.join(QStringLiteral(", "));
+}
+
+QString NowPlaying::coverSource() const
+{
+    if (!hasTrack())
+        return { };
+    return track().coverUrl.value_or(track().album ? track().album->coverUrl.value_or(QString()) : QString());
+}
+
+QString NowPlaying::coverUrl() const
+{
+    if (covers_ == nullptr)
+        return { };
+    const QString file = covers_->localFile(coverSource());
+    return file.isEmpty() ? QString() : QUrl::fromLocalFile(file).toString();
+}
+
+QString NowPlaying::backgroundSeed(const Track& track)
+{
+    return track.album && !track.album->title.isEmpty() ? track.album->title : track.title;
+}
+
+void NowPlaying::setCovers(Covers::CoverArtCache* covers)
+{
+    covers_ = covers;
+    connect(covers_, &Covers::CoverArtCache::pixmapReady, this, [this](const QString& url) {
+        if (url == coverSource())
+            emit coverUrlChanged();
+    });
+}
+
+void NowPlaying::updateTrackDirection()
+{
+    if (!hasTrack())
+        return;
+    // By where the last track is in the queue now, not by the indexes as they
+    // were: a radio drops what it has played, which moves them. Gone from the
+    // queue, it was played long ago.
+    const QVector<Playback::QueueEntry>& queue = playback_.queue();
+    const int current = playback_.currentIndex();
+    int last = -1;
+    for (int i = 0; i < queue.size(); ++i) {
+        if (queue[i].sourceId == lastSourceId_ && queue[i].track.id == lastTrackId_) {
+            last = i;
+            break;
+        }
+    }
+    int direction = last >= 0 && current < last ? -1 : 1;
+    // Around the end of a list that repeats, a step is a step.
+    if (playback_.repeatMode() == Playback::RepeatMode::All && queue.size() > 2) {
+        if (last == queue.size() - 1 && current == 0)
+            direction = 1;
+        else if (last == 0 && current == queue.size() - 1)
+            direction = -1;
+    }
+    lastSourceId_ = playback_.currentSourceId();
+    lastTrackId_ = track().id;
+    if (direction != trackDirection_) {
+        trackDirection_ = direction;
+        emit trackDirectionChanged();
+    }
+}
+
+void NowPlaying::emitTrackChanged()
+{
+    durationMs_ = 0; // until the new track's position says
+    updateTrackDirection();
+    emit trackChanged();
+    emit hasTrackChanged();
+    emit titleChanged();
+    emit artistChanged();
+    emit coverUrlChanged();
+    emit backgroundSeedChanged();
+    emit webUrlChanged();
+    emit durationMsChanged();
+}
+
+qint64 NowPlaying::durationMs() const
+{
+    if (durationMs_ > 0)
+        return durationMs_;
+    return hasTrack() ? track().durationMs : 0;
+}
+
+void NowPlaying::play()
+{
+    if (!playback_.hasCurrentTrack())
+        emit resumeRequested();
+    else if (!playing())
+        playback_.togglePause();
+}
+
+void NowPlaying::pause()
+{
+    if (playing())
+        playback_.togglePause();
+}
+
+void NowPlaying::togglePause()
+{
+    if (playback_.hasCurrentTrack())
+        playback_.togglePause();
+    else
+        emit resumeRequested();
+}
 
 void NowPlaying::next() { playback_.next(); }
 
 void NowPlaying::previous() { playback_.previous(); }
 
-void NowPlaying::stop() { playback_.stop(); }
+void NowPlaying::stop()
+{
+    playback_.stop();
+    emit stopped();
+}
 
 void NowPlaying::seek(qint64 positionMs) { playback_.seek(positionMs); }
 
@@ -179,6 +321,19 @@ bool NowPlaying::shuffle() const { return playback_.shuffleActive(); }
 Playback::RepeatMode NowPlaying::repeatMode() const { return playback_.effectiveRepeatMode(); }
 
 bool NowPlaying::isRadio() const { return playback_.isRadio(); }
+
+Playback::RepeatMode NowPlaying::nextRepeatMode(Playback::RepeatMode mode, bool radio)
+{
+    using Playback::RepeatMode;
+    if (mode == RepeatMode::Off)
+        return radio ? RepeatMode::One : RepeatMode::All;
+    return mode == RepeatMode::All ? RepeatMode::One : RepeatMode::Off;
+}
+
+void NowPlaying::toggleShuffle() { setShuffle(!shuffle()); }
+
+void NowPlaying::cycleRepeat() { setRepeatMode(nextRepeatMode(repeatMode(), isRadio())); }
+
 
 void NowPlaying::setShuffle(bool on) { playback_.setShuffle(on); }
 

@@ -2,7 +2,8 @@
 
 A release is an annotated `x.y.z` tag. Pushing it runs
 `.github/workflows/release.yml`, which builds the AppImage, the Windows NSIS
-installer and the macOS DMGs (x86_64 and arm64), and publishes them on the
+installer, the macOS DMGs (x86_64 and arm64) and the Android APK (arm64-v8a),
+and publishes them on the
 GitHub release with the tag's message as its release notes. The app's
 version (shown in the About dialog) comes from the same tag via
 `git describe` (`fronts/qt/cmake/Version.cmake`).
@@ -36,6 +37,14 @@ prereleases are never offered.
 The DMGs are signed ad hoc, not with a Developer ID: the first start of a
 downloaded copy needs System Settings → Privacy & Security → Open Anyway
 (the release notes may say so). Updates installed by the app itself don't.
+
+The APK (`CloudMus-<v>-arm64-v8a.apk`) has no updater: it's installed by hand,
+over the old one. Every build, of a release or not, is signed with the one key
+from the secrets `CLOUDMUS_ANDROID_KEYSTORE_BASE64`, `CLOUDMUS_ANDROID_KEY_ALIAS`
+and `CLOUDMUS_ANDROID_KEYSTORE_PASSWORD`, and fails without them: Android won't
+update an app from an APK signed with another key, so losing this one means
+everyone reinstalls and signs in again. Keep a copy of it outside GitHub.
+The APK has no crash reports or usage statistics yet.
 
 ## Changelog
 

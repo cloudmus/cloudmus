@@ -127,8 +127,20 @@ int Settings::lastActiveTrackIndex() const
     return settings_.value(QStringLiteral("playback/activeTrackIndex"), -1).toInt();
 }
 
+qint64 Settings::lastActivePositionMs() const
+{
+    return settings_.value(QStringLiteral("playback/activePositionMs"), 0).toLongLong();
+}
+
+void Settings::setLastActivePositionMs(qint64 positionMs)
+{
+    settings_.setValue(QStringLiteral("playback/activePositionMs"), positionMs);
+}
+
 void Settings::setLastActiveTrack(const QString& trackId, int index)
 {
+    if (trackId != lastActiveTrackId())
+        settings_.setValue(QStringLiteral("playback/activePositionMs"), 0);
     settings_.setValue(QStringLiteral("playback/activeTrackId"), trackId);
     settings_.setValue(QStringLiteral("playback/activeTrackIndex"), index);
 }

@@ -122,6 +122,7 @@ Preload::Preload(Playback::PlaybackController& playback, Config::Settings& setti
     connect(&playback_.preloader(), &Playback::Preloader::progressChanged, this, &Preload::refresh);
     connect(&playback_.preloader(), &Playback::Preloader::trackStateChanged, this, &Preload::trackChanged);
     connect(&playback_.trackCache(), &Playback::TrackCache::changed, this, &Preload::cacheUsedChanged);
+    connect(&playback_.trackCache(), &Playback::TrackCache::spaceChanged, this, &Preload::spaceWarningChanged);
     refresh();
 }
 
@@ -164,6 +165,21 @@ void Preload::setCacheMaxMb(int megabytes)
 qint64 Preload::cacheUsedBytes() const { return playback_.trackCache().totalBytes(); }
 
 void Preload::clearCache() { playback_.trackCache().clear(); }
+
+QString Preload::spaceWarning() const
+{
+    const Playback::TrackCache& cache = playback_.trackCache();
+    const qint64 free = qMax(qint64(0), cache.freeBytes()) / kMegabyte;
+    switch (cache.space()) {
+        case Playback::TrackCache::Space::Fine:
+            return { };
+        case Playback::TrackCache::Space::Low:
+            return tr("Only %1 MB left on the disk: tracks aren't downloaded ahead, and old ones are removed.").arg(free);
+        case Playback::TrackCache::Space::Critical:
+            break;
+    }
+    return tr("Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.").arg(free);
+}
 
 QAbstractItemModel* Preload::upcoming() const { return model_; }
 

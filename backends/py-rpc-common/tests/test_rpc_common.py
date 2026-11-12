@@ -1,14 +1,39 @@
 import asyncio
 
-import pytest
+import socket
 
-from rpc_common import jsonrpc, models
+import pytest
+import requests
+
+from rpc_common import errors, jsonrpc, models
 from rpc_common.testing import (
     ScriptedBackend,
     make_duplex_pair,
     self_playback_fixture,
     stream_ready_race_fixture,
 )
+
+
+def test_only_a_failure_to_reach_the_service_counts_as_offline():
+    class LibraryError(Exception):
+        pass
+
+    def wrapped(cause):
+        try:
+            try:
+                raise cause
+            except Exception as inner:
+                raise LibraryError("failed") from inner
+        except LibraryError as outer:
+            return outer
+
+    assert errors.is_offline_failure(wrapped(ConnectionError("refused")))
+    assert errors.is_offline_failure(wrapped(TimeoutError()))
+    assert errors.is_offline_failure(wrapped(socket.gaierror("no such host")))
+    assert errors.is_offline_failure(wrapped(requests.ConnectionError("no route")))
+    assert not errors.is_offline_failure(wrapped(ValueError("bad")))
+    assert not errors.is_offline_failure(wrapped(FileNotFoundError("gone")))
+    assert not errors.is_offline_failure(wrapped(requests.HTTPError("500", response=requests.Response())))
 
 
 def test_jsonrpc_envelopes():

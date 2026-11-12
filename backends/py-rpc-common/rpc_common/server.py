@@ -15,7 +15,7 @@ import sys
 import time
 from typing import Any, Awaitable, Callable, NoReturn
 
-from . import jsonrpc, transport
+from . import errors, jsonrpc, transport
 from .i18n import Translator
 
 logger = logging.getLogger(__name__)
@@ -169,6 +169,19 @@ class BackendServer:
                     jsonrpc.make_error(request_id, exc.code, exc.message, exc.data)
                 )
         except Exception as exc:  # noqa: BLE001 - must never crash the stdio loop
+            if errors.is_offline_failure(exc):
+                # No network is no bug, and the front has its own way of it.
+                logger.warning("<- %s id=%s offline: %s", method_name, request_id, exc)
+                if request_id is not None:
+                    await writer.send(
+                        jsonrpc.make_error(
+                            request_id,
+                            errors.UPSTREAM_UNREACHABLE,
+                            str(exc),
+                            errors.app_error_data(retryable=True, reason=errors.REASON_OFFLINE),
+                        )
+                    )
+                return
             logger.exception("unhandled error in %s id=%s", method_name, request_id)
             if request_id is not None:
                 await writer.send(jsonrpc.make_error(request_id, -32603, str(exc)))

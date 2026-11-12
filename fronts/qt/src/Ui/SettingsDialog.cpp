@@ -49,6 +49,7 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, App::Analytics& analy
     : QDialog(parent)
     , settings_(settings)
     , sourceManager_(sourceManager)
+    , sourceSettings_(sourceManager, settings)
 {
     setWindowTitle(tr("Settings"));
     setProperty("themed", true); // see StyleSheet.cpp's dialogsBlock() for why
@@ -93,11 +94,11 @@ SettingsDialog::SettingsDialog(Config::Settings& settings, App::Analytics& analy
     addPage(new Settings::HotkeysPage(hotkeys, this));
     // Ahead of the sources: applied first, so a proxy added and picked by
     // a source in the same Apply exists by the time the source saves it.
-    auto* network = new Settings::NetworkPage(settings_, sourceManager, *toastNotifier_, restarts_, this);
+    auto* network = new Settings::NetworkPage(settings_, sourceSettings_, *toastNotifier_, restarts_, this);
     addPage(network);
     for (const Rpc::BackendManifest& manifest : sourceManager.manifests()) {
         auto* page = new Settings::SourcePage(
-            settings_, sourceManager, authStates, *toastNotifier_, restarts_, manifest, this);
+            settings_, sourceManager, sourceSettings_, authStates, *toastNotifier_, restarts_, manifest, this);
         connect(network, &Settings::NetworkPage::draftChanged, page,
             [page, network]() { page->setProxyChoices(network->draft()); });
         addPage(page);

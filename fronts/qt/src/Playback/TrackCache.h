@@ -1,10 +1,14 @@
 #pragma once
 
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QHash>
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QTimer>
+
+#include <functional>
 
 namespace Playback {
 
@@ -15,10 +19,22 @@ namespace Playback {
 //
 // There is no index file: the directory is the index, a file's
 // modification time is when it was last played.
+//
+// It also watches the disk (see DiskSpace.h), whoever is filling it: tracks not
+// pinned go first, whatever the limit, until there's room again.
 class TrackCache : public QObject {
     Q_OBJECT
 
 public:
+    enum class Space {
+        Fine,
+        // Nothing is downloaded ahead; what's cached and not pinned goes.
+        Low,
+        // Nothing is downloaded at all, the playing track included.
+        Critical,
+    };
+    Q_ENUM(Space)
+
     explicit TrackCache(const QString& directory, QObject* parent = nullptr);
 
     static QString keyFor(const QString& sourceId, const QString& trackId);
@@ -42,9 +58,18 @@ public:
     // Never evicted, whatever the limit: what plays and what is about to.
     void setPinned(const QSet<QString>& keys);
 
+    Space space() const { return space_; }
+    qint64 freeBytes() const;
+    // A look at the disk now, unless there was one a moment ago: for what's
+    // writing to it. Bytes come fast enough for a timer to be too late.
+    void writing();
+    // For a test: where freeBytes() comes from.
+    void setFreeSpaceProvider(std::function<qint64()> provider);
+
 signals:
     // Something was added or removed.
     void changed();
+    void spaceChanged();
 
 private:
     struct Entry {
@@ -55,12 +80,18 @@ private:
     QString filePath(const QString& key) const;
     void trim();
     bool removeFile(const QString& key);
+    void checkSpace();
+    bool wantsRoom() const;
 
     QString directory_;
     QHash<QString, Entry> entries_;
     QSet<QString> pinned_;
     qint64 totalBytes_ = 0;
     qint64 maxBytes_ = qint64(1024) * 1024 * 1024;
+    Space space_ = Space::Fine;
+    std::function<qint64()> freeSpaceProvider_;
+    QTimer spaceTimer_;
+    QElapsedTimer lastSpaceCheck_;
 };
 
 } // namespace Playback

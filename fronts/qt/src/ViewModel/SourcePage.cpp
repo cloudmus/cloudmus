@@ -32,6 +32,20 @@ void SourcePage::submit(const QString& sourceId, const QJsonObject& fields)
                                                                       .detach();
 }
 
+bool SourcePage::wake(const QString& sourceId) { return sourceSession_.wake(sourceId); }
+
+bool SourcePage::canSignOut(const QString& sourceId) const { return sourceSession_.canSignOut(sourceId); }
+
+void SourcePage::signOut(const QString& sourceId)
+{
+    [](SourcePage* self, QString sourceId) -> Rpc::Task<void> {
+        self->setBusy(sourceId, true);
+        co_await self->sourceSession_.signOut(sourceId);
+        self->setBusy(sourceId, false);
+    }(this, sourceId)
+                                                  .detach();
+}
+
 void SourcePage::setBusy(const QString& sourceId, bool busy)
 {
     if (busy == busy_.contains(sourceId))

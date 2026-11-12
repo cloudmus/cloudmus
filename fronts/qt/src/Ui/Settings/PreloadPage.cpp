@@ -85,6 +85,17 @@ QWidget* PreloadPage::createWidget(QWidget* parent)
     pageLayout->setSpacing(Theme::Spacing::space3);
     pageLayout->addWidget(hint);
     pageLayout->addLayout(form);
+    auto* spaceWarning = new QLabel(page);
+    spaceWarning->setProperty("error", true);
+    spaceWarning->setFont(Theme::font(Theme::TextStyle::BodySecondary));
+    spaceWarning->setWordWrap(true);
+    const auto showSpaceWarning = [this, spaceWarning]() {
+        spaceWarning->setText(preload_.spaceWarning());
+        spaceWarning->setVisible(!spaceWarning->text().isEmpty());
+    };
+    connect(&preload_, &ViewModel::Preload::spaceWarningChanged, spaceWarning, showSpaceWarning);
+    showSpaceWarning();
+    pageLayout->addWidget(spaceWarning);
     return page;
 }
 

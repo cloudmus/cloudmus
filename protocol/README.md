@@ -1,6 +1,6 @@
-# cloudmus protocol: schema-first source of truth
+# CloudMus protocol: schema-first source of truth
 
-This directory is the machine-readable source of truth for the cloudmus
+This directory is the machine-readable source of truth for the CloudMus
 front/backend JSON-RPC protocol. `docs/protocol.md` is still the normative
 prose reference (if they disagree, `docs/protocol.md` wins — update this
 directory to match, not the other way around), but the actual data shapes

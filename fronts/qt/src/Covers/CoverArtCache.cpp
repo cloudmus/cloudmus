@@ -1,22 +1,35 @@
 #include "CoverArtCache.h"
 
+#include <QCryptographicHash>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QImage>
+#include <QLoggingCategory>
 #include <QNetworkDiskCache>
 #include <QNetworkProxyFactory>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QUrl>
 
+#include "DiskSpace.h"
 #include "ProxyRouting.h"
 
 namespace Covers {
 
 namespace {
+
+Q_LOGGING_CATEGORY(lcCovers, "cloudmus.covers")
 constexpr int kMaxRedirects = 5;
 // Enough for a screenful of ordinary covers; a huge one (embedded art of a
 // local file can be tens of megabytes decoded) is simply not kept.
 constexpr int kSourceCacheBytes = 24 * 1024 * 1024;
+// Each is a picture of a track or playlist, kept for the other process and for
+// browsers to read; only the mobile front asks for any.
+constexpr qint64 kFilesMaxBytes = qint64(200) * 1024 * 1024;
+constexpr int kFilesTrimDelayMs = 30000;
 } // namespace
 
 // Asks the cache, per request, which proxy that URL's source uses —
@@ -46,8 +59,49 @@ CoverArtCache::CoverArtCache(QObject* parent)
     diskCache->setCacheDirectory(
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/covers"));
     network_.setCache(diskCache);
+    filesDir_ = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/cover-files");
     memoryCache_.setMaxCost(64);
     sourceCache_.setMaxCost(kSourceCacheBytes);
+    // Later: a long listing, at a start that has more pressing things to do.
+    QTimer::singleShot(kFilesTrimDelayMs, this, [this]() { trimFiles(); });
+}
+
+void CoverArtCache::trimFiles()
+{
+    // They come back by themselves when wanted, and nothing else bounds them.
+    QFileInfoList files = QDir(filesDir_).entryInfoList(QDir::Files, QDir::Time);
+    qint64 total = 0;
+    for (const QFileInfo& file : files) {
+        total += file.size();
+        if (total > kFilesMaxBytes)
+            QFile::remove(file.filePath());
+    }
+}
+
+QString CoverArtCache::localFile(const QString& url)
+{
+    if (url.isEmpty())
+        return { };
+    const QString name = QString::fromLatin1(QCryptographicHash::hash(url.toUtf8(), QCryptographicHash::Sha1).toHex());
+    const QString file = filesDir_ + QLatin1Char('/') + name + QStringLiteral(".jpg");
+    if (QFile::exists(file))
+        return file;
+    const QImage* image = sourceCache_.object(url);
+    if (image == nullptr) {
+        request(url);
+        return { };
+    }
+    if (!Playback::DiskSpace::hasRoom(filesDir_))
+        return { };
+    QDir().mkpath(filesDir_);
+    // Written whole under another name: the other process may read it at once.
+    const QString partial = file + QStringLiteral(".part");
+    if (!image->save(partial, "JPG", 90) || !QFile::rename(partial, file)) {
+        qCWarning(lcCovers) << "can't write the cover to" << file;
+        QFile::remove(partial);
+        return { };
+    }
+    return file;
 }
 
 QString CoverArtCache::cacheKey(const QString& url, QSize targetSize)
@@ -144,12 +198,16 @@ void CoverArtCache::fetch(const QString& url, const QUrl& requestUrl, int redire
             return;
         }
         const QList<QSize> sizes = inFlight_.take(url);
-        if (reply->error() != QNetworkReply::NoError)
+        if (reply->error() != QNetworkReply::NoError) {
+            qCWarning(lcCovers) << "fetching" << url << "failed:" << reply->errorString();
             return;
+        }
 
         QImage full;
-        if (!full.loadFromData(reply->readAll()))
+        if (!full.loadFromData(reply->readAll())) {
+            qCWarning(lcCovers) << "can't decode the cover" << url;
             return;
+        }
         for (const QSize& size : sizes)
             store(url, size, full);
         // After the sizes above: an insert that doesn't fit deletes the image.

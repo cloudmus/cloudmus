@@ -124,6 +124,8 @@ public:
     // Updates a playlist row's stored trackCount after an add/remove.
     void setPlaylistTrackCount(const QString& sourceId, const QString& playlistId, int trackCount);
     QString sourceIconPath(const QString& sourceId) const { return sourceIconPaths_.value(sourceId); }
+    // As the source calls itself (the rows show it in capitals).
+    QString sourceName(const QString& sourceId) const { return sourceNames_.value(sourceId); }
     bool isSourceLoading(const QString& sourceId) const;
 
     // Marks the active playlist's row (clearing the previous one). History
@@ -154,6 +156,7 @@ private:
     void refreshActiveMarks(QStandardItem* parent);
 
     QHash<QString, QString> sourceIconPaths_;
+    QHash<QString, QString> sourceNames_;
     QHash<QString, QList<Playlist>> playlists_;
     QHash<QString, QStringList> favorites_; // only sources with the user's own list
     QString activeSourceId_;

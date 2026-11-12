@@ -1,6 +1,8 @@
 #include <QFile>
 #include <QSignalSpy>
 #include <QStandardPaths>
+#include <QDir>
+#include <QTemporaryDir>
 #include <QTest>
 
 #include "AuthStates.h"
@@ -52,6 +54,10 @@ private slots:
         // (the test-mode location, see main.cpp).
         QFile::remove(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
             + QStringLiteral("/cloudmus/fronts/qt/config.ini"));
+        if (!keepLists_)
+            QDir(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+                + QStringLiteral("/cloudmus/fronts/qt/playlists"))
+                .removeRecursively();
         settings_ = std::make_unique<Config::Settings>();
         sourceManager_ = std::make_unique<Rpc::SourceManager>();
         playback_ = std::make_unique<Playback::PlaybackController>(*sourceManager_);
@@ -60,6 +66,57 @@ private slots:
         editing_ = std::make_unique<App::PlaylistEditing>(*sourceManager_, messages_);
         sources_ = std::make_unique<ViewModel::Sources>(
             *sourceManager_, *session_, authStates_, *editing_, coverArtCache_, *settings_, messages_);
+    }
+
+    // With no network a source keeps what it listed, from the last run too,
+    // and it's not an error; a listing that works again replaces it.
+    void theListOutlivesALostNetwork()
+    {
+        QTemporaryDir dir;
+        const QString down = dir.filePath(QStringLiteral("down"));
+        qputenv("CLOUDMUS_FAKE_OFFLINE_FILE", down.toUtf8());
+        messages_.setOfflineShownElsewhere(true);
+        const QString fake = QStringLiteral("fake");
+
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        const qsizetype listed = sources_->playlists(fake).size();
+        QVERIFY(listed > 0);
+
+        // Gone for a running source.
+        QFile(down).open(QIODevice::WriteOnly);
+        QSignalSpy failed(sources_.get(), &ViewModel::Sources::listingFailedWith);
+        QSignalSpy posted(&messages_, &ViewModel::Messages::posted);
+        loaded.clear();
+        sources_->refresh(fake);
+        QVERIFY(loaded.wait(10000));
+        QCOMPARE(sources_->playlists(fake).size(), listed);
+        QCOMPARE(failed.size(), 1);
+        QVERIFY(failed.first().at(1).toBool());
+        QVERIFY(sources_->listingFailed(fake));
+        QCOMPARE(posted.size(), 0);
+
+        // And for the next run, from the start.
+        cleanup();
+        keepLists_ = true;
+        init();
+        keepLists_ = false;
+        loaded.clear();
+        QSignalSpy reloaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QTRY_COMPARE(sources_->playlists(fake).size(), listed);
+        QVERIFY(reloaded.wait(10000));
+        QCOMPARE(sources_->playlists(fake).size(), listed);
+
+        // Back.
+        QFile::remove(down);
+        QSignalSpy succeeded(sources_.get(), &ViewModel::Sources::listingSucceeded);
+        sources_->refresh(fake);
+        QVERIFY(succeeded.wait(10000));
+        QVERIFY(!sources_->listingFailed(fake));
+        qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
+        messages_.setOfflineShownElsewhere(false);
     }
 
     void cleanup()
@@ -120,6 +177,7 @@ private slots:
     }
 
 private:
+    bool keepLists_ = false;
     void startAndLoad()
     {
         QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);

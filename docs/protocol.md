@@ -1,4 +1,4 @@
-# cloudmus Source/Front RPC Protocol
+# CloudMus Source/Front RPC Protocol
 
 **Version:** `1.12` (see §12 for versioning rules)
 
@@ -740,6 +740,11 @@ When a source cannot produce the stream of a track — in the response of
     not help.
   - `"offline"` (with `1200`): the source cannot reach its service —
     there is no network. The track itself may well be fine.
+
+The same `data.reason: "offline"` with `1200` can come in the Error Response
+to any request a source can't serve without its service (`catalog.*`,
+`playback.play`). The front keeps what it has of the source (its playlists),
+and asks again once there may be a network.
 
 A front reacts without a retry loop of its own: for `unavailable` it tells
 the user and moves on to the next track; for `offline` it tells the user

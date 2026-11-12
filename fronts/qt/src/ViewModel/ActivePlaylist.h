@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Throttle.h"
+
 #include <QObject>
 #include <QVector>
 
@@ -38,6 +40,10 @@ class Sources;
 // at once, and the source catches up behind it.
 class ActivePlaylist : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString title READ title NOTIFY titleChanged)
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(bool loading READ isLoading NOTIFY loadingChanged)
+    Q_PROPERTY(bool startingRadio READ isStartingRadio NOTIFY startingRadioChanged)
 
 public:
     ActivePlaylist(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
@@ -46,6 +52,8 @@ public:
         QObject* parent = nullptr);
 
     const PlaylistContext& context() const { return context_; }
+    QString title() const { return context_.isHistory ? tr("History") : context_.playlist.title; }
+    int count() const { return int(entries().size()); }
     // History, as a context.
     PlaylistContext historyContext() const;
     // What the main list shows: the queue once there is one, else the
@@ -55,6 +63,10 @@ public:
     int resumeIndex() const;
     // The saved song, when it is still present in the restored playlist.
     std::optional<Playback::QueueEntry> savedEntry() const;
+    // How long what's saved may stand after the start before it's refreshed
+    // from its source, for that not to compete with what's coming up on screen
+    // and in the speakers. Call before the source lists its playlists.
+    void setRefreshDelay(int ms) { refreshDelayMs_ = ms; }
     // Its tracks are being fetched (the list's busy bar).
     bool isLoading() const { return loading_; }
     // A radio is starting (the hero's Play button spins).
@@ -70,14 +82,21 @@ public:
     // Starts a radio from `seed` and, once it runs, makes `context` active.
     Rpc::Task<void> startRadio(
         QString sourceId, QString seed, PlaylistContext context, std::optional<Track> resumeTrack = std::nullopt);
+
+public slots:
     // The hero's Play: (re)starts the active playlist.
     void play();
+    // Whatever was playing last goes on: from the disk if it's there, else
+    // as soon as the source and the tracks are.
+    void resume();
     // A row of the main list played.
     void playRow(int row);
 
 signals:
     void contextChanged();
     void entriesChanged();
+    void titleChanged();
+    void countChanged();
     void loadingChanged(bool loading);
     void startingRadioChanged(bool starting);
     // Something started playing from here — the sheet steps aside.
@@ -90,9 +109,14 @@ private:
     // Plays the restored playlist from its saved song, once, if a resume
     // is still pending and nothing else has started meanwhile.
     void resumePlayback();
+    // The track started next goes on from where it was left.
+    void resumePosition();
+    void savePosition();
     // At startup: plays the saved song from what is on disk already, with
     // no wait for its source — see the constructor.
     void resumeFromCache();
+    // The saved tracks of a radio, from the saved one, with no station yet.
+    void playSavedRadio();
     // A radio resumed without its station gets one, once its source is up.
     Rpc::Task<void> attachStation(QString sourceId, QString seed);
     // What a station is started with: its seed, and the source's tracks
@@ -118,6 +142,10 @@ private:
     bool startingRadio_ = false;
     // The active playlist saved last run, until its source lists it.
     Config::Settings::ActivePlaylistRef pendingRestore_;
+    // tracks_ are the saved ones: loading them anew failed.
+    bool tracksStale_ = false;
+    Timing::Throttle positionSave_;
+    int refreshDelayMs_ = 0;
     // The restored playlist is to play once it's back (resumePlayback()).
     bool resumePending_ = false;
     quint64 likesRefreshGeneration_ = 0;

@@ -1,4 +1,4 @@
-# Agent instructions — cloudmus
+# Agent instructions — CloudMus
 
 Music player: **fronts** (UI) and **backends** (one process per music
 service) talking JSON-RPC 2.0 over stdin/stdout, framed as NDJSON.
@@ -15,6 +15,7 @@ Details: `docs/development.md`. Before touching `fronts/qt/`, read
 | `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11 |
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
 | `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
+| `fronts/mobile/` | Mobile front MVP (Android APK + Linux debug build); `docs/android.md` | C++20, Qt 6.7, QML, Media3 |
 | `packaging/appimage/`, `build-appimage.sh` | AppImage build in Docker | |
 | `packaging/appimage/apprun/` | The AppImage's `AppRun`: static launcher that reports failed starts to Sentry | Rust (built in `rust:alpine`) |
 
@@ -59,6 +60,12 @@ in Docker, running under Wine, and what only a real Windows can show.
 ## Conventions
 
 - English everywhere. Match surrounding code; comments explain *why*.
+- The app is called **CloudMus**, spelled exactly so wherever it's written as
+  a name: window and dialog titles, labels, notifications, docs and their
+  headings, comments, package descriptions. Never `Cloudmus` or `cloudmus`.
+  Other spellings stay only in existing technical identifiers, where renaming
+  would break something or lose user data: paths, package and binary names,
+  D-Bus names, env vars, QML module and log tag names, `QSettings` names.
 - New backend: `backends/<service>/` with `manifest.json`, built on
   `py-rpc-common`, passing the conformance suite.
 - Git flow (`docs/development.md`, "Branches and git flow"): work goes to

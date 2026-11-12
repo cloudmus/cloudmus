@@ -10,7 +10,7 @@
 #include <optional>
 
 #include "AuthStates.h"
-#include "Core.h"
+#include "DesktopCore.h"
 #include "Coro.h"
 #include "PlaybackController.h"
 #include "Settings.h"
@@ -45,10 +45,14 @@ namespace ViewModel {
 class SidebarModel;
 }
 
+namespace ViewModel {
+class TrackListModel;
+}
+
 namespace Ui {
 
 class NavItemDelegate;
-class TrackListModel;
+using ViewModel::TrackListModel;
 class TrackRowDelegate;
 class NowPlayingBar;
 class SourcePanel;
@@ -65,7 +69,7 @@ class MainWindow : public QMainWindow {
 public:
     // `core`: everything the window shows and acts on — it outlives the
     // window (see App::Core).
-    explicit MainWindow(App::Core& core, QWidget* parent = nullptr);
+    explicit MainWindow(App::DesktopCore& core, QWidget* parent = nullptr);
     ~MainWindow() override;
 
     // Called by the tray's Quit action — bypasses close-to-tray.
@@ -226,6 +230,7 @@ private:
     ViewModel::ActivePlaylist& activePlaylist_;
     // What's open in the sheet, and signing in from a source's page.
     ViewModel::Browse& browse_;
+    ViewModel::TrackActions& trackActions_;
     ViewModel::SourcePage& sourcePage_;
 
     void repositionTrackListBusyIndicator();

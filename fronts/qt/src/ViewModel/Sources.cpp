@@ -1,7 +1,14 @@
 #include "Sources.h"
 
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QLoggingCategory>
+#include <QSaveFile>
+#include <QUrl>
 
 #include "AuthStates.h"
 #include "CoverArtCache.h"
@@ -41,7 +48,13 @@ Sources::Sources(Rpc::SourceManager& sourceManager, App::SourceSession& sourceSe
         model_.setSourceIconPath(manifest.id, manifest.iconPath);
         logoPaths_.insert(manifest.id, manifest.logoPath);
         model_.setFavorites(manifest.id, settings_.favorites(manifest.id));
-        model_.setSource(manifest.id, manifest.name, { });
+        // What it listed last, until it lists anew: which may be never, with
+        // no network.
+        const QList<Playlist> saved = savedList(manifest.id);
+        for (const Playlist& playlist : saved)
+            coverArtCache_.assignSource(manifest.id, playlist.coverUrl.value_or(QString()));
+        model_.setSource(manifest.id, manifest.name, saved);
+        playlistEditing_.setPlaylists(manifest.id, saved);
         model_.setSourceLoading(manifest.id, manifest.name, true);
         showAuthState(manifest.id);
         emit sourceChanged(manifest.id);
@@ -68,6 +81,7 @@ Sources::Sources(Rpc::SourceManager& sourceManager, App::SourceSession& sourceSe
         if (Rpc::RpcClient* client = sourceManager_.client(sourceId)) {
             model_.setSource(sourceId, client->sourceName(), { });
             playlistEditing_.setPlaylists(sourceId, { });
+            QFile::remove(listFile(sourceId));
             showAuthState(sourceId);
             emit sourceChanged(sourceId);
         }
@@ -97,13 +111,19 @@ Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
     // (1000–1099, docs/protocol.md §9): a not-yet-signed-in source rejects
     // this routinely at startup, and its sign-in prompt already says so.
     QString fetchError;
+    bool failed = false;
+    bool offline = false;
+    bool notSignedIn = false;
     if (shouldFetch) {
         try {
             ListPlaylistsResult result = co_await Rpc::catalogListPlaylists(*client);
             playlists = result.playlists;
         } catch (const Rpc::RpcCallException& e) {
             const int code = e.error().code;
-            if (code < 1000 || code > 1099)
+            notSignedIn = code >= 1000 && code <= 1099;
+            failed = !notSignedIn;
+            offline = e.isOffline();
+            if (!notSignedIn)
                 fetchError = code == -1 ? tr("timed out loading playlists") : QString::fromUtf8(e.what());
             qCWarning(lcSources) << "catalog.listPlaylists failed for" << sourceId << ":" << e.what();
         } catch (const std::exception& e) {
@@ -123,8 +143,22 @@ Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
             // Reported to the user below, like an RpcCallException — a
             // silently empty source looks the same as one with no playlists.
             fetchError = QString::fromUtf8(e.what());
+            failed = true;
             qCWarning(lcSources) << "catalog.listPlaylists failed for" << sourceId << ":" << e.what();
         }
+    }
+    // Once a failure: what's retried with no network shouldn't say so each time.
+    const bool newFailure = failed && !failing_.contains(sourceId);
+    if (failed) {
+        failing_.insert(sourceId);
+        // What it has is still what there is. Signed out, it isn't the user's.
+        playlists = model_.playlistsFor(sourceId);
+    } else {
+        failing_.remove(sourceId);
+        if (notSignedIn)
+            QFile::remove(listFile(sourceId));
+        else if (shouldFetch)
+            saveList(sourceId, playlists);
     }
     for (const Playlist& playlist : playlists)
         coverArtCache_.assignSource(sourceId, playlist.coverUrl.value_or(QString()));
@@ -138,10 +172,19 @@ Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
     // case this call would otherwise silently wipe it back off.
     showAuthState(sourceId);
     model_.setSourceLoading(sourceId, client->sourceName(), false);
-    model_.setSourceFetchError(sourceId, client->sourceName(), !fetchError.isEmpty());
-    if (!fetchError.isEmpty())
-        messages_.error(tr("%1: %2").arg(client->sourceName(), fetchError));
+    model_.setSourceFetchError(sourceId, client->sourceName(), !fetchError.isEmpty() && !offline);
+    if (newFailure) {
+        const QString message = tr("%1: %2").arg(client->sourceName(), fetchError);
+        if (offline)
+            messages_.offline(message);
+        else
+            messages_.error(message);
+    }
     emit sourceChanged(sourceId);
+    if (failed)
+        emit listingFailedWith(sourceId, offline);
+    else if (shouldFetch && !notSignedIn)
+        emit listingSucceeded(sourceId);
     emit playlistsLoaded(sourceId, playlists);
 }
 
@@ -180,10 +223,49 @@ void Sources::removeSource(const QString& sourceId)
     emit sourceRemoved(sourceId);
 }
 
+QString Sources::listFile(const QString& sourceId) const
+{
+    return QFileInfo(settings_.filePath()).absolutePath() + QStringLiteral("/playlists/")
+        + QString::fromLatin1(QUrl::toPercentEncoding(sourceId)) + QStringLiteral(".json");
+}
+
+QList<Playlist> Sources::savedList(const QString& sourceId) const
+{
+    QFile file(listFile(sourceId));
+    if (!file.open(QIODevice::ReadOnly))
+        return { };
+    QList<Playlist> playlists;
+    const QJsonArray rows = QJsonDocument::fromJson(file.readAll()).array();
+    for (const QJsonValue& row : rows) {
+        try {
+            playlists.append(Playlist::fromJson(row.toObject()));
+        } catch (const Rpc::ProtocolParseError&) {
+            continue; // from a version that saved it differently
+        }
+    }
+    return playlists;
+}
+
+void Sources::saveList(const QString& sourceId, const QList<Playlist>& playlists) const
+{
+    QJsonArray rows;
+    for (const Playlist& playlist : playlists)
+        rows.append(playlist.toJson());
+    const QString path = listFile(sourceId);
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QSaveFile file(path);
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(QJsonDocument(rows).toJson(QJsonDocument::Compact));
+        file.commit();
+    }
+}
+
 void Sources::showAuthState(const QString& sourceId)
 {
     const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    const QString sourceName = client != nullptr ? client->sourceName() : sourceId;
+    // A source that isn't running (yet) has its name from its manifest.
+    const QString known = model_.sourceName(sourceId);
+    const QString sourceName = client != nullptr ? client->sourceName() : known.isEmpty() ? sourceId : known;
     model_.setSourceAuthProblem(sourceId, sourceName, authStates_.state(sourceId).hasProblem);
 }
 

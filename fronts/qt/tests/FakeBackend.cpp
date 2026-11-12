@@ -34,6 +34,21 @@ void reply(const QJsonValue& id, const QJsonObject& result)
         { QStringLiteral("result"), result } });
 }
 
+// Switched by a test, while it runs: no network as long as this file exists.
+bool networkIsDown()
+{
+    const QString file = qEnvironmentVariable("CLOUDMUS_FAKE_OFFLINE_FILE");
+    return !file.isEmpty() && QFile::exists(file);
+}
+
+void replyOffline(const QJsonValue& id)
+{
+    send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
+        { QStringLiteral("error"),
+            QJsonObject { { QStringLiteral("code"), 1200 }, { QStringLiteral("message"), QStringLiteral("no network") },
+                { QStringLiteral("data"), QJsonObject { { QStringLiteral("reason"), QStringLiteral("offline") } } } } } });
+}
+
 void replyError(const QJsonValue& id, int code, const QString& message)
 {
     send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
@@ -45,6 +60,48 @@ void notify(const QString& method, const QJsonObject& params)
 {
     send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("method"), method },
         { QStringLiteral("params"), params } });
+}
+
+QJsonObject settingsDescription(const QJsonObject& values)
+{
+    const auto value = [&](const char* key, const QJsonValue& fallback) {
+        return values.contains(QLatin1String(key)) ? values.value(QLatin1String(key)) : fallback;
+    };
+    return {
+        { QStringLiteral("groups"),
+            QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("more") },
+                { QStringLiteral("title"), QStringLiteral("More") },
+                { QStringLiteral("description"), QStringLiteral("More of them") } } } },
+        { QStringLiteral("fields"),
+            QJsonArray {
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("quality") },
+                    { QStringLiteral("label"), QStringLiteral("Quality") }, { QStringLiteral("type"), QStringLiteral("enum") },
+                    { QStringLiteral("default"), QStringLiteral("high") },
+                    { QStringLiteral("value"), value("quality", QStringLiteral("high")) },
+                    { QStringLiteral("options"),
+                        QJsonArray { QJsonObject { { QStringLiteral("value"), QStringLiteral("high") },
+                                         { QStringLiteral("label"), QStringLiteral("High") } },
+                            QJsonObject { { QStringLiteral("value"), QStringLiteral("low") },
+                                { QStringLiteral("label"), QStringLiteral("Low") } } } } },
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("count") },
+                    { QStringLiteral("group"), QStringLiteral("more") }, { QStringLiteral("label"), QStringLiteral("Count") },
+                    { QStringLiteral("type"), QStringLiteral("integer") }, { QStringLiteral("default"), 3 },
+                    { QStringLiteral("value"), value("count", 3) }, { QStringLiteral("min"), 1 }, { QStringLiteral("max"), 9 } },
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("flag") },
+                    { QStringLiteral("group"), QStringLiteral("more") }, { QStringLiteral("label"), QStringLiteral("Flag") },
+                    { QStringLiteral("description"), QStringLiteral("Takes a restart") },
+                    { QStringLiteral("type"), QStringLiteral("boolean") }, { QStringLiteral("default"), false },
+                    { QStringLiteral("value"), value("flag", false) }, { QStringLiteral("restartRequired"), true } },
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("name") },
+                    { QStringLiteral("group"), QStringLiteral("more") }, { QStringLiteral("label"), QStringLiteral("Name") },
+                    { QStringLiteral("type"), QStringLiteral("string") }, { QStringLiteral("default"), QString() },
+                    { QStringLiteral("value"), value("name", QString()) } },
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("token") },
+                    { QStringLiteral("group"), QStringLiteral("more") }, { QStringLiteral("label"), QStringLiteral("Token") },
+                    { QStringLiteral("type"), QStringLiteral("secret") }, { QStringLiteral("default"), QString() },
+                    { QStringLiteral("value"), QJsonValue::Null }, { QStringLiteral("isSet"), values.contains(QStringLiteral("token")) } },
+            } },
+    };
 }
 
 QJsonObject capabilities()
@@ -72,6 +129,14 @@ QJsonObject capabilities()
         { QStringLiteral("auth"),
             QJsonObject { { QStringLiteral("required"), false }, { QStringLiteral("flow"), QStringLiteral("none") } } },
     };
+    // Switched by a test: a source to sign in to.
+    if (qEnvironmentVariable("CLOUDMUS_FAKE_AUTH") == QStringLiteral("1")) {
+        caps.insert(QStringLiteral("auth"),
+            QJsonObject { { QStringLiteral("required"), true }, { QStringLiteral("flow"), QStringLiteral("deviceCode") } });
+    }
+    // Switched by a test: a source with settings of its own.
+    if (qEnvironmentVariable("CLOUDMUS_FAKE_SETTINGS") == QStringLiteral("1"))
+        caps.insert(QStringLiteral("settings"), true);
     // Switched by a test: a source that only reads local files.
     if (qEnvironmentVariable("CLOUDMUS_FAKE_NETWORK") == QStringLiteral("0"))
         caps.insert(QStringLiteral("network"), false);
@@ -109,6 +174,8 @@ int runFakeBackend()
     // until a catalog.cancelDownload for it.
     // The language the front asked for, in initialize or after.
     QString locale = QStringLiteral("en");
+    // settings.update's, for settings.describe. Kept while the process lives.
+    QJsonObject settingValues;
     QJsonValue slowDownloadRequestId;
     QString slowDownloadId;
     int skipCount = 0;
@@ -120,6 +187,33 @@ int runFakeBackend()
         const QJsonValue id = request.value(QStringLiteral("id"));
         if (id.isUndefined())
             continue; // a notification from the front — nothing to answer
+
+        if (networkIsDown() && (method.startsWith(QStringLiteral("catalog.")) || method.startsWith(QStringLiteral("playback.")))) {
+            replyOffline(id);
+            continue;
+        }
+
+        if (method == QStringLiteral("settings.describe")) {
+            reply(id, settingsDescription(settingValues));
+            continue;
+        }
+        if (method == QStringLiteral("settings.update")) {
+            const QJsonObject values
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("values")).toObject();
+            if (values.value(QStringLiteral("name")).toString() == QStringLiteral("bad")) {
+                send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
+                    { QStringLiteral("error"),
+                        QJsonObject { { QStringLiteral("code"), -32602 }, { QStringLiteral("message"), QStringLiteral("invalid") },
+                            { QStringLiteral("data"),
+                                QJsonObject { { QStringLiteral("key"), QStringLiteral("name") },
+                                    { QStringLiteral("message"), QStringLiteral("Not that name") } } } } } });
+                continue;
+            }
+            for (auto it = values.constBegin(); it != values.constEnd(); ++it)
+                settingValues.insert(it.key(), it.value());
+            reply(id, { });
+            continue;
+        }
 
         if (method == QStringLiteral("initialize")) {
             locale = request.value(QStringLiteral("params"))
@@ -337,6 +431,8 @@ int runFakeBackend()
             }
         } else if (method == QStringLiteral("auth.getStatus")) {
             reply(id, { { QStringLiteral("status"), QStringLiteral("authenticated") } });
+        } else if (method == QStringLiteral("auth.logout")) {
+            reply(id, { });
         } else if (method == QStringLiteral("auth.submit")) {
             replyError(id, 1002, QStringLiteral("wrong password"));
         } else if (method == QStringLiteral("shutdown")) {

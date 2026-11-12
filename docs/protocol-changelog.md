@@ -1,9 +1,15 @@
 # Protocol changelog
 
-Tracks changes to the cloudmus front/backend JSON-RPC protocol
+Tracks changes to the CloudMus front/backend JSON-RPC protocol
 (`docs/protocol.md`). See that document §12 for versioning rules: MINOR bumps
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
+
+## Offline in any response (no version change)
+
+- **Additive, no wire change for older fronts** (§9.1): a failed request can
+  carry `data.reason: "offline"` with `1200`, as `error` notifications about
+  a track could. A front that doesn't look at it sees an ordinary error.
 
 ## Requests handled concurrently (no version change)
 

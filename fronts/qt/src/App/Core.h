@@ -4,14 +4,12 @@
 #include <QSet>
 
 #include "ActivePlaylist.h"
+#include "ActiveTracks.h"
 #include "Analytics.h"
 #include "AudioFileProbe.h"
 #include "AudioPulse.h"
 #include "AuthStates.h"
-#include "Browse.h"
 #include "CoverArtCache.h"
-#include "CuePlayer.h"
-#include "Dispatcher.h"
 #include "Downloads.h"
 #include "ListeningTime.h"
 #include "Messages.h"
@@ -19,18 +17,17 @@
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
 #include "PlaylistEditing.h"
+#include "Connectivity.h"
 #include "Preload.h"
 #include "ProxyRouting.h"
-#include "Registry.h"
 #include "Settings.h"
 #include "SourceManager.h"
 #include "SourcePage.h"
+#include "TrackActions.h"
 #include "SourceSession.h"
 #include "Sources.h"
-#include "StarPrompt.h"
 #include "TrackStates.h"
 #include "Translator.h"
-#include "UpdateChecker.h"
 
 namespace App {
 
@@ -38,7 +35,7 @@ namespace App {
 // playback and the state kept about them. Created once in main() and alive
 // for the whole run — the window (and the tray, MPRIS/SMTC, notifications)
 // only use it, so a window can come and go without anything here being
-// lost.
+// lost. Both fronts run this; App::DesktopCore adds what only the desktop has.
 class Core : public QObject {
     Q_OBJECT
 
@@ -60,16 +57,14 @@ public:
     ViewModel::NowPlaying& nowPlaying() { return nowPlaying_; }
     ViewModel::Downloads& downloads() { return downloads_; }
     ViewModel::Preload& preload() { return preload_; }
-    Hotkeys::Registry& hotkeys() { return hotkeys_; }
-    Hotkeys::Dispatcher& hotkeyDispatcher() { return hotkeyDispatcher_; }
     PlaylistEditing& playlistEditing() { return playlistEditing_; }
     ViewModel::Sources& sources() { return sources_; }
     ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
-    ViewModel::Browse& browse() { return browse_; }
+    ViewModel::ActiveTracks& activeTracks() { return activeTracks_; }
+    ViewModel::TrackActions& trackActions() { return trackActions_; }
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
-    Update::UpdateChecker& updates() { return updates_; }
-    StarPrompt& starPrompt() { return starPrompt_; }
     ListeningTime& listeningTime() { return listeningTime_; }
+    Connectivity& connectivity() { return connectivity_; }
 
 private:
     // How a source reaches the network: its setting, except for a source
@@ -96,19 +91,14 @@ private:
     SourceSession sourceSession_;
     ViewModel::Downloads downloads_;
     ViewModel::NowPlaying nowPlaying_;
-    Hotkeys::Registry hotkeys_;
-    Hotkeys::Dispatcher hotkeyDispatcher_;
-    Playback::CuePlayer cuePlayer_;
     PlaylistEditing playlistEditing_;
     ViewModel::Sources sources_;
     ViewModel::ActivePlaylist activePlaylist_;
-    // After activePlaylist_: it restores its page once the active
-    // playlist has restored itself.
-    ViewModel::Browse browse_;
+    ViewModel::ActiveTracks activeTracks_;
+    ViewModel::TrackActions trackActions_;
     ViewModel::SourcePage sourcePage_;
-    Update::UpdateChecker updates_;
-    StarPrompt starPrompt_;
     ListeningTime listeningTime_;
+    Connectivity connectivity_;
 };
 
 } // namespace App

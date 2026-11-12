@@ -75,133 +75,25 @@ else()
     target_link_libraries(cloudmus-mpv INTERFACE PkgConfig::MPV)
 endif()
 
-# --- protocol/codegen: regenerate fronts/qt/generated/ whenever the schema
-# or methods change, before anything tries to #include it. Requires Python +
-# jinja2/pyyaml at configure/build time — see protocol/README.md and the
-# plan's "Generated code: gitignored" note for why this tradeoff was made.
-# Prefer the repo's own .venv (where the rest of the project already
-# installs jinja2/pyyaml, see backends/py-rpc-common) over a bare system
-# python3 that likely doesn't have them — but only as a default: guarded
-# by `if(NOT PYTHON3_EXECUTABLE)` so an explicit `-DPYTHON3_EXECUTABLE=`
-# on the cmake command line wins instead. Needed for the AppImage Docker
-# build (see packaging/appimage/build-in-docker.sh): the host repo's own
-# .venv gets bind-mounted into the container along with everything else,
-# so `EXISTS .venv/bin/python3` is still true in there, but that venv was
-# created against the host's Python and doesn't resolve its packages
-# correctly under the container's different Python/filesystem — it
-# "exists" but can't actually see jinja2, unlike the container's own
-# system python3 which build-in-docker.sh installs jinja2/pyyaml into.
 set(CLOUDMUS_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 get_filename_component(CLOUDMUS_REPO_ROOT ${CLOUDMUS_REPO_ROOT} ABSOLUTE)
 
-option(CLOUDMUS_PREGENERATED_PROTOCOL "Use generated protocol sources already present in the checkout" OFF)
-# Python is only needed to generate the protocol sources; a build that uses
-# the pregenerated ones (the Windows one, under Wine's CMake with no Python
-# at all) must not require it.
-if(NOT CLOUDMUS_PREGENERATED_PROTOCOL)
-    if(NOT PYTHON3_EXECUTABLE)
-        if(EXISTS ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
-            set(PYTHON3_EXECUTABLE ${CLOUDMUS_REPO_ROOT}/.venv/bin/python3)
-        else()
-            find_program(PYTHON3_EXECUTABLE NAMES python3 python REQUIRED)
-        endif()
-    endif()
-endif()
-set(GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
-set(GENERATED_CPP_STAMP ${CMAKE_CURRENT_BINARY_DIR}/generated_cpp.stamp)
+# --- cloudmus-core: shared with the mobile front.
+add_subdirectory(core)
 
-file(GLOB_RECURSE PROTOCOL_SCHEMA_FILES ${CLOUDMUS_REPO_ROOT}/protocol/schema/*.yaml)
-
-# The generated sources are listed as outputs, not just the stamp: on a
-# fresh checkout they don't exist yet (gitignored), and CMake refuses to
-# configure with a missing source file unless it knows a rule produces it.
-if(NOT CLOUDMUS_PREGENERATED_PROTOCOL)
-add_custom_command(
-    OUTPUT ${GENERATED_CPP_STAMP}
-           ${GENERATED_DIR}/Models.h
-           ${GENERATED_DIR}/RpcMethods.h
-           ${GENERATED_DIR}/RpcMethods.cpp
-    COMMAND ${PYTHON3_EXECUTABLE} ${CLOUDMUS_REPO_ROOT}/protocol/codegen/generate.py --lang cpp
-    COMMAND ${CMAKE_COMMAND} -E touch ${GENERATED_CPP_STAMP}
-    WORKING_DIRECTORY ${CLOUDMUS_REPO_ROOT}
-    DEPENDS ${CLOUDMUS_REPO_ROOT}/protocol/methods.yaml
-            ${PROTOCOL_SCHEMA_FILES}
-            ${CLOUDMUS_REPO_ROOT}/protocol/codegen/generate.py
-            ${CLOUDMUS_REPO_ROOT}/protocol/codegen/schema_ir.py
-            ${CLOUDMUS_REPO_ROOT}/protocol/codegen/cpprender.py
-    COMMENT "Regenerating fronts/qt/generated/ from protocol/"
-    VERBATIM
-)
-add_custom_target(protocol_codegen_cpp DEPENDS ${GENERATED_CPP_STAMP})
-else()
-    foreach(source Models.h RpcMethods.h RpcMethods.cpp)
-        if(NOT EXISTS "${GENERATED_DIR}/${source}")
-            message(FATAL_ERROR "Missing pregenerated protocol file: ${GENERATED_DIR}/${source}")
-        endif()
-    endforeach()
-    add_custom_target(protocol_codegen_cpp)
-endif()
-
-# --- cloudmus-core: everything below the view — backends, playback, state,
-# settings — with no Qt Widgets, so the linker keeps widget code out of it
-# (see fronts/qt/AGENTS.md). Linked by the app and by the tests.
-add_library(cloudmus-core STATIC
-    src/Rpc/NdjsonTransport.cpp
-    src/Rpc/BackendManifest.cpp
-    src/Rpc/RpcClient.cpp
-    src/Rpc/SourceManager.cpp
-    src/Rpc/AuthStates.cpp
-
-    src/Playback/AudioPlayer.cpp
-    src/Playback/AudioFileProbe.cpp
-    src/Playback/StreamRelay.cpp
-    src/Playback/NetworkPool.cpp
-    src/Playback/StreamDownload.cpp
-    src/Playback/TrackCache.cpp
-    src/Playback/Preloader.cpp
-    src/Playback/PlaybackController.cpp
-    src/Playback/BeatDetector.cpp
-    src/Playback/LevelFeed.cpp
-    src/Playback/CuePlayer.cpp
-
-    src/Config/Paths.cpp
-    src/Config/Settings.cpp
-    src/I18n/Languages.cpp
-    src/I18n/Translator.cpp
-    src/Net/ProxyRouting.cpp
-    src/Net/NetworkErrors.cpp
-    src/Net/ParallelDownload.cpp
-
-    src/History/PlaybackHistory.cpp
-    src/Library/TrackStates.cpp
-    src/Library/DownloadPaths.cpp
-    src/Library/TrackFile.cpp
-
-    src/Covers/CoverArtCache.cpp
-
-    src/App/Core.cpp
-    src/App/Analytics.cpp
-    src/App/SourceSession.cpp
-    src/App/PlaylistEditing.cpp
-    src/App/TrackFetch.cpp
-    src/App/StarPrompt.cpp
-    src/App/ListeningTime.cpp
+# --- cloudmus-desktop-core: what the core has only on the desktop — hotkeys,
+# updates, crash reports. No Qt Widgets either.
+add_library(cloudmus-desktop-core STATIC
+    src/App/DesktopCore.cpp
+    src/ViewModel/Browse.cpp
     src/App/SingleInstance.cpp
+    src/App/StarPrompt.cpp
+
+    src/Playback/CuePlayer.cpp
 
     src/Hotkeys/Actions.cpp
     src/Hotkeys/Registry.cpp
     src/Hotkeys/Dispatcher.cpp
-
-    src/ViewModel/AudioPulse.cpp
-    src/ViewModel/Messages.cpp
-    src/ViewModel/NowPlaying.cpp
-    src/ViewModel/SidebarModel.cpp
-    src/ViewModel/Sources.cpp
-    src/ViewModel/ActivePlaylist.cpp
-    src/ViewModel/Browse.cpp
-    src/ViewModel/SourcePage.cpp
-    src/ViewModel/Downloads.cpp
-    src/ViewModel/Preload.cpp
 
     src/Diagnostics/CrashReporter.cpp
     src/Diagnostics/CrashShortcut.cpp
@@ -209,66 +101,20 @@ add_library(cloudmus-core STATIC
     src/Update/ReleaseFeed.cpp
     src/Update/UpdateChecker.cpp
     src/Update/UpdateDownloader.cpp
-    src/Timing/Debounce.cpp
-    src/Timing/Throttle.cpp
-
-    ${GENERATED_DIR}/RpcMethods.cpp
 )
-add_dependencies(cloudmus-core protocol_codegen_cpp)
 if(WIN32)
-    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterWin.cpp src/Update/InstallerWin.cpp)
+    target_sources(cloudmus-desktop-core PRIVATE src/Diagnostics/CrashReporterWin.cpp src/Update/InstallerWin.cpp)
 elseif(APPLE)
-    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerMac.cpp)
+    target_sources(cloudmus-desktop-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerMac.cpp)
 else()
-    target_sources(cloudmus-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerLinux.cpp)
+    target_sources(cloudmus-desktop-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerLinux.cpp)
 endif()
-
-# GCC 10 miscompiles our coroutines: a braced temporary inside a co_await
-# expression (`co_await f(Params { a, b })`) is destroyed twice, which
-# over-releases the QStrings in it and corrupts the heap much later, far
-# from the cause. Builds fine and passes most tests, so refuse it outright.
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
-    message(FATAL_ERROR "GCC ${CMAKE_CXX_COMPILER_VERSION} miscompiles C++20 coroutines; "
-        "use GCC 11+ or Clang (the AppImage build uses clang-19, see packaging/appimage/Dockerfile)")
-endif()
-
-# GCC needs this explicitly for C++20 coroutines (Rpc::Task<T>,
-# co_await/co_return in RpcClient/PlaybackController/etc.) on older
-# versions — a no-op on toolchains where coroutines are already enabled
-# unconditionally under -std=c++20. PUBLIC: every user of Rpc::Task needs
-# it too.
-target_compile_options(cloudmus-core PUBLIC
-    $<$<CXX_COMPILER_ID:GNU>:-fcoroutines>
-)
-
-target_compile_definitions(cloudmus-core PRIVATE
-    CLOUDMUS_DEV_REPO_ROOT="${CLOUDMUS_REPO_ROOT}"
-)
-
-target_include_directories(cloudmus-core PUBLIC
-    ${GENERATED_DIR}
-    src/Rpc
-    src/Playback
-    src/Config
-    src/I18n
-    src/Net
-    src/History
-    src/Library
-    src/Covers
-    src/App
+target_include_directories(cloudmus-desktop-core PUBLIC
     src/Hotkeys
-    src/ViewModel
     src/Diagnostics
     src/Update
-    src/Timing
 )
-
-target_link_libraries(cloudmus-core PUBLIC
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Network
-    cloudmus-mpv
-)
+target_link_libraries(cloudmus-desktop-core PUBLIC cloudmus-core)
 
 # Version.h (CLOUDMUS_VERSION) — regenerated on every build so a dev
 # build's git commit stays current; see cmake/Version.cmake.
@@ -314,46 +160,10 @@ if(CLOUDMUS_SENTRY)
             DOWNLOAD_EXTRACT_TIMESTAMP ON)
         FetchContent_MakeAvailable(sentry-native)
     endif()
-    target_link_libraries(cloudmus-core PUBLIC sentry::sentry)
-    target_compile_definitions(cloudmus-core PUBLIC CLOUDMUS_HAS_SENTRY)
+    target_link_libraries(cloudmus-desktop-core PUBLIC sentry::sentry)
+    target_compile_definitions(cloudmus-desktop-core PUBLIC CLOUDMUS_HAS_SENTRY)
 endif()
 
-# TagLib writes the tags and cover of a saved track (Library::saveTrackFile).
-# 2.2 or newer: WebM, which YouTube's audio often is, arrived in 2.2. Built
-# statically from its release archive (utfcpp is in it) unless the system
-# has a new enough one.
-find_package(TagLib 2.2 CONFIG QUIET)
-if(TagLib_FOUND)
-    target_link_libraries(cloudmus-core PUBLIC TagLib::tag)
-else()
-    include(FetchContent)
-    set(CLOUDMUS_BUILD_SHARED_LIBS_SAVED ${BUILD_SHARED_LIBS})
-    set(CLOUDMUS_BUILD_TESTING_SAVED ${BUILD_TESTING})
-    set(BUILD_SHARED_LIBS OFF)
-    set(BUILD_TESTING OFF)
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(BUILD_BINDINGS OFF CACHE BOOL "" FORCE)
-    set(WITH_ZLIB OFF CACHE BOOL "" FORCE) # only for compressed ID3v2 frames
-    FetchContent_Declare(taglib
-        URL https://github.com/taglib/taglib/releases/download/v2.3.2/taglib-2.3.2.tar.gz
-        URL_HASH SHA256=3ca2d8afaa7f1cf7f6ed10e511ebc368bfacd6dcaa3dbfa690b89e502e8963dc
-        DOWNLOAD_EXTRACT_TIMESTAMP ON)
-    FetchContent_MakeAvailable(taglib)
-    set(BUILD_SHARED_LIBS ${CLOUDMUS_BUILD_SHARED_LIBS_SAVED})
-    set(BUILD_TESTING ${CLOUDMUS_BUILD_TESTING_SAVED})
-    # In the tree TagLib's headers sit in a directory per format and find
-    # each other by bare name (they are flattened only when installed).
-    file(GLOB_RECURSE _taglib_headers "${taglib_SOURCE_DIR}/taglib/*.h")
-    set(_taglib_dirs "${taglib_BINARY_DIR}")
-    foreach(_header ${_taglib_headers})
-        get_filename_component(_dir "${_header}" DIRECTORY)
-        list(APPEND _taglib_dirs "${_dir}")
-    endforeach()
-    list(REMOVE_DUPLICATES _taglib_dirs)
-    # PUBLIC: the track file tests read the tags back with it.
-    target_include_directories(cloudmus-core PUBLIC ${_taglib_dirs})
-    target_link_libraries(cloudmus-core PUBLIC tag)
-endif()
 add_custom_target(cloudmus_version
     COMMAND ${CMAKE_COMMAND} -DBASE=${PROJECT_VERSION} -DSRC=${CLOUDMUS_REPO_ROOT} -DOUT=${VERSION_DIR}/Version.h
             -DVERSION_OVERRIDE=${CLOUDMUS_VERSION_OVERRIDE}
@@ -406,6 +216,7 @@ else()
 endif()
 
 add_library(cloudmus-ui STATIC
+    src/Covers/MeshAura.cpp
     src/Ui/MainWindow.cpp
     src/Ui/WindowHost.cpp
     src/Ui/DownloadsPanel.cpp
@@ -418,7 +229,6 @@ add_library(cloudmus-ui STATIC
     src/Ui/StarPromptFlow.cpp
     src/Ui/NavItemDelegate.cpp
     src/Ui/SidebarTreeView.cpp
-    src/Ui/TrackListModel.cpp
     src/Ui/TrackRowDelegate.cpp
     src/Ui/NowPlayingBar.cpp
     src/Ui/HeroPanel.cpp
@@ -486,7 +296,7 @@ target_include_directories(cloudmus-ui PUBLIC
 )
 
 target_link_libraries(cloudmus-ui PUBLIC
-    cloudmus-core
+    cloudmus-desktop-core
     Qt6::Widgets
     Qt6::Svg
 )
@@ -521,10 +331,12 @@ if(CLOUDMUS_PCH)
         list(APPEND _pch_ui "$<$<COMPILE_LANGUAGE:CXX>:<${h}$<ANGLE-R>>")
     endforeach()
     target_precompile_headers(cloudmus-core PRIVATE ${_pch_core})
+    target_precompile_headers(cloudmus-desktop-core PRIVATE ${_pch_core})
     target_precompile_headers(cloudmus-ui PRIVATE ${_pch_core} ${_pch_ui})
     if(CLOUDMUS_CCACHE_PROGRAM AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         # Keeps the PCH's bytes independent of when it was written.
         target_compile_options(cloudmus-core PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
+        target_compile_options(cloudmus-desktop-core PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
         target_compile_options(cloudmus-ui PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
     endif()
 endif()
@@ -670,7 +482,7 @@ endif()
 # translations. Only those — a file given twice confuses lupdate's
 # namespaces.
 file(GLOB_RECURSE _tr_sources CONFIGURE_DEPENDS src/*.cpp src/*.h)
-foreach(_target cloudmus-core cloudmus-ui cloudmus-qt)
+foreach(_target cloudmus-core cloudmus-desktop-core cloudmus-ui cloudmus-qt)
     get_target_property(_target_sources ${_target} SOURCES)
     foreach(_source IN LISTS _target_sources)
         cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -689,7 +501,7 @@ qt_add_translations(cloudmus-qt
         translations/cloudmus_fr.ts
         translations/cloudmus_it.ts
         translations/cloudmus_ru.ts
-    SOURCE_TARGETS cloudmus-core cloudmus-ui cloudmus-qt
+    SOURCE_TARGETS cloudmus-core cloudmus-desktop-core cloudmus-ui cloudmus-qt
     SOURCES ${_tr_sources}
     RESOURCE_PREFIX /i18n
     LUPDATE_OPTIONS -no-obsolete -locations none -source-language en
@@ -752,8 +564,12 @@ add_executable(cloudmus-qt-tests
     tests/main.cpp
     tests/FakeBackend.cpp
     tests/RpcClientTest.cpp
+    tests/ConnectivityTest.cpp
+    tests/TrackListUpdateTest.cpp
+    tests/SourceSettingsTest.cpp
     tests/SourceSessionTest.cpp
     tests/NowPlayingTest.cpp
+    tests/RemotingTest.cpp
     tests/PlaylistEditingTest.cpp
     tests/SourcesTest.cpp
     tests/ActivePlaylistTest.cpp
@@ -781,7 +597,7 @@ add_executable(cloudmus-qt-tests
     tests/SingleInstanceTest.cpp
 )
 target_include_directories(cloudmus-qt-tests PRIVATE tests)
-target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-core Qt6::Test)
+target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-desktop-core Qt6::Test)
 # CrashReporterTest checks that a crash report names the crashing function.
 set_target_properties(cloudmus-qt-tests PROPERTIES ENABLE_EXPORTS ON)
 add_test(NAME cloudmus-qt-tests COMMAND cloudmus-qt-tests)

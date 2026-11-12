@@ -1638,6 +1638,10 @@ You can try again later or download the new version yourself.</source>
         <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
         <translation>Сохранено %1 из %2 треков из «%3» — %4</translation>
     </message>
+    <message>
+        <source>Not enough free space on the disk</source>
+        <translation>Недостаточно свободного места на диске</translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::NowPlaying</name>
@@ -1687,6 +1691,14 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>%1 — waiting</source>
         <translation>%1 — ждёт</translation>
+    </message>
+    <message>
+        <source>Only %1 MB left on the disk: tracks aren&apos;t downloaded ahead, and old ones are removed.</source>
+        <translation>На диске осталось всего %1 МБ: треки не загружаются заранее, старые удаляются.</translation>
+    </message>
+    <message>
+        <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
+        <translation>На диске осталось всего %1 МБ: загрузка остановлена, играть могут только уже загруженные треки.</translation>
     </message>
 </context>
 <context>

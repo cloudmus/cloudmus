@@ -7,22 +7,17 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QStyledItemDelegate>
 #include <QUuid>
 #include <QVBoxLayout>
 
-#include <algorithm>
 #include <functional>
-#include <tuple>
 
 #include "PasswordReveal.h"
-#include "ProxyRouting.h"
 #include "Settings/RestartRequests.h"
-#include "SourceManager.h"
+#include "SourceSettings.h"
 #include "Spacing.h"
 #include "ToastNotifier.h"
 #include "Typography.h"
@@ -30,11 +25,6 @@
 namespace Ui::Settings {
 
 namespace {
-
-// Answers 204 with an empty body; small and always up — a test of the
-// proxy, not of any one music service.
-const char kCheckUrl[] = "https://www.gstatic.com/generate_204";
-constexpr int kCheckTimeoutMs = 10000;
 
 QPushButton* makeButton(const QString& text, QWidget* parent)
 {
@@ -168,17 +158,11 @@ private:
                 onChecked(tr("%1: enter the proxy's host first").arg(name), false);
             return;
         }
-        auto* network = new QNetworkAccessManager(this);
-        network->setProxy(Net::networkProxy(proxy));
-        QNetworkRequest request { QUrl(QString::fromLatin1(kCheckUrl)) };
-        request.setTransferTimeout(kCheckTimeoutMs);
-        QNetworkReply* reply = network->get(request);
         checkButton_->setEnabled(false);
-        connect(reply, &QNetworkReply::finished, this, [this, reply, network, name]() {
-            const bool ok = reply->error() == QNetworkReply::NoError;
-            const QString message = ok ? tr("%1 works").arg(name) : tr("%1: %2").arg(name, reply->errorString());
+        ViewModel::SourceSettings::checkProxy(proxy, this, [this, name](const QString& error) {
+            const bool ok = error.isEmpty();
+            const QString message = ok ? tr("%1 works").arg(name) : tr("%1: %2").arg(name, error);
             checkButton_->setEnabled(true);
-            network->deleteLater();
             if (onChecked)
                 onChecked(message, ok);
         });
@@ -194,11 +178,11 @@ private:
     QPushButton* checkButton_ = nullptr;
 };
 
-NetworkPage::NetworkPage(Config::Settings& settings, Rpc::SourceManager& sourceManager, ToastNotifier& toasts,
+NetworkPage::NetworkPage(Config::Settings& settings, ViewModel::SourceSettings& sourceSettings, ToastNotifier& toasts,
     RestartRequests& restarts, QObject* parent)
     : Page(parent)
     , settings_(settings)
-    , sourceManager_(sourceManager)
+    , sourceSettings_(sourceSettings)
     , toasts_(toasts)
     , restarts_(restarts)
 {
@@ -291,24 +275,7 @@ Rpc::Task<bool> NetworkPage::apply()
         }
     }
 
-    // Sources going through a proxy that changed or went away have to
-    // restart to pick that up (their environment is set at start).
-    const QList<Config::ProxyConfig> before = settings_.proxies();
-    QSet<QString> affected;
-    for (const Config::ProxyConfig& old : before) {
-        const auto now = std::find_if(
-            proxies.begin(), proxies.end(), [&old](const Config::ProxyConfig& p) { return p.id == old.id; });
-        // A new name alone changes nothing on the wire.
-        const auto route
-            = [](const Config::ProxyConfig& p) { return std::tie(p.type, p.host, p.port, p.username, p.password); };
-        if (now == proxies.end() || route(*now) != route(old))
-            affected.insert(old.id);
-    }
-    settings_.setProxies(proxies);
-    for (const Rpc::BackendManifest& manifest : sourceManager_.manifests()) {
-        if (affected.contains(settings_.sourceConnection(manifest.id)))
-            restarts_.sourceIds.insert(manifest.id);
-    }
+    restarts_.sourceIds += sourceSettings_.saveProxies(proxies);
     co_return true;
 }
 

@@ -17,6 +17,7 @@
 #include "Settings/RestartRequests.h"
 #include "Settings/SettingsForm.h"
 #include "SourceManager.h"
+#include "SourceSettings.h"
 #include "Spacing.h"
 #include "ToastNotifier.h"
 #include "Typography.h"
@@ -45,11 +46,13 @@ QPushButton* makeButton(const QString& text, QWidget* parent)
 
 } // namespace
 
-SourcePage::SourcePage(Config::Settings& settings, Rpc::SourceManager& sourceManager, Rpc::AuthStates& authStates,
-    ToastNotifier& toasts, RestartRequests& restarts, Rpc::BackendManifest manifest, QObject* parent)
+SourcePage::SourcePage(Config::Settings& settings, Rpc::SourceManager& sourceManager,
+    ViewModel::SourceSettings& sourceSettings, Rpc::AuthStates& authStates, ToastNotifier& toasts,
+    RestartRequests& restarts, Rpc::BackendManifest manifest, QObject* parent)
     : Page(parent)
     , settings_(settings)
     , sourceManager_(sourceManager)
+    , sourceSettings_(sourceSettings)
     , authStates_(authStates)
     , toasts_(toasts)
     , restarts_(restarts)
@@ -222,11 +225,11 @@ QWidget* SourcePage::createWidget(QWidget* parent)
 void SourcePage::refresh()
 {
     const Rpc::RpcClient* client = sourceManager_.client(manifest_.id);
-    const bool running = client != nullptr && client->available();
+    const ViewModel::SourceSettings::Facts facts = sourceSettings_.facts(manifest_.id);
+    const bool running = facts.running;
 
-    const QString description = running ? client->sourceDescription() : QString();
-    descriptionLabel_->setText(description);
-    descriptionLabel_->setVisible(!description.isEmpty());
+    descriptionLabel_->setText(facts.description);
+    descriptionLabel_->setVisible(!facts.description.isEmpty());
 
     QString offText;
     if (!sourceManager_.isEnabled(manifest_.id))
@@ -237,36 +240,24 @@ void SourcePage::refresh()
     offHint_->setVisible(!offText.isEmpty());
 
     // Not yet known while the source is starting: shown until it says so.
-    usesNetwork_ = !running || client->usesNetwork();
+    usesNetwork_ = facts.usesNetwork;
     connectionRow_->setVisible(usesNetwork_);
     updateConnectionHint();
 
-    const bool hasRadio = running
-        && client->capabilities().value(QStringLiteral("browse")).toObject().value(QStringLiteral("radio")).toBool();
-    repeatGapRow_->setVisible(hasRadio);
-    repeatGapHint_->setVisible(hasRadio);
+    repeatGapRow_->setVisible(facts.hasRadio);
+    repeatGapHint_->setVisible(facts.hasRadio);
 
-    // Only a stream the front downloads itself: not a source's own files.
-    const bool downloadsStreams = running && usesNetwork_
-        && client->capabilities()
-               .value(QStringLiteral("playback"))
-               .toObject()
-               .value(QStringLiteral("providesStream"))
-               .toBool();
-    connectionsRow_->setVisible(downloadsStreams);
-    connectionsHint_->setVisible(downloadsStreams);
+    connectionsRow_->setVisible(facts.downloadsStreams);
+    connectionsHint_->setVisible(facts.downloadsStreams);
 
-    const bool hasSettings = running && client->capabilities().value(QStringLiteral("settings")).toBool();
-    settingsSection_->setVisible(hasSettings);
-    if (hasSettings && settingsClient_ != client) {
+    settingsSection_->setVisible(facts.hasSettings);
+    if (facts.hasSettings && settingsClient_ != client) {
         settingsClient_ = client;
         loadSettingsAsync().detach();
     }
 
-    const bool needsAuth = running
-        && client->capabilities().value(QStringLiteral("auth")).toObject().value(QStringLiteral("required")).toBool();
-    accountSection_->setVisible(needsAuth);
-    if (!needsAuth)
+    accountSection_->setVisible(facts.needsAuth);
+    if (!facts.needsAuth)
         return;
 
     const Rpc::AuthStates::State state = authStates_.state(manifest_.id);
@@ -432,7 +423,7 @@ Rpc::Task<void> SourcePage::loadSettingsAsync()
     std::optional<SettingsDescription> description;
     QString failure;
     try {
-        description = co_await Rpc::settingsDescribe(*client);
+        description = co_await sourceSettings_.describe(manifest_.id);
     } catch (const std::exception& e) {
         failure = QString::fromStdString(e.what());
     }
@@ -520,24 +511,13 @@ Rpc::Task<bool> SourcePage::apply()
         const QPointer<QWidget> alive = widget_;
         const QMap<QString, QJsonValue> values = settingsForm_->changedValues();
         settingsForm_->showError(QString(), QString());
-        QString failedKey;
-        QString failure;
-        try {
-            co_await Rpc::settingsUpdate(*client, UpdateParams { values });
-        } catch (const Rpc::RpcCallException& e) {
-            // docs/protocol.md §7.7: data.key/data.message name the field.
-            failedKey = e.error().data.value(QStringLiteral("key")).toString();
-            failure = e.error().data.value(QStringLiteral("message")).toString();
-            if (failure.isEmpty())
-                failure = e.error().message;
-        } catch (const std::exception& e) {
-            failure = QString::fromStdString(e.what());
-        }
+        const std::optional<ViewModel::SourceSettings::UpdateFailure> failure
+            = co_await sourceSettings_.update(manifest_.id, values);
         if (!alive)
             co_return false;
-        if (!failure.isEmpty()) {
-            settingsForm_->showError(failedKey, failure);
-            toasts_.showError(tr("%1: %2").arg(manifest_.name, failure));
+        if (failure) {
+            settingsForm_->showError(failure->key, failure->message);
+            toasts_.showError(tr("%1: %2").arg(manifest_.name, failure->message));
             co_return false;
         }
         settingsForm_->markApplied(values);
@@ -547,13 +527,9 @@ Rpc::Task<bool> SourcePage::apply()
             sourceManager_.notifySettingsChanged(manifest_.id);
     }
 
-    if (selectedConnection() != settings_.sourceConnection(manifest_.id)) {
-        settings_.setSourceConnection(manifest_.id, selectedConnection());
-        // Set at start — a fresh process picks it up. Switching the source
-        // on further down starts one anyway.
-        if (sourceManager_.isEnabled(manifest_.id))
-            restarts_.sourceIds.insert(manifest_.id);
-    }
+    // Switching the source on further down starts a fresh process anyway.
+    if (sourceSettings_.setConnection(manifest_.id, selectedConnection()))
+        restarts_.sourceIds.insert(manifest_.id);
 
     // Read when a station is started: nothing to restart.
     settings_.setSourceRadioRepeatGap(manifest_.id, repeatGapSpin_->value());
@@ -563,15 +539,7 @@ Rpc::Task<bool> SourcePage::apply()
 
     if (enabledCheck_->isChecked() == sourceManager_.isEnabled(manifest_.id))
         co_return true;
-    const bool enabled = enabledCheck_->isChecked();
-    // Keeps ids of backends that aren't installed right now: reinstalling
-    // one shouldn't silently switch it back on.
-    QStringList disabled = settings_.disabledSources();
-    disabled.removeAll(manifest_.id);
-    if (!enabled)
-        disabled.append(manifest_.id);
-    settings_.setDisabledSources(disabled);
-    sourceManager_.setEnabled(manifest_.id, enabled);
+    sourceSettings_.setEnabled(manifest_.id, enabledCheck_->isChecked());
     refresh();
     co_return true;
 }

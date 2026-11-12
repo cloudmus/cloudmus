@@ -68,6 +68,42 @@ private slots:
         trackStates_.reset();
     }
 
+    // What the repeat button goes through, with a radio having no list to repeat.
+    void repeatCycles()
+    {
+        using Playback::RepeatMode;
+        using ViewModel::NowPlaying;
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::Off, false), RepeatMode::All);
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::All, false), RepeatMode::One);
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::One, false), RepeatMode::Off);
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::Off, true), RepeatMode::One);
+        QCOMPARE(NowPlaying::nextRepeatMode(RepeatMode::One, true), RepeatMode::Off);
+    }
+
+    // Which way the queue went: on, back, and around the end of a repeating list.
+    void trackDirectionFollowsTheQueue()
+    {
+        play({ track(QStringLiteral("a")), track(QStringLiteral("b")), track(QStringLiteral("c")) });
+        QTRY_VERIFY(nowPlaying_->hasTrack());
+        const auto goTo = [&](int index) { playback_->playAt(index); };
+        QSignalSpy changed(nowPlaying_.get(), &ViewModel::NowPlaying::trackChanged);
+        goTo(2);
+        QTRY_COMPARE(playback_->currentIndex(), 2);
+        QCOMPARE(nowPlaying_->trackDirection(), 1);
+        goTo(1);
+        QTRY_COMPARE(playback_->currentIndex(), 1);
+        QCOMPARE(nowPlaying_->trackDirection(), -1);
+        goTo(2);
+        QTRY_COMPARE(nowPlaying_->trackDirection(), 1);
+        playback_->setRepeatMode(Playback::RepeatMode::All);
+        goTo(0);
+        QTRY_COMPARE(playback_->currentIndex(), 0);
+        QCOMPARE(nowPlaying_->trackDirection(), 1);
+        goTo(2);
+        QTRY_COMPARE(nowPlaying_->trackDirection(), -1);
+        playback_->setRepeatMode(Playback::RepeatMode::Off);
+    }
+
     // A stream refused although just resolved (YouTube's 403s) is resolved
     // again a couple of times; then the track is left paused, and Play
     // loads it anew instead of resuming nothing.

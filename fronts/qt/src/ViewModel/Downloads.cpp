@@ -1,6 +1,7 @@
 #include "Downloads.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QPointer>
@@ -12,6 +13,7 @@
 #include <utility>
 
 #include "CoverArtCache.h"
+#include "DiskSpace.h"
 #include "DownloadPaths.h"
 #include "Messages.h"
 #include "Preloader.h"
@@ -288,6 +290,8 @@ Rpc::Task<void> Downloads::run(int jobId)
         // docs/protocol.md §7.5: destDir must already exist.
         if (!QDir().mkpath(destDir)) {
             lastError = tr("Can't create the folder %1").arg(destDir);
+        } else if (!Playback::DiskSpace::hasRoom(destDir)) {
+            lastError = tr("Not enough free space on the disk");
         } else {
             try {
                 // The front saves it where it can; the source itself is
@@ -474,6 +478,10 @@ Rpc::Task<void> Downloads::saveFromStream(int jobId, QString sourceId, Track tra
         cover = coverArtCache_.source(coverUrl);
     }
 
+    if (!Playback::DiskSpace::hasRoom(destDir, QFileInfo(file).size())) {
+        finishDemand();
+        throw std::runtime_error(tr("Not enough free space on the disk").toStdString());
+    }
     const QString saved = Library::saveTrackFile(file, destDir, track, cover);
     finishDemand();
     if (saved.isEmpty())
@@ -526,6 +534,41 @@ void Downloads::onProgress(
     job->received = received;
     job->total = total.value_or(-1);
     emit changed();
+}
+
+QString Downloads::sizeText(qint64 received, qint64 total)
+{
+    constexpr double kMb = 1024.0 * 1024.0;
+    if (total < 1024 * 1024)
+        return QObject::tr("%1 of %2 KB").arg((received + 1023) / 1024).arg((total + 1023) / 1024);
+    return QObject::tr("%1 of %2 MB")
+        .arg(QString::number(double(received) / kMb, 'f', 1), QString::number(double(total) / kMb, 'f', 1));
+}
+
+QString Downloads::statusText(const Job& job)
+{
+    switch (job.state) {
+        case State::Queued:
+            return QObject::tr("Waiting");
+        case State::Done:
+            return job.isPlaylist && job.failed > 0
+                ? QObject::tr("Saved %1 of %2 tracks").arg(job.saved).arg(job.tracks.size())
+                : QObject::tr("Saved");
+        case State::Failed:
+            return QObject::tr("Failed");
+        case State::Cancelled:
+            return QObject::tr("Cancelled");
+        case State::Running:
+            break;
+    }
+    if (job.isPlaylist) {
+        if (job.tracks.isEmpty())
+            return QObject::tr("Listing tracks…");
+        return QObject::tr("%1 of %2 tracks").arg(job.saved + job.failed).arg(job.tracks.size());
+    }
+    if (job.total > 0)
+        return sizeText(job.received, job.total);
+    return QObject::tr("Saving…");
 }
 
 } // namespace ViewModel

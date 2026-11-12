@@ -14,6 +14,7 @@ SidebarModel::SidebarModel(QObject* parent)
 
 QStandardItem* SidebarModel::findOrCreateSourceRoot(const QString& sourceId, const QString& sourceName)
 {
+    sourceNames_.insert(sourceId, sourceName);
     for (int row = 0; row < invisibleRootItem()->rowCount(); ++row) {
         QStandardItem* item = invisibleRootItem()->child(row);
         if (item->data(SourceIdRole).toString() == sourceId)

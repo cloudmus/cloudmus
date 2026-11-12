@@ -42,6 +42,10 @@ public:
     // Fetches a cover that isn't at hand, to be had from source() once
     // pixmapReady() names it. Nothing happens for one that is, or on its way.
     void request(const QString& url);
+    // The cover as a file on disk, for what reads files rather than images
+    // (QML in another process). Empty until it is at hand: this asks for
+    // it, and pixmapReady() names it when it has come.
+    QString localFile(const QString& url);
 
     // Covers are fetched the way their source connects (its proxy, see
     // Net::ProxyRouting): the cache learns which source a cover URL came
@@ -66,6 +70,7 @@ signals:
     void pixmapReady(QString url);
 
 private:
+    void trimFiles();
     friend class RoutingProxyFactory;
 
     // `requestUrl`: where to fetch from — `url` itself, or where it
@@ -76,6 +81,7 @@ private:
     // Fits `source` to `targetSize` and remembers the result.
     QPixmap store(const QString& url, QSize targetSize, const QImage& source);
 
+    QString filesDir_;
     QNetworkAccessManager network_;
     QCache<QString, QPixmap> memoryCache_;
     // Decoded covers by url, costed in bytes: what other sizes of a cover

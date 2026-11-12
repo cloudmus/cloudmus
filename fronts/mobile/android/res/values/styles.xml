@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- What shows at once while Qt loads: the app's own background, as light
+         or dark as the system is (values-night), not a white flash. From then on
+         the bars follow the theme picked in Settings: see Appearance.java. -->
+    <style name="CloudmusTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/windowBackground</item>
+        <!-- The text selection's handles, which are Android's to draw. -->
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:statusBarColor">@color/surface100</item>
+        <item name="android:navigationBarColor">@color/windowBackground</item>
+        <item name="android:windowLightStatusBar">@bool/lightBars</item>
+        <item name="android:windowLightNavigationBar">@bool/lightBars</item>
+    </style>
+    <!-- Keep in step with Theme.qml. -->
+    <color name="accent">#C23D16</color>
+    <color name="windowBackground">#FFFFFF</color>
+    <color name="surface100">#FFFFFF</color>
+    <bool name="lightBars">true</bool>
+</resources>

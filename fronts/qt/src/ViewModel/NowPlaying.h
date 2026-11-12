@@ -9,9 +9,13 @@
 #include "Coro.h"
 #include "Models.h"
 #include "PlayMode.h"
+#include "Throttle.h"
 
 namespace Config {
 class Settings;
+}
+namespace Covers {
+class CoverArtCache;
 }
 namespace History {
 class PlaybackHistory;
@@ -37,15 +41,37 @@ class Messages;
 // tray; MPRIS and SMTC talk to Playback::PlaybackController directly). Views read
 // it through the getters and the change signals and act only through its
 // methods; nothing here knows about widgets.
+//
+// QML views on mobile hold a Qt Remote Objects replica of this, which only
+// carries properties, signals and slots: so actions are slots, and each
+// property has a notify signal of its own — for properties sharing one, a
+// replica only brings the last one up to date.
 class NowPlaying : public QObject {
     Q_OBJECT
-    Q_PROPERTY(bool hasTrack READ hasTrack NOTIFY trackChanged)
+    Q_PROPERTY(bool hasTrack READ hasTrack NOTIFY hasTrackChanged)
+    Q_PROPERTY(QString title READ title NOTIFY titleChanged)
+    Q_PROPERTY(QString artist READ artist NOTIFY artistChanged)
+    Q_PROPERTY(QString coverUrl READ coverUrl NOTIFY coverUrlChanged)
+    Q_PROPERTY(QString backgroundSeed READ backgroundSeed NOTIFY backgroundSeedChanged)
+    // Which way the queue went to this track: 1 on, -1 back. Told before the
+    // track's own properties, for a view to animate their change that way.
+    Q_PROPERTY(int trackDirection READ trackDirection NOTIFY trackDirectionChanged)
     Q_PROPERTY(bool playing READ playing NOTIFY playingChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
+    Q_PROPERTY(qint64 positionMs READ positionMs NOTIFY positionMsChanged)
+    Q_PROPERTY(qint64 durationMs READ durationMs NOTIFY durationMsChanged)
+    // How far the track has been fetched; -1 for a local file, which isn't.
+    Q_PROPERTY(qint64 bufferedMs READ bufferedMs NOTIFY bufferedChanged)
     Q_PROPERTY(bool queueAvailable READ queueAvailable NOTIFY queueAvailabilityChanged)
-    Q_PROPERTY(QString webUrl READ webUrl NOTIFY trackChanged)
-    Q_PROPERTY(bool shuffle READ shuffle WRITE setShuffle NOTIFY playModesChanged)
-    Q_PROPERTY(bool radio READ isRadio NOTIFY playModesChanged)
+    Q_PROPERTY(QString webUrl READ webUrl NOTIFY webUrlChanged)
+    Q_PROPERTY(bool shuffle READ shuffle WRITE setShuffle NOTIFY shuffleChanged)
+    Q_PROPERTY(bool radio READ isRadio NOTIFY radioChanged)
+    // Playback::RepeatMode, as an int for a replica.
+    Q_PROPERTY(int repeat READ repeat NOTIFY repeatChanged)
+    Q_PROPERTY(bool liked READ liked NOTIFY likedChanged)
+    Q_PROPERTY(bool likeSupported READ likeSupported NOTIFY likeSupportedChanged)
+    Q_PROPERTY(bool disliked READ disliked NOTIFY dislikedChanged)
+    Q_PROPERTY(bool dislikeSupported READ dislikeSupported NOTIFY dislikeSupportedChanged)
     Q_PROPERTY(int volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(bool quiet READ quiet WRITE setQuiet NOTIFY quietChanged)
 
@@ -67,17 +93,27 @@ public:
     const Track& track() const;
     QString sourceId() const;
     QString webUrl() const;
+    // Empty without a track.
+    QString title() const;
+    // Its artists, joined.
+    QString artist() const;
+    // A local file's URL (see setCovers()), once the cover is at hand.
+    QString coverUrl() const;
+    int trackDirection() const { return trackDirection_; }
+    // What the generated background behind a track is made from: its album,
+    // so it stays the same through an album, or else its title.
+    static QString backgroundSeed(const Track& track);
+    QString backgroundSeed() const { return hasTrack() ? backgroundSeed(track()) : QString(); }
+    // Where coverUrl() comes from; without one it's empty.
+    void setCovers(Covers::CoverArtCache* covers);
 
     // --- playback
     bool playing() const;
     bool loading() const { return loading_; }
     bool queueAvailable() const;
-    void togglePause();
-    void next();
-    void previous();
-    void stop();
-    void seek(qint64 positionMs);
     qint64 positionMs() const;
+    qint64 durationMs() const;
+    qint64 bufferedMs() const { return bufferedMs_; }
     // The level of the mode in effect: the quiet one while quiet(), else the
     // normal one. Quiet mode ducks the sound without pausing or muting, and
     // the playback volume glides between the two levels.
@@ -93,6 +129,9 @@ public:
     bool isRadio() const;
     void setShuffle(bool on);
     void setRepeatMode(Playback::RepeatMode mode);
+    int repeat() const { return int(repeatMode()); }
+    // What the repeat button goes to next: a radio has no list to repeat.
+    static Playback::RepeatMode nextRepeatMode(Playback::RepeatMode mode, bool radio);
 
     // --- what can be done about the track. `…Supported` is what its
     // source declares; `…Busy` is a request in flight — while it is,
@@ -109,8 +148,10 @@ public:
         bool playlistsSupported = false;
     };
     Feedback feedback() const;
-    void setLiked(bool liked);
-    void setDisliked(bool disliked);
+    bool liked() const { return feedback().liked; }
+    bool likeSupported() const { return feedback().likeSupported; }
+    bool disliked() const { return feedback().disliked; }
+    bool dislikeSupported() const { return feedback().dislikeSupported; }
     void download();
 
     // The same for any track (the track lists' context menus).
@@ -119,9 +160,46 @@ public:
     Rpc::Task<void> setTrackLiked(QString sourceId, QString trackId, bool liked, bool announce);
     Rpc::Task<void> setTrackDisliked(QString sourceId, QString trackId, bool disliked, bool announce);
 
+public slots:
+    // Plays or pauses whatever the state: for what asks for one or the other
+    // (a media button, the audio focus).
+    void play();
+    void pause();
+    void togglePause();
+    void next();
+    void previous();
+    void stop();
+    void seek(qint64 positionMs);
+    void setLiked(bool liked);
+    void setDisliked(bool disliked);
+    void toggleShuffle();
+    void cycleRepeat();
+
 signals:
     // A new track started, or the current one went away (hasTrack() false).
     void trackChanged();
+    // Play was asked for with nothing loaded: only a saved track, if that.
+    void resumeRequested();
+    // Asked to stop: on Android the playback service ends with it.
+    void stopped();
+    // The same, per property (see the class's comment).
+    void hasTrackChanged();
+    void titleChanged();
+    void artistChanged();
+    void coverUrlChanged();
+    void backgroundSeedChanged();
+    void trackDirectionChanged();
+    void webUrlChanged();
+    void shuffleChanged();
+    void radioChanged();
+    void repeatChanged();
+    void likedChanged();
+    void likeSupportedChanged();
+    void dislikedChanged();
+    void dislikeSupportedChanged();
+    // At most a few times a second: they cross a process on mobile.
+    void positionMsChanged();
+    void durationMsChanged();
     void playingChanged(bool playing);
     void loadingChanged(bool loading);
     void positionChanged(qint64 positionMs, qint64 durationMs);
@@ -138,6 +216,9 @@ signals:
     void feedbackSent(const QString& sourceId, const QString& action);
 
 private:
+    void emitTrackChanged();
+    void updateTrackDirection();
+    QString coverSource() const;
     bool isCurrent(const QString& sourceId, const QString& trackId) const;
     bool isShownTrack(const QString& sourceId, const QString& trackId) const;
     QJsonObject capabilities(const QString& sourceId) const;
@@ -151,8 +232,15 @@ private:
     Config::Settings& settings_;
     Downloads& downloads_;
     Messages& messages_;
+    Covers::CoverArtCache* covers_ = nullptr;
+    Timing::Throttle positionThrottle_;
 
     bool loading_ = false;
+    qint64 durationMs_ = 0;
+    int trackDirection_ = 1;
+    QString lastSourceId_;
+    QString lastTrackId_;
+    qint64 bufferedMs_ = 0;
     int volume_ = 100;
     int quietVolume_ = 30;
     bool quiet_ = false;

@@ -1,4 +1,4 @@
-"""NDJSON transport for the cloudmus front/backend JSON-RPC protocol.
+"""NDJSON transport for the CloudMus front/backend JSON-RPC protocol.
 
 One JSON value per line, compact serialization, UTF-8, no BOM. See
 docs/protocol.md §2 for the normative framing rules this module implements.

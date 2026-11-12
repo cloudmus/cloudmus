@@ -1636,6 +1636,10 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
         <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
         <translation>%1 von %2 Titeln aus „%3“ gespeichert – %4</translation>
     </message>
+    <message>
+        <source>Not enough free space on the disk</source>
+        <translation>Nicht genügend freier Speicherplatz auf dem Datenträger</translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::NowPlaying</name>
@@ -1685,6 +1689,14 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
     <message>
         <source>%1 — waiting</source>
         <translation>%1 — wartet</translation>
+    </message>
+    <message>
+        <source>Only %1 MB left on the disk: tracks aren&apos;t downloaded ahead, and old ones are removed.</source>
+        <translation>Nur noch %1 MB auf dem Datenträger frei: Titel werden nicht im Voraus geladen, alte werden entfernt.</translation>
+    </message>
+    <message>
+        <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
+        <translation>Nur noch %1 MB auf dem Datenträger frei: Das Laden wurde gestoppt, nur bereits geladene Titel können abgespielt werden.</translation>
     </message>
 </context>
 <context>

@@ -1,6 +1,7 @@
 #include "Core.h"
 
 #include <QStandardPaths>
+#include <QTimer>
 
 #include "Preloader.h"
 #include "ProxyRouting.h"
@@ -17,17 +18,13 @@ Core::Core(QObject* parent)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
     , downloads_(sourceManager_, sourceSession_, trackStates_, coverArtCache_, settings_, messages_)
     , nowPlaying_(playback_, sourceManager_, trackStates_, playbackHistory_, settings_, downloads_, messages_)
-    , hotkeys_(settings_)
-    , hotkeyDispatcher_(nowPlaying_, hotkeys_)
     , playlistEditing_(sourceManager_, messages_)
     , sources_(sourceManager_, sourceSession_, authStates_, playlistEditing_, coverArtCache_, settings_, messages_)
     , activePlaylist_(playback_, sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_,
           playlistEditing_, messages_)
-    , browse_(sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_, activePlaylist_,
-          playlistEditing_, messages_)
+    , activeTracks_(activePlaylist_, playback_, trackStates_, preload_, coverArtCache_)
+    , trackActions_(sourceManager_, playback_, activePlaylist_, downloads_, playlistEditing_)
     , sourcePage_(sourceSession_)
-    , updates_(settings_)
-    , starPrompt_(settings_, analytics_)
     , listeningTime_(playback_, analytics_)
 {
     // The language first: whatever is created or spawned below already
@@ -49,10 +46,8 @@ Core::Core(QObject* parent)
             playbackHistory_.record(sourceId, track);
             trackStates_.setLastPlayed(sourceId, track.id, QDateTime::currentDateTimeUtc());
             analytics_.recordPlayback(sourceId);
-            starPrompt_.recordUsage();
         });
     connect(&downloads_, &ViewModel::Downloads::completed, &analytics_, &Analytics::recordDownload);
-    connect(&hotkeyDispatcher_, &Hotkeys::Dispatcher::cueRequested, &cuePlayer_, &Playback::CuePlayer::play);
     connect(&playlistEditing_, &PlaylistEditing::playlistEdited, &analytics_,
         [this](const QString& sourceId, const Track&, const QString&, bool added, int) {
             analytics_.recordPlaylistChange(sourceId, added);
@@ -77,6 +72,38 @@ Core::Core(QObject* parent)
     connect(&playback_, &Playback::PlaybackController::trackChanged, &trackStates_,
         [this](const Track& track, const QString& sourceId) { trackStates_.requestStreamQuality(sourceId, track.id); });
     connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
+    connect(&playback_, &Playback::PlaybackController::offlineNotice, &messages_, &ViewModel::Messages::offline);
+    // Each time it gets worse, and once at the start: the view may only be
+    // coming up then, hence later.
+    const auto warnOfSpace = [this]() {
+        const QString warning = preload_.spaceWarning();
+        if (!warning.isEmpty())
+            messages_.error(warning);
+    };
+    connect(&preload_, &ViewModel::Preload::spaceWarningChanged, this, warnOfSpace);
+    QTimer::singleShot(0, this, warnOfSpace);
+
+    // The network: what says it's gone, what says it's there, and going over
+    // the sources again until it is. A listing that works gets the rest going
+    // (ActivePlaylist: what's still to load, the station, the preloads).
+    connect(&playback_, &Playback::PlaybackController::offlineSeen, &connectivity_, &Connectivity::reportOffline);
+    connect(&playback_.preloader(), &Playback::Preloader::offlineSeen, &connectivity_, &Connectivity::reportOffline);
+    connect(&playback_.preloader(), &Playback::Preloader::failed, &connectivity_,
+        [this](const QString& sourceId, const QString&) { connectivity_.suspect(sourceId); });
+    connect(&sources_, &ViewModel::Sources::listingFailedWith, &connectivity_,
+        [this](const QString& sourceId, bool offline) {
+            if (offline)
+                connectivity_.reportOffline(sourceId);
+            else
+                connectivity_.suspect(sourceId);
+        });
+    connect(&sources_, &ViewModel::Sources::listingSucceeded, &connectivity_, [this](const QString& sourceId) {
+        // A source with only local files says nothing about the network.
+        const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+        if (client != nullptr && client->usesNetwork())
+            connectivity_.reportReached(sourceId);
+    });
+    connect(&connectivity_, &Connectivity::retryWanted, &sources_, &ViewModel::Sources::refresh);
     connect(&playback_, &Playback::PlaybackController::trackUnavailable, &trackStates_,
         &Library::TrackStates::setUnavailable);
 
@@ -101,6 +128,7 @@ Core::Core(QObject* parent)
     connect(&activePlaylist_, &ViewModel::ActivePlaylist::entriesChanged, this, syncPreview);
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, syncPreview);
     syncPreview();
+    connect(&nowPlaying_, &ViewModel::NowPlaying::resumeRequested, &activePlaylist_, &ViewModel::ActivePlaylist::resume);
 
     // History's saved snapshots: when each track was last played, plus
     // whatever like state it was recorded with — only where nothing
@@ -131,6 +159,7 @@ Core::Core(QObject* parent)
                     track.coverUrl.value_or(track.album ? track.album->coverUrl.value_or(QString()) : QString()));
             }
         });
+    nowPlaying_.setCovers(&coverArtCache_);
     // Tracks are saved from the playback cache, or fetched for it.
     downloads_.setPreloader(&playback_.preloader());
     playback_.setStreamRouteProvider([this](const QString& sourceId) -> std::optional<QNetworkProxy> {

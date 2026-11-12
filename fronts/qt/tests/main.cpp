@@ -9,8 +9,12 @@
 
 namespace Tests {
 QObject* makeRpcClientTest();
+QObject* makeConnectivityTest();
+QObject* makeTrackListUpdateTest();
+QObject* makeSourceSettingsTest();
 QObject* makeSourceSessionTest();
 QObject* makeNowPlayingTest();
+QObject* makeRemotingTest();
 QObject* makePlaylistEditingTest();
 QObject* makeSourcesTest();
 QObject* makeActivePlaylistTest();
@@ -56,7 +60,7 @@ int main(int argc, char** argv)
     // Anything a test saves goes to throwaway locations, not the user's.
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
-    for (auto make : { Tests::makeRpcClientTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest,
+    for (auto make : { Tests::makeRpcClientTest, Tests::makeConnectivityTest, Tests::makeTrackListUpdateTest, Tests::makeSourceSettingsTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest, Tests::makeRemotingTest,
              Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
              Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
              Tests::makeTrackCacheTest, Tests::makeAudioFileProbeTest, Tests::makePreloaderTest,

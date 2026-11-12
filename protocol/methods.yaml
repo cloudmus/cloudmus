@@ -1,4 +1,4 @@
-# cloudmus JSON-RPC methods & notifications — the machine-readable RPC
+# CloudMus JSON-RPC methods & notifications — the machine-readable RPC
 # surface. `protocol/schema/*.yaml` describes data *types*; this file
 # describes the *methods* (front -> backend, request/response) and
 # *notifications* (backend -> front, fire-and-forget) built on top of them,
