@@ -39,6 +39,29 @@ public final class CoreBridge {
         void onState(boolean playing, boolean loading, long positionMs, long durationMs);
 
         void onFeedback(boolean likeSupported, boolean liked, boolean dislikeSupported, boolean disliked);
+
+        // A window of the queue, from queue index `first`, with the track
+        // at `current` in it; `current` -1: no queue.
+        void onQueue(int first, int current, boolean hasPrevious, boolean hasNext, List<QueueItem> items);
+    }
+
+    // One track of the queue, as the system lists it.
+    public static final class QueueItem {
+        public final String id; // the source's and the track's, as onTrack() has it
+        public final String title;
+        public final String artist;
+        public final String album;
+        public final String coverFile; // empty: none at hand yet
+        public final long durationMs;
+
+        QueueItem(String id, String title, String artist, String album, String coverFile, long durationMs) {
+            this.id = id;
+            this.title = title;
+            this.artist = artist;
+            this.album = album;
+            this.coverFile = coverFile;
+            this.durationMs = durationMs;
+        }
     }
 
     private static Listener listener;
@@ -57,6 +80,8 @@ public final class CoreBridge {
     private static native void nativeBrowse(int requestId, String id, boolean itemItself);
 
     private static native void nativePlayMedia(String id);
+
+    private static native void nativePlayQueueItem(int index, String id);
 
     // One entry of what a media browser lists (ViewModel::MediaTree).
     public static final class BrowseItem {
@@ -92,6 +117,12 @@ public final class CoreBridge {
 
     public static void playMedia(String id) {
         nativePlayMedia(id);
+    }
+
+    // `index` in the queue, where the track `id` was when last reported.
+    public static void playQueueItem(int index, String id) {
+        if (started)
+            nativePlayQueueItem(index, id);
     }
 
     public static synchronized void setLibraryListener(Runnable listener) {
@@ -198,6 +229,29 @@ public final class CoreBridge {
         }
         if (current != null)
             current.onTrack(id, title, artist, album, durationMs, coverFile);
+    }
+
+    // From the core, on its thread: six strings for each item, in QueueItem's
+    // order.
+    @SuppressWarnings("unused")
+    static void onQueue(int first, int current, boolean hasPrevious, boolean hasNext, String[] flat) {
+        Listener target;
+        synchronized (CoreBridge.class) {
+            target = listener;
+        }
+        if (target == null)
+            return;
+        List<QueueItem> items = new ArrayList<>(flat.length / 6);
+        for (int i = 0; i + 5 < flat.length; i += 6) {
+            long durationMs;
+            try {
+                durationMs = Long.parseLong(flat[i + 5]);
+            } catch (NumberFormatException error) {
+                durationMs = 0;
+            }
+            items.add(new QueueItem(flat[i], flat[i + 1], flat[i + 2], flat[i + 3], flat[i + 4], durationMs));
+        }
+        target.onQueue(first, current, hasPrevious, hasNext, items);
     }
 
     // From the core, on its thread: five strings for each item, in BrowseItem's

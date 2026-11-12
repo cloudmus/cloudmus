@@ -9,8 +9,8 @@ import android.os.ParcelFileDescriptor;
 import java.io.File;
 import java.io.FileNotFoundException;
 
-// Playlist covers for a media browser, which is another app and can't read our
-// files. Only the files of the core's cover folder, by name, and only to read;
+// Covers for the system's player and a media browser (the playing track, the
+// queue, the playlists), which are other apps and can't read our files. Only the files of the core's cover folder, by name, and only to read;
 // they're pictures from the music services, so anyone may have them.
 public final class CoverProvider extends ContentProvider {
     private static final String AUTHORITY = "dev.cloudmus.mobile.covers";

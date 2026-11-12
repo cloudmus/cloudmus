@@ -3,8 +3,11 @@
 #include <QImageWriter>
 #include <QMetaObject>
 #include <QSslSocket>
+#include <QStringList>
+#include <QTimer>
 #include <QUrl>
 
+#include <algorithm>
 #include <functional>
 #include <jni.h>
 #include <mutex>
@@ -15,6 +18,7 @@
 #include "Jni.h"
 #include "Log.h"
 #include "MobileCore.h"
+#include "PlaybackController.h"
 
 // The core as the playback service runs it: a library loaded by
 // CoreBridge.java into the :playback process, with Qt Core and no Qt
@@ -39,6 +43,7 @@ enum Command {
 jclass bridgeClass = nullptr;
 jmethodID onStateMethod = nullptr;
 jmethodID onTrackMethod = nullptr;
+jmethodID onQueueMethod = nullptr;
 jmethodID onFeedbackMethod = nullptr;
 jmethodID onAutoplayMethod = nullptr;
 jmethodID onResumeAfterLossMethod = nullptr;
@@ -93,6 +98,75 @@ void reportTrack(App::MobileCore& core)
     Android::Jni::checkException(env, "CoreBridge.onTrack");
     for (const jstring text : ids)
         env->DeleteLocalRef(text);
+}
+
+// The queue around the track, for the system's player to list (the car's
+// Media Center): a window of it, the whole of a long playlist being more
+// than a binder call takes. Covers as files, which Java hands out as links.
+constexpr int kQueueBefore = 10;
+constexpr int kQueueAfter = 40;
+constexpr int kQueueFields = 6;
+
+struct QueueReport {
+    int first = 0;
+    int current = -1;
+    bool hasPrevious = false;
+    bool hasNext = false;
+    QStringList flat;
+    bool operator==(const QueueReport&) const = default;
+};
+
+QueueReport queueReport(App::MobileCore& core)
+{
+    QueueReport report;
+    Playback::PlaybackController& playback = core.core().playback();
+    if (!playback.hasCurrentTrack())
+        return report;
+    const auto& queue = playback.queue();
+    const int current = playback.currentIndex();
+    report.first = std::max(0, current - kQueueBefore);
+    const int end = std::min(int(queue.size()), current + kQueueAfter + 1);
+    report.current = current;
+    report.hasPrevious = playback.neighborIndex(-1) >= 0;
+    // A station has its next track coming even when none is queued yet.
+    report.hasNext = playback.neighborIndex(1) >= 0 || playback.isRadio();
+    Covers::CoverArtCache& covers = core.core().coverArtCache();
+    for (int i = report.first; i < end; ++i) {
+        const Playback::QueueEntry& entry = queue.at(i);
+        const Track& track = entry.track;
+        QStringList artists;
+        for (const Artist& artist : track.artists)
+            artists.append(artist.name);
+        report.flat << entry.sourceId + QLatin1Char('/') + track.id << track.title
+                    << artists.join(QStringLiteral(", ")) << (track.album ? track.album->title : QString())
+                    << covers.localFile(track.coverUrl.value_or(
+                           track.album ? track.album->coverUrl.value_or(QString()) : QString()))
+                    << QString::number(track.durationMs);
+    }
+    return report;
+}
+
+void reportQueue(App::MobileCore& core)
+{
+    static QueueReport last;
+    QueueReport report = queueReport(core);
+    // Covers arrive one by one, and most of them belong to other lists.
+    if (report == last)
+        return;
+    last = report;
+    JNIEnv* env = Android::Jni::env();
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray flat = env->NewObjectArray(jsize(report.flat.size()), stringClass, nullptr);
+    for (jsize i = 0; i < jsize(report.flat.size()); ++i) {
+        jstring value = toJava(env, report.flat.at(i));
+        env->SetObjectArrayElement(flat, i, value);
+        env->DeleteLocalRef(value);
+    }
+    env->CallStaticVoidMethod(bridgeClass, onQueueMethod, jint(report.first), jint(report.current),
+        jboolean(report.hasPrevious), jboolean(report.hasNext), flat);
+    Android::Jni::checkException(env, "CoreBridge.onQueue");
+    env->DeleteLocalRef(flat);
+    env->DeleteLocalRef(stringClass);
 }
 
 // Like and dislike, for the buttons in the notification.
@@ -181,6 +255,19 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
 
     auto report = [&core] { reportState(core); };
     auto& now = core.nowPlaying();
+    // Before the track: Java finds the new track in the queue it has, rather
+    // than a moment of the old queue without it.
+    auto queue = [&core] { reportQueue(core); };
+    QObject::connect(&now, &ViewModel::NowPlaying::trackChanged, &core, queue);
+    // The rest in bursts (a radio's tracks, a list's covers): once it settles.
+    QTimer queueLater;
+    queueLater.setSingleShot(true);
+    queueLater.setInterval(200);
+    QObject::connect(&queueLater, &QTimer::timeout, &core, queue);
+    const auto queueSoon = [&queueLater] { queueLater.start(); };
+    QObject::connect(&core.core().playback(), &Playback::PlaybackController::queueChanged, &core, queueSoon);
+    QObject::connect(&now, &ViewModel::NowPlaying::playModesChanged, &core, queueSoon);
+    QObject::connect(&core.core().coverArtCache(), &Covers::CoverArtCache::pixmapReady, &core, queueSoon);
     auto track = [&core] { reportTrack(core); };
     QObject::connect(&now, &ViewModel::NowPlaying::trackChanged, &core, track);
     auto feedback = [&core] { reportFeedback(core); };
@@ -220,6 +307,7 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
             QMetaObject::invokeMethod(&context, std::move(action), Qt::QueuedConnection);
         pending.clear();
     }
+    reportQueue(core);
     reportTrack(core);
     reportFeedback(core);
     reportState(core);
@@ -256,6 +344,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     onFeedbackMethod = env->GetStaticMethodID(bridgeClass, "onFeedback", "(ZZZZ)V");
     onTrackMethod = env->GetStaticMethodID(bridgeClass, "onTrack",
         "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)V");
+    onQueueMethod = env->GetStaticMethodID(bridgeClass, "onQueue", "(IIZZ[Ljava/lang/String;)V");
     onAutoplayMethod = env->GetStaticMethodID(bridgeClass, "onAutoplayChanged", "(Z)V");
     onResumeAfterLossMethod = env->GetStaticMethodID(bridgeClass, "onResumeAfterLossChanged", "(I)V");
     onReadyMethod = env->GetStaticMethodID(bridgeClass, "onCoreReady", "()V");
@@ -333,6 +422,30 @@ extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativePlay
             qInfo() << "system asks to play" << id;
             coreInstance->mediaTree().play(id);
         }
+    });
+}
+
+// A track picked in the system's list of the queue: by its place, if the
+// queue hasn't moved since, else wherever it is now.
+extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativePlayQueueItem(
+    JNIEnv* env, jclass, jint index, jstring id)
+{
+    post([index, id = toQString(env, id)] {
+        if (!coreInstance)
+            return;
+        const auto& queue = coreInstance->core().playback().queue();
+        const auto matches = [&](int at) {
+            const Playback::QueueEntry& entry = queue.at(at);
+            return entry.sourceId + QLatin1Char('/') + entry.track.id == id;
+        };
+        int at = index >= 0 && index < queue.size() && matches(index) ? index : -1;
+        for (int i = 0; at < 0 && i < queue.size(); ++i) {
+            if (matches(i))
+                at = i;
+        }
+        qInfo() << "system asks to play the queue's" << at << id;
+        if (at >= 0)
+            coreInstance->activePlaylist().playRow(at);
     });
 }
 

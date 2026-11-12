@@ -18,10 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 
-import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 // Media3's view of the core: a Player that does no playing itself — the
@@ -71,6 +68,11 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         });
     }
 
+    // A link to the cover, not the picture: a picture is copied into every
+    // list the item is in, and the queue, cut at what a binder call takes,
+    // ended before the playing track. The session loads the picture from the
+    // link itself for the controllers that want one (the notification); the
+    // others, in other apps, read it through CoverProvider.
     private static MediaItem mediaItem(String id, String title, String artist, String album, String coverFile) {
         MediaMetadata.Builder metadata = new MediaMetadata.Builder()
             .setTitle(title)
@@ -78,33 +80,61 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             .setAlbumTitle(album)
             .setIsBrowsable(false)
             .setIsPlayable(true);
-        byte[] cover = coverFile.isEmpty() ? null : coverBytes(coverFile);
-        // Bytes, not a file URI: the controller in the car can't read our files.
-        if (cover != null)
-            metadata.setArtworkData(cover, MediaMetadata.PICTURE_TYPE_FRONT_COVER);
+        if (!coverFile.isEmpty())
+            metadata.setArtworkUri(CoverProvider.uriFor(coverFile));
         return new MediaItem.Builder().setMediaId(id).setMediaMetadata(metadata.build()).build();
     }
 
-    // Small enough for a binder call, which is how the session hands it out.
-    private static final int COVER_MAX_SIDE = 512;
+    // The core's queue around the track (CoreBridge.onQueue()), ready to list.
+    private int queueFirst;
+    private int queueCurrent = -1;
+    private boolean queueHasPrevious;
+    private boolean queueHasNext;
+    private List<CoreBridge.QueueItem> queueItems = ImmutableList.of();
+    private List<MediaItemData> queueData = ImmutableList.of();
 
-    private static byte[] coverBytes(String file) {
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(file, options);
-        options.inJustDecodeBounds = false;
-        options.inSampleSize = 1;
-        while (Math.max(options.outWidth, options.outHeight) / options.inSampleSize > COVER_MAX_SIDE)
-            options.inSampleSize *= 2;
-        Bitmap bitmap = BitmapFactory.decodeFile(file, options);
-        if (bitmap == null) {
-            CmLog.w(TAG, "can't read the cover " + file);
-            return null;
+    @Override
+    public void onQueue(int first, int current, boolean hasPrevious, boolean hasNext, List<CoreBridge.QueueItem> items) {
+        ImmutableList.Builder<MediaItemData> data = ImmutableList.builder();
+        for (int i = 0; i < items.size(); ++i) {
+            CoreBridge.QueueItem item = items.get(i);
+            data.add(new MediaItemData.Builder(queueUid(first + i, item.id))
+                .setMediaItem(mediaItem(item.id, item.title, item.artist, item.album, item.coverFile))
+                .setDurationUs(item.durationMs > 0 ? item.durationMs * 1000 : C.TIME_UNSET)
+                .setIsSeekable(true)
+                .build());
         }
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out);
-        bitmap.recycle();
-        return out.toByteArray();
+        List<MediaItemData> built = data.build();
+        CmLog.i(TAG, "queue for the system: " + items.size() + " from " + first + ", the track at " + current
+            + (hasPrevious ? ", more before" : "") + (hasNext ? ", more after" : ""));
+        new android.os.Handler(getApplicationLooper()).post(() -> {
+            queueFirst = first;
+            queueCurrent = current;
+            queueHasPrevious = hasPrevious;
+            queueHasNext = hasNext;
+            queueItems = items;
+            queueData = built;
+            invalidateState();
+        });
+    }
+
+    // Unique in the list even when a track is in the queue twice.
+    private static String queueUid(int index, String id) {
+        return index + "/" + id;
+    }
+
+    // Where the playing track is in queueItems, -1 if it isn't. The track and
+    // the queue come one after the other: for a moment the queue's current
+    // one may be the track before.
+    private int trackInQueue() {
+        int at = queueCurrent - queueFirst;
+        if (at >= 0 && at < queueItems.size() && queueItems.get(at).id.equals(trackId))
+            return at;
+        for (int i = 0; i < queueItems.size(); ++i) {
+            if (queueItems.get(i).id.equals(trackId))
+                return i;
+        }
+        return -1;
     }
 
     private boolean likeSupported;
@@ -198,34 +228,88 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         }
     }
 
-    // The core alone knows what comes before and after the track (a radio's
-    // next one isn't even fetched yet), so around the current item there's a
-    // blank on each side: Media3 only passes on "next" and "previous" when it
-    // has an item to go to. COMMAND_GET_TIMELINE isn't offered, for controllers
-    // not to list the blanks as a queue.
+    // The queue, as far as the core has sent it, goes to the system: the
+    // car's Media Center lists it, a tap on one plays it. Media3 only passes
+    // on "next" and "previous" when it has an item to go to, and the core
+    // alone knows what comes then (shuffled, a radio's next one not fetched
+    // yet): where the list ends and the core goes on there's a blank. With
+    // no queue (a track on its own), there's a blank on each side, and
+    // COMMAND_GET_TIMELINE isn't offered, for the blanks not to be listed.
     private static final String BEFORE_ID = "before";
     private static final String AFTER_ID = "after";
+    private static final int SHOWN_BEFORE = -1;
+    private static final int SHOWN_AFTER = -2;
+    private static final int SHOWN_TRACK = -3;
+
+    // What the last state listed, for handleSeek() to tell what's picked: a
+    // queue index, or one of SHOWN_*.
+    private int[] shownQueueIndex = new int[0];
+    private String[] shownIds = new String[0];
+
+    private static final Commands BASE_COMMANDS = new Commands.Builder()
+        .addAll(COMMAND_PLAY_PAUSE, COMMAND_PREPARE, COMMAND_STOP, COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
+            COMMAND_SEEK_TO_NEXT, COMMAND_SEEK_TO_PREVIOUS, COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+            COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, COMMAND_SEEK_TO_MEDIA_ITEM, COMMAND_GET_CURRENT_MEDIA_ITEM,
+            COMMAND_GET_METADATA, COMMAND_SET_MEDIA_ITEM, COMMAND_RELEASE)
+        .build();
+    private static final Commands QUEUE_COMMANDS = BASE_COMMANDS.buildUpon().add(COMMAND_GET_TIMELINE).build();
 
     @NonNull
     @Override
     protected State getState() {
-        Commands commands = new Commands.Builder()
-            .addAll(COMMAND_PLAY_PAUSE, COMMAND_PREPARE, COMMAND_STOP, COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM,
-                COMMAND_SEEK_TO_NEXT, COMMAND_SEEK_TO_PREVIOUS, COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
-                COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM, COMMAND_SEEK_TO_MEDIA_ITEM, COMMAND_GET_CURRENT_MEDIA_ITEM,
-                COMMAND_GET_METADATA, COMMAND_SET_MEDIA_ITEM, COMMAND_RELEASE)
-            .build();
-        State.Builder state = new State.Builder().setAvailableCommands(commands);
-        if (trackItem == null)
-            return state.setPlaybackState(STATE_IDLE).build();
-        return state.setPlaylist(ImmutableList.of(new MediaItemData.Builder(BEFORE_ID).build(),
-                new MediaItemData.Builder(trackId)
-                    .setMediaItem(trackItem)
-                    .setDurationUs(durationMs > 0 ? durationMs * 1000 : C.TIME_UNSET)
-                    .setIsSeekable(true)
-                    .build(),
-                new MediaItemData.Builder(AFTER_ID).build()))
-            .setCurrentMediaItemIndex(1)
+        if (trackItem == null) {
+            shownQueueIndex = new int[0];
+            shownIds = new String[0];
+            return new State.Builder().setAvailableCommands(BASE_COMMANDS).setPlaybackState(STATE_IDLE).build();
+        }
+        MediaItemData.Builder track = new MediaItemData.Builder(trackId)
+            .setMediaItem(trackItem)
+            .setDurationUs(durationMs > 0 ? durationMs * 1000 : C.TIME_UNSET)
+            .setIsSeekable(true);
+        List<MediaItemData> playlist = new java.util.ArrayList<>();
+        List<Integer> indices = new java.util.ArrayList<>();
+        List<String> ids = new java.util.ArrayList<>();
+        int current;
+        int at = trackInQueue();
+        if (at < 0) {
+            playlist.add(new MediaItemData.Builder(BEFORE_ID).build());
+            playlist.add(track.build());
+            playlist.add(new MediaItemData.Builder(AFTER_ID).build());
+            indices.add(SHOWN_BEFORE);
+            indices.add(SHOWN_TRACK);
+            indices.add(SHOWN_AFTER);
+            ids.add(BEFORE_ID);
+            ids.add(trackId);
+            ids.add(AFTER_ID);
+            current = 1;
+        } else {
+            if (at == 0 && queueHasPrevious) {
+                playlist.add(new MediaItemData.Builder(BEFORE_ID).build());
+                indices.add(SHOWN_BEFORE);
+                ids.add(BEFORE_ID);
+            }
+            current = playlist.size() + at;
+            for (int i = 0; i < queueItems.size(); ++i) {
+                // The track's own item: what onTrack() has, which is newer
+                // (the duration, a cover that has just come).
+                playlist.add(i == at ? track.setUid(queueData.get(i).uid).build() : queueData.get(i));
+                indices.add(queueFirst + i);
+                ids.add(queueItems.get(i).id);
+            }
+            if (at == queueItems.size() - 1 && queueHasNext) {
+                playlist.add(new MediaItemData.Builder(AFTER_ID).build());
+                indices.add(SHOWN_AFTER);
+                ids.add(AFTER_ID);
+            }
+        }
+        shownQueueIndex = new int[indices.size()];
+        for (int i = 0; i < shownQueueIndex.length; ++i)
+            shownQueueIndex[i] = indices.get(i);
+        shownIds = ids.toArray(new String[0]);
+        return new State.Builder()
+            .setAvailableCommands(at < 0 ? BASE_COMMANDS : QUEUE_COMMANDS)
+            .setPlaylist(playlist)
+            .setCurrentMediaItemIndex(current)
             .setPlaybackState(loading ? STATE_BUFFERING : STATE_READY)
             .setPlayWhenReady(playing || awaitingResume(), PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
             .setPlaybackSuppressionReason(!playing && awaitingResume()
@@ -306,12 +390,16 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                 CoreBridge.command(CoreBridge.CMD_PREVIOUS, 0);
                 break;
             default:
-                if (mediaItemIndex == 0)
+                int shown = mediaItemIndex >= 0 && mediaItemIndex < shownQueueIndex.length
+                    ? shownQueueIndex[mediaItemIndex] : SHOWN_TRACK;
+                if (shown == SHOWN_BEFORE)
                     CoreBridge.command(CoreBridge.CMD_PREVIOUS, 0);
-                else if (mediaItemIndex == 2)
+                else if (shown == SHOWN_AFTER)
                     CoreBridge.command(CoreBridge.CMD_NEXT, 0);
-                else
+                else if (shown == SHOWN_TRACK || shownIds[mediaItemIndex].equals(trackId))
                     CoreBridge.command(CoreBridge.CMD_SEEK, Math.max(0, seekPositionMs));
+                else
+                    CoreBridge.playQueueItem(shown, shownIds[mediaItemIndex]);
         }
         return Futures.immediateVoidFuture();
     }

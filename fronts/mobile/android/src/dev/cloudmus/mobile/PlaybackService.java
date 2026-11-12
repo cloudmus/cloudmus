@@ -380,8 +380,8 @@ public final class PlaybackService extends MediaLibraryService {
                 .setIsBrowsable(false)
                 .setIsPlayable(true)
                 .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST);
-            // A link, not the picture as with the playing track: Media3 puts
-            // pictures into the list, cutting it short at what a binder call takes.
+            // A link, not the picture: Media3 puts pictures into the list,
+            // cutting it short at what a binder call takes.
             if (!item.coverFile.isEmpty())
                 metadata.setArtworkUri(CoverProvider.uriFor(item.coverFile));
             return new MediaItem.Builder().setMediaId(item.id).setMediaMetadata(metadata.build()).build();
