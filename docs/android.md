@@ -99,8 +99,8 @@ adb logcat -s CloudmusStart             # startup milestones
   starts a source left unstarted for wanting a sign-in. There's no language
   setting yet: the QML has no translations. No download folder either.
 - Media browsers (the car's Media Center, Android Auto) list the playlists:
-  with several sources a folder for each, with one its playlists straight away,
-  favorites first. A tap starts the playlist, waiting for its source if that's
+  a folder for each source, even a single one (Media Center makes tabs of the
+  root's folders and shows nothing else there), favorites first. A tap starts the playlist, waiting for its source if that's
   still coming up. Tracks inside a playlist aren't listed.
 - GWM head units (Haval): the car's media widget follows a third-party player
   only once the unit's Media Center has picked it. The player asks for that
@@ -109,7 +109,9 @@ adb logcat -s CloudmusStart             # startup milestones
   property, it stays across restarts). On any other Android, or if the
   property can't be read, nothing is asked. A tap on the player in the widget
   opens Media Center, as for any third-party player there: its "Open CloudMus"
-  button brings up the player's screen.
+  button brings up the player's screen. On such a unit that button goes first,
+  in the row Media Center shows without unfolding; like, dislike and close
+  are a row up.
 - Settings → Developer tools holds what's for working on the app: the device,
   the Log page (it filters by level, process, text, and "this boot"), scrolling
   and drawing experiments, and for a head unit **Export system apps** (the

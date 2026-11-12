@@ -105,11 +105,11 @@ QList<MediaTree::Item> MediaTree::playlistsOf(const QString& sourceId)
 QList<MediaTree::Item> MediaTree::children(const QString& parentId)
 {
     if (parentId == QLatin1String(kRootId)) {
-        const QStringList sourceIds = listedSources();
-        if (sourceIds.size() == 1)
-            return playlistsOf(sourceIds.first());
+        // Folders even for one source: Media Center (Android 9's car media)
+        // makes tabs of the root's folders and shows nothing else there, so
+        // playlists straight in the root left it empty.
         QList<Item> items;
-        for (const QString& id : sourceIds)
+        for (const QString& id : listedSources())
             items.append({ kSourcePrefix + id, sources_.model().sourceName(id), QString(), QString(), true });
         return items;
     }

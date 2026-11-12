@@ -30,6 +30,16 @@ final class GwmMediaCenter {
     private GwmMediaCenter() {
     }
 
+    // A GWM unit: its Media Center is installed.
+    static boolean present(Context context) {
+        try {
+            context.getPackageManager().getPackageInfo(PACKAGE, 0);
+            return true;
+        } catch (PackageManager.NameNotFoundException error) {
+            return false;
+        }
+    }
+
     // The package Media Center last picked, "" if none; null where the
     // property can't be read (not this kind of unit, or the system says no).
     static String connectedPackage() {
@@ -50,12 +60,8 @@ final class GwmMediaCenter {
             return;
         asked = true;
         Context context = activity.getApplicationContext();
-        PackageManager pm = context.getPackageManager();
-        try {
-            pm.getPackageInfo(PACKAGE, 0);
-        } catch (PackageManager.NameNotFoundException error) {
-            return; // not a GWM unit
-        }
+        if (!present(context))
+            return;
         String connected = connectedPackage();
         if (connected == null) {
             CmLog.i(TAG, "Media Center is here, its pick can't be read: leaving it");

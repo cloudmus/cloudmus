@@ -20,8 +20,7 @@ class LibraryScreen;
 class Sources;
 
 // What the system's media browsers list: the car's Media Center, Android Auto.
-// The sources, each with its playlists, favorites first; with one source to
-// list, its playlists straight away, for one tap less on a car's screen.
+// The sources, each a folder of its playlists, favorites first.
 // A playlist is an item to play, not a folder of its tracks. Lives beside the
 // core, not over a replica: only the service asks.
 class MediaTree : public QObject {

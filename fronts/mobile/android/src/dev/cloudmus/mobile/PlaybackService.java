@@ -63,6 +63,7 @@ public final class PlaybackService extends MediaLibraryService {
     private CorePlayer player;
     private PendingIntent openScreen;
     private boolean autoplayed;
+    private boolean openFirst;
     // The source folders browsers have opened.
     private final java.util.Set<String> knownFolders = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -71,6 +72,7 @@ public final class PlaybackService extends MediaLibraryService {
         CmLog.mark("service onCreate");
         super.onCreate();
         CoreBridge.start(this);
+        openFirst = GwmMediaCenter.present(this);
         player = new CorePlayer(this, getMainLooper());
         CoreBridge.setListener(player);
         CoreBridge.setStopHandler(() -> new android.os.Handler(getMainLooper()).post(() -> close("stopped in the app")));
@@ -164,32 +166,42 @@ public final class PlaybackService extends MediaLibraryService {
     // In the order the system takes them, which shows just the first two beside
     // play, next and previous since Android 13: the others are for what shows more,
     // like the car's Media Center, where a tap doesn't get to the app otherwise.
+    // Media Center shows only the first one beside previous, the others a row up
+    // that has to be unfolded: there, "open" goes first. There's one order for
+    // every controller of the system's session, so it's the unit that decides.
     private ImmutableList<CommandButton> buttons() {
         ImmutableList.Builder<CommandButton> buttons = ImmutableList.builder();
-        if (player.dislikeSupported()) {
-            buttons.add(new CommandButton.Builder()
-                .setDisplayName(getString(R.string.dislike))
-                .setIconResId(player.disliked() ? R.drawable.ic_heart_off : R.drawable.ic_heart_off_outline)
-                .setSessionCommand(DISLIKE)
-                .build());
-        }
-        if (player.likeSupported()) {
-            buttons.add(new CommandButton.Builder()
-                .setDisplayName(getString(R.string.like))
-                .setIconResId(player.liked() ? R.drawable.ic_favorite : R.drawable.ic_favorite_border)
-                .setSessionCommand(LIKE)
-                .build());
+        CommandButton open = new CommandButton.Builder()
+            .setDisplayName(getString(R.string.open))
+            .setIconResId(R.drawable.ic_open)
+            .setSessionCommand(OPEN)
+            .build();
+        if (openFirst)
+            buttons.add(open);
+        CommandButton like = player.likeSupported() ? new CommandButton.Builder()
+            .setDisplayName(getString(R.string.like))
+            .setIconResId(player.liked() ? R.drawable.ic_favorite : R.drawable.ic_favorite_border)
+            .setSessionCommand(LIKE)
+            .build() : null;
+        CommandButton dislike = player.dislikeSupported() ? new CommandButton.Builder()
+            .setDisplayName(getString(R.string.dislike))
+            .setIconResId(player.disliked() ? R.drawable.ic_heart_off : R.drawable.ic_heart_off_outline)
+            .setSessionCommand(DISLIKE)
+            .build() : null;
+        // In Media Center's row up, like comes first; the notification keeps
+        // the order it has always had.
+        CommandButton[] feedback = openFirst ? new CommandButton[] { like, dislike } : new CommandButton[] { dislike, like };
+        for (CommandButton button : feedback) {
+            if (button != null)
+                buttons.add(button);
         }
         buttons.add(new CommandButton.Builder()
             .setDisplayName(getString(R.string.close))
             .setIconResId(R.drawable.ic_close)
             .setSessionCommand(CLOSE)
             .build());
-        buttons.add(new CommandButton.Builder()
-            .setDisplayName(getString(R.string.open))
-            .setIconResId(R.drawable.ic_open)
-            .setSessionCommand(OPEN)
-            .build());
+        if (!openFirst)
+            buttons.add(open);
         return buttons.build();
     }
 

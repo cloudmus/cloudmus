@@ -212,15 +212,16 @@ private slots:
         QVERIFY(core.nowPlaying().title() != track);
     }
 
-    // What a car's Media Center lists: the one source's playlists straight
-    // away, favorites first, and a tap starts one.
+    // What a car's Media Center lists: the source as a folder, even the one
+    // source (its tabs are the root's folders), its playlists in it,
+    // favorites first, and a tap starts one.
     void mediaBrowsersListThePlaylists()
     {
         QTemporaryDir dir;
         App::MobileCore core({ QString(), dir.filePath("core.ini") });
         ViewModel::MediaTree& tree = core.mediaTree();
         QSignalSpy changed(&tree, &ViewModel::MediaTree::changed);
-        QTRY_COMPARE_WITH_TIMEOUT(tree.children(QLatin1String(ViewModel::MediaTree::kRootId)).size(), 2, 10000);
+        QTRY_COMPARE_WITH_TIMEOUT(tree.children(QStringLiteral("source/fake")).size(), 2, 10000);
         QTRY_VERIFY_WITH_TIMEOUT(changed.count() > 0, 5000);
 
         core.library().selectSource(QStringLiteral("fake"));
@@ -228,7 +229,11 @@ private slots:
             core.library().toggleFavorite(QStringLiteral("p2"));
         if (core.core().sources().isFavorite(QStringLiteral("fake"), QStringLiteral("p1")))
             core.library().toggleFavorite(QStringLiteral("p1"));
-        const QList<ViewModel::MediaTree::Item> items = tree.children(QLatin1String(ViewModel::MediaTree::kRootId));
+        const QList<ViewModel::MediaTree::Item> root = tree.children(QLatin1String(ViewModel::MediaTree::kRootId));
+        QCOMPARE(root.size(), 1);
+        QCOMPARE(root.first().id, QStringLiteral("source/fake"));
+        QVERIFY(root.first().browsable);
+        const QList<ViewModel::MediaTree::Item> items = tree.children(QStringLiteral("source/fake"));
         QCOMPARE(items.size(), 2);
         QCOMPARE(items.first().id, QStringLiteral("playlist/fake/p2"));
         for (const ViewModel::MediaTree::Item& item : items) {
@@ -236,7 +241,6 @@ private slots:
             QVERIFY(!item.title.isEmpty());
             QCOMPARE(tree.item(item.id), item);
         }
-        QCOMPARE(tree.children(QStringLiteral("source/fake")), items);
         QCOMPARE(tree.item(QStringLiteral("source/fake")).title, QStringLiteral("Fake Source"));
         QVERIFY(tree.item(QStringLiteral("source/nothing")).id.isEmpty());
         QVERIFY(tree.item(QStringLiteral("playlist/fake/nothing")).id.isEmpty());
