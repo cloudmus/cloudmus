@@ -1,4 +1,4 @@
-package dev.cloudmus.mobile;
+package app.cloudmus.mobile;
 
 import org.qtproject.qt.android.bindings.QtApplication;
 

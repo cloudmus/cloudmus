@@ -78,7 +78,7 @@ adb logcat -s CloudmusStart             # startup milestones
 
 - Open the app once: it asks for storage access (Android ≤ 9) so the log
   can go to `Download/Cloudmus/logs`. Android 10+ keeps it in
-  `Android/data/dev.cloudmus.mobile/files/logs`; **Export zip** in
+  `Android/data/app.cloudmus.mobile/files/logs`; **Export zip** in
   Settings → Developer tools (or on the Log page) writes a zip to
   `Download/Cloudmus`.
 - Autoplay at boot is on by default; the switch is in Settings (the sliders
@@ -178,6 +178,6 @@ Android 9, landscape 1920×1080 at 160 dpi mimics a head unit: use `-gpu host`
 
 ```bash
 adb shell input keyevent KEYCODE_MEDIA_PLAY        # steering-wheel button, app stopped
-adb shell am force-stop dev.cloudmus.mobile        # then the line above
-adb shell dumpsys media_session | grep -A3 dev.cloudmus
+adb shell am force-stop app.cloudmus.mobile        # then the line above
+adb shell dumpsys media_session | grep -A3 app.cloudmus
 ```

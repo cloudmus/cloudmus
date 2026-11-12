@@ -338,7 +338,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     // libmpv's (and FFmpeg's) Android parts find the VM here.
     av_jni_set_java_vm(vm, nullptr);
     JNIEnv* env = Android::Jni::env();
-    jclass local = env->FindClass("dev/cloudmus/mobile/CoreBridge");
+    jclass local = env->FindClass("app/cloudmus/mobile/CoreBridge");
     bridgeClass = static_cast<jclass>(env->NewGlobalRef(local));
     onStateMethod = env->GetStaticMethodID(bridgeClass, "onState", "(ZZJJ)V");
     onFeedbackMethod = env->GetStaticMethodID(bridgeClass, "onFeedback", "(ZZZZ)V");
@@ -354,14 +354,14 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     return JNI_VERSION_1_6;
 }
 
-extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeStart(
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeStart(
     JNIEnv* env, jclass, jstring filesDir, jstring cacheDir, jstring pythonHome, jstring libraryDir)
 {
     coreThread = std::thread(runCore, toQString(env, filesDir), toQString(env, cacheDir), toQString(env, pythonHome),
         toQString(env, libraryDir));
 }
 
-extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeCommand(
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeCommand(
     JNIEnv*, jclass, jint command, jlong argument)
 {
     post([command, argument] {
@@ -399,7 +399,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeComm
     });
 }
 
-extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeBrowse(
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeBrowse(
     JNIEnv* env, jclass, jint requestId, jstring id, jboolean itemItself)
 {
     post([requestId, id = toQString(env, id), itemItself] {
@@ -415,7 +415,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeBrow
     });
 }
 
-extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativePlayMedia(JNIEnv* env, jclass, jstring id)
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativePlayMedia(JNIEnv* env, jclass, jstring id)
 {
     post([id = toQString(env, id)] {
         if (coreInstance) {
@@ -427,7 +427,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativePlay
 
 // A track picked in the system's list of the queue: by its place, if the
 // queue hasn't moved since, else wherever it is now.
-extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativePlayQueueItem(
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativePlayQueueItem(
     JNIEnv* env, jclass, jint index, jstring id)
 {
     post([index, id = toQString(env, id)] {
@@ -449,7 +449,7 @@ extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativePlay
     });
 }
 
-extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_CoreBridge_nativeStop(JNIEnv*, jclass)
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeStop(JNIEnv*, jclass)
 {
     post([] { QCoreApplication::quit(); });
 }

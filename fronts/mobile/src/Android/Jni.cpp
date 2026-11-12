@@ -26,7 +26,7 @@ void initialize(JavaVM* vm)
     javaVm = vm;
     pthread_key_create(&detachKey, detachThread);
     JNIEnv* e = env();
-    jclass local = e->FindClass("dev/cloudmus/mobile/CmLog");
+    jclass local = e->FindClass("app/cloudmus/mobile/CmLog");
     if (checkException(e, "FindClass CmLog") || !local)
         return;
     cmLog = static_cast<jclass>(e->NewGlobalRef(local));

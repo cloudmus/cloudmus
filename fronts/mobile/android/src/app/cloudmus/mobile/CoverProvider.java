@@ -1,4 +1,4 @@
-package dev.cloudmus.mobile;
+package app.cloudmus.mobile;
 
 import android.content.ContentProvider;
 import android.content.ContentValues;
@@ -13,7 +13,7 @@ import java.io.FileNotFoundException;
 // queue, the playlists), which are other apps and can't read our files. Only the files of the core's cover folder, by name, and only to read;
 // they're pictures from the music services, so anyone may have them.
 public final class CoverProvider extends ContentProvider {
-    private static final String AUTHORITY = "dev.cloudmus.mobile.covers";
+    private static final String AUTHORITY = "app.cloudmus.mobile.covers";
     // Keep in step with Covers::CoverArtCache.
     private static final String FOLDER = "cloudmus/cover-files";
 

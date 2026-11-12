@@ -39,7 +39,7 @@ std::atomic<Platform*> instance { nullptr };
 QString bridgeString(const char* method)
 {
     return QJniObject::callStaticMethod<jstring>(
-        "dev/cloudmus/mobile/UiBridge", method, QNativeInterface::QAndroidApplication::context())
+        "app/cloudmus/mobile/UiBridge", method, QNativeInterface::QAndroidApplication::context())
         .toString();
 }
 #endif
@@ -111,7 +111,7 @@ bool Platform::android() const
 void Platform::exitNow(int code)
 {
 #ifdef Q_OS_ANDROID
-    QJniObject::callStaticMethod<void>("dev/cloudmus/mobile/CmLog", "cleanExit");
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/CmLog", "cleanExit");
     std::_Exit(code);
 #else
     Q_UNUSED(code)
@@ -277,7 +277,7 @@ void Platform::setAppearance(
     const QString& scheme, bool dark, const QString& barColor, const QString& backColor) const
 {
 #ifdef Q_OS_ANDROID
-    QJniObject::callStaticMethod<void>("dev/cloudmus/mobile/UiBridge", "setAppearance",
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setAppearance",
         "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
         QNativeInterface::QAndroidApplication::context().object(), QJniObject::fromString(scheme).object<jstring>(),
         QJniObject::fromString(dark ? QStringLiteral("yes") : QString()).object<jstring>(),
@@ -293,7 +293,7 @@ void Platform::setAppearance(
 void Platform::setStatusBarOverAura(bool over) const
 {
 #ifdef Q_OS_ANDROID
-    QJniObject::callStaticMethod<void>("dev/cloudmus/mobile/UiBridge", "setStatusBarOverAura",
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setStatusBarOverAura",
         "(Landroid/content/Context;Ljava/lang/String;)V", QNativeInterface::QAndroidApplication::context().object(),
         QJniObject::fromString(over ? QStringLiteral("yes") : QString()).object<jstring>());
 #else
@@ -319,7 +319,7 @@ void Platform::startService()
 {
 #ifdef Q_OS_ANDROID
     QJniObject::callStaticMethod<void>(
-        "dev/cloudmus/mobile/UiBridge", "startService", QNativeInterface::QAndroidApplication::context());
+        "app/cloudmus/mobile/UiBridge", "startService", QNativeInterface::QAndroidApplication::context());
 #endif
 }
 
@@ -327,7 +327,7 @@ void Platform::startService()
 
 #ifdef Q_OS_ANDROID
 // From Android's main thread; the views' is another one.
-extern "C" JNIEXPORT void JNICALL Java_dev_cloudmus_mobile_UiBridge_nativeInsetsChanged(JNIEnv*, jclass)
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UiBridge_nativeInsetsChanged(JNIEnv*, jclass)
 {
     if (Ui::Platform* platform = Ui::instance.load())
         QMetaObject::invokeMethod(platform, &Ui::Platform::readInsets, Qt::QueuedConnection);

@@ -1,4 +1,4 @@
-package dev.cloudmus.mobile;
+package app.cloudmus.mobile;
 
 import android.content.Context;
 import android.media.AudioAttributes;

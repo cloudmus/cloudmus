@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="dev.cloudmus.mobile"
+    package="app.cloudmus.mobile"
     android:installLocation="auto"
     android:versionCode="-- %%INSERT_VERSION_CODE%% --"
     android:versionName="-- %%INSERT_VERSION_NAME%% --">
@@ -20,7 +20,7 @@
         android:normalScreens="true"
         android:smallScreens="true" />
     <application
-        android:name="dev.cloudmus.mobile.CmApp"
+        android:name="app.cloudmus.mobile.CmApp"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -41,7 +41,7 @@
         <meta-data android:name="yandex.auto.uma.AudioSource" android:value="true" />
 
         <activity
-            android:name="dev.cloudmus.mobile.MainActivity"
+            android:name="app.cloudmus.mobile.MainActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:launchMode="singleTop"
             android:screenOrientation="unspecified"
@@ -65,7 +65,7 @@
              goes on when the UI is unloaded. Found by the car's media
              widget and Android Auto through the intent filters. -->
         <service
-            android:name="dev.cloudmus.mobile.PlaybackService"
+            android:name="app.cloudmus.mobile.PlaybackService"
             android:process=":playback"
             android:foregroundServiceType="mediaPlayback"
             android:exported="true">
@@ -79,8 +79,8 @@
 
         <!-- Covers for a media browser in another app: see CoverProvider. -->
         <provider
-            android:name="dev.cloudmus.mobile.CoverProvider"
-            android:authorities="dev.cloudmus.mobile.covers"
+            android:name="app.cloudmus.mobile.CoverProvider"
+            android:authorities="app.cloudmus.mobile.covers"
             android:process=":playback"
             android:exported="true" />
 
@@ -92,7 +92,7 @@
             </intent-filter>
         </receiver>
 
-        <receiver android:name="dev.cloudmus.mobile.BootReceiver" android:exported="true">
+        <receiver android:name="app.cloudmus.mobile.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />

@@ -1,4 +1,4 @@
-package dev.cloudmus.mobile;
+package app.cloudmus.mobile;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -36,8 +36,8 @@ import java.util.List;
 @UnstableApi
 public final class PlaybackService extends MediaLibraryService {
     private static final String TAG = "PlaybackService";
-    public static final String ACTION_START = "dev.cloudmus.mobile.START";
-    public static final String ACTION_AUTOPLAY = "dev.cloudmus.mobile.AUTOPLAY";
+    public static final String ACTION_START = "app.cloudmus.mobile.START";
+    public static final String ACTION_AUTOPLAY = "app.cloudmus.mobile.AUTOPLAY";
     private static final String ROOT_ID = "root";
     // Keep in step with ViewModel::MediaTree.
     static final String PLAYLIST_ID_PREFIX = "playlist/";
@@ -47,16 +47,16 @@ public final class PlaybackService extends MediaLibraryService {
     private static final int NOTIFICATION_ID = DefaultMediaNotificationProvider.DEFAULT_NOTIFICATION_ID;
     // The notification's (and the app's) "stop it all": playback stops and
     // the service, with its process, goes.
-    static final String COMMAND_CLOSE = "dev.cloudmus.mobile.CLOSE";
+    static final String COMMAND_CLOSE = "app.cloudmus.mobile.CLOSE";
     private static final SessionCommand CLOSE = new SessionCommand(COMMAND_CLOSE, Bundle.EMPTY);
     // The car's media widget opens Media Center, not the player's screen, on
     // a tap: a third-party player is shown there. This button, in Media
     // Center's controls, gets to the screen.
-    static final String COMMAND_OPEN = "dev.cloudmus.mobile.OPEN";
+    static final String COMMAND_OPEN = "app.cloudmus.mobile.OPEN";
     private static final SessionCommand OPEN = new SessionCommand(COMMAND_OPEN, Bundle.EMPTY);
-    static final String COMMAND_LIKE = "dev.cloudmus.mobile.LIKE";
+    static final String COMMAND_LIKE = "app.cloudmus.mobile.LIKE";
     private static final SessionCommand LIKE = new SessionCommand(COMMAND_LIKE, Bundle.EMPTY);
-    static final String COMMAND_DISLIKE = "dev.cloudmus.mobile.DISLIKE";
+    static final String COMMAND_DISLIKE = "app.cloudmus.mobile.DISLIKE";
     private static final SessionCommand DISLIKE = new SessionCommand(COMMAND_DISLIKE, Bundle.EMPTY);
 
     private MediaLibrarySession session;

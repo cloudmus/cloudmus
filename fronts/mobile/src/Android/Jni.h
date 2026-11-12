@@ -17,7 +17,7 @@ JavaVM* vm();
 // when it ends).
 JNIEnv* env();
 
-// dev.cloudmus.mobile.CmLog and its static methods.
+// app.cloudmus.mobile.CmLog and its static methods.
 jclass logClass();
 jmethodID logWrite(); // (ILjava/lang/String;Ljava/lang/String;)V
 jmethodID logMark(); // (Ljava/lang/String;)V

@@ -40,7 +40,7 @@ namespace {
 QString dataDir()
 {
     // Android: the app's files dir, shared with the playback process
-    // (dev.cloudmus.mobile.CorePaths).
+    // (app.cloudmus.mobile.CorePaths).
     return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 }
 

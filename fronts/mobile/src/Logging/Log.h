@@ -3,7 +3,7 @@
 #include <QString>
 
 // One log for every layer of the mobile front, in the format the Java side
-// writes on Android (dev.cloudmus.mobile.CmLog), so Ui::LogModel reads both:
+// writes on Android (app.cloudmus.mobile.CmLog), so Ui::LogModel reads both:
 //
 //   2026-10-31 12:45:01.123 [   12.345] playback/main I Tag: message
 //
