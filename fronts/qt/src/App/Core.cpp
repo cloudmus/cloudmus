@@ -76,8 +76,10 @@ Core::Core(QObject* parent)
         });
     connect(&playback_, &Playback::PlaybackController::trackChanged, &trackStates_,
         [this](const Track& track, const QString& sourceId) { trackStates_.requestStreamQuality(sourceId, track.id); });
-    connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_, &ViewModel::Messages::error);
-    connect(&playback_, &Playback::PlaybackController::offlineNotice, &messages_, &ViewModel::Messages::offline);
+    connect(&playback_, &Playback::PlaybackController::errorOccurred, &messages_,
+        [this](const QString& text) { messages_.error(text); });
+    connect(&playback_, &Playback::PlaybackController::offlineNotice, &messages_,
+        [this](const QString& text) { messages_.offline(text); });
     // Each time it gets worse, and once at the start: the view may only be
     // coming up then, hence later.
     const auto warnOfSpace = [this]() {

@@ -1642,6 +1642,21 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
     </message>
 </context>
 <context>
+    <name>ViewModel::Messages</name>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>No network connection</source>
+        <translation>Keine Netzwerkverbindung</translation>
+    </message>
+    <message>
+        <source>%1: no network connection</source>
+        <translation>%1: keine Netzwerkverbindung</translation>
+    </message>
+</context>
+<context>
     <name>ViewModel::NowPlaying</name>
     <message>
         <source>Added to Liked</source>

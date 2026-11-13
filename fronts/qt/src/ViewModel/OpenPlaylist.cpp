@@ -123,11 +123,7 @@ Rpc::Task<void> OpenPlaylist::fetch(PlaylistContext context)
             rows.append(Row { entry.sourceId, entry.track, QDateTime() });
     } catch (const std::exception& e) {
         qCWarning(lcOpenPlaylist) << "loading tracks failed for" << context.sourceId << ":" << e.what();
-        const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
-        if (call != nullptr && call->isOffline())
-            messages_.offline(QString::fromStdString(e.what()));
-        else
-            messages_.error(QString::fromStdString(e.what()));
+        messages_.failure(QString(), e, /*quietOffline=*/true);
         failed = true;
     }
     // The user may have opened something else while this was loading.

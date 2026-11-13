@@ -427,17 +427,17 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     toastNotifier_ = new ToastNotifier(this);
     // Whatever the core has to tell the user shows as a toast — on
     // whichever notifier is current (the Settings dialog's while it's up).
-    connect(
-        &messages_, &ViewModel::Messages::posted, this, [this](ViewModel::Messages::Kind kind, const QString& text) {
+    connect(&messages_, &ViewModel::Messages::posted, this,
+        [this](ViewModel::Messages::Kind kind, const QString& text, const QString& details) {
             switch (kind) {
                 case ViewModel::Messages::Kind::Info:
-                    toastNotifier_->showInfo(text);
+                    toastNotifier_->showInfo(text, details);
                     break;
                 case ViewModel::Messages::Kind::Success:
-                    toastNotifier_->showSuccess(text);
+                    toastNotifier_->showSuccess(text, details);
                     break;
                 case ViewModel::Messages::Kind::Error:
-                    toastNotifier_->showError(text);
+                    toastNotifier_->showError(text, details);
                     break;
             }
         });

@@ -86,7 +86,7 @@ Rpc::Task<bool> PlaylistEditing::setTrackInPlaylist(QString sourceId, Track trac
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcPlaylistEditing) << "playlist edit failed for" << playlist.id << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.failure(client->sourceName(), e);
         co_return false;
     }
 }

@@ -1801,7 +1801,7 @@ private slots:
         Ui::Backend backend(dir.filePath("core.sock"));
         QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
 
-        QSignalSpy messages(backend.mainScreen(), SIGNAL(message(int,QString)));
+        QSignalSpy messages(backend.mainScreen(), SIGNAL(message(int,QString,QString)));
         QVERIFY(messages.isValid());
         core.core().messages().error(QStringLiteral("It broke"));
         // The fake source may have a word of its own in ahead of it.
@@ -2585,6 +2585,23 @@ private slots:
         core.core().messages().error(QStringLiteral("Something went wrong"));
         QTRY_COMPARE(window->findChild<QObject*>("appToast")->property("isError").toBool(), true);
         shot("downloads");
+        // A message with a technical line behind it: closable, and unfolding keeps it up.
+        QObject* toast = window->findChild<QObject*>("appToast");
+        core.core().messages().error(QStringLiteral("YouTube Music: no network connection"),
+            QStringLiteral("HTTPSConnectionPool(host='music.youtube.com'): Max retries exceeded"));
+        QTRY_COMPARE(toast->property("details").toString().isEmpty(), false);
+        QObject* chevron = toast->findChild<QObject*>("toastChevron");
+        QObject* close = toast->findChild<QObject*>("toastClose");
+        QVERIFY(chevron != nullptr && close != nullptr);
+        QCOMPARE(chevron->property("visible").toBool(), true);
+        QMetaObject::invokeMethod(chevron, "clicked");
+        QCOMPARE(toast->property("expanded").toBool(), true);
+        QVERIFY(toast->property("shownText").toString().contains(QStringLiteral("Max retries")));
+        QTest::qWait(4500);
+        QCOMPARE(toast->property("opacity").toDouble(), 1.0);
+        QMetaObject::invokeMethod(close, "clicked");
+        QTRY_COMPARE(toast->property("opacity").toDouble(), 0.0);
+        QCOMPARE(toast->property("expanded").toBool(), false);
     }
 };
 

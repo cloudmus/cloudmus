@@ -424,7 +424,7 @@ Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, boo
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcNowPlaying) << "feedback.like/unlike failed for" << trackId << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.failure(client->sourceName(), e);
         // Back to what trackStates_ still says.
         if (isShownTrack(sourceId, trackId)) {
             pendingLiked_.reset();
@@ -481,7 +481,7 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcNowPlaying) << "feedback.dislike/undislike failed for" << trackId << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.failure(client->sourceName(), e);
         if (isShownTrack(sourceId, trackId)) {
             pendingDisliked_.reset();
             emit feedbackChanged();

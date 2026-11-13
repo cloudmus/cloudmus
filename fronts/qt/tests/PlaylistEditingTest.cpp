@@ -78,6 +78,51 @@ private slots:
         QCOMPARE(posted.first().at(1).toString(), QStringLiteral("Fake Source: not in the playlist"));
     }
 
+    // No network is told in a few words; the exception's own text stays
+    // behind it, for whoever asks.
+    void anOfflineFailureIsShortWithTheExceptionAsDetails()
+    {
+        QSignalSpy posted(&messages_, &ViewModel::Messages::posted);
+        const QString raw
+            = QStringLiteral("HTTPSConnectionPool(host='music.youtube.com', port=443): Max retries exceeded");
+        messages_.failure(QStringLiteral("YouTube Music"),
+            Rpc::RpcCallException(
+                Rpc::RpcError { 1200, raw, QJsonObject { { QStringLiteral("reason"), QStringLiteral("offline") } } }));
+        QCOMPARE(posted.count(), 1);
+        QCOMPARE(posted.first().at(1).toString(), QStringLiteral("YouTube Music: no network connection"));
+        QCOMPARE(posted.first().at(2).toString(), QStringLiteral("YouTube Music: ") + raw);
+
+        // Where the offline state is shown elsewhere, the quiet kind says nothing.
+        messages_.setOfflineShownElsewhere(true);
+        messages_.failure(QStringLiteral("YouTube Music"),
+            Rpc::RpcCallException(
+                Rpc::RpcError { 1200, raw, QJsonObject { { QStringLiteral("reason"), QStringLiteral("offline") } } }),
+            /*quietOffline=*/true);
+        QCOMPARE(posted.count(), 1);
+        messages_.setOfflineShownElsewhere(false);
+    }
+
+    void otherFailuresKeepTheirWordsUnlessTheyAreLong()
+    {
+        QSignalSpy posted(&messages_, &ViewModel::Messages::posted);
+        messages_.failure(QStringLiteral("Fake Source"),
+            Rpc::RpcCallException(Rpc::RpcError { 1400, QStringLiteral("not in the playlist"), { } }));
+        QCOMPARE(posted.last().at(1).toString(), QStringLiteral("Fake Source: not in the playlist"));
+        QCOMPARE(posted.last().at(2).toString(), QString());
+
+        const QString traceback = QStringLiteral("Something broke\nTraceback (most recent call last):\n  File x");
+        messages_.failure(
+            QStringLiteral("Fake Source"), Rpc::RpcCallException(Rpc::RpcError { -32603, traceback, { } }));
+        QCOMPARE(posted.last().at(1).toString(), QStringLiteral("Fake Source: Something broke…"));
+        QCOMPARE(posted.last().at(2).toString(), QStringLiteral("Fake Source: ") + traceback);
+
+        messages_.failure(
+            QString(), Rpc::RpcCallException(Rpc::RpcError { -32603, QString(300, QLatin1Char('x')), { } }));
+        QVERIFY(posted.last().at(1).toString().size() < 160);
+        QVERIFY(posted.last().at(1).toString().endsWith(QStringLiteral("…")));
+        QCOMPARE(posted.last().at(2).toString().size(), 300);
+    }
+
 private:
     static Track track(const QString& id)
     {

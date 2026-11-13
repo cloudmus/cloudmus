@@ -340,11 +340,7 @@ Rpc::Task<void> ActivePlaylist::activateAndPlay(QString sourceId, Playlist playl
         qCWarning(lcActivePlaylist) << "loading tracks failed for" << sourceId << ":" << e.what();
         if (activateFromCache(context))
             co_return;
-        const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
-        if (call != nullptr && call->isOffline())
-            messages_.offline(QString::fromStdString(e.what()));
-        else
-            messages_.error(QString::fromStdString(e.what()));
+        messages_.failure(QString(), e, /*quietOffline=*/true);
     }
 }
 
@@ -414,15 +410,13 @@ Rpc::Task<void> ActivePlaylist::startRadio(
         playback_.startRadio(sourceId, result.stationId, initialTracks);
     } catch (const Rpc::RpcCallException& e) {
         qCWarning(lcActivePlaylist) << "starting radio failed for" << sourceId << ":" << e.what();
-        if (!e.isOffline())
-            messages_.error(QString::fromStdString(e.what()));
-        else if (!resumeTrack || !context_.sameAs(context) || tracks_.isEmpty())
-            messages_.offline(QString::fromStdString(e.what()));
+        if (!e.isOffline() || !resumeTrack || !context_.sameAs(context) || tracks_.isEmpty())
+            messages_.failure(QString(), e, /*quietOffline=*/true);
         else
             playSavedRadio(); // what's saved of it plays; the station comes later
     } catch (const std::exception& e) {
         qCWarning(lcActivePlaylist) << "starting radio failed for" << sourceId << ":" << e.what();
-        messages_.error(QString::fromStdString(e.what()));
+        messages_.failure(QString(), e);
     }
     startingRadio_ = false;
     emit startingRadioChanged(false);

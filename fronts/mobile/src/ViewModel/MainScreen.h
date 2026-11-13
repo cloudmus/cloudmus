@@ -54,7 +54,7 @@ public slots:
 
 signals:
     // What the app has to tell the user (ViewModel::Messages), in plain types.
-    void message(int kind, const QString& text);
+    void message(int kind, const QString& text, const QString& details);
     void offlineChanged();
     void spaceWarningChanged();
     void preloadFractionsChanged();

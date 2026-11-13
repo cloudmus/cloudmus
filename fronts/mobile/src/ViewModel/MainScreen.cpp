@@ -17,7 +17,9 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
 {
     filter_.setSourceModel(&core.activeTracks());
     connect(&core.messages(), &Messages::posted, this,
-        [this](Messages::Kind kind, const QString& text) { emit message(int(kind), text); });
+        [this](Messages::Kind kind, const QString& text, const QString& details) {
+            emit message(int(kind), text, details);
+        });
     connect(&core.connectivity(), &App::Connectivity::offlineChanged, this, &MainScreen::offlineChanged);
     connect(&core.preload(), &Preload::spaceWarningChanged, this, &MainScreen::spaceWarningChanged);
     connect(&core.preload(), &Preload::progressChanged, this, &MainScreen::preloadFractionsChanged);

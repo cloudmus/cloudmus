@@ -174,11 +174,7 @@ Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
     model_.setSourceLoading(sourceId, client->sourceName(), false);
     model_.setSourceFetchError(sourceId, client->sourceName(), !fetchError.isEmpty() && !offline);
     if (newFailure) {
-        const QString message = tr("%1: %2").arg(client->sourceName(), fetchError);
-        if (offline)
-            messages_.offline(message);
-        else
-            messages_.error(message);
+        messages_.failure(client->sourceName(), fetchError, offline, /*quietOffline=*/true);
     }
     emit sourceChanged(sourceId);
     if (failed)

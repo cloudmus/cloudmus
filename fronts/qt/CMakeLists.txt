@@ -615,6 +615,7 @@ add_executable(cloudmus-qt-ui-tests
     tests/ui/CoverArtCacheTest.cpp
     tests/ui/DisabledLookTest.cpp
     tests/ui/AutostartTest.cpp
+    tests/ui/ToastNotifierTest.cpp
     tests/FakeBackend.cpp
     # Real glyphs, so a test can check what color an icon is tinted.
     resources/icons.qrc
