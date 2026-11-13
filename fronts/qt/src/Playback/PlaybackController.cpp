@@ -95,6 +95,17 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
     connect(playTimeoutTimer_, &QTimer::timeout, this, [this]() {
         handleStartFailure(QStringLiteral("Timed out waiting for the track to start"), QStringLiteral("timeout"));
     });
+    sourceWaitTimer_ = new QTimer(this);
+    sourceWaitTimer_->setSingleShot(true);
+    connect(sourceWaitTimer_, &QTimer::timeout, this, [this]() {
+        const QString sourceId = awaitedSourceId_;
+        clearAwaited();
+        emit loadingChanged(false);
+        reportError(sourceId, QStringLiteral("unavailable"), QStringLiteral("Source is unavailable"));
+    });
+    // The moment a source answers, not once it has listed its playlists.
+    connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this,
+        [this](Rpc::RpcClient* client) { sourceCameUp(client->sourceId()); });
 }
 
 PlaybackController::~PlaybackController() = default;
@@ -363,8 +374,32 @@ void PlaybackController::attachStation(const QString& sourceId, const QString& s
     }
 }
 
+void PlaybackController::clearAwaited()
+{
+    awaitedIndex_ = -1;
+    awaitedSourceId_.clear();
+    sourceWaitTimer_->stop();
+}
+
+void PlaybackController::playAwaited()
+{
+    const int index = awaitedIndex_;
+    const bool current = awaitedTransition_ == transitionGeneration_;
+    clearAwaited();
+    if (current)
+        playIndex(index);
+}
+
 void PlaybackController::sourceCameUp(const QString& sourceId)
 {
+    // The track the user picked while this source was still starting.
+    if (awaitedIndex_ >= 0 && awaitedSourceId_ == sourceId) {
+        const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+        if (client != nullptr && client->available()) {
+            playAwaited();
+            return;
+        }
+    }
     if (!hasCurrentTrack() && startingIndex_ < 0)
         return;
     preloader_->retryFailed(sourceId);
@@ -506,8 +541,21 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
 
     Rpc::RpcClient* client = sourceManager_.client(queue_[index].sourceId);
     if (client == nullptr || !client->available()) {
+        const QString sourceId = queue_[index].sourceId;
+        // Still starting (or not yet spawned): the track plays when it is
+        // up — a tap right after launch isn't lost.
+        if (sourceManager_.isStarting(sourceId)) {
+            qCDebug(lcPlayback) << "waiting for" << sourceId << "to start for track" << index;
+            awaitedIndex_ = index;
+            awaitedSourceId_ = sourceId;
+            awaitedTransition_ = transitionGeneration_;
+            sourceWaitTimer_->start(kSourceWaitMs);
+            emit loadingChanged(true);
+            sourceManager_.startDeferred(sourceId);
+            co_return;
+        }
         emit loadingChanged(false);
-        reportError(queue_[index].sourceId, QStringLiteral("unavailable"), QStringLiteral("Source is unavailable"));
+        reportError(sourceId, QStringLiteral("unavailable"), QStringLiteral("Source is unavailable"));
         co_return;
     }
 
@@ -950,6 +998,7 @@ void PlaybackController::stopForTransition()
     invalidatePrepared();
     audioPlayer_->stop();
     playTimeoutTimer_->stop();
+    clearAwaited();
     latestRequestId_ = -1;
     startingIndex_ = -1;
     earlyStreamReady_.reset();

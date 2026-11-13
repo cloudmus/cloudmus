@@ -337,6 +337,16 @@ private:
     int radioWaitGeneration_ = 0;
     QString latestRequestSourceId_;
     QTimer* playTimeoutTimer_ = nullptr;
+    // A track that has to come from a source that is still starting: it
+    // plays once the source is up (see sourceCameUp()), or is given up on
+    // after kSourceWaitMs. -1 if none.
+    int awaitedIndex_ = -1;
+    QString awaitedSourceId_;
+    int awaitedTransition_ = 0;
+    QTimer* sourceWaitTimer_ = nullptr;
+    static constexpr int kSourceWaitMs = 30000;
+    void playAwaited();
+    void clearAwaited();
     int startTimeoutMs_ = 10000;
     qint64 lastKnownPositionMs_ = 0;
     QString resumeTrackId_;

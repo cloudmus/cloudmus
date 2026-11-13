@@ -78,6 +78,10 @@ public:
     // anything it lists may have too.
     void notifySettingsChanged(const QString& sourceId) { emit settingsChanged(sourceId); }
 
+    // Known and enabled, but not answering yet: waiting to be spawned (or
+    // deferred), or its handshake still under way. Not one that gave up.
+    bool isStarting(const QString& sourceId);
+
     QList<RpcClient*> clients() const;
     RpcClient* client(const QString& sourceId) const;
 

@@ -3,6 +3,8 @@
 #include <QLoggingCategory>
 #include <QTimer>
 
+#include <algorithm>
+
 namespace Rpc {
 
 namespace {
@@ -193,6 +195,18 @@ void SourceManager::restart(const QString& sourceId)
         return;
     setEnabled(sourceId, false);
     setEnabled(sourceId, true);
+}
+
+bool SourceManager::isStarting(const QString& sourceId)
+{
+    if (!isEnabled(sourceId) || isUnavailable(sourceId))
+        return false;
+    const auto& known = manifests();
+    const bool exists = std::any_of(known.cbegin(), known.cend(), [&](const BackendManifest& m) { return m.id == sourceId; });
+    if (!exists)
+        return false;
+    const RpcClient* client = clientsById_.value(sourceId, nullptr);
+    return client == nullptr || !client->available();
 }
 
 QList<RpcClient*> SourceManager::clients() const { return clientsById_.values(); }

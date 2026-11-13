@@ -177,6 +177,36 @@ private slots:
         QVERIFY(playback_->isRadio());
     }
 
+    // A tap on a saved radio's song while its source is still starting plays
+    // that song of what's saved, not a new station's tracks later.
+    void aTapOnASavedRadioBeforeItsSourceIsUpPlaysThatSong()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        start();
+        Playlist station = playlist(QStringLiteral("seed-track"));
+        station.kind = QStringLiteral("radioStation");
+        active_->setContext({ QStringLiteral("fake"), station });
+        Track first;
+        first.id = QStringLiteral("old-1");
+        Track second;
+        second.id = QStringLiteral("old-2");
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("old-station"), { first, second });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        resetApp();
+        settings_ = std::make_unique<Config::Settings>(temp_->filePath(QStringLiteral("config.ini")));
+        start(false);
+        QCOMPARE(active_->entries().size(), 2);
+        QSignalSpy errors(playback_.get(), &Playback::PlaybackController::errorOccurred);
+        active_->playRow(1);
+        QVERIFY(playback_->hasQueue());
+        sourceManager_->startAll();
+        QTRY_VERIFY_WITH_TIMEOUT(playback_->hasCurrentTrack(), 10000);
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("old-2"));
+        QVERIFY(playback_->isRadio());
+        QCOMPARE(errors.count(), 0);
+    }
+
     void playbackGoingAtQuitResumesFromTheSameSong()
     {
         settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
@@ -263,6 +293,26 @@ private slots:
         QCOMPARE(active_->context().playlist.id, QStringLiteral("p1"));
         qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
         messages_.setOfflineShownElsewhere(false);
+    }
+
+    // A tap right after launch, with the source still starting, isn't lost:
+    // the track plays the moment the source is up.
+    void aTrackPickedBeforeItsSourceIsUpPlaysOnceItIs()
+    {
+        start(false);
+        QSignalSpy errors(playback_.get(), &Playback::PlaybackController::errorOccurred);
+        Track first;
+        first.id = QStringLiteral("t1");
+        Track second;
+        second.id = QStringLiteral("t2");
+        playback_->loadQueue(QStringLiteral("fake"), { first, second }, 1);
+        QTest::qWait(100);
+        QCOMPARE(errors.count(), 0);
+        QVERIFY(!playback_->hasCurrentTrack());
+        sourceManager_->startAll();
+        QTRY_VERIFY_WITH_TIMEOUT(playback_->hasCurrentTrack(), 10000);
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+        QCOMPARE(errors.count(), 0);
     }
 
     void thePlaylistTrackCacheKeepsWhatItWasGivenAndForgetsASource()

@@ -118,7 +118,11 @@ private:
     // no wait for its source — see the constructor.
     void resumeFromCache();
     // The saved tracks of a radio, from the saved one, with no station yet.
-    void playSavedRadio();
+    // The radio's saved tracks, from `index` (the saved resume point if -1),
+    // with no station yet: it is attached when the source is up.
+    void playSavedRadio(int index = -1);
+    // The source is up and answering.
+    bool sourceAnswers(const QString& sourceId) const;
     // A radio resumed without its station gets one, once its source is up.
     Rpc::Task<void> attachStation(QString sourceId, QString seed);
     // What a station is started with: its seed, and the source's tracks

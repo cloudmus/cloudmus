@@ -436,7 +436,11 @@ void ActivePlaylist::play()
         const std::optional<Track> resumeTrack = !playback_.hasQueue() && !tracks_.isEmpty()
             ? std::optional<Track>(tracks_[resumeIndex()].track)
             : std::nullopt;
-        startRadio(context_.sourceId, context_.playlist.id, context_, resumeTrack).detach();
+        // The source can't start a station yet: what's saved of it plays.
+        if (resumeTrack && !sourceAnswers(context_.sourceId))
+            playSavedRadio(resumeIndex());
+        else
+            startRadio(context_.sourceId, context_.playlist.id, context_, resumeTrack).detach();
     } else if (playback_.hasQueue())
         playback_.playAt(0);
     else
@@ -449,6 +453,8 @@ void ActivePlaylist::playRow(int row)
     // so its rows are queue indices.
     if (playback_.hasQueue())
         playback_.playAt(row);
+    else if (context_.isRadio() && row >= 0 && row < tracks_.size() && !sourceAnswers(context_.sourceId))
+        playSavedRadio(row); // the station attaches once its source is up (attachStation())
     else if (context_.isRadio() && row >= 0 && row < tracks_.size())
         startRadio(context_.sourceId, context_.playlist.id, context_, tracks_[row].track).detach();
     else
@@ -627,12 +633,18 @@ void ActivePlaylist::resumeFromCache()
         playback_.loadQueue(tracks_, index);
 }
 
-void ActivePlaylist::playSavedRadio()
+bool ActivePlaylist::sourceAnswers(const QString& sourceId) const
+{
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    return client != nullptr && client->available();
+}
+
+void ActivePlaylist::playSavedRadio(int index)
 {
     QList<Track> tracks;
     for (const Playback::QueueEntry& e : tracks_)
         tracks.append(e.track);
-    playback_.startRadio(context_.sourceId, QString(), tracks, resumeIndex());
+    playback_.startRadio(context_.sourceId, QString(), tracks, index >= 0 ? index : resumeIndex());
 }
 
 Rpc::Task<void> ActivePlaylist::attachStation(QString sourceId, QString seed)
