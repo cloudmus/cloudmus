@@ -100,8 +100,16 @@ adb logcat -s CloudmusStart             # startup milestones
   setting yet: the QML has no translations. No download folder either.
 - Media browsers (the car's Media Center, Android Auto) list the playlists:
   a folder for each source, even a single one (Media Center makes tabs of the
-  root's folders and shows nothing else there), favorites first. A tap starts the playlist, waiting for its source if that's
-  still coming up. Tracks inside a playlist aren't listed.
+  root's folders and shows nothing else there), favorites first, as a grid of
+  covers (the folders stay a list). A tap starts the playlist, waiting for its
+  source if that's still coming up. Tracks inside a playlist aren't listed;
+  the playing queue is, by the system's own "queue" screen. Search
+  (`MediaTree::search()`) finds, in one list, the queue's tracks by title and
+  artists, then playlists by title; a voice request plays the first found.
+- The player's buttons beside play, previous and next (the notification, the
+  car's widgets): dislike, like and close; on a GWM unit "Open CloudMus" goes
+  first (below). On a car's screen through Android Auto they're dislike, like,
+  shuffle and repeat instead (see Android Auto).
 - GWM head units (Haval): the car's media widget follows a third-party player
   only once the unit's Media Center has picked it. The player asks for that
   itself, once, a couple of seconds after its screen first opens (a blink of
@@ -122,6 +130,67 @@ adb logcat -s CloudmusStart             # startup milestones
   started the player. Head units differ in what they send when the car
   starts (many sleep rather than reboot, so `BOOT_COMPLETED` may not come):
   the log lists every broadcast the receiver gets.
+
+## Android Auto
+
+The phone's Android Auto draws the car's screen itself, from templates; the
+player gives it the browse tree, the queue, track data and its buttons
+(`PlaybackService`), so there's no layout of ours to fit. What it looks like
+is set by hints: the grid of playlists, the order and icons of the buttons.
+
+**On the phone.** An APK not from Google Play isn't listed until Android
+Auto's developer settings allow it: Android Auto's settings → tap the version
+10 times → ⋮ → Developer settings → **Unknown sources**. Its log on the phone
+says why a package isn't listed (`adb logcat -s CAR.VALIDATOR`). Android Auto
+under the battery's "Restricted" mode is unreliable: set it to unrestricted.
+
+**Desktop Head Unit (DHU)** plays the car on this computer, over adb to the
+phone. `sdkmanager "extras;google;auto"` may not find it; then unpack
+`desktop-head-unit-linux-x64_r02.1.zip` (from `dl.google.com/android/repository/`,
+its checksum in `repository2-3.xml` there) into
+`$ANDROID_SDK_ROOT/extras/google/auto`. Use 2.1: 2.0 gets no picture from a
+current Android Auto and leaves it stuck. On the phone: Android Auto's ⋮ →
+**Start head unit server**. Then:
+
+```bash
+adb forward tcp:5277 tcp:5277
+cd $ANDROID_SDK_ROOT/extras/google/auto && ./desktop-head-unit -c config/default_720p.ini
+```
+
+If its window stays at "Waiting for phone…", Android Auto is stuck on an old
+connection: `adb shell am force-stop com.google.android.projection.gearhead`,
+start the head unit server again. The DHU's console takes `screenshot <file>`,
+`tap <x> <y>`, `keycode back`, `day`/`night`; from a script, run it under
+`script -qfc` with its input from a FIFO. Whether the phone is on a car's
+screen: `adb shell content query --uri content://androidx.car.app.connection --projection CarConnectionState`
+(2: yes).
+
+**Screens to check**, each with the player's own screen, its list and its
+card:
+- `config/default.ini`, 800×480: the app takes the whole screen.
+- `config/default_720p.ini`, 1280×720: the app in 2/3 beside the map; the
+  layout button (bottom left) swaps to the map with the player's card in 1/3.
+- Wide: `default_wide.ini` with `resolution = 1920x1080` and
+  `marginheight = 360` (1920×720): 2/3 and the 1/3 card, as on a wide car
+  screen.
+
+**What's done for Android Auto, and why:**
+- The session doesn't send its state every 3 s for the position
+  (`setPeriodicPositionUpdateEnabled(false)`): Android Auto scrolled its
+  queue back to the playing track each time. The position runs on between
+  the core's reports, so a state sent for anything else has it right.
+- On a car's screen the buttons are dislike, like, shuffle (not for a radio)
+  and repeat (off, all, one). "Close" only paused there (Android Auto keeps
+  the player bound) and "Open" did nothing (Android blocks a background
+  activity start). Android Auto shows every button and paints them one color,
+  so on and off differ by shape (`ic_*_on`: a filled square).
+- Android Auto stays connected to the player after the car is gone, so its
+  connection says nothing about the car's screen; `CarProjection` asks
+  Android Auto's `androidx.car.app.connection` provider, again on its
+  broadcast, and the buttons follow.
+- Android Auto keeps buttons' icons by resource number while connected: right
+  after an update that moves the numbers, the buttons may show other icons
+  until the car connects again.
 
 ## Open issue: a click on pause and track change
 
