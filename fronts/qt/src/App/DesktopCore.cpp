@@ -5,7 +5,7 @@ namespace App {
 DesktopCore::DesktopCore(QObject* parent)
     : Core(parent)
     , browse_(sourceManager(), trackStates(), coverArtCache(), playbackHistory(), settings(), sources(),
-          activePlaylist(), playlistEditing(), messages())
+          activePlaylist(), playlistEditing(), messages(), playlistTracks())
     , hotkeys_(settings())
     , hotkeyDispatcher_(nowPlaying(), hotkeys_)
     , updates_(settings())

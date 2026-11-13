@@ -12,7 +12,7 @@ PlaylistScreen::PlaylistScreen(App::Core& core, QObject* parent)
     : QObject(parent)
     , core_(core)
     , open_(core.sourceManager(), core.trackStates(), core.coverArtCache(), core.playbackHistory(),
-          core.activePlaylist(), core.playlistEditing(), core.messages())
+          core.activePlaylist(), core.playlistEditing(), core.messages(), core.playlistTracks())
 {
     tracks_.setTrackStates(&core.trackStates());
     tracks_.setPreload(&core.preload());

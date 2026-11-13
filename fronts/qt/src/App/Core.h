@@ -21,6 +21,7 @@
 #include "Preload.h"
 #include "ProxyRouting.h"
 #include "Settings.h"
+#include "TrackFetch.h"
 #include "SourceManager.h"
 #include "SourcePage.h"
 #include "TrackActions.h"
@@ -58,6 +59,7 @@ public:
     ViewModel::Downloads& downloads() { return downloads_; }
     ViewModel::Preload& preload() { return preload_; }
     PlaylistEditing& playlistEditing() { return playlistEditing_; }
+    const PlaylistTrackCache& playlistTracks() const { return playlistTracks_; }
     ViewModel::Sources& sources() { return sources_; }
     ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
     ViewModel::ActiveTracks& activeTracks() { return activeTracks_; }
@@ -74,6 +76,7 @@ private:
     // Declaration order is construction order: playback_ needs
     // sourceManager_.
     Config::Settings settings_;
+    PlaylistTrackCache playlistTracks_;
     I18n::Translator translator_;
     Analytics analytics_;
     Rpc::SourceManager sourceManager_;

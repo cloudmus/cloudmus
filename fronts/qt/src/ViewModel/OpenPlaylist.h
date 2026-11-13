@@ -11,6 +11,7 @@
 
 namespace App {
 class PlaylistEditing;
+class PlaylistTrackCache;
 }
 namespace Covers {
 class CoverArtCache;
@@ -47,7 +48,8 @@ public:
 
     OpenPlaylist(Rpc::SourceManager& sourceManager, Library::TrackStates& trackStates,
         Covers::CoverArtCache& coverArtCache, History::PlaybackHistory& history, ActivePlaylist& activePlaylist,
-        App::PlaylistEditing& playlistEditing, Messages& messages, QObject* parent = nullptr);
+        App::PlaylistEditing& playlistEditing, Messages& messages, const App::PlaylistTrackCache& playlistTracks,
+        QObject* parent = nullptr);
 
     const PlaylistContext& context() const { return context_; }
     const QList<Row>& rows() const { return rows_; }
@@ -85,6 +87,7 @@ private:
     History::PlaybackHistory& history_;
     ActivePlaylist& activePlaylist_;
     Messages& messages_;
+    const App::PlaylistTrackCache& playlistTracks_;
 
     PlaylistContext context_;
     QList<Row> rows_;

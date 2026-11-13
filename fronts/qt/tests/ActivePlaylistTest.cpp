@@ -20,6 +20,7 @@
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TestSupport.h"
+#include "TrackFetch.h"
 #include "TrackCache.h"
 #include "TrackStates.h"
 
@@ -235,6 +236,50 @@ private slots:
         QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2")); // not started over
         qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
         messages_.setOfflineShownElsewhere(false);
+    }
+
+    // A playlist played once plays again with no network, from the tracks it
+    // had: nothing to wait for, nothing to fail.
+    void aPlaylistPlaysFromItsSavedTracksWhenNothingAnswers()
+    {
+        const QString down = temp_->filePath(QStringLiteral("network-down"));
+        qputenv("CLOUDMUS_FAKE_OFFLINE_FILE", down.toUtf8());
+        start();
+        await(active_->activateAndPlay(QStringLiteral("fake"), playlist(QStringLiteral("p1"))));
+        QCOMPARE(active_->entries().size(), 2);
+
+        resetApp();
+        settings_ = std::make_unique<Config::Settings>(temp_->filePath(QStringLiteral("config.ini")));
+        QFile(down).open(QIODevice::WriteOnly);
+        messages_.setOfflineShownElsewhere(true);
+        // The source isn't even started: there is nobody to ask.
+        start(false);
+        QSignalSpy activated(active_.get(), &ViewModel::ActivePlaylist::activated);
+        QSignalSpy errors(&messages_, &ViewModel::Messages::posted);
+        await(active_->activateAndPlay(QStringLiteral("fake"), playlist(QStringLiteral("p1"))));
+        QCOMPARE(activated.count(), 1);
+        QCOMPARE(errors.count(), 0);
+        QCOMPARE(active_->entries().size(), 2);
+        QCOMPARE(active_->context().playlist.id, QStringLiteral("p1"));
+        qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
+        messages_.setOfflineShownElsewhere(false);
+    }
+
+    void thePlaylistTrackCacheKeepsWhatItWasGivenAndForgetsASource()
+    {
+        App::PlaylistTrackCache cache(temp_->filePath(QStringLiteral("pt")));
+        QVERIFY(!cache.load(QStringLiteral("fake"), QStringLiteral("p1")));
+        Track track;
+        track.id = QStringLiteral("t9");
+        track.title = QStringLiteral("Nine");
+        cache.save(QStringLiteral("fake"), QStringLiteral("p1"), { { QStringLiteral("fake"), track } });
+        const auto loaded = cache.load(QStringLiteral("fake"), QStringLiteral("p1"));
+        QVERIFY(loaded);
+        QCOMPARE(loaded->size(), 1);
+        QCOMPARE(loaded->first().track.id, QStringLiteral("t9"));
+        QVERIFY(!cache.load(QStringLiteral("fake"), QStringLiteral("p2")));
+        cache.removeSource(QStringLiteral("fake"));
+        QVERIFY(!cache.load(QStringLiteral("fake"), QStringLiteral("p1")));
     }
 
     // With a delay asked for, what's saved stands for now and is freshened after.
@@ -483,6 +528,7 @@ private:
                 await(client->shutdown());
         }
         active_.reset();
+        playlistTracks_.reset();
         sources_.reset();
         editing_.reset();
         session_.reset();
@@ -530,8 +576,9 @@ private:
         editing_ = std::make_unique<App::PlaylistEditing>(*sourceManager_, messages_);
         sources_ = std::make_unique<ViewModel::Sources>(
             *sourceManager_, *session_, authStates_, *editing_, coverArtCache_, *settings_, messages_);
+        playlistTracks_ = std::make_unique<App::PlaylistTrackCache>(temp_->filePath(QStringLiteral("playlist-tracks")));
         active_ = std::make_unique<ViewModel::ActivePlaylist>(*playback_, *sourceManager_, trackStates_, coverArtCache_,
-            history_, *settings_, *sources_, *editing_, messages_);
+            history_, *settings_, *sources_, *editing_, messages_, *playlistTracks_);
         if (startSources) {
             QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
             sourceManager_->startAll();
@@ -551,6 +598,7 @@ private:
     std::unique_ptr<App::SourceSession> session_;
     std::unique_ptr<App::PlaylistEditing> editing_;
     std::unique_ptr<ViewModel::Sources> sources_;
+    std::unique_ptr<App::PlaylistTrackCache> playlistTracks_;
     std::unique_ptr<ViewModel::ActivePlaylist> active_;
 };
 

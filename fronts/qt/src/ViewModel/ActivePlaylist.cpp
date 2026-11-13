@@ -40,7 +40,7 @@ QString cachedTracksPath(const Config::Settings& settings)
 ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
     Library::TrackStates& trackStates, Covers::CoverArtCache& coverArtCache, History::PlaybackHistory& history,
     Config::Settings& settings, Sources& sources, App::PlaylistEditing& playlistEditing, Messages& messages,
-    QObject* parent)
+    const App::PlaylistTrackCache& playlistTracks, QObject* parent)
     : QObject(parent)
     , playback_(playback)
     , sourceManager_(sourceManager)
@@ -50,6 +50,7 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
     , settings_(settings)
     , sources_(sources)
     , messages_(messages)
+    , playlistTracks_(playlistTracks)
     , positionSave_(kPositionSaveIntervalMs, [this]() { savePosition(); })
 {
     connect(&playback_, &Playback::PlaybackController::positionChanged, &positionSave_, &Timing::Throttle::trigger);
@@ -323,18 +324,40 @@ Rpc::Task<void> ActivePlaylist::activateAndPlay(QString sourceId, Playlist playl
         activate(context, { }, 0);
         co_return;
     }
+    // Its tracks as they were last listed play at once when the source
+    // can't answer (still starting, or no network): the downloaded ones
+    // sound, and the source catches up behind them (see tracksStale_).
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available()) {
+        if (activateFromCache(context))
+            co_return;
+    }
     try {
-        const QVector<Playback::QueueEntry> entries
-            = co_await App::fetchTracks(sourceManager_, trackStates_, coverArtCache_, sourceId, playlist);
+        const QVector<Playback::QueueEntry> entries = co_await App::fetchTracks(
+            sourceManager_, trackStates_, coverArtCache_, sourceId, playlist, &playlistTracks_);
         activate(context, entries, 0);
     } catch (const std::exception& e) {
         qCWarning(lcActivePlaylist) << "loading tracks failed for" << sourceId << ":" << e.what();
+        if (activateFromCache(context))
+            co_return;
         const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
         if (call != nullptr && call->isOffline())
             messages_.offline(QString::fromStdString(e.what()));
         else
             messages_.error(QString::fromStdString(e.what()));
     }
+}
+
+bool ActivePlaylist::activateFromCache(const PlaylistContext& context)
+{
+    const std::optional<QVector<Playback::QueueEntry>> cached
+        = App::cachedTracks(playlistTracks_, trackStates_, coverArtCache_, context.sourceId, context.playlist);
+    if (!cached)
+        return false;
+    qCInfo(lcActivePlaylist) << "playing" << context.playlist.id << "from its saved tracks";
+    activate(context, *cached, 0);
+    tracksStale_ = true; // refreshed once its source lists its playlists
+    return true;
 }
 
 StartRadioParams ActivePlaylist::radioParams(const QString& sourceId, const QString& seed) const
@@ -446,7 +469,7 @@ Rpc::Task<void> ActivePlaylist::loadTracks(PlaylistContext context)
         emit loadingChanged(true);
         try {
             entries = co_await App::fetchTracks(
-                sourceManager_, trackStates_, coverArtCache_, context.sourceId, context.playlist);
+                sourceManager_, trackStates_, coverArtCache_, context.sourceId, context.playlist, &playlistTracks_);
         } catch (const std::exception& e) {
             qCWarning(lcActivePlaylist) << "loading tracks failed for" << context.sourceId << ":" << e.what();
             loaded = false;

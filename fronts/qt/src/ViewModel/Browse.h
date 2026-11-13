@@ -10,6 +10,7 @@
 
 namespace App {
 class PlaylistEditing;
+class PlaylistTrackCache;
 }
 namespace Config {
 class Settings;
@@ -52,7 +53,8 @@ public:
 
     Browse(Rpc::SourceManager& sourceManager, Library::TrackStates& trackStates, Covers::CoverArtCache& coverArtCache,
         History::PlaybackHistory& history, Config::Settings& settings, Sources& sources, ActivePlaylist& activePlaylist,
-        App::PlaylistEditing& playlistEditing, Messages& messages, QObject* parent = nullptr);
+        App::PlaylistEditing& playlistEditing, Messages& messages, const App::PlaylistTrackCache& playlistTracks,
+        QObject* parent = nullptr);
 
     Page page() const { return page_; }
     const PlaylistContext& context() const { return open_.context(); }

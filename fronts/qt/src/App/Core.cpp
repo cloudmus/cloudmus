@@ -1,5 +1,6 @@
 #include "Core.h"
 
+#include <QFileInfo>
 #include <QStandardPaths>
 #include <QTimer>
 
@@ -10,6 +11,7 @@ namespace App {
 
 Core::Core(QObject* parent)
     : QObject(parent)
+    , playlistTracks_(QFileInfo(settings_.filePath()).absolutePath() + QStringLiteral("/playlist-tracks"))
     , analytics_(settings_)
     , playback_(sourceManager_, nullptr,
           QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/tracks"))
@@ -21,7 +23,7 @@ Core::Core(QObject* parent)
     , playlistEditing_(sourceManager_, messages_)
     , sources_(sourceManager_, sourceSession_, authStates_, playlistEditing_, coverArtCache_, settings_, messages_)
     , activePlaylist_(playback_, sourceManager_, trackStates_, coverArtCache_, playbackHistory_, settings_, sources_,
-          playlistEditing_, messages_)
+          playlistEditing_, messages_, playlistTracks_)
     , activeTracks_(activePlaylist_, playback_, trackStates_, preload_, coverArtCache_)
     , trackActions_(sourceManager_, playback_, activePlaylist_, downloads_, playlistEditing_)
     , sourcePage_(sourceSession_)
@@ -34,6 +36,9 @@ Core::Core(QObject* parent)
     // A later switch (the Settings dialog) reaches the running backends too.
     connect(&translator_, &I18n::Translator::languageChanged, &sourceManager_, &Rpc::SourceManager::setLocale);
 
+    // Signed out: its playlists are not the user's any more.
+    connect(&authStates_, &Rpc::AuthStates::signedOut, this,
+        [this](const QString& sourceId) { playlistTracks_.removeSource(sourceId); });
     // A source that stops leaves nothing to stream the rest of its track from.
     connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, [this](const QString& sourceId) {
         if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId)

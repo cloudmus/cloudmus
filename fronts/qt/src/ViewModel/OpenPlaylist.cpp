@@ -6,6 +6,7 @@
 #include "Messages.h"
 #include "PlaybackHistory.h"
 #include "PlaylistEditing.h"
+#include "RpcClient.h"
 #include "TrackFetch.h"
 
 namespace ViewModel {
@@ -16,7 +17,8 @@ Q_LOGGING_CATEGORY(lcOpenPlaylist, "cloudmus.viewmodel.openplaylist")
 
 OpenPlaylist::OpenPlaylist(Rpc::SourceManager& sourceManager, Library::TrackStates& trackStates,
     Covers::CoverArtCache& coverArtCache, History::PlaybackHistory& history, ActivePlaylist& activePlaylist,
-    App::PlaylistEditing& playlistEditing, Messages& messages, QObject* parent)
+    App::PlaylistEditing& playlistEditing, Messages& messages, const App::PlaylistTrackCache& playlistTracks,
+    QObject* parent)
     : QObject(parent)
     , sourceManager_(sourceManager)
     , trackStates_(trackStates)
@@ -24,6 +26,7 @@ OpenPlaylist::OpenPlaylist(Rpc::SourceManager& sourceManager, Library::TrackStat
     , history_(history)
     , activePlaylist_(activePlaylist)
     , messages_(messages)
+    , playlistTracks_(playlistTracks)
 {
     connect(&history_, &History::PlaybackHistory::changed, this, [this]() {
         // Refresh in place — a track just started playing.
@@ -63,6 +66,15 @@ void OpenPlaylist::setContext(const PlaylistContext& context)
 
 void OpenPlaylist::load()
 {
+    // What it listed last is there at once, with the fresh list to follow.
+    if (!context_.isRadio()) {
+        const auto cached = App::cachedTracks(
+            playlistTracks_, trackStates_, coverArtCache_, context_.sourceId, context_.playlist);
+        if (cached) {
+            for (const Playback::QueueEntry& entry : *cached)
+                rows_.append(Row { entry.sourceId, entry.track, QDateTime() });
+        }
+    }
     emit rowsChanged();
     if (!context_.isRadio())
         fetch(context_).detach();
@@ -102,20 +114,28 @@ Rpc::Task<void> OpenPlaylist::fetch(PlaylistContext context)
     loading_ = true;
     emit loadingChanged(true);
     QList<Row> rows;
+    bool failed = false;
     try {
         const QVector<Playback::QueueEntry> entries = co_await App::fetchTracks(
-            sourceManager_, trackStates_, coverArtCache_, context.sourceId, context.playlist);
+            sourceManager_, trackStates_, coverArtCache_, context.sourceId, context.playlist, &playlistTracks_);
         rows.reserve(entries.size());
         for (const Playback::QueueEntry& entry : entries)
             rows.append(Row { entry.sourceId, entry.track, QDateTime() });
     } catch (const std::exception& e) {
         qCWarning(lcOpenPlaylist) << "loading tracks failed for" << context.sourceId << ":" << e.what();
-        messages_.error(QString::fromStdString(e.what()));
+        const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
+        if (call != nullptr && call->isOffline())
+            messages_.offline(QString::fromStdString(e.what()));
+        else
+            messages_.error(QString::fromStdString(e.what()));
+        failed = true;
     }
     // The user may have opened something else while this was loading.
     if (!context_.sameAs(context))
         co_return;
-    rows_ = rows;
+    // What's shown from the saved copy stays if the fresh list didn't come.
+    if (!failed || rows_.isEmpty())
+        rows_ = rows;
     loading_ = false;
     emit loadingChanged(false);
     emit rowsChanged();

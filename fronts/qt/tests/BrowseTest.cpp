@@ -1,6 +1,7 @@
 #include <QFile>
 #include <QSignalSpy>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTest>
 
 #include "ActivePlaylist.h"
@@ -19,6 +20,7 @@
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TestSupport.h"
+#include "TrackFetch.h"
 #include "TrackStates.h"
 
 namespace Tests {
@@ -43,6 +45,7 @@ private slots:
         sourcePage_.reset();
         browse_.reset();
         active_.reset();
+        playlistTracks_.reset();
         sources_.reset();
         editing_.reset();
         session_.reset();
@@ -136,10 +139,11 @@ private:
         editing_ = std::make_unique<App::PlaylistEditing>(*sourceManager_, messages_);
         sources_ = std::make_unique<ViewModel::Sources>(
             *sourceManager_, *session_, authStates_, *editing_, coverArtCache_, *settings_, messages_);
+        playlistTracks_ = std::make_unique<App::PlaylistTrackCache>(playlistTracksDir_.filePath(QStringLiteral("playlist-tracks")));
         active_ = std::make_unique<ViewModel::ActivePlaylist>(*playback_, *sourceManager_, trackStates_, coverArtCache_,
-            history_, *settings_, *sources_, *editing_, messages_);
+            history_, *settings_, *sources_, *editing_, messages_, *playlistTracks_);
         browse_ = std::make_unique<ViewModel::Browse>(*sourceManager_, trackStates_, coverArtCache_, history_,
-            *settings_, *sources_, *active_, *editing_, messages_);
+            *settings_, *sources_, *active_, *editing_, messages_, *playlistTracks_);
         sourcePage_ = std::make_unique<ViewModel::SourcePage>(*session_);
         QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
         sourceManager_->startAll();
@@ -158,6 +162,8 @@ private:
     std::unique_ptr<App::PlaylistEditing> editing_;
     std::unique_ptr<ViewModel::Sources> sources_;
     std::unique_ptr<ViewModel::ActivePlaylist> active_;
+    QTemporaryDir playlistTracksDir_;
+    std::unique_ptr<App::PlaylistTrackCache> playlistTracks_;
     std::unique_ptr<ViewModel::Browse> browse_;
     std::unique_ptr<ViewModel::SourcePage> sourcePage_;
 };

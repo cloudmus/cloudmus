@@ -9,11 +9,12 @@ namespace ViewModel {
 Browse::Browse(Rpc::SourceManager& sourceManager, Library::TrackStates& trackStates,
     Covers::CoverArtCache& coverArtCache, History::PlaybackHistory& history, Config::Settings& settings,
     Sources& sources, ActivePlaylist& activePlaylist, App::PlaylistEditing& playlistEditing, Messages& messages,
-    QObject* parent)
+    const App::PlaylistTrackCache& playlistTracks, QObject* parent)
     : QObject(parent)
     , settings_(settings)
     , activePlaylist_(activePlaylist)
-    , open_(sourceManager, trackStates, coverArtCache, history, activePlaylist, playlistEditing, messages)
+    , open_(sourceManager, trackStates, coverArtCache, history, activePlaylist, playlistEditing, messages,
+          playlistTracks)
 {
     connect(&open_, &OpenPlaylist::rowsChanged, this, &Browse::rowsChanged);
     connect(&open_, &OpenPlaylist::loadingChanged, this, &Browse::loadingChanged);

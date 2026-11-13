@@ -12,6 +12,7 @@
 
 namespace App {
 class PlaylistEditing;
+class PlaylistTrackCache;
 }
 namespace Covers {
 class CoverArtCache;
@@ -49,7 +50,7 @@ public:
     ActivePlaylist(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
         Library::TrackStates& trackStates, Covers::CoverArtCache& coverArtCache, History::PlaybackHistory& history,
         Config::Settings& settings, Sources& sources, App::PlaylistEditing& playlistEditing, Messages& messages,
-        QObject* parent = nullptr);
+        const App::PlaylistTrackCache& playlistTracks, QObject* parent = nullptr);
 
     const PlaylistContext& context() const { return context_; }
     QString title() const { return context_.isHistory ? tr("History") : context_.playlist.title; }
@@ -77,7 +78,8 @@ public:
     // Makes `context` active and plays `entries` from `startIndex` (History
     // fills its own; a radio station starts instead).
     void activate(const PlaylistContext& context, const QVector<Playback::QueueEntry>& entries, int startIndex);
-    // Fetches the playlist's tracks, then activate()s it.
+    // Fetches the playlist's tracks, then activate()s it — from the saved ones
+    // if its source can't answer.
     Rpc::Task<void> activateAndPlay(QString sourceId, Playlist playlist);
     // Starts a radio from `seed` and, once it runs, makes `context` active.
     Rpc::Task<void> startRadio(
@@ -126,6 +128,9 @@ private:
         const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
     void loadCachedTracks();
     void saveCachedTracks() const;
+    // Makes `context` active and plays it from what was saved of its tracks;
+    // false if nothing was.
+    bool activateFromCache(const PlaylistContext& context);
 
     Playback::PlaybackController& playback_;
     Rpc::SourceManager& sourceManager_;
@@ -135,6 +140,7 @@ private:
     Config::Settings& settings_;
     Sources& sources_;
     Messages& messages_;
+    const App::PlaylistTrackCache& playlistTracks_;
 
     PlaylistContext context_;
     QVector<Playback::QueueEntry> tracks_;
