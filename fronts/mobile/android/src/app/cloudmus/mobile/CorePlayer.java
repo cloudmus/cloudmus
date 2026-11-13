@@ -180,6 +180,61 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         });
     }
 
+    // Shuffle and repeat, as the core has them in effect: the session's
+    // buttons, and Player's own modes for the controllers that use those
+    // (a Bluetooth car's).
+    private boolean shuffleSupported;
+    private boolean shuffle;
+    private int repeat = CoreBridge.REPEAT_OFF;
+
+    boolean shuffleSupported() {
+        return shuffleSupported;
+    }
+
+    boolean shuffleOn() {
+        return shuffle;
+    }
+
+    int repeat() {
+        return repeat;
+    }
+
+    @Override
+    public void onPlayModes(boolean newShuffleSupported, boolean newShuffle, int newRepeat) {
+        new android.os.Handler(getApplicationLooper()).post(() -> {
+            if (shuffleSupported == newShuffleSupported && shuffle == newShuffle && repeat == newRepeat)
+                return;
+            shuffleSupported = newShuffleSupported;
+            shuffle = newShuffle;
+            repeat = newRepeat;
+            invalidateState();
+            if (feedbackListener != null)
+                feedbackListener.run();
+        });
+    }
+
+    private static int media3Repeat(int coreRepeat) {
+        switch (coreRepeat) {
+            case CoreBridge.REPEAT_ALL:
+                return REPEAT_MODE_ALL;
+            case CoreBridge.REPEAT_ONE:
+                return REPEAT_MODE_ONE;
+            default:
+                return REPEAT_MODE_OFF;
+        }
+    }
+
+    private static int coreRepeat(int media3Repeat) {
+        switch (media3Repeat) {
+            case REPEAT_MODE_ALL:
+                return CoreBridge.REPEAT_ALL;
+            case REPEAT_MODE_ONE:
+                return CoreBridge.REPEAT_ONE;
+            default:
+                return CoreBridge.REPEAT_OFF;
+        }
+    }
+
     @Override
     public void onState(boolean newPlaying, boolean newLoading, long newPositionMs, long newDurationMs) {
         new android.os.Handler(getApplicationLooper()).post(() -> {
@@ -308,8 +363,13 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         for (int i = 0; i < shownQueueIndex.length; ++i)
             shownQueueIndex[i] = indices.get(i);
         shownIds = ids.toArray(new String[0]);
+        Commands.Builder commands = (at < 0 ? BASE_COMMANDS : QUEUE_COMMANDS).buildUpon().add(COMMAND_SET_REPEAT_MODE);
+        if (shuffleSupported)
+            commands.add(COMMAND_SET_SHUFFLE_MODE);
         return new State.Builder()
-            .setAvailableCommands(at < 0 ? BASE_COMMANDS : QUEUE_COMMANDS)
+            .setAvailableCommands(commands.build())
+            .setShuffleModeEnabled(shuffle)
+            .setRepeatMode(media3Repeat(repeat))
             .setPlaylist(playlist)
             .setCurrentMediaItemIndex(current)
             .setPlaybackState(loading ? STATE_BUFFERING : STATE_READY)
@@ -359,6 +419,23 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     @NonNull
     @Override
     protected ListenableFuture<?> handlePrepare() {
+        return Futures.immediateVoidFuture();
+    }
+
+    // As for the other commands, the new mode shows once the core reports it.
+    @NonNull
+    @Override
+    protected ListenableFuture<?> handleSetShuffleModeEnabled(boolean enabled) {
+        CmLog.i(TAG, "setShuffleModeEnabled(" + enabled + ")");
+        CoreBridge.command(CoreBridge.CMD_SET_SHUFFLE, enabled ? 1 : 0);
+        return Futures.immediateVoidFuture();
+    }
+
+    @NonNull
+    @Override
+    protected ListenableFuture<?> handleSetRepeatMode(@Player.RepeatMode int repeatMode) {
+        CmLog.i(TAG, "setRepeatMode(" + repeatMode + ")");
+        CoreBridge.command(CoreBridge.CMD_SET_REPEAT, coreRepeat(repeatMode));
         return Futures.immediateVoidFuture();
     }
 

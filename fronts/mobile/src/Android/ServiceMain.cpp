@@ -37,7 +37,10 @@ enum Command {
     Previous,
     Seek,
     Like,
-    Dislike
+    Dislike,
+    SetShuffle, // argument: 0 or 1
+    SetRepeat, // argument: a Playback::RepeatMode
+    CycleRepeat
 };
 
 jclass bridgeClass = nullptr;
@@ -45,6 +48,7 @@ jmethodID onStateMethod = nullptr;
 jmethodID onTrackMethod = nullptr;
 jmethodID onQueueMethod = nullptr;
 jmethodID onFeedbackMethod = nullptr;
+jmethodID onPlayModesMethod = nullptr;
 jmethodID onAutoplayMethod = nullptr;
 jmethodID onResumeAfterLossMethod = nullptr;
 jmethodID onReadyMethod = nullptr;
@@ -179,6 +183,17 @@ void reportFeedback(App::MobileCore& core)
     Android::Jni::checkException(env, "CoreBridge.onFeedback");
 }
 
+// Shuffle and repeat as in effect, for their buttons; a radio has no list to
+// shuffle.
+void reportPlayModes(App::MobileCore& core)
+{
+    JNIEnv* env = Android::Jni::env();
+    auto& now = core.nowPlaying();
+    env->CallStaticVoidMethod(
+        bridgeClass, onPlayModesMethod, jboolean(!now.isRadio()), jboolean(now.shuffle()), jint(now.repeat()));
+    Android::Jni::checkException(env, "CoreBridge.onPlayModes");
+}
+
 // A media browser's answer, as flat strings: five for each item (see
 // CoreBridge.onBrowseResult()).
 void reportBrowseResult(jint requestId, const QList<ViewModel::MediaTree::Item>& items)
@@ -274,6 +289,7 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
     QObject::connect(&now, &ViewModel::NowPlaying::trackChanged, &core, feedback);
     QObject::connect(&now, &ViewModel::NowPlaying::feedbackChanged, &core, feedback);
     QObject::connect(&now, &ViewModel::NowPlaying::coverUrlChanged, &core, track);
+    QObject::connect(&now, &ViewModel::NowPlaying::playModesChanged, &core, [&core] { reportPlayModes(core); });
     QObject::connect(&now, &ViewModel::NowPlaying::durationMsChanged, &core, report);
     QObject::connect(&now, &ViewModel::NowPlaying::playingChanged, &core, report);
     QObject::connect(&now, &ViewModel::NowPlaying::loadingChanged, &core, report);
@@ -310,6 +326,7 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
     reportQueue(core);
     reportTrack(core);
     reportFeedback(core);
+    reportPlayModes(core);
     reportState(core);
     JNIEnv* env = Android::Jni::env();
     env->CallStaticVoidMethod(bridgeClass, onReadyMethod);
@@ -342,6 +359,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     bridgeClass = static_cast<jclass>(env->NewGlobalRef(local));
     onStateMethod = env->GetStaticMethodID(bridgeClass, "onState", "(ZZJJ)V");
     onFeedbackMethod = env->GetStaticMethodID(bridgeClass, "onFeedback", "(ZZZZ)V");
+    onPlayModesMethod = env->GetStaticMethodID(bridgeClass, "onPlayModes", "(ZZI)V");
     onTrackMethod = env->GetStaticMethodID(bridgeClass, "onTrack",
         "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;)V");
     onQueueMethod = env->GetStaticMethodID(bridgeClass, "onQueue", "(IIZZ[Ljava/lang/String;)V");
@@ -392,6 +410,16 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeComm
                 break;
             case Dislike:
                 now.setDisliked(!now.disliked());
+                break;
+            case SetShuffle:
+                now.setShuffle(argument != 0);
+                break;
+            case SetRepeat:
+                if (argument >= int(Playback::RepeatMode::Off) && argument <= int(Playback::RepeatMode::One))
+                    now.setRepeatMode(Playback::RepeatMode(argument));
+                break;
+            case CycleRepeat:
+                now.cycleRepeat();
                 break;
             default:
                 break;

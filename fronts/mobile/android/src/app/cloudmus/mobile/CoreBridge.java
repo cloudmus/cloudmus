@@ -31,6 +31,14 @@ public final class CoreBridge {
     public static final int CMD_SEEK = 5;
     public static final int CMD_LIKE = 6;
     public static final int CMD_DISLIKE = 7;
+    public static final int CMD_SET_SHUFFLE = 8; // argument: 0 or 1
+    public static final int CMD_SET_REPEAT = 9; // argument: one of REPEAT_*
+    public static final int CMD_CYCLE_REPEAT = 10;
+
+    // Keep in step with Playback::RepeatMode.
+    public static final int REPEAT_OFF = 0;
+    public static final int REPEAT_ALL = 1;
+    public static final int REPEAT_ONE = 2;
 
     public interface Listener {
         // `id` empty: no track. `coverFile` empty: no cover at hand yet.
@@ -39,6 +47,9 @@ public final class CoreBridge {
         void onState(boolean playing, boolean loading, long positionMs, long durationMs);
 
         void onFeedback(boolean likeSupported, boolean liked, boolean dislikeSupported, boolean disliked);
+
+        // As in effect: `shuffleSupported` false for a radio. `repeat`: REPEAT_*.
+        void onPlayModes(boolean shuffleSupported, boolean shuffle, int repeat);
 
         // A window of the queue, from queue index `first`, with the track
         // at `current` in it; `current` -1: no queue.
@@ -218,6 +229,17 @@ public final class CoreBridge {
         }
         if (current != null)
             current.onFeedback(likeSupported, liked, dislikeSupported, disliked);
+    }
+
+    // From the core, on its thread.
+    @SuppressWarnings("unused")
+    static void onPlayModes(boolean shuffleSupported, boolean shuffle, int repeat) {
+        Listener current;
+        synchronized (CoreBridge.class) {
+            current = listener;
+        }
+        if (current != null)
+            current.onPlayModes(shuffleSupported, shuffle, repeat);
     }
 
     // From the core, on its thread.

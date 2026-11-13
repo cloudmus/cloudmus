@@ -58,12 +58,19 @@ public final class PlaybackService extends MediaLibraryService {
     private static final SessionCommand LIKE = new SessionCommand(COMMAND_LIKE, Bundle.EMPTY);
     static final String COMMAND_DISLIKE = "app.cloudmus.mobile.DISLIKE";
     private static final SessionCommand DISLIKE = new SessionCommand(COMMAND_DISLIKE, Bundle.EMPTY);
+    static final String COMMAND_SHUFFLE = "app.cloudmus.mobile.SHUFFLE";
+    private static final SessionCommand SHUFFLE = new SessionCommand(COMMAND_SHUFFLE, Bundle.EMPTY);
+    static final String COMMAND_REPEAT = "app.cloudmus.mobile.REPEAT";
+    private static final SessionCommand REPEAT = new SessionCommand(COMMAND_REPEAT, Bundle.EMPTY);
 
     private MediaLibrarySession session;
     private CorePlayer player;
     private PendingIntent openScreen;
     private boolean autoplayed;
     private boolean openFirst;
+    // On a car's screen through Android Auto: the buttons are the car's then
+    // (see buttons()).
+    private CarProjection projection;
     // The source folders browsers have opened.
     private final java.util.Set<String> knownFolders = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -88,10 +95,8 @@ public final class PlaybackService extends MediaLibraryService {
             // each time. Now the state goes out only when something changes.
             .setPeriodicPositionUpdateEnabled(false)
             .build();
-        player.setFeedbackListener(() -> {
-            if (session != null)
-                session.setCustomLayout(buttons());
-        });
+        player.setFeedbackListener(this::updateButtons);
+        projection = new CarProjection(this, projecting -> updateButtons());
         CoreBridge.setLibraryListener(() -> new android.os.Handler(getMainLooper()).post(this::notifyLibraryChanged));
         DefaultMediaNotificationProvider notifications = new DefaultMediaNotificationProvider.Builder(this)
             .setChannelId(CHANNEL_ID)
@@ -106,6 +111,7 @@ public final class PlaybackService extends MediaLibraryService {
         // added here. Our UI reaches the core over Qt Remote Objects, not a
         // MediaController, so without this there was no notification at all.
         addSession(session);
+        projection.start();
         CmLog.mark("service ready");
     }
 
@@ -177,7 +183,15 @@ public final class PlaybackService extends MediaLibraryService {
     // Elsewhere there's no "open": a tap on the notification opens the app, and
     // Android Auto, which shows every button, can't open it (Android blocks an
     // activity started from the background there), so it was a dead button.
+    //
+    // While on a car's screen, the buttons are for the car: like, dislike,
+    // shuffle and repeat. It shows them all, and neither "close" (it keeps the
+    // service bound, so that was only a pause) nor "open" (Android doesn't let a
+    // background service open the app) does anything there. The phone, in a
+    // pocket by then, gets the same set in its notification meanwhile.
     private ImmutableList<CommandButton> buttons() {
+        if (projection != null && projection.projecting())
+            return autoButtons();
         ImmutableList.Builder<CommandButton> buttons = ImmutableList.builder();
         CommandButton open = new CommandButton.Builder()
             .setDisplayName(getString(R.string.open))
@@ -209,6 +223,42 @@ public final class PlaybackService extends MediaLibraryService {
             .setSessionCommand(CLOSE)
             .build());
         return buttons.build();
+    }
+
+    private ImmutableList<CommandButton> autoButtons() {
+        ImmutableList.Builder<CommandButton> buttons = ImmutableList.builder();
+        if (player.dislikeSupported())
+            buttons.add(new CommandButton.Builder()
+                .setDisplayName(getString(R.string.dislike))
+                .setIconResId(player.disliked() ? R.drawable.ic_heart_off : R.drawable.ic_heart_off_outline)
+                .setSessionCommand(DISLIKE)
+                .build());
+        if (player.likeSupported())
+            buttons.add(new CommandButton.Builder()
+                .setDisplayName(getString(R.string.like))
+                .setIconResId(player.liked() ? R.drawable.ic_favorite : R.drawable.ic_favorite_border)
+                .setSessionCommand(LIKE)
+                .build());
+        // A radio has no list to shuffle.
+        if (player.shuffleSupported())
+            buttons.add(new CommandButton.Builder()
+                .setDisplayName(getString(R.string.shuffle))
+                .setIconResId(player.shuffleOn() ? R.drawable.ic_shuffle_on : R.drawable.ic_shuffle)
+                .setSessionCommand(SHUFFLE)
+                .build());
+        int repeat = player.repeat();
+        buttons.add(new CommandButton.Builder()
+            .setDisplayName(getString(repeat == CoreBridge.REPEAT_ONE ? R.string.repeat_one : R.string.repeat))
+            .setIconResId(repeat == CoreBridge.REPEAT_ONE ? R.drawable.ic_repeat_one_on
+                : repeat == CoreBridge.REPEAT_ALL ? R.drawable.ic_repeat_on : R.drawable.ic_repeat)
+            .setSessionCommand(REPEAT)
+            .build());
+        return buttons.build();
+    }
+
+    private void updateButtons() {
+        if (session != null)
+            session.setCustomLayout(buttons());
     }
 
     private Notification placeholderNotification() {
@@ -258,6 +308,7 @@ public final class PlaybackService extends MediaLibraryService {
         CoreBridge.setListener(null);
         CoreBridge.setStopHandler(null);
         CoreBridge.setLibraryListener(null);
+        projection.stop();
         if (session != null) {
             session.release();
             session = null;
@@ -277,7 +328,8 @@ public final class PlaybackService extends MediaLibraryService {
             MediaSession.ConnectionResult result = MediaLibrarySession.Callback.super.onConnect(session, controller);
             // Everyone may open and close: the notification, the car's media widget.
             SessionCommands commands =
-                result.availableSessionCommands.buildUpon().add(OPEN).add(CLOSE).add(LIKE).add(DISLIKE).build();
+                result.availableSessionCommands.buildUpon().add(OPEN).add(CLOSE).add(LIKE).add(DISLIKE).add(SHUFFLE)
+                    .add(REPEAT).build();
             return MediaSession.ConnectionResult.accept(commands, result.availablePlayerCommands);
         }
 
@@ -299,6 +351,14 @@ public final class PlaybackService extends MediaLibraryService {
             }
             if (COMMAND_DISLIKE.equals(command.customAction)) {
                 CoreBridge.command(CoreBridge.CMD_DISLIKE, 0);
+                return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+            }
+            if (COMMAND_SHUFFLE.equals(command.customAction)) {
+                CoreBridge.command(CoreBridge.CMD_SET_SHUFFLE, player.shuffleOn() ? 0 : 1);
+                return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+            }
+            if (COMMAND_REPEAT.equals(command.customAction)) {
+                CoreBridge.command(CoreBridge.CMD_CYCLE_REPEAT, 0);
                 return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
             }
             if (COMMAND_CLOSE.equals(command.customAction)) {
