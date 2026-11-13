@@ -14,6 +14,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.session.CommandButton;
 import androidx.media3.session.DefaultMediaNotificationProvider;
 import androidx.media3.session.LibraryResult;
+import androidx.media3.session.MediaConstants;
 import androidx.media3.session.MediaLibraryService;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.SessionCommand;
@@ -383,7 +384,18 @@ public final class PlaybackService extends MediaLibraryService {
         public ListenableFuture<LibraryResult<MediaItem>> onGetLibraryRoot(MediaLibrarySession session,
             MediaSession.ControllerInfo browser, @Nullable LibraryParams params) {
             CmLog.i(TAG, "library root for " + browser.getPackageName());
-            return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "CloudMus"), params));
+            // Playlists as a grid of covers, which fills a car's wide screen;
+            // the source folders as a list (the root's, Android Auto's tabs).
+            Bundle style = new Bundle();
+            style.putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_GRID_ITEM);
+            style.putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM);
+            LibraryParams rootParams = new LibraryParams.Builder()
+                .setOffline(params != null && params.isOffline)
+                .setRecent(params != null && params.isRecent)
+                .setSuggested(params != null && params.isSuggested)
+                .setExtras(style)
+                .build();
+            return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "CloudMus"), rootParams));
         }
 
         @Override
