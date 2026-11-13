@@ -87,7 +87,8 @@ Item {
     function _reveal(animated) {
         _back.z = 1
         _front.z = 0
-        if (!animated) {
+        // Not while the app is just back: what it missed comes in a rush.
+        if (!animated || !Theme.settled) {
             _back.opacity = 1
             _swap()
             return

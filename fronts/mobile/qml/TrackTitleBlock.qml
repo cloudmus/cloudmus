@@ -56,8 +56,9 @@ Item {
             return
         wipe.stop()
         _progress = 1
-        // Nothing to wipe away, or nothing to wipe to.
-        if ((incomingTitle.text === "" && incomingArtist.text === "") || (title === "" && artist === "")) {
+        // Nothing to wipe away, or nothing to wipe to, or the app is just back
+        // and what it missed comes in a rush: not a wipe for each.
+        if (!Theme.settled || (incomingTitle.text === "" && incomingArtist.text === "") || (title === "" && artist === "")) {
             _showAtOnce()
             return
         }

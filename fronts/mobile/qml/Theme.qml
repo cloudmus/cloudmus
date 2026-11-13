@@ -15,6 +15,29 @@ QtObject {
 
     function dp(value) { return Math.round(value * scale) }
 
+    // False while the app is away and for a moment after it's back. The player
+    // in the service goes on through the tracks meanwhile, and what the UI missed
+    // reaches it at once on return: each track change would play its show (the
+    // wipe, the cover's zoom) one after another. Changes in this time are shown
+    // as they are, with no show.
+    readonly property bool settled: _active && !_returning
+    readonly property bool _active: Qt.application.state === Qt.ApplicationActive
+    property bool _returning: false
+    on_ActiveChanged: {
+        if (_active) {
+            _returning = true
+            returning.restart()
+        } else {
+            returning.stop()
+            _returning = false
+        }
+    }
+    property Timer _returningTimer: Timer {
+        id: returning
+        interval: 1500
+        onTriggered: theme._returning = false
+    }
+
     // Auto scale: a phone (~360-420 dp across) is 1.0; more room grows the
     // controls with it, up to twice: a 14" Full HD head unit (~1000 dp
     // across, at 160 dpi) is 2.0 — at arm's length, in a moving car, 1.5
