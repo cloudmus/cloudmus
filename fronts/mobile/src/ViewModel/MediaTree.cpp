@@ -4,6 +4,7 @@
 
 #include "CoverArtCache.h"
 #include "LibraryScreen.h"
+#include "PlaybackController.h"
 #include "SourceManager.h"
 #include "Sources.h"
 
@@ -37,6 +38,15 @@ PlaylistRef parsePlaylistId(const QString& id)
     return { id.mid(kPlaylistPrefix.size(), slash - kPlaylistPrefix.size()), id.mid(slash + 1) };
 }
 
+// What a query is matched on: one case, and "ё" as "е", which most people
+// type for it.
+QString folded(const QString& text)
+{
+    QString result = text.toCaseFolded();
+    result.replace(QChar(0x0451), QChar(0x0435));
+    return result;
+}
+
 QString trackCountText(int count)
 {
     if (count <= 0)
@@ -47,12 +57,13 @@ QString trackCountText(int count)
 } // namespace
 
 MediaTree::MediaTree(Sources& sources, Rpc::SourceManager& sourceManager, LibraryScreen& library,
-    Covers::CoverArtCache& covers, QObject* parent)
+    Covers::CoverArtCache& covers, Playback::PlaybackController& playback, QObject* parent)
     : QObject(parent)
     , sources_(sources)
     , sourceManager_(sourceManager)
     , library_(library)
     , covers_(covers)
+    , playback_(playback)
     , compareLater_(kCompareDelayMs, [this]() { compare(); })
 {
     connect(&sources_, &Sources::sourceChanged, this, [this]() { compareLater_.trigger(); });
@@ -131,6 +142,41 @@ MediaTree::Item MediaTree::item(const QString& id)
     const QList<Item> playlists = playlistsOf(parsePlaylistId(id).sourceId);
     const auto it = std::find_if(playlists.cbegin(), playlists.cend(), [&](const Item& item) { return item.id == id; });
     return it != playlists.cend() ? *it : Item { };
+}
+
+QList<MediaTree::Item> MediaTree::search(const QString& query)
+{
+    const QStringList words = folded(query).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (words.isEmpty())
+        return { };
+    const auto matches = [&](const QString& text) {
+        const QString haystack = folded(text);
+        return std::all_of(
+            words.cbegin(), words.cend(), [&](const QString& word) { return haystack.contains(word); });
+    };
+    QList<Item> found;
+    const QList<Playback::QueueEntry>& queue = playback_.queue();
+    for (int i = 0; i < queue.size() && found.size() < kMaxQueueFound; ++i) {
+        const Track& track = queue.at(i).track;
+        QStringList artists;
+        for (const Artist& artist : track.artists)
+            artists.append(artist.name);
+        const QString byline = artists.join(QStringLiteral(", "));
+        if (!matches(track.title + QLatin1Char(' ') + byline))
+            continue;
+        const QString cover
+            = track.coverUrl.value_or(track.album ? track.album->coverUrl.value_or(QString()) : QString());
+        found.append({ QLatin1String(kQueuePrefix) + QString::number(i) + QLatin1Char('/') + queue.at(i).sourceId
+                + QLatin1Char('/') + track.id,
+            track.title, byline, covers_.localFile(cover), false });
+    }
+    for (const QString& sourceId : listedSources()) {
+        for (const Item& playlist : playlistsOf(sourceId)) {
+            if (matches(playlist.title))
+                found.append(playlist);
+        }
+    }
+    return found;
 }
 
 void MediaTree::play(const QString& id)

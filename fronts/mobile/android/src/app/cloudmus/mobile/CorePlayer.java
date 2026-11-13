@@ -496,6 +496,17 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         if (id.startsWith(PlaybackService.PLAYLIST_ID_PREFIX)) {
             startingMediaUntil = android.os.SystemClock.elapsedRealtime() + STARTING_MEDIA_MS;
             CoreBridge.playMedia(id);
+        } else if (id.startsWith(PlaybackService.QUEUE_ID_PREFIX)) {
+            // Found by a search: as a tap in the queue's list.
+            String rest = id.substring(PlaybackService.QUEUE_ID_PREFIX.length());
+            int slash = rest.indexOf('/');
+            int index = -1;
+            try {
+                index = Integer.parseInt(rest.substring(0, Math.max(slash, 0)));
+            } catch (NumberFormatException ignored) {
+                // the core looks for the track by its id then
+            }
+            CoreBridge.playQueueItem(index, rest.substring(slash + 1));
         } else {
             CoreBridge.command(CoreBridge.CMD_PLAY, 0);
         }

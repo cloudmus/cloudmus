@@ -247,6 +247,15 @@ private slots:
         QVERIFY(tree.item(QStringLiteral("nonsense")).id.isEmpty());
         QVERIFY(tree.children(items.first().id).isEmpty());
 
+        // A car's search: every word, whatever the case.
+        QCOMPARE(tree.search(QStringLiteral("sav")).size(), 1);
+        QCOMPARE(tree.search(QStringLiteral("  SAVED ")).first().id, QStringLiteral("playlist/fake/p2"));
+        QCOMPARE(tree.search(QStringLiteral("fir xyz")).size(), 0); // every word, not any
+        QCOMPARE(tree.search(QStringLiteral("s")).size(), 2); // "First", "Saved": favorites first
+        QCOMPARE(tree.search(QStringLiteral("s")).first().id, QStringLiteral("playlist/fake/p2"));
+        QVERIFY(tree.search(QStringLiteral("nothing like it")).isEmpty());
+        QVERIFY(tree.search(QStringLiteral("   ")).isEmpty());
+
         // Asked again only when something else is listed.
         QTest::qWait(1500); // what the toggles above said is told by now
         changed.clear();
@@ -258,6 +267,21 @@ private slots:
         tree.play(QStringLiteral("playlist/fake/p1"));
         QTRY_VERIFY_WITH_TIMEOUT(core.nowPlaying().hasTrack(), 10000);
         QCOMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
+
+        // With a queue, search finds its tracks too, before the playlists.
+        const QString title = core.nowPlaying().title();
+        const QList<ViewModel::MediaTree::Item> found = tree.search(title.toUpper());
+        QVERIFY(!found.isEmpty());
+        QVERIFY(found.first().id.startsWith(QLatin1String(ViewModel::MediaTree::kQueuePrefix)));
+        const Playback::PlaybackController& playback = core.core().playback();
+        const QString playing = QStringLiteral("queue/%1/fake/%2")
+                                    .arg(playback.currentIndex())
+                                    .arg(playback.queue().at(playback.currentIndex()).track.id);
+        const auto it = std::find_if(found.cbegin(), found.cend(), [&](const auto& item) { return item.id == playing; });
+        QVERIFY(it != found.cend());
+        QCOMPARE(it->title, title);
+        QVERIFY(!it->browsable);
+        QCOMPARE(tree.search(QStringLiteral("saved")).first().id, QStringLiteral("playlist/fake/p2"));
         // Nonsense does nothing.
         tree.play(QStringLiteral("playlist/fake/nothing"));
         tree.play(QStringLiteral("nonsense"));

@@ -90,6 +90,8 @@ public final class CoreBridge {
 
     private static native void nativeBrowse(int requestId, String id, boolean itemItself);
 
+    private static native void nativeSearch(int requestId, String query);
+
     private static native void nativePlayMedia(String id);
 
     private static native void nativePlayQueueItem(int index, String id);
@@ -123,6 +125,15 @@ public final class CoreBridge {
         int request = nextBrowseRequest.incrementAndGet();
         browseRequests.put(request, result);
         nativeBrowse(request, id, itemItself);
+        return result;
+    }
+
+    // The playlists whose titles match a car's search (MediaTree::search()).
+    public static ListenableFuture<List<BrowseItem>> search(String query) {
+        SettableFuture<List<BrowseItem>> result = SettableFuture.create();
+        int request = nextBrowseRequest.incrementAndGet();
+        browseRequests.put(request, result);
+        nativeSearch(request, query);
         return result;
     }
 

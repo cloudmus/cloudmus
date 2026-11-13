@@ -42,6 +42,8 @@ public final class PlaybackService extends MediaLibraryService {
     private static final String ROOT_ID = "root";
     // Keep in step with ViewModel::MediaTree.
     static final String PLAYLIST_ID_PREFIX = "playlist/";
+    // A track of the queue, as search finds it: "queue/<index>/<source>/<track>".
+    static final String QUEUE_ID_PREFIX = "queue/";
     private static final long ROOT_WAIT_MS = 10000;
     private static final long ROOT_POLL_MS = 500;
     private static final String CHANNEL_ID = "playback";
@@ -398,6 +400,26 @@ public final class PlaybackService extends MediaLibraryService {
             return Futures.immediateFuture(LibraryResult.ofItem(folder(ROOT_ID, "CloudMus"), rootParams));
         }
 
+        // A car's search, by playlist title. The results are fetched again
+        // when asked for: the core has them at hand.
+        @Override
+        public ListenableFuture<LibraryResult<Void>> onSearch(MediaLibrarySession session,
+            MediaSession.ControllerInfo browser, String query, @Nullable LibraryParams params) {
+            CmLog.i(TAG, "search from " + browser.getPackageName());
+            ListenableFuture<List<CoreBridge.BrowseItem>> found = CoreBridge.search(query);
+            found.addListener(() -> session.notifySearchResultChanged(browser, query, Futures.getUnchecked(found).size(),
+                params), MoreExecutors.directExecutor());
+            return Futures.immediateFuture(LibraryResult.ofVoid());
+        }
+
+        @Override
+        public ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> onGetSearchResult(
+            MediaLibrarySession session, MediaSession.ControllerInfo browser, String query, int page, int pageSize,
+            @Nullable LibraryParams params) {
+            return Futures.transform(CoreBridge.search(query),
+                items -> LibraryResult.ofItemList(page(items, page, pageSize), params), MoreExecutors.directExecutor());
+        }
+
         @Override
         public ListenableFuture<LibraryResult<MediaItem>> onGetItem(MediaLibrarySession session,
             MediaSession.ControllerInfo browser, String mediaId) {
@@ -416,24 +438,40 @@ public final class PlaybackService extends MediaLibraryService {
             ListenableFuture<List<CoreBridge.BrowseItem>> listed = ROOT_ID.equals(parentId)
                 ? listedRoot() : CoreBridge.browse(parentId, false);
             return Futures.transform(listed, items -> {
-                ImmutableList.Builder<MediaItem> children = ImmutableList.builder();
-                // In long: Media3's legacy side asks for a page of MAX_VALUE.
-                long from = (long) page * pageSize;
-                long to = Math.min(from + pageSize, items.size());
-                for (long i = from; i < to; ++i)
-                    children.add(browserItem(items.get((int) i)));
                 CmLog.i(TAG, "children of " + parentId + ": " + items.size());
-                return LibraryResult.ofItemList(children.build(), params);
+                return LibraryResult.ofItemList(page(items, page, pageSize), params);
             }, MoreExecutors.directExecutor());
+        }
+
+        private ImmutableList<MediaItem> page(List<CoreBridge.BrowseItem> items, int page, int pageSize) {
+            ImmutableList.Builder<MediaItem> result = ImmutableList.builder();
+            // In long: Media3's legacy side asks for a page of MAX_VALUE.
+            long from = (long) page * pageSize;
+            long to = Math.min(from + pageSize, items.size());
+            for (long i = from; i < to; ++i)
+                result.add(browserItem(items.get((int) i)));
+            return result.build();
         }
 
         // What a browser sends back when one is tapped: an id and no stream,
         // which is all the core wants. Media3 turns down items without a URI
         // unless told otherwise. See CorePlayer.handleSetMediaItems().
+        //
+        // A voice request ("play Liked on CloudMus") comes as an item with no id
+        // and the words: the first playlist they find plays. Words that find
+        // none, or none at all ("play CloudMus"), go on with what was playing.
         @Override
         public ListenableFuture<List<MediaItem>> onAddMediaItems(MediaSession session,
             MediaSession.ControllerInfo controller, List<MediaItem> mediaItems) {
-            return Futures.immediateFuture(mediaItems);
+            String query = mediaItems.size() == 1 && mediaItems.get(0).mediaId.isEmpty()
+                ? mediaItems.get(0).requestMetadata.searchQuery : null;
+            if (query == null || query.trim().isEmpty())
+                return Futures.immediateFuture(mediaItems);
+            CmLog.i(TAG, "play from search, asked by " + controller.getPackageName());
+            return Futures.transform(CoreBridge.search(query), found -> found.isEmpty()
+                    ? mediaItems
+                    : ImmutableList.of(new MediaItem.Builder().setMediaId(found.get(0).id).build()),
+                MoreExecutors.directExecutor());
         }
 
         // "Play" with nothing playing — the steering wheel after the car
@@ -469,7 +507,8 @@ public final class PlaybackService extends MediaLibraryService {
                 .setSubtitle(item.subtitle)
                 .setIsBrowsable(false)
                 .setIsPlayable(true)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_PLAYLIST);
+                .setMediaType(item.id.startsWith(QUEUE_ID_PREFIX) ? MediaMetadata.MEDIA_TYPE_MUSIC
+                    : MediaMetadata.MEDIA_TYPE_PLAYLIST);
             // A link, not the picture: Media3 puts pictures into the list,
             // cutting it short at what a binder call takes.
             if (!item.coverFile.isEmpty())

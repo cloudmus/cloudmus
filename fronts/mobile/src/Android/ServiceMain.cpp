@@ -443,6 +443,16 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeBrow
     });
 }
 
+// A car's search: answered as a folder would be (CoreBridge.onBrowseResult()).
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeSearch(
+    JNIEnv* env, jclass, jint requestId, jstring query)
+{
+    post([requestId, query = toQString(env, query)] {
+        reportBrowseResult(requestId, coreInstance ? coreInstance->mediaTree().search(query)
+                                                   : QList<ViewModel::MediaTree::Item>());
+    });
+}
+
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativePlayMedia(JNIEnv* env, jclass, jstring id)
 {
     post([id = toQString(env, id)] {
