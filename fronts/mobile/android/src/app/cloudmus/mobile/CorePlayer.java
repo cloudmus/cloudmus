@@ -38,7 +38,9 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     private MediaItem trackItem;
     private boolean playing;
     private boolean loading;
-    private long positionMs;
+    // Moves on by itself while playing, between the core's reports: a state
+    // sent for any other change carries where the track really is.
+    private SimpleBasePlayer.PositionSupplier position = SimpleBasePlayer.PositionSupplier.ZERO;
     private long durationMs;
     private boolean hasFocus;
     private boolean pausedByFocusLoss;
@@ -182,7 +184,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     public void onState(boolean newPlaying, boolean newLoading, long newPositionMs, long newDurationMs) {
         new android.os.Handler(getApplicationLooper()).post(() -> {
             loading = newLoading;
-            positionMs = newPositionMs;
+            position = SimpleBasePlayer.PositionSupplier.getExtrapolating(newPositionMs, newPlaying && !newLoading ? 1f : 0f);
             durationMs = newDurationMs;
             // Getting the next track ready is still playing, as far as the
             // system goes.
@@ -315,7 +317,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             .setPlaybackSuppressionReason(!playing && awaitingResume()
                 ? PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS
                 : PLAYBACK_SUPPRESSION_REASON_NONE)
-            .setContentPositionMs(positionMs)
+            .setContentPositionMs(position)
             .build();
     }
 

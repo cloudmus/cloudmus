@@ -82,6 +82,11 @@ public final class PlaybackService extends MediaLibraryService {
         session = new MediaLibrarySession.Builder(this, player, new Callback())
             .setSessionActivity(openScreen)
             .setCustomLayout(buttons())
+            // Media3 sends the whole state again every 3 s while playing, for
+            // the position, which a controller works out itself from the last
+            // state. Android Auto scrolled its queue back to the playing track
+            // each time. Now the state goes out only when something changes.
+            .setPeriodicPositionUpdateEnabled(false)
             .build();
         player.setFeedbackListener(() -> {
             if (session != null)
@@ -169,6 +174,9 @@ public final class PlaybackService extends MediaLibraryService {
     // Media Center shows only the first one beside previous, the others a row up
     // that has to be unfolded: there, "open" goes first. There's one order for
     // every controller of the system's session, so it's the unit that decides.
+    // Elsewhere there's no "open": a tap on the notification opens the app, and
+    // Android Auto, which shows every button, can't open it (Android blocks an
+    // activity started from the background there), so it was a dead button.
     private ImmutableList<CommandButton> buttons() {
         ImmutableList.Builder<CommandButton> buttons = ImmutableList.builder();
         CommandButton open = new CommandButton.Builder()
@@ -200,8 +208,6 @@ public final class PlaybackService extends MediaLibraryService {
             .setIconResId(R.drawable.ic_close)
             .setSessionCommand(CLOSE)
             .build());
-        if (!openFirst)
-            buttons.add(open);
         return buttons.build();
     }
 
