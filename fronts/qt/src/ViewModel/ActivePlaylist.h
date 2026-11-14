@@ -5,6 +5,8 @@
 #include <QObject>
 #include <QVector>
 
+#include <functional>
+
 #include "Coro.h"
 #include "PlaybackController.h"
 #include "PlaylistContext.h"
@@ -73,6 +75,10 @@ public:
     // A radio is starting (the hero's Play button spins).
     bool isStartingRadio() const { return startingRadio_; }
 
+    // Whether a source is known to be offline now (App::Connectivity): a
+    // radio of it then starts from the disk without asking it first.
+    void setOfflineProvider(std::function<bool(const QString& sourceId)> provider) { offline_ = std::move(provider); }
+
     // Makes `context` active without touching playback.
     void setContext(const PlaylistContext& context);
     // Makes `context` active and plays `entries` from `startIndex` (History
@@ -130,6 +136,8 @@ private:
     // saved tracks if any are downloaded, else cachedRadioTracks(). False if
     // there's nothing.
     bool playOfflineRadio(const PlaylistContext& context);
+    // playOfflineRadio(), or saying there's nothing to play.
+    void startOfflineRadio(const PlaylistContext& context, const QString& sourceName);
     // The source is up and answering.
     bool sourceAnswers(const QString& sourceId) const;
     // A radio resumed without its station gets one, once its source is up.
@@ -155,6 +163,7 @@ private:
     Messages& messages_;
     const App::PlaylistTrackCache& playlistTracks_;
 
+    std::function<bool(const QString& sourceId)> offline_;
     PlaylistContext context_;
     QVector<Playback::QueueEntry> tracks_;
     bool loading_ = false;

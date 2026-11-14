@@ -6,6 +6,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUuid>
 
 #include "ActivePlaylist.h"
 #include "AuthStates.h"
@@ -573,6 +574,65 @@ private slots:
         QTRY_VERIFY(!playback_->awaitsStation());
         QCOMPARE(playback_->currentTrack().id, QStringLiteral("offline-1"));
         qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
+    }
+
+    // Another radio playing, and a station started with no network: what's
+    // downloaded of the new one's source plays in its place.
+    void aStationStartedOfflineOverAnotherRadioPlaysDownloadedTracks()
+    {
+        const QString down = temp_->filePath(QStringLiteral("network-down"));
+        qputenv("CLOUDMUS_FAKE_OFFLINE_FILE", down.toUtf8());
+        seedCached(QStringLiteral("over-1"));
+        seedCached(QStringLiteral("other-radio"));
+        start();
+        wireOfflineRadio();
+        history_.record(QStringLiteral("fake"), track(QStringLiteral("over-1")));
+        Playlist other = playlist(QStringLiteral("other-wave"));
+        other.kind = QStringLiteral("radioStation");
+        active_->setContext({ QStringLiteral("fake"), other });
+        playback_->startRadio(
+            QStringLiteral("fake"), QStringLiteral("station"), { track(QStringLiteral("other-radio")) });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        QFile(down).open(QIODevice::WriteOnly);
+        Playlist station = playlist(QStringLiteral("wave"));
+        station.kind = QStringLiteral("radioStation");
+        active_->activate({ QStringLiteral("fake"), station }, { }, 0);
+        QTRY_COMPARE(active_->context().playlist.id, QStringLiteral("wave"));
+        QTRY_COMPARE(playback_->currentTrack().id, QStringLiteral("over-1"));
+        qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
+    }
+
+    // A service known to be offline isn't asked for a station (with no
+    // network the asking can time out instead of failing): the disk plays.
+    // With nothing downloaded of it, that is said — not left silent.
+    void aStationOfAnOfflineServiceStartsFromTheDiskOrSaysWhyNot()
+    {
+        // History outlives the test run: a name of this run's own.
+        const QString id = QStringLiteral("known-offline-") + QUuid::createUuid().toString(QUuid::Id128);
+        seedCached(id);
+        start();
+        wireOfflineRadio();
+        bool offline = true;
+        active_->setOfflineProvider([&offline](const QString&) { return offline; });
+        Playlist station = playlist(QStringLiteral("wave"));
+        station.kind = QStringLiteral("radioStation");
+        QSignalSpy posted(&messages_, &ViewModel::Messages::posted);
+
+        // Nothing of it on the disk that History knows of yet (this cache
+        // directory is the test's own).
+        QVERIFY(active_->cachedRadioTracks(QStringLiteral("fake"), 5).isEmpty());
+        active_->activate({ QStringLiteral("fake"), station }, { }, 0);
+        QTRY_COMPARE(posted.size(), 1);
+        QCOMPARE(posted.first().first().value<ViewModel::Messages::Kind>(), ViewModel::Messages::Kind::Error);
+        QVERIFY(!playback_->hasQueue());
+
+        history_.record(QStringLiteral("fake"), track(id));
+        active_->activate({ QStringLiteral("fake"), station }, { }, 0);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, id);
+        QVERIFY(playback_->awaitsStation()); // the source wasn't asked
+        offline = false;
     }
 
     // A station is told what played lately from its source — as far back

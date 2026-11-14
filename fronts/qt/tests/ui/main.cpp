@@ -9,6 +9,7 @@
 
 namespace Tests {
 QObject* makeWindowHostTest();
+QObject* makeThemedToolTipTest();
 QObject* makeFocusTest();
 QObject* makeHotkeysPageTest();
 QObject* makeSourcePageTest();
@@ -37,7 +38,7 @@ int main(int argc, char** argv)
     for (auto make :
         { Tests::makeWindowHostTest, Tests::makeFocusTest, Tests::makeHotkeysPageTest, Tests::makeSourcePageTest,
             Tests::makePreloadUiTest, Tests::makeAboutDialogTest, Tests::makeCoverArtCacheTest,
-            Tests::makeDisabledLookTest, Tests::makeAutostartTest, Tests::makeToastNotifierTest }) {
+            Tests::makeDisabledLookTest, Tests::makeAutostartTest, Tests::makeToastNotifierTest, Tests::makeThemedToolTipTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

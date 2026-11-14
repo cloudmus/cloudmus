@@ -783,6 +783,10 @@
       <source>No network connection: playing downloaded tracks</source>
       <translation>Sin conexión de red: se reproducen las pistas descargadas</translation>
     </message>
+    <message>
+      <source>No network connection, and nothing of %1 is downloaded to play</source>
+      <translation>Sin conexión de red, y no hay nada descargado de %1</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ConnectionStatus</name>

@@ -65,7 +65,11 @@ QString ConnectionStatus::details() const
     for (const QString& sourceId : connectivity_.offlineSources()) {
         const QString since
             = QLocale().toString(connectivity_.offlineSince(sourceId).toLocalTime().time(), QLocale::ShortFormat);
-        const QString detail = connectivity_.offlineDetail(sourceId);
+        // A few words from the source; whatever it says, not a paragraph.
+        constexpr int kMaxDetail = 100;
+        QString detail = connectivity_.offlineDetail(sourceId).simplified();
+        if (detail.size() > kMaxDetail)
+            detail = detail.left(kMaxDetail - 1) + QChar(0x2026);
         lines.append(detail.isEmpty() ? tr("%1: unreachable since %2").arg(nameOf(sourceId), since)
                                       : tr("%1: unreachable since %2 (%3)").arg(nameOf(sourceId), since, detail));
     }

@@ -1594,6 +1594,10 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
         <translation>Verlauf</translation>
     </message>
     <message>
+        <source>No network connection, and nothing of %1 is downloaded to play</source>
+        <translation>Keine Netzwerkverbindung, und von %1 ist nichts heruntergeladen</translation>
+    </message>
+    <message>
         <source>No network connection: playing downloaded tracks</source>
         <translation>Keine Netzwerkverbindung: heruntergeladene Titel werden gespielt</translation>
     </message>

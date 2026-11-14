@@ -615,6 +615,7 @@ add_executable(cloudmus-qt-ui-tests
     # Covers are QPixmaps, which need a GUI application.
     tests/ui/CoverArtCacheTest.cpp
     tests/ui/DisabledLookTest.cpp
+    tests/ui/ThemedToolTipTest.cpp
     tests/ui/AutostartTest.cpp
     tests/ui/ToastNotifierTest.cpp
     tests/FakeBackend.cpp

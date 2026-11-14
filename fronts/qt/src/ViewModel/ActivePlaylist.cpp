@@ -391,6 +391,13 @@ Rpc::Task<void> ActivePlaylist::startRadio(
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
         co_return;
+    // Known to be offline: nothing to ask — and the asking can take longer
+    // than the call may (a name lookup with no network), to fail as a
+    // timeout rather than as "offline".
+    if (offline_ && offline_(sourceId)) {
+        startOfflineRadio(context, client->sourceName());
+        co_return;
+    }
     startingRadio_ = true;
     emit startingRadioChanged(true);
     try {
@@ -413,9 +420,12 @@ Rpc::Task<void> ActivePlaylist::startRadio(
         playback_.startRadio(sourceId, result.stationId, initialTracks);
     } catch (const Rpc::RpcCallException& e) {
         qCWarning(lcActivePlaylist) << "starting radio failed for" << sourceId << ":" << e.what();
-        // No network: what's on the disk plays; the station comes later.
-        if (!e.isOffline() || !playOfflineRadio(context))
-            messages_.failure(QString(), e, /*quietOffline=*/true);
+        // No network — or no answer, and the service found offline meanwhile:
+        // what's on the disk plays; the station comes later.
+        if (e.isOffline() || (offline_ && offline_(sourceId)))
+            startOfflineRadio(context, client->sourceName());
+        else
+            messages_.failure(QString(), e);
     } catch (const std::exception& e) {
         qCWarning(lcActivePlaylist) << "starting radio failed for" << sourceId << ":" << e.what();
         messages_.failure(QString(), e);
@@ -438,7 +448,7 @@ void ActivePlaylist::play()
         if (resumeTrack && !sourceAnswers(context_.sourceId))
             playSavedRadio(resumeIndex());
         else if (!resumeTrack && !sourceAnswers(context_.sourceId) && !sourceManager_.isStarting(context_.sourceId))
-            playOfflineRadio(context_);
+            startOfflineRadio(context_, sources_.model().sourceName(context_.sourceId));
         else
             startRadio(context_.sourceId, context_.playlist.id, context_, resumeTrack).detach();
     } else if (playback_.hasQueue())
@@ -637,6 +647,15 @@ bool ActivePlaylist::sourceAnswers(const QString& sourceId) const
 {
     const Rpc::RpcClient* client = sourceManager_.client(sourceId);
     return client != nullptr && client->available();
+}
+
+void ActivePlaylist::startOfflineRadio(const PlaylistContext& context, const QString& sourceName)
+{
+    if (playOfflineRadio(context))
+        return;
+    // Asked for, and nothing happens: that is to be said, offline indicator
+    // or not.
+    messages_.error(tr("No network connection, and nothing of %1 is downloaded to play").arg(sourceName));
 }
 
 bool ActivePlaylist::playOfflineRadio(const PlaylistContext& context)

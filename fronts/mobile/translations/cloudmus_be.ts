@@ -783,6 +783,10 @@
       <source>No network connection: playing downloaded tracks</source>
       <translation>Няма падключэння да сеткі: гучаць спампаваныя трэкі</translation>
     </message>
+    <message>
+      <source>No network connection, and nothing of %1 is downloaded to play</source>
+      <translation>Няма падключэння да сеткі, а з %1 нічога не спампавана</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ConnectionStatus</name>

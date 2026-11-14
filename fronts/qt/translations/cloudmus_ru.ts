@@ -1596,6 +1596,10 @@ You can try again later or download the new version yourself.</source>
         <translation>История</translation>
     </message>
     <message>
+        <source>No network connection, and nothing of %1 is downloaded to play</source>
+        <translation>Нет подключения к сети, а из %1 ничего не скачано</translation>
+    </message>
+    <message>
         <source>No network connection: playing downloaded tracks</source>
         <translation>Нет подключения к сети: играют скачанные треки</translation>
     </message>

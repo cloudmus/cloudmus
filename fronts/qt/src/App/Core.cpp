@@ -149,6 +149,7 @@ Core::Core(QObject* parent)
     setUpOutbox();
     // A radio with no network goes on with what's downloaded; a track that
     // isn't, from a service found offline, waits for a fresh check first.
+    activePlaylist_.setOfflineProvider([this](const QString& sourceId) { return connectivity_.isOffline(sourceId); });
     playback_.setOfflineRadioProvider(
         [this](const QString& sourceId, int count) { return activePlaylist_.cachedRadioTracks(sourceId, count); });
     playback_.setReachableCheck([this](QString sourceId) { return reachable(std::move(sourceId)); });

@@ -122,6 +122,11 @@ Rpc::Task<void> Outbox::flush(QString sourceId)
                 qCInfo(lcOutbox) << "still offline:" << sourceId;
                 emit offlineSeen(sourceId);
                 keepGoing = false;
+            } else if (error.code == -1) {
+                // No answer in time: a lookup with no network, a busy source —
+                // nothing said about the item itself. Next time, as it was.
+                qCInfo(lcOutbox) << "no answer from" << sourceId << "for" << item.method;
+                keepGoing = false;
             } else if (isFinal(error) || item.attempts + 1 >= kMaxAttempts) {
                 qCWarning(lcOutbox) << "dropping" << item.method << "for" << sourceId << ":" << error.message;
                 items_.removeIf(sameItem);
