@@ -328,6 +328,7 @@ bool PlaybackController::handleTrackError(const QString& sourceId, const QJsonOb
 
 void PlaybackController::playAt(int index)
 {
+    reportPlayed();
     startRetries_ = 0;
     skipStreak_ = 0;
     awaitingRadioTracks_ = false;
@@ -645,6 +646,8 @@ void PlaybackController::becomeCurrent(int index, const QueueEntry& entry, bool 
 {
     const bool wasCurrentTrack = hasCurrentTrack();
     index_ = index;
+    if (!isRetry)
+        playReported_ = false;
     // The queue may have grown while playback.play was in flight; the
     // trim waited for it (see trimRadioQueue()).
     trimRadioQueue();
@@ -735,6 +738,7 @@ void PlaybackController::advance(int delta, bool wasSkip)
     skipStreak_ = 0;
     if (queue_.isEmpty())
         return;
+    reportPlayed();
     // Next rejects the playing track; Previous doesn't — see playAt().
     if (delta > 0 || !wasSkip)
         sendFeedbackFinishedOrSkip(wasSkip);
@@ -909,32 +913,86 @@ void PlaybackController::sendFeedbackFinishedOrSkip(bool wasSkip)
 {
     if (!waveMode_ || !hasCurrentTrack())
         return;
+    const int playedMs = static_cast<int>(lastKnownPositionMs_);
+    // The source can't be told now: it hears of it later, for its history
+    // and taste — not to change what's queued.
+    if (feedbackHold_ && feedbackHold_(currentSourceId())) {
+        if (wasSkip)
+            deferFeedback(currentSourceId(), QStringLiteral("feedback.skip"),
+                SkipParams { currentTrack().id, playedMs }.toJson(), playedMs);
+        else
+            deferFeedback(currentSourceId(), QStringLiteral("feedback.trackFinished"),
+                TrackFinishedParams { currentTrack().id, playedMs }.toJson(), playedMs);
+        return;
+    }
     Rpc::RpcClient* client = sourceManager_.client(currentSourceId());
     if (client == nullptr || !client->available())
         return;
-    const int playedMs = static_cast<int>(lastKnownPositionMs_);
+    const QString sourceId = currentSourceId();
     if (wasSkip) {
         const SkipParams params { currentTrack().id, playedMs };
-        sendRadioFeedback(currentSourceId(), [params](Rpc::RpcClient& c) { return Rpc::feedbackSkip(c, params); })
+        sendRadioFeedback(
+            sourceId, [params](Rpc::RpcClient& c) { return Rpc::feedbackSkip(c, params); },
+            [this, sourceId, params]() {
+                deferFeedback(sourceId, QStringLiteral("feedback.skip"), params.toJson(), params.playedMs);
+            })
             .detach();
     } else {
         const TrackFinishedParams params { currentTrack().id, playedMs, queuedAfter(index_) };
         sendRadioFeedback(
-            currentSourceId(), [params](Rpc::RpcClient& c) { return Rpc::feedbackTrackFinished(c, params); })
+            sourceId, [params](Rpc::RpcClient& c) { return Rpc::feedbackTrackFinished(c, params); },
+            [this, sourceId, params]() {
+                // Late, it changes nothing queued: no count to go by.
+                TrackFinishedParams late = params;
+                late.queuedAfter.reset();
+                deferFeedback(sourceId, QStringLiteral("feedback.trackFinished"), late.toJson(), params.playedMs);
+            })
             .detach();
     }
 }
 
+void PlaybackController::deferFeedback(const QString& sourceId, const QString& method, QJsonObject params, int playedMs)
+{
+    params.insert(QStringLiteral("deferred"), true);
+    params.insert(
+        QStringLiteral("playedAt"), QDateTime::currentDateTimeUtc().addMSecs(-qint64(playedMs)).toString(Qt::ISODate));
+    emit feedbackDeferred(sourceId, method, params);
+}
+
+void PlaybackController::reportPlayed()
+{
+    if (waveMode_ || playReported_ || !hasCurrentTrack())
+        return;
+    const int playedMs = static_cast<int>(lastKnownPositionMs_);
+    const int durationMs = currentTrack().durationMs;
+    // The usual rule for a play that counts.
+    constexpr int kCountsAfterMs = 30000;
+    if (playedMs < kCountsAfterMs && (durationMs <= 0 || playedMs < durationMs / 2))
+        return;
+    playReported_ = true;
+    emit trackPlayed(
+        currentSourceId(), currentTrack(), playedMs, QDateTime::currentDateTimeUtc().addMSecs(-qint64(playedMs)));
+}
+
 Rpc::Task<void> PlaybackController::sendRadioFeedback(
-    QString sourceId, std::function<Rpc::Task<void>(Rpc::RpcClient&)> send)
+    QString sourceId, std::function<Rpc::Task<void>(Rpc::RpcClient&)> send, std::function<void()> deferOffline)
 {
     const Rpc::Sequence::Turn turn = co_await radioFeedback_.turn();
     // Waiting for its turn, the source may have gone.
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr || !client->available())
         co_return;
+    const QPointer<PlaybackController> alive(this);
     try {
         co_await send(*client);
+    } catch (const Rpc::RpcCallException& e) {
+        qCDebug(lcPlayback) << "radio feedback failed:" << e.what();
+        // No network as it went: kept, to be sent later.
+        if (alive && e.isOffline()) {
+            emit offlineSeen(sourceId);
+            if (deferOffline)
+                deferOffline();
+        }
     } catch (const std::exception& e) {
         qCDebug(lcPlayback) << "radio feedback failed:" << e.what();
     }
@@ -971,6 +1029,7 @@ void PlaybackController::stop()
 
 void PlaybackController::dropCurrentTrack()
 {
+    reportPlayed();
     stopForTransition();
     // Discards any in-flight playback.play this stop() interrupts —
     // without this, a track/streamReady that arrives after index_ is
@@ -1158,6 +1217,7 @@ void PlaybackController::promotePrepared(int nextIndex, bool manual)
     const bool hadCurrentTrack = hasCurrentTrack();
     audioPlayer_->usePrepared(manual);
     index_ = nextIndex;
+    playReported_ = false;
     lastKnownPositionMs_ = 0;
     preparedIndex_ = -1;
     preparedReady_ = false;

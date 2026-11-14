@@ -1,6 +1,9 @@
 #include "Core.h"
 
+#include <algorithm>
+
 #include <QFileInfo>
+#include <QLoggingCategory>
 #include <QPointer>
 #include <QStandardPaths>
 #include <QTimer>
@@ -11,6 +14,10 @@
 
 namespace App {
 
+namespace {
+Q_LOGGING_CATEGORY(lcCore, "cloudmus.app.core")
+}
+
 Core::Core(QObject* parent)
     : QObject(parent)
     , playlistTracks_(QFileInfo(settings_.filePath()).absolutePath() + QStringLiteral("/playlist-tracks"))
@@ -18,6 +25,7 @@ Core::Core(QObject* parent)
     , playback_(sourceManager_, nullptr,
           QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/tracks"))
     , preload_(playback_, settings_)
+    , outbox_(sourceManager_, QFileInfo(settings_.filePath()).absolutePath() + QStringLiteral("/outbox.json"))
     , audioPulse_(playback_)
     , sourceSession_(sourceManager_, playback_, authStates_, trackStates_, coverArtCache_, messages_)
     , downloads_(sourceManager_, sourceSession_, trackStates_, coverArtCache_, settings_, messages_)
@@ -39,9 +47,12 @@ Core::Core(QObject* parent)
     // A later switch (the Settings dialog) reaches the running backends too.
     connect(&translator_, &I18n::Translator::languageChanged, &sourceManager_, &Rpc::SourceManager::setLocale);
 
-    // Signed out: its playlists are not the user's any more.
-    connect(&authStates_, &Rpc::AuthStates::signedOut, this,
-        [this](const QString& sourceId) { playlistTracks_.removeSource(sourceId); });
+    // Signed out: its playlists are not the user's any more, nor what was
+    // still to be sent for them.
+    connect(&authStates_, &Rpc::AuthStates::signedOut, this, [this](const QString& sourceId) {
+        playlistTracks_.removeSource(sourceId);
+        outbox_.removeSource(sourceId);
+    });
     // A source that stops leaves nothing to stream the rest of its track from.
     connect(&sourceManager_, &Rpc::SourceManager::sourceStopped, this, [this](const QString& sourceId) {
         if (playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId)
@@ -135,6 +146,7 @@ Core::Core(QObject* parent)
     // and with them (ActivePlaylist) the tracks, a radio's station, the
     // preloads.
     connect(&connectivity_, &Connectivity::sourceOnline, &sources_, &ViewModel::Sources::refresh);
+    setUpOutbox();
     // The sidebar marks each service that can't be reached.
     connect(&connectivity_, &Connectivity::stateChanged, this, [this](const QString& sourceId) {
         sources_.model().setSourceOffline(sourceId, connectivity_.isOffline(sourceId));
@@ -215,6 +227,122 @@ Net::Connection Core::connectionOf(const QString& sourceId) const
     if (client != nullptr && client->available() && !client->usesNetwork())
         return { };
     return Net::connectionFor(settings_, sourceId);
+}
+
+void Core::setUpOutbox()
+{
+    outbox_.setOfflineProvider([this](const QString& sourceId) { return connectivity_.isOffline(sourceId); });
+    nowPlaying_.setOutbox(&outbox_);
+    playlistEditing_.setOutbox(&outbox_);
+    // What a playlist was saved holding, for "Add to playlist" with no network.
+    playlistEditing_.setSavedMembership(
+        [this](const QString& sourceId, const QString& trackId, const QList<Playlist>& playlists) {
+            QStringList containing;
+            for (const Playlist& playlist : playlists) {
+                const auto saved = playlistTracks_.load(sourceId, playlist.id);
+                if (saved && std::any_of(saved->cbegin(), saved->cend(), [&](const Playback::QueueEntry& e) {
+                        return e.track.id == trackId;
+                    }))
+                    containing.append(playlist.id);
+            }
+            return containing;
+        });
+    // And what's saved of the playlist follows an edit, so that it opens
+    // with the change when there's no network to list it again.
+    connect(&playlistEditing_, &PlaylistEditing::playlistEdited, this,
+        [this](const QString& sourceId, const Track& track, const QString& playlistId, bool added, int) {
+            auto saved = playlistTracks_.load(sourceId, playlistId);
+            if (!saved)
+                return;
+            const auto it = std::find_if(
+                saved->begin(), saved->end(), [&](const Playback::QueueEntry& e) { return e.track.id == track.id; });
+            if (added && it == saved->end())
+                saved->append(Playback::QueueEntry { sourceId, track });
+            else if (!added && it != saved->end())
+                saved->erase(it);
+            else
+                return;
+            playlistTracks_.save(sourceId, playlistId, *saved);
+        });
+    // Sent once the source can be reached again: back online, or (re)started.
+    connect(&connectivity_, &Connectivity::sourceOnline, this,
+        [this](const QString& sourceId) { outbox_.flush(sourceId).detach(); });
+    connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, [this](Rpc::RpcClient* client) {
+        if (!connectivity_.isOffline(client->sourceId()))
+            outbox_.flush(client->sourceId()).detach();
+    });
+    // A radio's feedback, kept while the source can't be told — only then:
+    // it steers the station now, and a like being sent mustn't make it late.
+    playback_.setFeedbackHold([this](const QString& sourceId) {
+        const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+        return connectivity_.isOffline(sourceId) || client == nullptr || !client->available();
+    });
+    connect(&playback_, &Playback::PlaybackController::feedbackDeferred, &outbox_,
+        [this](const QString& sourceId, const QString& method, const QJsonObject& params) {
+            outbox_.enqueue(sourceId, method, params);
+        });
+    // A play outside a radio, for the service's history — later, if need be.
+    connect(&playback_, &Playback::PlaybackController::trackPlayed, this,
+        [this](const QString& sourceId, const Track& track, int playedMs, const QDateTime& startedAt) {
+            reportPlay(sourceId, track.id, playedMs, startedAt).detach();
+        });
+    connect(&outbox_, &Outbox::offlineSeen, this,
+        [this](const QString& sourceId) { connectivity_.reportOffline(sourceId); });
+    connect(&outbox_, &Outbox::countChanged, &connectionStatus_, &ViewModel::ConnectionStatus::setPendingActions);
+    connectionStatus_.setPendingActions(outbox_.count());
+    // A like held over what listings say (see TrackStates::holdRating())
+    // until the source has it.
+    const auto settled = [this](const Outbox::Item& item) {
+        if (!item.key.startsWith(QStringLiteral("rating:")) || outbox_.contains(item.sourceId, item.key))
+            return;
+        trackStates_.holdRating(item.sourceId, item.params.value(QStringLiteral("trackId")).toString(), false);
+    };
+    connect(&outbox_, &Outbox::delivered, this, settled);
+    connect(&outbox_, &Outbox::dropped, this, [this, settled](const Outbox::Item& item, const QString& error) {
+        settled(item);
+        qCWarning(lcCore) << "gave up sending" << item.method << "to" << item.sourceId << ":" << error;
+    });
+    // What waits from the last run still wins over the listings.
+    for (const Outbox::Item& item : outbox_.items()) {
+        if (item.key.startsWith(QStringLiteral("rating:"))) {
+            const QString trackId = item.params.value(QStringLiteral("trackId")).toString();
+            trackStates_.holdRating(item.sourceId, trackId, true);
+            const QString method = item.method;
+            if (method == QStringLiteral("feedback.like") || method == QStringLiteral("feedback.unlike"))
+                trackStates_.setLiked(item.sourceId, trackId, method == QStringLiteral("feedback.like"));
+            else
+                trackStates_.setDisliked(item.sourceId, trackId, method == QStringLiteral("feedback.dislike"));
+        }
+    }
+}
+
+Rpc::Task<void> Core::reportPlay(QString sourceId, QString trackId, int playedMs, QDateTime startedAt)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr
+        || !client->capabilities()
+            .value(QStringLiteral("feedback"))
+            .toObject()
+            .value(QStringLiteral("played"))
+            .toBool())
+        co_return;
+    PlayedParams params { trackId, playedMs, startedAt.toString(Qt::ISODate) };
+    if (outbox_.holds(sourceId)) {
+        params.deferred = true;
+        outbox_.enqueue(sourceId, QStringLiteral("feedback.played"), params.toJson());
+        co_return;
+    }
+    const QPointer<Outbox> outbox(&outbox_);
+    try {
+        co_await Rpc::feedbackPlayed(*client, params);
+    } catch (const Rpc::RpcCallException& e) {
+        if (outbox && e.isOffline()) {
+            params.deferred = true;
+            outbox_.enqueue(sourceId, QStringLiteral("feedback.played"), params.toJson());
+        } else {
+            qCDebug(lcCore) << "feedback.played failed for" << trackId << ":" << e.what();
+        }
+    }
 }
 
 Rpc::Task<std::optional<Connectivity::CheckResult>> Core::checkConnection(QString sourceId)

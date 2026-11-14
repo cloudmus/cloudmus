@@ -119,7 +119,8 @@ QJsonObject capabilities()
                 { QStringLiteral("editPlaylists"), true } } },
         { QStringLiteral("feedback"),
             QJsonObject { { QStringLiteral("like"), true }, { QStringLiteral("dislike"), true },
-                { QStringLiteral("skip"), false } } },
+                { QStringLiteral("skip"), false }, { QStringLiteral("played"), true } } },
+        { QStringLiteral("connectionCheck"), true },
         { QStringLiteral("download"), true },
         { QStringLiteral("downloadControl"), true },
         { QStringLiteral("downloadFromStream"), true },
@@ -180,6 +181,9 @@ int runFakeBackend()
     QString slowDownloadId;
     int skipCount = 0;
     int topUpCount = 0;
+    // The feedback and playlist edits that reached it, in order — what a
+    // test asks with fake.received.
+    QJsonArray received;
     std::string line;
     while (std::getline(std::cin, line)) {
         const QJsonObject request = QJsonDocument::fromJson(QByteArray::fromStdString(line)).object();
@@ -188,10 +192,26 @@ int runFakeBackend()
         if (id.isUndefined())
             continue; // a notification from the front — nothing to answer
 
-        if (networkIsDown() && (method.startsWith(QStringLiteral("catalog.")) || method.startsWith(QStringLiteral("playback.")))) {
+        if (method == QStringLiteral("connection.check")) {
+            reply(id,
+                { { QStringLiteral("state"),
+                    networkIsDown() ? QStringLiteral("offline") : QStringLiteral("online") } });
+            continue;
+        }
+        if (method == QStringLiteral("fake.received")) {
+            reply(id, { { QStringLiteral("calls"), received } });
+            continue;
+        }
+        if (networkIsDown()
+            && (method.startsWith(QStringLiteral("catalog.")) || method.startsWith(QStringLiteral("playback."))
+                || method.startsWith(QStringLiteral("feedback.")))) {
             replyOffline(id);
             continue;
         }
+        if (method.startsWith(QStringLiteral("feedback.")) || method == QStringLiteral("catalog.addToPlaylist")
+            || method == QStringLiteral("catalog.removeFromPlaylist"))
+            received.append(QJsonObject { { QStringLiteral("method"), method },
+                { QStringLiteral("params"), request.value(QStringLiteral("params")) } });
 
         if (method == QStringLiteral("settings.describe")) {
             reply(id, settingsDescription(settingValues));

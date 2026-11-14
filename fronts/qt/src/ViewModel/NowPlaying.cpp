@@ -11,6 +11,7 @@
 #include "CoverArtCache.h"
 #include "Downloads.h"
 #include "Messages.h"
+#include "Outbox.h"
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
 #include "RpcClient.h"
@@ -23,6 +24,9 @@ namespace ViewModel {
 
 namespace {
 Q_LOGGING_CATEGORY(lcNowPlaying, "cloudmus.viewmodel.nowplaying")
+// One per track in the outbox: like and dislike cross-clear, so the last
+// of the four asked is the state that counts.
+QString ratingKey(const QString& trackId) { return QStringLiteral("rating:") + trackId; }
 
 // Fine enough for a seek bar, rare enough for a replica.
 constexpr int kPositionIntervalMs = 250;
@@ -387,6 +391,13 @@ void NowPlaying::download()
 
 Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, bool liked, bool announce)
 {
+    const QString method = liked ? QStringLiteral("feedback.like") : QStringLiteral("feedback.unlike");
+    // The source can't be told now, or something is queued for it already
+    // (which goes first): it's done here, and sent once it can be.
+    if (queueRating(sourceId, trackId, method)) {
+        applyLiked(sourceId, trackId, liked, announce);
+        co_return;
+    }
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr || !client->available())
         co_return;
@@ -415,26 +426,40 @@ Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, boo
             co_await Rpc::feedbackUnlike(*client, UnlikeParams { trackId });
         if (isShownTrack(sourceId, trackId))
             pendingLiked_.reset();
-        emit feedbackSent(sourceId, liked ? QStringLiteral("like") : QStringLiteral("unlike"));
-        // Cross-clears the dislike too (docs/protocol.md §7.4).
-        trackStates_.setLiked(sourceId, trackId, liked);
-        history_.markTrackLiked(sourceId, trackId, liked); // keeps the saved snapshot fresh
-        if (announce)
-            messages_.info(liked ? tr("Added to Liked") : tr("Removed from Liked"));
+        applyLiked(sourceId, trackId, liked, announce);
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcNowPlaying) << "feedback.like/unlike failed for" << trackId << ":" << message;
+        if (isShownTrack(sourceId, trackId))
+            pendingLiked_.reset();
+        const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
+        if (call != nullptr && call->isOffline() && outbox_ != nullptr) {
+            // The network went as it was sent: later, then.
+            outbox_->enqueue(sourceId, method, LikeParams { trackId }.toJson(), ratingKey(trackId));
+            trackStates_.holdRating(sourceId, trackId, true);
+            applyLiked(sourceId, trackId, liked, announce);
+            co_return;
+        }
         messages_.failure(client->sourceName(), e);
         // Back to what trackStates_ still says.
-        if (isShownTrack(sourceId, trackId)) {
-            pendingLiked_.reset();
-            emit feedbackChanged();
-        }
+        emit feedbackChanged();
     }
 }
 
 Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, bool disliked, bool announce)
 {
+    const QString method = disliked ? QStringLiteral("feedback.dislike") : QStringLiteral("feedback.undislike");
+    // No point listening to a track being disliked — move on right away, like
+    // the services' own players do, instead of waiting for the slow call.
+    // next() also sends the skip feedback a radio uses to adapt its upcoming
+    // tracks, and stops playback when the queue is over.
+    const bool queued = queueRating(sourceId, trackId, method);
+    if (queued) {
+        applyDisliked(sourceId, trackId, disliked, announce);
+        if (disliked && isCurrent(sourceId, trackId))
+            playback_.next();
+        co_return;
+    }
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr || !client->available())
         co_return;
@@ -442,11 +467,7 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
         pendingDisliked_ = disliked;
         emit feedbackChanged();
     }
-    // No point listening to a track being disliked — move on right away, like
-    // the services' own players do, instead of waiting for the slow call.
-    // next() also sends the skip feedback a radio uses to adapt its upcoming
-    // tracks, and stops playback when the queue is over. The button stays
-    // busy (pendingDisliked_) until the call finishes.
+    // The button stays busy (pendingDisliked_) until the call finishes.
     if (disliked && isCurrent(sourceId, trackId)) {
         playback_.next();
         // The busy flag isn't per track: don't leave it on the next one.
@@ -471,22 +492,53 @@ Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, 
             co_await Rpc::feedbackUndislike(*client, UndislikeParams { trackId });
         if (isShownTrack(sourceId, trackId))
             pendingDisliked_.reset();
-        emit feedbackSent(sourceId, disliked ? QStringLiteral("dislike") : QStringLiteral("undislike"));
-        // Cross-clears the like too (docs/protocol.md §7.4).
-        trackStates_.setDisliked(sourceId, trackId, disliked);
-        if (disliked)
-            history_.markTrackLiked(sourceId, trackId, false);
-        if (announce)
-            messages_.info(disliked ? tr("Disliked") : tr("Removed dislike"));
+        applyDisliked(sourceId, trackId, disliked, announce);
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcNowPlaying) << "feedback.dislike/undislike failed for" << trackId << ":" << message;
-        messages_.failure(client->sourceName(), e);
-        if (isShownTrack(sourceId, trackId)) {
+        if (isShownTrack(sourceId, trackId))
             pendingDisliked_.reset();
-            emit feedbackChanged();
+        const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
+        if (call != nullptr && call->isOffline() && outbox_ != nullptr) {
+            outbox_->enqueue(sourceId, method, DislikeParams { trackId }.toJson(), ratingKey(trackId));
+            trackStates_.holdRating(sourceId, trackId, true);
+            applyDisliked(sourceId, trackId, disliked, announce);
+            co_return;
         }
+        messages_.failure(client->sourceName(), e);
+        emit feedbackChanged();
     }
+}
+
+bool NowPlaying::queueRating(const QString& sourceId, const QString& trackId, const QString& method)
+{
+    if (outbox_ == nullptr || !outbox_->holds(sourceId))
+        return false;
+    // The params of all four are {trackId}.
+    outbox_->enqueue(sourceId, method, LikeParams { trackId }.toJson(), ratingKey(trackId));
+    trackStates_.holdRating(sourceId, trackId, true);
+    return true;
+}
+
+void NowPlaying::applyLiked(const QString& sourceId, const QString& trackId, bool liked, bool announce)
+{
+    emit feedbackSent(sourceId, liked ? QStringLiteral("like") : QStringLiteral("unlike"));
+    // Cross-clears the dislike too (docs/protocol.md §7.4).
+    trackStates_.setLiked(sourceId, trackId, liked);
+    history_.markTrackLiked(sourceId, trackId, liked); // keeps the saved snapshot fresh
+    if (announce)
+        messages_.info(liked ? tr("Added to Liked") : tr("Removed from Liked"));
+}
+
+void NowPlaying::applyDisliked(const QString& sourceId, const QString& trackId, bool disliked, bool announce)
+{
+    emit feedbackSent(sourceId, disliked ? QStringLiteral("dislike") : QStringLiteral("undislike"));
+    // Cross-clears the like too (docs/protocol.md §7.4).
+    trackStates_.setDisliked(sourceId, trackId, disliked);
+    if (disliked)
+        history_.markTrackLiked(sourceId, trackId, false);
+    if (announce)
+        messages_.info(disliked ? tr("Disliked") : tr("Removed dislike"));
 }
 
 bool NowPlaying::isCurrent(const QString& sourceId, const QString& trackId) const

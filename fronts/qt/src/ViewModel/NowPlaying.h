@@ -11,6 +11,9 @@
 #include "PlayMode.h"
 #include "Throttle.h"
 
+namespace App {
+class Outbox;
+}
 namespace Config {
 class Settings;
 }
@@ -106,6 +109,9 @@ public:
     QString backgroundSeed() const { return hasTrack() ? backgroundSeed(track()) : QString(); }
     // Where coverUrl() comes from; without one it's empty.
     void setCovers(Covers::CoverArtCache* covers);
+    // Where a like goes that the source can't be told yet; without one it
+    // fails as it did.
+    void setOutbox(App::Outbox* outbox) { outbox_ = outbox; }
 
     // --- playback
     bool playing() const;
@@ -159,6 +165,11 @@ public:
     // already shows it. (Downloading any track: ViewModel::Downloads.)
     Rpc::Task<void> setTrackLiked(QString sourceId, QString trackId, bool liked, bool announce);
     Rpc::Task<void> setTrackDisliked(QString sourceId, QString trackId, bool disliked, bool announce);
+    // What a like or dislike changes here once it's sent, or queued to be.
+    void applyLiked(const QString& sourceId, const QString& trackId, bool liked, bool announce);
+    void applyDisliked(const QString& sourceId, const QString& trackId, bool disliked, bool announce);
+    // Into the outbox (true), when the source can't be told now.
+    bool queueRating(const QString& sourceId, const QString& trackId, const QString& method);
 
 public slots:
     // Plays or pauses whatever the state: for what asks for one or the other
@@ -251,6 +262,7 @@ private:
     std::optional<bool> pendingDisliked_;
     // Likes and dislikes, one after another (see setTrackLiked()).
     Rpc::Sequence rating_;
+    App::Outbox* outbox_ = nullptr;
     QString previewSourceId_;
     QString previewTrackId_;
 };

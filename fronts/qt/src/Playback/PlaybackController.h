@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDateTime>
 #include <QJsonObject>
 #include <QNetworkProxy>
 #include <QObject>
@@ -80,6 +81,10 @@ public:
     // over; 0: as many as the stream suggests.
     using DownloadConnectionsProvider = std::function<int(const QString& sourceId)>;
     void setDownloadConnectionsProvider(DownloadConnectionsProvider provider);
+    // Whether a radio's feedback for the source is to be kept rather than
+    // sent (App::Outbox::holds()): then feedbackDeferred() takes it.
+    using FeedbackHold = std::function<bool(const QString& sourceId)>;
+    void setFeedbackHold(FeedbackHold hold) { feedbackHold_ = std::move(hold); }
 
     void loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex);
     // Same, for a queue whose entries can come from different sources
@@ -187,6 +192,13 @@ signals:
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
     // A source said it can't reach its service.
     void offlineSeen(const QString& sourceId);
+    // A radio's trackFinished or skip that the source can't be told now:
+    // `params` carry playedAt and deferred, to be sent late (docs/protocol.md
+    // §7.4).
+    void feedbackDeferred(const QString& sourceId, const QString& method, const QJsonObject& params);
+    // A track outside a radio played long enough to count (30 seconds, or
+    // half of it): for the service's history (feedback.played).
+    void trackPlayed(const QString& sourceId, const Track& track, int playedMs, const QDateTime& startedAt);
     // What to say about it: not an error if a view shows that state.
     void offlineNotice(const QString& message);
     void errorOccurred(QString message);
@@ -283,9 +295,15 @@ private:
     void reshuffle(int first);
     void setWaveMode(bool on);
     void sendFeedbackFinishedOrSkip(bool wasSkip);
+    // trackPlayed(), once per play of the current track, if it counts.
+    void reportPlayed();
+    // Into feedbackDeferred(), with when it was played.
+    void deferFeedback(const QString& sourceId, const QString& method, QJsonObject params, int playedMs);
     // Sends a radio's feedback once what was sent before it is through
     // (see radioFeedback_).
-    Rpc::Task<void> sendRadioFeedback(QString sourceId, std::function<Rpc::Task<void>(Rpc::RpcClient&)> send);
+    // `deferOffline`: what to do instead when it fails for lack of a network.
+    Rpc::Task<void> sendRadioFeedback(QString sourceId, std::function<Rpc::Task<void>(Rpc::RpcClient&)> send,
+        std::function<void()> deferOffline = { });
     // How many tracks are queued after `index` — told to a radio with the
     // track's feedback (queuedAfter, docs/protocol.md §7.1): the station
     // tops the queue up by it, as only this queue knows what it has left.
@@ -303,6 +321,9 @@ private:
     QVector<QueueEntry> queue_;
     int index_ = -1;
     bool playing_ = false;
+    FeedbackHold feedbackHold_;
+    // The current track's play went out as trackPlayed() already.
+    bool playReported_ = false;
 
     int latestRequestId_ = -1;
     int transitionGeneration_ = 0;

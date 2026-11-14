@@ -15,6 +15,7 @@
 #include "ListeningTime.h"
 #include "Messages.h"
 #include "NowPlaying.h"
+#include "Outbox.h"
 #include "PlaybackController.h"
 #include "PlaybackHistory.h"
 #include "PlaylistEditing.h"
@@ -69,6 +70,7 @@ public:
     ListeningTime& listeningTime() { return listeningTime_; }
     Connectivity& connectivity() { return connectivity_; }
     ViewModel::ConnectionStatus& connectionStatus() { return connectionStatus_; }
+    Outbox& outbox() { return outbox_; }
 
 private:
     // How a source reaches the network: its setting, except for a source
@@ -77,6 +79,10 @@ private:
     // connection.check for Connectivity: nullopt when the source can't be
     // asked that way.
     Rpc::Task<std::optional<Connectivity::CheckResult>> checkConnection(QString sourceId);
+    // The outbox, hooked up to who queues into it and to when it's sent.
+    void setUpOutbox();
+    // feedback.played, or into the outbox.
+    Rpc::Task<void> reportPlay(QString sourceId, QString trackId, int playedMs, QDateTime startedAt);
 
     // Declaration order is construction order: playback_ needs
     // sourceManager_.
@@ -91,6 +97,8 @@ private:
     Rpc::AuthStates authStates_;
     History::PlaybackHistory playbackHistory_;
     Library::TrackStates trackStates_;
+    // Likes, playlist edits and plays the sources couldn't be told yet.
+    Outbox outbox_;
     Playback::AudioFileProbe fileProbe_;
     // Cached files asked of fileProbe_ already (once is enough for a run).
     QSet<QString> probedFiles_;
