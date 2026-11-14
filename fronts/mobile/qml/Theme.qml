@@ -99,6 +99,9 @@ QtObject {
     // under it, for the generated background to reach the screen's edge, and
     // what's to be read or pressed keeps clear of it. Set by Main.qml.
     property int insetBottom: 0
+    // What the on-screen keyboard covers from the window's bottom, the
+    // navigation bar included; 0 with it hidden.
+    property int insetKeyboard: 0
 
     // Fling physics (ScrollList): Qt's defaults (2500, 1500) cut a fast
     // swipe short and stop it hard. These felt native on a Pixel 7; still

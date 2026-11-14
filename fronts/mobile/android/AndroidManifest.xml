@@ -49,6 +49,7 @@
             android:name="app.cloudmus.mobile.MainActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
             android:screenOrientation="unspecified"
             android:theme="@style/CloudmusTheme"
             android:exported="true">

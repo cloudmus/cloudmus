@@ -44,6 +44,7 @@ ApplicationWindow {
     // between the status bar and the page. The bar's opaque over what's under it.
     Binding { target: Theme; property: "insetTop"; value: Math.floor(window.platform.insetTop / Screen.devicePixelRatio) }
     Binding { target: Theme; property: "insetBottom"; value: Math.round(window.platform.insetBottom / Screen.devicePixelRatio) }
+    Binding { target: Theme; property: "insetKeyboard"; value: Math.round(window.platform.insetKeyboard / Screen.devicePixelRatio) }
     function applyAppearance() {
         window.platform.setAppearance(uiSettings.colorScheme, Theme.dark, Theme.surface100.toString(), Theme.windowBackground.toString())
     }

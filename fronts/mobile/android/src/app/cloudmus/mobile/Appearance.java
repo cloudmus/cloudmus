@@ -25,6 +25,8 @@ final class Appearance {
     private static int insetLeft;
     private static int insetRight;
     private static int insetBottom;
+    // What the keyboard covers, from the bottom of the screen; 0 with it hidden.
+    private static int insetKeyboard;
     // What last came to the system's theme, and whether a page's own picture is
     // under the status bar: its icons then are light whatever the theme.
     private static boolean themeDark = true;
@@ -50,6 +52,12 @@ final class Appearance {
             layOutUnderNavigationBar(decor, 0);
         decor.setOnApplyWindowInsetsListener((view, insets) -> {
             remember(insets);
+            // The window isn't made shorter for the keyboard: Qt would size the
+            // views to it late and in steps, and they'd jump. The views keep clear
+            // of it by insetKeyboard instead.
+            if (insets.getSystemWindowInsetBottom() > insets.getStableInsetBottom())
+                insets = insets.replaceSystemWindowInsets(insets.getSystemWindowInsetLeft(),
+                    insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getStableInsetBottom());
             // A turn of the screen (and Qt's own flags with it) can take the icons'
             // color back to what the system likes: say it again once that's done.
             view.post(() -> paintIcons(activity));
@@ -61,11 +69,14 @@ final class Appearance {
         int top = insets.getSystemWindowInsetTop();
         int left = insets.getSystemWindowInsetLeft();
         int right = insets.getSystemWindowInsetRight();
-        int bottom = insets.getSystemWindowInsetBottom();
+        int withKeyboard = insets.getSystemWindowInsetBottom();
         // A keyboard counts too, and has a say of its own: only the bar's.
-        bottom = Math.min(bottom, insets.getStableInsetBottom());
-        if (top == insetTop && left == insetLeft && right == insetRight && bottom == insetBottom)
+        int bottom = Math.min(withKeyboard, insets.getStableInsetBottom());
+        int keyboard = withKeyboard > bottom ? withKeyboard : 0;
+        if (top == insetTop && left == insetLeft && right == insetRight && bottom == insetBottom
+            && keyboard == insetKeyboard)
             return;
+        insetKeyboard = keyboard;
         insetTop = top;
         insetLeft = left;
         insetRight = right;
@@ -74,7 +85,7 @@ final class Appearance {
     }
 
     static String insets() {
-        return insetTop + " " + insetLeft + " " + insetRight + " " + insetBottom;
+        return insetTop + " " + insetLeft + " " + insetRight + " " + insetBottom + " " + insetKeyboard;
     }
 
     // `scheme`: "auto", "light" or "dark", as picked; `dark`: what that came to.

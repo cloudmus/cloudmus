@@ -23,6 +23,9 @@ class Platform : public QObject {
     Q_PROPERTY(int insetLeft READ insetLeft NOTIFY insetsChanged)
     Q_PROPERTY(int insetRight READ insetRight NOTIFY insetsChanged)
     Q_PROPERTY(int insetBottom READ insetBottom NOTIFY insetsChanged)
+    // What the on-screen keyboard covers from the bottom of the window, the
+    // navigation bar included; 0 with it hidden.
+    Q_PROPERTY(int insetKeyboard READ insetKeyboard NOTIFY insetsChanged)
     // exportSystemApps() under way, and how far: 0..1, -1 while it's still
     // counting what to copy; the package being copied.
     Q_PROPERTY(bool exportingApps READ exportingApps NOTIFY exportProgressChanged)
@@ -41,6 +44,7 @@ public:
     int insetLeft() const { return insetLeft_; }
     int insetRight() const { return insetRight_; }
     int insetBottom() const { return insetBottom_; }
+    int insetKeyboard() const { return insetKeyboard_; }
     // The theme for what's the system's to draw: the bars, the first frame of a
     // start. `scheme`: "auto", "light" or "dark"; `dark`: what that comes to.
     Q_INVOKABLE void setAppearance(
@@ -95,6 +99,7 @@ private:
     int insetLeft_ = 0;
     int insetRight_ = 0;
     int insetBottom_ = 0;
+    int insetKeyboard_ = 0;
     QThread* exportThread_ = nullptr;
     QTimer* exportPoll_ = nullptr;
     double exportFraction_ = -1;

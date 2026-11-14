@@ -305,12 +305,13 @@ void Platform::readInsets()
 {
 #ifdef Q_OS_ANDROID
     const QStringList parts = bridgeString("windowInsets").split(QLatin1Char(' '));
-    if (parts.size() != 4)
+    if (parts.size() != 5)
         return;
     insetTop_ = parts.at(0).toInt();
     insetLeft_ = parts.at(1).toInt();
     insetRight_ = parts.at(2).toInt();
     insetBottom_ = parts.at(3).toInt();
+    insetKeyboard_ = parts.at(4).toInt();
     emit insetsChanged();
 #endif
 }
