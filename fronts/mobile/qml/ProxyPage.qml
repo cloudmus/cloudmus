@@ -93,8 +93,21 @@ Page {
                 id: passwordField
                 objectName: "proxyPassword"
                 text: page.password
-                echoMode: TextInput.Password
+                echoMode: showPassword ? TextInput.Normal : TextInput.Password
                 placeholderText: qsTr("Password (optional)")
+                // Room for the eye so the text doesn't run under it.
+                rightPadding: Theme.padding + eye.width
+                property bool showPassword: false
+                IconButton {
+                    id: eye
+                    objectName: "proxyPasswordEye"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    size: Theme.touch - Theme.dp(8)
+                    iconName: passwordField.showPassword ? "visibility_off" : "visibility"
+                    color: Theme.inkSecondary
+                    onClicked: passwordField.showPassword = !passwordField.showPassword
+                }
             }
             }
             }

@@ -231,7 +231,7 @@ qt_add_qml_module(cloudmus-mobile-ui
 set(_icons arrow_back chevron_right close cloud_off content_copy expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
-    warning)
+    visibility visibility_off warning)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
     set(_file ${QT_FRONT_RES}/icons/symbols/${_icon}.svg)
