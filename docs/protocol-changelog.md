@@ -5,6 +5,22 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.19 — connection state, and feedback sent late
+
+- **Additive, backward-compatible**: optional capability `connectionCheck`
+  with the request `connection.check` → `{"state": "online"|"offline",
+  "detail"?}` and the notification `connection/changed` (§7.9): the source
+  says whether it can reach its service, when asked and when it notices a
+  change. A front without it falls back to retrying a
+  `catalog.listPlaylists`.
+- **Additive, backward-compatible**: optional `playedAt` and `deferred` on
+  `feedback.trackFinished` and `feedback.skip` (§7.4): the event was kept
+  while there was no network and is sent late. It counts for the service's
+  history and taste, and changes nothing queued.
+- **Additive, backward-compatible**: optional capability `feedback.played`
+  with the request `feedback.played` (§7.4): a track played outside a radio,
+  for the service's listening history.
+
 ## Offline in any response (no version change)
 
 - **Additive, no wire change for older fronts** (§9.1): a failed request can
