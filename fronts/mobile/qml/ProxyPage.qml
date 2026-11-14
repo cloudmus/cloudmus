@@ -26,6 +26,16 @@ Page {
 
     background: Rectangle { color: Theme.surface0 }
 
+    // A placeholder is gone once something is typed, so each field is named
+    // above it.
+    component FieldLabel: Text {
+        Layout.fillWidth: true
+        textFormat: Text.PlainText
+        color: Theme.inkSecondary
+        font.family: Theme.fontFamily
+        font.pixelSize: Theme.fontSmall
+    }
+
     header: PageBar {
         title: page.proxyId ? qsTr("Proxy") : qsTr("New proxy")
         onBackRequested: page.closeRequested()
@@ -63,38 +73,43 @@ Page {
             }
             }
             SettingsCell {
+            FieldLabel { text: qsTr("Name") }
             InputField {
                 id: nameField
                 objectName: "proxyName"
                 text: page.name
-                placeholderText: qsTr("Name, e.g. Home SOCKS")
+                placeholderText: qsTr("e.g. Home SOCKS")
             }
+            FieldLabel { text: qsTr("Host or IP") }
             InputField {
                 id: hostField
                 objectName: "proxyHost"
                 text: page.host
-                placeholderText: qsTr("Host or IP")
+                placeholderText: qsTr("e.g. 192.168.1.10")
             }
+            FieldLabel { text: qsTr("Port") }
             InputField {
                 id: portField
                 objectName: "proxyPort"
                 text: String(page.port)
-                placeholderText: qsTr("Port")
+                placeholderText: qsTr("1080")
                 inputMethodHints: Qt.ImhDigitsOnly
                 validator: IntValidator { bottom: 1; top: 65535 }
             }
+            FieldLabel { text: qsTr("Username") }
             InputField {
                 id: userField
                 objectName: "proxyUser"
                 text: page.username
-                placeholderText: qsTr("Username (optional)")
+                placeholderText: qsTr("Optional")
             }
+            FieldLabel { text: qsTr("Password") }
             InputField {
                 id: passwordField
                 objectName: "proxyPassword"
                 text: page.password
                 echoMode: showPassword ? TextInput.Normal : TextInput.Password
-                placeholderText: qsTr("Password (optional)")
+                placeholderText: qsTr("Optional")
                 // Room for the eye so the text doesn't run under it.
                 rightPadding: Theme.padding + eye.width
                 property bool showPassword: false
