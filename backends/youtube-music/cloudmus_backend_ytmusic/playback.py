@@ -32,6 +32,9 @@ MAX_ATTEMPTS = 3
 # With the network down every attempt fails the same way, so one more try
 # (a blip) is all it gets before the track is reported as offline.
 OFFLINE_ATTEMPTS = 2
+# "Unavailable" is answered for tracks that play later: asked this many
+# times, each on a fresh session, before it counts.
+UNAVAILABLE_ANSWERS = 2
 # A YoutubeDL session YouTube has flagged keeps getting URLs that
 # googlevideo answers with 403, until the process restarts — so it's
 # thrown away after this long even when nothing failed.
@@ -203,6 +206,7 @@ async def resolve_stream_with_retry(
     delay = RETRY_INITIAL_DELAY
     last_exc: Exception | None = None
     offline_failures = 0
+    unavailable_answers = 0
     for attempt in range(1, MAX_ATTEMPTS + 1):
         if cancel_event.is_set():
             raise asyncio.CancelledError
@@ -213,7 +217,19 @@ async def resolve_stream_with_retry(
         except Exception as e:
             last_exc = e
             if isinstance(e, yt_dlp.utils.DownloadError) and _is_non_transient(e):
-                raise LookupError(f"video unavailable: {video_id}") from e
+                # YouTube answers "unavailable" to a track that plays fine
+                # a while later (a flagged session or exit address, a
+                # moment's region check): once more, with a fresh session,
+                # before it is called unplayable.
+                unavailable_answers += 1
+                if unavailable_answers >= UNAVAILABLE_ANSWERS:
+                    raise LookupError(f"video unavailable: {video_id}") from e
+                _drop_session()
+                try:
+                    await asyncio.wait_for(cancel_event.wait(), timeout=RETRY_INITIAL_DELAY)
+                    raise asyncio.CancelledError
+                except asyncio.TimeoutError:
+                    continue
             if not isinstance(e, StreamRejected) and _is_offline(e):
                 offline_failures += 1
                 if offline_failures >= OFFLINE_ATTEMPTS:
