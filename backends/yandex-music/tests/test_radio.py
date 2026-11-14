@@ -612,3 +612,47 @@ async def test_another_version_of_a_track_played_in_this_session_is_not_served(o
     await session._top_up("1", replace=False)  # 3, 4
     added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
     assert [t["id"] for t in added[0]["tracks"]] == ["4"]
+
+
+@pytest.mark.asyncio
+async def test_deferred_feedback_keeps_its_time_and_changes_nothing_queued():
+    # Kept by the front while there was no network (docs/protocol.md §7.4):
+    # it reaches the station with when it happened, and tops nothing up.
+    client = _FakeClient()
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)
+    await session.track_started("1")
+    upcoming = list(session._upcoming)
+
+    await session.track_finished("9", played_ms=60000, played_at="2026-11-01T10:00:00Z", deferred=True)
+    await session.skip("8", played_ms=3000, played_at="2026-11-01T10:05:00Z", deferred=True)
+
+    feedbacks = {c[1]["event"]["type"]: c[1]["event"] for c in client.calls if c[0].endswith("/feedback")}
+    assert feedbacks["trackFinished"]["timestamp"] == 1793527200
+    assert feedbacks["skip"]["timestamp"] == 1793527500
+    assert not [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert session._upcoming == upcoming
+
+
+@pytest.mark.asyncio
+async def test_feedback_failing_for_lack_of_a_network_is_told():
+    import requests
+
+    reported = []
+
+    class _Monitor:
+        async def report_failure(self, exc):
+            reported.append(exc)
+            return True
+
+    client = _FakeClient()
+    session = RadioSession(client, _NotifyRecorder(), _Monitor())
+    await session.start(seed=None)
+
+    def fail(url, json):
+        raise requests.ConnectionError("down")
+
+    client._respond = fail
+    await session.track_started("1")
+    assert len(reported) == 1

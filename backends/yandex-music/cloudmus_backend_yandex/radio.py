@@ -22,12 +22,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from datetime import datetime
 from typing import Any, Awaitable, Callable
 
 from yandex_music import Client, Track
 
 from rpc_common.generated.methods import emit_radio_tracks_added
 from rpc_common.generated.models import TracksAddedParams
+from rpc_common.connection import ConnectionMonitor
 from rpc_common.songs import song_key
 
 from . import catalog
@@ -87,10 +89,23 @@ def _resolve_station(seed: str | None) -> str:
     return f"track:{catalog._bare_id(seed)}"
 
 
+def _timestamp(played_at: str | None) -> int:
+    # When it happened: now, or what a deferred event says (ISO-8601 UTC).
+    if played_at:
+        try:
+            return int(datetime.fromisoformat(played_at.replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            logger.debug("bad playedAt %r, sending the time now", played_at)
+    return int(time.time())
+
+
 class RadioSession:
-    def __init__(self, client: Client, notify: NotifyFn):
+    def __init__(self, client: Client, notify: NotifyFn, connection: ConnectionMonitor | None = None):
         self.client = client
         self._notify = notify
+        # Told when feedback fails for lack of a network: nobody waits for
+        # its answer, so nothing else would notice.
+        self._connection = connection
         self.station = catalog.WAVE_STATION_ID
         self.radio_session_id: str | None = None
         self.batch_id: str | None = None
@@ -160,22 +175,26 @@ class RadioSession:
             genre = None
         return [station, f"genre:{genre}"] if genre else [station]
 
-    async def _send_feedback(self, event_type: str, **event: Any) -> None:
+    async def _send_feedback(self, event_type: str, *, played_at: str | None = None, **event: Any) -> None:
         if not self.radio_session_id or not self.batch_id:
             return
         path = f"/rotor/session/{self.radio_session_id}/feedback"
         payload = {
             "batch_id": self.batch_id,
-            "event": {"type": event_type, "timestamp": int(time.time()), **event},
+            "event": {"type": event_type, "timestamp": _timestamp(played_at), **event},
         }
 
-        def send() -> None:
+        def send() -> Exception | None:
             try:
                 self._post(path, payload)
             except Exception as e:
                 logger.debug("session feedback %s failed: %s", event_type, e)
+                return e
+            return None
 
-        await asyncio.to_thread(send)
+        failure = await asyncio.to_thread(send)
+        if failure is not None and self._connection is not None:
+            await self._connection.report_failure(failure)
 
     def _split(self, tracks: list[Track]) -> tuple[list[Track], list[Track]]:
         # What may be served — never a song this session has played — as
@@ -369,7 +388,23 @@ class RadioSession:
         if low:
             await self._top_up(track_id, replace=False)
 
-    async def track_finished(self, track_id: str, played_ms: int, queued_after: int | None = None) -> None:
+    async def track_finished(
+        self,
+        track_id: str,
+        played_ms: int,
+        queued_after: int | None = None,
+        *,
+        played_at: str | None = None,
+        deferred: bool = False,
+    ) -> None:
+        if deferred:
+            # Kept while there was no network (docs/protocol.md §7.4): it
+            # steers what the station serves later, and changes nothing
+            # queued now.
+            await self._send_feedback(
+                "trackFinished", played_at=played_at, trackId=track_id, totalPlayedSeconds=played_ms / 1000
+            )
+            return
         self._follow_front(queued_after)
         await self._send_feedback(
             "trackFinished", trackId=track_id, totalPlayedSeconds=played_ms / 1000
@@ -380,7 +415,13 @@ class RadioSession:
         if left < UPCOMING_LOW_WATER:
             await self._top_up(track_id, replace=False)
 
-    async def skip(self, track_id: str, played_ms: int) -> None:
-        await self._send_feedback("skip", trackId=track_id, totalPlayedSeconds=played_ms / 1000)
+    async def skip(
+        self, track_id: str, played_ms: int, *, played_at: str | None = None, deferred: bool = False
+    ) -> None:
+        await self._send_feedback(
+            "skip", played_at=played_at, trackId=track_id, totalPlayedSeconds=played_ms / 1000
+        )
+        if deferred:
+            return  # see track_finished()
         # "Not this": let the recomputed sequence replace what's queued.
         await self._top_up(track_id, replace=True)
