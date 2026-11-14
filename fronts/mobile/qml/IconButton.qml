@@ -18,7 +18,9 @@ AbstractButton {
     Layout.fillWidth: false
     implicitWidth: size
     implicitHeight: size
-    hoverEnabled: true
+    // A touch leaves the button "hovered" after the finger lifts, which
+    // reads as a stuck highlight; hover only matters with a mouse.
+    hoverEnabled: Qt.platform.os !== "android"
     focusPolicy: Qt.NoFocus
 
     icon.source: iconName ? "qrc:/icons/" + iconName + ".svg" : ""

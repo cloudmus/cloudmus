@@ -20,7 +20,9 @@ AbstractButton {
     focusPolicy: Qt.NoFocus
     enabled: library !== null
 
-    hoverEnabled: true
+    // A touch leaves the button "hovered" after the finger lifts, which
+    // reads as a stuck highlight; hover only matters with a mouse.
+    hoverEnabled: Qt.platform.os !== "android"
     scale: down ? 0.92 : 1
     Behavior on scale { NumberAnimation { duration: Theme.durationFast; easing.type: Easing.OutCubic } }
 
