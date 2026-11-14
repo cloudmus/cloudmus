@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import functools
 
+import requests
+
 from ytmusicapi import LikeStatus
 
 from rpc_common import errors
@@ -15,6 +17,18 @@ from . import catalog, client as client_module, config, playback
 from .auth import BrowserAuthSession
 from .radio import RadioSession
 
+# What connection.check asks (docs/protocol.md §7.9): the front page,
+# without a session — the proxy comes from the environment like the rest.
+PROBE_URL = "https://music.youtube.com/"
+PROBE_TIMEOUT_SEC = 5
+
+
+def _probe() -> None:
+    resp = requests.head(PROBE_URL, timeout=PROBE_TIMEOUT_SEC, allow_redirects=False)
+    if resp.status_code >= 500:
+        raise ConnectionError(f"HTTP {resp.status_code}")
+
+
 CAPABILITIES = {
     "playback": {
         "providesStream": True,
@@ -23,7 +37,7 @@ CAPABILITIES = {
         "controls": {"pause": False, "seek": False, "volume": False},
     },
     "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False, "editPlaylists": True},
-    "feedback": {"like": True, "dislike": True, "skip": True},
+    "feedback": {"like": True, "dislike": True, "skip": True, "played": True},
     # Saved by the front from the stream playback.resolveStream returns
     # (docs/protocol.md §7.5).
     "download": False,
@@ -52,6 +66,11 @@ def build_server() -> BackendServer:
     settings = config.settings_store()
     settings.register(server)
 
+    async def probe() -> None:
+        await asyncio.to_thread(_probe)
+
+    connection = server.set_connection_probe(probe)
+
     auth_session = BrowserAuthSession()
     radio_session: RadioSession | None = None
     inflight_plays: dict[int, tuple[asyncio.Task, asyncio.Event]] = {}
@@ -60,7 +79,7 @@ def build_server() -> BackendServer:
         nonlocal radio_session
         client = client_module.get_client()
         if radio_session is None or radio_session.client is not client:
-            radio_session = RadioSession(client, server.notify)
+            radio_session = RadioSession(client, server.notify, connection)
         return radio_session
 
     # --- auth ---
@@ -295,12 +314,22 @@ def build_server() -> BackendServer:
 
     @server.method("feedback.trackFinished")
     async def handle_track_finished(params: dict, request_id: int) -> dict:
-        await get_radio_session().track_finished(params["trackId"], params["playedMs"], params.get("queuedAfter"))
+        await get_radio_session().track_finished(
+            params["trackId"], params["playedMs"], params.get("queuedAfter"), deferred=bool(params.get("deferred"))
+        )
         return {}
 
     @server.method("feedback.skip")
     async def handle_skip(params: dict, request_id: int) -> dict:
-        await get_radio_session().skip(params["trackId"], params["playedMs"])
+        await get_radio_session().skip(params["trackId"], params["playedMs"], deferred=bool(params.get("deferred")))
+        return {}
+
+    @server.method("feedback.played")
+    async def handle_played(params: dict, request_id: int) -> dict:
+        # The account's history (docs/protocol.md §7.4). YouTube takes no time
+        # of play: a deferred one lands as played now.
+        ytm = client_module.get_client()
+        await asyncio.to_thread(lambda: ytm.add_history_item(ytm.get_song(params["trackId"])))
         return {}
 
     return server
