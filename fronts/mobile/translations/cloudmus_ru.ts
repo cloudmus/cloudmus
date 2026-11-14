@@ -333,6 +333,10 @@
       <source>"%1" is unavailable</source>
       <translation>«%1» недоступен</translation>
     </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Нет подключения к сети: играют скачанные треки</translation>
+    </message>
   </context>
   <context>
     <name>PlaylistPage</name>
@@ -774,6 +778,49 @@
     <message>
       <source>History</source>
       <translation>История</translation>
+    </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Нет подключения к сети: играют скачанные треки</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+      <source>No network</source>
+      <translation>Нет сети</translation>
+    </message>
+    <message>
+      <source>%1 is unreachable</source>
+      <translation>Нет связи с %1</translation>
+    </message>
+    <message>
+      <source>Services are unreachable</source>
+      <translation>Нет связи с сервисами</translation>
+    </message>
+    <message>
+      <source>Online</source>
+      <translation>В сети</translation>
+    </message>
+    <message>
+      <source>The device is not connected to a network</source>
+      <translation>Устройство не подключено к сети</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2</source>
+      <translation>%1: нет связи с %2</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2 (%3)</source>
+      <translation>%1: нет связи с %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+      <source>%n action(s) will be sent once the connection is back</source>
+      <translation>
+        <numerusform>%n действие будет отправлено, когда связь восстановится</numerusform>
+        <numerusform>%n действия будут отправлены, когда связь восстановится</numerusform>
+        <numerusform>%n действий будут отправлены, когда связь восстановится</numerusform>
+      </translation>
     </message>
   </context>
   <context>

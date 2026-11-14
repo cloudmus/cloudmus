@@ -333,6 +333,10 @@
       <source>"%1" is unavailable</source>
       <translation>„%1“ ist nicht verfügbar</translation>
     </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Keine Netzwerkverbindung: heruntergeladene Titel werden gespielt</translation>
+    </message>
   </context>
   <context>
     <name>PlaylistPage</name>
@@ -774,6 +778,48 @@
     <message>
       <source>History</source>
       <translation>Verlauf</translation>
+    </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Keine Netzwerkverbindung: heruntergeladene Titel werden gespielt</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+      <source>No network</source>
+      <translation>Kein Netzwerk</translation>
+    </message>
+    <message>
+      <source>%1 is unreachable</source>
+      <translation>%1 ist nicht erreichbar</translation>
+    </message>
+    <message>
+      <source>Services are unreachable</source>
+      <translation>Dienste sind nicht erreichbar</translation>
+    </message>
+    <message>
+      <source>Online</source>
+      <translation>Online</translation>
+    </message>
+    <message>
+      <source>The device is not connected to a network</source>
+      <translation>Das Gerät ist mit keinem Netzwerk verbunden</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2</source>
+      <translation>%1: nicht erreichbar seit %2</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2 (%3)</source>
+      <translation>%1: nicht erreichbar seit %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+      <source>%n action(s) will be sent once the connection is back</source>
+      <translation>
+        <numerusform>%n Aktion wird gesendet, sobald die Verbindung wieder da ist</numerusform>
+        <numerusform>%n Aktionen werden gesendet, sobald die Verbindung wieder da ist</numerusform>
+      </translation>
     </message>
   </context>
   <context>

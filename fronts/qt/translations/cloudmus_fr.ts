@@ -11,10 +11,6 @@
         <source>Removed from &quot;%1&quot;</source>
         <translation>Retiré de « %1 »</translation>
     </message>
-    <message>
-        <source>%1: %2</source>
-        <translation>%1 : %2</translation>
-    </message>
 </context>
 <context>
     <name>App::SourceSession</name>
@@ -317,6 +313,10 @@
         <source>&quot;%1&quot; is unavailable</source>
         <translation>« %1 » est indisponible</translation>
     </message>
+    <message>
+        <source>No network connection: playing downloaded tracks</source>
+        <translation>Pas de connexion réseau : lecture des titres téléchargés</translation>
+    </message>
 </context>
 <context>
     <name>QLineEdit</name>
@@ -579,6 +579,10 @@
     <message>
         <source>Code copied</source>
         <translation>Code copié</translation>
+    </message>
+    <message>
+        <source>Click to check now</source>
+        <translation>Cliquez pour vérifier maintenant</translation>
     </message>
     <message>
         <source>History</source>
@@ -1589,6 +1593,48 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
         <source>History</source>
         <translation>Historique</translation>
     </message>
+    <message>
+        <source>No network connection: playing downloaded tracks</source>
+        <translation>Pas de connexion réseau : lecture des titres téléchargés</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+        <source>No network</source>
+        <translation>Pas de réseau</translation>
+    </message>
+    <message>
+        <source>%1 is unreachable</source>
+        <translation>%1 est injoignable</translation>
+    </message>
+    <message>
+        <source>Services are unreachable</source>
+        <translation>Les services sont injoignables</translation>
+    </message>
+    <message>
+        <source>Online</source>
+        <translation>En ligne</translation>
+    </message>
+    <message>
+        <source>The device is not connected to a network</source>
+        <translation>L’appareil n’est connecté à aucun réseau</translation>
+    </message>
+    <message>
+        <source>%1: unreachable since %2</source>
+        <translation>%1 : injoignable depuis %2</translation>
+    </message>
+    <message>
+        <source>%1: unreachable since %2 (%3)</source>
+        <translation>%1 : injoignable depuis %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n action(s) will be sent once the connection is back</source>
+        <translation>
+            <numerusform>%n action sera envoyée au retour de la connexion</numerusform>
+            <numerusform>%n actions seront envoyées au retour de la connexion</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::Downloads</name>
@@ -1667,10 +1713,6 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
         <translation>Retiré des titres aimés</translation>
     </message>
     <message>
-        <source>%1: %2</source>
-        <translation>%1 : %2</translation>
-    </message>
-    <message>
         <source>Disliked</source>
         <translation>Non aimé</translation>
     </message>
@@ -1734,10 +1776,6 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
         <source>timed out loading playlists</source>
         <translation>délai dépassé lors du chargement des listes de lecture</translation>
-    </message>
-    <message>
-        <source>%1: %2</source>
-        <translation>%1 : %2</translation>
     </message>
 </context>
 </TS>

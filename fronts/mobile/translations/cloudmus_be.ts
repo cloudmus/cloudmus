@@ -333,6 +333,10 @@
       <source>"%1" is unavailable</source>
       <translation>«%1» недаступны</translation>
     </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Няма падключэння да сеткі: гучаць спампаваныя трэкі</translation>
+    </message>
   </context>
   <context>
     <name>PlaylistPage</name>
@@ -774,6 +778,49 @@
     <message>
       <source>History</source>
       <translation>Гісторыя</translation>
+    </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Няма падключэння да сеткі: гучаць спампаваныя трэкі</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+      <source>No network</source>
+      <translation>Няма сеткі</translation>
+    </message>
+    <message>
+      <source>%1 is unreachable</source>
+      <translation>Няма сувязі з %1</translation>
+    </message>
+    <message>
+      <source>Services are unreachable</source>
+      <translation>Няма сувязі з сэрвісамі</translation>
+    </message>
+    <message>
+      <source>Online</source>
+      <translation>У сетцы</translation>
+    </message>
+    <message>
+      <source>The device is not connected to a network</source>
+      <translation>Прылада не падключана да сеткі</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2</source>
+      <translation>%1: няма сувязі з %2</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2 (%3)</source>
+      <translation>%1: няма сувязі з %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+      <source>%n action(s) will be sent once the connection is back</source>
+      <translation>
+        <numerusform>%n дзеянне будзе адпраўлена, калі сувязь аднавіцца</numerusform>
+        <numerusform>%n дзеянні будуць адпраўлены, калі сувязь аднавіцца</numerusform>
+        <numerusform>%n дзеянняў будуць адпраўлены, калі сувязь аднавіцца</numerusform>
+      </translation>
     </message>
   </context>
   <context>

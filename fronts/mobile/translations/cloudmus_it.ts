@@ -333,6 +333,10 @@
       <source>"%1" is unavailable</source>
       <translation>«%1» non è disponibile</translation>
     </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Nessuna connessione di rete: in riproduzione i brani scaricati</translation>
+    </message>
   </context>
   <context>
     <name>PlaylistPage</name>
@@ -774,6 +778,48 @@
     <message>
       <source>History</source>
       <translation>Cronologia</translation>
+    </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Nessuna connessione di rete: in riproduzione i brani scaricati</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+      <source>No network</source>
+      <translation>Nessuna rete</translation>
+    </message>
+    <message>
+      <source>%1 is unreachable</source>
+      <translation>%1 non è raggiungibile</translation>
+    </message>
+    <message>
+      <source>Services are unreachable</source>
+      <translation>I servizi non sono raggiungibili</translation>
+    </message>
+    <message>
+      <source>Online</source>
+      <translation>Online</translation>
+    </message>
+    <message>
+      <source>The device is not connected to a network</source>
+      <translation>Il dispositivo non è connesso a una rete</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2</source>
+      <translation>%1: non raggiungibile dalle %2</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2 (%3)</source>
+      <translation>%1: non raggiungibile dalle %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+      <source>%n action(s) will be sent once the connection is back</source>
+      <translation>
+        <numerusform>%n azione verrà inviata al ritorno della connessione</numerusform>
+        <numerusform>%n azioni verranno inviate al ritorno della connessione</numerusform>
+      </translation>
     </message>
   </context>
   <context>
