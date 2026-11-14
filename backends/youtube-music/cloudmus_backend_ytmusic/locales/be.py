@@ -60,4 +60,10 @@ STRINGS = {'expected true or false': 'чакаецца true або false',
                                                                                                                                                                                                                                                                                       '(bash)</b> '
                                                                                                                                                                                                                                                                                       '(Chrome).',
  'Do this in a private window and close it afterwards without signing out: a browser that keeps using the same session soon makes these headers stop working.': 'Рабіце гэта ў прыватным акне і потым закрыйце яго, не выходзячы з акаўнта: браўзер, які працягвае карыстацца той самай сесіяй, неўзабаве робіць гэтыя загалоўкі несапраўднымі.',
- 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music завяршыў гэты сеанс. Увайдзіце зноў.'}
+ 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music завяршыў гэты сеанс. Увайдзіце зноў.',
+ "the service's address can't be resolved": 'не ўдаецца знайсці адрас сэрвісу',
+ "the service doesn't answer in time": 'сэрвіс не адказвае своечасова',
+ 'the connection is refused': 'злучэнне адхілена',
+ "the proxy can't be reached": 'проксі недаступны',
+ 'the network is unreachable': 'сетка недаступная',
+ "a secure connection can't be made": 'не ўдаецца ўсталяваць абароненае злучэнне'}

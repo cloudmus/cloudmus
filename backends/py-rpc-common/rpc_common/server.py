@@ -111,7 +111,7 @@ class BackendServer:
         on a request failing for lack of a network, on a probe. Returns the
         monitor, for the backend's background work to report to
         (ConnectionMonitor.report_failure())."""
-        monitor = ConnectionMonitor(probe, self._notify_when_running)
+        monitor = ConnectionMonitor(probe, self._notify_when_running, self.translator.tr)
         self.connection = monitor
         self.capabilities = {**self.capabilities, "connectionCheck": True}
 

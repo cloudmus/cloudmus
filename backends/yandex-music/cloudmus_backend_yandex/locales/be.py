@@ -31,4 +31,10 @@ STRINGS = {'expected true or false': 'чакаецца true або false',
                                                                   'і гісторыі праслухоўвання',
  'Liked': 'Мне падабаецца',
  'Playlist or track not found': 'Плэйліст або трэк не знойдзены',
- 'Track in playlist not found': 'Трэк у плэйлісце не знойдзены'}
+ 'Track in playlist not found': 'Трэк у плэйлісце не знойдзены',
+ "the service's address can't be resolved": 'не ўдаецца знайсці адрас сэрвісу',
+ "the service doesn't answer in time": 'сэрвіс не адказвае своечасова',
+ 'the connection is refused': 'злучэнне адхілена',
+ "the proxy can't be reached": 'проксі недаступны',
+ 'the network is unreachable': 'сетка недаступная',
+ "a secure connection can't be made": 'не ўдаецца ўсталяваць абароненае злучэнне'}

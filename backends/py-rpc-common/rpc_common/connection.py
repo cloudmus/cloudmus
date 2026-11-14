@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 from typing import Any, Awaitable, Callable
 
 from . import errors
@@ -31,10 +32,53 @@ OFFLINE = "offline"
 PROBE_TIMEOUT_SEC = 6.0
 
 
+def describe(exc: BaseException) -> str:
+    """A few words on why the service can't be reached, for the front's
+    tooltip — not the whole chain a library wraps around it (urllib3's runs
+    to a paragraph)."""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    texts: list[str] = []
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if isinstance(current, socket.gaierror):
+            return "the service's address can't be resolved"
+        if isinstance(current, (asyncio.TimeoutError, TimeoutError)):
+            return "the service doesn't answer in time"
+        if isinstance(current, ConnectionRefusedError):
+            return "the connection is refused"
+        texts.append(f"{type(current).__name__}: {current}")
+        current = current.__cause__ or current.__context__
+    whole = " ".join(texts)
+    # urllib3 and requests only say so in their text.
+    for needle, words in (
+        ("name resolution", "the service's address can't be resolved"),
+        ("Name or service not known", "the service's address can't be resolved"),
+        ("nodename nor servname", "the service's address can't be resolved"),
+        ("getaddrinfo failed", "the service's address can't be resolved"),
+        ("ProxyError", "the proxy can't be reached"),
+        ("timed out", "the service doesn't answer in time"),
+        ("Read timed out", "the service doesn't answer in time"),
+        ("Connection refused", "the connection is refused"),
+        ("Network is unreachable", "the network is unreachable"),
+        ("No route to host", "the network is unreachable"),
+        ("SSLError", "a secure connection can't be made"),
+    ):
+        if needle in whole:
+            return words
+    text = str(exc) or type(exc).__name__
+    return text if len(text) <= 80 else text[:79] + "…"
+
+
 class ConnectionMonitor:
-    def __init__(self, probe: Probe, notify: NotifyFn | None = None):
+    def __init__(
+        self, probe: Probe, notify: NotifyFn | None = None, translate: Callable[[str], str] | None = None
+    ):
         self._probe = probe
         self._notify = notify
+        # describe()'s words go to the user: in the backend's language (its
+        # dictionaries hold them, as they do rpc_common's other texts).
+        self._translate = translate or (lambda text: text)
         self.state = ONLINE
         self.detail: str | None = None
         # One probe at a time: checks asked for meanwhile share its answer.
@@ -57,9 +101,9 @@ class ConnectionMonitor:
         try:
             await asyncio.wait_for(self._probe(), PROBE_TIMEOUT_SEC)
         except asyncio.TimeoutError:
-            await self._set(OFFLINE, "the service did not answer in time")
+            await self._set(OFFLINE, self._translate("the service doesn't answer in time"))
         except Exception as exc:  # noqa: BLE001 - any failure is an answer here
-            await self._set(OFFLINE, str(exc) or type(exc).__name__)
+            await self._set(OFFLINE, self._translate(describe(exc)))
         else:
             await self._set(ONLINE, None)
 
@@ -68,7 +112,7 @@ class ConnectionMonitor:
         network (the state is offline now)."""
         if not errors.is_offline_failure(exc):
             return False
-        await self._set(OFFLINE, str(exc) or type(exc).__name__)
+        await self._set(OFFLINE, self._translate(describe(exc)))
         return True
 
     def reached_maybe(self) -> None:

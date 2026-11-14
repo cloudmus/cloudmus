@@ -63,4 +63,10 @@ STRINGS = {'expected true or false': 'se esperaba true o false',
                                                                                                                                                                                                                                                                                       '(bash)</b> '
                                                                                                                                                                                                                                                                                       '(Chrome).',
  'Do this in a private window and close it afterwards without signing out: a browser that keeps using the same session soon makes these headers stop working.': 'Hágalo en una ventana privada y ciérrela después sin cerrar sesión: un navegador que sigue usando la misma sesión pronto deja estas cabeceras sin validez.',
- 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music ha cerrado esta sesión. Inicie sesión de nuevo.'}
+ 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music ha cerrado esta sesión. Inicie sesión de nuevo.',
+ "the service's address can't be resolved": 'no se puede resolver la dirección del servicio',
+ "the service doesn't answer in time": 'el servicio no responde a tiempo',
+ 'the connection is refused': 'la conexión es rechazada',
+ "the proxy can't be reached": 'no se puede llegar al proxy',
+ 'the network is unreachable': 'la red no está disponible',
+ "a secure connection can't be made": 'no se puede establecer una conexión segura'}

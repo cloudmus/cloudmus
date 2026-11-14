@@ -42,7 +42,7 @@ def test_a_probe_that_fails_is_offline_and_tells_once():
         return first, second
 
     first, second = run(twice())
-    assert first["state"] == OFFLINE and "not known" in first["detail"]
+    assert first == {"state": OFFLINE, "detail": "the service's address can't be resolved"}
     assert second["state"] == OFFLINE
     assert [m for m, _ in notify.sent] == ["connection/changed"]
     assert notify.sent[0][1]["state"] == OFFLINE
@@ -73,7 +73,9 @@ def test_only_a_network_failure_makes_it_offline():
         assert monitor.state == OFFLINE
 
     run(scenario())
-    assert notify.sent == [("connection/changed", {"state": OFFLINE, "detail": "no DNS"})]
+    assert notify.sent == [
+        ("connection/changed", {"state": OFFLINE, "detail": "the service's address can't be resolved"})
+    ]
 
 
 def test_something_working_while_offline_gets_it_probed_back_online():
@@ -107,3 +109,25 @@ def test_the_server_answers_connection_check_and_declares_it():
     assert server.capabilities["connectionCheck"] is True
     handler = server._handlers["connection.check"]
     assert run(handler({}, 1)) == {"state": ONLINE}
+
+
+def test_a_wrapped_failure_is_told_in_a_few_words():
+    from rpc_common.connection import describe
+
+    # What requests raises for a name that won't resolve: a paragraph.
+    inner = requests.exceptions.ConnectionError(
+        "HTTPSConnectionPool(host='api.music.yandex.net', port=443): Max retries exceeded with url: / "
+        "(Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object>: Failed to resolve "
+        "'api.music.yandex.net' ([Errno -3] Temporary failure in name resolution)\"))"
+    )
+    try:
+        try:
+            raise inner
+        except requests.exceptions.ConnectionError as e:
+            raise RuntimeError("NetworkError") from e
+    except RuntimeError as outer:
+        assert describe(outer) == "the service's address can't be resolved"
+    assert describe(requests.exceptions.ProxyError("ProxyError('Unable to connect to proxy')")) == (
+        "the proxy can't be reached"
+    )
+    assert len(describe(ValueError("x" * 500))) == 80
