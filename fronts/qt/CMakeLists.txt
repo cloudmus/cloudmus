@@ -478,10 +478,10 @@ endif()
 # `cmake --build build --target update_translations`.
 # lupdate also reads the sources this platform doesn't build: with
 # -no-obsolete it would drop their texts (InstallerWin.cpp on Linux,
-# InstallerLinux.cpp on Windows, InstallerMac.cpp on both) along with the
-# translations. Only those — a file given twice confuses lupdate's
+# InstallerLinux.cpp on Windows, InstallerMac.cpp and the *.mm on both) along
+# with the translations. Only those — a file given twice confuses lupdate's
 # namespaces.
-file(GLOB_RECURSE _tr_sources CONFIGURE_DEPENDS src/*.cpp src/*.h)
+file(GLOB_RECURSE _tr_sources CONFIGURE_DEPENDS src/*.cpp src/*.h src/*.mm)
 foreach(_target cloudmus-core cloudmus-desktop-core cloudmus-ui cloudmus-qt)
     get_target_property(_target_sources ${_target} SOURCES)
     foreach(_source IN LISTS _target_sources)
