@@ -353,7 +353,6 @@ ApplicationWindow {
                 stack.open(sourceSettingsPage)
             }
             onProxyRequested: (proxy) => stack.open(proxyPage, proxy)
-            onStopRequested: window.stopAndQuit()
         }
     }
     Component {
@@ -377,6 +376,7 @@ ApplicationWindow {
             ui: uiSettings
             onCloseRequested: stack.close()
             onLogRequested: stack.open(logPage)
+            onStopRequested: window.stopAndQuit()
         }
     }
     Component {

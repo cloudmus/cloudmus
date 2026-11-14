@@ -15,7 +15,6 @@ Page {
     property QtObject ui
     signal closeRequested()
     signal developerRequested()
-    signal stopRequested()
     // `proxy`: the row of the one to edit, null for a new one.
     signal sourceRequested(string sourceId)
     signal proxyRequested(var proxy)
@@ -63,26 +62,6 @@ Page {
                     title: qsTr("Play when the system starts")
                     checked: page.backend.settings ? page.backend.settings.autoplay : false
                     onToggled: (checked) => page.backend.settings.setAutoplay(checked)
-                }
-                // Another sound (the phone over Bluetooth) took the audio and
-                // paused us: play on once it's over, if it was that short.
-                SettingsCell {
-                    SettingText { title: qsTr("Play on after another sound, if it took up to") }
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: Theme.spacing
-                        Repeater {
-                            model: [{ t: qsTr("Off"), v: 0 }, { t: qsTr("30 s"), v: 30 }, { t: qsTr("1 min"), v: 60 },
-                                    { t: qsTr("5 min"), v: 300 }]
-                            Chip {
-                                required property var modelData
-                                text: modelData.t
-                                checked: page.backend.settings
-                                         && page.backend.settings.resumeAfterLossSec === modelData.v
-                                onClicked: page.backend.settings.setResumeAfterLossSec(modelData.v)
-                            }
-                        }
-                    }
                 }
             }
 
@@ -248,11 +227,6 @@ Page {
 
             SettingsGroup {
                 title: qsTr("App")
-                SettingsRow {
-                    text: qsTr("Stop and close")
-                    chevron: false
-                    onClicked: page.stopRequested()
-                }
                 SettingsRow {
                     text: qsTr("Developer tools")
                     onClicked: page.developerRequested()
