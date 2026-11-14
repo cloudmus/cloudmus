@@ -143,6 +143,9 @@ Page {
                     objectName: "proxyCheck"
                     text: qsTr("Check")
                     enabled: page.valid && !page.screen.proxyChecking
+                    busy: page.screen.proxyChecking
+                    tint: page.screen.proxyCheckText === "" ? "transparent"
+                          : page.screen.proxyCheckOk ? Theme.success : Theme.danger
                     onClicked: page.screen.checkProxy(page.kind, hostField.text, parseInt(portField.text),
                                                       userField.text, passwordField.text)
                 }
@@ -156,18 +159,15 @@ Page {
                     }
                 }
             }
-            Spinner { visible: page.screen.proxyChecking; running: visible }
-            Text {
-                objectName: "proxyCheckResult"
-                Layout.fillWidth: true
-                visible: text !== ""
-                text: page.screen.proxyCheckText
-                textFormat: Text.PlainText
-                wrapMode: Text.Wrap
-                color: page.screen.proxyCheckOk ? Theme.inkSecondary : Theme.danger
-                font.family: Theme.fontFamily
-                font.pixelSize: Theme.fontSmall
-            }
         }
     }
+
+    Connections {
+        target: page.screen
+        function onProxyCheckingChanged() {
+            if (!page.screen.proxyChecking && page.screen.proxyCheckText !== "")
+                toast.show(page.screen.proxyCheckText, !page.screen.proxyCheckOk, undefined, page.screen.proxyCheckOk)
+        }
+    }
+    Toast { id: toast; platform: page.platform }
 }

@@ -10,16 +10,18 @@ Rectangle {
 
     // `isError`: told apart by its color.
     property bool isError: false
+    property bool isSuccess: false
     property string details: ""
     property bool expanded: false
     // For copying.
     property QtObject platform
     property string message: ""
     readonly property string shownText: expanded && details !== "" ? message + "\n\n" + details : message
-    readonly property color inkColor: isError ? "#FFFFFF" : Theme.ink
+    readonly property color inkColor: isError || isSuccess ? "#FFFFFF" : Theme.ink
 
-    function show(text, error, detail) {
+    function show(text, error, detail, success) {
         isError = error === true
+        isSuccess = success === true
         message = text
         details = detail === undefined ? "" : detail
         expanded = false
@@ -45,7 +47,7 @@ Rectangle {
     width: Math.min(parent.width - Theme.padding * 2, Theme.dp(560))
     height: column.implicitHeight + Theme.dp(8) * 2
     radius: Theme.radius
-    color: isError ? Theme.danger : Theme.surface400
+    color: isError ? Theme.danger : (isSuccess ? Theme.success : Theme.surface400)
     opacity: 0
     visible: opacity > 0
     Behavior on opacity { NumberAnimation { duration: 200 } }
