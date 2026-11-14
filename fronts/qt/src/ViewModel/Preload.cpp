@@ -164,6 +164,13 @@ void Preload::setCacheMaxMb(int megabytes)
 
 qint64 Preload::cacheUsedBytes() const { return playback_.trackCache().totalBytes(); }
 
+double Preload::cacheUsedFraction() const
+{
+    const qint64 limit = playback_.trackCache().maxBytes();
+    // The cache can run over its limit for a moment, until it's trimmed.
+    return limit > 0 ? qBound(0.0, double(cacheUsedBytes()) / double(limit), 1.0) : 0.0;
+}
+
 void Preload::clearCache() { playback_.trackCache().clear(); }
 
 QString Preload::spaceWarning() const

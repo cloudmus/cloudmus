@@ -4,10 +4,13 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLocale>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QStyle>
 #include <QVBoxLayout>
 
+#include "Metrics.h"
 #include "Preload.h"
 #include "Spacing.h"
 #include "Typography.h"
@@ -57,7 +60,17 @@ QWidget* PreloadPage::createWidget(QWidget* parent)
     usedLabel_ = new QLabel(page);
     usedLabel_->setProperty("hint", true);
     usedLabel_->setFont(Theme::font(Theme::TextStyle::BodySecondary));
+    // How full the space set aside is; red when nearly out. Follows the
+    // limit as applied, not the one being typed in.
+    usedBar_ = new QProgressBar(page);
+    usedBar_->setProperty("themed", true); // see StyleSheet.cpp's progressBarBlock()
+    usedBar_->setProperty("meter", true);
+    usedBar_->setRange(0, 1000);
+    usedBar_->setTextVisible(false);
+    // Exactly the height its rounded corners are drawn for.
+    usedBar_->setFixedHeight(Theme::Metrics::meterHeight);
     connect(&preload_, &ViewModel::Preload::cacheUsedChanged, usedLabel_, [this]() { updateUsed(); });
+    connect(&preload_, &ViewModel::Preload::settingsChanged, usedBar_, [this]() { updateUsed(); });
     updateUsed();
 
     // Takes effect at once, like any action that isn't a setting.
@@ -71,6 +84,10 @@ QWidget* PreloadPage::createWidget(QWidget* parent)
     cacheRow->addWidget(cacheSpin_);
     cacheRow->addWidget(usedLabel_, 1);
     cacheRow->addWidget(clearButton);
+    auto* cacheField = new QVBoxLayout;
+    cacheField->setSpacing(Theme::Spacing::space2);
+    cacheField->addLayout(cacheRow);
+    cacheField->addWidget(usedBar_);
 
     auto* form = new QFormLayout;
     form->setContentsMargins(0, 0, 0, 0);
@@ -78,7 +95,7 @@ QWidget* PreloadPage::createWidget(QWidget* parent)
     form->setVerticalSpacing(Theme::Spacing::space2);
     form->addRow(tr("Tracks ahead in a playlist:"), playlistSpin_);
     form->addRow(tr("Tracks ahead in a radio:"), radioSpin_);
-    form->addRow(tr("Disk space for tracks:"), cacheRow);
+    form->addRow(tr("Disk space for tracks:"), cacheField);
 
     auto* pageLayout = new QVBoxLayout(page);
     pageLayout->setContentsMargins(0, 0, 0, 0);
@@ -102,6 +119,15 @@ QWidget* PreloadPage::createWidget(QWidget* parent)
 void PreloadPage::updateUsed()
 {
     usedLabel_->setText(tr("%1 used").arg(QLocale().formattedDataSize(preload_.cacheUsedBytes())));
+    const double fraction = preload_.cacheUsedFraction();
+    usedBar_->setValue(qRound(fraction * usedBar_->maximum()));
+    const bool nearlyFull = fraction > kNearlyFull;
+    if (usedBar_->property("nearlyFull").toBool() != nearlyFull) {
+        usedBar_->setProperty("nearlyFull", nearlyFull);
+        // A dynamic property in a selector is only re-read on a re-polish.
+        usedBar_->style()->unpolish(usedBar_);
+        usedBar_->style()->polish(usedBar_);
+    }
 }
 
 bool PreloadPage::isDirty() const
