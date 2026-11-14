@@ -495,11 +495,17 @@ QWidget* MainWindow::makeConnectionButton(ViewModel::ConnectionStatus& status)
         // At rest like the transport buttons beside it: a state, not an alarm.
         button->setIcon(Theme::icon(status.checking() ? QStringLiteral("refresh") : QStringLiteral("cloud_off"),
             Theme::IconColor::InkSecondary, Theme::Metrics::iconGlyphSize));
-        QStringList tip { status.text(), status.details() };
+        // A heading, a line per service (and for what waits to be sent), and
+        // the click's hint apart under a rule, quieter.
+        const Theme::Palette& pal = Theme::palette();
+        QString html = QStringLiteral("<b>%1</b>").arg(status.text().toHtmlEscaped());
+        for (const QString& line : status.details().split(QLatin1Char('\n'), Qt::SkipEmptyParts))
+            html += QStringLiteral("<br><span style=\"color:%1\">%2</span>")
+                        .arg(pal.inkSecondary.name(), line.toHtmlEscaped());
         if (status.state() != ViewModel::ConnectionStatus::NoNetwork)
-            tip.append(tr("Click to check now"));
-        tip.removeAll(QString());
-        button->setToolTip(tip.join(QLatin1Char('\n')));
+            html += QStringLiteral("<hr><i><span style=\"color:%1\">%2</span></i>")
+                        .arg(pal.inkSecondary.name(), tr("Click to check now").toHtmlEscaped());
+        button->setToolTip(html);
         button->setAccessibleName(status.text());
     };
     Theme::followTheme(button, refresh);

@@ -8,7 +8,9 @@
 #include <QDir>
 #include <QFile>
 #include <QImage>
+#include <QPainter>
 #include <QStandardPaths>
+#include <QSvgRenderer>
 #include <QVariantMap>
 
 namespace Integration {
@@ -50,6 +52,21 @@ QString appIconName()
     }();
     return name;
 }
+// What stands for a track's cover when it has none: the app's logo.
+QImage placeholderCover()
+{
+    static const QImage logo = []() {
+        constexpr int kSide = 256;
+        QImage image(kSide, kSide, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        QSvgRenderer renderer(QStringLiteral(":/icons/icons/logo.svg"));
+        QPainter painter(&image);
+        renderer.render(&painter, QRectF(0, 0, kSide, kSide));
+        return image;
+    }();
+    return logo;
+}
+
 } // namespace
 
 NotificationToast::NotificationToast(QSystemTrayIcon* trayIcon, QObject* parent)
@@ -123,12 +140,14 @@ void NotificationToast::send(Slot& slot, const Request& request)
     // (the AppImage installs one — see AppRun); app_icon below names the
     // same icon for when there is none.
     hints.insert(QStringLiteral("desktop-entry"), QStringLiteral("cloudmus-qt"));
-    if (!request.cover.isNull()) {
-        const QImage image = request.cover.toImage().convertToFormat(QImage::Format_RGBA8888);
-        QDBusArgument arg;
-        arg << image;
-        hints.insert(QStringLiteral("image-data"), QVariant::fromValue(arg));
-    }
+    // Always an image: without one a notification updated in place keeps
+    // the previous track's cover (Plasma doesn't clear it), so a track with
+    // no cover gets the app's logo instead.
+    const QImage image = (request.cover.isNull() ? placeholderCover() : request.cover.toImage())
+                             .convertToFormat(QImage::Format_RGBA8888);
+    QDBusArgument arg;
+    arg << image;
+    hints.insert(QStringLiteral("image-data"), QVariant::fromValue(arg));
 
     // A plain message rather than a QDBusInterface: creating one asks the
     // server to introspect itself and waits for the answer.
