@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 #include "RowsModel.h"
 
@@ -25,6 +26,9 @@ class SettingsScreen : public QObject {
     Q_PROPERTY(double cacheUsedFraction READ cacheUsedFraction NOTIFY cacheUsedTextChanged)
     Q_PROPERTY(QString cacheUsedText READ cacheUsedText NOTIFY cacheUsedTextChanged)
     Q_PROPERTY(bool analytics READ analytics NOTIFY analyticsChanged)
+    // The language setting: a code from I18n::supportedLanguages(), empty for
+    // "follow the system".
+    Q_PROPERTY(QString language READ language NOTIFY languageChanged)
     // How the last check of a proxy went.
     Q_PROPERTY(bool proxyChecking READ proxyChecking NOTIFY proxyCheckingChanged)
     Q_PROPERTY(bool proxyCheckOk READ proxyCheckOk NOTIFY proxyCheckOkChanged)
@@ -43,6 +47,7 @@ public:
     // Of the disk space set aside for tracks, 0..1.
     double cacheUsedFraction() const;
     bool analytics() const;
+    QString language() const;
     bool proxyChecking() const { return proxyChecking_; }
     bool proxyCheckOk() const { return proxyCheckOk_; }
     QString proxyCheckText() const { return proxyCheckText_; }
@@ -53,6 +58,11 @@ public slots:
     void setCacheMaxMb(int megabytes);
     void clearCache();
     void setAnalytics(bool on);
+    // `code` empty: follow the system.
+    void setLanguage(const QString& code);
+    // What "the system's language" is for the core, which can't tell on
+    // Android: the UI process says (QLocale::uiLanguages()).
+    void setSystemLanguages(const QStringList& uiLanguages);
     // `proxyId` empty: a new one. `kind`: "http" or "socks5".
     void saveProxy(const QString& proxyId, const QString& name, const QString& kind, const QString& host, int port,
         const QString& username, const QString& password);
@@ -66,6 +76,7 @@ signals:
     void cacheMaxMbChanged();
     void cacheUsedTextChanged();
     void analyticsChanged();
+    void languageChanged();
     void proxyCheckingChanged();
     void proxyCheckOkChanged();
     void proxyCheckTextChanged();

@@ -13,6 +13,8 @@ Page {
     property QtObject platform
     // Main.qml's uiSettings.
     property QtObject ui
+    // Ui::Localizer: the language of the views.
+    property QtObject localizer
     signal closeRequested()
     signal developerRequested()
     // `proxy`: the row of the one to edit, null for a new one.
@@ -195,6 +197,29 @@ Page {
                                 onClicked: {
                                     page.ui.colorScheme = modelData.v
                                     checked = Qt.binding(() => page.ui.colorScheme === modelData.v)
+                                }
+                            }
+                        }
+                    }
+                }
+                SettingsCell {
+                    visible: page.localizer !== null
+                    SettingText { title: qsTr("Language") }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing
+                        Repeater {
+                            // Auto, then every language in its own name.
+                            model: page.localizer
+                                ? [{ name: qsTr("Auto"), code: "" }].concat(page.localizer.languages) : []
+                            Chip {
+                                required property var modelData
+                                objectName: "language_" + (modelData.code || "auto")
+                                text: modelData.name
+                                checked: page.localizer.setting === modelData.code
+                                onClicked: {
+                                    page.localizer.setSetting(modelData.code)
+                                    checked = Qt.binding(() => page.localizer.setting === modelData.code)
                                 }
                             }
                         }

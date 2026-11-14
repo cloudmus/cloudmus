@@ -16,6 +16,7 @@
 #include <QStyleHints>
 #include <QStandardPaths>
 #include <QTemporaryDir>
+#include <QScopeGuard>
 #include <QTest>
 
 #include <algorithm>
@@ -30,6 +31,7 @@
 #include "CoverImageProvider.h"
 #include "FakeBackend.h"
 #include "Host.h"
+#include "Localizer.h"
 #include "LogModel.h"
 #include "MobileCore.h"
 #include "Platform.h"
@@ -414,6 +416,44 @@ private slots:
         ready.clear();
         QMetaObject::invokeMethod(page, "setEnabled", Q_ARG(bool, true));
         QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    }
+
+    // The language: chosen in the views, saved by the core, in force in both —
+    // the views' own texts and the ones the core builds — and "Auto" follows
+    // the system again.
+    void languageSwitches()
+    {
+        QTemporaryDir dir;
+        // The core's language is saved in the shared test config, the views'
+        // own copy next to the app's: leave neither behind.
+        const auto forget = [] {
+            Config::Settings().setLanguage(QString());
+            QSettings().remove(QStringLiteral("ui/language"));
+        };
+        forget();
+        const auto guard = qScopeGuard(forget);
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        QQmlEngine engine;
+        Ui::Localizer localizer(backend, engine);
+        QVERIFY(localizer.languages().size() > 1);
+        QCOMPARE(QCoreApplication::translate("SettingsPage", "Language"), QStringLiteral("Language"));
+
+        QSignalSpy changed(&localizer, &Ui::Localizer::settingChanged);
+        localizer.setSetting(QStringLiteral("ru"));
+        QCOMPARE(changed.count(), 1);
+        QCOMPARE(QCoreApplication::translate("SettingsPage", "Language"), QStringLiteral("Язык"));
+        QCOMPARE(core.core().settings().language(), QStringLiteral("ru"));
+        QCOMPARE(core.core().translator().language(), QStringLiteral("ru"));
+        // A text the desktop has too reads the same.
+        QCOMPARE(QCoreApplication::translate("LibraryPage", "Sign in"), QStringLiteral("Войти"));
+
+        // The system's language is what Auto means, as the views see it.
+        core.settingsScreen().setSystemLanguages({ QStringLiteral("de-DE") });
+        localizer.setSetting(QString());
+        QCOMPARE(core.core().settings().language(), QString());
+        QCOMPARE(core.core().translator().language(), QStringLiteral("de"));
+        QCOMPARE(QCoreApplication::translate("SettingsPage", "Language"), QStringLiteral("Sprache"));
     }
 
     // The pages on a phone: all of it can be reached and nothing runs off the
@@ -2612,6 +2652,9 @@ int main(int argc, char** argv)
         if (std::strcmp(argv[i], Tests::kFakeBackendArgument) == 0)
             return Tests::runFakeBackend();
     }
+    // The texts the tests look for are English, whatever the machine speaks.
+    qputenv("LC_ALL", "en_US.UTF-8");
+    qunsetenv("LANGUAGE");
     QGuiApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("cloudmus-tests"));
     QCoreApplication::setApplicationName(QStringLiteral("cloudmus-mobile-tests"));

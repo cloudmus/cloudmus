@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.7 REQUIRED COMPONENTS Concurrent Core Network RemoteObjects Gui Qml Quick QuickControls2 Svg)
+find_package(Qt6 6.7 REQUIRED COMPONENTS Concurrent Core Network RemoteObjects Gui Qml Quick QuickControls2 Svg LinguistTools)
 qt_standard_project_setup(REQUIRES 6.7)
 
 # The desktop front's sources the core shares as they are.
@@ -40,6 +40,27 @@ else()
     target_link_libraries(cloudmus-mobile-mpv INTERFACE PkgConfig::MPV)
 endif()
 
+set(_shared_core_default ON)
+option(CLOUDMUS_MOBILE_SHARED_CORE "Run App::Core rather than the dev tracks" ${_shared_core_default})
+
+# --- The language: the desktop front's I18n::Translator, which both processes
+# run (the views' own, and the core's). Where the core is in the binary
+# already (the desktop) it has it; the UI process on Android has none, so
+# builds the two files itself.
+if(ANDROID OR NOT CLOUDMUS_MOBILE_SHARED_CORE)
+    add_library(cloudmus-mobile-i18n STATIC
+        ${QT_FRONT_SRC}/I18n/Languages.cpp
+        ${QT_FRONT_SRC}/I18n/Languages.h
+        ${QT_FRONT_SRC}/I18n/Translator.cpp
+        ${QT_FRONT_SRC}/I18n/Translator.h
+    )
+    target_include_directories(cloudmus-mobile-i18n PUBLIC ${QT_FRONT_SRC}/I18n)
+    target_link_libraries(cloudmus-mobile-i18n PUBLIC Qt6::Core)
+    set_target_properties(cloudmus-mobile-i18n PROPERTIES POSITION_INDEPENDENT_CODE ON)
+else()
+    add_library(cloudmus-mobile-i18n INTERFACE)
+endif()
+
 # --- Logging: both processes, no Qt beyond Core.
 add_library(cloudmus-mobile-log STATIC
     src/Logging/Log.cpp
@@ -61,8 +82,6 @@ set_target_properties(cloudmus-mobile-log PROPERTIES POSITION_INDEPENDENT_CODE O
 
 # --- The core: App::Core, the desktop front's own, with the real backends. Off,
 # src/DevTracks stands in for it, on Qt Core and Network alone.
-set(_shared_core_default ON)
-option(CLOUDMUS_MOBILE_SHARED_CORE "Run App::Core rather than the dev tracks" ${_shared_core_default})
 
 add_library(cloudmus-mobile-core STATIC
     src/Remote/Host.cpp
@@ -148,6 +167,8 @@ qt_add_library(cloudmus-mobile-ui STATIC
     src/Ui/Backend.h
     src/Ui/CoverImageProvider.cpp
     src/Ui/CoverImageProvider.h
+    src/Ui/Localizer.cpp
+    src/Ui/Localizer.h
     src/Ui/Platform.cpp
     src/Ui/Platform.h
     src/Ui/QrImageProvider.cpp
@@ -157,7 +178,7 @@ qt_add_library(cloudmus-mobile-ui STATIC
 target_include_directories(cloudmus-mobile-ui PRIVATE ${qrcodegen_SOURCE_DIR}/cpp)
 target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote ${QT_FRONT_SRC}/Covers)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
-    cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
+    cloudmus-mobile-i18n cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
 if(CLOUDMUS_MOBILE_SHARED_CORE)
     target_compile_definitions(cloudmus-mobile-ui PUBLIC CLOUDMUS_MOBILE_SHARED_CORE)
 endif()
@@ -248,6 +269,29 @@ foreach(_weight Regular Medium SemiBold Bold)
 endforeach()
 qt_add_resources(cloudmus-mobile-ui "fonts" PREFIX "/fonts" FILES ${_fonts})
 
+# The texts: one translations/cloudmus_<code>.ts per language (English is the
+# source language), the views' own and the core's — the desktop's texts the
+# shared core carries come along. .qm files embedded under :/i18n, where
+# I18n::Translator looks; in the service's library too, which is another
+# process on Android. After changing a text:
+# `cmake --build build --target update_translations`.
+set(_ts_files)
+foreach(_lang be de es fr it ru)
+    list(APPEND _ts_files ${CMAKE_CURRENT_SOURCE_DIR}/translations/cloudmus_${_lang}.ts)
+endforeach()
+set(_tr_targets cloudmus-mobile-ui cloudmus-mobile-core)
+if(CLOUDMUS_MOBILE_SHARED_CORE)
+    list(APPEND _tr_targets cloudmus-core)
+endif()
+qt_add_lupdate(TARGET update_translations
+    TS_FILES ${_ts_files}
+    SOURCE_TARGETS ${_tr_targets}
+    OPTIONS -no-obsolete -locations none -source-language en)
+qt_add_lrelease(TARGET cloudmus-mobile-ui
+    TS_FILES ${_ts_files}
+    QM_FILES_OUTPUT_VARIABLE _qm_files)
+qt_add_resources(cloudmus-mobile-ui "i18n" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR} FILES ${_qm_files})
+
 qt_add_executable(cloudmus-mobile src/Ui/main.cpp)
 target_link_libraries(cloudmus-mobile PRIVATE cloudmus-mobile-ui cloudmus-mobile-uiplugin)
 if(NOT ANDROID)
@@ -261,6 +305,7 @@ if(ANDROID)
         src/Android/ServiceMain.cpp
     )
     target_link_libraries(cloudmus-mobile-service PRIVATE cloudmus-mobile-core)
+    qt_add_resources(cloudmus-mobile-service "i18n" PREFIX "/i18n" BASE ${CMAKE_CURRENT_BINARY_DIR} FILES ${_qm_files})
     # Plain names: CorePaths.java loads it with System.loadLibrary().
     set_target_properties(cloudmus-mobile-service PROPERTIES OUTPUT_NAME cloudmus-core)
 

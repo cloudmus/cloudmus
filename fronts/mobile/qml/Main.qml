@@ -10,6 +10,8 @@ ApplicationWindow {
 
     required property QtObject backend
     required property QtObject platform
+    // Null in the tests that don't switch languages.
+    property QtObject localizer: null
 
     width: 420
     height: 860
@@ -346,6 +348,7 @@ ApplicationWindow {
         SettingsPage {
             objectName: "settings"
             ui: uiSettings
+            localizer: window.localizer
             onCloseRequested: stack.close()
             onDeveloperRequested: stack.open(developerPage)
             onSourceRequested: (sourceId) => {

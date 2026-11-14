@@ -48,6 +48,12 @@ SettingsScreen::SettingsScreen(App::Core& core, SourceSettings& sourceSettings, 
     connect(&manager, &Rpc::SourceManager::sourceReady, this, [this]() { rebuildSources(); });
     connect(&manager, &Rpc::SourceManager::sourceUnavailable, this, [this]() { rebuildSources(); });
     connect(&core_.authStates(), &Rpc::AuthStates::changed, this, [this]() { rebuildSources(); });
+    // Texts the core builds itself are in the new language from the next
+    // rebuild; these are the ones on the Settings page.
+    connect(&core_.translator(), &I18n::Translator::languageChanged, this, [this]() {
+        emit cacheUsedTextChanged();
+        rebuildSources();
+    });
     rebuildSources();
     rebuildProxies();
 }
@@ -60,8 +66,8 @@ int SettingsScreen::cacheMaxMb() const { return core_.preload().cacheMaxMb(); }
 
 QString SettingsScreen::cacheUsedText() const
 {
-    // In the language of the page around it, which has no translations yet.
-    return QLocale(QLocale::English).formattedDataSize(core_.preload().cacheUsedBytes());
+    // The default locale follows the language (I18n::Translator).
+    return QLocale().formattedDataSize(core_.preload().cacheUsedBytes());
 }
 
 double SettingsScreen::cacheUsedFraction() const { return core_.preload().cacheUsedFraction(); }
@@ -82,6 +88,22 @@ void SettingsScreen::setAnalytics(bool on)
         return;
     core_.analytics().setEnabled(on);
     emit analyticsChanged();
+}
+
+QString SettingsScreen::language() const { return core_.settings().language(); }
+
+void SettingsScreen::setLanguage(const QString& code)
+{
+    if (code == language())
+        return;
+    core_.settings().setLanguage(code);
+    core_.translator().setLanguage(code);
+    emit languageChanged();
+}
+
+void SettingsScreen::setSystemLanguages(const QStringList& uiLanguages)
+{
+    core_.translator().setSystemLanguages(uiLanguages);
 }
 
 void SettingsScreen::saveProxy(const QString& proxyId, const QString& name, const QString& kind, const QString& host,

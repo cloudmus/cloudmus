@@ -13,6 +13,7 @@
 #include "Backend.h"
 #include "CoverImageProvider.h"
 #include "QrImageProvider.h"
+#include "Localizer.h"
 #include "Log.h"
 #include "Platform.h"
 
@@ -141,12 +142,14 @@ int main(int argc, char* argv[])
     Ui::Platform platform(logDir());
 
     QQmlApplicationEngine engine;
+    Ui::Localizer localizer(*backend, engine);
     engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
     engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
     engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
     engine.setInitialProperties({
         { QStringLiteral("backend"), QVariant::fromValue<QObject*>(backend.get()) },
         { QStringLiteral("platform"), QVariant::fromValue<QObject*>(&platform) },
+        { QStringLiteral("localizer"), QVariant::fromValue<QObject*>(&localizer) },
     });
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] { QCoreApplication::exit(1); },

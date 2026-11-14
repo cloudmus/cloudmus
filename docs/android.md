@@ -23,6 +23,17 @@ with a Linux build of the same code for debugging.
   starts in tens of milliseconds, keeps playing when the UI process is
   killed, answers media buttons and Android Auto, and resumes the last
   track. The UI process (Qt) connects to the core over a local socket.
+- **Language**: the desktop's `I18n::Translator` and language list, in both
+  processes: the core's (texts the view models build) and the views' own
+  (`Ui::Localizer`, QML `qsTr`). The choice is Auto or one language, set
+  under Settings → Interface and saved by the core (`SettingsScreen.language`);
+  Auto follows the system, which the UI process reports to the core, as the
+  playback service can't tell it. Texts live in `translations/cloudmus_<code>.ts`
+  (QML and mobile view models, plus the shared core's). After changing a text:
+  `cmake --build build --target update_translations`, then
+  `python3 tools/seed-translations.py`, which fills the new texts from the
+  desktop's catalogs first, so a text the two share reads the same, and then
+  from `tools/mobile-only-translations.json`. Developer tools stay English.
 - **Log**: `Logging::` (C++) and `CmLog` (Java) write one format, one file per
   process, mirrored to `Download/Cloudmus/logs` (and the app's external
   files dir). The Log page reads it back. Startup milestones are lines
