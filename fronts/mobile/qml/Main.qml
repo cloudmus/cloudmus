@@ -23,8 +23,8 @@ ApplicationWindow {
         property real scale: -1
         // "auto": as the system has it; "light"; "dark".
         property string colorScheme: "auto"
-        property real flickMaxVelocity: 12000
-        property real flickDeceleration: 2000
+        property real flickMaxVelocity: 20000
+        property real flickDeceleration: 1000
         // Read by main() before the window exists (see applyRenderingSettings()).
         property string renderLoop: ""
         // Off: under a finger Qt otherwise merges touch moves into one per
