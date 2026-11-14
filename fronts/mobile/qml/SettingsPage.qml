@@ -125,6 +125,21 @@ Page {
                             onClicked: page.screen.clearCache()
                         }
                     }
+                    // How full the space set aside is; red when nearly out.
+                    Rectangle {
+                        objectName: "cacheBar"
+                        Layout.fillWidth: true
+                        implicitHeight: Theme.dp(8)
+                        radius: height / 2
+                        color: Theme.surface300
+                        Rectangle {
+                            width: parent.width * (page.screen ? page.screen.cacheUsedFraction : 0)
+                            height: parent.height
+                            radius: height / 2
+                            color: width > parent.width * 0.9 ? Theme.danger : Theme.accent
+                            Behavior on width { NumberAnimation { duration: Theme.durationFast } }
+                        }
+                    }
                 }
             }
 

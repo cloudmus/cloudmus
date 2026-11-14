@@ -38,6 +38,7 @@ SettingsScreen::SettingsScreen(App::Core& core, SourceSettings& sourceSettings, 
         emit playlistTracksChanged();
         emit radioTracksChanged();
         emit cacheMaxMbChanged();
+        emit cacheUsedTextChanged();
     });
     connect(&preload, &Preload::cacheUsedChanged, this, &SettingsScreen::cacheUsedTextChanged);
 
@@ -62,6 +63,8 @@ QString SettingsScreen::cacheUsedText() const
     // In the language of the page around it, which has no translations yet.
     return QLocale(QLocale::English).formattedDataSize(core_.preload().cacheUsedBytes());
 }
+
+double SettingsScreen::cacheUsedFraction() const { return core_.preload().cacheUsedFraction(); }
 
 bool SettingsScreen::analytics() const { return core_.settings().analyticsEnabled(); }
 

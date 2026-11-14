@@ -22,6 +22,7 @@ class SettingsScreen : public QObject {
     Q_PROPERTY(int playlistTracks READ playlistTracks NOTIFY playlistTracksChanged)
     Q_PROPERTY(int radioTracks READ radioTracks NOTIFY radioTracksChanged)
     Q_PROPERTY(int cacheMaxMb READ cacheMaxMb NOTIFY cacheMaxMbChanged)
+    Q_PROPERTY(double cacheUsedFraction READ cacheUsedFraction NOTIFY cacheUsedTextChanged)
     Q_PROPERTY(QString cacheUsedText READ cacheUsedText NOTIFY cacheUsedTextChanged)
     Q_PROPERTY(bool analytics READ analytics NOTIFY analyticsChanged)
     // How the last check of a proxy went.
@@ -39,6 +40,8 @@ public:
     int radioTracks() const;
     int cacheMaxMb() const;
     QString cacheUsedText() const;
+    // Of the disk space set aside for tracks, 0..1.
+    double cacheUsedFraction() const;
     bool analytics() const;
     bool proxyChecking() const { return proxyChecking_; }
     bool proxyCheckOk() const { return proxyCheckOk_; }
