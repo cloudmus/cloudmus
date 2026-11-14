@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 
 from rpc_common import errors
 from rpc_common.generated.methods import emit_track_stream_ready
@@ -29,6 +30,19 @@ CAPABILITIES = {
     "downloadFromStream": True,
     "auth": {"required": True, "flow": "deviceCode"},
 }
+
+
+def _iso_millis(value: str) -> str:
+    """The front's ISO-8601 UTC time as play-audio wants it
+    (YYYY-MM-DDThh:mm:ss.SSSZ): without the milliseconds it answers
+    invalid-timestamp."""
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        moment = datetime.now(timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}Z"
 
 
 def build_server() -> BackendServer:
@@ -300,7 +314,7 @@ def build_server() -> BackendServer:
             "cloudmus",
             album_id or track_id,
             from_cache=bool(params.get("deferred")),
-            timestamp=params["playedAt"],
+            timestamp=_iso_millis(params["playedAt"]),
             total_played_seconds=seconds,
             end_position_seconds=seconds,
         )
