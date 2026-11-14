@@ -156,9 +156,14 @@ Page {
                         objectName: "proxyRow_" + model.title
                         text: model.title
                         subtitle: model.host + ":" + model.port
-                        onClicked: page.proxyRequested({
+                        // The model is a replica that fetches a role on its first read, and
+                        // only the title and the address are read to draw the row. Reading
+                        // the rest here as well gets them in before a tap, which would
+                        // otherwise find the id empty and open a new proxy half filled in.
+                        readonly property var proxy: ({
                             proxyId: model.proxyId, name: model.name, kind: model.kind, host: model.host,
                             port: model.port, username: model.username, password: model.password })
+                        onClicked: if (proxy.proxyId !== "") page.proxyRequested(proxy)
                     }
                 }
                 SettingsRow {
