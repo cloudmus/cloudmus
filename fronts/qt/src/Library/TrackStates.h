@@ -80,6 +80,8 @@ public:
     // The source said the track can't be played (reason "unavailable",
     // docs/protocol.md §9.1). Lasts for the run.
     void setUnavailable(const QString& sourceId, const QString& trackId);
+    // It played after all, or is to be tried again.
+    void clearUnavailable(const QString& sourceId, const QString& trackId);
 
 signals:
     // One track's state changed.

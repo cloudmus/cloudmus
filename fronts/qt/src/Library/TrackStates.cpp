@@ -118,4 +118,13 @@ void TrackStates::setUnavailable(const QString& sourceId, const QString& trackId
     emit changed(sourceId, trackId);
 }
 
+void TrackStates::clearUnavailable(const QString& sourceId, const QString& trackId)
+{
+    const auto it = states_.find(key(sourceId, trackId));
+    if (it == states_.end() || !it->unavailable)
+        return;
+    it->unavailable = false;
+    emit changed(sourceId, trackId);
+}
+
 } // namespace Library

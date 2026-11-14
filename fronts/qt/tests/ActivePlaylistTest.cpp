@@ -635,6 +635,21 @@ private slots:
         offline = false;
     }
 
+    // A service says "unavailable" of tracks that play later: picking one
+    // yourself tries it again, and the mark fades by itself.
+    void anUnavailableTrackIsTriedAgainWhenPicked()
+    {
+        start();
+        playback_->loadQueue(QStringLiteral("fake"), { track(QStringLiteral("a")), track(QStringLiteral("b")) }, 0);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        playback_->setUnavailable(QStringLiteral("fake"), QStringLiteral("b"));
+        QVERIFY(playback_->isUnavailable(QStringLiteral("fake"), QStringLiteral("b")));
+        QSignalSpy again(playback_.get(), &Playback::PlaybackController::trackAvailableAgain);
+        playback_->playAt(1);
+        QVERIFY(!playback_->isUnavailable(QStringLiteral("fake"), QStringLiteral("b")));
+        QCOMPARE(again.size(), 1);
+    }
+
     // A station is told what played lately from its source — as far back
     // as that source's setting says — to keep it from playing that again.
     void aRadioIsStartedWithTheTracksPlayedLately()

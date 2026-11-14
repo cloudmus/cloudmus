@@ -158,6 +158,8 @@ void PlaybackController::loadQueue(const QString& sourceId, const QList<Track>& 
 
 void PlaybackController::loadQueue(const QVector<QueueEntry>& entries, int startIndex)
 {
+    if (startIndex >= 0 && startIndex < entries.size())
+        forgetUnavailable(entries[startIndex].sourceId, entries[startIndex].track.id);
     skipStreak_ = 0;
     invalidatePrepared();
     setWaveMode(false);
@@ -243,13 +245,20 @@ QString unavailableKey(const QString& sourceId, const QString& trackId) { return
 
 void PlaybackController::setUnavailable(const QString& sourceId, const QString& trackId)
 {
-    unavailable_.insert(unavailableKey(sourceId, trackId));
+    unavailable_.insert(unavailableKey(sourceId, trackId), QDateTime::currentMSecsSinceEpoch());
     emit trackUnavailable(sourceId, trackId);
 }
 
 bool PlaybackController::isUnavailable(const QString& sourceId, const QString& trackId) const
 {
-    return unavailable_.contains(unavailableKey(sourceId, trackId));
+    const auto it = unavailable_.constFind(unavailableKey(sourceId, trackId));
+    return it != unavailable_.constEnd() && QDateTime::currentMSecsSinceEpoch() - it.value() < kUnavailableForMs;
+}
+
+void PlaybackController::forgetUnavailable(const QString& sourceId, const QString& trackId)
+{
+    if (unavailable_.remove(unavailableKey(sourceId, trackId)) > 0)
+        emit trackAvailableAgain(sourceId, trackId);
 }
 
 int PlaybackController::nextPlayableAfter(int from, bool downloadedOnly) const
@@ -332,6 +341,8 @@ bool PlaybackController::handleTrackError(const QString& sourceId, const QJsonOb
 void PlaybackController::playAt(int index)
 {
     reportPlayed();
+    if (index >= 0 && index < queue_.size())
+        forgetUnavailable(queue_[index].sourceId, queue_[index].track.id);
     startRetries_ = 0;
     skipStreak_ = 0;
     awaitingRadioTracks_ = false;

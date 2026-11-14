@@ -159,6 +159,13 @@ Core::Core(QObject* parent)
     });
     connect(&playback_, &Playback::PlaybackController::trackUnavailable, &trackStates_,
         &Library::TrackStates::setUnavailable);
+    connect(&playback_, &Playback::PlaybackController::trackAvailableAgain, &trackStates_,
+        &Library::TrackStates::clearUnavailable);
+    // A stream that resolved is proof enough.
+    connect(&playback_, &Playback::PlaybackController::streamResolved, &trackStates_,
+        [this](const QString& sourceId, const QString& trackId, const StreamDescriptor&) {
+            trackStates_.clearUnavailable(sourceId, trackId);
+        });
 
     // What goes wrong, and the sign-in and like steps, for statistics.
     connect(&playback_, &Playback::PlaybackController::failed, &analytics_, &Analytics::recordPlaybackFailure);

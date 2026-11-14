@@ -191,6 +191,14 @@ public:
     // another round, whose order isn't known yet.
     int neighborIndex(int delta) const;
 
+    // A service said the track can't be played; it's skipped for
+    // kUnavailableForMs, then tried again.
+    void setUnavailable(const QString& sourceId, const QString& trackId);
+    bool isUnavailable(const QString& sourceId, const QString& trackId) const;
+    // The listener asked for the track itself: it is tried again.
+    void forgetUnavailable(const QString& sourceId, const QString& trackId);
+    static constexpr qint64 kUnavailableForMs = 10 * 60 * 1000;
+
 signals:
     void trackChanged(const Track& track, const QString& sourceId);
     void playingChanged(bool playing);
@@ -217,6 +225,8 @@ signals:
     void errorOccurred(QString message);
     // A source said this track can't be played at all (reason "unavailable").
     void trackUnavailable(const QString& sourceId, const QString& trackId);
+    // ...and it is to be tried again (forgetUnavailable()).
+    void trackAvailableAgain(const QString& sourceId, const QString& trackId);
     // The same failure, for statistics: the source it was on and a fixed
     // reason — "unavailable" (the source is down), "rejected" (the source
     // refused to play the track), "stream" (the audio didn't start),
@@ -293,8 +303,6 @@ private:
     // (or if skipping has already gone through the whole queue without a
     // track starting).
     int nextPlayableAfter(int from, bool downloadedOnly) const;
-    void setUnavailable(const QString& sourceId, const QString& trackId);
-    bool isUnavailable(const QString& sourceId, const QString& trackId) const;
     // The queue index `delta` steps from the current one in play order
     // (shuffled or not), wrapping around under RepeatMode::All; -1 past
     // either end otherwise.
@@ -367,7 +375,10 @@ private:
     // the skipping to one pass over the queue.
     int skipStreak_ = 0;
     // Tracks a source said it can't play (sourceId + 0x1f + trackId), this run.
-    QSet<QString> unavailable_;
+    // When each was told unavailable (ms since the epoch): a service says so
+    // of tracks that play later, so it holds only for kUnavailableForMs, or
+    // until the listener picks the track — see forgetUnavailable().
+    QHash<QString, qint64> unavailable_;
     // The current track failed for good: Play loads it again.
     bool reloadOnResume_ = false;
     // Queue index of the in-flight playback.play (-1 if none): it's about
