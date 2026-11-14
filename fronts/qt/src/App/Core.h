@@ -81,6 +81,9 @@ private:
     Rpc::Task<std::optional<Connectivity::CheckResult>> checkConnection(QString sourceId);
     // The outbox, hooked up to who queues into it and to when it's sent.
     void setUpOutbox();
+    // For playback: true at once unless the source was found offline, then
+    // what a fresh check says.
+    Rpc::Task<bool> reachable(QString sourceId);
     // feedback.played, or into the outbox.
     Rpc::Task<void> reportPlay(QString sourceId, QString trackId, int playedMs, QDateTime startedAt);
 

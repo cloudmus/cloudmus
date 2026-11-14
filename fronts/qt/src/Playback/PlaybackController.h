@@ -85,6 +85,19 @@ public:
     // sent (App::Outbox::holds()): then feedbackDeferred() takes it.
     using FeedbackHold = std::function<bool(const QString& sourceId)>;
     void setFeedbackHold(FeedbackHold hold) { feedbackHold_ = std::move(hold); }
+    // Downloaded tracks of the source to go on with when a radio has nothing
+    // more it can play without the network (ViewModel::ActivePlaylist):
+    // up to `count`, none of those queued after the current one.
+    using OfflineRadioProvider = std::function<QList<Track>(const QString& sourceId, int count)>;
+    void setOfflineRadioProvider(OfflineRadioProvider provider) { offlineRadio_ = std::move(provider); }
+    // Whether the source can be reached, asked before a track that isn't
+    // downloaded is started from it (App::Connectivity::checkSource() for
+    // one that was found offline, true at once otherwise).
+    using ReachableCheck = std::function<Rpc::Task<bool>(QString sourceId)>;
+    void setReachableCheck(ReachableCheck check) { reachable_ = std::move(check); }
+    // How many tracks a radio is topped up with from the disk at a time:
+    // few, so that a station back with the network soon has its say.
+    static constexpr int kOfflineRadioBatch = 5;
 
     void loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex);
     // Same, for a queue whose entries can come from different sources
@@ -295,6 +308,9 @@ private:
     void reshuffle(int first);
     void setWaveMode(bool on);
     void sendFeedbackFinishedOrSkip(bool wasSkip);
+    // The radio, topped up from the disk (offlineRadio_): the next index to
+    // play after `from`, or -1 if there's nothing.
+    int fillRadioFromCache(int from);
     // trackPlayed(), once per play of the current track, if it counts.
     void reportPlayed();
     // Into feedbackDeferred(), with when it was played.
@@ -322,6 +338,11 @@ private:
     int index_ = -1;
     bool playing_ = false;
     FeedbackHold feedbackHold_;
+    OfflineRadioProvider offlineRadio_;
+    ReachableCheck reachable_;
+    // Topped up from the disk with nothing started since: not again, or a
+    // cache of files that won't play would spin.
+    bool filledFromCache_ = false;
     // The current track's play went out as trackPlayed() already.
     bool playReported_ = false;
 

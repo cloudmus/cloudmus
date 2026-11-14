@@ -147,6 +147,11 @@ Core::Core(QObject* parent)
     // preloads.
     connect(&connectivity_, &Connectivity::sourceOnline, &sources_, &ViewModel::Sources::refresh);
     setUpOutbox();
+    // A radio with no network goes on with what's downloaded; a track that
+    // isn't, from a service found offline, waits for a fresh check first.
+    playback_.setOfflineRadioProvider(
+        [this](const QString& sourceId, int count) { return activePlaylist_.cachedRadioTracks(sourceId, count); });
+    playback_.setReachableCheck([this](QString sourceId) { return reachable(std::move(sourceId)); });
     // The sidebar marks each service that can't be reached.
     connect(&connectivity_, &Connectivity::stateChanged, this, [this](const QString& sourceId) {
         sources_.model().setSourceOffline(sourceId, connectivity_.isOffline(sourceId));
@@ -314,6 +319,13 @@ void Core::setUpOutbox()
                 trackStates_.setDisliked(item.sourceId, trackId, method == QStringLiteral("feedback.dislike"));
         }
     }
+}
+
+Rpc::Task<bool> Core::reachable(QString sourceId)
+{
+    if (!connectivity_.isOffline(sourceId))
+        co_return true;
+    co_return co_await connectivity_.checkSource(std::move(sourceId));
 }
 
 Rpc::Task<void> Core::reportPlay(QString sourceId, QString trackId, int playedMs, QDateTime startedAt)

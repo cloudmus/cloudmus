@@ -1,14 +1,17 @@
 #include "ActivePlaylist.h"
 
+#include <algorithm>
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLoggingCategory>
-#include <QTimer>
+#include <QRandomGenerator>
 #include <QSaveFile>
 #include <QSet>
+#include <QTimer>
 
 #include "CoverArtCache.h"
 #include "Messages.h"
@@ -410,10 +413,9 @@ Rpc::Task<void> ActivePlaylist::startRadio(
         playback_.startRadio(sourceId, result.stationId, initialTracks);
     } catch (const Rpc::RpcCallException& e) {
         qCWarning(lcActivePlaylist) << "starting radio failed for" << sourceId << ":" << e.what();
-        if (!e.isOffline() || !resumeTrack || !context_.sameAs(context) || tracks_.isEmpty())
+        // No network: what's on the disk plays; the station comes later.
+        if (!e.isOffline() || !playOfflineRadio(context))
             messages_.failure(QString(), e, /*quietOffline=*/true);
-        else
-            playSavedRadio(); // what's saved of it plays; the station comes later
     } catch (const std::exception& e) {
         qCWarning(lcActivePlaylist) << "starting radio failed for" << sourceId << ":" << e.what();
         messages_.failure(QString(), e);
@@ -430,9 +432,13 @@ void ActivePlaylist::play()
         const std::optional<Track> resumeTrack = !playback_.hasQueue() && !tracks_.isEmpty()
             ? std::optional<Track>(tracks_[resumeIndex()].track)
             : std::nullopt;
-        // The source can't start a station yet: what's saved of it plays.
+        // The source can't start a station yet: what's saved of it plays —
+        // or, with nothing saved and the source not merely starting, what's
+        // on the disk.
         if (resumeTrack && !sourceAnswers(context_.sourceId))
             playSavedRadio(resumeIndex());
+        else if (!resumeTrack && !sourceAnswers(context_.sourceId) && !sourceManager_.isStarting(context_.sourceId))
+            playOfflineRadio(context_);
         else
             startRadio(context_.sourceId, context_.playlist.id, context_, resumeTrack).detach();
     } else if (playback_.hasQueue())
@@ -631,6 +637,79 @@ bool ActivePlaylist::sourceAnswers(const QString& sourceId) const
 {
     const Rpc::RpcClient* client = sourceManager_.client(sourceId);
     return client != nullptr && client->available();
+}
+
+bool ActivePlaylist::playOfflineRadio(const PlaylistContext& context)
+{
+    // Its own saved tracks, if any of them can play.
+    if (context_.sameAs(context)) {
+        for (const Playback::QueueEntry& entry : tracks_) {
+            if (playback_.preloader().isCached(entry.sourceId, entry.track.id)) {
+                playSavedRadio();
+                return true;
+            }
+        }
+    }
+    const QList<Track> tracks = cachedRadioTracks(context.sourceId, Playback::PlaybackController::kOfflineRadioBatch);
+    if (tracks.isEmpty())
+        return false;
+    qCInfo(lcActivePlaylist) << "no station for" << context.playlist.id << ": playing downloaded tracks";
+    setContext(context);
+    // No station: it's attached once the source is up (attachStation()).
+    playback_.startRadio(context.sourceId, QString(), tracks, 0);
+    messages_.offline(tr("No network connection: playing downloaded tracks"));
+    return true;
+}
+
+QList<Track> ActivePlaylist::cachedRadioTracks(const QString& sourceId, int count) const
+{
+    // Not again what's queued to come, nor what's playing.
+    QSet<QString> queued;
+    const QVector<Playback::QueueEntry>& queue = playback_.queue();
+    for (int i = qMax(0, playback_.currentIndex()); i < queue.size(); ++i)
+        queued.insert(queue[i].track.id);
+    const auto usable = [&](const Track& track) {
+        if (queued.contains(track.id) || !playback_.preloader().isCached(sourceId, track.id))
+            return false;
+        const Library::TrackState state = trackStates_.state(sourceId, track.id);
+        return !state.disliked.value_or(false) && !state.unavailable;
+    };
+    // History newest first, then the radio's own tracks and the queue: the
+    // order of when each played, the latest first.
+    QList<Track> candidates;
+    QSet<QString> seen;
+    const auto consider = [&](const Track& track) {
+        if (!seen.contains(track.id) && usable(track))
+            candidates.append(track);
+        seen.insert(track.id);
+    };
+    for (const History::HistoryEntry& entry : history_.entries()) {
+        if (entry.sourceId == sourceId)
+            consider(entry.track);
+    }
+    for (const Playback::QueueEntry& entry : tracks_) {
+        if (entry.sourceId == sourceId)
+            consider(entry.track);
+    }
+    for (const Playback::QueueEntry& entry : queue) {
+        if (entry.sourceId == sourceId)
+            consider(entry.track);
+    }
+    // The ones played lately wait, as a station holds them back.
+    const QList<Track> recent = history_.recentTracks(sourceId, settings_.sourceRadioRepeatGap(sourceId));
+    QSet<QString> recentIds;
+    for (const Track& track : recent)
+        recentIds.insert(track.id);
+    QList<Track> fresh;
+    QList<Track> lately;
+    for (const Track& track : candidates)
+        (recentIds.contains(track.id) ? lately : fresh).append(track);
+    std::shuffle(fresh.begin(), fresh.end(), *QRandomGenerator::global());
+    QList<Track> picked = fresh.mid(0, count);
+    // Few enough downloaded to run out: the least lately played come again.
+    for (int i = int(lately.size()) - 1; i >= 0 && picked.size() < count; --i)
+        picked.append(lately[i]);
+    return picked;
 }
 
 void ActivePlaylist::playSavedRadio(int index)

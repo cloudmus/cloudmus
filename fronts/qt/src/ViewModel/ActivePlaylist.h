@@ -81,6 +81,11 @@ public:
     // Fetches the playlist's tracks, then activate()s it — from the saved ones
     // if its source can't answer.
     Rpc::Task<void> activateAndPlay(QString sourceId, Playlist playlist);
+    // Downloaded tracks of the source for a radio to go on with offline: from
+    // History, the radio's saved tracks and the queue; not disliked or
+    // unavailable, none queued after the current one; the ones played
+    // lately only when there's nothing else. Up to `count`, in random order.
+    QList<Track> cachedRadioTracks(const QString& sourceId, int count) const;
     // Starts a radio from `seed` and, once it runs, makes `context` active.
     Rpc::Task<void> startRadio(
         QString sourceId, QString seed, PlaylistContext context, std::optional<Track> resumeTrack = std::nullopt);
@@ -121,6 +126,10 @@ private:
     // The radio's saved tracks, from `index` (the saved resume point if -1),
     // with no station yet: it is attached when the source is up.
     void playSavedRadio(int index = -1);
+    // No station to be had: the radio plays what's on the disk — its own
+    // saved tracks if any are downloaded, else cachedRadioTracks(). False if
+    // there's nothing.
+    bool playOfflineRadio(const PlaylistContext& context);
     // The source is up and answering.
     bool sourceAnswers(const QString& sourceId) const;
     // A radio resumed without its station gets one, once its source is up.

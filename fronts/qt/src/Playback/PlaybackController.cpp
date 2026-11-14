@@ -66,6 +66,7 @@ PlaybackController::PlaybackController(Rpc::SourceManager& sourceManager, QObjec
         preparedStartPending_ = false;
         startRetries_ = 0;
         skipStreak_ = 0;
+        filledFromCache_ = false;
         reloadOnResume_ = false;
         playTimeoutTimer_->stop();
         emit loadingChanged(false);
@@ -306,7 +307,9 @@ bool PlaybackController::handleTrackError(const QString& sourceId, const QJsonOb
     playTimeoutTimer_->stop();
     latestRequestId_ = -1;
     startRetries_ = 0;
-    const int next = nextPlayableAfter(index, /*downloadedOnly=*/offline);
+    int next = nextPlayableAfter(index, /*downloadedOnly=*/offline);
+    if (next < 0 && offline)
+        next = fillRadioFromCache(index);
     if (next >= 0) {
         ++skipStreak_;
         qCDebug(lcPlayback) << "the track can't be played (" << reason << "), going on to" << next;
@@ -560,6 +563,31 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
         co_return;
     }
 
+    // Found offline before, with the system saying there is a network: asked
+    // again now rather than waiting on a play that won't come.
+    if (reachable_) {
+        const QString sourceId = queue_[index].sourceId;
+        const QPointer<PlaybackController> guard(this);
+        const int transition = transitionGeneration_;
+        startingIndex_ = index; // holds the queue still (see trimRadioQueue())
+        emit loadingChanged(true);
+        const bool reachable = co_await reachable_(sourceId);
+        if (!guard || transition != transitionGeneration_)
+            co_return;
+        startingIndex_ = -1;
+        if (!reachable) {
+            emit loadingChanged(false);
+            goOnOffline(index, sourceId);
+            co_return;
+        }
+        client = sourceManager_.client(sourceId);
+        if (client == nullptr || !client->available()) {
+            emit loadingChanged(false);
+            reportError(sourceId, QStringLiteral("unavailable"), QStringLiteral("Source is unavailable"));
+            co_return;
+        }
+    }
+
     // By value, not const&: queue_ is a QVector, and handleTracksAdded()
     // (driven by a radio/tracksAdded notification that can arrive at any
     // time — including while this coroutine is suspended at the co_await
@@ -630,7 +658,9 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
 void PlaybackController::goOnOffline(int index, const QString& sourceId)
 {
     emit offlineSeen(sourceId);
-    const int next = nextPlayableAfter(index, /*downloadedOnly=*/true);
+    int next = nextPlayableAfter(index, /*downloadedOnly=*/true);
+    if (next < 0)
+        next = fillRadioFromCache(index);
     if (next >= 0) {
         ++skipStreak_;
         qCDebug(lcPlayback) << "no network for track" << index << ", going on to" << next;
@@ -770,6 +800,15 @@ void PlaybackController::advance(int delta, bool wasSkip)
         playIndex(hasCurrentTrack() ? index_ : 0);
         return;
     }
+    // A radio that can't be told for more — no station yet, or none that
+    // can be reached — goes on with what's on the disk.
+    if (waveMode_ && (awaitsStation() || (feedbackHold_ && feedbackHold_(waveSourceId_)))) {
+        const int next = fillRadioFromCache(hasCurrentTrack() ? index_ : int(queue_.size()) - 1);
+        if (next >= 0) {
+            playIndex(next);
+            return;
+        }
+    }
     // A radio that never got its station: nothing will send more until the
     // source can be reached, and nothing of it is left on disk.
     if (awaitsStation()) {
@@ -790,6 +829,12 @@ void PlaybackController::advance(int delta, bool wasSkip)
                 return;
             awaitingRadioTracks_ = false;
             emit loadingChanged(false);
+            // Nothing came — the network may have gone quietly: the disk, then.
+            const int next = fillRadioFromCache(hasCurrentTrack() ? index_ : int(queue_.size()) - 1);
+            if (next >= 0) {
+                playIndex(next);
+                return;
+            }
             reportError(hasCurrentTrack() ? currentSourceId() : QString(), QStringLiteral("station_empty"),
                 QStringLiteral("The station sent no more tracks"));
         });
@@ -949,6 +994,28 @@ void PlaybackController::sendFeedbackFinishedOrSkip(bool wasSkip)
             })
             .detach();
     }
+}
+
+int PlaybackController::fillRadioFromCache(int from)
+{
+    if (!waveMode_ || !offlineRadio_ || filledFromCache_ || from < 0 || from >= queue_.size())
+        return -1;
+    const QList<Track> tracks = offlineRadio_(waveSourceId_, kOfflineRadioBatch);
+    if (tracks.isEmpty())
+        return -1;
+    filledFromCache_ = true;
+    qCInfo(lcPlayback) << "the radio goes on with" << tracks.size() << "downloaded tracks";
+    invalidatePrepared();
+    for (const Track& track : tracks)
+        queue_.append(QueueEntry { waveSourceId_, track });
+    // The trim drops from the front: `from` moves with it.
+    const int before = index_;
+    trimRadioQueue();
+    if (before >= 0 && index_ >= 0)
+        from -= before - index_;
+    emit queueChanged();
+    emit offlineNotice(tr("No network connection: playing downloaded tracks"));
+    return nextPlayableAfter(from, /*downloadedOnly=*/true);
 }
 
 void PlaybackController::deferFeedback(const QString& sourceId, const QString& method, QJsonObject params, int playedMs)

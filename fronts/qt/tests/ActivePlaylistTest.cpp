@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -485,6 +487,94 @@ private slots:
         QCOMPARE(playback_->queue().last().track.id, QStringLiteral("fresh"));
     }
 
+    // A radio with no station to be had goes on past its last downloaded
+    // track with others on the disk, from History: not disliked ones, and
+    // not one already queued.
+    void aRadioWithNoStationGoesOnWithDownloadedTracks()
+    {
+        for (const char* id : { "pool-1", "pool-2", "pool-3", "pool-disliked", "pool-start" })
+            seedCached(QString::fromLatin1(id));
+        start(false);
+        wireOfflineRadio();
+        for (const char* id : { "pool-1", "pool-2", "pool-3", "pool-disliked", "not-downloaded" })
+            history_.record(QStringLiteral("fake"), track(QString::fromLatin1(id)));
+        trackStates_.setDisliked(QStringLiteral("fake"), QStringLiteral("pool-disliked"), true);
+        Playlist station = playlist(QStringLiteral("wave"));
+        station.kind = QStringLiteral("radioStation");
+        active_->setContext({ QStringLiteral("fake"), station });
+        playback_->startRadio(QStringLiteral("fake"), QString(), { track(QStringLiteral("pool-start")) });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QVERIFY(playback_->awaitsStation());
+
+        const QStringList pool { QStringLiteral("pool-1"), QStringLiteral("pool-2"), QStringLiteral("pool-3") };
+        QStringList played;
+        for (int i = 0; i < 3; ++i) {
+            playback_->next();
+            QTRY_VERIFY(playback_->hasCurrentTrack() && playback_->currentTrack().id != QStringLiteral("pool-start")
+                && !played.contains(playback_->currentTrack().id));
+            played.append(playback_->currentTrack().id);
+        }
+        std::sort(played.begin(), played.end());
+        QCOMPARE(played, pool);
+        for (const Playback::QueueEntry& entry : playback_->queue()) {
+            QVERIFY(entry.track.id != QStringLiteral("pool-disliked"));
+            QVERIFY(entry.track.id != QStringLiteral("not-downloaded"));
+        }
+        trackStates_.setDisliked(QStringLiteral("fake"), QStringLiteral("pool-disliked"), false);
+    }
+
+    // A running station whose service is gone: its queue's end goes on
+    // with what's on the disk at once, not after waiting for the station.
+    void aStationGoneOfflineGoesOnFromTheDiskAtOnce()
+    {
+        seedCached(QStringLiteral("gone-1"));
+        seedCached(QStringLiteral("gone-start"));
+        start(false);
+        wireOfflineRadio();
+        playback_->setFeedbackHold([](const QString&) { return true; }); // the service is offline
+        history_.record(QStringLiteral("fake"), track(QStringLiteral("gone-1")));
+        playback_->startRadio(
+            QStringLiteral("fake"), QStringLiteral("station"), { track(QStringLiteral("gone-start")) });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QSignalSpy errors(playback_.get(), &Playback::PlaybackController::failed);
+        playback_->next();
+        QTRY_COMPARE_WITH_TIMEOUT(playback_->currentTrack().id, QStringLiteral("gone-1"), 3000);
+        QVERIFY(!playback_->awaitsStation());
+        QCOMPARE(errors.size(), 0);
+    }
+
+    // Started with no network and nothing saved of it: what's on the disk
+    // plays, and the station attaches once the network is back.
+    void aRadioStartedWithNoNetworkPlaysDownloadedTracks()
+    {
+        const QString down = temp_->filePath(QStringLiteral("network-down"));
+        qputenv("CLOUDMUS_FAKE_OFFLINE_FILE", down.toUtf8());
+        QFile(down).open(QIODevice::WriteOnly);
+        seedCached(QStringLiteral("offline-1"));
+        start(false);
+        wireOfflineRadio();
+        history_.record(QStringLiteral("fake"), track(QStringLiteral("offline-1")));
+        QSignalSpy ready(sourceManager_.get(), &Rpc::SourceManager::sourceReady);
+        sourceManager_->startAll();
+        QVERIFY(ready.wait(10000));
+        Playlist station = playlist(QStringLiteral("wave"));
+        station.kind = QStringLiteral("radioStation");
+        await(active_->startRadio(QStringLiteral("fake"), station.id, { QStringLiteral("fake"), station }));
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("offline-1"));
+        QVERIFY(playback_->isRadio());
+        QVERIFY(playback_->awaitsStation());
+        QCOMPARE(active_->context().playlist.id, QStringLiteral("wave"));
+
+        QFile::remove(down);
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sources_->refresh(QStringLiteral("fake"));
+        QVERIFY(loaded.wait(10000));
+        QTRY_VERIFY(!playback_->awaitsStation());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("offline-1"));
+        qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
+    }
+
     // A station is told what played lately from its source — as far back
     // as that source's setting says — to keep it from playing that again.
     void aRadioIsStartedWithTheTracksPlayedLately()
@@ -605,6 +695,22 @@ private:
     }
 
     QString cacheDir() const { return temp_->filePath(QStringLiteral("tracks")); }
+
+    // As App::Core does: a radio with no network goes on from the disk.
+    void wireOfflineRadio()
+    {
+        playback_->setOfflineRadioProvider(
+            [this](const QString& sourceId, int count) { return active_->cachedRadioTracks(sourceId, count); });
+    }
+
+    static Track track(const QString& id)
+    {
+        Track t;
+        t.id = id;
+        t.title = id;
+        t.durationMs = 180000;
+        return t;
+    }
 
     static Playlist playlist(const QString& id)
     {
