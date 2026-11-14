@@ -24,6 +24,7 @@ QStandardItem* SidebarModel::findOrCreateSourceRoot(const QString& sourceId, con
     item->setData(static_cast<int>(Kind::SourceHeader), KindRole);
     item->setData(sourceId, SourceIdRole);
     item->setData(sourceIconPaths_.value(sourceId), SourceIconPathRole);
+    item->setData(offlineSources_.contains(sourceId), IsOfflineRole);
     // Selectable by default (unlike PlaylistsHeader below) — every source
     // opens a SourcePanel when clicked, not just ones with an auth problem.
     // Text weight/color is NavItemDelegate's job now (see MainWindow), not
@@ -199,6 +200,17 @@ void SidebarModel::setSourceIconPath(const QString& sourceId, const QString& ico
         if (item->data(SourceIdRole).toString() == sourceId)
             item->setData(iconPath, SourceIconPathRole);
     }
+}
+
+void SidebarModel::setSourceOffline(const QString& sourceId, bool offline)
+{
+    if (offline)
+        offlineSources_.insert(sourceId);
+    else
+        offlineSources_.remove(sourceId);
+    const QModelIndex index = indexForSource(sourceId);
+    if (index.isValid())
+        itemFromIndex(index)->setData(offline, IsOfflineRole);
 }
 
 QList<Playlist> SidebarModel::playlistsFor(const QString& sourceId) const { return playlists_.value(sourceId); }

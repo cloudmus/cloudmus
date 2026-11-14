@@ -18,6 +18,11 @@ class MainScreen : public QObject {
     Q_OBJECT
     // No network: said here, for all to see, not as an error each time.
     Q_PROPERTY(bool offline READ offline NOTIFY offlineChanged)
+    // What the offline badge says (ViewModel::ConnectionStatus): its line,
+    // whether it's only the device's network, and a check under way.
+    Q_PROPERTY(QString connectionText READ connectionText NOTIFY offlineChanged)
+    Q_PROPERTY(bool noNetwork READ noNetwork NOTIFY offlineChanged)
+    Q_PROPERTY(bool checkingConnection READ checkingConnection NOTIFY checkingConnectionChanged)
     // Too little room on the disk, and what that stopped; empty otherwise.
     Q_PROPERTY(QString spaceWarning READ spaceWarning NOTIFY spaceWarningChanged)
     // How far each track downloaded ahead has got, 0 to 1, in play order.
@@ -38,6 +43,9 @@ public:
     TrackFilterModel& rows() { return filter_; }
 
     bool offline() const;
+    QString connectionText() const;
+    bool noNetwork() const;
+    bool checkingConnection() const;
     QString spaceWarning() const;
     QVariantList preloadFractions() const;
     bool canGoNext() const { return next_.exists || radioGoesOn(); }
@@ -51,11 +59,17 @@ public slots:
     void setFilter(const QString& text);
     // `row`: of the filtered rows.
     void playRow(int row);
+    // The badge tapped: every service checked now, and what's known told.
+    void checkConnection();
+    // The app came to the foreground or left it (the UI process says so: the
+    // core may run in a service of its own).
+    void setViewShown(bool shown);
 
 signals:
     // What the app has to tell the user (ViewModel::Messages), in plain types.
     void message(int kind, const QString& text, const QString& details);
     void offlineChanged();
+    void checkingConnectionChanged();
     void spaceWarningChanged();
     void preloadFractionsChanged();
     // Playback went on to another track, in this row of the filtered ones (-1:

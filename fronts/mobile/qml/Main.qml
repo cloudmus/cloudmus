@@ -334,6 +334,20 @@ ApplicationWindow {
         // ViewModel::Messages::Kind: 2 is Error.
         function onMessage(kind, text, details) { appToast.show(text, kind === 2, details) }
     }
+    // The services are checked every 30 seconds — only while the app is seen,
+    // or plays (ViewModel::ConnectionStatus): the core may be in a service
+    // of its own that can't tell.
+    readonly property bool appShown: Qt.application.state === Qt.ApplicationActive
+    function tellViewShown() {
+        if (window.backend.mainScreen !== null)
+            window.backend.mainScreen.setViewShown(window.appShown)
+    }
+    onAppShownChanged: tellViewShown()
+    Connections {
+        target: window.backend
+        ignoreUnknownSignals: true
+        function onReadyChanged() { window.tellViewShown() }
+    }
     // A playlist started from the Library: on to the main screen.
     Connections {
         target: window.backend.library

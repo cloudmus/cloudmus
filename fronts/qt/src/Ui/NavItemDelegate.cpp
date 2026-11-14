@@ -99,6 +99,8 @@ void NavItemDelegate::paint(QPainter* painter, const QStyleOptionViewItem& optio
         if (index.data(ViewModel::SidebarModel::HasAuthProblemRole).toBool()
             || index.data(ViewModel::SidebarModel::HasFetchErrorRole).toBool())
             statusIcon = Theme::icon(QStringLiteral("warning"), Theme::IconColor::Accent, kIconSide);
+        else if (index.data(ViewModel::SidebarModel::IsOfflineRole).toBool())
+            statusIcon = Theme::icon(QStringLiteral("cloud_off"), Theme::IconColor::InkSecondary, kIconSide);
         else if (index.data(ViewModel::SidebarModel::IsLoadingRole).toBool())
             statusIcon = Theme::icon(QStringLiteral("refresh"), Theme::IconColor::InkSecondary, kIconSide);
         if (!statusIcon.isNull()) {

@@ -35,6 +35,7 @@
 #include <optional>
 
 #include "AboutDialog.h"
+#include "ConnectionStatus.h"
 #include "CoverArtCache.h"
 #include "Debounce.h"
 #include "DownloadPaths.h"
@@ -201,6 +202,7 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     menu->addSeparator();
     menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
     menuButton->setMenu(menu);
+    nowPlayingBar_->setTrailingWidget(makeConnectionButton(core.connectionStatus()));
     nowPlayingBar_->setTrailingWidget(menuButton);
     addToolBar(Qt::BottomToolBarArea, toolbar);
 
@@ -475,6 +477,37 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     bindNowPlaying();
     bindActivePlaylist();
     bindBrowse();
+}
+
+QWidget* MainWindow::makeConnectionButton(ViewModel::ConnectionStatus& status)
+{
+    // Only while not all is online: no network, or a service that can't be
+    // reached. A click checks every service now; the tooltip says which and
+    // since when, and what waits to be sent.
+    auto* button = new QToolButton(nowPlayingBar_);
+    button->setObjectName(QStringLiteral("connectionButton"));
+    button->setProperty("variant", "icon");
+    // Square like the transport buttons beside it (see the menu button).
+    button->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
+    button->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
+    const auto refresh = [button, &status]() {
+        button->setVisible(status.visible());
+        // At rest like the transport buttons beside it: a state, not an alarm.
+        button->setIcon(Theme::icon(status.checking() ? QStringLiteral("refresh") : QStringLiteral("cloud_off"),
+            Theme::IconColor::InkSecondary, Theme::Metrics::iconGlyphSize));
+        QStringList tip { status.text(), status.details() };
+        if (status.state() != ViewModel::ConnectionStatus::NoNetwork)
+            tip.append(tr("Click to check now"));
+        tip.removeAll(QString());
+        button->setToolTip(tip.join(QLatin1Char('\n')));
+        button->setAccessibleName(status.text());
+    };
+    Theme::followTheme(button, refresh);
+    connect(&status, &ViewModel::ConnectionStatus::changed, button, refresh);
+    connect(&status, &ViewModel::ConnectionStatus::checkingChanged, button, refresh);
+    connect(button, &QToolButton::clicked, &status, &ViewModel::ConnectionStatus::checkNow);
+    refresh();
+    return button;
 }
 
 void MainWindow::bindNowPlaying()

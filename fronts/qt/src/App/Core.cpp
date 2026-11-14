@@ -1,11 +1,13 @@
 #include "Core.h"
 
 #include <QFileInfo>
+#include <QPointer>
 #include <QStandardPaths>
 #include <QTimer>
 
 #include "Preloader.h"
 #include "ProxyRouting.h"
+#include "RpcMethods.h"
 
 namespace App {
 
@@ -28,6 +30,7 @@ Core::Core(QObject* parent)
     , trackActions_(sourceManager_, playback_, activePlaylist_, downloads_, playlistEditing_)
     , sourcePage_(sourceSession_)
     , listeningTime_(playback_, analytics_)
+    , connectionStatus_(connectivity_, sourceManager_, playback_)
 {
     // The language first: whatever is created or spawned below already
     // speaks it.
@@ -93,8 +96,9 @@ Core::Core(QObject* parent)
     // The network: what says it's gone, what says it's there, and going over
     // the sources again until it is. A listing that works gets the rest going
     // (ActivePlaylist: what's still to load, the station, the preloads).
-    connect(&playback_, &Playback::PlaybackController::offlineSeen, &connectivity_, &Connectivity::reportOffline);
-    connect(&playback_.preloader(), &Playback::Preloader::offlineSeen, &connectivity_, &Connectivity::reportOffline);
+    const auto reportOffline = [this](const QString& sourceId) { connectivity_.reportOffline(sourceId); };
+    connect(&playback_, &Playback::PlaybackController::offlineSeen, &connectivity_, reportOffline);
+    connect(&playback_.preloader(), &Playback::Preloader::offlineSeen, &connectivity_, reportOffline);
     connect(&playback_.preloader(), &Playback::Preloader::failed, &connectivity_,
         [this](const QString& sourceId, const QString&) { connectivity_.suspect(sourceId); });
     connect(&sources_, &ViewModel::Sources::listingFailedWith, &connectivity_,
@@ -111,6 +115,30 @@ Core::Core(QObject* parent)
             connectivity_.reportReached(sourceId);
     });
     connect(&connectivity_, &Connectivity::retryWanted, &sources_, &ViewModel::Sources::refresh);
+    connect(&sourceSession_, &SourceSession::connectionChanged, &connectivity_,
+        [this](const QString& sourceId, bool online, const QString& detail) {
+            if (online)
+                connectivity_.reportReached(sourceId);
+            else
+                connectivity_.reportOffline(sourceId, detail);
+        });
+    connectivity_.setChecker([this](QString sourceId) { return checkConnection(std::move(sourceId)); });
+    connectivity_.setSourcesProvider([this]() {
+        QStringList ids;
+        for (const Rpc::RpcClient* client : sourceManager_.clients()) {
+            if (client->usesNetwork())
+                ids.append(client->sourceId());
+        }
+        return ids;
+    });
+    // Back: what failed for lack of it is asked for again — the playlists,
+    // and with them (ActivePlaylist) the tracks, a radio's station, the
+    // preloads.
+    connect(&connectivity_, &Connectivity::sourceOnline, &sources_, &ViewModel::Sources::refresh);
+    // The sidebar marks each service that can't be reached.
+    connect(&connectivity_, &Connectivity::stateChanged, this, [this](const QString& sourceId) {
+        sources_.model().setSourceOffline(sourceId, connectivity_.isOffline(sourceId));
+    });
     connect(&playback_, &Playback::PlaybackController::trackUnavailable, &trackStates_,
         &Library::TrackStates::setUnavailable);
 
@@ -187,6 +215,25 @@ Net::Connection Core::connectionOf(const QString& sourceId) const
     if (client != nullptr && client->available() && !client->usesNetwork())
         return { };
     return Net::connectionFor(settings_, sourceId);
+}
+
+Rpc::Task<std::optional<Connectivity::CheckResult>> Core::checkConnection(QString sourceId)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available()
+        || !client->capabilities().value(QStringLiteral("connectionCheck")).toBool())
+        co_return std::nullopt;
+    const QPointer<Rpc::RpcClient> guard(client);
+    try {
+        const ConnectionState state = co_await Rpc::connectionCheck(*client);
+        co_return Connectivity::CheckResult { state.state == QStringLiteral("online"),
+            state.detail.value_or(QString()) };
+    } catch (const Rpc::RpcCallException& e) {
+        // No answer in time is a source too busy to say, not the service gone.
+        if (e.isOffline())
+            co_return Connectivity::CheckResult { false, e.error().message };
+        co_return std::nullopt;
+    }
 }
 
 } // namespace App

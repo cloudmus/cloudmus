@@ -50,6 +50,9 @@ void SourceSession::wire(Rpc::RpcClient* client)
             data.value(QStringLiteral("reason")).toString() == QStringLiteral("offline"),
             /*quietOffline=*/true);
     };
+    client->notifications.onConnectionChanged = [this, client](const ConnectionChangedParams& p) {
+        emit connectionChanged(client->sourceId(), p.state == QStringLiteral("online"), p.detail.value_or(QString()));
+    };
     client->notifications.onDownloadProgress
         = [this, client](const DownloadProgressParams& p) { emit downloadProgress(client->sourceId(), p); };
     // Into authStates_, whose changed() repaints every view of it.

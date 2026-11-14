@@ -11,6 +11,9 @@ DesktopCore::DesktopCore(QObject* parent)
     , updates_(settings())
     , starPrompt_(settings(), analytics())
 {
+    // The offline indicator beside the menu button says it, not a toast for
+    // each thing that fails for lack of a network.
+    messages().setOfflineShownElsewhere(true);
     connect(&hotkeyDispatcher_, &Hotkeys::Dispatcher::cueRequested, &cuePlayer_, &Playback::CuePlayer::play);
     connect(&playback(), &Playback::PlaybackController::trackChanged, &starPrompt_,
         [this](const Track&, const QString&) { starPrompt_.recordUsage(); });

@@ -20,7 +20,8 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
         [this](Messages::Kind kind, const QString& text, const QString& details) {
             emit message(int(kind), text, details);
         });
-    connect(&core.connectivity(), &App::Connectivity::offlineChanged, this, &MainScreen::offlineChanged);
+    connect(&core.connectionStatus(), &ConnectionStatus::changed, this, &MainScreen::offlineChanged);
+    connect(&core.connectionStatus(), &ConnectionStatus::checkingChanged, this, &MainScreen::checkingConnectionChanged);
     connect(&core.preload(), &Preload::spaceWarningChanged, this, &MainScreen::spaceWarningChanged);
     connect(&core.preload(), &Preload::progressChanged, this, &MainScreen::preloadFractionsChanged);
     connect(&core.playback(), &Playback::PlaybackController::trackChanged, this, [this]() {
@@ -35,7 +36,22 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
     connect(&core.coverArtCache(), &Covers::CoverArtCache::pixmapReady, this, refresh);
 }
 
-bool MainScreen::offline() const { return core_.connectivity().offline(); }
+bool MainScreen::offline() const { return core_.connectionStatus().visible(); }
+
+QString MainScreen::connectionText() const { return core_.connectionStatus().text(); }
+
+bool MainScreen::noNetwork() const { return core_.connectionStatus().state() == ConnectionStatus::NoNetwork; }
+
+bool MainScreen::checkingConnection() const { return core_.connectionStatus().checking(); }
+
+void MainScreen::checkConnection()
+{
+    ConnectionStatus& status = core_.connectionStatus();
+    status.checkNow();
+    emit message(int(Messages::Kind::Info), status.text(), status.details());
+}
+
+void MainScreen::setViewShown(bool shown) { core_.connectionStatus().setViewShown(shown); }
 
 QString MainScreen::spaceWarning() const { return core_.preload().spaceWarning(); }
 

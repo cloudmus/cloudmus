@@ -42,6 +42,7 @@ class CoverArtCache;
 }
 
 namespace ViewModel {
+class ConnectionStatus;
 class SidebarModel;
 }
 
@@ -103,6 +104,8 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    // The offline indicator beside the menu button.
+    QWidget* makeConnectionButton(ViewModel::ConnectionStatus& status);
     // Hooks the toolbar, the hero panel and the playing-row highlight up
     // to nowPlaying_, and shows its current state right away.
     void bindNowPlaying();

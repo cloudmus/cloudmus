@@ -62,6 +62,9 @@ signals:
     void signedIn(Rpc::RpcClient* client);
     // How far one of its named downloads has got (docs/protocol.md §7.5).
     void downloadProgress(const QString& sourceId, const DownloadProgressParams& params);
+    // The source noticed its service go away or come back (connection/changed,
+    // docs/protocol.md §7.9).
+    void connectionChanged(const QString& sourceId, bool online, const QString& detail);
 
 private:
     void wire(Rpc::RpcClient* client);

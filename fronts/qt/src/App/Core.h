@@ -9,6 +9,7 @@
 #include "AudioFileProbe.h"
 #include "AudioPulse.h"
 #include "AuthStates.h"
+#include "ConnectionStatus.h"
 #include "CoverArtCache.h"
 #include "Downloads.h"
 #include "ListeningTime.h"
@@ -67,11 +68,15 @@ public:
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
     ListeningTime& listeningTime() { return listeningTime_; }
     Connectivity& connectivity() { return connectivity_; }
+    ViewModel::ConnectionStatus& connectionStatus() { return connectionStatus_; }
 
 private:
     // How a source reaches the network: its setting, except for a source
     // that doesn't use the network at all (whatever an older setting says).
     Net::Connection connectionOf(const QString& sourceId) const;
+    // connection.check for Connectivity: nullopt when the source can't be
+    // asked that way.
+    Rpc::Task<std::optional<Connectivity::CheckResult>> checkConnection(QString sourceId);
 
     // Declaration order is construction order: playback_ needs
     // sourceManager_.
@@ -102,6 +107,7 @@ private:
     ViewModel::SourcePage sourcePage_;
     ListeningTime listeningTime_;
     Connectivity connectivity_;
+    ViewModel::ConnectionStatus connectionStatus_;
 };
 
 } // namespace App

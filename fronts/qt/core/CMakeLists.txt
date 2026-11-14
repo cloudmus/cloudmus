@@ -121,6 +121,7 @@ add_library(cloudmus-core STATIC
 
 
     ${CLOUDMUS_QT_DIR}/src/ViewModel/AudioPulse.cpp
+    ${CLOUDMUS_QT_DIR}/src/ViewModel/ConnectionStatus.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Messages.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/NowPlaying.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/SidebarModel.cpp
