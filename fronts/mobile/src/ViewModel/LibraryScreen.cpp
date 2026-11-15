@@ -85,6 +85,8 @@ QString LibraryScreen::authError() const { return authStates_.state(currentSourc
 
 bool LibraryScreen::canSignOut() const { return sourcePage_.canSignOut(currentSourceId_); }
 
+QStringList LibraryScreen::capabilities() const { return sourcePage_.capabilityIds(currentSourceId_); }
+
 void LibraryScreen::selectSource(const QString& sourceId)
 {
     // Picked: its turn to run, if it was left unstarted. It may be the one
@@ -234,6 +236,7 @@ void LibraryScreen::rebuild()
     emit authCodeChanged();
     emit authErrorChanged();
     emit canSignOutChanged();
+    emit capabilitiesChanged();
 }
 
 } // namespace ViewModel

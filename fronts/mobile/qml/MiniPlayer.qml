@@ -67,7 +67,17 @@ Rectangle {
         }
     }
 
-    TapHandler { onTapped: mini.openRequested() }
+    TapHandler {
+        id: tap
+        onTapped: mini.openRequested()
+    }
+    Ripple {
+        objectName: "miniRipple"
+        pressed: tap.pressed
+        pressX: tap.point.pressPosition.x
+        pressY: tap.point.pressPosition.y
+        color: "#FFFFFF"
+    }
     // As the finger lifts the handler zeroes its translation first, then says it's
     // over: that zero isn't a move, and the speed is the last one a move had.
     DragHandler {

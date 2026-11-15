@@ -50,6 +50,16 @@ fronts/mobile/build/cloudmus-mobile --split    # core in its own process, as on 
 ctest --test-dir fronts/mobile/build           # CLOUDMUS_MOBILE_SHOTS=<dir> saves screenshots
 ```
 
+Offscreen the tests draw in software, where shaders and effects show nothing
+(the touch ripple falls back to a flat highlight). To see them in the
+screenshots, run under Xvfb with OpenGL:
+
+```bash
+Xvfb :97 -screen 0 1280x1024x24 -nolisten tcp &
+DISPLAY=:97 QT_QPA_PLATFORM=xcb QSG_RHI_BACKEND=opengl CLOUDMUS_MOBILE_SHOTS=/tmp/shots \
+    fronts/mobile/build/tests/cloudmus-mobile-tests
+```
+
 It shares the settings, sign-ins and history of an installed desktop CloudMus;
 set `XDG_CONFIG_HOME` and `XDG_CACHE_HOME` to keep them apart.
 
@@ -62,10 +72,13 @@ Android 9. Setup:
 
 ```bash
 pip install aqtinstall
-aqt install-qt linux desktop 6.7.3 linux_gcc_64 -O ~/Qt -m qtremoteobjects
-aqt install-qt linux android 6.7.3 android_arm64_v8a -O ~/Qt -m qtremoteobjects
-aqt install-qt linux android 6.7.3 android_x86_64 -O ~/Qt -m qtremoteobjects  # the emulator
+aqt install-qt linux desktop 6.7.3 linux_gcc_64 -O ~/Qt -m qtremoteobjects qtshadertools
+aqt install-qt linux android 6.7.3 android_arm64_v8a -O ~/Qt -m qtremoteobjects qtshadertools
+aqt install-qt linux android 6.7.3 android_x86_64 -O ~/Qt -m qtremoteobjects qtshadertools  # the emulator
 ```
+
+Qt Shader Tools builds the views' own shaders (`fronts/mobile/shaders/`, such
+as the touch ripple) to `.qsb`, for the desktop kit and Android alike.
 
 Plus an Android SDK with `platforms/android-34` and `build-tools/35.0.0`,
 NDK r26b (`ndk/26.1.10909125`) and JDK 17 (`CLOUDMUS_JAVA17_HOME`).

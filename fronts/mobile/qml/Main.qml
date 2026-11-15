@@ -195,6 +195,10 @@ ApplicationWindow {
             objectName: "library"
             onCloseRequested: stack.close()
             onSettingsRequested: stack.open(settingsPage)
+            onSourceSettingsRequested: {
+                window.backend.sourceSettings.open(window.backend.library.currentSourceId)
+                stack.open(sourceSettingsPage)
+            }
             onPlaylistRequested: stack.open(playlistPage)
             onDownloadsRequested: stack.open(downloadsPage)
         }

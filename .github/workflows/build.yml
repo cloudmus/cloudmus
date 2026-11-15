@@ -171,7 +171,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/Qt/6.7.3
-          key: android-qt-6.7.3
+          # The modules are in the key: a kit cached without one isn't reused.
+          key: android-qt-6.7.3-remoteobjects-shadertools
 
       - name: Restore Gradle's downloads
         uses: actions/cache@v6
@@ -190,8 +191,8 @@ jobs:
           python -m venv .venv
           .venv/bin/pip install --quiet aqtinstall jinja2 pyyaml
           if [ ! -d "$HOME/Qt/6.7.3/android_arm64_v8a" ]; then
-              .venv/bin/aqt install-qt linux desktop 6.7.3 linux_gcc_64 -O "$HOME/Qt" -m qtremoteobjects
-              .venv/bin/aqt install-qt linux android 6.7.3 android_arm64_v8a -O "$HOME/Qt" -m qtremoteobjects
+              .venv/bin/aqt install-qt linux desktop 6.7.3 linux_gcc_64 -O "$HOME/Qt" -m qtremoteobjects qtshadertools
+              .venv/bin/aqt install-qt linux android 6.7.3 android_arm64_v8a -O "$HOME/Qt" -m qtremoteobjects qtshadertools
           fi
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
               "platforms;android-34" "build-tools;35.0.0" "ndk;26.1.10909125" > /dev/null

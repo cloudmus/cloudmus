@@ -45,8 +45,14 @@ ItemDelegate {
     height: Theme.rowHeight + Theme.dp(8)
 
     background: Rectangle {
-        color: row.down ? Theme.surface300 : (row.current ? Theme.surface200 : "transparent")
+        color: row.down && ripple.flat ? Theme.surface300 : (row.current ? Theme.surface200 : "transparent")
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
+        Ripple {
+            id: ripple
+            pressed: row.pressed
+            pressX: row.pressX
+            pressY: row.pressY
+        }
         Rectangle {
             visible: row.current
             width: Theme.dp(3)

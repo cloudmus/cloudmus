@@ -20,6 +20,53 @@
     </message>
   </context>
   <context>
+    <name>CapabilityTags</name>
+    <message>
+      <source>Playlists</source>
+      <translation>Плейлисты</translation>
+    </message>
+    <message>
+      <source>Liked tracks</source>
+      <translation>Понравившиеся треки</translation>
+    </message>
+    <message>
+      <source>Search</source>
+      <translation>Поиск</translation>
+    </message>
+    <message>
+      <source>Playlist editing</source>
+      <translation>Редактирование плейлистов</translation>
+    </message>
+    <message>
+      <source>Likes</source>
+      <translation>Лайки</translation>
+    </message>
+    <message>
+      <source>Dislikes</source>
+      <translation>Дизлайки</translation>
+    </message>
+    <message>
+      <source>Streaming</source>
+      <translation>Потоковое воспроизведение</translation>
+    </message>
+    <message>
+      <source>Seeking</source>
+      <translation>Перемотка</translation>
+    </message>
+    <message>
+      <source>Downloads</source>
+      <translation>Загрузки</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Настройки</translation>
+    </message>
+        <message>
+      <source>Radio</source>
+      <translation>Радио</translation>
+    </message>
+  </context>
+  <context>
     <name>DeveloperPage</name>
     <message>
       <source>Developer tools</source>
@@ -246,6 +293,18 @@
     <message>
       <source>Sign out</source>
       <translation>Выйти</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Настройки</translation>
+    </message>
+      <message>
+      <source>Capabilities</source>
+      <translation>Возможности</translation>
+    </message>
+      <message>
+      <source>Refresh</source>
+      <translation>Обновить</translation>
     </message>
   </context>
   <context>
@@ -642,6 +701,10 @@
     <message>
       <source>Couldn't load the settings: %1</source>
       <translation>Не удалось загрузить настройки: %1</translation>
+    </message>
+      <message>
+      <source>Capabilities</source>
+      <translation>Возможности</translation>
     </message>
   </context>
   <context>

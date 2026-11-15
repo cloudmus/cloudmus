@@ -14,6 +14,7 @@ Page {
     property QtObject platform
     signal closeRequested()
     signal settingsRequested()
+    signal sourceSettingsRequested()
     signal playlistRequested()
     signal downloadsRequested()
 
@@ -69,7 +70,13 @@ Page {
                         onClicked: page.library.selectSource(sourceRow.sourceId)
                         background: Rectangle {
                             color: sourceRow.isCurrent === true ? Theme.surface300
-                                 : sourceRow.down ? Theme.surface200 : "transparent"
+                                 : sourceRow.down && sourceRipple.flat ? Theme.surface200 : "transparent"
+                            Ripple {
+                                id: sourceRipple
+                                pressed: sourceRow.pressed
+                                pressX: sourceRow.pressX
+                                pressY: sourceRow.pressY
+                            }
                             Rectangle {
                                 visible: sourceRow.isCurrent === true
                                 width: Theme.dp(3)
@@ -179,11 +186,20 @@ Page {
                     Layout.fillWidth: true
                     spacing: Theme.dp(10)
                     SourceLogo {
+                        id: currentLogo
                         objectName: "currentSourceLogo"
                         visible: logo !== ""
                         implicitWidth: Theme.dp(36)
                         implicitHeight: Theme.dp(36)
                         logo: page.library && page.library.currentSourceLogo ? page.library.currentSourceLogo : ""
+                        // Loading its playlists: round the logo, as round Play.
+                        Spinner {
+                            objectName: "sourceSpinner"
+                            anchors.fill: parent
+                            anchors.margins: -Theme.dp(4)
+                            lineWidth: Theme.dp(2.5)
+                            running: page.library && page.library.loading === true
+                        }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -198,12 +214,35 @@ Page {
                         backend: page.backend
                         iconOnly: !page.wide
                     }
-                    Spinner {
-                        running: page.library && page.library.loading === true
-                    }
                     IconButton {
-                        iconName: "refresh"
-                        onClicked: page.library.refresh()
+                        id: moreButton
+                        objectName: "sourceMenuButton"
+                        iconName: "more_vert"
+                        onClicked: sourceMenu.open()
+                        DropMenu {
+                            id: sourceMenu
+                            objectName: "sourceMenu"
+                            DropMenuItem {
+                                objectName: "refreshEntry"
+                                iconName: "refresh"
+                                text: qsTr("Refresh")
+                                onTriggered: page.library.refresh()
+                            }
+                            DropMenuItem {
+                                objectName: "sourceSettingsEntry"
+                                iconName: "tune"
+                                text: qsTr("Settings")
+                                onTriggered: page.sourceSettingsRequested()
+                            }
+                            DropMenuItem {
+                                id: signOut
+                                objectName: "signOut"
+                                iconName: "logout"
+                                available: page.library && page.library.canSignOut === true
+                                text: qsTr("Sign out")
+                                onTriggered: page.library.signOut()
+                            }
+                        }
                     }
                 }
 
@@ -228,6 +267,17 @@ Page {
                             BodyText {
                                 text: qsTr("Sign in to see the playlists")
                                 font.weight: Font.DemiBold
+                            }
+                            // Not signed in yet: what there'll be to use.
+                            SectionHeading {
+                                visible: capabilityTags.count > 0
+                                text: qsTr("Capabilities")
+                            }
+                            CapabilityTags {
+                                id: capabilityTags
+                                objectName: "capabilities"
+                                Layout.fillWidth: true
+                                model: page.library ? page.library.capabilities : []
                             }
                             BodyText {
                                 visible: text !== ""
@@ -343,7 +393,17 @@ Page {
                                 source: tile.coverUrl || ""
                                 seed: tile.title || ""
                                 outlined: tile.isActive === true
-                                opacity: tile.down ? 0.7 : 1
+                                opacity: tile.down && tileRipple.flat ? 0.7 : 1
+                                Ripple {
+                                    id: tileRipple
+                                    // The tile's press, where it is on the cover.
+                                    readonly property point _at: parent.mapFromItem(tile, tile.pressX, tile.pressY)
+                                    pressed: tile.pressed
+                                    pressX: _at.x
+                                    pressY: _at.y
+                                    radius: parent.radius
+                                    color: "#FFFFFF"
+                                }
                                 Spinner {
                                     anchors.centerIn: parent
                                     running: tile.isStarting === true
@@ -386,8 +446,22 @@ Page {
                         required property var isStarting
                         width: ListView.view.width
                         height: Theme.rowHeight
+                        // The style's vertical padding plus the star's height is more than the
+                        // row: the content overflowed downwards, off the highlight's middle.
+                        topPadding: 0
+                        bottomPadding: 0
                         onClicked: page.openPlaylist(other.playlistId)
-                        background: Rectangle { color: other.down ? Theme.surface200 : "transparent" }
+                        background: Rectangle {
+                            radius: Theme.radius
+                            color: other.down && otherRipple.flat ? Theme.surface200 : "transparent"
+                            Ripple {
+                                id: otherRipple
+                                radius: parent.radius
+                                pressed: other.pressed
+                                pressX: other.pressX
+                                pressY: other.pressY
+                            }
+                        }
                         contentItem: RowLayout {
                             spacing: Theme.dp(12)
                             Cover {
@@ -431,13 +505,6 @@ Page {
                     visible: page.library && !page.library.loading && !page.library.authNeeded
                              && tiles.count === 0 && others.count === 0
                     text: page.library && page.library.currentSourceId ? qsTr("No playlists") : qsTr("No sources")
-                }
-                // Last in the list, out of the way of a stray tap in a car.
-                TextButton {
-                    objectName: "signOut"
-                    visible: page.library && page.library.canSignOut === true
-                    text: qsTr("Sign out")
-                    onClicked: page.library.signOut()
                 }
             }
         }

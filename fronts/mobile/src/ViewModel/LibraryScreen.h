@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 #include "Coro.h"
 #include "Models.h"
@@ -43,6 +44,9 @@ class LibraryScreen : public QObject {
     Q_PROPERTY(QString authCode READ authCode NOTIFY authCodeChanged)
     Q_PROPERTY(QString authError READ authError NOTIFY authErrorChanged)
     Q_PROPERTY(bool canSignOut READ canSignOut NOTIFY canSignOutChanged)
+    // What the source picked says it can do, as ids the page words itself
+    // ("radio", "download", ...); empty while it isn't running.
+    Q_PROPERTY(QStringList capabilities READ capabilities NOTIFY capabilitiesChanged)
 
 public:
     LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, NowPlaying& nowPlaying, Rpc::AuthStates& authStates,
@@ -64,6 +68,7 @@ public:
     QString authCode() const;
     QString authError() const;
     bool canSignOut() const;
+    QStringList capabilities() const;
     // playPlaylist() for any source: for what doesn't go through picking one.
     void playPlaylistOf(const QString& sourceId, const QString& playlistId);
 
@@ -93,6 +98,7 @@ signals:
     void authCodeChanged();
     void authErrorChanged();
     void canSignOutChanged();
+    void capabilitiesChanged();
     // Something started playing from here: time for the main screen.
     void activated();
 

@@ -27,7 +27,14 @@ RowLayout {
         focusPolicy: Qt.NoFocus
         background: Rectangle {
             radius: height / 2
-            color: button.down ? Theme.surface400 : Theme.surface300
+            color: button.down && ripple.flat ? Theme.surface400 : Theme.surface300
+            Ripple {
+                id: ripple
+                pressed: button.pressed
+                pressX: button.pressX
+                pressY: button.pressY
+                radius: parent.radius
+            }
         }
         contentItem: Text {
             text: button.text

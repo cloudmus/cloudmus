@@ -215,7 +215,18 @@ Popup {
         property bool keepsSheetOpen: false
         Layout.fillWidth: true
         implicitHeight: Theme.touch + Theme.dp(4)
-        background: Rectangle { color: action.down ? Theme.surface300 : "transparent" }
+        background: Rectangle {
+            radius: Theme.radius
+            color: action.down && ripple.flat ? Theme.surface300 : "transparent"
+            Ripple {
+                id: ripple
+                radius: parent.radius
+                pressed: action.pressed
+                pressX: action.pressX
+                pressY: action.pressY
+                color: action.tint
+            }
+        }
         onClicked: if (!keepsSheetOpen) sheet.close()
         contentItem: RowLayout {
             spacing: Theme.dp(16)
@@ -565,6 +576,17 @@ Popup {
                         checked: choice.contains === true
                         enabled: choice.changing !== true
                         onClicked: sheet.track.setInPlaylist(choice.playlistId, checked)
+                        background: Rectangle {
+                            radius: Theme.radius
+                            color: choice.down && choiceRipple.flat ? Theme.surface300 : "transparent"
+                            Ripple {
+                                id: choiceRipple
+                                pressed: choice.pressed
+                                pressX: choice.pressX
+                                pressY: choice.pressY
+                                radius: parent.radius
+                            }
+                        }
                         contentItem: Text {
                             text: choice.text
                             color: Theme.ink

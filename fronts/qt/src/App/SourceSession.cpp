@@ -138,6 +138,12 @@ bool SourceSession::wake(const QString& sourceId)
     return true;
 }
 
+QJsonObject SourceSession::capabilities(const QString& sourceId) const
+{
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    return client != nullptr && client->available() ? client->capabilities() : QJsonObject();
+}
+
 bool SourceSession::canSignOut(const QString& sourceId) const
 {
     const Rpc::RpcClient* client = sourceManager_.client(sourceId);

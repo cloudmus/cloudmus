@@ -44,6 +44,19 @@ Page {
             }
 
             SettingsGroup {
+                shown: capabilityTags.count > 0
+                title: qsTr("Capabilities")
+                SettingsCell {
+                    CapabilityTags {
+                        id: capabilityTags
+                        objectName: "capabilities"
+                        Layout.fillWidth: true
+                        model: page.screen.capabilities
+                    }
+                }
+            }
+
+            SettingsGroup {
                 shown: page.screen.usesNetwork
                 title: qsTr("Connection")
                 SettingsCell {

@@ -11,8 +11,16 @@ AbstractButton {
 
     background: Rectangle {
         radius: height / 2
-        color: chip.checked ? Theme.accent : (chip.down ? Theme.surface400 : Theme.surface300)
+        color: chip.checked ? Theme.accent : (chip.down && ripple.flat ? Theme.surface400 : Theme.surface300)
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
+        Ripple {
+            id: ripple
+            pressed: chip.pressed
+            pressX: chip.pressX
+            pressY: chip.pressY
+            radius: parent.radius
+            color: chip.checked ? Theme.inkOnAccent : Theme.ink
+        }
     }
     contentItem: Text {
         id: label

@@ -1257,6 +1257,23 @@ private slots:
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
         if (!shots.isEmpty())
             window->grabWindow().save(shots + QStringLiteral("/mini-light.png"));
+        {
+            // The ripple sets out from where the bar was touched.
+            auto* ripple = findItem(window->contentItem(), QStringLiteral("miniRipple"));
+            QVERIFY(ripple);
+            auto* shader = ripple->findChild<QQuickItem*>("rippleShader");
+            QVERIFY(shader);
+            const QRectF bar = ripple->mapRectToScene(ripple->boundingRect());
+            const QPoint at(int(bar.left()) + 300, int(bar.top()) + 20);
+            QTest::mousePress(window, Qt::LeftButton, { }, at);
+            QTest::qWait(250);
+            const QPointF origin = shader->property("origin").toPointF();
+            const QPointF expected = ripple->mapFromScene(QPointF(at));
+            QVERIFY2(qAbs(origin.x() - expected.x()) < 2 && qAbs(origin.y() - expected.y()) < 2,
+                qPrintable(QStringLiteral("origin %1,%2 not at the touch %3,%4")
+                               .arg(origin.x()).arg(origin.y()).arg(expected.x()).arg(expected.y())));
+            QTest::mouseRelease(window, Qt::LeftButton, { }, at);
+        }
         QVERIFY(theme->setProperty("insetBottom", 0));
         QVERIFY(theme->setProperty("dark", true));
     }
@@ -2318,14 +2335,91 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("copyAuthCode"), "clicked"));
         QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("abc123"));
 
+        // Signing out is an entry of the menu in the title, there once signed in.
         auto* signOut = window->findChild<QQuickItem*>("signOut");
         QVERIFY(signOut);
-        QVERIFY(!signOut->isVisible());
+        QVERIFY(!signOut->property("available").toBool());
+        // Not signed in: what the source can do is listed; signed in, it isn't.
+        QVERIFY(window->findChild<QQuickItem*>("capabilities")->isVisible());
         core.core().authStates().setAuthenticated(fake);
-        QTRY_VERIFY(signOut->isVisible());
-        QVERIFY(QMetaObject::invokeMethod(signOut, "clicked"));
+        QTRY_VERIFY(signOut->property("available").toBool());
+        QVERIFY(!window->findChild<QQuickItem*>("capabilities")->isVisible());
+        // The menu: a tap beside it closes it and lands nowhere else.
+        auto* menu = window->findChild<QObject*>("sourceMenu");
+        QVERIFY(menu);
+        {
+            // Held as a finger holds it: the button shrinks, then grows back as the menu opens.
+            const QPoint at = window->findChild<QQuickItem*>("sourceMenuButton")->mapToScene(QPointF(10, 10)).toPoint();
+            QTest::mousePress(window, Qt::LeftButton, { }, at);
+            QTest::qWait(200);
+            QTest::mouseRelease(window, Qt::LeftButton, { }, at);
+        }
+        // Its size is known from the first frame: a menu growing as it opens
+        // shows as a jump. Signing out came while it was closed.
+        QTRY_VERIFY(menu->property("visible").toBool());
+        const qreal firstHeight = menu->property("height").toReal();
+        QTRY_VERIFY(menu->property("opened").toBool());
+        QCOMPARE(menu->property("height").toReal(), firstHeight);
+        QCOMPARE(firstHeight, 3 * window->findChild<QQuickItem*>("signOut")->height()
+                + menu->property("topPadding").toReal() + menu->property("bottomPadding").toReal());
+        for (int frame = 0; frame < 6; ++frame) {
+            if (!shots.isEmpty())
+                window->grabWindow().save(shots + QStringLiteral("/menu-%1.png").arg(frame));
+            QTest::qWait(60);
+        }
+        auto* refreshEntry = window->findChild<QQuickItem*>("refreshEntry");
+        QVERIFY(refreshEntry->isVisible());
+        QCOMPARE(refreshEntry->opacity(), 1.0);
+        // Beside it, on the button under the overlay: it doesn't get the tap.
+        QSignalSpy outside(window->findChild<QObject*>("sourceMenuButton"), SIGNAL(clicked()));
+        QTest::mouseClick(window, Qt::LeftButton, { }, window->findChild<QQuickItem*>("sourceMenuButton")
+            ->mapToScene(QPointF(10, 10)).toPoint());
+        QTRY_VERIFY(!menu->property("visible").toBool());
+        QCOMPARE(outside.count(), 0);
+        QTest::mouseClick(window, Qt::LeftButton, { }, window->findChild<QQuickItem*>("sourceMenuButton")
+            ->mapToScene(QPointF(10, 10)).toPoint());
+        QTRY_VERIFY(menu->property("opened").toBool());
+        if (!shots.isEmpty()) {
+            // The ripple, held: a finger down on an entry, then off it to cancel.
+            const QPoint at = refreshEntry->mapToScene(QPointF(refreshEntry->width() * 0.3, refreshEntry->height() / 2)).toPoint();
+            QTest::mousePress(window, Qt::LeftButton, { }, at);
+            int waited = 0;
+            for (const int ms : { 120, 300, 700 }) {
+                QTest::qWait(ms - waited);
+                waited = ms;
+                window->grabWindow().save(shots + QStringLiteral("/ripple-%1.png").arg(ms));
+            }
+            QTest::mouseRelease(window, Qt::LeftButton, { }, QPoint(5, window->height() - 5));
+            QTRY_VERIFY(menu->property("opened").toBool());
+        }
+        {
+            // The ripple's sizes follow the interface scale: at 1.5 the soft
+            // edge and the grain are half again as large, and the menu still
+            // lines up with its button.
+            auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
+            QVERIFY(theme);
+            theme->setProperty("scale", 1.5);
+            QTest::qWait(300);
+            auto* button = window->findChild<QQuickItem*>("sourceMenuButton");
+            auto* entry = window->findChild<QQuickItem*>("sourceSettingsEntry");
+            QVERIFY(menu->property("opened").toBool());
+            const QPoint at = entry->mapToScene(QPointF(entry->width() * 0.3, entry->height() / 2)).toPoint();
+            QTest::mousePress(window, Qt::LeftButton, { }, at);
+            QTest::qWait(400);
+            auto* shader = entry->findChild<QQuickItem*>("rippleShader");
+            QVERIFY(shader);
+            QCOMPARE(shader->property("dp").toReal(), 1.5);
+            if (!shots.isEmpty())
+                window->grabWindow().save(shots + QStringLiteral("/ripple-scale15.png"));
+            QTest::mouseRelease(window, Qt::LeftButton, { }, QPoint(5, window->height() - 5));
+            QTRY_VERIFY(menu->property("opened").toBool());
+            Q_UNUSED(button)
+            theme->setProperty("scale", 1.0);
+            QTest::qWait(300);
+        }
+        QVERIFY(QMetaObject::invokeMethod(signOut, "triggered"));
         QTRY_VERIFY(core.library().authNeeded());
-        QTRY_VERIFY(!signOut->isVisible());
+        QTRY_VERIFY(!signOut->property("available").toBool());
     }
 
     void pagesOpen_data()

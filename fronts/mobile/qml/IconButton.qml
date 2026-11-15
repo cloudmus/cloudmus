@@ -29,14 +29,24 @@ AbstractButton {
     icon.color: filled ? Theme.inkOnAccent : (enabled ? color : Theme.inkTertiary)
 
     background: Rectangle {
+        // A flat highlight only where the ripple can't be drawn.
+        readonly property bool _down: control.down && ripple.flat
         radius: width / 2
         color: control.filled
-            ? (control.down ? Theme.accentPressed : Theme.accent)
+            ? (_down ? Theme.accentPressed : Theme.accent)
             // The ink itself, faint: what's behind (the generated background)
             // shows through.
             : Qt.rgba(control.color.r, control.color.g, control.color.b,
-                      control.down ? 0.22 : (control.hovered ? 0.12 : 0))
+                      _down ? 0.22 : (control.hovered ? 0.12 : 0))
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
+        Ripple {
+            id: ripple
+            pressed: control.pressed
+            pressX: control.pressX
+            pressY: control.pressY
+            radius: parent.radius
+            color: control.filled ? Theme.inkOnAccent : control.color
+        }
     }
 
     contentItem: Item {

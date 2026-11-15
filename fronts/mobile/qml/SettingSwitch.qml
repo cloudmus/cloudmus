@@ -22,6 +22,16 @@ SettingsCell {
         }
     }
     TapHandler {
+        id: tap
         onTapped: cell.toggled(!cell.checked)
+    }
+    // The handler sits in the cell's column; the ripple covers the whole cell.
+    Ripple {
+        readonly property point _at: tap.parent ? tap.parent.mapToItem(cell, tap.point.pressPosition) : Qt.point(0, 0)
+        parent: cell
+        pressed: tap.pressed
+        pressX: _at.x
+        pressY: _at.y
+        radius: Math.max(cell.topLeftRadius, cell.bottomLeftRadius)
     }
 }

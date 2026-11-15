@@ -52,6 +52,8 @@ public:
     bool wake(const QString& sourceId);
     // Whether the source is one to sign out of, and signed in right now.
     bool canSignOut(const QString& sourceId) const;
+    // What the running source declared; empty while it isn't running.
+    QJsonObject capabilities(const QString& sourceId) const;
     // auth.logout. The same outcome as submitSignIn().
     Rpc::Task<QString> signOut(QString sourceId);
 

@@ -20,12 +20,19 @@ AbstractButton {
     focusPolicy: Qt.NoFocus
 
     background: Rectangle {
-        color: row.down ? Theme.surface300 : Theme.surface200
+        color: row.down && ripple.flat ? Theme.surface300 : Theme.surface200
         topLeftRadius: row.roundTop ? Theme.settingsCellRadius : Theme.settingsCellInnerRadius
         topRightRadius: topLeftRadius
         bottomLeftRadius: row.roundBottom ? Theme.settingsCellRadius : Theme.settingsCellInnerRadius
         bottomRightRadius: bottomLeftRadius
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
+        Ripple {
+            id: ripple
+            pressed: row.pressed
+            pressX: row.pressX
+            pressY: row.pressY
+            radius: Math.max(parent.topLeftRadius, parent.bottomLeftRadius)
+        }
     }
     contentItem: RowLayout {
         id: content

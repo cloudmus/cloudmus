@@ -27,11 +27,22 @@ AbstractButton {
     Behavior on scale { NumberAnimation { duration: Theme.durationFast; easing.type: Easing.OutCubic } }
 
     // The light IconButton has, faint: the generated background shows through.
-    background: Rectangle {
-        radius: height / 2
-        color: "#FFFFFF"
-        opacity: bar.down ? 0.22 : (bar.hovered ? 0.12 : 0)
-        Behavior on opacity { NumberAnimation { duration: Theme.durationFast } }
+    background: Item {
+        Rectangle {
+            anchors.fill: parent
+            radius: height / 2
+            color: "#FFFFFF"
+            opacity: bar.down && ripple.flat ? 0.22 : (bar.hovered ? 0.12 : 0)
+            Behavior on opacity { NumberAnimation { duration: Theme.durationFast } }
+        }
+        Ripple {
+            id: ripple
+            pressed: bar.pressed
+            pressX: bar.pressX
+            pressY: bar.pressY
+            radius: height / 2
+            color: "#FFFFFF"
+        }
     }
 
     padding: 0

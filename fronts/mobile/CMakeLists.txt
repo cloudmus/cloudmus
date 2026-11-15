@@ -11,7 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.7 REQUIRED COMPONENTS Concurrent Core Network RemoteObjects Gui Qml Quick QuickControls2 Svg LinguistTools)
+find_package(Qt6 6.7 REQUIRED COMPONENTS Concurrent Core Network RemoteObjects Gui Qml Quick QuickControls2 Svg LinguistTools ShaderTools)
 qt_standard_project_setup(REQUIRES 6.7)
 
 # The desktop front's sources the core shares as they are.
@@ -196,6 +196,9 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/AppSwitch.qml
         qml/AuraBackground.qml
         qml/BodyText.qml
+        qml/CapabilityTags.qml
+        qml/DropMenu.qml
+        qml/DropMenuItem.qml
         qml/Chip.qml
         qml/Cover.qml
         qml/CrossfadeImage.qml
@@ -212,6 +215,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/OfflineBadge.qml
         qml/PlaylistPage.qml
         qml/PreloadCells.qml
+        qml/Ripple.qml
         qml/ProxyPage.qml
         qml/SettingField.qml
         qml/SettingStepper.qml
@@ -249,10 +253,16 @@ qt_add_qml_module(cloudmus-mobile-ui
         src/Ui/LogModel.h
 )
 
+# Shaders of the views' own, built to .qsb for every graphics API; ripple.frag
+# is the touch feedback (Ripple.qml), at :/shaders/ripple.frag.qsb.
+qt_add_shaders(cloudmus-mobile-ui "shaders"
+    PREFIX "/"
+    FILES shaders/ripple.frag)
+
 set(_icons arrow_back chevron_right close cloud_off content_copy expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
-    visibility visibility_off warning)
+    visibility visibility_off warning logout)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
     set(_file ${QT_FRONT_RES}/icons/symbols/${_icon}.svg)

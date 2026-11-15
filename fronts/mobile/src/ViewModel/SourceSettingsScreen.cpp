@@ -43,6 +43,8 @@ QString SourceSettingsScreen::name() const
     return { };
 }
 
+QStringList SourceSettingsScreen::capabilities() const { return core_.sourcePage().capabilityIds(sourceId_); }
+
 QString SourceSettingsScreen::description() const { return sourceSettings_.facts(sourceId_).description; }
 
 QString SourceSettingsScreen::status() const
@@ -202,6 +204,7 @@ void SourceSettingsScreen::refresh()
     emit descriptionChanged();
     emit statusChanged();
     emit enabledChanged();
+    emit capabilitiesChanged();
     emit usesNetworkChanged();
     emit connectionHintChanged();
     emit hasRadioChanged();

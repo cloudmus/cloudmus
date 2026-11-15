@@ -17,8 +17,16 @@ AbstractButton {
 
     background: Rectangle {
         radius: height / 2
-        color: control.tint.a > 0 ? control.tint : !control.enabled ? Theme.surface200 : (control.down ? Theme.surface400 : Theme.surface300)
+        color: control.tint.a > 0 ? control.tint : !control.enabled ? Theme.surface200
+             : (control.down && ripple.flat ? Theme.surface400 : Theme.surface300)
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
+        Ripple {
+            id: ripple
+            pressed: control.pressed
+            pressX: control.pressX
+            pressY: control.pressY
+            radius: parent.radius
+        }
     }
     contentItem: Item {
         Spinner {

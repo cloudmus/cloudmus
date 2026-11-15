@@ -137,7 +137,15 @@ Page {
         onClicked: page.libraryRequested()
         background: Rectangle {
             radius: Theme.radius
-            color: sourceButton.down ? Theme.surface300 : Theme.surface200
+            // No fill in the dark theme, where it only dims the background; the press still shows.
+            color: sourceButton.down && ripple.flat ? Theme.surface300 : (Theme.dark ? "transparent" : Theme.surface200)
+            Ripple {
+                id: ripple
+                pressed: sourceButton.pressed
+                pressX: sourceButton.pressX
+                pressY: sourceButton.pressY
+                radius: parent.radius
+            }
         }
         contentItem: RowLayout {
             spacing: Theme.dp(10)
@@ -352,7 +360,8 @@ Page {
                     }
                     OfflineBadge {
                         backend: page.backend
-                        iconOnly: !page.wide || page.filterOpen
+                        // Always: the text would take the whole bar on a head unit.
+                        iconOnly: true
                         opacity: Math.max(0, 1 - page.screenProgress * 2)
                     }
                     // Settings says what it's about in full.

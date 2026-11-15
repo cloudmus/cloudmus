@@ -3,6 +3,7 @@
 #include <QJsonValue>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 #include "Coro.h"
 #include "Models.h"
@@ -27,6 +28,8 @@ class SourceSettingsScreen : public QObject {
     // Why it isn't running, or that it's about to; empty when it is.
     Q_PROPERTY(QString status READ status NOTIFY statusChanged)
     Q_PROPERTY(bool enabled READ enabled NOTIFY enabledChanged)
+    // What it says it can do, as ids (see SourcePage::capabilityIds()).
+    Q_PROPERTY(QStringList capabilities READ capabilities NOTIFY capabilitiesChanged)
     Q_PROPERTY(bool usesNetwork READ usesNetwork NOTIFY usesNetworkChanged)
     Q_PROPERTY(QString connectionHint READ connectionHint NOTIFY connectionHintChanged)
     Q_PROPERTY(bool hasRadio READ hasRadio NOTIFY hasRadioChanged)
@@ -49,6 +52,7 @@ public:
     QString description() const;
     QString status() const;
     bool enabled() const;
+    QStringList capabilities() const;
     bool usesNetwork() const;
     QString connectionHint() const;
     bool hasRadio() const;
@@ -79,6 +83,7 @@ signals:
     void descriptionChanged();
     void statusChanged();
     void enabledChanged();
+    void capabilitiesChanged();
     void usesNetworkChanged();
     void connectionHintChanged();
     void hasRadioChanged();
