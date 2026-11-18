@@ -27,7 +27,9 @@ namespace Integration {
 // track's Like/Dislike/Playlists, Show-Hide, Quit), all following
 // ViewModel::NowPlaying. Left-click toggles the main window's visibility —
 // see Ui::WindowHost::toggleShown() — except on macOS, where by default any
-// click opens the menu (setClickShowsWindow()). The tray's own tooltip
+// click opens the menu (setClickShowsWindow()). Middle-click pauses the
+// playing track and never resumes it. The wheel changes the volume on
+// Linux, Windows and macOS: up louder, down quieter. The tray's own tooltip
 // is plain-text only on Linux (no image parameter in Qt's API) — cover art
 // is delivered separately via NotificationToast, see that class.
 class TrayIcon : public QObject {
@@ -81,6 +83,14 @@ private:
     void fillPlaylistsMenu();
     // Each item shows the key of its action, as the settings have it.
     void refreshHotkeys();
+    // angleDelta as Qt reports it: positive is the wheel rotated up.
+    void adjustVolumeByWheel(int angleDelta);
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+    // Qt never delivers a wheel event for the tray icon on these two.
+    // Each watches for it and forwards one to the icon.
+    void installTrayWheelInput();
+    void removeTrayWheelInput();
+#endif
 
     Ui::WindowHost& windowHost_;
     ViewModel::NowPlaying& nowPlaying_;
@@ -100,6 +110,8 @@ private:
     QAction* quitAction_ = nullptr;
     // A relabel is queued; more language changes before it add nothing.
     bool retranslatePending_ = false;
+    // High-resolution wheels report less than one notch at a time.
+    int wheelRemainder_ = 0;
 };
 
 } // namespace Integration

@@ -8,7 +8,16 @@
 #include <QPointer>
 #include <QStyleHints>
 #include <QSystemTrayIcon>
+#include <QWheelEvent>
 #include <QWidget>
+
+#ifdef Q_OS_LINUX
+#include <QDBusMessage>
+
+// Exported by Qt6DBus, with no public header. Declared here so a scroll on
+// the StatusNotifierItem can be seen — see statusNotifierScroll().
+extern void qDBusAddSpyHook(void (*hook)(const QDBusMessage&));
+#endif
 
 #include <functional>
 
@@ -100,6 +109,27 @@ namespace {
 // See TrayIcon::setClickShowsWindow().
 bool clickShowsWindow = false;
 TrayIcon* liveIcon = nullptr;
+
+// Set from the constructor: this namespace can't call the private method.
+void (*applyWheelDelta)(TrayIcon*, int) = nullptr;
+
+#ifdef Q_OS_LINUX
+// Qt's StatusNotifierItem adaptor receives Scroll and drops it, so on the
+// desktops that speak that protocol (KDE, GNOME, Wayland) the wheel never
+// becomes a QWheelEvent. The spy runs first and still sees the call. X11's
+// XEmbed tray delivers a real wheel event instead, handled in eventFilter().
+void statusNotifierScroll(const QDBusMessage& message)
+{
+    if (message.type() != QDBusMessage::MethodCallMessage || message.member() != QLatin1String("Scroll")
+        || message.path() != QLatin1String("/StatusNotifierItem") || liveIcon == nullptr || applyWheelDelta == nullptr)
+        return;
+    const QList<QVariant> args = message.arguments();
+    // "vertical" / "horizontal", per the StatusNotifierItem spec.
+    if (args.size() < 2 || args.at(1).toString().compare(QLatin1String("vertical"), Qt::CaseInsensitive) != 0)
+        return;
+    applyWheelDelta(liveIcon, args.at(0).toInt());
+}
+#endif
 
 // The menu is attached to the icon, and the system opens it on a click.
 bool menuIsAttached()
@@ -203,9 +233,19 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     connect(menu, &QMenu::aboutToShow, this, &TrayIcon::refreshShowHideAction);
 
     liveIcon = this;
+    applyWheelDelta = [](TrayIcon* self, int delta) { self->adjustVolumeByWheel(delta); };
     applyClickBehavior();
     // QCoreApplication sends LanguageChange to itself when a translator is installed.
     qApp->installEventFilter(this);
+    // X11's XEmbed tray sends the wheel here. The D-Bus tray does not.
+    trayIcon_->installEventFilter(this);
+#ifdef Q_OS_LINUX
+    static bool scrollHookInstalled = false;
+    if (!scrollHookInstalled) {
+        qDBusAddSpyHook(statusNotifierScroll);
+        scrollHookInstalled = true;
+    }
+#endif
 
     connect(trayIcon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
         // An attached menu on macOS opens on any click, and the click still
@@ -216,6 +256,9 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
                 return;
 #endif
             windowHost_.toggleShown();
+        } else if (reason == QSystemTrayIcon::MiddleClick) {
+            // Pause only: a middle click never resumes a paused track.
+            nowPlaying_.togglePause();
         } else if (reason == QSystemTrayIcon::Context && !menuIsAttached()) {
             // Right under the icon, like an attached one.
             const QRect icon = trayIcon_->geometry();
@@ -224,12 +267,20 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     });
 
     trayIcon_->show();
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+    installTrayWheelInput();
+#endif
 }
 
 TrayIcon::~TrayIcon()
 {
-    if (liveIcon == this)
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+    removeTrayWheelInput();
+#endif
+    if (liveIcon == this) {
         liveIcon = nullptr;
+        applyWheelDelta = nullptr;
+    }
 }
 
 void TrayIcon::setClickShowsWindow(bool value)
@@ -248,8 +299,27 @@ void TrayIcon::applyClickBehavior()
     refreshMenuIcons();
 }
 
+void TrayIcon::adjustVolumeByWheel(int angleDelta)
+{
+    if (angleDelta == 0)
+        return;
+    // 120 is one notch of a classic wheel. The step is the volume hotkeys'
+    // (Hotkeys::Dispatcher). A positive delta is the wheel rotated up.
+    constexpr int kNotch = 120;
+    constexpr int kVolumeStep = 5;
+    wheelRemainder_ += angleDelta;
+    const int notches = wheelRemainder_ / kNotch;
+    wheelRemainder_ -= notches * kNotch;
+    if (notches != 0)
+        nowPlaying_.setVolume(nowPlaying_.volume() + notches * kVolumeStep);
+}
+
 bool TrayIcon::eventFilter(QObject* watched, QEvent* event)
 {
+    if (watched == trayIcon_ && event->type() == QEvent::Wheel) {
+        adjustVolumeByWheel(static_cast<const QWheelEvent*>(event)->angleDelta().y());
+        return true;
+    }
     // Not relabeled right away: the event is sent from inside
     // installTranslator(), which a library can call while it is being loaded
     // — KDE's image format plugins pull in such libraries in the middle of

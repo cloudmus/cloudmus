@@ -372,6 +372,7 @@ if(WIN32)
         src/Integration/AutostartWin.cpp
         src/Integration/FirstFrameBackgroundWin.cpp
         src/Integration/NotificationToastWin.cpp
+        src/Integration/TrayIconWin.cpp
         src/Integration/SmtcService.cpp
         src/Integration/TaskbarThumbButtons.cpp
         src/Integration/GlobalHotkeysWin.cpp)
@@ -383,6 +384,7 @@ elseif(APPLE)
         src/Integration/AutostartMac.mm
         src/Integration/NotificationToast.h
         src/Integration/NotificationToastMac.mm
+        src/Integration/TrayIconMac.mm
         src/Integration/DesktopColorScheme.h
         src/Integration/DesktopColorSchemeMac.cpp
         src/Integration/DockIcon.h
@@ -551,7 +553,7 @@ if(APPLE)
         "-framework AppKit" "-framework Carbon" "-framework MediaPlayer" "-framework UserNotifications")
     set_source_files_properties(src/Integration/DockIconMac.mm PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     set_source_files_properties(src/Integration/NowPlayingCenterMac.mm src/Integration/NotificationToastMac.mm
-        src/Integration/WindowGlassMac.mm src/Integration/AutostartMac.mm
+        src/Integration/WindowGlassMac.mm src/Integration/AutostartMac.mm src/Integration/TrayIconMac.mm
         PROPERTIES SKIP_PRECOMPILE_HEADERS ON COMPILE_OPTIONS -fobjc-arc)
 endif()
 
