@@ -102,6 +102,10 @@ QtObject {
     // What the on-screen keyboard covers from the window's bottom, the
     // navigation bar included; 0 with it hidden.
     property int insetKeyboard: 0
+    // A phone's mini player, what it shows (Now Playing folded up) and the
+    // navigation bar it goes on under.
+    readonly property int miniPlayerContent: dp(124)
+    readonly property int miniPlayerHeight: miniPlayerContent + insetBottom
 
     // Fling physics (ScrollList): Qt's defaults (2500, 1500) cut a fast
     // swipe short and stop it hard. These felt native on a Pixel 7; still

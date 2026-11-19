@@ -211,7 +211,6 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/LogPage.qml
         qml/Main.qml
         qml/MarqueeText.qml
-        qml/MiniPlayer.qml
         qml/OfflineBadge.qml
         qml/PlaylistPage.qml
         qml/PreloadCells.qml

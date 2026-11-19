@@ -606,8 +606,11 @@ private slots:
         QVERIFY(QTest::qWaitForWindowExposed(window));
         auto* sheet = window->findChild<QQuickItem*>("nowPlayingSheet");
         QVERIFY(sheet);
-        QTRY_VERIFY(window->findChild<QQuickItem*>("miniTitle") != nullptr);
-        QTRY_VERIFY(window->findChild<QQuickItem*>("miniTitle")->isVisible());
+        // The mini player is Now Playing folded up: one page, all along.
+        QTRY_VERIFY(window->findChild<QQuickItem*>("nowPlaying") != nullptr);
+        auto* page = window->findChild<QQuickItem*>("nowPlaying");
+        QTRY_VERIFY(findItem(page, QStringLiteral("trackTitle")) != nullptr);
+        QTRY_VERIFY(findItem(page, QStringLiteral("trackTitle"))->isVisible());
         const auto progress = [&] { return sheet->property("progress").toReal(); };
         // Slowly, so that it's the distance that counts.
         const auto drag = [&](int x, int fromY, int toY, bool release) {
@@ -625,34 +628,47 @@ private slots:
         const int miniY = 860 - 36;
         const int titleX = 200;
 
-        // The mini player's controls: what's asked of the core.
-        auto* contentRoot = window->contentItem();
-        for (const char* name : { "miniDislike", "miniPrevious", "miniPlay", "miniNext", "miniLike" }) {
-            auto* button = findItem(contentRoot, QLatin1String(name));
+        // The mini player's controls, in the bar at the bottom: what's asked of the core.
+        auto* surface = findItem(page, QStringLiteral("nowPlayingSurface"));
+        QVERIFY(surface);
+        QCOMPARE(surface->y(), 860.0 - 124);
+        for (const char* name : { "transportDislike", "transportPrevious", "transportPlay", "transportNext", "transportLike" }) {
+            auto* button = findItem(page, QLatin1String(name));
             QVERIFY2(button && button->isVisible(), name);
-            QVERIFY2(button->mapRectToScene(button->boundingRect()).bottom() <= 860, name);
+            const QRectF at = button->mapRectToScene(button->boundingRect());
+            QVERIFY2(at.top() >= 860 - 124 && at.bottom() <= 860, name);
         }
-        QTRY_VERIFY(findItem(contentRoot, QStringLiteral("miniLike"))->isEnabled());
+        // The cover, small, at the bar's left.
+        {
+            auto* cover = findItem(page, QStringLiteral("trackCover"));
+            const QRectF at = cover->mapRectToScene(cover->boundingRect());
+            QVERIFY2(qAbs(at.width() - 48) < 1 && at.top() >= 860 - 124 && at.left() < 30,
+                qPrintable(QStringLiteral("%1,%2 %3").arg(at.left()).arg(at.top()).arg(at.width())));
+        }
+        QTRY_VERIFY(findItem(page, QStringLiteral("transportLike"))->isEnabled());
         // From whichever way it is: what's saved of a track outlives a test.
         const bool liked = core.nowPlaying().liked();
-        QVERIFY(QMetaObject::invokeMethod(findItem(contentRoot, QStringLiteral("miniLike")), "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(findItem(page, QStringLiteral("transportLike")), "clicked"));
         QTRY_COMPARE(core.nowPlaying().liked(), !liked);
-        QTRY_COMPARE(findItem(contentRoot, QStringLiteral("miniLike"))->property("iconName").toString(),
+        QTRY_COMPARE(findItem(page, QStringLiteral("transportLike"))->property("iconName").toString(),
             liked ? QStringLiteral("favorite_border") : QStringLiteral("favorite"));
-        QVERIFY(QMetaObject::invokeMethod(findItem(contentRoot, QStringLiteral("miniLike")), "clicked"));
+        QVERIFY(QMetaObject::invokeMethod(findItem(page, QStringLiteral("transportLike")), "clicked"));
         QTRY_COMPARE(core.nowPlaying().liked(), liked);
 
-        // Follows, then falls back from a short pull.
+        // Follows, then falls back from a short pull: what's in the bar grows with it.
         drag(titleX, miniY, miniY - 100, false);
         QVERIFY(progress() > 0.05 && progress() < 0.2);
+        QVERIFY(surface->y() < 860 - 124 - 80);
+        QVERIFY(findItem(page, QStringLiteral("trackCover"))->width() > 48);
         QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, QPoint(titleX, miniY - 100));
         QTRY_COMPARE(progress(), 0.0);
 
         // The rest of the way from a long one.
         drag(titleX, miniY, miniY - 300, true);
         QTRY_COMPARE(progress(), 1.0);
-        auto* page = window->findChild<QQuickItem*>("nowPlaying");
-        QVERIFY(page);
+        // All of the screen, the cover as large as the width allows.
+        QCOMPARE(surface->y(), 0.0);
+        QVERIFY(findItem(page, QStringLiteral("trackCover"))->width() > 300);
         // It says what it plays from.
         auto* playlistName = findItem(page, QStringLiteral("nowPlayingPlaylist"));
         QVERIFY(playlistName);
@@ -666,17 +682,26 @@ private slots:
         drag(210, 100, 400, true);
         QTRY_COMPARE(progress(), 0.0);
 
-        // Closing runs all the way down: no piece of it left on screen when it goes.
+        // On the way, for a look: CLOUDMUS_MOBILE_SHOTS.
+        if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty()) {
+            for (const qreal at : { 0.0, 0.25, 0.5, 0.75, 1.0 }) {
+                QMetaObject::invokeMethod(sheet, "follow", Q_ARG(QVariant, at));
+                QTest::qWait(100);
+                window->grabWindow().save(QStringLiteral("%1/nowplaying-at-%2.png").arg(dir).arg(int(at * 100)));
+            }
+        }
+
+        // Closing folds it back into the bar, going no further down than that.
         QMetaObject::invokeMethod(sheet, "open");
         QTRY_COMPARE(progress(), 1.0);
         QMetaObject::invokeMethod(sheet, "close");
-        qreal lastTop = 0;
-        for (int i = 0; i < 80 && sheet->isVisible(); ++i) {
-            lastTop = page->mapToScene(QPointF(0, 0)).y();
+        qreal lowest = 0;
+        for (int i = 0; i < 80 && progress() > 0; ++i) {
+            lowest = std::max(lowest, surface->y());
             QTest::qWait(8);
         }
-        qInfo() << "last top seen" << lastTop << "of" << window->height() << "progress" << progress();
-        QVERIFY2(lastTop > window->height() - 24, qPrintable(QString::number(lastTop)));
+        QVERIFY2(lowest <= 860 - 124, qPrintable(QString::number(lowest)));
+        QTRY_COMPARE(surface->y(), 860.0 - 124);
 
         // A track's sheet goes the same way, and a press on a row in it isn't
         // taken for a press of the row.
@@ -849,7 +874,7 @@ private slots:
             // With a finger on its own button.
             QQuickItem* menu = nullptr;
             forEachItem(findItem(window->contentItem(), QStringLiteral("nowPlaying")), [&](QQuickItem* item) {
-                if (item->objectName() == QStringLiteral("trackMenuButton"))
+                if (item->objectName() == QStringLiteral("nowPlayingMenu"))
                     menu = item;
             });
             QVERIFY(menu);
@@ -1250,7 +1275,8 @@ private slots:
         QVERIFY(QTest::qWaitForWindowExposed(window));
         // A bar over the bottom: the background goes under it, the rest not.
         QVERIFY(theme->setProperty("insetBottom", 40));
-        auto* mini = findItem(window->contentItem(), QStringLiteral("miniTitle"));
+        QTRY_VERIFY(findItem(window->contentItem(), QStringLiteral("nowPlaying")) != nullptr);
+        auto* mini = findItem(findItem(window->contentItem(), QStringLiteral("nowPlaying")), QStringLiteral("trackTitle"));
         QVERIFY(mini != nullptr);
         QTRY_VERIFY(mini->mapRectToScene(mini->boundingRect()).bottom() <= window->height() - 40);
         QTest::qWait(1500);
@@ -1263,7 +1289,10 @@ private slots:
             QVERIFY(ripple);
             auto* shader = ripple->findChild<QQuickItem*>("rippleShader");
             QVERIFY(shader);
-            const QRectF bar = ripple->mapRectToScene(ripple->boundingRect());
+            // The wave is the page's, the bar is what of it is uncovered.
+            auto* surface = findItem(window->contentItem(), QStringLiteral("nowPlayingSurface"));
+            QVERIFY(surface);
+            const QRectF bar = surface->mapRectToScene(surface->boundingRect());
             const QPoint at(int(bar.left()) + 300, int(bar.top()) + 20);
             QTest::mousePress(window, Qt::LeftButton, { }, at);
             QTest::qWait(250);
@@ -2066,6 +2095,50 @@ private slots:
         }
     }
 
+    // Turned back to a phone's portrait after the track changed on its side: Now
+    // Playing's cover is made anew, and comes at its full size.
+    void aCoverAfterTurningIsSharp()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(411, 838);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        const auto sharp = [&] {
+            auto* nowPlaying = window->findChild<QQuickItem*>("nowPlaying");
+            auto* picture = nowPlaying ? findItem(nowPlaying, QStringLiteral("trackCoverPicture")) : nullptr;
+            if (!picture || !picture->property("_showing").toBool())
+                return false;
+            const int wanted = qRound(picture->width() * window->effectiveDevicePixelRatio());
+            const int shown = picture->property("shownSide").toInt();
+            qInfo() << "cover" << picture->width() << "shown at" << shown << "wanted" << wanted;
+            return qAbs(shown - wanted) <= 3 && picture->width() > 200;
+        };
+        QTRY_VERIFY(sharp());
+        window->resize(914, 387);
+        QTest::qWait(500);
+        const QString before = core.nowPlaying().title();
+        core.activePlaylist().playRow(core.core().playback().currentIndex() == 0 ? 1 : 0);
+        QTRY_VERIFY(core.nowPlaying().title() != before);
+        QTest::qWait(500);
+        window->resize(411, 838);
+        QTest::qWait(1500);
+        QVERIFY(sharp());
+    }
+
     // A source that asked for a sign-in isn't started the next time: it shows,
     // asking for it, and comes up when opened. Once signed in, it starts again.
     void aSourceToSignInToWaitsUntilOpened()
@@ -2652,8 +2725,10 @@ private slots:
         shot("main-after-tile");
         // The mini player's title and cover change like the big panel's.
         if (size.width() <= size.height() * 1.1) {
-            auto* miniTitle = window->findChild<QQuickItem*>("miniTitle");
-            auto* miniCover = window->findChild<QQuickItem*>("miniCover");
+            auto* nowPlaying = window->findChild<QQuickItem*>("nowPlaying");
+            QVERIFY(nowPlaying);
+            auto* miniTitle = findItem(nowPlaying, QStringLiteral("trackTitle"));
+            auto* miniCover = findItem(nowPlaying, QStringLiteral("trackCoverPicture"));
             QVERIFY(miniTitle && miniCover);
             QTRY_COMPARE(miniTitle->property("currentTitle").toString(), core.nowPlaying().title());
             QTRY_VERIFY(!miniCover->property("changing").toBool());
@@ -2689,12 +2764,15 @@ private slots:
             if (const QString dir = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !dir.isEmpty())
                 window->grabWindow().save(QStringLiteral("%1/%2-nowplaying-first-frame.png").arg(dir, QTest::currentDataTag()));
         }
+        // A head unit has the track on its main screen: nothing comes over that.
         auto* nowPlayingSheet = window->findChild<QQuickItem*>("nowPlayingSheet");
         QVERIFY(nowPlayingSheet);
-        QTRY_COMPARE(nowPlayingSheet->property("progress").toReal(), 1.0);
-        shot("nowplaying");
-        QMetaObject::invokeMethod(nowPlayingSheet, "close");
-        QTRY_COMPARE(nowPlayingSheet->property("progress").toReal(), 0.0);
+        QTRY_COMPARE(nowPlayingSheet->property("progress").toReal(), narrow ? 1.0 : 0.0);
+        if (narrow) {
+            shot("nowplaying");
+            QMetaObject::invokeMethod(nowPlayingSheet, "close");
+            QTRY_COMPARE(nowPlayingSheet->property("progress").toReal(), 0.0);
+        }
 
         // A playlist's page, and the sheet of a track from it.
         QMetaObject::invokeMethod(playlist, "libraryRequested");

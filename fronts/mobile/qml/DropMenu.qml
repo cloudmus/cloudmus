@@ -53,7 +53,9 @@ Menu {
             width: menu._panelWidth
             height: menu._panelHeight
             radius: Theme.radius
-            color: Theme.surface300
+            // Raised over the page: white in the light theme, its shadow is what
+            // sets it apart.
+            color: Theme.dark ? Theme.surface300 : Theme.surface200
             // Without a GPU an effect shows nothing at all: no shadow then.
             layer.enabled: GraphicsInfo.api !== GraphicsInfo.Software && GraphicsInfo.api !== GraphicsInfo.Unknown
             layer.effect: MultiEffect {

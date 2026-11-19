@@ -124,8 +124,10 @@ adb logcat -s CloudmusStart             # startup milestones
 - The window goes on under the system's navigation bar, which is see-through, so
   the generated background reaches the screen's edge; `Theme.insetBottom` is what
   the bar covers, and what's to be read or pressed keeps clear of it. Now Playing,
-  on a phone, is a layer over the pages (Main.qml) that follows the finger: up
-  from the mini player, down from itself.
+  on a phone, grows out of the mini player (NowPlayingPage, over the main page):
+  the bar's background reaches up to the top and its cover, title and transport
+  move and grow into place (TrackPanel's `collapse`), following the finger up
+  from the bar and down from the top.
 - Settings apply at once. A source's page (whether it runs, its connection and
   its own settings) restarts the source when a change takes that; opening it
   starts a source left unstarted for wanting a sign-in. There's no language

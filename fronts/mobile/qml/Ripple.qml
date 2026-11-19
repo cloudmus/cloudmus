@@ -14,6 +14,15 @@ Item {
     property real pressY: height / 2
     property real radius: 0
     property color color: Theme.ink
+    // How long the wave takes: out under the finger, out the rest of the way
+    // once let go, and fading after a pause.
+    property int spreadDuration: 900
+    property int releaseDuration: 220
+    property int fadeDelay: 90
+    property int fadeDuration: 380
+    // How far the wave goes, if not past the control's farthest corner: for a
+    // control that grows meanwhile, as far as it will have grown.
+    property real reach: 0
     readonly property bool flat: GraphicsInfo.api === GraphicsInfo.Software || GraphicsInfo.api === GraphicsInfo.Unknown
 
     property real _radius: 0
@@ -22,6 +31,8 @@ Item {
     // edge (shaders/ripple.frag) should cross the whole control, not stop in
     // it. In item pixels, and `Theme.dp` carries the app's scale.
     readonly property real _reach: {
+        if (reach > 0)
+            return reach
         const dx = Math.max(_origin.x, width - _origin.x)
         const dy = Math.max(_origin.y, height - _origin.y)
         return Math.sqrt(dx * dx + dy * dy) * 1.6 + Theme.dp(28)
@@ -50,15 +61,15 @@ Item {
     ParallelAnimation {
         id: touched
         NumberAnimation { target: ripple; property: "_fade"; to: 1; duration: 80 }
-        NumberAnimation { target: ripple; property: "_radius"; from: 0; to: ripple._reach; duration: 900; easing.type: Easing.OutCubic }
+        NumberAnimation { target: ripple; property: "_radius"; from: 0; to: ripple._reach; duration: ripple.spreadDuration; easing.type: Easing.OutCubic }
     }
     // Up: it reaches the edges and fades away.
     ParallelAnimation {
         id: released
-        NumberAnimation { target: ripple; property: "_radius"; to: ripple._reach; duration: 220; easing.type: Easing.OutCubic }
+        NumberAnimation { target: ripple; property: "_radius"; to: ripple._reach; duration: ripple.releaseDuration; easing.type: Easing.OutCubic }
         SequentialAnimation {
-            PauseAnimation { duration: 90 }
-            NumberAnimation { target: ripple; property: "_fade"; to: 0; duration: 380; easing.type: Easing.InQuad }
+            PauseAnimation { duration: ripple.fadeDelay }
+            NumberAnimation { target: ripple; property: "_fade"; to: 0; duration: ripple.fadeDuration; easing.type: Easing.InQuad }
         }
     }
 

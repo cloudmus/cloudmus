@@ -126,9 +126,6 @@ ApplicationWindow {
         anchors.rightMargin: Math.round(window.platform.insetRight / Screen.devicePixelRatio)
         visible: window.backend.ready
         initialItem: mainPage
-        // Receding as Now Playing comes up, and not drawn at all under it.
-        scale: 1 - 0.06 * nowPlayingSheet.progress
-        opacity: nowPlayingSheet.progress >= 1 ? 0 : 1 - 0.6 * nowPlayingSheet.progress
 
         // Opaque all the way: fading in, a page let the one below show through.
         pushEnter: Transition {
@@ -176,10 +173,12 @@ ApplicationWindow {
             objectName: "playlist"
             backend: window.backend
             gesturesEnabled: !trackSheet.visible
-            covered: nowPlayingSheet.progress >= 1
+            platform: window.platform
+            nowPlayingProgress: nowPlayingSheet.progress
             onNowPlayingRequested: nowPlayingSheet.open()
-            onNowPlayingPulled: (distance) => nowPlayingSheet.follow(distance / nowPlayingSheet.height)
-            onNowPlayingPullEnded: (velocity) => nowPlayingSheet.settleAfterPull(velocity)
+            onNowPlayingCloseRequested: nowPlayingSheet.close()
+            onNowPlayingDragged: (share) => nowPlayingSheet.follow(share)
+            onNowPlayingDragEnded: (velocity, fromOpen) => nowPlayingSheet.settleAfterDrag(velocity, fromOpen)
             onSettingsRequested: stack.open(settingsPage)
             onLibraryRequested: {
                 if (window.backend.library)
@@ -239,44 +238,37 @@ ApplicationWindow {
                             Math.round(Theme.dp(45)))
             : ""
     }
-    // Now Playing, on a phone: a layer over the pages rather than one of them, as
-    // it follows the finger both ways, from the mini player and back down.
+    // How far Now Playing is up on a phone: 0 the mini player at the bottom of
+    // the main screen .. 1 all of it (NowPlayingPage, on the main page). Kept
+    // here, where Back and the status bar look at it; it follows the finger
+    // both ways.
     Item {
         id: nowPlayingSheet
         objectName: "nowPlayingSheet"
-        parent: pages
-        // Over the pages, whichever order they got here in: under it they'd go on
-        // taking every press, however see-through.
-        z: 1
-        anchors.fill: stack
-        visible: progress > 0 || settling.running
+        readonly property bool narrow: window.width <= window.height * 1.1
 
-        // How much of it is up: 0 to 1, so that it stays right as the screen turns.
+        // So that it stays right as the screen turns.
         property real progress: 0
         readonly property bool shown: progress > 0
-        // Kept once made: making it under a finger costs a frame or two.
-        property bool wanted: false
         // Far enough, or thrown: the rest of the way. Otherwise back.
         readonly property real settleShare: 0.18
         readonly property real settleVelocity: Theme.dp(600)
+        // A head unit or a phone on its side has the track on the main screen.
+        onNarrowChanged: if (!narrow) { settling.stop(); progress = 0 }
 
         function open() {
+            if (!narrow)
+                return
             settling.to = 1
             settling.restart()
-            // Up already as it's made: its background is only drawn when visible.
-            wanted = true
         }
-        // A little past the bottom: easing out, it'd slow down to a stop at the edge
-        // and vanish from there, short of it by the look of it. Going through
-        // it still moving, it leaves; progress is set right at the end.
         function close() {
-            settling.to = -0.06
+            settling.to = 0
             settling.restart()
         }
         function follow(share) {
             settling.stop()
             progress = Math.max(0, Math.min(1, share))
-            wanted = true
         }
         function settleAfterPull(velocity) {
             if (progress > settleShare || velocity > settleVelocity)
@@ -290,6 +282,13 @@ ApplicationWindow {
             else
                 open()
         }
+        // Up a finger's drag, at that speed upwards, from where it was taken.
+        function settleAfterDrag(velocity, fromOpen) {
+            if (fromOpen)
+                settleAfterPush(-velocity)
+            else
+                settleAfterPull(velocity)
+        }
 
         NumberAnimation {
             id: settling
@@ -297,24 +296,6 @@ ApplicationWindow {
             property: "progress"
             duration: Theme.durationPage
             easing.type: Easing.OutCubic
-            onFinished: if (nowPlayingSheet.progress < 0) nowPlayingSheet.progress = 0
-        }
-        Loader {
-            width: parent.width
-            height: parent.height
-            y: parent.height * (1 - parent.progress)
-            active: parent.wanted
-            sourceComponent: NowPlayingPage {
-                objectName: "nowPlaying"
-                backend: window.backend
-                platform: window.platform
-                // Under a track's sheet, a swipe is the sheet's.
-                swipeEnabled: !trackSheet.visible
-                onCloseRequested: nowPlayingSheet.close()
-                onTrackMenuRequested: trackSheet.open()
-                onPushed: (distance) => nowPlayingSheet.follow(1 - distance / nowPlayingSheet.height)
-                onPushEnded: (velocity) => nowPlayingSheet.settleAfterPush(velocity)
-            }
         }
     }
 

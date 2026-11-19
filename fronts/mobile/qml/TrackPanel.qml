@@ -7,7 +7,8 @@ import QtQuick.Layouts
 
 // The track that plays, big: cover, title, position and the transport. With
 // room to the side (`sideBySide`, or `progress` on the way there) the cover is
-// left of the rest.
+// left of the rest. Folded (`collapse`) it's a phone's mini player: a small
+// cover with the title beside it and the transport under them, in `miniRect`.
 Item {
     id: panel
 
@@ -59,6 +60,9 @@ Item {
                                                : Math.max(0, Math.min(width, _coverOnTop))
     // 1: shuffle and repeat are shown somewhere else; the title takes their room.
     property real modesElsewhere: 0
+    // Shuffle and repeat between the seek bar's times, not beside the title: a
+    // phone's portrait has no width to spare for the title.
+    property bool modesUnderSeek: false
     // As large as there's room for, leaving the rest the width it needs.
     readonly property real _besideSide: Math.max(Theme.dp(120),
         Math.min(height * sideCoverHeightShare, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
@@ -66,10 +70,31 @@ Item {
 
     readonly property int _textDirection: nowPlaying && nowPlaying.trackDirection === -1 ? -1 : 1
 
+    // 0 the panel as laid out .. 1 the mini player: the other way of moving
+    // everything, after `progress`. The panel keeps its size meanwhile, so
+    // nothing in it is laid out anew; the mini player is wherever `miniRect`
+    // puts it, in the panel's own coordinates (below it, as a rule).
+    property real collapse: 0
+    property rect miniRect: Qt.rect(0, height, width, Theme.dp(124))
+    function _fold(full, mini) { return full + (mini - full) * collapse }
+    readonly property real _miniPad: Theme.padding
+    readonly property real _miniCover: Theme.dp(48)
+    readonly property real _miniTop: miniRect.y + Theme.dp(10)
+    readonly property real _miniTitleX: miniRect.x + _miniPad + _miniCover + Theme.dp(12)
+    readonly property real _miniTitleWidth: Math.max(1, miniRect.x + miniRect.width - _miniPad - _miniTitleX)
+    // The transport's row, under the cover and the title.
+    readonly property real _miniRowCenter: (_miniTop + _miniCover + miniRect.y + miniRect.height) / 2
+    // Fading out in the first part of folding, in in the last of unfolding.
+    readonly property real _fullOnly: Math.max(0, 1 - collapse * 2.5)
+
     function _mix(from, to) { return from + (to - from) * progress }
-    function _titleSizeAt(at) { return Theme.fontTitle + Theme.dp(3) + (Theme.dp(28) - Theme.fontTitle - Theme.dp(3)) * at }
+    // The title's and the artist's sizes with the cover above them (at `progress`
+    // 0); beside it the title is larger still.
+    property real titleSizeAbove: Theme.fontTitle + Theme.dp(3)
+    property real artistSizeAbove: Theme.fontBody
+    function _titleSizeAt(at) { return titleSizeAbove + (Theme.dp(28) - titleSizeAbove) * at }
     // Not on the way from one layout to the other.
-    readonly property bool _atRest: progress <= 0 || progress >= 1
+    readonly property bool _atRest: (progress <= 0 || progress >= 1) && (collapse <= 0 || collapse >= 1)
     // The side of the picture the cover keeps, whatever it's shown at; 0: as shown,
     // for a panel that stays in one layout. Not worked out from this panel's size,
     // which changes on the way.
@@ -80,19 +105,23 @@ Item {
     Item {
         id: coverBox
         objectName: "trackCover"
-        x: panel._mix(panel.compact ? 0 : (panel.width - panel._aboveSide) / 2, 0)
-        y: panel._mix(panel.compact ? (panel._compactRow - panel._aboveSide) / 2
-                                    : (panel.height - panel._detailsHeight - panel._gap - panel._aboveSide) / 2,
-                      (panel.height - panel._besideSide) / 2)
-        width: panel._mix(panel._aboveSide, panel._besideSide)
+        x: panel._fold(panel._mix(panel.compact ? 0 : (panel.width - panel._aboveSide) / 2, 0),
+                       panel.miniRect.x + panel._miniPad)
+        y: panel._fold(panel._mix(panel.compact ? (panel._compactRow - panel._aboveSide) / 2
+                                                : (panel.height - panel._detailsHeight - panel._gap - panel._aboveSide) / 2,
+                                  (panel.height - panel._besideSide) / 2),
+                       panel._miniTop)
+        width: panel._fold(panel._mix(panel._aboveSide, panel._besideSide), panel._miniCover)
         height: width
         readonly property alias changing: cover.changing
         readonly property alias enteringScale: cover.enteringScale
         readonly property alias shownSource: cover.shownSource
         readonly property alias shownSide: cover.shownSide
-        // A slight breath while playing.
-        scale: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
-        Behavior on scale { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
+        // A slight breath while playing; not in the mini player. Animated apart
+        // from folding: a Behavior on the scale itself would lag behind a finger.
+        property real breath: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
+        Behavior on breath { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
+        scale: panel._fold(breath, 1)
 
         Cover {
             id: cover
@@ -376,6 +405,7 @@ Item {
         spacing: Theme.dp(8)
 
         Item {
+            id: titleHolder
             Layout.fillWidth: true
             Layout.leftMargin: panel.compact ? (panel._aboveSide + panel._gap) * (1 - panel.progress) : 0
             Layout.preferredHeight: panel.compact ? panel._mix(panel._compactRow, titleRow.implicitHeight)
@@ -393,52 +423,104 @@ Item {
                     id: titleSlot
                     Layout.fillWidth: true
                     implicitHeight: titleBlock.implicitHeight * titleBlock.scale
-                    TrackTitleBlock {
-                        id: titleBlock
-                        objectName: "trackTitle"
-                        y: (titleSlot.height - titleSlot.implicitHeight) / 2
-                        transformOrigin: Item.TopLeft
-                        scale: panel._titleSizeAt(panel.progress) / panel._titleSizeAt(1)
-                        title: panel.nowPlaying ? panel.nowPlaying.title : ""
-                        artist: panel.nowPlaying ? panel.nowPlaying.artist : ""
-                        direction: panel._textDirection
-                        titleColor: panel.inkColor
-                        artistColor: panel.inkSecondaryColor
-                        titleSize: Math.round(panel._titleSizeAt(1))
-                        // Theme.fontBody when the panel has the cover above the text.
-                        artistSize: Math.round(Theme.fontBody * panel._titleSizeAt(1) / panel._titleSizeAt(0))
+                    // Where the slot is in the panel: folded, the block goes
+                    // from it to beside the mini player's cover.
+                    readonly property real panelX: details.x + titleHolder.x + titleSlot.x
+                    readonly property real panelY: details.y + titleHolder.y + titleSlot.y
+                    // A little larger than the title below the cover would be,
+                    // for the artist to be as large as a mini player's.
+                    readonly property real miniScale: (Theme.fontBody + Theme.dp(1)) / panel._titleSizeAt(1)
+                    // How wide it shows, on the way between the two layouts: its
+                    // text stays laid out as wide as either needs and is cut off
+                    // here, so that the width changes smoothly with nothing laid
+                    // out anew. At rest the text has its own width, and no cut.
+                    readonly property real shownWidth: panel._fold(titleSlot.width, panel._miniTitleWidth)
+                    readonly property real fullScale: panel._titleSizeAt(panel.progress) / panel._titleSizeAt(1)
+                    readonly property bool folding: panel.collapse > 0 && panel.collapse < 1
+                    // Room for the shadows around the text, which the cut would take.
+                    readonly property real shadowRoom: Theme.dp(10)
+                    Item {
+                        id: titleClip
+                        x: panel.collapse * (panel._miniTitleX - titleSlot.panelX) - titleSlot.shadowRoom
+                        // Straight from beside the small cover to under the large
+                        // one, the cover would grow over it: soon after setting out
+                        // it goes under the cover's edge instead, and rides that.
+                        readonly property real _straightY: panel._fold((titleSlot.height - titleSlot.implicitHeight) / 2,
+                                       panel._miniTop + (panel._miniCover - titleBlock.implicitHeight * titleSlot.miniScale) / 2
+                                       - titleSlot.panelY)
+                        readonly property real _underCover: coverBox.y + coverBox.height + Theme.dp(6) - titleSlot.panelY
+                        readonly property real _riding: panel.collapse > 0 ? Math.min(1, (1 - panel.collapse) / 0.2) : 0
+                        y: _straightY + Math.max(0, _underCover - _straightY) * _riding - titleSlot.shadowRoom
+                        width: titleSlot.shownWidth + titleSlot.shadowRoom
+                        height: titleBlock.implicitHeight * titleBlock.scale + titleSlot.shadowRoom * 2
+                        clip: titleSlot.folding
+                        TrackTitleBlock {
+                            id: titleBlock
+                            objectName: "trackTitle"
+                            x: titleSlot.shadowRoom
+                            y: titleSlot.shadowRoom
+                            transformOrigin: Item.TopLeft
+                            scale: panel._fold(titleSlot.fullScale, titleSlot.miniScale)
+                            title: panel.nowPlaying ? panel.nowPlaying.title : ""
+                            artist: panel.nowPlaying ? panel.nowPlaying.artist : ""
+                            direction: panel._textDirection
+                            titleColor: panel.inkColor
+                            artistColor: panel.inkSecondaryColor
+                            titleSize: Math.round(panel._titleSizeAt(1))
+                            // artistSizeAbove when the panel has the cover above the text.
+                            artistSize: Math.round(panel.artistSizeAbove * panel._titleSizeAt(1) / panel._titleSizeAt(0))
+                        }
                     }
                     Binding {
                         target: titleBlock
                         property: "width"
-                        value: titleSlot.width / titleBlock.scale
+                        value: titleSlot.shownWidth / titleBlock.scale
                         when: panel._atRest
+                        restoreMode: Binding.RestoreNone
+                    }
+                    // Folding or unfolding: the wider of the two, once, as it sets out.
+                    Binding {
+                        target: titleBlock
+                        property: "width"
+                        value: Math.max(titleSlot.width / titleSlot.fullScale, panel._miniTitleWidth / titleSlot.miniScale)
+                        when: titleSlot.folding
                         restoreMode: Binding.RestoreNone
                     }
                 }
                 // What a queue does: not on the dev tracks, which don't have them.
-                IconButton {
-                    objectName: "shuffleButton"
-                    Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
-                    opacity: 1 - panel.modesElsewhere
+                // Moved together, for them to keep their order.
+                RowLayout {
+                    parent: panel.modesUnderSeek ? seekBar.center : titleRow
                     visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
-                    enabled: panel.nowPlaying && panel.nowPlaying.radio !== true
-                    iconName: "shuffle"
-                    color: panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
-                    onClicked: panel.nowPlaying.toggleShuffle()
-                }
-                IconButton {
-                    objectName: "repeatButton"
-                    Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
-                    opacity: 1 - panel.modesElsewhere
-                    visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
-                    iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
-                    color: panel.nowPlaying && panel.nowPlaying.repeat > 0 ? Theme.accent : panel.inkColor
-                    onClicked: panel.nowPlaying.cycleRepeat()
+                    spacing: 0
+                    IconButton {
+                        objectName: "shuffleButton"
+                        Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
+                        // Faded out in a mini player, but keeping its room: going, it'd
+                        // widen the title's slot at once.
+                        opacity: (1 - panel.modesElsewhere) * panel._fullOnly
+                        visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
+                        enabled: panel._fullOnly > 0 && panel.nowPlaying && panel.nowPlaying.radio !== true
+                        iconName: "shuffle"
+                        color: panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
+                        onClicked: panel.nowPlaying.toggleShuffle()
+                    }
+                    IconButton {
+                        objectName: "repeatButton"
+                        Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
+                        opacity: (1 - panel.modesElsewhere) * panel._fullOnly
+                        visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
+                        enabled: panel._fullOnly > 0
+                        iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
+                        color: panel.nowPlaying && panel.nowPlaying.repeat > 0 ? Theme.accent : panel.inkColor
+                        onClicked: panel.nowPlaying.cycleRepeat()
+                    }
                 }
                 IconButton {
                     objectName: "trackMenuButton"
+                    opacity: panel._fullOnly
                     visible: panel.showMenu && panel.nowPlaying && panel.nowPlaying.hasTrack === true
+                    enabled: panel._fullOnly > 0
                     iconName: "more_vert"
                     color: panel.inkColor
                     onClicked: panel.menuRequested()
@@ -449,6 +531,9 @@ Item {
         SeekBar {
             id: seekBar
             Layout.fillWidth: true
+            // Hidden, it would leave the layout and move the rest: only faded.
+            opacity: panel._fullOnly
+            enabled: panel.collapse < 0.5
             positionMs: panel.nowPlaying ? panel.nowPlaying.positionMs : 0
             durationMs: panel.nowPlaying ? panel.nowPlaying.durationMs : 0
             bufferedMs: panel.nowPlaying && panel.nowPlaying.bufferedMs !== undefined ? panel.nowPlaying.bufferedMs : -1
@@ -460,51 +545,123 @@ Item {
             onSeekRequested: (positionMs) => panel.nowPlaying.seek(positionMs)
         }
 
-        RowLayout {
+        // The transport's place: its buttons are the panel's own (below), each
+        // going between here and the mini player's row.
+        Item {
             id: transport
             Layout.alignment: Qt.AlignHCenter
-            spacing: panel._mix(panel.compact ? Theme.dp(2) : Theme.dp(10), Theme.dp(10))
-            IconButton {
-                visible: panel.nowPlaying && panel.nowPlaying.dislikeSupported === true
-                iconName: panel.nowPlaying && panel.nowPlaying.disliked ? "heart_off" : "heart_off_outline"
-                color: panel.inkColor
-                onClicked: panel.nowPlaying.setDisliked(!panel.nowPlaying.disliked)
-            }
-            IconButton {
-                iconName: "skip_previous"
-                color: panel.inkColor
-                size: Theme.touchLarge
-                iconSize: Theme.dp(34)
-                onClicked: panel.nowPlaying.previous()
-            }
-            IconButton {
-                iconName: panel.nowPlaying && panel.nowPlaying.playing ? "pause" : "play_arrow"
-                filled: true
-                size: Math.round(panel._mix(panel.compact ? Theme.dp(60) : Theme.dp(72), Theme.dp(72)))
-                iconSize: Math.round(size * 0.55)
-                onClicked: panel.nowPlaying.togglePause()
-
-                Spinner {
-                    anchors.fill: parent
-                    anchors.margins: -Theme.dp(4)
-                    running: panel.nowPlaying && panel.nowPlaying.loading === true
-                    // Around the accent button, in what stands out from it.
-                    color: panel.inkColor
-                }
-            }
-            IconButton {
-                iconName: "skip_next"
-                color: panel.inkColor
-                size: Theme.touchLarge
-                iconSize: Theme.dp(34)
-                onClicked: panel.nowPlaying.next()
-            }
-            IconButton {
-                visible: panel.nowPlaying && panel.nowPlaying.likeSupported === true
-                iconName: panel.nowPlaying && panel.nowPlaying.liked ? "favorite" : "favorite_border"
-                color: panel.nowPlaying && panel.nowPlaying.liked ? Theme.accent : panel.inkColor
-                onClicked: panel.nowPlaying.setLiked(!panel.nowPlaying.liked)
-            }
+            implicitWidth: panel._rowWidth
+            implicitHeight: Math.max(panel._playSize, Theme.touchLarge)
         }
+    }
+
+    // In order: dislike, previous, play, next, like. As laid out here, and in a
+    // mini player, where they're spread over its width.
+    readonly property real _rowSpacing: _mix(compact ? Theme.dp(2) : Theme.dp(10), Theme.dp(10))
+    readonly property int _playSize: Math.round(_mix(compact ? Theme.dp(60) : Theme.dp(72), Theme.dp(72)))
+    readonly property var _fullSizes: [Theme.touch, Theme.touchLarge, _playSize, Theme.touchLarge, Theme.touch]
+    readonly property var _miniSizes: [Theme.touch, Theme.touch, Theme.touchLarge, Theme.touch, Theme.touch]
+    // A service without likes: none here, and in a mini player there, disabled,
+    // where they keep the others in their places.
+    readonly property var _supported: [nowPlaying !== null && nowPlaying.dislikeSupported === true, true, true, true,
+                                       nowPlaying !== null && nowPlaying.likeSupported === true]
+    readonly property real _rowWidth: {
+        let width = -_rowSpacing
+        for (let i = 0; i < 5; ++i)
+            if (_supported[i])
+                width += _fullSizes[i] + _rowSpacing
+        return Math.max(0, width)
+    }
+    readonly property real _fullRowX: details.x + transport.x
+    readonly property real _fullRowCenterY: details.y + transport.y + transport.height / 2
+    // One that isn't in the row comes from just past its end.
+    function _fullCenter(slot) {
+        let at = _fullRowX
+        if (slot === 0 && !_supported[0])
+            return at - _rowSpacing - _fullSizes[0] / 2
+        for (let i = 0; i < slot; ++i)
+            if (_supported[i])
+                at += _fullSizes[i] + _rowSpacing
+        return at + _fullSizes[slot] / 2
+    }
+    function _miniCenter(slot) {
+        let taken = 0
+        for (let i = 0; i < 5; ++i)
+            taken += _miniSizes[i]
+        const gap = (miniRect.width - _miniPad * 2 - taken) / 4
+        let at = miniRect.x + _miniPad
+        for (let i = 0; i < slot; ++i)
+            at += _miniSizes[i] + gap
+        return at + _miniSizes[slot] / 2
+    }
+
+    // Kept at the size it has here and scaled down for the mini player: at a
+    // new size each frame its icon would be drawn anew each frame.
+    component TransportButton: IconButton {
+        id: button
+        property int slot
+        readonly property real _shrink: panel._fold(1, panel._miniSizes[slot] / panel._fullSizes[slot])
+        size: panel._fullSizes[slot]
+        x: panel._fold(panel._fullCenter(slot), panel._miniCenter(slot)) - width / 2
+        y: panel._fold(panel._fullRowCenterY, panel._miniRowCenter) - height / 2
+        opacity: panel._supported[slot] ? 1 : panel.collapse
+        visible: opacity > 0
+        enabled: panel._supported[slot]
+        transform: Scale {
+            origin.x: button.width / 2
+            origin.y: button.height / 2
+            xScale: button._shrink
+            yScale: button._shrink
+        }
+    }
+    TransportButton {
+        objectName: "transportDislike"
+        slot: 0
+        iconName: panel.nowPlaying && panel.nowPlaying.disliked ? "heart_off" : "heart_off_outline"
+        color: panel.inkColor
+        onClicked: panel.nowPlaying.setDisliked(!panel.nowPlaying.disliked)
+    }
+    TransportButton {
+        objectName: "transportPrevious"
+        slot: 1
+        iconName: "skip_previous"
+        color: panel.inkColor
+        iconSize: Theme.dp(34)
+        onClicked: panel.nowPlaying.previous()
+    }
+    TransportButton {
+        objectName: "transportPlay"
+        slot: 2
+        iconName: panel.nowPlaying && panel.nowPlaying.playing ? "pause" : "play_arrow"
+        filled: true
+        // A mini player's is plain, over its background.
+        fillAmount: 1 - panel.collapse
+        color: panel.inkColor
+        iconSize: Math.round(size * 0.55)
+        onClicked: panel.nowPlaying.togglePause()
+
+        Spinner {
+            anchors.fill: parent
+            anchors.margins: -Theme.dp(4)
+            opacity: panel._fullOnly
+            running: panel.nowPlaying && panel.nowPlaying.loading === true
+            // Around the accent button, in what stands out from it.
+            color: panel.inkColor
+        }
+    }
+    TransportButton {
+        objectName: "transportNext"
+        slot: 3
+        iconName: "skip_next"
+        color: panel.inkColor
+        iconSize: Theme.dp(34)
+        onClicked: panel.nowPlaying.next()
+    }
+    TransportButton {
+        objectName: "transportLike"
+        slot: 4
+        iconName: panel.nowPlaying && panel.nowPlaying.liked ? "favorite" : "favorite_border"
+        color: panel.nowPlaying && panel.nowPlaying.liked ? Theme.accent : panel.inkColor
+        onClicked: panel.nowPlaying.setLiked(!panel.nowPlaying.liked)
     }
 }

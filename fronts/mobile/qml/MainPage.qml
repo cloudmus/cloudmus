@@ -8,22 +8,27 @@ import QtQuick.Layouts
 // to spare (a head unit) both are in view, the track on the driver's side, and
 // a button turns the screen over to the track: the list narrows to its covers,
 // the source's bar folds into a button, the cover grows beside the rest. On a
-// phone the list fills the screen over a mini player that opens Now Playing.
+// phone the list fills the screen over a mini player that grows into Now
+// Playing (NowPlayingPage).
 Page {
     id: page
 
     property QtObject backend
+    property QtObject platform
     // Off under what's over the page, for a swipe there not to reach here.
     property bool gesturesEnabled: true
-    // All under Now Playing: nothing of the mini player to keep drawing.
-    property bool covered: false
+    // On a phone, how far Now Playing is up: 0 just the mini player (Main.qml).
+    property real nowPlayingProgress: 0
     // The track's side of a head unit's screen goes on up under the status bar,
     // which is see-through.
     readonly property bool auraUnderStatusBar: wide
     readonly property bool auraSpansStatusBar: false
     signal nowPlayingRequested()
-    signal nowPlayingPulled(real distance)
-    signal nowPlayingPullEnded(real velocity)
+    signal nowPlayingCloseRequested()
+    // A finger moving it: where it'd be (0 .. 1); let go, at what speed upwards,
+    // and whether it had been open when taken.
+    signal nowPlayingDragged(real progress)
+    signal nowPlayingDragEnded(real velocity, bool fromOpen)
     signal settingsRequested()
     signal libraryRequested()
     signal trackMenuRequested()
@@ -33,6 +38,8 @@ Page {
     readonly property QtObject library: backend.library
     readonly property bool wide: width > height * 1.1
     readonly property bool hasTrack: nowPlaying && nowPlaying.hasTrack === true
+    // A phone's, at the bottom.
+    readonly property bool _miniShown: !wide && hasTrack
     // As on the desktop: the track's, or with none playing the playlist's.
     readonly property string backgroundSeed: nowPlaying && nowPlaying.backgroundSeed ? nowPlaying.backgroundSeed
         : playlist && playlist.title ? playlist.title : ""
@@ -191,8 +198,13 @@ Page {
 
     RowLayout {
         anchors.fill: parent
-        anchors.bottomMargin: mini.visible ? mini.height : 0
+        anchors.bottomMargin: page._miniShown ? Theme.miniPlayerHeight : 0
         spacing: 0
+        // Receding as Now Playing comes up, and neither drawn nor pressed under
+        // it: Now Playing's background lets presses through.
+        scale: 1 - 0.06 * page.nowPlayingProgress
+        opacity: 1 - 0.6 * page.nowPlayingProgress
+        visible: page.nowPlayingProgress < 1
 
         // The track, on a head unit, over the generated background.
         Item {
@@ -454,7 +466,7 @@ Page {
                     width: page.wide ? page._listFullWidth : parent.width
                     height: parent.height
                     // With the mini player below, it's that keeps clear of the bar.
-                    bottomMargin: mini.visible ? 0 : Theme.insetBottom
+                    bottomMargin: page._miniShown ? 0 : Theme.insetBottom
                     model: page.backend.tracks
                     delegate: TrackRow {
                         playing: page.nowPlaying && page.nowPlaying.playing === true
@@ -496,18 +508,23 @@ Page {
         }
     }
 
-    MiniPlayer {
-        id: mini
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        nowPlaying: page.nowPlaying
-        seed: page.backgroundSeed
-        preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
-        pullEnabled: page.gesturesEnabled
-        visible: !page.wide && page.hasTrack && !page.covered
-        onOpenRequested: page.nowPlayingRequested()
-        onPulled: (distance) => page.nowPlayingPulled(distance)
-        onPullEnded: (velocity) => page.nowPlayingPullEnded(velocity)
+    // Not made on a head unit: its cover would be decoded for nothing at every
+    // change of track.
+    Loader {
+        anchors.fill: parent
+        active: !page.wide
+        visible: page.hasTrack || page.nowPlayingProgress > 0
+        sourceComponent: NowPlayingPage {
+            objectName: "nowPlaying"
+            backend: page.backend
+            platform: page.platform
+            progress: page.nowPlayingProgress
+            swipeEnabled: page.gesturesEnabled
+            onOpenRequested: page.nowPlayingRequested()
+            onCloseRequested: page.nowPlayingCloseRequested()
+            onTrackMenuRequested: page.trackMenuRequested()
+            onDragged: (share) => page.nowPlayingDragged(share)
+            onDragEnded: (velocity, fromOpen) => page.nowPlayingDragEnded(velocity, fromOpen)
+        }
     }
 }

@@ -21,6 +21,8 @@ ColumnLayout {
     readonly property color bufferedColor: overAura ? Qt.rgba(1, 1, 1, 0.6)
         : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
     signal seekRequested(real positionMs)
+    // Between the times, centered: what's put there (TrackPanel's play modes).
+    readonly property alias center: centerRow
 
     spacing: Theme.dp(2)
 
@@ -83,24 +85,37 @@ ColumnLayout {
     }
     }
 
-    RowLayout {
+    // What's between the times is in the middle of the bar, not of the room
+    // they leave: that changes as the time goes on.
+    Item {
         Layout.fillWidth: true
-        ShadowText {
-            shadowed: bar.overAura
-            text: Theme.formatTime(slider.pressed ? slider.value : bar.positionMs)
-            color: bar.inkSecondaryColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSmall
-            font.features: { "tnum": 1 }
+        implicitHeight: Math.max(times.implicitHeight, centerRow.height)
+        RowLayout {
+            id: times
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            ShadowText {
+                shadowed: bar.overAura
+                text: Theme.formatTime(slider.pressed ? slider.value : bar.positionMs)
+                color: bar.inkSecondaryColor
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSmall
+                font.features: { "tnum": 1 }
+            }
+            Item { Layout.fillWidth: true }
+            ShadowText {
+                shadowed: bar.overAura
+                text: Theme.formatTime(bar.durationMs)
+                color: bar.inkSecondaryColor
+                font.family: Theme.fontFamily
+                font.pixelSize: Theme.fontSmall
+                font.features: { "tnum": 1 }
+            }
         }
-        Item { Layout.fillWidth: true }
-        ShadowText {
-            shadowed: bar.overAura
-            text: Theme.formatTime(bar.durationMs)
-            color: bar.inkSecondaryColor
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontSmall
-            font.features: { "tnum": 1 }
+        Row {
+            id: centerRow
+            anchors.centerIn: parent
         }
     }
 }

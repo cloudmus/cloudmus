@@ -17,8 +17,13 @@ Item {
     // the screen's density, so told pixels it made each picture that many times
     // too large, on a phone seven times the memory, with whatever was drawn into
     // it in pixels (a cover's corners) that much too small.
-    readonly property size _sourceSize: Qt.size(Math.ceil(pixels.width / Screen.devicePixelRatio),
-                                                Math.ceil(pixels.height / Screen.devicePixelRatio))
+    // Worked out when asked, not bound: _load() runs as `pixels` changes, before
+    // a binding on it would have caught up, and a picture would be asked for at
+    // the size before.
+    function _sourceSize() {
+        return Qt.size(Math.ceil(pixels.width / Screen.devicePixelRatio),
+                       Math.ceil(pixels.height / Screen.devicePixelRatio))
+    }
     property int fadeDuration: 250
     // Another picture coming as on the desktop's hero: the old one shrinks away
     // fading, the new one settles in from larger. The same at another size
@@ -70,10 +75,11 @@ Item {
             }
             return
         }
-        if (_front.source.toString() === target && _front.sourceSize === _sourceSize)
+        const sourceSize = _sourceSize()
+        if (_front.source.toString() === target && _front.sourceSize === sourceSize)
             return
         _back.source = ""
-        _back.sourceSize = _sourceSize
+        _back.sourceSize = sourceSize
         _back.source = target
         // At hand already, and its status has told so on the way, so a change may
         // have begun: this is the one that counts. With nothing to replace it's
