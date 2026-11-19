@@ -1,6 +1,7 @@
 import asyncio
 
 import pytest
+from yt_dlp.utils import DownloadError
 
 from cloudmus_backend_ytmusic import playback, server
 from rpc_common.generated.models import StreamDescriptor
@@ -63,3 +64,20 @@ async def test_unavailable_and_offline_errors_carry_the_track_and_reason(monkeyp
         await backend._handlers["playback.resolveStream"]({"trackId": "42"}, 8)
     assert info.value.code == 1200
     assert info.value.data == {"retryable": True, "trackId": "42", "reason": "offline"}
+
+
+@pytest.mark.asyncio
+async def test_youtube_bot_check_is_a_retryable_upstream_error(monkeypatch):
+    def extract(video_id):
+        raise DownloadError(f"ERROR: [youtube] {video_id}: Sign in to confirm you’re not a bot.")
+
+    monkeypatch.setattr(playback, "_extract_info", extract)
+    monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
+    monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 0.01)
+    backend = server.build_server()
+
+    with pytest.raises(BackendError, match="not a bot") as info:
+        await backend._handlers["playback.resolveStream"]({"trackId": "42"}, 7)
+
+    assert info.value.code == 1200
+    assert info.value.data == {"retryable": True, "trackId": "42"}

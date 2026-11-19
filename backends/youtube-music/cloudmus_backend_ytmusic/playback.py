@@ -67,12 +67,14 @@ def _codec_name(acodec: str | None) -> str | None:
     return "aac" if acodec.startswith("mp4a") else acodec.split(".")[0]
 
 
+# Match the age restriction specifically. YouTube's bot check also starts
+# with "sign in to confirm" and can affect every track on a connection.
 _NON_TRANSIENT_SIGNATURES = (
     "video unavailable",
     "this video is not available",
     "private video",
     "copyright",
-    "sign in to confirm",
+    "sign in to confirm your age",
     "not available in your country",
     "members-only",
 )
