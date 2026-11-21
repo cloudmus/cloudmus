@@ -382,8 +382,11 @@ Page {
                         width: tiles.cellWidth
                         height: tiles.cellHeight
                         focusPolicy: Qt.NoFocus
-                        onClicked: page.library.playPlaylist(tile.playlistId)
-                        // To see its tracks; its star there takes it out of the favorites.
+                        // A station has no tracks to look at: it plays. A playlist
+                        // opens, to see its tracks.
+                        onClicked: tile.kind === "radioStation" ? page.library.playPlaylist(tile.playlistId)
+                                                                : page.openPlaylist(tile.playlistId)
+                        // Its page, a station's too: its star there takes it out of the favorites.
                         onPressAndHold: page.openPlaylist(tile.playlistId)
                         contentItem: ColumnLayout {
                             spacing: Theme.dp(4)
@@ -451,7 +454,9 @@ Page {
                         // row: the content overflowed downwards, off the highlight's middle.
                         topPadding: 0
                         bottomPadding: 0
-                        onClicked: page.openPlaylist(other.playlistId)
+                        onClicked: other.kind === "radioStation" ? page.library.playPlaylist(other.playlistId)
+                                                                 : page.openPlaylist(other.playlistId)
+                        onPressAndHold: page.openPlaylist(other.playlistId)
                         background: Rectangle {
                             radius: Theme.radius
                             color: other.down && otherRipple.flat ? Theme.surface200 : "transparent"
