@@ -5,6 +5,13 @@ service) talking JSON-RPC 2.0 over stdin/stdout, framed as NDJSON.
 Details: `docs/development.md`. Before touching `fronts/qt/`, read
 `fronts/qt/AGENTS.md`.
 
+## Questions and changes
+
+When the user asks a question, answer it directly. Inspect the code or run
+read-only checks as needed. Wait for an explicit request before changing code,
+rebuilding packages, or installing an update. A question about a bug or missing
+feature is a request for an explanation by default.
+
 ## Layout
 
 | Path | What | Stack |
