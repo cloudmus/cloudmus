@@ -22,6 +22,37 @@ Page {
     readonly property bool auraUnderStatusBar: true
     readonly property bool auraSpansStatusBar: true
 
+    // The loading spinner, the star and Save all.
+    readonly property bool loading: page.screen !== null && page.screen.loading === true
+    readonly property bool canStar: page.screen !== null && page.screen.isHistory === false
+    readonly property bool canDownload: page.screen !== null && page.screen.canDownload === true
+    // Without any of them (History), none of the room they'd take.
+    readonly property bool hasHeaderActions: loading || canStar || canDownload
+
+    component HeaderActions: RowLayout {
+        property int buttonSize: Theme.touch
+        spacing: 0
+        Spinner {
+            Layout.rightMargin: Theme.dp(6)
+            running: page.loading
+            color: "#FFFFFF"
+        }
+        IconButton {
+            visible: page.canStar
+            size: parent.buttonSize
+            iconName: page.screen && page.screen.isFavorite ? "star" : "star_border"
+            color: "#FFFFFF"
+            onClicked: page.screen.toggleFavorite()
+        }
+        IconButton {
+            visible: page.canDownload
+            size: parent.buttonSize
+            iconName: "file_download"
+            color: "#FFFFFF"
+            onClicked: page.screen.downloadAll()
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -50,8 +81,8 @@ Page {
                     onClicked: page.closeRequested()
                 }
                 Cover {
-                    Layout.preferredWidth: Theme.dp(page.wide ? 88 : 96)
-                    Layout.preferredHeight: Theme.dp(page.wide ? 88 : 96)
+                    Layout.preferredWidth: Theme.dp(page.wide ? 88 : 80)
+                    Layout.preferredHeight: Theme.dp(page.wide ? 88 : 80)
                     source: page.screen ? page.screen.coverUrl : ""
                     seed: page.screen ? page.screen.title : ""
                 }
@@ -77,22 +108,16 @@ Page {
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSmall
                     }
+                    // On a phone held upright the row has no room for them
+                    // beside the title: they go under it.
+                    HeaderActions {
+                        visible: !page.wide && page.hasHeaderActions
+                        Layout.leftMargin: -Theme.dp(8)
+                        buttonSize: Theme.dp(40)
+                    }
                 }
-                Spinner {
-                    running: page.screen && page.screen.loading === true
-                    color: "#FFFFFF"
-                }
-                IconButton {
-                    visible: page.screen && page.screen.isHistory === false
-                    iconName: page.screen && page.screen.isFavorite ? "star" : "star_border"
-                    color: "#FFFFFF"
-                    onClicked: page.screen.toggleFavorite()
-                }
-                IconButton {
-                    visible: page.screen && page.screen.canDownload === true
-                    iconName: "file_download"
-                    color: "#FFFFFF"
-                    onClicked: page.screen.downloadAll()
+                HeaderActions {
+                    visible: page.wide && page.hasHeaderActions
                 }
                 IconButton {
                     iconName: "play_arrow"
