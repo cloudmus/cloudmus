@@ -31,8 +31,8 @@ use librespot_metadata::audio::{AudioFileFormat, AudioFiles, AudioItem};
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-use crate::generated::models::StreamDescriptor;
 use crate::i18n::trf;
+use rpc_common::generated::models::StreamDescriptor;
 
 /// Spotify's Ogg files start with a header of its own (holding loudness
 /// data) that no decoder knows; real Ogg begins here (librespot-playback's

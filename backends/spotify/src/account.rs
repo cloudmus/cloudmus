@@ -33,11 +33,11 @@ use tokio::sync::{watch, Mutex};
 use url::Url;
 
 use crate::config;
-use crate::generated::methods::{AUTH_PROMPT, AUTH_STATUS_CHANGED};
-use crate::generated::models::{GetStatusResult, StatusChangedParams};
 use crate::i18n::{tr, trf};
-use crate::rpc::errors::{app_error_data, AUTH_EXPIRED, AUTH_NOT_AUTHENTICATED, UPSTREAM_UNREACHABLE};
-use crate::rpc::{Notifier, RpcError};
+use rpc_common::errors::{app_error_data, AUTH_EXPIRED, AUTH_NOT_AUTHENTICATED, UPSTREAM_UNREACHABLE};
+use rpc_common::generated::methods::{AUTH_PROMPT, AUTH_STATUS_CHANGED};
+use rpc_common::generated::models::{GetStatusResult, StatusChangedParams};
+use rpc_common::{Notifier, RpcError};
 
 /// Spotify's desktop client — the one librespot signs in as. Its redirect
 /// accepts any port on 127.0.0.1 (librespot's `--oauth-port`).
@@ -542,7 +542,7 @@ pub fn upstream_error(e: &librespot_core::Error) -> RpcError {
         true,
         None,
         None,
-        offline.then_some(crate::rpc::errors::REASON_OFFLINE),
+        offline.then_some(rpc_common::errors::REASON_OFFLINE),
     ))
 }
 

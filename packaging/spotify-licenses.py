@@ -54,7 +54,12 @@ def shipped(metadata: dict) -> list[dict]:
             if any(kind["kind"] is None for kind in dep["dep_kinds"]):
                 stack.append(dep["pkg"])
     seen.discard(root)
-    return sorted((packages[pid] for pid in seen), key=lambda p: (p["name"], p["version"]))
+    # Crates of this repository (backends/rs-rpc-common): no registry
+    # source, and CloudMus's own license covers them.
+    return sorted(
+        (packages[pid] for pid in seen if packages[pid]["source"] is not None),
+        key=lambda p: (p["name"], p["version"]),
+    )
 
 
 def license_files(package: dict) -> list[Path]:

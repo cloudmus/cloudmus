@@ -12,21 +12,21 @@ use crate::account::{upstream_error, Account};
 use crate::catalog::{self, Liked};
 use crate::collection;
 use crate::config;
-use crate::generated::methods::*;
-use crate::generated::models::{
+use crate::i18n::{self, tr, trf};
+use crate::radio::{self, RadioSession};
+use crate::stream::{ResolveError, StreamServer};
+use rpc_common::errors::{
+    app_error_data, parse_params, to_result, REASON_UNAVAILABLE, RESOURCE_NOT_FOUND, STATE_INVALID,
+    UPSTREAM_UNREACHABLE,
+};
+use rpc_common::generated::methods::*;
+use rpc_common::generated::models::{
     CancelParams, ErrorParams, LikeParams, ListLikedParams, ListPlaylistsResult, ListTracksParams, PlayParams,
     ResolveStreamParams, ResolveStreamResult, SkipParams, StartRadioParams, StreamReadyParams, TrackFinishedParams,
     TrackStartedParams, UnlikeParams,
 };
-use crate::i18n::{self, tr, trf};
-use crate::radio::{self, RadioSession};
-use crate::rpc::errors::{
-    app_error_data, parse_params, to_result, REASON_UNAVAILABLE, RESOURCE_NOT_FOUND, STATE_INVALID,
-    UPSTREAM_UNREACHABLE,
-};
-use crate::rpc::settings::{Field, Group, Kind, SettingsStore};
-use crate::rpc::{Notifier, RpcError, Server, SourceInfo};
-use crate::stream::{ResolveError, StreamServer};
+use rpc_common::settings::{Field, Group, Kind, SettingsStore};
+use rpc_common::{Notifier, RpcError, Server, SourceInfo};
 
 const QUALITY_KEY: &str = "streamQuality";
 const QUALITY_OPTIONS: &[(&str, &str)] =

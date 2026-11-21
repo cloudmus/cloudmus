@@ -76,12 +76,16 @@ Generate the protocol code first, then build with cargo:
 
 ```bash
 python protocol/codegen/generate.py --lang rust
-cd backends/spotify && cargo build --release
+cd backends && cargo build --release --locked -p cloudmus-backend-spotify
 ```
 
-`manifest.json` points at `target/release/cloudmus-backend-spotify`, for
+It is a member of the `backends/` cargo workspace and builds on
+`backends/rs-rpc-common` (the JSON-RPC server, errors, translation,
+settings, and the protocol types generated from `protocol/`). The binary
+lands in `backends/target/`: `manifest.json` points at
+`../target/release/cloudmus-backend-spotify`, for
 `CLOUDMUS_DEV_BACKENDS=1`. With no local Rust, the command for the pinned
 `rust:alpine` image is in [`docs/development.md`](../../docs/development.md).
 
-Tests: `cargo test`; the conformance suite:
-`python -m rpc_common.testing.conformance backends/spotify/target/release/cloudmus-backend-spotify`.
+Tests: `cargo test --locked` in `backends/`; the conformance suite:
+`python -m rpc_common.testing.conformance backends/target/release/cloudmus-backend-spotify`.

@@ -15,8 +15,8 @@ use protobuf::{EnumOrUnknown, Message};
 use tokio::sync::Mutex;
 
 use crate::collection;
-use crate::generated::models::{Album, Artist, ListTracksResult, Playlist, Track};
 use crate::i18n::tr;
+use rpc_common::generated::models::{Album, Artist, ListTracksResult, Playlist, Track};
 
 pub const LIKED_PLAYLIST_ID: &str = "__liked__";
 /// Tracks per listTracks/listLiked page: one metadata batch.

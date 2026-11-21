@@ -6,13 +6,10 @@ mod catalog;
 mod collection;
 mod config;
 mod errors;
-#[allow(clippy::all)]
-mod generated;
 mod i18n;
 mod page;
 mod proxy_relay;
 mod radio;
-mod rpc;
 mod stream;
 
 fn main() {

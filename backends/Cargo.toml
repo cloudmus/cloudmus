@@ -4,4 +4,9 @@
 # protocol/ (python protocol/codegen/generate.py --lang rust).
 [workspace]
 resolver = "2"
-members = ["rs-rpc-common"]
+members = ["rs-rpc-common", "spotify"]
+
+# Profiles apply to the whole workspace (a member's own are ignored).
+[profile.release]
+strip = true
+lto = "thin"

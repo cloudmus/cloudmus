@@ -21,13 +21,13 @@ fi
 echo "==> Protocol stubs"
 "${python}" protocol/codegen/generate.py --lang python rust
 
-echo "==> Spotify backend"
+echo "==> Backends in Rust"
 if command -v cargo >/dev/null; then
-    (cd backends/spotify && cargo build --release --locked)
+    (cd backends && cargo build --release --locked)
 else
     # Same image and cache as docs/development.md; the binary is static
     # musl, so it runs on the host. backends/spotify/manifest.json points
-    # at backends/spotify/target/release/.
+    # at backends/target/release/.
     proxy_envs=()
     for var in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy; do
         if [ -n "${!var:-}" ]; then
@@ -36,8 +36,8 @@ else
     done
     docker run --rm "${proxy_envs[@]}" --user "$(id -u):$(id -g)" \
         -e CARGO_HOME=/workspace/build-spotify/cargo-home \
-        -e CARGO_TARGET_DIR=/workspace/backends/spotify/target \
-        -v "$PWD":/workspace:z -w /workspace/backends/spotify \
+        -e CARGO_TARGET_DIR=/workspace/backends/target \
+        -v "$PWD":/workspace:z -w /workspace/backends \
         rust:1.98.0-alpine cargo build --release --locked
 fi
 

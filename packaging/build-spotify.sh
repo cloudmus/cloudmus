@@ -42,12 +42,12 @@ docker run --rm \
     -w /workspace \
     rust:1.98.0-alpine \
     sh -euc '
-        trap "chown -R \"\$OWNER\" /workspace/build-spotify /workspace/backends/spotify/src/generated 2>/dev/null || true" EXIT
+        trap "chown -R \"\$OWNER\" /workspace/build-spotify /workspace/backends/rs-rpc-common/src/generated 2>/dev/null || true" EXIT
         apk add --no-cache $PACKAGES >/dev/null
         if [ -n "$TARGET" ]; then rustup target add "$TARGET" >/dev/null; fi
         python3 protocol/codegen/generate.py --lang rust
-        cd backends/spotify
-        cargo build --release --locked ${TARGET:+--target "$TARGET"}
+        cd backends
+        cargo build --release --locked -p cloudmus-backend-spotify ${TARGET:+--target "$TARGET"}
         cargo metadata --format-version 1 --locked --filter-platform "$PLATFORM" > /tmp/metadata.json
         python3 /workspace/packaging/spotify-licenses.py /tmp/metadata.json \
             > /workspace/build-spotify/THIRD_PARTY-spotify.txt

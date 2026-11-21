@@ -20,10 +20,10 @@ use rand::seq::IndexedRandom;
 use serde_json::Value;
 
 use crate::catalog::{self, Liked};
-use crate::generated::methods::RADIO_TRACKS_ADDED;
-use crate::generated::models::{Playlist, StartRadioResult, Track, TracksAddedParams};
 use crate::i18n::tr;
-use crate::rpc::Notifier;
+use rpc_common::generated::methods::RADIO_TRACKS_ADDED;
+use rpc_common::generated::models::{Playlist, StartRadioResult, Track, TracksAddedParams};
+use rpc_common::Notifier;
 
 pub const LIKED_STATION_ID: &str = "__liked_radio__";
 /// Tracks sent at a time.

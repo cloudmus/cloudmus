@@ -6,10 +6,14 @@ description = "cloudmus backend: Spotify, through librespot"
 license = "MIT"
 publish = false
 
-# Build with --locked: Cargo.lock holds vergen at 9.0.6, as librespot's own
+# Build with --locked: backends/Cargo.lock holds vergen at 9.0.6, as librespot's own
 # lock does — with vergen 9.1 librespot-core's build script doesn't compile.
 
 [dependencies]
+# The JSON-RPC server, errors, translation, settings and protocol types
+# shared by the backends in Rust.
+cloudmus-rpc-common = { path = "../rs-rpc-common" }
+
 # rustls with bundled roots, not native-tls: one static binary that finds
 # the same CA set on any distro and on Windows.
 librespot-core = { version = "0.8", default-features = false, features = ["rustls-tls-webpki-roots"] }
@@ -36,6 +40,3 @@ sha2 = "0.10"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "sync", "time", "fs"] }
 url = "2"
 
-[profile.release]
-strip = true
-lto = "thin"

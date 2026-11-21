@@ -50,7 +50,7 @@ void preferRepoVenvInterpreter(BackendManifest& manifest, const QString& repoRoo
 }
 
 // A dev-mode manifest's own program — a path like the Spotify backend's
-// "target/release/cloudmus-backend-spotify" — is relative to the
+// "../target/release/cloudmus-backend-spotify" — is relative to the
 // manifest's directory, not to wherever the front was started. A bare
 // name ("python3") is still looked up on PATH.
 void resolveRelativeProgram(BackendManifest& manifest)

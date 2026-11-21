@@ -37,7 +37,7 @@ class BackendManifest:
 
 def _resolve_relative_program(manifest: BackendManifest) -> None:
     """A dev-mode manifest's own program (the Spotify backend's
-    "target/release/cloudmus-backend-spotify") is relative to the manifest's
+    "../target/release/cloudmus-backend-spotify") is relative to the manifest's
     directory; a bare name ("python3") is still looked up on PATH."""
     program = manifest.argv[0] if manifest.argv else ""
     if "/" in program and not Path(program).is_absolute():

@@ -88,8 +88,8 @@ python protocol/codegen/generate.py --lang python cpp rust
 pip install -e backends/py-rpc-common -e backends/yandex-music \
     -e backends/local-folder -e backends/youtube-music -e fronts/tui
 
-# The Spotify backend (its manifest runs target/release/)
-(cd backends/spotify && cargo build --release)
+# The backends in Rust (Spotify's manifest runs backends/target/release/)
+(cd backends && cargo build --release --locked)
 ```
 
 Without a local Rust, build it in the same pinned image as `AppRun` (the
@@ -97,8 +97,8 @@ binary is static musl, so it runs on the host):
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -e CARGO_HOME=/workspace/build-spotify/cargo-home \
-    -e CARGO_TARGET_DIR=/workspace/backends/spotify/target -v "$PWD":/workspace:z \
-    -w /workspace/backends/spotify rust:1.98.0-alpine cargo build --release --locked
+    -e CARGO_TARGET_DIR=/workspace/backends/target -v "$PWD":/workspace:z \
+    -w /workspace/backends rust:1.98.0-alpine cargo build --release --locked
 ```
 
 (`cargo test --locked` the same way runs its tests.)
@@ -269,7 +269,7 @@ ctest --test-dir fronts/qt/build                # Qt front
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_yandex
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_ytmusic
-python -m rpc_common.testing.conformance backends/spotify/target/release/cloudmus-backend-spotify
+python -m rpc_common.testing.conformance backends/target/release/cloudmus-backend-spotify
 (cd backends && cargo build --locked --examples)
 python -m rpc_common.testing.conformance backends/target/debug/examples/minimal  # the Rust server itself
 ```

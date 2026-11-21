@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, OnceLock};
 
-use crate::rpc::i18n::Translator;
+use rpc_common::i18n::Translator;
 
 const CATALOGS: &[(&str, &str)] = &[
     ("be", include_str!("../locales/be.json")),
