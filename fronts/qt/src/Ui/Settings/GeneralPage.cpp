@@ -16,6 +16,10 @@
 #include "Spacing.h"
 #include "ThemeCrossfade.h"
 #include "Tokens.h"
+#include "TrayIcon.h"
+#ifdef Q_OS_MACOS
+#include "DockTile.h"
+#endif
 #include "Typography.h"
 #include "WindowGlass.h"
 
@@ -50,6 +54,10 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
         = makeCheck(tr("Resume playback on start if it was playing at exit"), settings_.resumePlaybackAtStartup());
     closeToTrayCheck_ = makeCheck(
         tr("Closing the window minimizes to the tray instead of quitting"), settings_.closeMinimizesToTray());
+    trayClickShowsWindowCheck_
+        = makeCheck(tr("Clicking the menu bar icon shows the window (right-click opens the menu)"),
+            settings_.trayClickShowsWindow());
+    dockShowsCoverCheck_ = makeCheck(tr("Show the playing track's cover on the Dock icon"), settings_.dockShowsCover());
     trackNotificationsCheck_
         = makeCheck(tr("Show a notification when the track changes"), settings_.trackNotifications());
 
@@ -144,10 +152,18 @@ QWidget* GeneralPage::createWidget(QWidget* parent)
     layout->addLayout(startHiddenRow);
     layout->addWidget(resumePlaybackCheck_);
     layout->addWidget(closeToTrayCheck_);
+    layout->addWidget(trayClickShowsWindowCheck_);
+    layout->addWidget(dockShowsCoverCheck_);
     layout->addWidget(trackNotificationsCheck_);
     layout->addSpacing(Theme::Spacing::space3);
     layout->addLayout(colorSchemeRow);
     layout->addLayout(trayPanelRow);
+#ifndef Q_OS_MACOS
+    // Elsewhere a click on the tray icon always shows the window, and
+    // there is no Dock.
+    trayClickShowsWindowCheck_->hide();
+    dockShowsCoverCheck_->hide();
+#endif
     layout->addLayout(languageRow);
     layout->addWidget(glassCheck_);
     layout->addWidget(glassHint);
@@ -166,6 +182,8 @@ bool GeneralPage::isDirty() const
             || startHiddenCheck_->isChecked() != settings_.startHiddenAtLogin()
             || resumePlaybackCheck_->isChecked() != settings_.resumePlaybackAtStartup()
             || closeToTrayCheck_->isChecked() != settings_.closeMinimizesToTray()
+            || trayClickShowsWindowCheck_->isChecked() != settings_.trayClickShowsWindow()
+            || dockShowsCoverCheck_->isChecked() != settings_.dockShowsCover()
             || trackNotificationsCheck_->isChecked() != settings_.trackNotifications()
             || colorSchemeCombo_->currentData().toInt() != int(settings_.colorScheme())
             || trayPanelCombo_->currentData().toInt() != int(settings_.trayPanel())
@@ -184,6 +202,12 @@ Rpc::Task<bool> GeneralPage::apply()
     settings_.setStartHiddenAtLogin(startHiddenCheck_->isChecked());
     settings_.setResumePlaybackAtStartup(resumePlaybackCheck_->isChecked());
     settings_.setCloseMinimizesToTray(closeToTrayCheck_->isChecked());
+    settings_.setTrayClickShowsWindow(trayClickShowsWindowCheck_->isChecked());
+    Integration::TrayIcon::setClickShowsWindow(trayClickShowsWindowCheck_->isChecked());
+    settings_.setDockShowsCover(dockShowsCoverCheck_->isChecked());
+#ifdef Q_OS_MACOS
+    Integration::DockTile::setShowsCover(dockShowsCoverCheck_->isChecked());
+#endif
     if (trackNotificationsCheck_->isChecked() != settings_.trackNotifications())
         settings_.setTrackNotifications(trackNotificationsCheck_->isChecked());
     const auto scheme = Config::Settings::ColorScheme(colorSchemeCombo_->currentData().toInt());
@@ -219,12 +243,14 @@ void GeneralPage::applyColorScheme(Config::Settings::ColorScheme scheme)
         Theme::setModeOverride(std::nullopt);
     else
         Theme::setModeOverride(scheme == ColorScheme::Dark ? Theme::Mode::Dark : Theme::Mode::Light);
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     // Windows draws the title bar light or dark after Qt's color scheme,
     // which otherwise follows the system's — a white title bar over a dark
     // app. Setting it recolors every window's frame, open ones included.
-    // Not elsewhere: there the scheme is also what Qt's platform theme and
-    // the desktop's decorations go by, and those already look right.
+    // On macOS it's the app's appearance: the title bar and the glass's
+    // blur material (WindowGlassMac.mm) go by it. Not elsewhere: there the
+    // scheme is also what Qt's platform theme and the desktop's decorations
+    // go by, and those already look right.
     QGuiApplication::styleHints()->setColorScheme(scheme == ColorScheme::System ? Qt::ColorScheme::Unknown
             : scheme == ColorScheme::Dark                                       ? Qt::ColorScheme::Dark
                                                                                 : Qt::ColorScheme::Light);

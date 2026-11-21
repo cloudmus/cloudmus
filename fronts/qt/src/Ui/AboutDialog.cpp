@@ -126,8 +126,12 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
     description_ = makeLabel(tr("Enjoy listening to your clouds"), Theme::TextStyle::Body, this);
     description_->setAlignment(Qt::AlignCenter);
 
-    auto* projectLabel = makeLabel(
-        link(QStringLiteral("https://cloudmus.app"), QStringLiteral("cloudmus.app")), Theme::TextStyle::Body, this);
+    const QString projectLinks = QStringList {
+        link(QStringLiteral("https://cloudmus.app"), QStringLiteral("cloudmus.app")),
+        link(QStringLiteral("https://github.com/cloudmus/cloudmus"), QStringLiteral("GitHub")),
+        link(QStringLiteral("https://t.me/cloudmus_app"), tr("Telegram chat")),
+    }.join(QStringLiteral(" · "));
+    auto* projectLabel = makeLabel(projectLinks, Theme::TextStyle::Body, this);
     projectLabel->setTextFormat(Qt::RichText);
     projectLabel->setOpenExternalLinks(true);
     projectLabel->setAlignment(Qt::AlignCenter);

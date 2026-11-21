@@ -2,6 +2,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCursor>
 #include <QIcon>
 #include <QMenu>
 #include <QPointer>
@@ -18,6 +19,7 @@
 #include "NowPlaying.h"
 #include "PlaylistEditing.h"
 #include "Registry.h"
+#include "Style.h"
 #include "Tokens.h"
 #include "WindowHost.h"
 
@@ -95,6 +97,20 @@ bool panelIsDark()
 
 namespace {
 
+// See TrayIcon::setClickShowsWindow().
+bool clickShowsWindow = false;
+TrayIcon* liveIcon = nullptr;
+
+// The menu is attached to the icon, and the system opens it on a click.
+bool menuIsAttached()
+{
+#ifdef Q_OS_MACOS
+    return !clickShowsWindow;
+#else
+    return true;
+#endif
+}
+
 // The context menu's own scheme. On Linux the menu is exported over D-Bus
 // and drawn by the desktop in its colors, whatever the app's theme
 // override is — so its glyphs follow the panel's scheme, like the tray
@@ -104,6 +120,11 @@ Theme::Mode menuMode()
 #ifdef Q_OS_WIN
     return Theme::currentMode();
 #else
+#ifdef Q_OS_MACOS
+    // Not attached, it's our own QMenu (see the Windows note above).
+    if (!menuIsAttached())
+        return Theme::currentMode();
+#endif
     return panelIsDark() ? Theme::Mode::Dark : Theme::Mode::Light;
 #endif
 }
@@ -140,7 +161,8 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     // migration (unlike the tray glyph itself, updateTrayIcon()'s brand
     // asset, untouched below) — a QMenu popup gets the design system's
     // Panel treatment via Theme::StyleSheet's global QMenu rule.
-    auto* menu = new QMenu();
+    menu_ = new QMenu();
+    QMenu* menu = menu_;
     previousAction_ = menu->addAction(tr("Previous"));
     playPauseAction_ = menu->addAction(tr("Play"));
     nextAction_ = menu->addAction(tr("Next"));
@@ -180,16 +202,50 @@ TrayIcon::TrayIcon(Ui::WindowHost& windowHost, ViewModel::NowPlaying& nowPlaying
     // title bar, closed to the tray) — relabel just before showing.
     connect(menu, &QMenu::aboutToShow, this, &TrayIcon::refreshShowHideAction);
 
-    trayIcon_->setContextMenu(menu);
+    liveIcon = this;
+    applyClickBehavior();
     // QCoreApplication sends LanguageChange to itself when a translator is installed.
     qApp->installEventFilter(this);
 
     connect(trayIcon_, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
-        if (reason == QSystemTrayIcon::Trigger)
+        // An attached menu on macOS opens on any click, and the click still
+        // comes as a Trigger: it means the menu, not the window.
+        if (reason == QSystemTrayIcon::Trigger) {
+#ifdef Q_OS_MACOS
+            if (menuIsAttached())
+                return;
+#endif
             windowHost_.toggleShown();
+        } else if (reason == QSystemTrayIcon::Context && !menuIsAttached()) {
+            // Right under the icon, like an attached one.
+            const QRect icon = trayIcon_->geometry();
+            Theme::popupMenu(menu_, icon.isValid() ? icon.bottomLeft() : QCursor::pos());
+        }
     });
 
     trayIcon_->show();
+}
+
+TrayIcon::~TrayIcon()
+{
+    if (liveIcon == this)
+        liveIcon = nullptr;
+}
+
+void TrayIcon::setClickShowsWindow(bool value)
+{
+    if (clickShowsWindow == value)
+        return;
+    clickShowsWindow = value;
+    if (liveIcon)
+        liveIcon->applyClickBehavior();
+}
+
+void TrayIcon::applyClickBehavior()
+{
+    trayIcon_->setContextMenu(menuIsAttached() ? menu_ : nullptr);
+    // The menu's glyphs are drawn for whoever draws the menu (menuMode()).
+    refreshMenuIcons();
 }
 
 bool TrayIcon::eventFilter(QObject* watched, QEvent* event)

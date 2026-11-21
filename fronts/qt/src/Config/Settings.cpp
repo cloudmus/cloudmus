@@ -324,6 +324,20 @@ void Settings::setCloseMinimizesToTray(bool value)
     settings_.setValue(QStringLiteral("window/closeMinimizesToTray"), value);
 }
 
+bool Settings::trayClickShowsWindow() const
+{
+    return settings_.value(QStringLiteral("tray/clickShowsWindow"), false).toBool();
+}
+
+void Settings::setTrayClickShowsWindow(bool value)
+{
+    settings_.setValue(QStringLiteral("tray/clickShowsWindow"), value);
+}
+
+bool Settings::dockShowsCover() const { return settings_.value(QStringLiteral("dock/showsCover"), false).toBool(); }
+
+void Settings::setDockShowsCover(bool value) { settings_.setValue(QStringLiteral("dock/showsCover"), value); }
+
 bool Settings::startHiddenAtLogin() const
 {
     return settings_.value(QStringLiteral("window/startHiddenAtLogin"), true).toBool();
@@ -581,6 +595,22 @@ void Settings::setSourceRadioRepeatGap(const QString& sourceId, int tracks)
         settings_.remove(key);
     else
         settings_.setValue(key, tracks);
+}
+
+int Settings::sourceRadioRepeatDays(const QString& sourceId) const
+{
+    return qBound(
+        0, settings_.value(QStringLiteral("sources/%1/radioRepeatDays").arg(sourceId), 0).toInt(), kMaxRadioRepeatDays);
+}
+
+void Settings::setSourceRadioRepeatDays(const QString& sourceId, int days)
+{
+    const QString key = QStringLiteral("sources/%1/radioRepeatDays").arg(sourceId);
+    days = qBound(0, days, kMaxRadioRepeatDays);
+    if (days == 0)
+        settings_.remove(key);
+    else
+        settings_.setValue(key, days);
 }
 
 int Settings::sourceDownloadConnections(const QString& sourceId) const

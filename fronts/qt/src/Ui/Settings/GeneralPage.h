@@ -43,6 +43,8 @@ private:
     QCheckBox* startHiddenCheck_ = nullptr;
     QCheckBox* resumePlaybackCheck_ = nullptr;
     QCheckBox* closeToTrayCheck_ = nullptr;
+    QCheckBox* trayClickShowsWindowCheck_ = nullptr;
+    QCheckBox* dockShowsCoverCheck_ = nullptr;
     QCheckBox* trackNotificationsCheck_ = nullptr;
     QComboBox* colorSchemeCombo_ = nullptr;
     QComboBox* trayPanelCombo_ = nullptr;

@@ -19,7 +19,7 @@ struct HistoryEntry {
 // Every track PlaybackController actually starts playing gets recorded here
 // (see MainWindow's connection to PlaybackController::trackChanged) and
 // persisted to ~/.config/cloudmus/fronts/qt/history.json, most-recent-first,
-// capped at kMaxEntries — so the user can scroll back through everything
+// capped per source — so the user can scroll back through everything
 // they've listened to and replay any of it. Surfaced in the UI as the
 // sidebar's "History" entry (MainWindow::showHistory()), a synthetic
 // Ui::Playlist backed by this list instead of a real backend playlist.
@@ -32,9 +32,11 @@ public:
     // Most-recent-first.
     void record(const QString& sourceId, const Track& track);
     const QList<HistoryEntry>& entries() const { return entries_; }
-    // The ids of the tracks of `sourceId` played last, each once, the
-    // latest first, `limit` at most.
-    QStringList recentTrackIds(const QString& sourceId, int limit) const;
+    // The tracks of `sourceId` played last, each once, the latest first:
+    // `limit` of them, or all played since `since` if that is more.
+    QList<Track> recentTracks(const QString& sourceId, int limit, const QDateTime& since = { }) const;
+    // ...and just their ids.
+    QStringList recentTrackIds(const QString& sourceId, int limit, const QDateTime& since = { }) const;
     // Patches Track::liked on every entry matching (sourceId, trackId),
     // persists (history.json), and emits changed() if anything matched —
     // so replaying a liked track from History (including after an app

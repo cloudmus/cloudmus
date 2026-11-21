@@ -13,10 +13,11 @@ def _vid(name: str) -> str:
     return (name + "00000000000")[:11]
 
 
-def _watch_track(video_id, title="Song", length="3:07", artist_name="Artist"):
+def _watch_track(video_id, title=None, length="3:07", artist_name="Artist"):
     return {
         "videoId": video_id,
-        "title": title,
+        # A song of its own by default: versions of one are served once.
+        "title": title or f"Song {video_id}",
         "length": length,
         "thumbnail": [{"url": f"https://x/{video_id}.jpg", "width": 60, "height": 60}],
         "likeStatus": "INDIFFERENT",
@@ -445,3 +446,34 @@ async def test_the_track_a_station_is_started_from_is_served_however_lately_it_p
 
     result = await session.start(seed, [seed, next1])
     assert [t["id"] for t in result["initialTracks"]] == [seed]
+
+
+@pytest.mark.asyncio
+async def test_another_version_of_a_track_played_lately_is_held_back_too():
+    # A music video and its audio track are different videos.
+    video, other = _vid("video"), _vid("other")
+    client = _FakeClient({
+        (None, MIX, False): {"tracks": [_watch_track(video, "Artist - Song (Official Video)"), _watch_track(other)]},
+    })
+    session = RadioSession(client, _Capture())
+
+    result = await session.start(MIX, [_vid("audio")], [{"id": _vid("audio"), "title": "Song", "artists": ["Artist"]}])
+    assert [t["id"] for t in result["initialTracks"]] == [other]
+
+
+@pytest.mark.asyncio
+async def test_a_song_is_served_once_and_not_again_after_it_played():
+    song, sped_up, slowed, other = _vid("song"), _vid("sped"), _vid("slowed"), _vid("other")
+    client = _FakeClient({
+        (None, MIX, False): {"tracks": [_watch_track(song, "Song"), _watch_track(sped_up, "Song (Sped Up)")]},
+        (song, MIX, True): {"tracks": [_watch_track(slowed, "Song - Slowed"), _watch_track(other)]},
+    })
+    capture = _Capture()
+    session = RadioSession(client, capture)
+
+    result = await session.start(MIX)
+    assert [t["id"] for t in result["initialTracks"]] == [song]
+
+    await session.track_started(song)
+    await session._top_up(replace=True, anchor=song)
+    assert [t["id"] for t in capture.emitted[0]["tracks"]] == [other]

@@ -63,7 +63,10 @@ private slots:
         QTRY_COMPARE(upstream_->requests.size(), 4);
         QTest::qWait(100);
         QCOMPARE(upstream_->requests.size(), 4);
-        QCOMPARE(upstream_->requests.mid(1),
+        // Three connections at once: the server may see them in any order.
+        QStringList parallel = upstream_->requests.mid(1);
+        parallel.sort();
+        QCOMPARE(parallel,
             (QStringList { QStringLiteral("/f@102400"), QStringLiteral("/f@204800"), QStringLiteral("/f@307200") }));
         QCOMPARE(download.totalLength(), qint64(body.size()));
         QCOMPARE(download.contiguousBytes(), qint64(100 * 1024));

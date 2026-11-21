@@ -14,9 +14,13 @@
 namespace History {
 
 namespace {
-// Plenty to scroll back through without the file growing unbounded over
-// months of use — each entry is small (a Track plus two strings).
-constexpr int kMaxEntries = 500;
+// Per source: plenty to scroll back through without the file growing
+// unbounded over months of use — each entry is small (a Track plus two
+// strings). Per source rather than overall, so listening to one source
+// doesn't push another's tracks out and shrink how far back its radio
+// keeps a repeat away (recentTrackIds(), up to
+// Config::Settings::kMaxRadioRepeatGap).
+constexpr int kMaxEntriesPerSource = 500;
 
 QString historyFilePath()
 {
@@ -88,24 +92,32 @@ void PlaybackHistory::save() const
 void PlaybackHistory::record(const QString& sourceId, const Track& track)
 {
     entries_.prepend(HistoryEntry { sourceId, track, QDateTime::currentDateTimeUtc() });
-    while (entries_.size() > kMaxEntries)
-        entries_.removeLast();
+    int kept = 0;
+    entries_.removeIf([&](const HistoryEntry& e) { return e.sourceId == sourceId && ++kept > kMaxEntriesPerSource; });
     save();
     emit changed();
 }
 
-QStringList PlaybackHistory::recentTrackIds(const QString& sourceId, int limit) const
+QList<Track> PlaybackHistory::recentTracks(const QString& sourceId, int limit, const QDateTime& since) const
 {
-    QStringList ids;
+    QList<Track> tracks;
     QSet<QString> seen;
     for (const HistoryEntry& e : entries_) {
-        if (ids.size() >= limit)
+        if (tracks.size() >= limit && (!since.isValid() || e.playedAt < since))
             break;
         if (e.sourceId != sourceId || seen.contains(e.track.id))
             continue;
         seen.insert(e.track.id);
-        ids.append(e.track.id);
+        tracks.append(e.track);
     }
+    return tracks;
+}
+
+QStringList PlaybackHistory::recentTrackIds(const QString& sourceId, int limit, const QDateTime& since) const
+{
+    QStringList ids;
+    for (const Track& track : recentTracks(sourceId, limit, since))
+        ids.append(track.id);
     return ids;
 }
 

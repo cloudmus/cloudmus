@@ -67,6 +67,11 @@ NdjsonTransport::NdjsonTransport(QObject* parent)
 
 NdjsonTransport::~NdjsonTransport()
 {
+    // process_ is destroyed last, and ~QProcess kills a backend still
+    // running (the app quit without shutdown()) and emits errorOccurred
+    // there and then — into this half-destroyed transport and on into
+    // RpcClient, whose members are already gone by then.
+    process_.disconnect(this);
     stderrFile_.reset();
     if (!stderrFilePath_.isEmpty())
         QFile::remove(stderrFilePath_);

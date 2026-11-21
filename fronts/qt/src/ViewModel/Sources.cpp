@@ -39,6 +39,7 @@ Sources::Sources(Rpc::SourceManager& sourceManager, App::SourceSession& sourceSe
     // start or still signing in must stay visible, shown as loading.
     connect(&sourceManager_, &Rpc::SourceManager::sourceStarting, this, [this](const Rpc::BackendManifest& manifest) {
         model_.setSourceIconPath(manifest.id, manifest.iconPath);
+        logoPaths_.insert(manifest.id, manifest.logoPath);
         model_.setFavorites(manifest.id, settings_.favorites(manifest.id));
         model_.setSource(manifest.id, manifest.name, { });
         model_.setSourceLoading(manifest.id, manifest.name, true);
@@ -174,6 +175,7 @@ void Sources::setCollapsed(const QString& nodeKey, bool collapsed)
 void Sources::removeSource(const QString& sourceId)
 {
     model_.removeSource(sourceId);
+    logoPaths_.remove(sourceId);
     playlistEditing_.setPlaylists(sourceId, { });
     emit sourceRemoved(sourceId);
 }

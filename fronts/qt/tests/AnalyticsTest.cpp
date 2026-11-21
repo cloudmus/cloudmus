@@ -139,11 +139,19 @@ private slots:
         QVERIFY(!request.hasParam(QStringLiteral("_dbg")));
         QVERIFY(request.userAgent.startsWith("Mozilla/5.0 ("));
         QVERIFY(request.userAgent.endsWith(") CloudMus/1.2.3"));
+        QVERIFY(!request.param(QStringLiteral("uap")).isEmpty());
+        QVERIFY(!request.param(QStringLiteral("uapv")).isEmpty());
+        QVERIFY(request.param(QStringLiteral("uaa")) == QStringLiteral("x86")
+            || request.param(QStringLiteral("uaa")) == QStringLiteral("arm"));
+        QCOMPARE(request.param(QStringLiteral("uafvl")), QStringLiteral("CloudMus;1.2.3"));
 
         const QList<QUrlQuery> events = request.bodyEvents();
         QCOMPARE(events.size(), 6);
         QCOMPARE(events[0].queryItemValue(QStringLiteral("en")), QStringLiteral("app_launch"));
         QCOMPARE(events[0].queryItemValue(QStringLiteral("ep.app_version")), QStringLiteral("1.2.3"));
+        QVERIFY(!events[0].queryItemValue(QStringLiteral("ep.os")).isEmpty());
+        QVERIFY(!events[0].queryItemValue(QStringLiteral("ep.os_version")).isEmpty());
+        QVERIFY(!events[0].queryItemValue(QStringLiteral("ep.arch")).isEmpty());
         QCOMPARE(events[1].queryItemValue(QStringLiteral("ep.source")), QStringLiteral("other"));
         QCOMPARE(events[2].queryItemValue(QStringLiteral("ep.source")), QStringLiteral("youtube_music"));
         QCOMPARE(events[3].queryItemValue(QStringLiteral("ep.kind")), QStringLiteral("playlist"));

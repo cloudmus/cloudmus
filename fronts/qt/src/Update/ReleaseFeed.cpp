@@ -33,6 +33,10 @@ QString platformAssetSuffix()
 {
 #ifdef Q_OS_WIN
     return QStringLiteral("-x86_64-Setup.exe");
+#elif defined(Q_OS_MACOS) && defined(Q_PROCESSOR_ARM_64)
+    return QStringLiteral("-arm64.dmg");
+#elif defined(Q_OS_MACOS)
+    return QStringLiteral("-x86_64.dmg");
 #else
     return QStringLiteral("-x86_64.AppImage");
 #endif

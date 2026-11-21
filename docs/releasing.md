@@ -1,9 +1,9 @@
 # Changelog and releases
 
 A release is an annotated `x.y.z` tag. Pushing it runs
-`.github/workflows/release.yml`, which builds the AppImage and Windows NSIS
-installer, and publishes both on the GitHub
-release with the tag's message as its release notes. The app's
+`.github/workflows/release.yml`, which builds the AppImage, the Windows NSIS
+installer and the macOS DMGs (x86_64 and arm64), and publishes them on the
+GitHub release with the tag's message as its release notes. The app's
 version (shown in the About dialog) comes from the same tag via
 `git describe` (`fronts/qt/cmake/Version.cmake`).
 
@@ -13,7 +13,7 @@ release is prepared on a `release/<x.y.z>` branch (a `hotfix/<x.y.z>` one
 for an urgent fix to the released version).
 
 Every push to the `develop` branch runs `.github/workflows/develop.yml`: the same
-two builds (`build.yml`, shared with the release), kept for 14 days as the
+builds (`build.yml`, shared with the release), kept for 14 days as the
 run's artifacts (Actions → the run → Artifacts) instead of being published.
 Their names carry `git describe`, e.g. `CloudMus-0.5.1-12-gabc1234-…`. They
 have no usage statistics (so testing doesn't skew them) but do send crashes
@@ -28,9 +28,14 @@ Sentry DSN fails on purpose.
 The release notes are also what the app's updater shows users: at startup
 and from the menu's "Check for Updates…", it lists the notes of every
 release newer than the running version (so keep them as `- ` bullets), and
-downloads the release's AppImage or `-Setup.exe` asset — keep those names
-(`CloudMus-<v>-x86_64.AppImage`, `CloudMus-<v>-x86_64-Setup.exe`). Drafts
-and prereleases are never offered.
+downloads the release's AppImage, `-Setup.exe` or DMG asset — keep those
+names (`CloudMus-<v>-x86_64.AppImage`, `CloudMus-<v>-x86_64-Setup.exe`,
+`CloudMus-<v>-x86_64.dmg`, `CloudMus-<v>-arm64.dmg`). Drafts and
+prereleases are never offered.
+
+The DMGs are signed ad hoc, not with a Developer ID: the first start of a
+downloaded copy needs System Settings → Privacy & Security → Open Anyway
+(the release notes may say so). Updates installed by the app itself don't.
 
 ## Changelog
 

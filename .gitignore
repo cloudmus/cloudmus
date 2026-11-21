@@ -11,6 +11,7 @@ build-appimage-asan/
 build-apprun/
 build-spotify/
 build-windows/
+build-macos-*/
 .ccache/
 dist/
 
@@ -19,10 +20,10 @@ dist/
 # see protocol/README.md
 backends/py-rpc-common/rpc_common/generated/
 fronts/qt/generated/
-backends/spotify/src/generated/
+backends/rs-rpc-common/src/generated/
 
-# The Spotify backend's cargo output
-backends/spotify/target/
+# cargo output of the Rust backends (backends/Cargo.toml)
+backends/target/
 
 # Qt Creator's local project state (build kit, paths — machine-specific)
 fronts/qt/.qtcreator/
@@ -32,3 +33,11 @@ fronts/qt/.qtcreator/
 
 # The AppRun crate's own cargo output (the AppImage build uses build-apprun/)
 packaging/appimage/apprun/target/
+
+# packaging/macos/build-deps.sh: the libraries it builds and its downloads
+packaging/macos/deps/
+packaging/macos/.cache/
+
+# nix build
+/result
+/result-*

@@ -173,6 +173,50 @@ fn reports_the_signal_that_killed_an_app_that_never_started() {
 }
 
 #[test]
+fn a_start_without_a_display_is_told_apart() {
+    let h = Harness::new("no-display");
+    h.child("echo 'This application failed to start because no Qt platform plugin could be initialized.' >&2; kill -ABRT $$");
+    // xcb: nothing to wait for, so it fails at once.
+    let out = h.command().arg("--autostart").env("QT_QPA_PLATFORM", "xcb").output().unwrap();
+    assert!(String::from_utf8_lossy(&out.stderr).contains("no graphical session"));
+    let event = event(&h.bodies()[0]);
+    assert_eq!(event["tags"]["display"], "none");
+    assert_eq!(event["fingerprint"][2], "no-display");
+    assert_eq!(event["contexts"]["startup"]["launched_at_login"], true);
+    assert_eq!(event["contexts"]["startup"]["wayland_display_set"], false);
+
+    // With a display: no such tag, and the fingerprint stays as it was.
+    let out = h.command().env("DISPLAY", ":0").output().unwrap();
+    assert!(!String::from_utf8_lossy(&out.stderr).contains("no graphical session"));
+    let event = self::event(&h.bodies()[1]);
+    assert!(event["tags"].get("display").is_none());
+    assert_eq!(event["fingerprint"].as_array().unwrap().len(), 3);
+    assert_eq!(event["contexts"]["startup"]["launched_at_login"], false);
+}
+
+#[test]
+fn a_login_launch_waits_for_the_compositor() {
+    let h = Harness::new("wait-wayland");
+    h.child(r#"echo "display=$WAYLAND_DISPLAY""#);
+    let runtime = h.root.join("runtime");
+    let compositor = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(600));
+        std::os::unix::net::UnixListener::bind(runtime.join("wayland-0")).unwrap()
+    });
+    let start = Instant::now();
+    let out = h.command().arg("--autostart").output().unwrap();
+    let _socket = compositor.join().unwrap();
+    assert!(start.elapsed() >= Duration::from_millis(600));
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "display=wayland-0\n");
+    assert!(String::from_utf8_lossy(&out.stderr).contains("found wayland-0"));
+
+    // Started by hand, it doesn't wait: a missing display is to fail at once.
+    fs::remove_file(h.root.join("runtime/wayland-0")).unwrap();
+    let out = h.command().output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&out.stdout), "display=\n");
+}
+
+#[test]
 fn a_development_build_is_not_production() {
     let h = Harness::new("development");
     fs::write(h.root.join("AppDir/usr/share/cloudmus/version"), "1.2.3-4-gabc\n").unwrap();

@@ -104,7 +104,9 @@ private:
 
         qint64 next() const { return start + done; }
         bool isComplete() const { return end >= 0 && next() >= end; }
-        bool isBusy() const { return reply != nullptr || retryPending; }
+        // isNull(), not `!= nullptr`: with QNetworkReply only declared here,
+        // QPointer's comparison wants the complete type (Qt 6.8+).
+        bool isBusy() const { return !reply.isNull() || retryPending; }
     };
 
     bool openFile();

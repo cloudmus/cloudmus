@@ -33,7 +33,7 @@ class _FakeRequest:
 
 
 class _FakeClient:
-    def __init__(self, with_albums=False, batch_size=None):
+    def __init__(self, with_albums=False, batch_size=None, titles=None):
         # with_albums: served tracks carry an album, so their track_id (and
         # the protocol Track.id the front reports back) is "<id>:<albumId>",
         # as for real Yandex tracks. batch_size: serve that many fresh
@@ -41,6 +41,7 @@ class _FakeClient:
         # server) — by default 2 on start and 1 per top-up, with re-serves.
         self.with_albums = with_albums
         self.batch_size = batch_size
+        self.titles = titles or {}  # track id -> its title, else "Track <id>"
         self.base_url = "https://api.music.yandex.net"
         self.report_unknown_fields = False
         self._request = _FakeRequest(self)
@@ -51,7 +52,7 @@ class _FakeClient:
     def _track_dict(self):
         id_ = self._next_id
         self._next_id += 1
-        return _TrackDict.make(id_, album_id=100 + id_ if self.with_albums else None)
+        return _TrackDict.make(id_, self.titles.get(id_), album_id=100 + id_ if self.with_albums else None)
 
     def _respond(self, url, json):
         self.calls.append((url, json))
@@ -584,3 +585,30 @@ async def test_a_top_up_asks_on_until_it_has_a_few_new_tracks():
     assert len(added) == 1
     assert [t["id"] for t in added[0]["tracks"]] == ["3", "5", "7"]
     assert session._upcoming == ["2", "3", "5", "7"]
+
+
+@pytest.mark.asyncio
+async def test_another_version_of_a_track_played_lately_is_held_back_too():
+    # The original and its sped up upload are different tracks.
+    client = _FakeClient(batch_size=3, titles={1: "Song - Sped Up"})
+    session = RadioSession(client, _NotifyRecorder())
+
+    result = await session.start(
+        seed=None,
+        recent_track_ids=["50"],
+        recent_tracks=[{"id": "50", "title": "Song", "artists": []}],
+    )
+    assert [t["id"] for t in result["initialTracks"]] == ["2", "3"]
+
+
+@pytest.mark.asyncio
+async def test_another_version_of_a_track_played_in_this_session_is_not_served(one_batch_per_top_up):
+    client = _FakeClient(batch_size=2, titles={1: "Song", 3: "Song (Slowed + Reverb)"})
+    notifier = _NotifyRecorder()
+    session = RadioSession(client, notifier)
+    await session.start(seed=None)  # serves 1, 2
+    await session.track_started("1")
+
+    await session._top_up("1", replace=False)  # 3, 4
+    added = [p for m, p in notifier.events if m == "radio/tracksAdded"]
+    assert [t["id"] for t in added[0]["tracks"]] == ["4"]

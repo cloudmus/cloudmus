@@ -30,7 +30,7 @@ this protocol needs, not a general JSON-RPC framework.
 ```
 python protocol/codegen/generate.py --lang python   # -> backends/py-rpc-common/rpc_common/generated/
 python protocol/codegen/generate.py --lang cpp       # -> fronts/qt/generated/
-python protocol/codegen/generate.py --lang rust      # -> backends/spotify/src/generated/
+python protocol/codegen/generate.py --lang rust      # -> backends/rs-rpc-common/src/generated/
 python protocol/codegen/generate.py --lang python cpp rust  # all
 ```
 
@@ -46,6 +46,10 @@ than committed, so there's nothing to go stale relative to `protocol/schema`
   `fronts/qt` — CI/the build must run this before invoking CMake.
 - Run `python protocol/codegen/generate.py --lang rust` before building
   `backends/spotify` (`cargo` fails on the missing `src/generated/` otherwise).
+
+- Run `python protocol/codegen/generate.py --lang rust` before building
+  anything in the `backends/` cargo workspace (`cargo` fails on the missing
+  `rs-rpc-common/src/generated/` otherwise).
 
 Requires (dev-time only, not a runtime dependency of any generated code):
 `pip install jinja2 pyyaml`. The C++ target also formats its own output with
@@ -110,10 +114,12 @@ primary template covers any generated struct via its own `fromJson`/`toJson`).
 Uses only Qt (`QJsonObject`/`QJsonArray`/`QJsonValue`, `QString`, `QMap`) plus
 the C++ standard library — no third-party JSON library.
 
-The Rust target (`rustrender.py`, `templates/rust/`) emits serde structs for
-every data type plus constants for the method and notification names; serde
-itself does the validation. It formats its output with `rustfmt` when that is
-on `PATH`, and only warns otherwise.
+Rust output (`backends/rs-rpc-common/src/generated/`), used by every Rust
+backend through the `rpc_common` crate (`rpc_common::generated::{models,
+methods}`): `rustrender.py` and `templates/rust/` emit serde structs for
+every data type plus constants for the method and notification names and
+`PROTOCOL_VERSION`; serde itself does the validation. It formats its output
+with `rustfmt` when that is on `PATH`, and only warns otherwise.
 
 Go is not generated yet (no backend rewrite has started) — extending
 `generate.py` with a `--lang go` and a `templates/go/` directory when that

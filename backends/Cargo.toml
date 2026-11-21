@@ -1,0 +1,7 @@
+# The backends written in Rust, built together: one Cargo.lock, one target
+# directory (backends/target). A Rust backend joins by being listed here and
+# depending on rs-rpc-common, whose protocol types are generated from
+# protocol/ (python protocol/codegen/generate.py --lang rust).
+[workspace]
+resolver = "2"
+members = ["rs-rpc-common"]

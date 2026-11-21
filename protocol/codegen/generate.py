@@ -34,7 +34,7 @@ REPO_ROOT = PROTOCOL_DIR.parent
 
 PYTHON_OUT = REPO_ROOT / "backends" / "py-rpc-common" / "rpc_common" / "generated"
 CPP_OUT = REPO_ROOT / "fronts" / "qt" / "generated"
-RUST_OUT = REPO_ROOT / "backends" / "spotify" / "src" / "generated"
+RUST_OUT = REPO_ROOT / "backends" / "rs-rpc-common" / "src" / "generated"
 
 
 def _env(lang: str) -> jinja2.Environment:

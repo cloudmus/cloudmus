@@ -50,6 +50,8 @@ QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize = 16);
 QIcon iconFromFile(const QString& svgPath, IconColor color, int pixelSize, Mode mode);
 // Same, tinted to an explicit color (e.g. white over a generated cover).
 QIcon iconFromFile(const QString& svgPath, const QColor& color, int pixelSize = 16);
+// A full-color SVG (a backend manifest's logo) as is, untinted. Same cache.
+QIcon logoFromFile(const QString& svgPath, int pixelSize);
 
 // Same recolor, but for the handful of call sites (CoverPlaceholder's tone
 // tiles) that need a specific Palette color IconColor has no semantic slot

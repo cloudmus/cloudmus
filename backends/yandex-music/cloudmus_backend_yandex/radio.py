@@ -28,6 +28,7 @@ from yandex_music import Client, Track
 
 from rpc_common.generated.methods import emit_radio_tracks_added
 from rpc_common.generated.models import TracksAddedParams
+from rpc_common.songs import song_key
 
 from . import catalog
 
@@ -109,6 +110,15 @@ class RadioSession:
         # (0: the latest) — what the front passed to start(). Not served
         # while there is anything else (docs/protocol.md §7.1).
         self._recent: dict[str, int] = {}
+        # The same by song (rpc_common.songs.song_key), so another version
+        # of a recent track — the original and its sped up upload are
+        # different tracks — is held back too; and the songs this session
+        # has played, so it serves no other version of them either.
+        self._recent_songs: dict[str, int] = {}
+        self._played_songs: set[str] = set()
+        # The song of each track served this session, by bare track id:
+        # the front reports a played track by its id alone.
+        self._songs: dict[str, str] = {}
         # How many times a skip has replaced the queue — see _top_up().
         self._replacements = 0
         # When tracks were last sent (time.monotonic()) — see track_started().
@@ -168,32 +178,55 @@ class RadioSession:
         await asyncio.to_thread(send)
 
     def _split(self, tracks: list[Track]) -> tuple[list[Track], list[Track]]:
-        # What may be served — never a track this session has played — as
+        # What may be served — never a song this session has played — as
         # the ones to serve now and the ones played lately, held back.
         fresh, held = [], []
         for t in tracks:
             tid = catalog._bare_id(t.id)
-            if tid not in self._played:
-                (held if tid in self._recent else fresh).append(t)
+            song = song_key(t.title or "", [a.name or "" for a in t.artists or []])
+            self._songs[tid] = song
+            if tid in self._played or song in self._played_songs:
+                continue
+            (held if tid in self._recent or song in self._recent_songs else fresh).append(t)
         return fresh, held
+
+    def _played_ago(self, tid: str) -> int:
+        # How far back this track, or another version of it, played: the
+        # latest of the two.
+        ranks = [r for r in (self._recent.get(tid), self._recent_songs.get(self._songs.get(tid, ""))) if r is not None]
+        return min(ranks, default=0)
 
     def _least_recent(self, held: list[Track]) -> list[Track]:
         # Nothing else to serve: a few of the held back ones, the ones
         # played longest ago first.
         by_id = {catalog._bare_id(t.id): t for t in reversed(held)}
-        oldest = sorted(by_id, key=lambda tid: self._recent.get(tid, 0), reverse=True)
+        oldest = sorted(by_id, key=self._played_ago, reverse=True)
         return [by_id[tid] for tid in oldest[:REPEATS_AT_A_TIME]]
 
-    async def start(self, seed: str | None, recent_track_ids: list[str] | None = None) -> dict:
+    async def start(
+        self,
+        seed: str | None,
+        recent_track_ids: list[str] | None = None,
+        recent_tracks: list[dict] | None = None,
+    ) -> dict:
         self.station = _resolve_station(seed)
         self._recent = {}
         for rank, track_id in enumerate(recent_track_ids or []):
             self._recent.setdefault(catalog._bare_id(track_id), rank)
+        self._recent_songs = {}
+        seed_songs = set()
+        kind, _, seed_id = self.station.partition(":")
+        for rank, recent in enumerate(recent_tracks or []):
+            song = song_key(recent.get("title") or "", recent.get("artists") or [])
+            self._recent_songs.setdefault(song, rank)
+            if kind == "track" and catalog._bare_id(recent.get("id")) == seed_id:
+                seed_songs.add(song)
         # The track a station is started from was asked for, however
         # lately it played.
-        kind, _, seed_id = self.station.partition(":")
         if kind == "track":
             self._recent.pop(seed_id, None)
+            for song in seed_songs:
+                self._recent_songs.pop(song, None)
         # So the station's tracks carry liked/disliked too (see catalog.LikeCache).
         await asyncio.to_thread(catalog.likes.ensure_loaded, self.client)
 
@@ -211,6 +244,8 @@ class RadioSession:
         self.radio_session_id = result.get("radioSessionId")
         self.batch_id = result.get("batchId")
         self._played = set()
+        self._played_songs = set()
+        self._songs = {}
         fresh, held = self._split(self._tracks_from(result))
         # However few are left: the front says how many it has queued, and
         # the first track's start brings more.
@@ -308,6 +343,8 @@ class RadioSession:
     async def track_started(self, track_id: str, queued_after: int | None = None) -> None:
         tid = catalog._bare_id(track_id)
         self._played.add(tid)
+        if tid in self._songs:
+            self._played_songs.add(self._songs[tid])
         # Everything queued up to it has been played or jumped past.
         position = self._upcoming.index(tid) if tid in self._upcoming else -1
         if position >= 0:

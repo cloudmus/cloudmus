@@ -21,6 +21,29 @@ Q_LOGGING_CATEGORY(lcAnalytics, "cloudmus.app.analytics")
 // Up to this many events go in one request, as one line each.
 constexpr int kMaxBatch = 20;
 constexpr int kMaxQueued = 50;
+
+bool isArm()
+{
+    const QString arch = QSysInfo::currentCpuArchitecture();
+    return arch.startsWith(QLatin1String("arm")) || arch.startsWith(QLatin1String("aarch"));
+}
+
+QString platformName()
+{
+    const QString kernel = QSysInfo::kernelType();
+    if (kernel == QLatin1String("winnt"))
+        return QStringLiteral("Windows");
+    if (kernel == QLatin1String("darwin"))
+        return QStringLiteral("macOS");
+    return QStringLiteral("Linux");
+}
+
+// Windows' productVersion() is just "10" or "11"; the kernel version carries
+// the build number the reports can tell releases apart by.
+QString platformVersion()
+{
+    return QSysInfo::kernelType() == QLatin1String("winnt") ? QSysInfo::kernelVersion() : QSysInfo::productVersion();
+}
 }
 
 QString languageForAnalytics(const QStringList& uiLanguages)
@@ -110,7 +133,11 @@ QByteArray Analytics::userAgent() const
     QString platform;
     const QString kernel = QSysInfo::kernelType();
     if (kernel == QLatin1String("winnt"))
-        platform = QStringLiteral("Windows NT %1; Win64; x64").arg(QSysInfo::kernelVersion().section(u'.', 0, 1));
+        platform = QStringLiteral("Windows NT %1; %2")
+                       .arg(QSysInfo::kernelVersion().section(u'.', 0, 1),
+                            isArm() ? QStringLiteral("ARM64") : QStringLiteral("Win64; x64"));
+    // Browsers say "Intel" on Apple silicon too, so the architecture goes
+    // out as a client hint instead.
     else if (kernel == QLatin1String("darwin"))
         platform = QStringLiteral("Macintosh; Intel Mac OS X %1")
                        .arg(QSysInfo::productVersion().replace(QLatin1Char('.'), QLatin1Char('_')));
@@ -144,6 +171,11 @@ void Analytics::recordLaunch(const LaunchInfo& info)
         params.append({ QStringLiteral("theme"), info.theme });
     if (!info.uiLanguage.isEmpty())
         params.append({ QStringLiteral("ui_language"), info.uiLanguage });
+    // Beside the client hints in sharedParams(), which GA4 may not use for a
+    // desktop app: these can be registered as custom dimensions.
+    params.append({ QStringLiteral("os"), platformName() });
+    params.append({ QStringLiteral("os_version"), platformVersion() });
+    params.append({ QStringLiteral("arch"), QSysInfo::currentCpuArchitecture() });
     record(QStringLiteral("app_launch"), params);
 }
 
@@ -325,6 +357,18 @@ QUrlQuery Analytics::sharedParams()
     query.addQueryItem(QStringLiteral("dl"), QStringLiteral("https://github.com/cloudmus/cloudmus"));
     query.addQueryItem(QStringLiteral("dt"), QStringLiteral("CloudMus"));
     query.addQueryItem(QStringLiteral("npa"), QStringLiteral("1"));
+    // The browser's user-agent client hints: GA4 fills OS, OS version and
+    // architecture from these, not from the User-Agent string. uam (device
+    // model) stays empty: a desktop has no portable one.
+    query.addQueryItem(QStringLiteral("uap"), platformName());
+    query.addQueryItem(QStringLiteral("uapv"), platformVersion());
+    query.addQueryItem(QStringLiteral("uaa"), isArm() ? QStringLiteral("arm") : QStringLiteral("x86"));
+    query.addQueryItem(QStringLiteral("uab"),
+        QSysInfo::currentCpuArchitecture().contains(QLatin1String("64")) ? QStringLiteral("64") : QStringLiteral("32"));
+    query.addQueryItem(QStringLiteral("uamb"), QStringLiteral("0"));
+    query.addQueryItem(QStringLiteral("uam"), QString());
+    query.addQueryItem(QStringLiteral("uafvl"), QStringLiteral("CloudMus;%1").arg(appVersion_));
+    query.addQueryItem(QStringLiteral("uaw"), QStringLiteral("0"));
     if (debugView_)
         query.addQueryItem(QStringLiteral("_dbg"), QStringLiteral("1"));
     return query;

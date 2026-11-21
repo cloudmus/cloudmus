@@ -74,7 +74,7 @@ public:
     // `action`: "like", "unlike", "dislike", "undislike".
     void recordTrackFeedback(const QString& sourceId, const QString& action);
     // Where the player was controlled from — "global_hotkey",
-    // "window_shortcut", "tray", "media_controls", "taskbar"; sent once a
+    // "window_shortcut", "tray", "media_controls", "taskbar", "dock"; sent once a
     // run per place, to count who uses it, not how often.
     void recordControlUsed(const QString& trigger);
     void recordListeningTime(int minutes);

@@ -1,5 +1,5 @@
-// Linux (POSIX) crash handling: fatal signals, on an alternate stack so a
-// stack overflow is caught too. The stack comes from glibc's backtrace(),
+// Linux and macOS (POSIX) crash handling: fatal signals, on an alternate
+// stack so a stack overflow is caught too. The stack comes from backtrace(),
 // written straight to the report with backtrace_symbols_fd(), which doesn't
 // allocate. Symbols read as module(function+offset) for exported ones and
 // module(+offset) otherwise — `addr2line -e <module>` resolves the rest.
@@ -11,6 +11,9 @@
 #include <execinfo.h>
 #include <fcntl.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#include <sys/ucontext.h>
+#endif
 
 #include "CrashReporterDetail.h"
 
@@ -41,7 +44,22 @@ const char* signalName(int signal)
     return "signal";
 }
 
-void onSignal(int signal, siginfo_t* info, void*)
+#ifdef __APPLE__
+// macOS's backtrace() from a signal handler loses the frame that crashed —
+// the one after _sigtramp reads 0x0 — so it's taken from the signal's
+// context instead.
+void* crashedAt(void* context)
+{
+    const auto* state = &static_cast<ucontext_t*>(context)->uc_mcontext->__ss;
+#if defined(__x86_64__)
+    return reinterpret_cast<void*>(state->__rip);
+#else
+    return reinterpret_cast<void*>(__darwin_arm_thread_state64_get_pc(*state));
+#endif
+}
+#endif
+
+void onSignal(int signal, siginfo_t* info, [[maybe_unused]] void* context)
 {
     // Only the first crashing thread writes; any other one just waits for
     // the re-raise below to end the process.
@@ -62,6 +80,11 @@ void onSignal(int signal, siginfo_t* info, void*)
                 writeHex(reinterpret_cast<std::uintptr_t>(info->si_addr));
             }
             write("\n\nstack:\n");
+#ifdef __APPLE__
+            void* crashed[] = { crashedAt(context) };
+            write("crashed at: ");
+            backtrace_symbols_fd(crashed, 1, g_fd);
+#endif
             writeCurrentStack();
             writeBreadcrumbs();
             endReport();

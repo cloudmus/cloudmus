@@ -40,7 +40,7 @@ implementation detail of the process on either side.
 ### Backend discovery and supervision
 
 On startup a front reads backend manifests (`manifest.json`: `id`, `name`,
-`argv`, `protocolVersion`, optional `icon`) from
+`argv`, `protocolVersion`, optional `icon` and `logo`) from
 `~/.config/cloudmus/backends.d/*.json` — or, with `CLOUDMUS_DEV_BACKENDS=1`,
 from `backends/*/manifest.json` in this checkout (run with its `.venv`).
 It spawns each backend, performs the `initialize` handshake, and restarts a
@@ -57,8 +57,9 @@ backend is treated as gone.
 | `backends/spotify` | Spotify (Premium), through librespot — see its [README](../backends/spotify/README.md) | `oauthRedirect` | yes | from a track, Liked Songs | from the stream |
 
 `backends/py-rpc-common` is the shared Python NDJSON/JSON-RPC transport and
-the conformance suite. The Spotify backend is in Rust and carries its own
-small JSON-RPC runtime (`backends/spotify/src/rpc/`).
+the conformance suite; `backends/rs-rpc-common` is its counterpart for
+backends in Rust, which share one cargo workspace (`backends/Cargo.toml`,
+output in `backends/target/`).
 
 | Front | Description | Stack |
 |---|---|---|
@@ -70,7 +71,7 @@ small JSON-RPC runtime (`backends/spotify/src/rpc/`).
 Requirements:
 
 - Python ≥ 3.11
-- Rust (stable) for the Spotify backend — or Docker, see below
+- Rust (stable), for the backends in Rust (`backends/Cargo.toml`) — or Docker, see below
 - `libmpv` (the Qt front also needs its development package and `pkg-config`)
 - `jinja2`, `pyyaml` (protocol code generation)
 - Qt front: Qt 6 (Core, Widgets, Network, DBus, Svg), CMake ≥ 3.21, a C++20
@@ -135,10 +136,15 @@ can't be used, and gets only the precompiled headers.
 
 To try the updater, run with `--update-from=0.0.1`: it then checks (at startup
 too) as if that version were running, and offers the latest GitHub release.
-Installing works only from an AppImage (Linux) or an installed copy
-(Windows); from a build directory the dialog offers the release page instead.
+Installing works only from an AppImage (Linux), an installed copy
+(Windows) or `CloudMus.app` outside the DMG (macOS); from a build directory
+the dialog offers the release page instead.
 To test the Linux install itself, copy an old AppImage somewhere writable and
 run it with that flag: `CloudMus-0.2.0-x86_64.AppImage --update-from=0.0.1`.
+`--update-feed=<url>` takes the releases from another URL, in the format of
+GitHub's `GET /repos/{owner}/{repo}/releases` — a file of one's own served
+locally offers a package that isn't released yet (on macOS, a DMG from
+`packaging/macos/build-app.sh`).
 
 The GitHub star prompt normally shows once, on the third day the player is
 used. To try it, run with `--star-prompt`: it opens a couple of seconds after
@@ -185,10 +191,77 @@ forwarded to either Docker build when set.
 Quick Windows compile checks, running the build under Wine and what that
 can't tell: [`docs/windows.md`](windows.md).
 
+### macOS
+
+No Homebrew or MacPorts: whatever goes into the app bundle has to target an
+older macOS than the build machine's, so everything comes from pinned
+sources, the same here and in CI. Needs Xcode's Command Line Tools and the
+repo's `.venv` (above):
+
+```bash
+pip install cmake ninja meson pkgconf aqtinstall
+aqt install-qt mac desktop 6.9.3 clang_64 -O ~/Qt     # the Qt the other builds use
+packaging/macos/build-deps.sh                         # libmpv, once (~20 min)
+PKG_CONFIG_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib/pkgconfig \
+    cmake -S fronts/qt -B fronts/qt/build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/Qt/6.9.3/macos
+cmake --build fronts/qt/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/CloudMus.app/Contents/MacOS/CloudMus
+```
+
+The app is built as `CloudMus.app` (signed ad hoc on every build): macOS
+takes the name the Dock and the menu bar show, the icon of Finder and the
+notifications (`AppIcon.icns`, drawn from the logo at build time by
+`tools/MakeIconset.cpp`), and Now Playing and notifications the app's
+identity, from the bundle. Notification Center caches the icon; after
+changing it, `lsregister -f` the bundle (in
+`/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/`).
+
+`build-deps.sh` builds libmpv 0.41 (LGPL, Core Audio only) and its
+dependencies from tarballs checked against their sha256, for
+`MACOSX_DEPLOYMENT_TARGET` 12.0, into `packaging/macos/deps/<arch>/`. Only
+`libmpv.2.dylib` is shared; the rest is linked into it. A rerun skips what's
+built. To change a version, edit the script and delete that directory.
+The TUI's python-mpv finds that libmpv with
+`DYLD_FALLBACK_LIBRARY_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib`.
+
+`packaging/macos/build-app.sh` builds what a release ships,
+`dist/CloudMus-<version>-<arch>.dmg` (this machine's arch, `x86_64` or
+`arm64`): `CloudMus.app` with Qt (`macdeployqt`), libmpv, CPython 3.13
+from python-build-standalone in `Contents/Resources/python` with the
+backends installed into it, and their manifests in
+`Contents/Resources/backends/` (found there by `Rpc::BackendManifest`). It
+checks that nothing in the bundle links outside it or needs a newer macOS
+than 12, and signs it ad hoc. Without a Developer ID, the first start of
+a downloaded copy is blocked: System Settings → Privacy & Security → Open
+Anyway (or `xattr -dr com.apple.quarantine /Applications/CloudMus.app`).
+
+On macOS, Now Playing (`NowPlayingCenterMac.mm`, MediaPlayer.framework)
+stands in for MPRIS: Control Center, the media keys, AirPods, the Touch Bar
+and the lock screen. The Dock's menu has the playing track and its controls,
+and Settings → General can put its cover on the Dock icon (`DockTileMac.cpp`).
+Track notifications go through UserNotifications
+(`NotificationToastMac.mm`), which needs the bundle signed: the build signs
+it ad hoc. Launch at login is a launchd agent,
+`~/Library/LaunchAgents/io.github.cloudmus.CloudMus.autostart.plist`
+(`AutostartMac.mm`); it starts the executable with `--autostart`, which
+SMAppService's login items can't pass. Self-update (`InstallerMac.cpp`)
+downloads the release's DMG of the running arch, copies `CloudMus.app` out
+of it next to the running one, and once the app has quit swaps the two and
+opens the new one; it works for an app outside the DMG in a folder the user
+can write to (`/Applications` for an admin). Crash reports go to Sentry as
+on Linux and Windows; the symbols are a dSYM (`dist/symbols/CloudMus.dSYM`).
+The Linux D-Bus integrations (MPRIS, the portal) aren't built there.
+While the window is in the tray (the menu bar), the app stays in the Dock
+and Cmd+Tab, cover and all, as music players do; a click on its Dock icon
+(a reopen event, `DockIconMac.mm`) brings the window back. A click on the
+menu bar icon opens its
+menu, as on macOS; Settings → General can make it show the window instead.
+
 ## Tests
 
 ```bash
-pytest backends/                               # all backend tests, from the repo root
+pytest backends/                               # Python backend tests, from the repo root
+(cd backends && cargo test --locked)            # Rust: rs-rpc-common and its backends
 (cd fronts/tui && python -m pytest tests/ -q)   # TUI
 ctest --test-dir fronts/qt/build                # Qt front
 
@@ -197,7 +270,8 @@ python -m rpc_common.testing.conformance python3 -m cloudmus_backend_yandex
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_ytmusic
 python -m rpc_common.testing.conformance backends/spotify/target/release/cloudmus-backend-spotify
-(cd backends/spotify && cargo test)                # Spotify backend
+(cd backends && cargo build --locked --examples)
+python -m rpc_common.testing.conformance backends/target/debug/examples/minimal  # the Rust server itself
 ```
 
 The root `pyproject.toml` isn't a package: it only sets pytest's
@@ -241,11 +315,16 @@ download's speed under `cloudmus.net.download`.
 1. Create `backends/<service-name>/`.
 2. Write a `manifest.json` (`id`, `name`, `argv`, `protocolVersion`, and
    optionally `icon`: a monochrome 24×24 SVG, path relative to the manifest
-   — the Qt front tints it to its theme). Installed fronts, the AppImage
-   included, pick up manifests from `~/.config/cloudmus/backends.d/`, so a
-   backend of your own works with a release build too.
+   — the Qt front tints it to its theme; and `logo`: the service's
+   full-color square SVG logo, shown as is on the source's page). Installed
+   fronts, the AppImage included, pick up manifests from
+   `~/.config/cloudmus/backends.d/`, so a backend of your own works with a
+   release build too.
 3. Implement the protocol methods (`initialize`, `catalog.*`, `playback.*`,
-   …) on top of `backends/py-rpc-common`.
+   …) on top of `backends/py-rpc-common`, or in Rust on top of
+   `backends/rs-rpc-common`: add the crate to `backends/Cargo.toml`'s
+   members and take the protocol's types from `rpc_common::generated`
+   (`examples/minimal.rs` there is the smallest one).
 4. Make it pass the conformance suite.
 5. Translate what it sends to the front (docs/protocol.md §7.8). Each
    backend has its own dictionaries, `<package>/locales/<lang>.py`
@@ -431,7 +510,7 @@ version.
 
 ```
 protocol/            Protocol schemas (schema/, methods.yaml) + codegen/
-backends/            py-rpc-common/ and one folder per service (spotify/ is Rust)
+backends/            py-rpc-common/, rs-rpc-common/ and one folder per service (spotify/ is Rust)
 fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, build script, apprun/: the Rust AppRun)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)

@@ -52,8 +52,9 @@ public:
     void showRadio(const Playlist& station);
     // A backend's page — sourcePanel(), filled by MainWindow. The header
     // shows the source like a playlist: a generated cover with the
-    // source's own icon (`iconPath`, may be empty), name and description.
-    void showSource(const QString& name, const QString& description, const QString& iconPath);
+    // source's own icon (`iconPath`, may be empty) — or its full-color logo
+    // instead, if it has one (`logoPath`) — name and description.
+    void showSource(const QString& name, const QString& description, const QString& iconPath, const QString& logoPath);
     void setSubtitle(const QString& subtitle);
     // The header's Save to Downloads button, next to Play — for a
     // playlist that can be saved (downloads on, its source downloads).
@@ -90,7 +91,7 @@ protected:
 
 private:
     void setHeader(const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed,
-        const QString& iconPath = QString());
+        const QString& iconPath = QString(), const QString& logoPath = QString());
     int sourceRow(const QModelIndex& viewIndex) const;
 
     class HeaderInfo;

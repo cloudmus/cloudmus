@@ -68,13 +68,14 @@ public:
     }
 
     void set(const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed,
-        const QString& iconPath)
+        const QString& iconPath, const QString& logoPath)
     {
         iconPath_ = iconPath;
+        logoPath_ = logoPath;
         title_ = title;
         subtitle_ = subtitle;
         coverUrl_ = coverUrl;
-        generatedCover_ = coverUrl.isEmpty()
+        generatedCover_ = coverUrl.isEmpty() && logoPath.isEmpty()
             ? generateMeshAuraGradientCover(coverSeed, QSize(kCoverSide, kCoverSide) * devicePixelRatioF())
             : QPixmap();
         update();
@@ -97,6 +98,13 @@ protected:
         const Theme::Palette& pal = Theme::palette();
 
         const QRect coverRect(0, (height() - kCoverSide) / 2, kCoverSide, kCoverSide);
+        if (!logoPath_.isEmpty()) {
+            // A logo is the brand's own artwork, shape and colors included:
+            // drawn as is, in place of the cover and the tinted icon.
+            Theme::logoFromFile(logoPath_, kCoverSide).paint(&painter, coverRect);
+            paintText(painter, coverRect);
+            return;
+        }
         const QPixmap cover
             = coverUrl_.isEmpty() ? generatedCover_ : coverCache_->pixmap(coverUrl_, QSize(kCoverSide, kCoverSide));
         QPainterPath clip;
@@ -117,7 +125,13 @@ protected:
                     QRect(coverRect.center().x() - kIconSide / 2 + 1, coverRect.center().y() - kIconSide / 2 + 1,
                         kIconSide, kIconSide));
         }
+        paintText(painter, coverRect);
+    }
 
+private:
+    void paintText(QPainter& painter, const QRect& coverRect)
+    {
+        const Theme::Palette& pal = Theme::palette();
         const int textLeft = coverRect.right() + 1 + Theme::Spacing::space3;
         const QRect textRect(textLeft, 0, width() - textLeft, height());
         const QFont titleFont = Theme::font(Theme::TextStyle::Display);
@@ -142,13 +156,13 @@ protected:
         }
     }
 
-private:
     Covers::CoverArtCache* coverCache_;
     QString title_;
     QString subtitle_;
     QString coverUrl_;
     QPixmap generatedCover_;
     QString iconPath_;
+    QString logoPath_;
 };
 
 // Case-insensitive substring match on title, artist names and album.
@@ -346,9 +360,9 @@ PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
 }
 
 void PlaylistSheet::setHeader(const QString& title, const QString& subtitle, const QString& coverUrl,
-    const QString& coverSeed, const QString& iconPath)
+    const QString& coverSeed, const QString& iconPath, const QString& logoPath)
 {
-    headerInfo_->set(title, subtitle, coverUrl, coverSeed, iconPath);
+    headerInfo_->set(title, subtitle, coverUrl, coverSeed, iconPath, logoPath);
     headerInfo_->show();
 }
 
@@ -381,11 +395,12 @@ void PlaylistSheet::showRadio(const Playlist& station)
     setBusy(false);
 }
 
-void PlaylistSheet::showSource(const QString& name, const QString& description, const QString& iconPath)
+void PlaylistSheet::showSource(
+    const QString& name, const QString& description, const QString& iconPath, const QString& logoPath)
 {
     radioHero_->hide();
     pages_->show();
-    setHeader(name, description, QString(), name, iconPath);
+    setHeader(name, description, QString(), name, iconPath, logoPath);
     playAllButton_->hide();
     downloadAllButton_->hide();
     filterEdit_->hide();

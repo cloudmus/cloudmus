@@ -303,7 +303,7 @@ private slots:
         const auto heard = [this](const QString& sourceId, const QString& id) {
             Track track;
             track.id = id;
-            track.title = id;
+            track.title = QStringLiteral("Title of ") + id;
             history_.record(sourceId, track);
         };
         heard(QStringLiteral("fake"), QStringLiteral("heard-1"));
@@ -322,9 +322,48 @@ private slots:
         QTRY_COMPARE(playback_->queue().size(), 2);
         QCOMPARE(playback_->queue()[0].track.id, QStringLiteral("recent:heard-2"));
         QCOMPARE(playback_->queue()[1].track.id, QStringLiteral("recent:heard-3"));
+        // ...and the titles, for a source to tell other versions of these.
+        QCOMPARE(playback_->queue()[0].track.title, QStringLiteral("recent:Title of heard-2"));
 
         settings_->setSourceRadioRepeatGap(QStringLiteral("fake"), 9999);
         QCOMPARE(settings_->sourceRadioRepeatGap(QStringLiteral("fake")), Config::Settings::kMaxRadioRepeatGap);
+    }
+
+    // A repeat gap in days reaches past the count of tracks, never short
+    // of it.
+    void theRecentTracksReachBackSoManyDaysIfThatIsMore()
+    {
+        const QString sourceId = QStringLiteral("days-%1").arg(QDateTime::currentMSecsSinceEpoch());
+        for (const QString& id : { QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c") }) {
+            Track track;
+            track.id = id;
+            history_.record(sourceId, track);
+        }
+        const QDateTime now = QDateTime::currentDateTimeUtc();
+        QCOMPARE(history_.recentTrackIds(sourceId, 1, now.addDays(-1)),
+            (QStringList { QStringLiteral("c"), QStringLiteral("b"), QStringLiteral("a") }));
+        QCOMPARE(history_.recentTrackIds(sourceId, 2, now.addDays(1)),
+            (QStringList { QStringLiteral("c"), QStringLiteral("b") }));
+
+        settings_->setSourceRadioRepeatDays(sourceId, 9999);
+        QCOMPARE(settings_->sourceRadioRepeatDays(sourceId), Config::Settings::kMaxRadioRepeatDays);
+    }
+
+    // Listening to one source doesn't push another's tracks out of History,
+    // and so out of what its radio keeps from repeating.
+    void historyIsCappedPerSource()
+    {
+        Track kept;
+        kept.id = QStringLiteral("kept");
+        history_.record(QStringLiteral("quiet"), kept);
+        for (int i = 0; i <= Config::Settings::kMaxRadioRepeatGap; ++i) {
+            Track track;
+            track.id = QStringLiteral("busy-%1").arg(i);
+            history_.record(QStringLiteral("busy"), track);
+        }
+        QCOMPARE(history_.recentTrackIds(QStringLiteral("quiet"), 1), QStringList { QStringLiteral("kept") });
+        QCOMPARE(history_.recentTrackIds(QStringLiteral("busy"), Config::Settings::kMaxRadioRepeatGap + 1).size(),
+            Config::Settings::kMaxRadioRepeatGap);
     }
 
     void anEditToTheActivePlaylistShowsInItsTracks()

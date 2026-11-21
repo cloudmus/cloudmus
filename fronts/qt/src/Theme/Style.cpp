@@ -41,9 +41,20 @@ namespace {
 // blur-radius-16 effect: that margin has to be real, opaque window space
 // for a QMenu (there's no way to let it bleed past the window edge), so a
 // tighter falloff is the practical tradeoff.
+//
+// macOS: wider, fainter and lower, as its own menus' — a tight, dense one
+// looked foreign next to them; over glass not made any stronger either.
+#ifdef Q_OS_MACOS
+constexpr int kMenuShadowReach = 20;
+constexpr int kMenuShadowOffsetY = 4;
+constexpr int kMenuShadowMaxAlpha = 28;
+constexpr int kMenuGlassShadowMaxAlpha = kMenuShadowMaxAlpha;
+#else
 constexpr int kMenuShadowReach = 12;
 constexpr int kMenuShadowOffsetY = 2;
 constexpr int kMenuShadowMaxAlpha = 32;
+constexpr int kMenuGlassShadowMaxAlpha = kMenuShadowMaxAlpha * 7 / 4;
+#endif
 
 // The reserved width itself: none unless the shadow is painted in the
 // menu's own window (Theme::PopupLook).
@@ -53,7 +64,18 @@ PopupShadow menuShadow()
 {
     // Stronger over glass: the panel no longer stands out by being
     // opaque, so the shadow has to carry its edge.
-    return { kMenuShadowReach, kMenuShadowOffsetY, glassEnabled() ? kMenuShadowMaxAlpha * 7 / 4 : kMenuShadowMaxAlpha };
+    return { kMenuShadowReach, kMenuShadowOffsetY, glassEnabled() ? kMenuGlassShadowMaxAlpha : kMenuShadowMaxAlpha };
+}
+
+// How much of the menu's color covers the blur.
+qreal menuGlassOpacity()
+{
+#ifdef Q_OS_MACOS
+    // macOS's own light menus are thin glass; ours, pale, hid the blur.
+    if (currentMode() == Mode::Light)
+        return kGlassOpacity - 0.15;
+#endif
+    return kGlassOpacity;
 }
 
 // Qt's own expand/collapse slide of a tree view lasts 250 ms (not
@@ -341,9 +363,7 @@ void CloudMusStyle::drawPrimitive(
         // not blend) resets this widget's whole paint region to fully
         // transparent first, so every repaint starts from a clean slate
         // regardless of how many times it's been redrawn already.
-        painter->setCompositionMode(QPainter::CompositionMode_Source);
-        painter->fillRect(option->rect, Qt::transparent);
-        painter->setCompositionMode(QPainter::CompositionMode_SourceOver);
+        clearPopup(painter, option->rect);
         painter->setRenderHint(QPainter::Antialiasing);
 
         const QRect panelRect = menuPanelRect(option->rect);
@@ -351,7 +371,7 @@ void CloudMusStyle::drawPrimitive(
 
         const Palette& pal = palette();
         painter->setPen(QPen(pal.border, 1));
-        painter->setBrush(glass(pal.surface200));
+        painter->setBrush(glass(pal.surface200, menuGlassOpacity()));
         painter->drawPath(roundedPath(QRectF(panelRect).adjusted(0.5, 0.5, -0.5, -0.5), Radius::md));
         painter->restore();
         return;

@@ -1,3 +1,22 @@
+# 0.7.0 (2026-10-31)
+
+- macOS: CloudMus.app for Intel and Apple Silicon, as DMGs attached to releases: glass behind the window and popups, Now Playing and media keys, global hotkeys, a Dock menu with the playing track, track change notifications, launch at login, self-update from the release DMG and crash reports to Sentry. The app stays in the Dock while in the tray, and a Dock click brings the window back; a setting picks what a click on the menu bar icon does. The DMGs are signed ad hoc: the first start of a downloaded copy needs System Settings → Privacy & Security → Open Anyway
+- Nix: CloudMus packaged as a flake (x86_64 and aarch64 Linux)
+- Only one copy of the app runs per user: starting it again brings the running one to the front, out of the tray too
+- Radio: each source's settings page gets "or days" next to "Tracks before a repeat", so favourites don't come back daily for those who listen a lot
+- Radio: versions of a song (sped up, slowed, remaster, music video) count as one and no longer repeat it on their own schedule; a remix, live recording or cover is still its own song. Protocol 1.18: `recentTracks` in `catalog.startRadio`
+- Toasts: copy the message from a right-click menu
+- About links the GitHub project and the Telegram chat
+- Settings and the source page show the service's full-color logo; the current Yandex Music logo in the sidebar
+- History keeps the last 500 plays of each source instead of 500 for all, so one source no longer pushes another's radio history out
+- Usage statistics report the OS, its version and the CPU architecture
+- Fix the AppImage not starting at login on Wayland when the autostart ran before the compositor was up
+- Fix the AppImage failing to start on Manjaro-based systems ("version `LIBSYSTEMD_251' not found")
+- Fix a black frame around menus and popups on X11 without a compositor
+- Fix playback retrying a track in a tight loop when the audio output can't be opened; it now pauses on the track
+- Windows: fix "Unknown app" in the media flyout
+- Fix a crash on quit with a backend still running
+
 # 0.6.4 (2026-10-19)
 
 - Tracks download over several connections at once (YouTube Music: 4), which is several times faster where the service slows each connection down; each source's settings page gets "Download connections" (Auto, up to 6). Protocol 1.17: `StreamDescriptor.maxConnections`

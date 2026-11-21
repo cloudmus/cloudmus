@@ -50,7 +50,7 @@ qreal devicePixelRatio()
 // Qt, so this is the actual per-token-color recolor every icon needs.
 QString glyphPath(const QString& glyphName) { return QStringLiteral(":/icons/symbols/%1.svg").arg(glyphName); }
 
-QPixmap renderTinted(const QString& svgPath, const QColor& color, int pixelSize, qreal dpr)
+QPixmap renderSvg(const QString& svgPath, int pixelSize, qreal dpr)
 {
     QSvgRenderer renderer(svgPath);
     const int devicePixels = qMax(1, qRound(pixelSize * dpr));
@@ -59,10 +59,18 @@ QPixmap renderTinted(const QString& svgPath, const QColor& color, int pixelSize,
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
     renderer.render(&painter, QRectF(0, 0, devicePixels, devicePixels));
+    painter.end();
+    pixmap.setDevicePixelRatio(dpr);
+    return pixmap;
+}
+
+QPixmap renderTinted(const QString& svgPath, const QColor& color, int pixelSize, qreal dpr)
+{
+    QPixmap pixmap = renderSvg(svgPath, pixelSize, dpr);
+    QPainter painter(&pixmap);
     painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
     painter.fillRect(pixmap.rect(), color);
     painter.end();
-    pixmap.setDevicePixelRatio(dpr);
     return pixmap;
 }
 
@@ -143,6 +151,17 @@ QIcon iconFromFile(const QString& svgPath, const QColor& color, int pixelSize)
     auto it = cache.find(key);
     if (it == cache.end())
         it = cache.insert(key, renderTinted(svgPath, color, pixelSize, dpr));
+    return QIcon(it.value());
+}
+
+QIcon logoFromFile(const QString& svgPath, int pixelSize)
+{
+    const qreal dpr = devicePixelRatio();
+    const QString key = QStringLiteral("%1|logo|%2|%3").arg(svgPath).arg(pixelSize).arg(dpr);
+    QHash<QString, QPixmap>& cache = iconCache();
+    auto it = cache.find(key);
+    if (it == cache.end())
+        it = cache.insert(key, renderSvg(svgPath, pixelSize, dpr));
     return QIcon(it.value());
 }
 

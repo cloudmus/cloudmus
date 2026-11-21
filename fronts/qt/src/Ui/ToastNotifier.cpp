@@ -1,6 +1,11 @@
 #include "ToastNotifier.h"
 
+#include <QClipboard>
+#include <QContextMenuEvent>
+#include <QCursor>
 #include <QEvent>
+#include <QGuiApplication>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -14,6 +19,7 @@
 #include "Radius.h"
 #include "Shadow.h"
 #include "Spacing.h"
+#include "Style.h"
 #include "Tokens.h"
 #include "Typography.h"
 
@@ -38,7 +44,9 @@ constexpr qreal kSlideDistance = 48.0;
 // One toast: a card with the message, a × and a vertical countdown bar,
 // all painted here (so the slide/fade can move and fade everything at
 // once through the painter, no child widgets to keep in step). The card
-// sits inside kShadowMargin of transparent room for its shadow.
+// sits inside kShadowMargin of transparent room for its shadow. Its
+// right-click menu copies the message — an error is worth pasting into a
+// bug report, and the toast is gone before it can be retyped.
 class Toast : public QWidget {
 public:
     Toast(const QString& message, ToastNotifier::Kind kind, QWidget* parent)
@@ -192,8 +200,27 @@ protected:
     {
         QWidget::leaveEvent(event);
         setCloseHovered(false);
-        if (countdown_->state() == QAbstractAnimation::Paused)
+        // The pointer moving onto the menu leaves the toast; it stays
+        // paused until the menu is gone.
+        if (!menuOpen_ && countdown_->state() == QAbstractAnimation::Paused)
             countdown_->resume();
+    }
+
+    void contextMenuEvent(QContextMenuEvent* event) override
+    {
+        if (leaving_)
+            return;
+        auto* menu = new QMenu(this);
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        menu->addAction(Theme::icon(QStringLiteral("content_copy"), Theme::IconColor::Ink, 16),
+            ToastNotifier::tr("Copy Message"), this, [this]() { QGuiApplication::clipboard()->setText(message_); });
+        menuOpen_ = true;
+        connect(menu, &QMenu::aboutToHide, this, [this]() {
+            menuOpen_ = false;
+            if (!rect().contains(mapFromGlobal(QCursor::pos())) && countdown_->state() == QAbstractAnimation::Paused)
+                countdown_->resume();
+        });
+        Theme::popupMenu(menu, event->globalPos());
     }
 
     void mouseMoveEvent(QMouseEvent* event) override
@@ -260,6 +287,7 @@ private:
     ToastNotifier::Kind kind_;
     bool leaving_ = false;
     bool closeHovered_ = false;
+    bool menuOpen_ = false;
     qreal remaining_ = 1.0;
     qreal presenceValue_ = 0.0;
     QVariantAnimation* countdown_ = nullptr;

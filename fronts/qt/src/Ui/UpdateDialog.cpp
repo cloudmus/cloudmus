@@ -58,9 +58,14 @@ QString timeLeft(int seconds)
 {
     if (seconds < 0)
         return QString();
+    // The counts computed outside translate(): lupdate (Qt 6.9) loops
+    // forever on qMax(a, b) among its arguments, and drops the text for
+    // (a + b) / c.
+    const int secondsLeft = qMax(seconds, 1);
+    const int minutesLeft = (seconds + 59) / 60;
     if (seconds < 60)
-        return QCoreApplication::translate("Ui::UpdateDialog", "about %n s left", nullptr, qMax(seconds, 1));
-    return QCoreApplication::translate("Ui::UpdateDialog", "about %n min left", nullptr, (seconds + 59) / 60);
+        return QCoreApplication::translate("Ui::UpdateDialog", "about %n s left", nullptr, secondsLeft);
+    return QCoreApplication::translate("Ui::UpdateDialog", "about %n min left", nullptr, minutesLeft);
 }
 
 } // namespace
@@ -264,6 +269,11 @@ void UpdateDialog::showFailure(const QString& error)
 
 void UpdateDialog::install()
 {
+    // Putting it in place can take a few seconds (on macOS the app is
+    // copied out of the DMG).
+    setStep(Step::Downloading, tr("Installing CloudMus %1").arg(update_.latest().name), QString());
+    progressBar_->setRange(0, 0);
+    progressLabel_->clear();
     QString error;
     const QString path = downloadedPath_;
     qCDebug(lcUpdate).noquote() << "installing" << update_.latest().name << "from" << path;

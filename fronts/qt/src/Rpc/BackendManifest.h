@@ -16,6 +16,10 @@ struct BackendManifest {
     // Absolute path to the optional monochrome sidebar icon SVG (manifest
     // "icon", resolved relative to the manifest file); empty if none/missing.
     QString iconPath;
+    // Absolute path to the optional full-color logo SVG (manifest "logo",
+    // resolved the same way) shown large on the source's page; empty if
+    // none/missing.
+    QString logoPath;
 };
 
 // Scans ~/.config/cloudmus/backends.d/*.json for installed backend
