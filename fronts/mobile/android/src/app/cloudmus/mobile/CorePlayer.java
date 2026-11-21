@@ -4,6 +4,7 @@ import android.content.Context;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.os.Build;
 import android.os.Looper;
 
 import androidx.annotation.NonNull;
@@ -278,7 +279,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         if (now) {
             // Played by the user meanwhile, from the app: what comes after that
             // is theirs, the end of the call doesn't play it again.
-            pausedByFocusLoss = false;
+            clearTransientLoss();
             cancelResume("playing again");
             focusRetries = 0;
             requestFocus();
@@ -393,7 +394,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     @Override
     protected ListenableFuture<?> handleSetPlayWhenReady(boolean playWhenReady) {
         CmLog.i(TAG, "setPlayWhenReady(" + playWhenReady + ")");
-        pausedByFocusLoss = false;
+        clearTransientLoss();
         cancelResume(playWhenReady ? "play asked" : "pause asked");
         // Asked for, not a moment between tracks: at once.
         resumeHandler().removeCallbacks(pauseAfterHold);
@@ -450,6 +451,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     @NonNull
     @Override
     protected ListenableFuture<?> handleRelease() {
+        clearTransientLoss();
         cancelResume("released");
         abandonFocus();
         return Futures.immediateVoidFuture();
@@ -669,18 +671,68 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         }
     }
 
+    // Android has a player play on when a transient loss of the focus ends,
+    // and so did we, after any time: but apps take a transient focus for
+    // sounds of any length — Instagram for each of its videos — and once the
+    // user had watched one for a minute and left it, the music came back
+    // over their own choice. Played on now only after something short (a
+    // notification, a navigation prompt) or a call, however long that was.
+    private static final long TRANSIENT_RESUME_MS = 15000;
+    private static final long CALL_POLL_MS = 1000;
+    private long transientLostAt;
+    private boolean callDuringLoss;
+    private final Runnable callPoll = this::pollCall;
+
+    private boolean inCall() {
+        int mode = audioManager.getMode();
+        return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION
+            || mode == AudioManager.MODE_RINGTONE
+            || (Build.VERSION.SDK_INT >= 30 && mode == AudioManager.MODE_CALL_SCREENING);
+    }
+
+    // Whether a call came during the loss: by the end of it the mode is
+    // back to normal.
+    private void pollCall() {
+        if (!pausedByFocusLoss || callDuringLoss)
+            return;
+        if (inCall()) {
+            callDuringLoss = true;
+            CmLog.i(TAG, "a call took the focus: playing on after it");
+            return;
+        }
+        resumeHandler().postDelayed(callPoll, CALL_POLL_MS);
+    }
+
+    private void clearTransientLoss() {
+        pausedByFocusLoss = false;
+        callDuringLoss = false;
+        resumeHandler().removeCallbacks(callPoll);
+    }
+
+    private void endTransientLoss() {
+        long lasted = android.os.SystemClock.elapsedRealtime() - transientLostAt;
+        boolean call = callDuringLoss || inCall();
+        clearTransientLoss();
+        if (call || lasted <= TRANSIENT_RESUME_MS) {
+            resumeCore();
+            return;
+        }
+        CmLog.i(TAG, "the other sound took " + lasted / 1000 + " s, not a call: staying paused");
+        resumeHandler().removeCallbacks(pauseAfterHold);
+        playing = false;
+        invalidateState();
+    }
+
     private void onFocusChange(int change) {
         CmLog.i(TAG, "audio focus change: " + change);
         switch (change) {
             case AudioManager.AUDIOFOCUS_GAIN:
-                if (pausedByFocusLoss) {
-                    pausedByFocusLoss = false;
-                    resumeCore();
-                }
+                if (pausedByFocusLoss)
+                    endTransientLoss();
                 break;
             case AudioManager.AUDIOFOCUS_LOSS:
                 hasFocus = false;
-                pausedByFocusLoss = false;
+                clearTransientLoss();
                 logActivePlayers();
                 CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
                 if (playing)
@@ -691,6 +743,9 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                 if (playing) {
                     pausedByFocusLoss = true;
+                    transientLostAt = android.os.SystemClock.elapsedRealtime();
+                    callDuringLoss = false;
+                    pollCall();
                     CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
                     invalidateState();
                 }
