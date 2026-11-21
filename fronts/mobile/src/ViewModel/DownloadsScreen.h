@@ -3,50 +3,41 @@
 #include <QObject>
 #include <QString>
 
-#include "RowsModel.h"
-
 namespace App {
 class Core;
 }
 
 namespace ViewModel {
 
-// The Downloads screen: ViewModel::Downloads' jobs as rows of plain values, and
-// its actions as slots, for a replica.
+// Saving tracks, as Settings shows it: whether it's allowed, and the
+// subfolders a track goes into, as the desktop's Downloads settings. What is
+// being saved shows on the tracks themselves; slots and plain values, for a
+// replica.
 class DownloadsScreen : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool enabled READ enabled NOTIFY enabledChanged)
     Q_PROPERTY(QString directory READ directory NOTIFY directoryChanged)
-    Q_PROPERTY(bool canClear READ canClear NOTIFY canClearChanged)
-    Q_PROPERTY(bool canSavePlaying READ canSavePlaying NOTIFY canSavePlayingChanged)
+    // A Config::Settings::DownloadLayout.
+    Q_PROPERTY(int layout READ layout NOTIFY layoutChanged)
 
 public:
     explicit DownloadsScreen(App::Core& core, QObject* parent = nullptr);
 
-    RowsModel& rows() { return rows_; }
-
     bool enabled() const;
     QString directory() const;
-    bool canClear() const;
-    bool canSavePlaying() const;
+    int layout() const;
 
 public slots:
     void setEnabled(bool on);
-    void cancel(int jobId);
-    void clearFinished();
-    void savePlaying();
+    void setLayout(int layout);
 
 signals:
     void enabledChanged();
     void directoryChanged();
-    void canClearChanged();
-    void canSavePlayingChanged();
+    void layoutChanged();
 
 private:
-    void rebuild();
-
     App::Core& core_;
-    RowsModel rows_;
 };
 
 } // namespace ViewModel

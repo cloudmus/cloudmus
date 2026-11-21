@@ -179,33 +179,6 @@
     </message>
   </context>
   <context>
-    <name>DownloadsPage</name>
-    <message>
-      <source>Downloads</source>
-      <translation>Спампоўкі</translation>
-    </message>
-    <message>
-      <source>Saving tracks is off. Saved tracks are for your own listening on this device.</source>
-      <translation>Захаванне трэкаў выключана. Захаваныя трэкі — толькі для асабістага праслухоўвання на гэтай прыладзе.</translation>
-    </message>
-    <message>
-      <source>Allow saving tracks to this device</source>
-      <translation>Дазволіць захаванне трэкаў на гэтую прыладу</translation>
-    </message>
-    <message>
-      <source>Save playing track</source>
-      <translation>Захаваць бягучы трэк</translation>
-    </message>
-    <message>
-      <source>Clear</source>
-      <translation>Ачысціць</translation>
-    </message>
-    <message>
-      <source>Nothing saved yet</source>
-      <translation>Пакуль нічога не захавана</translation>
-    </message>
-  </context>
-  <context>
     <name>LibraryPage</name>
     <message>
       <source>Sign in to see the playlists</source>
@@ -489,6 +462,42 @@
   <context>
     <name>SettingsPage</name>
     <message>
+      <source>Saving tracks</source>
+      <translation>Захаванне трэкаў</translation>
+    </message>
+    <message>
+      <source>Allow saving tracks to this device</source>
+      <translation>Дазволіць захаванне трэкаў на гэтую прыладу</translation>
+    </message>
+    <message>
+      <source>Saved tracks are for your own listening on this device.</source>
+      <translation>Захаваныя трэкі — толькі для асабістага праслухоўвання на гэтай прыладзе.</translation>
+    </message>
+    <message>
+      <source>Subfolders</source>
+      <translation>Падтэчкі</translation>
+    </message>
+    <message>
+      <source>Tracks are saved to %1/</source>
+      <translation>Трэкі захоўваюцца ў %1/</translation>
+    </message>
+    <message>
+      <source>None</source>
+      <translation>Няма</translation>
+    </message>
+    <message>
+      <source>By source</source>
+      <translation>Па крыніцы</translation>
+    </message>
+    <message>
+      <source>By artist</source>
+      <translation>Па выканаўцы</translation>
+    </message>
+    <message>
+      <source>By artist and album</source>
+      <translation>Па выканаўцы і альбоме</translation>
+    </message>
+    <message>
       <source>Settings</source>
       <translation>Налады</translation>
     </message>
@@ -597,8 +606,8 @@
       <translation>Сховішча музыкі</translation>
     </message>
     <message>
-      <source>Show all device music</source>
-      <translation>Паказваць усю музыку на прыладзе</translation>
+      <source>Allow reading the device's music</source>
+      <translation>Дазволіць чытанне музыкі на прыладзе</translation>
     </message>
     <message>
       <source>Storage permissions</source>

@@ -193,7 +193,9 @@ through MediaStore. On these versions, WebM/Opus audio is repackaged as Ogg Opus
 without re-encoding before the title, artist and cover are written. If shared
 storage refuses the write, CloudMus uses its
 app-specific Music directory or its internal files if the external volume is
-unavailable. Check the Downloads page for the actual destination. Android
+unavailable. Settings → Saving tracks shows the actual destination, and the
+subfolders a track goes into (none, by source, by artist, by artist and album),
+as on the desktop. Android
 removes app-specific files on uninstall. The playback disk-space limit also
 applies to saved tracks and temporary files.
 

@@ -209,14 +209,6 @@ ApplicationWindow {
                 stack.open(sourceSettingsPage)
             }
             onPlaylistRequested: stack.open(playlistPage)
-            onDownloadsRequested: stack.open(downloadsPage)
-        }
-    }
-    Component {
-        id: downloadsPage
-        DownloadsPage {
-            objectName: "downloadsPage"
-            onCloseRequested: stack.close()
         }
     }
     Component {

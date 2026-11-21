@@ -204,7 +204,6 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/CrossfadeImage.qml
         qml/DeveloperPage.qml
         qml/FpsOverlay.qml
-        qml/DownloadsPage.qml
         qml/EqualizerBars.qml
         qml/IconButton.qml
         qml/InputField.qml

@@ -22,6 +22,7 @@ Page {
     signal proxyRequested(var proxy)
 
     readonly property QtObject screen: backend.settingsScreen
+    readonly property QtObject saving: backend.downloadsScreen
 
     background: Rectangle { color: Theme.surface0 }
 
@@ -64,6 +65,47 @@ Page {
                     title: qsTr("Play when the system starts")
                     checked: page.backend.settings ? page.backend.settings.autoplay : false
                     onToggled: (checked) => page.backend.settings.setAutoplay(checked)
+                }
+            }
+
+            SettingsGroup {
+                title: qsTr("Saving tracks")
+                SettingSwitch {
+                    objectName: "enableDownloads"
+                    title: qsTr("Allow saving tracks to this device")
+                    description: qsTr("Saved tracks are for your own listening on this device.")
+                    checked: page.saving ? page.saving.enabled : false
+                    onToggled: (checked) => page.saving.setEnabled(checked)
+                }
+                // As the desktop's Downloads settings.
+                SettingsCell {
+                    visible: page.saving !== null && page.saving.enabled === true
+                    SettingText {
+                        title: qsTr("Subfolders")
+                        description: page.saving ? qsTr("Tracks are saved to %1/").arg(
+                            page.saving.directory + ["", "/<source>", "/<artist>", "/<artist>/<album>"][page.saving.layout])
+                                                 : ""
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing
+                        Repeater {
+                            model: [{ t: qsTr("None"), v: 0 }, { t: qsTr("By source"), v: 1 },
+                                    { t: qsTr("By artist"), v: 2 }, { t: qsTr("By artist and album"), v: 3 }]
+                            Chip {
+                                required property var modelData
+                                objectName: "layout_" + modelData.v
+                                text: modelData.t
+                                checked: page.saving !== null
+                                         && page.saving.layout === modelData.v
+                                onClicked: {
+                                    page.saving.setLayout(modelData.v)
+                                    checked = Qt.binding(() => page.saving !== null
+                                                               && page.saving.layout === modelData.v)
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

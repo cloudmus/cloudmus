@@ -1899,7 +1899,6 @@ private slots:
         QCOMPARE(ourMessage()->at(0).toInt(), int(ViewModel::Messages::Kind::Error));
 
         QObject* screen = backend.downloadsScreen();
-        QAbstractItemModel* rows = backend.downloads();
         QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(QStringLiteral("fake")) != nullptr
                 && core.core().sourceManager().client(QStringLiteral("fake"))->available(),
             10000);
@@ -1909,23 +1908,15 @@ private slots:
         QTRY_COMPARE(screen->property("enabled").toBool(), true);
         QVERIFY(!screen->property("directory").toString().isEmpty());
 
-        // Never ends by itself, in the fake: see FakeBackend.
-        Track slow;
-        slow.id = QStringLiteral("slow");
-        slow.title = QStringLiteral("Slow one");
-        slow.durationMs = 1000;
-        core.core().downloads().downloadTrack(QStringLiteral("fake"), slow);
-        QTRY_COMPARE(rows->rowCount(), 1);
-        QTRY_COMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "title")).toString(), QStringLiteral("Slow one"));
-        // (A replica's row is empty until fetched: wait for the real id.)
-        QTRY_VERIFY(rows->data(rows->index(0, 0), roleOf(*rows, "jobId")).toInt() > 0);
-        QCOMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "isOver")).toBool(), false);
-        const int jobId = rows->data(rows->index(0, 0), roleOf(*rows, "jobId")).toInt();
-        QMetaObject::invokeMethod(screen, "cancel", Q_ARG(int, jobId));
-        QTRY_COMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "isOver")).toBool(), true);
-        QTRY_COMPARE(screen->property("canClear").toBool(), true);
-        QMetaObject::invokeMethod(screen, "clearFinished");
-        QTRY_COMPARE(rows->rowCount(), 0);
+        // The subfolders, as on the desktop: the shared setting.
+        using Layout = Config::Settings::DownloadLayout;
+        QMetaObject::invokeMethod(screen, "setLayout", Q_ARG(int, int(Layout::ByArtistAlbum)));
+        QTRY_COMPARE(screen->property("layout").toInt(), int(Layout::ByArtistAlbum));
+        QCOMPARE(core.core().settings().downloadLayout(), Layout::ByArtistAlbum);
+        QMetaObject::invokeMethod(screen, "setLayout", Q_ARG(int, 42));
+        QCOMPARE(core.core().settings().downloadLayout(), Layout::ByArtistAlbum);
+        QMetaObject::invokeMethod(screen, "setLayout", Q_ARG(int, int(Layout::Flat)));
+        QTRY_COMPARE(screen->property("layout").toInt(), int(Layout::Flat));
         QMetaObject::invokeMethod(screen, "setEnabled", Q_ARG(bool, false));
         QTRY_COMPARE(core.core().downloads().isEnabled(), false);
     }
@@ -2791,12 +2782,10 @@ private slots:
         QMetaObject::invokeMethod(window->findChild<QObject*>("trackSheet"), "close");
         QMetaObject::invokeMethod(stack, "close");
         QTRY_COMPARE(stack->property("depth").toInt(), 2);
-        // The Downloads page, and a message over it.
-        QMetaObject::invokeMethod(library, "downloadsRequested");
-        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+        // A message over the Library.
         core.core().messages().error(QStringLiteral("Something went wrong"));
         QTRY_COMPARE(window->findChild<QObject*>("appToast")->property("isError").toBool(), true);
-        shot("downloads");
+        shot("message");
         // A message with a technical line behind it: closable, and unfolding keeps it up.
         QObject* toast = window->findChild<QObject*>("appToast");
         core.core().messages().error(QStringLiteral("YouTube Music: no network connection"),

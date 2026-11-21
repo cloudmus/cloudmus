@@ -179,33 +179,6 @@
     </message>
   </context>
   <context>
-    <name>DownloadsPage</name>
-    <message>
-      <source>Downloads</source>
-      <translation>Téléchargements</translation>
-    </message>
-    <message>
-      <source>Saving tracks is off. Saved tracks are for your own listening on this device.</source>
-      <translation>L’enregistrement des pistes est désactivé. Les pistes enregistrées sont réservées à votre écoute personnelle sur cet appareil.</translation>
-    </message>
-    <message>
-      <source>Allow saving tracks to this device</source>
-      <translation>Autoriser l’enregistrement des pistes sur cet appareil</translation>
-    </message>
-    <message>
-      <source>Save playing track</source>
-      <translation>Enregistrer la piste en cours</translation>
-    </message>
-    <message>
-      <source>Clear</source>
-      <translation>Vider</translation>
-    </message>
-    <message>
-      <source>Nothing saved yet</source>
-      <translation>Rien d’enregistré pour le moment</translation>
-    </message>
-  </context>
-  <context>
     <name>LibraryPage</name>
     <message>
       <source>Sign in to see the playlists</source>
@@ -489,6 +462,42 @@
   <context>
     <name>SettingsPage</name>
     <message>
+      <source>Saving tracks</source>
+      <translation>Enregistrement des pistes</translation>
+    </message>
+    <message>
+      <source>Allow saving tracks to this device</source>
+      <translation>Autoriser l’enregistrement des pistes sur cet appareil</translation>
+    </message>
+    <message>
+      <source>Saved tracks are for your own listening on this device.</source>
+      <translation>Les pistes enregistrées sont réservées à votre écoute personnelle sur cet appareil.</translation>
+    </message>
+    <message>
+      <source>Subfolders</source>
+      <translation>Sous-dossiers</translation>
+    </message>
+    <message>
+      <source>Tracks are saved to %1/</source>
+      <translation>Les pistes sont enregistrées dans %1/</translation>
+    </message>
+    <message>
+      <source>None</source>
+      <translation>Aucun</translation>
+    </message>
+    <message>
+      <source>By source</source>
+      <translation>Par source</translation>
+    </message>
+    <message>
+      <source>By artist</source>
+      <translation>Par artiste</translation>
+    </message>
+    <message>
+      <source>By artist and album</source>
+      <translation>Par artiste et album</translation>
+    </message>
+    <message>
       <source>Settings</source>
       <translation>Paramètres</translation>
     </message>
@@ -597,8 +606,8 @@
       <translation>Stockage de la musique</translation>
     </message>
     <message>
-      <source>Show all device music</source>
-      <translation>Afficher toute la musique de l’appareil</translation>
+      <source>Allow reading the device's music</source>
+      <translation>Autoriser la lecture de la musique de l’appareil</translation>
     </message>
     <message>
       <source>Storage permissions</source>
