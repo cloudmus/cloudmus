@@ -5,8 +5,6 @@ namespace ViewModel {
 namespace {
 const QString kAutoplayKey = QStringLiteral("autoplay");
 const QString kResumeAfterLossKey = QStringLiteral("resumeAfterLossSec");
-// Keep in step with CoreBridge.DEFAULT_RESUME_AFTER_LOSS_SEC.
-constexpr int kResumeAfterLossDefault = 60;
 const QString kAudioOutputKey = QStringLiteral("playback/audioOutput");
 const QString kOutputChunkKey = QStringLiteral("playback/outputChunkFrames");
 const QString kFadeKey = QStringLiteral("playback/fadeMs");
@@ -42,7 +40,15 @@ void PlatformSettings::setAutoplay(bool autoplay)
 
 int PlatformSettings::resumeAfterLossSec() const
 {
-    return store_.value(kResumeAfterLossKey, kResumeAfterLossDefault).toInt();
+    return store_.value(kResumeAfterLossKey, resumeAfterLossDefault_).toInt();
+}
+
+void PlatformSettings::setResumeAfterLossDefault(int seconds)
+{
+    const int was = resumeAfterLossSec();
+    resumeAfterLossDefault_ = qMax(0, seconds);
+    if (resumeAfterLossSec() != was)
+        emit resumeAfterLossSecChanged();
 }
 
 void PlatformSettings::setResumeAfterLossSec(int seconds)

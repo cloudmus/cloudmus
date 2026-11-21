@@ -125,7 +125,11 @@ private slots:
         QMetaObject::invokeMethod(backend.settings(), "setAutoplay", Q_ARG(bool, false));
         QTRY_COMPARE(core.settings().autoplay(), false);
 
+        // Off unless the platform says otherwise (the car's head unit).
+        QCOMPARE(core.settings().resumeAfterLossSec(), 0);
+        core.settings().setResumeAfterLossDefault(60);
         QCOMPARE(core.settings().resumeAfterLossSec(), 60);
+        QTRY_COMPARE(backend.settings()->property("resumeAfterLossSec").toInt(), 60);
         QMetaObject::invokeMethod(backend.settings(), "setResumeAfterLossSec", Q_ARG(int, 0));
         QTRY_COMPARE(core.settings().resumeAfterLossSec(), 0);
     }

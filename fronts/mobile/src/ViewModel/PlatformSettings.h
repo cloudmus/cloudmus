@@ -14,7 +14,8 @@ class PlatformSettings : public QObject {
     Q_PROPERTY(bool autoplay READ autoplay WRITE setAutoplay NOTIFY autoplayChanged)
     // Another sound (the phone over Bluetooth, a prompt) took the audio for
     // good and paused us: resume once it's over, if it was over within this
-    // many seconds. 0: stay paused, as Android has it.
+    // many seconds. 0: stay paused, as Android has it. The default is the
+    // platform's, see setResumeAfterLossDefault().
     Q_PROPERTY(int resumeAfterLossSec READ resumeAfterLossSec WRITE setResumeAfterLossSec NOTIFY
                    resumeAfterLossSecChanged)
     // Developer tools' playback experiments, see Playback::AudioPlayer's
@@ -42,6 +43,10 @@ public:
     // The same for resumeAfterLossSec: the audio focus is Java's.
     std::function<void(int)> onResumeAfterLossSecChanged;
 
+    // resumeAfterLossSec while it hasn't been set: on in the car's head unit,
+    // which it was made for, off on a phone (CoreBridge.defaultResumeAfterLossSec()).
+    void setResumeAfterLossDefault(int seconds);
+
 public slots:
     void setAutoplay(bool autoplay);
     void setResumeAfterLossSec(int seconds);
@@ -64,6 +69,7 @@ private:
     bool store(const QString& key, const QVariant& value, const QVariant& current);
 
     QSettings& store_;
+    int resumeAfterLossDefault_ = 0;
 };
 
 } // namespace ViewModel

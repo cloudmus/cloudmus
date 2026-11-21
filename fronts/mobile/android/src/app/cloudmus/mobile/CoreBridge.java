@@ -21,8 +21,6 @@ public final class CoreBridge {
     public static final String PREFS = "core";
     public static final String PREF_AUTOPLAY = "autoplay";
     public static final String PREF_RESUME_AFTER_LOSS = "resumeAfterLossSec";
-    // Keep in step with the core's Settings.
-    public static final int DEFAULT_RESUME_AFTER_LOSS_SEC = 60;
 
     public static final int CMD_PLAY = 1;
     public static final int CMD_PAUSE = 2;
@@ -163,7 +161,21 @@ public final class CoreBridge {
     // See ViewModel::Settings::resumeAfterLossSec; 0: off.
     public static int resumeAfterLossSec(Context context) {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .getInt(PREF_RESUME_AFTER_LOSS, DEFAULT_RESUME_AFTER_LOSS_SEC);
+            .getInt(PREF_RESUME_AFTER_LOSS, defaultResumeAfterLossSec(context));
+    }
+
+    // Made for the car's head unit, where a photo taken on the phone paired
+    // over Bluetooth took the audio for good. On a phone the other sound is
+    // one the user played, and stopping it must not bring the music back.
+    static int defaultResumeAfterLossSec(Context context) {
+        return GwmMediaCenter.present(context) ? 60 : 0;
+    }
+
+    // The same, for the core's Settings.
+    @SuppressWarnings("unused")
+    static int defaultResumeAfterLossSec() {
+        Context context = CmLog.context();
+        return context != null ? defaultResumeAfterLossSec(context) : 0;
     }
 
     public static synchronized void setListener(Listener value) {

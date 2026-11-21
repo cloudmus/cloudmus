@@ -63,6 +63,7 @@ jmethodID onFeedbackMethod = nullptr;
 jmethodID onPlayModesMethod = nullptr;
 jmethodID onAutoplayMethod = nullptr;
 jmethodID onResumeAfterLossMethod = nullptr;
+jmethodID defaultResumeAfterLossMethod = nullptr;
 jmethodID onReadyMethod = nullptr;
 jmethodID onStoppedMethod = nullptr;
 jmethodID onBrowseResultMethod = nullptr;
@@ -367,6 +368,12 @@ void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nat
         env->CallStaticVoidMethod(bridgeClass, onAutoplayMethod, jboolean(enabled));
         Android::Jni::checkException(env, "CoreBridge.onAutoplayChanged");
     };
+    {
+        JNIEnv* env = Android::Jni::env();
+        const jint seconds = env->CallStaticIntMethod(bridgeClass, defaultResumeAfterLossMethod);
+        if (!Android::Jni::checkException(env, "CoreBridge.defaultResumeAfterLossSec"))
+            core.settings().setResumeAfterLossDefault(seconds);
+    }
     core.settings().onResumeAfterLossSecChanged = [](int seconds) {
         JNIEnv* env = Android::Jni::env();
         env->CallStaticVoidMethod(bridgeClass, onResumeAfterLossMethod, jint(seconds));
@@ -423,6 +430,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     onQueueMethod = env->GetStaticMethodID(bridgeClass, "onQueue", "(IIZZ[Ljava/lang/String;)V");
     onAutoplayMethod = env->GetStaticMethodID(bridgeClass, "onAutoplayChanged", "(Z)V");
     onResumeAfterLossMethod = env->GetStaticMethodID(bridgeClass, "onResumeAfterLossChanged", "(I)V");
+    defaultResumeAfterLossMethod = env->GetStaticMethodID(bridgeClass, "defaultResumeAfterLossSec", "()I");
     jclass storage = env->FindClass("app/cloudmus/mobile/MusicStorage");
     if (Android::Jni::checkException(env, "FindClass MusicStorage") || !storage)
         return JNI_ERR;
