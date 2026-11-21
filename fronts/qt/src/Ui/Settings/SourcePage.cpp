@@ -61,6 +61,7 @@ SourcePage::SourcePage(Config::Settings& settings, Rpc::SourceManager& sourceMan
 {
 }
 
+QString SourcePage::title() const { return sourceManager_.displayName(manifest_); }
 QString SourcePage::sidebarSection() const { return tr("Sources"); }
 
 QWidget* SourcePage::createWidget(QWidget* parent)
@@ -517,7 +518,7 @@ Rpc::Task<bool> SourcePage::apply()
             co_return false;
         if (failure) {
             settingsForm_->showError(failure->key, failure->message);
-            toasts_.showError(tr("%1: %2").arg(manifest_.name, failure->message));
+            toasts_.showError(tr("%1: %2").arg(sourceManager_.displayName(manifest_), failure->message));
             co_return false;
         }
         settingsForm_->markApplied(values);

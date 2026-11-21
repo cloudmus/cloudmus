@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QHash>
 #include <QList>
 #include <QString>
 #include <QStringList>
@@ -10,6 +11,9 @@ namespace Rpc {
 struct BackendManifest {
     QString id;
     QString name;
+    // Manifest keys "name[<language>]" (as in a KDE .desktop file): the name
+    // in other languages, by language code; `name` is the English fallback.
+    QHash<QString, QString> localizedNames;
     QStringList argv;
     QString protocolVersion;
     QString manifestPath;
@@ -20,6 +24,12 @@ struct BackendManifest {
     // resolved the same way) shown large on the source's page; empty if
     // none/missing.
     QString logoPath;
+
+    // The name in `locale` ("ru", "pt-BR", "pt_BR"): the exact tag, then its
+    // language; empty if the manifest has none.
+    QString localizedName(const QString& locale) const;
+    // That, else `name`.
+    QString displayName(const QString& locale) const;
 };
 
 // Scans ~/.config/cloudmus/backends.d/*.json for installed backend

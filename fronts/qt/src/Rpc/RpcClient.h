@@ -119,7 +119,16 @@ public:
     // for a source that only reads local files.
     bool usesNetwork() const { return capabilities_.value(QStringLiteral("network")).toBool(true); }
     const QString& sourceId() const { return sourceId_; }
-    const QString& sourceName() const { return sourceName_; }
+    // The manifest's name in the backend's language if it has one, else the
+    // name the backend gave.
+    QString sourceName() const
+    {
+        const QString localized = manifest_.localizedName(locale_);
+        return localized.isEmpty() ? sourceName_ : localized;
+    }
+    // The name the backend gave, the same in every language: for what's kept
+    // under it, such as the downloads' folders.
+    const QString& sourceBaseName() const { return sourceName_; }
     // Optional (protocol 1.2+) — empty if the source didn't supply one.
     const QString& sourceDescription() const { return sourceDescription_; }
     const BackendManifest& manifest() const { return manifest_; }
@@ -152,6 +161,7 @@ private:
     };
 
     BackendManifest manifest_;
+    QString locale_;
     NdjsonTransport transport_;
     int nextId_ = 1;
     QHash<int, PendingEntry> pending_;

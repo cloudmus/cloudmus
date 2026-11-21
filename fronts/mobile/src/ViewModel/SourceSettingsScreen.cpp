@@ -32,13 +32,15 @@ SourceSettingsScreen::SourceSettingsScreen(App::Core& core, SourceSettings& sour
     connect(&manager, &Rpc::SourceManager::sourceStopped, this, refreshIfOpen);
     connect(&manager, &Rpc::SourceManager::sourceUnavailable, this,
         [refreshIfOpen](const QString& sourceId, const QString&, const QStringList&) { refreshIfOpen(sourceId); });
+    // The name follows the language.
+    connect(&core_.translator(), &I18n::Translator::languageChanged, this, [this]() { emit nameChanged(); });
 }
 
 QString SourceSettingsScreen::name() const
 {
     for (const Rpc::BackendManifest& manifest : core_.sourceManager().manifests()) {
         if (manifest.id == sourceId_)
-            return manifest.name;
+            return core_.sourceManager().displayName(manifest);
     }
     return { };
 }

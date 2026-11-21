@@ -297,7 +297,7 @@ Rpc::Task<void> Downloads::run(int jobId)
             : nullptr;
         const QString root = staging ? staging->path() : settings_.downloadDirectory();
         const QString destDir
-            = Library::downloadDirectoryFor(root, settings_.downloadLayout(), client->sourceName(), track);
+            = Library::downloadDirectoryFor(root, settings_.downloadLayout(), client->sourceBaseName(), track);
         const QJsonObject capabilities = client->capabilities();
         const bool withProgress = capabilities.value(QStringLiteral("downloadControl")).toBool();
         const bool byTheFront = preloader_ != nullptr && savesFromStream(capabilities);

@@ -174,7 +174,7 @@ void SettingsScreen::rebuildSources()
             status = tr("Not signed in");
         rows.append({
             { QStringLiteral("sourceId"), manifest.id },
-            { QStringLiteral("name"), manifest.name },
+            { QStringLiteral("name"), manager.displayName(manifest) },
             { QStringLiteral("iconUrl"),
                 manifest.iconPath.isEmpty() ? QString() : QUrl::fromLocalFile(manifest.iconPath).toString() },
             { QStringLiteral("status"), status },

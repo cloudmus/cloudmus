@@ -40,6 +40,9 @@ public:
     // again in the new language.
     void setLocale(const QString& locale);
     const QString& locale() const { return locale_; }
+    // What the front calls a source before it has answered: the manifest's
+    // name in the current language.
+    QString displayName(const BackendManifest& manifest) const { return manifest.displayName(locale_); }
 
     // Backends the user switched off: never spawned, and not restarted.
     // Call before startAll().

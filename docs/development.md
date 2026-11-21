@@ -40,7 +40,8 @@ implementation detail of the process on either side.
 ### Backend discovery and supervision
 
 On startup a front reads backend manifests (`manifest.json`: `id`, `name`,
-`argv`, `protocolVersion`, optional `icon` and `logo`) from
+`argv`, `protocolVersion`, optional `icon` and `logo`, and `name[<language>]`
+for the name in other languages, as in a KDE `.desktop` file; `name` is the English fallback) from
 `~/.config/cloudmus/backends.d/*.json` — or, with `CLOUDMUS_DEV_BACKENDS=1`,
 from `backends/*/manifest.json` in this checkout (run with its `.venv`).
 It spawns each backend, performs the `initialize` handshake, and restarts a
@@ -286,7 +287,8 @@ download's speed under `cloudmus.net.download`.
 
 1. Create `backends/<service-name>/`.
 2. Write a `manifest.json` (`id`, `name`, `argv`, `protocolVersion`, and
-   optionally `icon`: a monochrome 24×24 SVG, path relative to the manifest
+   optionally `name[<language>]` (translated names, e.g. `"name[ru]"`; the
+   front shows the one for its language, else `name`), `icon`: a monochrome 24×24 SVG, path relative to the manifest
    — the Qt front tints it to its theme; and `logo`: the service's
    full-color square SVG logo, shown as is on the source's page). Installed
    fronts, the AppImage included, pick up manifests from

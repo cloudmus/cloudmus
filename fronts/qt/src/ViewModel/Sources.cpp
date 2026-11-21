@@ -53,9 +53,9 @@ Sources::Sources(Rpc::SourceManager& sourceManager, App::SourceSession& sourceSe
         const QList<Playlist> saved = savedList(manifest.id);
         for (const Playlist& playlist : saved)
             coverArtCache_.assignSource(manifest.id, playlist.coverUrl.value_or(QString()));
-        model_.setSource(manifest.id, manifest.name, saved);
+        model_.setSource(manifest.id, sourceManager_.displayName(manifest), saved);
         playlistEditing_.setPlaylists(manifest.id, saved);
-        model_.setSourceLoading(manifest.id, manifest.name, true);
+        model_.setSourceLoading(manifest.id, sourceManager_.displayName(manifest), true);
         showAuthState(manifest.id);
         emit sourceChanged(manifest.id);
     });

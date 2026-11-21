@@ -60,6 +60,30 @@ QString manifestFile(const QString& manifestPath, const QJsonObject& obj, const 
     return QFileInfo::exists(resolved) ? resolved : QString();
 }
 
+} // namespace
+
+QString BackendManifest::localizedName(const QString& locale) const
+{
+    QString tag = locale;
+    tag.replace(QLatin1Char('_'), QLatin1Char('-'));
+    while (!tag.isEmpty()) {
+        const auto it = localizedNames.constFind(tag.toLower());
+        if (it != localizedNames.cend())
+            return it.value();
+        const qsizetype dash = tag.lastIndexOf(QLatin1Char('-'));
+        tag = dash < 0 ? QString() : tag.left(dash);
+    }
+    return { };
+}
+
+QString BackendManifest::displayName(const QString& locale) const
+{
+    const QString localized = localizedName(locale);
+    return localized.isEmpty() ? name : localized;
+}
+
+namespace {
+
 bool parseManifest(const QString& path, BackendManifest& out)
 {
     QFile file(path);
@@ -75,6 +99,13 @@ bool parseManifest(const QString& path, BackendManifest& out)
 
     out.id = obj.value(QStringLiteral("id")).toString();
     out.name = obj.value(QStringLiteral("name")).toString();
+    out.localizedNames.clear();
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
+        const QString key = it.key();
+        if (key.startsWith(QStringLiteral("name[")) && key.endsWith(QLatin1Char(']')) && it.value().isString())
+            out.localizedNames.insert(key.mid(5, key.size() - 6).replace(QLatin1Char('_'), QLatin1Char('-')).toLower(),
+                it.value().toString());
+    }
     out.protocolVersion = obj.value(QStringLiteral("protocolVersion")).toString();
     out.manifestPath = path;
     out.iconPath = manifestFile(path, obj, QStringLiteral("icon"));

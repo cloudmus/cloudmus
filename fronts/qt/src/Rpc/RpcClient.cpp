@@ -136,6 +136,7 @@ Task<void> RpcClient::start(QProcessEnvironment environment, QString locale)
             QJsonObject { { QStringLiteral("name"), QStringLiteral("cloudmus-qt") },
                 { QStringLiteral("version"), QStringLiteral("0.1.0") } } },
     };
+    locale_ = locale;
     if (!locale.isEmpty())
         params.insert(QStringLiteral("locale"), locale);
     QJsonObject result;
@@ -168,6 +169,7 @@ Task<void> RpcClient::setLanguage(QString locale)
 {
     if (!available_ || !capabilities_.contains(QStringLiteral("localization")))
         co_return;
+    locale_ = locale;
     const SetLanguageResult result = co_await localizationSetLanguage(*this, SetLanguageParams { locale });
     // The description travels in initialize otherwise.
     if (result.description)

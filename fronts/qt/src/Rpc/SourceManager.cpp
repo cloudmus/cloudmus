@@ -34,7 +34,7 @@ Task<void> runStart(SourceManager& manager, RpcClient* client, QProcessEnvironme
             co_return;
         qCWarning(lcSourceManager) << client->manifest().id << "failed to start:" << e.error().message
                                    << "stderr tail:" << client->stderrTail();
-        emit manager.sourceUnavailable(client->manifest().id, client->manifest().name, client->stderrTail());
+        emit manager.sourceUnavailable(client->manifest().id, manager.displayName(client->manifest()), client->stderrTail());
     }
 }
 
@@ -185,7 +185,7 @@ void SourceManager::watch(RpcClient* client)
         if (attempt >= kMaxRestartAttempts) {
             qCWarning(lcSourceManager) << id << "exhausted" << kMaxRestartAttempts
                                        << "restart attempts, giving up for this session";
-            emit sourceUnavailable(id, client->manifest().name, client->stderrTail());
+            emit sourceUnavailable(id, displayName(client->manifest()), client->stderrTail());
             return;
         }
         const int delayMs = kRestartDelaysMs[attempt];

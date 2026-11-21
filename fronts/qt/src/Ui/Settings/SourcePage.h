@@ -59,7 +59,7 @@ public:
     void setProxyChoices(const QList<Config::ProxyConfig>& proxies);
 
     QString id() const override { return QStringLiteral("source:") + manifest_.id; }
-    QString title() const override { return manifest_.name; }
+    QString title() const override;
     QString iconPath() const override { return manifest_.iconPath; }
     QString logoPath() const override { return manifest_.logoPath; }
     QString sidebarSection() const override;
