@@ -108,6 +108,8 @@ async def test_cancel_event_aborts_retry(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_fails_fast_on_non_transient_error(monkeypatch):
+    # Asked once more on a fresh session, not through all the retries.
+    monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
     calls = {"n": 0}
 
     def fake_extract(vid):
@@ -117,7 +119,28 @@ async def test_fails_fast_on_non_transient_error(monkeypatch):
     monkeypatch.setattr(playback, "_extract_info", fake_extract)
     with pytest.raises(LookupError):
         await playback.resolve_stream_with_retry("abc", asyncio.Event())
-    assert calls["n"] == 1
+    assert calls["n"] == playback.UNAVAILABLE_ANSWERS
+
+
+@pytest.mark.asyncio
+async def test_an_unavailable_answer_that_does_not_repeat_plays(monkeypatch):
+    # YouTube says "unavailable" to tracks that play a moment later.
+    monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
+    answers = iter([yt_dlp.utils.DownloadError("ERROR: [youtube] abc: Video unavailable"), None])
+
+    def fake_extract(vid):
+        error = next(answers)
+        if error:
+            raise error
+        return {"formats": [_format(abr=128, url="https://u")]}
+
+    monkeypatch.setattr(playback, "_extract_info", fake_extract)
+    monkeypatch.setattr(playback, "_stream_accepted", lambda url, headers, size=None: True)
+    dropped = {"n": 0}
+    monkeypatch.setattr(playback, "_drop_session", lambda: dropped.__setitem__("n", dropped["n"] + 1))
+    stream = await playback.resolve_stream_with_retry("abc", asyncio.Event())
+    assert stream.url == "https://u"
+    assert dropped["n"] == 1  # the second ask is on a fresh session
 
 
 @pytest.mark.asyncio
@@ -261,6 +284,7 @@ async def test_stream_uses_the_quality_level(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_not_available_video_fails_fast(monkeypatch):
+    monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
     calls = {"n": 0}
 
     def fake_extract(vid):
@@ -270,7 +294,7 @@ async def test_not_available_video_fails_fast(monkeypatch):
     monkeypatch.setattr(playback, "_extract_info", fake_extract)
     with pytest.raises(LookupError):
         await playback.resolve_stream_with_retry("abc", asyncio.Event())
-    assert calls["n"] == 1
+    assert calls["n"] == playback.UNAVAILABLE_ANSWERS
 
 
 @pytest.mark.asyncio

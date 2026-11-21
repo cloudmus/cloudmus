@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDateTime>
 #include <QJsonObject>
 #include <QNetworkProxy>
 #include <QObject>
@@ -34,6 +35,8 @@ struct QueueEntry {
     // Put there by the user (Play Next / Add to Queue) — survives a radio
     // replacing its upcoming tracks (see handleTracksAdded()).
     bool userQueued = false;
+    QString localInput = { };
+    bool persistentInput = false;
 };
 
 // Ties an Rpc::SourceManager (many backends) to one shared AudioPlayer
@@ -80,6 +83,23 @@ public:
     // over; 0: as many as the stream suggests.
     using DownloadConnectionsProvider = std::function<int(const QString& sourceId)>;
     void setDownloadConnectionsProvider(DownloadConnectionsProvider provider);
+    // Whether a radio's feedback for the source is to be kept rather than
+    // sent (App::Outbox::holds()): then feedbackDeferred() takes it.
+    using FeedbackHold = std::function<bool(const QString& sourceId)>;
+    void setFeedbackHold(FeedbackHold hold) { feedbackHold_ = std::move(hold); }
+    // Downloaded tracks of the source to go on with when a radio has nothing
+    // more it can play without the network (ViewModel::ActivePlaylist):
+    // up to `count`, none of those queued after the current one.
+    using OfflineRadioProvider = std::function<QList<Track>(const QString& sourceId, int count)>;
+    void setOfflineRadioProvider(OfflineRadioProvider provider) { offlineRadio_ = std::move(provider); }
+    // Whether the source can be reached, asked before a track that isn't
+    // downloaded is started from it (App::Connectivity::checkSource() for
+    // one that was found offline, true at once otherwise).
+    using ReachableCheck = std::function<Rpc::Task<bool>(QString sourceId)>;
+    void setReachableCheck(ReachableCheck check) { reachable_ = std::move(check); }
+    // How many tracks a radio is topped up with from the disk at a time:
+    // few, so that a station back with the network soon has its say.
+    static constexpr int kOfflineRadioBatch = 5;
 
     void loadQueue(const QString& sourceId, const QList<Track>& tracks, int startIndex);
     // Same, for a queue whose entries can come from different sources
@@ -91,6 +111,10 @@ public:
     // played before the source is there to run it — see attachStation().
     void startRadio(
         const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks, int startIndex = 0);
+    // The track, when it next starts, goes on from there rather than from its
+    // beginning: what was playing when the app last ran. Not if little is left.
+    void resumeAt(const QString& trackId, qint64 positionMs);
+    void loadRadioQueue(const QString& sourceId, const QString& stationId, QVector<QueueEntry> entries, int startIndex);
     // A radio playing without a station behind it yet.
     bool awaitsStation() const { return waveMode_ && waveStationId_.isEmpty(); }
     // Puts a started station behind the radio that awaitsStation(): what
@@ -110,6 +134,13 @@ public:
     // "queue it" just means "play it now" — same fallback loadQueue/
     // startRadio already have via playIndex().
     void enqueueNext(const QString& sourceId, const Track& track);
+    void playLocalInput(QueueEntry entry);
+#ifdef Q_OS_ANDROID
+    void setContentOpener(std::function<int(const QString&)> opener)
+    {
+        audioPlayer_->setContentOpener(std::move(opener));
+    }
+#endif
     void enqueueAtEnd(const QString& sourceId, const Track& track);
 
     // Called by whoever wires up RpcClient::notifications for each source
@@ -134,6 +165,9 @@ public:
     void previous();
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
+    // See AudioPlayer::setEdges() and setOutput().
+    void setEdges(int fadeMs, int settleMs);
+    void setOutput(const QByteArray& output, int openslesFramesPerEnqueue);
 
     // Play modes, kept as the user set them; a radio overrides what it
     // can't do (its queue grows as it plays, so there's no whole list to
@@ -162,6 +196,18 @@ public:
     const QString& currentSourceId() const { return queue_[index_].sourceId; }
     const QVector<QueueEntry>& queue() const { return queue_; }
     int currentIndex() const { return index_; }
+    // Which entry next() (1) or previous() (-1) would go to, changing nothing; -1
+    // if there's none: the end of the list, or where a shuffled list would start
+    // another round, whose order isn't known yet.
+    int neighborIndex(int delta) const;
+
+    // A service said the track can't be played; it's skipped for
+    // kUnavailableForMs, then tried again.
+    void setUnavailable(const QString& sourceId, const QString& trackId);
+    bool isUnavailable(const QString& sourceId, const QString& trackId) const;
+    // The listener asked for the track itself: it is tried again.
+    void forgetUnavailable(const QString& sourceId, const QString& trackId);
+    static constexpr qint64 kUnavailableForMs = 10 * 60 * 1000;
 
 signals:
     void trackChanged(const Track& track, const QString& sourceId);
@@ -175,9 +221,22 @@ signals:
     // preloading; says what it is (codec, bitrate) for the track's details.
     void streamResolved(const QString& sourceId, const QString& trackId, const StreamDescriptor& stream);
     void loadingChanged(bool loading); // waiting on track/streamReady — drives the busy indicator
+    // A source said it can't reach its service.
+    void offlineSeen(const QString& sourceId);
+    // A radio's trackFinished or skip that the source can't be told now:
+    // `params` carry playedAt and deferred, to be sent late (docs/protocol.md
+    // §7.4).
+    void feedbackDeferred(const QString& sourceId, const QString& method, const QJsonObject& params);
+    // A track outside a radio played long enough to count (30 seconds, or
+    // half of it): for the service's history (feedback.played).
+    void trackPlayed(const QString& sourceId, const Track& track, int playedMs, const QDateTime& startedAt);
+    // What to say about it: not an error if a view shows that state.
+    void offlineNotice(const QString& message);
     void errorOccurred(QString message);
     // A source said this track can't be played at all (reason "unavailable").
     void trackUnavailable(const QString& sourceId, const QString& trackId);
+    // ...and it is to be tried again (forgetUnavailable()).
+    void trackAvailableAgain(const QString& sourceId, const QString& trackId);
     // The same failure, for statistics: the source it was on and a fixed
     // reason — "unavailable" (the source is down), "rejected" (the source
     // refused to play the track), "stream" (the audio didn't start),
@@ -210,6 +269,7 @@ signals:
     void preloadWindowChanged(const QVector<QueueEntry>& entries);
 
 private:
+    int insertNext(QueueEntry entry);
     void playIndex(int index, bool isRetry = false);
     // isRetry: re-resolving the track that just failed to start — it was
     // already announced (trackChanged), so history and notifications must
@@ -246,13 +306,14 @@ private:
     void reportError(const QString& sourceId, const QString& reason, const QString& message);
     // Nothing plays now: shown as paused, Play loads the track again.
     void stopAfterFailure();
+    // The track can't be started for lack of a network: on to the next one
+    // that's on disk, or paused here.
+    void goOnOffline(int index, const QString& sourceId);
     // The first track after `from`, in play order, that isn't known to be
     // unavailable — and, with `downloadedOnly`, is downloaded; -1 if none
     // (or if skipping has already gone through the whole queue without a
     // track starting).
     int nextPlayableAfter(int from, bool downloadedOnly) const;
-    void setUnavailable(const QString& sourceId, const QString& trackId);
-    bool isUnavailable(const QString& sourceId, const QString& trackId) const;
     // The queue index `delta` steps from the current one in play order
     // (shuffled or not), wrapping around under RepeatMode::All; -1 past
     // either end otherwise.
@@ -266,9 +327,18 @@ private:
     void reshuffle(int first);
     void setWaveMode(bool on);
     void sendFeedbackFinishedOrSkip(bool wasSkip);
+    // The radio, topped up from the disk (offlineRadio_): the next index to
+    // play after `from`, or -1 if there's nothing.
+    int fillRadioFromCache(int from);
+    // trackPlayed(), once per play of the current track, if it counts.
+    void reportPlayed();
+    // Into feedbackDeferred(), with when it was played.
+    void deferFeedback(const QString& sourceId, const QString& method, QJsonObject params, int playedMs);
     // Sends a radio's feedback once what was sent before it is through
     // (see radioFeedback_).
-    Rpc::Task<void> sendRadioFeedback(QString sourceId, std::function<Rpc::Task<void>(Rpc::RpcClient&)> send);
+    // `deferOffline`: what to do instead when it fails for lack of a network.
+    Rpc::Task<void> sendRadioFeedback(QString sourceId, std::function<Rpc::Task<void>(Rpc::RpcClient&)> send,
+        std::function<void()> deferOffline = { });
     // How many tracks are queued after `index` — told to a radio with the
     // track's feedback (queuedAfter, docs/protocol.md §7.1): the station
     // tops the queue up by it, as only this queue knows what it has left.
@@ -286,6 +356,14 @@ private:
     QVector<QueueEntry> queue_;
     int index_ = -1;
     bool playing_ = false;
+    FeedbackHold feedbackHold_;
+    OfflineRadioProvider offlineRadio_;
+    ReachableCheck reachable_;
+    // Topped up from the disk with nothing started since: not again, or a
+    // cache of files that won't play would spin.
+    bool filledFromCache_ = false;
+    // The current track's play went out as trackPlayed() already.
+    bool playReported_ = false;
 
     int latestRequestId_ = -1;
     int transitionGeneration_ = 0;
@@ -308,7 +386,10 @@ private:
     // the skipping to one pass over the queue.
     int skipStreak_ = 0;
     // Tracks a source said it can't play (sourceId + 0x1f + trackId), this run.
-    QSet<QString> unavailable_;
+    // When each was told unavailable (ms since the epoch): a service says so
+    // of tracks that play later, so it holds only for kUnavailableForMs, or
+    // until the listener picks the track — see forgetUnavailable().
+    QHash<QString, qint64> unavailable_;
     // The current track failed for good: Play loads it again.
     bool reloadOnResume_ = false;
     // Queue index of the in-flight playback.play (-1 if none): it's about
@@ -320,8 +401,20 @@ private:
     int radioWaitGeneration_ = 0;
     QString latestRequestSourceId_;
     QTimer* playTimeoutTimer_ = nullptr;
+    // A track that has to come from a source that is still starting: it
+    // plays once the source is up (see sourceCameUp()), or is given up on
+    // after kSourceWaitMs. -1 if none.
+    int awaitedIndex_ = -1;
+    QString awaitedSourceId_;
+    int awaitedTransition_ = 0;
+    QTimer* sourceWaitTimer_ = nullptr;
+    static constexpr int kSourceWaitMs = 30000;
+    void playAwaited();
+    void clearAwaited();
     int startTimeoutMs_ = 10000;
     qint64 lastKnownPositionMs_ = 0;
+    QString resumeTrackId_;
+    qint64 resumePositionMs_ = 0;
     qint64 lastKnownDurationMs_ = 0;
     // What mpv has read ahead: all there is to show for a stream it
     // fetches itself (no download of ours).

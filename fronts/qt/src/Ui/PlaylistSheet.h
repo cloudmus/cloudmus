@@ -16,12 +16,17 @@ namespace Covers {
 class CoverArtCache;
 }
 
+namespace ViewModel {
+class TrackFilterModel;
+class TrackListModel;
+}
+
 namespace Ui {
 
 class AnimatedPresenter;
 class HeroPanel;
 class SourcePanel;
-class TrackListModel;
+using ViewModel::TrackListModel;
 class TrackRowDelegate;
 
 // Full-cover sheet over the main content area (hero + active playlist)
@@ -95,7 +100,6 @@ private:
     int sourceRow(const QModelIndex& viewIndex) const;
 
     class HeaderInfo;
-    class FilterProxy;
 
     HeaderInfo* headerInfo_ = nullptr;
     QPushButton* playAllButton_ = nullptr;
@@ -108,7 +112,7 @@ private:
     QProgressBar* busyIndicator_ = nullptr;
     SourcePanel* sourcePanel_ = nullptr;
     TrackListModel* trackModel_ = nullptr;
-    FilterProxy* filterProxy_ = nullptr;
+    ViewModel::TrackFilterModel* filterProxy_ = nullptr;
     TrackRowDelegate* trackDelegate_ = nullptr;
     AnimatedPresenter* presenter_ = nullptr;
     QShortcut* escapeShortcut_ = nullptr;

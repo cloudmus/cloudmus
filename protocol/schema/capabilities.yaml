@@ -40,6 +40,9 @@ properties:
       like: {type: boolean}
       dislike: {type: boolean}
       skip: {type: boolean}
+      # optional (1.19+): feedback.played — a play outside a radio, for the
+      # service's listening history
+      played: {type: boolean}
     additionalProperties: false
   download: {type: boolean}
   # optional (1.7+): download/progress for, and catalog.cancelDownload of,
@@ -54,6 +57,9 @@ properties:
   # optional (1.10+): the source reaches the network, so the front's
   # per-source Connection setting applies. Absent means true.
   network: {type: boolean}
+  # optional (1.19+): connection.check, and connection/changed when the
+  # source notices its service go away or come back
+  connectionCheck: {type: boolean}
   # optional (1.11+): localization.setLanguage; `locales` lists the
   # languages (BCP-47) the source can answer in, English being the default
   localization:

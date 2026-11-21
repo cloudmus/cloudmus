@@ -21,6 +21,11 @@ constexpr int sliderHandleDiameter = 12;
 // the seek bar.
 constexpr int sliderGrooveHeight = 3;
 
+// A thin bar showing how full something is (the track cache's, on the
+// Preloading page): `meter="true"` QProgressBars, pill-shaped like the
+// buttons — see StyleSheet.cpp's progressBarBlock().
+constexpr int meterHeight = 6;
+
 // Keyboard focus ring (Theme::paintFocusRing()). Drawn inside the widget's
 // own bounds: a ring outside them would be clipped by tight parents (the
 // transport bar) and by neighbouring buttons.

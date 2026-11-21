@@ -11,10 +11,6 @@
         <source>Removed from &quot;%1&quot;</source>
         <translation>Rimosso da «%1»</translation>
     </message>
-    <message>
-        <source>%1: %2</source>
-        <translation>%1: %2</translation>
-    </message>
 </context>
 <context>
     <name>App::SourceSession</name>
@@ -317,6 +313,10 @@
         <source>&quot;%1&quot; is unavailable</source>
         <translation>«%1» non è disponibile</translation>
     </message>
+    <message>
+        <source>No network connection: playing downloaded tracks</source>
+        <translation>Nessuna connessione di rete: in riproduzione i brani scaricati</translation>
+    </message>
 </context>
 <context>
     <name>QLineEdit</name>
@@ -579,6 +579,10 @@
     <message>
         <source>Code copied</source>
         <translation>Codice copiato</translation>
+    </message>
+    <message>
+        <source>Click to check now</source>
+        <translation>Fai clic per controllare ora</translation>
     </message>
     <message>
         <source>History</source>
@@ -1589,6 +1593,52 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
         <source>History</source>
         <translation>Cronologia</translation>
     </message>
+    <message>
+        <source>No network connection, and nothing of %1 is downloaded to play</source>
+        <translation>Nessuna connessione di rete, e nulla di %1 è scaricato</translation>
+    </message>
+    <message>
+        <source>No network connection: playing downloaded tracks</source>
+        <translation>Nessuna connessione di rete: in riproduzione i brani scaricati</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+        <source>No network</source>
+        <translation>Nessuna rete</translation>
+    </message>
+    <message>
+        <source>%1 is unreachable</source>
+        <translation>%1 non è raggiungibile</translation>
+    </message>
+    <message>
+        <source>Services are unreachable</source>
+        <translation>I servizi non sono raggiungibili</translation>
+    </message>
+    <message>
+        <source>Online</source>
+        <translation>Online</translation>
+    </message>
+    <message>
+        <source>The device is not connected to a network</source>
+        <translation>Il dispositivo non è connesso a una rete</translation>
+    </message>
+    <message>
+        <source>%1: unreachable since %2</source>
+        <translation>%1: non raggiungibile dalle %2</translation>
+    </message>
+    <message>
+        <source>%1: unreachable since %2 (%3)</source>
+        <translation>%1: non raggiungibile dalle %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n action(s) will be sent once the connection is back</source>
+        <translation>
+            <numerusform>%n azione verrà inviata al ritorno della connessione</numerusform>
+            <numerusform>%n azioni verranno inviate al ritorno della connessione</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::Downloads</name>
@@ -1636,6 +1686,25 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
         <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
         <translation>Salvati %1 brani su %2 di «%3» — %4</translation>
     </message>
+    <message>
+        <source>Not enough free space on the disk</source>
+        <translation>Spazio libero su disco insufficiente</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Messages</name>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>No network connection</source>
+        <translation>Nessuna connessione di rete</translation>
+    </message>
+    <message>
+        <source>%1: no network connection</source>
+        <translation>%1: nessuna connessione di rete</translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::NowPlaying</name>
@@ -1646,10 +1715,6 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
     <message>
         <source>Removed from Liked</source>
         <translation>Rimosso dai brani che ti piacciono</translation>
-    </message>
-    <message>
-        <source>%1: %2</source>
-        <translation>%1: %2</translation>
     </message>
     <message>
         <source>Disliked</source>
@@ -1686,6 +1751,14 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
         <source>%1 — waiting</source>
         <translation>%1 — in attesa</translation>
     </message>
+    <message>
+        <source>Only %1 MB left on the disk: tracks aren&apos;t downloaded ahead, and old ones are removed.</source>
+        <translation>Restano solo %1 MB sul disco: i brani non vengono scaricati in anticipo e quelli vecchi vengono rimossi.</translation>
+    </message>
+    <message>
+        <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
+        <translation>Restano solo %1 MB sul disco: il download è stato interrotto, si possono riprodurre solo i brani già scaricati.</translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::SidebarModel</name>
@@ -1707,10 +1780,6 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
     <message>
         <source>timed out loading playlists</source>
         <translation>timeout durante il caricamento delle playlist</translation>
-    </message>
-    <message>
-        <source>%1: %2</source>
-        <translation>%1: %2</translation>
     </message>
 </context>
 </TS>

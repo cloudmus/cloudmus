@@ -115,6 +115,61 @@ private slots:
         QCOMPARE(errors.size(), 0);
     }
 
+    // With soft edges a pause goes out only once the sound has faded and
+    // settled: playback goes on meanwhile. Taken back within that time, it
+    // never stops at all.
+    void softEdgesHoldAPauseUntilTheFadeIsOver()
+    {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString path = directory.filePath(QStringLiteral("long.wav"));
+        {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            constexpr quint32 samples = 8000 * 10; // 10 s at 8 kHz
+            QDataStream stream(&file);
+            stream.setByteOrder(QDataStream::LittleEndian);
+            stream.writeRawData("RIFF", 4);
+            stream << quint32(36 + samples * 2);
+            stream.writeRawData("WAVEfmt ", 8);
+            stream << quint32(16) << quint16(1) << quint16(1) << quint32(8000) << quint32(16000) << quint16(2)
+                   << quint16(16);
+            stream.writeRawData("data", 4);
+            stream << quint32(samples * 2);
+            file.write(QByteArray(samples * 2, '\0'));
+        }
+
+        Playback::AudioPlayer player(nullptr, "null");
+        player.setEdges(200, 200);
+        qint64 position = 0;
+        connect(&player, &Playback::AudioPlayer::positionChanged, &player,
+            [&position](qint64 positionMs, qint64) { position = positionMs; });
+        QSignalSpy started(&player, &Playback::AudioPlayer::started);
+        player.play(QUrl::fromLocalFile(path).toString(), QStringLiteral("Long"));
+        QTRY_VERIFY(started.size() >= 1);
+        QTRY_VERIFY(position > 300); // past the fade in
+
+        const qint64 pausedAt = position;
+        player.pause();
+        // Still playing through the fade...
+        QTRY_VERIFY_WITH_TIMEOUT(position >= pausedAt + 150, 350);
+        // ...and then stopped.
+        QTest::qWait(600);
+        const qint64 stoppedAt = position;
+        QTest::qWait(300);
+        QCOMPARE(position, stoppedAt);
+
+        // A pause taken back while it fades doesn't happen.
+        player.resume();
+        QTRY_VERIFY(position > stoppedAt + 100);
+        player.pause();
+        QTest::qWait(50);
+        player.resume();
+        const qint64 resumedAt = position;
+        QTest::qWait(800);
+        QVERIFY2(position > resumedAt + 500, qPrintable(QStringLiteral("%1 -> %2").arg(resumedAt).arg(position)));
+    }
+
     void aNetworkStreamReportsHowMuchIsBuffered()
     {
         constexpr quint32 samples = 8000 * 5; // 5 s at 8 kHz

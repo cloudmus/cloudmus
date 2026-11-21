@@ -5,6 +5,7 @@
 #include <QList>
 #include <QMetaType>
 #include <QObject>
+#include <QSet>
 #include <QString>
 
 #include <optional>
@@ -65,6 +66,9 @@ public:
     // (the services cross-clear them — docs/protocol.md §7.4).
     void setLiked(const QString& sourceId, const QString& trackId, bool liked);
     void setDisliked(const QString& sourceId, const QString& trackId, bool disliked);
+    // The like state set above waits in App::Outbox to reach the source:
+    // until it does, what a listing says (observe()) doesn't undo it.
+    void holdRating(const QString& sourceId, const QString& trackId, bool held);
     // Keeps the latest of the known and the given time.
     void setLastPlayed(const QString& sourceId, const QString& trackId, const QDateTime& playedAtUtc);
     // What the source streamed the track as. Nothing to record when it
@@ -76,6 +80,8 @@ public:
     // The source said the track can't be played (reason "unavailable",
     // docs/protocol.md §9.1). Lasts for the run.
     void setUnavailable(const QString& sourceId, const QString& trackId);
+    // It played after all, or is to be tried again.
+    void clearUnavailable(const QString& sourceId, const QString& trackId);
 
 signals:
     // One track's state changed.
@@ -93,6 +99,8 @@ private:
     bool merge(const QString& sourceId, const Track& track, bool onlyIfUnknown);
 
     QHash<QString, TrackState> states_;
+    // See holdRating().
+    QSet<QString> heldRatings_;
 };
 
 } // namespace Library

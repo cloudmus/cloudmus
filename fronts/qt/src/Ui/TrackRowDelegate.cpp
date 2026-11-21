@@ -21,6 +21,9 @@
 
 namespace Ui {
 
+using ViewModel::TrackListModel;
+using ViewModel::trackCountText;
+
 namespace {
 void fillRoundedRect(QPainter* painter, const QRect& rect, const QColor& color, int radius)
 {

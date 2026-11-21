@@ -41,6 +41,18 @@ def session() -> requests.Session:
         return _session
 
 
+# Short of connection.check's 10 s, so that "offline" is what it answers.
+PROBE_TIMEOUT_SEC = 5
+
+
+def probe(url: str) -> None:
+    """Raises unless the service answers at `url` (a server error counts as
+    not answering; anything short of it is the service there)."""
+    resp = session().get(url, timeout=PROBE_TIMEOUT_SEC)
+    if resp.status_code >= 500:
+        raise ConnectionError(f"HTTP {resp.status_code}")
+
+
 def install() -> None:
     """Idempotent. Must run before http_logging.install(), so the logging
     wrapper wraps this one."""

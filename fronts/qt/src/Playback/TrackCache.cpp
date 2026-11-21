@@ -8,6 +8,8 @@
 
 #include <algorithm>
 
+#include "DiskSpace.h"
+
 namespace Playback {
 
 namespace {
@@ -18,6 +20,13 @@ const QLatin1String kPartSuffix(".part");
 // A .part this old is left over from a run that ended mid-download. Younger
 // ones may belong to another running instance.
 constexpr int kStalePartSecs = 60 * 60;
+// A disk filling up with no download of ours: another app's doing.
+constexpr int kSpaceCheckMs = 15000;
+// Downloading, how often to look: even a fast link leaves the margin far off.
+constexpr int kWritingCheckMs = 1000;
+// How much over a line it takes to be past it: a warning shouldn't come and go
+// with every track, and what's freed shouldn't be taken again at once.
+constexpr qint64 kSpaceMarginBytes = qint64(100) * 1024 * 1024;
 
 } // namespace
 
@@ -38,6 +47,60 @@ TrackCache::TrackCache(const QString& directory, QObject* parent)
         entries_.insert(info.fileName(), Entry { info.size(), info.lastModified() });
         totalBytes_ += info.size();
     }
+    connect(&spaceTimer_, &QTimer::timeout, this, &TrackCache::checkSpace);
+    spaceTimer_.start(kSpaceCheckMs);
+    lastSpaceCheck_.start();
+    checkSpace();
+}
+
+qint64 TrackCache::freeBytes() const
+{
+    return freeSpaceProvider_ ? freeSpaceProvider_() : DiskSpace::freeBytes(directory_);
+}
+
+void TrackCache::setFreeSpaceProvider(std::function<qint64()> provider)
+{
+    freeSpaceProvider_ = std::move(provider);
+    checkSpace();
+}
+
+void TrackCache::writing()
+{
+    if (lastSpaceCheck_.elapsed() >= kWritingCheckMs)
+        checkSpace();
+}
+
+bool TrackCache::wantsRoom() const
+{
+    const qint64 free = freeBytes();
+    // Not knowing is no reason to delete anything.
+    return free >= 0 && free < DiskSpace::kLowBytes + kSpaceMarginBytes;
+}
+
+void TrackCache::checkSpace()
+{
+    lastSpaceCheck_.restart();
+    if (wantsRoom()) {
+        const qint64 before = totalBytes_;
+        trim();
+        if (totalBytes_ != before)
+            emit changed();
+    }
+    const qint64 free = freeBytes();
+    Space now = Space::Fine;
+    if (!DiskSpace::freeIsEnough(free, DiskSpace::kCriticalBytes))
+        now = Space::Critical;
+    else if (space_ == Space::Critical && !DiskSpace::freeIsEnough(free, DiskSpace::kCriticalBytes + kSpaceMarginBytes))
+        now = Space::Critical;
+    else if (!DiskSpace::freeIsEnough(free, DiskSpace::kLowBytes))
+        now = Space::Low;
+    else if (space_ != Space::Fine && !DiskSpace::freeIsEnough(free, DiskSpace::kLowBytes + kSpaceMarginBytes))
+        now = Space::Low;
+    if (now == space_)
+        return;
+    qCWarning(lcCache) << "free space:" << free << "bytes, now" << now;
+    space_ = now;
+    emit spaceChanged();
 }
 
 QString TrackCache::keyFor(const QString& sourceId, const QString& trackId)
@@ -143,7 +206,7 @@ void TrackCache::setPinned(const QSet<QString>& keys) { pinned_ = keys; }
 
 void TrackCache::trim()
 {
-    if (totalBytes_ <= maxBytes_)
+    if (totalBytes_ <= maxBytes_ && !wantsRoom())
         return;
     QList<QString> candidates;
     for (auto it = entries_.cbegin(); it != entries_.cend(); ++it) {
@@ -153,7 +216,7 @@ void TrackCache::trim()
     std::sort(candidates.begin(), candidates.end(),
         [this](const QString& a, const QString& b) { return entries_[a].lastUsed < entries_[b].lastUsed; });
     for (const QString& key : candidates) {
-        if (totalBytes_ <= maxBytes_)
+        if (totalBytes_ <= maxBytes_ && !wantsRoom())
             break;
         qCDebug(lcCache) << "evicting" << key;
         removeFile(key);

@@ -47,6 +47,15 @@ public:
     // empty result on success, else what went wrong (also posted as an
     // error message).
     Rpc::Task<QString> submitSignIn(QString sourceId, QJsonObject fields);
+    // A source left unstarted until it's needed comes up, and signs in as any
+    // source does. False if it was running already.
+    bool wake(const QString& sourceId);
+    // Whether the source is one to sign out of, and signed in right now.
+    bool canSignOut(const QString& sourceId) const;
+    // What the running source declared; empty while it isn't running.
+    QJsonObject capabilities(const QString& sourceId) const;
+    // auth.logout. The same outcome as submitSignIn().
+    Rpc::Task<QString> signOut(QString sourceId);
 
 signals:
     // A source has started and is wired up — ready to list its playlists.
@@ -55,6 +64,9 @@ signals:
     void signedIn(Rpc::RpcClient* client);
     // How far one of its named downloads has got (docs/protocol.md §7.5).
     void downloadProgress(const QString& sourceId, const DownloadProgressParams& params);
+    // The source noticed its service go away or come back (connection/changed,
+    // docs/protocol.md §7.9).
+    void connectionChanged(const QString& sourceId, bool online, const QString& detail);
 
 private:
     void wire(Rpc::RpcClient* client);

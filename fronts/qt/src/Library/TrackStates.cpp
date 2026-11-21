@@ -25,8 +25,11 @@ bool TrackStates::merge(const QString& sourceId, const Track& track, bool onlyIf
         field = value;
         changed = true;
     };
-    apply(s.liked, track.liked);
-    apply(s.disliked, track.disliked);
+    // A like not sent yet is what the source will say once it is.
+    if (!heldRatings_.contains(key(sourceId, track.id))) {
+        apply(s.liked, track.liked);
+        apply(s.disliked, track.disliked);
+    }
     // What the source knows of the audio before streaming it; a resolved
     // stream's own is at least as good, so it is not replaced.
     if (hasQuality && !s.streamQuality.has_value()) {
@@ -71,6 +74,14 @@ void TrackStates::setDisliked(const QString& sourceId, const QString& trackId, b
     emit feedbackChanged(sourceId, trackId);
 }
 
+void TrackStates::holdRating(const QString& sourceId, const QString& trackId, bool held)
+{
+    if (held)
+        heldRatings_.insert(key(sourceId, trackId));
+    else
+        heldRatings_.remove(key(sourceId, trackId));
+}
+
 void TrackStates::setLastPlayed(const QString& sourceId, const QString& trackId, const QDateTime& playedAtUtc)
 {
     TrackState& s = states_[key(sourceId, trackId)];
@@ -104,6 +115,15 @@ void TrackStates::setUnavailable(const QString& sourceId, const QString& trackId
     if (s.unavailable)
         return;
     s.unavailable = true;
+    emit changed(sourceId, trackId);
+}
+
+void TrackStates::clearUnavailable(const QString& sourceId, const QString& trackId)
+{
+    const auto it = states_.find(key(sourceId, trackId));
+    if (it == states_.end() || !it->unavailable)
+        return;
+    it->unavailable = false;
     emit changed(sourceId, trackId);
 }
 

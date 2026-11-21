@@ -45,6 +45,7 @@ from ytmusicapi import YTMusic
 
 from rpc_common.generated.methods import emit_radio_tracks_added
 from rpc_common.generated.models import TracksAddedParams
+from rpc_common.connection import ConnectionMonitor
 from rpc_common.songs import song_key
 
 from . import catalog
@@ -99,9 +100,11 @@ def _is_video_id(seed: str) -> bool:
 
 
 class RadioSession:
-    def __init__(self, client: YTMusic, notify: NotifyFn):
+    def __init__(self, client: YTMusic, notify: NotifyFn, connection: ConnectionMonitor | None = None):
         self.client = client
         self._notify = notify
+        # Told when a background report fails for lack of a network.
+        self._connection = connection
         # Fixed for the whole session, echoed in every radio/tracksAdded —
         # PlaybackController::handleTracksAdded (fronts/qt) silently drops
         # a notification whose stationId doesn't match what start()
@@ -257,13 +260,20 @@ class RadioSession:
     def _report_listen(self, video_id: str) -> None:
         # In the background: the feedback reply (and with it the next top-up)
         # shouldn't wait on two more round trips to YouTube.
-        def send() -> None:
+        def send() -> Exception | None:
             try:
                 self.client.add_history_item(self.client.get_song(video_id))
             except Exception as e:
                 logger.debug("reporting %s to the history failed: %s", video_id, e)
+                return e
+            return None
 
-        task = asyncio.create_task(asyncio.to_thread(send))
+        async def report() -> None:
+            failure = await asyncio.to_thread(send)
+            if failure is not None and self._connection is not None:
+                await self._connection.report_failure(failure)
+
+        task = asyncio.create_task(report())
         self._reports.add(task)
         task.add_done_callback(self._reports.discard)
 
@@ -309,8 +319,14 @@ class RadioSession:
         if low:
             await self._top_up(replace=False, anchor=track_id)
 
-    async def track_finished(self, track_id: str, played_ms: int, queued_after: int | None = None) -> None:
+    async def track_finished(
+        self, track_id: str, played_ms: int, queued_after: int | None = None, *, deferred: bool = False
+    ) -> None:
         self._report_listen(track_id)
+        if deferred:
+            # Kept while there was no network (docs/protocol.md §7.4): the
+            # history has it now, and nothing queued changes.
+            return
         self.last_good = track_id
         self._follow_front(queued_after)
         # Played to the end: nothing to correct, keep what's queued.
@@ -318,9 +334,11 @@ class RadioSession:
         if left < UPCOMING_LOW_WATER:
             await self._top_up(replace=False)
 
-    async def skip(self, track_id: str, played_ms: int) -> None:
+    async def skip(self, track_id: str, played_ms: int, *, deferred: bool = False) -> None:
         self._skipped.add(track_id)
         if played_ms >= LISTEN_MS:
             self._report_listen(track_id)
+        if deferred:
+            return  # see track_finished()
         # "Not this": a fresh batch replaces what's queued.
         await self._top_up(replace=True)

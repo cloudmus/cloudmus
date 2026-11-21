@@ -1,4 +1,4 @@
-# Test builds: the AppImage, the Windows installer and the macOS DMGs of
+# Test builds: the AppImage, the Windows installer, the macOS DMGs and the APK of
 # every commit pushed to the develop branch, as workflow artifacts (Actions →
 # the run → Artifacts). The file names carry `git describe` (e.g.
 # 0.5.1-12-gabc1234). Crashes of these builds go to Sentry like a release's

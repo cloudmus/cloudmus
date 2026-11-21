@@ -35,6 +35,7 @@
 #include <optional>
 
 #include "AboutDialog.h"
+#include "ConnectionStatus.h"
 #include "CoverArtCache.h"
 #include "Debounce.h"
 #include "DownloadPaths.h"
@@ -72,6 +73,9 @@
 #include "WindowGlass.h"
 
 namespace Ui {
+
+using ViewModel::TrackListModel;
+using ViewModel::trackCountText;
 
 namespace {
 // Warning-level, so it always shows regardless of --debug/CLOUDMUS_QT_DEBUG
@@ -116,7 +120,7 @@ Playlist radioPromo(Playlist station)
 }
 } // namespace
 
-MainWindow::MainWindow(App::Core& core, QWidget* parent)
+MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     : QMainWindow(parent)
     , authStates_(&core.authStates())
     , sourceManager_(core.sourceManager())
@@ -135,6 +139,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     , sources_(core.sources())
     , activePlaylist_(core.activePlaylist())
     , browse_(core.browse())
+    , trackActions_(core.trackActions())
     , sourcePage_(core.sourcePage())
     , coverArtCache_(&core.coverArtCache())
     , playbackHistory_(&core.playbackHistory())
@@ -197,6 +202,7 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     menu->addSeparator();
     menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
     menuButton->setMenu(menu);
+    nowPlayingBar_->setTrailingWidget(makeConnectionButton(core.connectionStatus()));
     nowPlayingBar_->setTrailingWidget(menuButton);
     addToolBar(Qt::BottomToolBarArea, toolbar);
 
@@ -423,17 +429,17 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     toastNotifier_ = new ToastNotifier(this);
     // Whatever the core has to tell the user shows as a toast — on
     // whichever notifier is current (the Settings dialog's while it's up).
-    connect(
-        &messages_, &ViewModel::Messages::posted, this, [this](ViewModel::Messages::Kind kind, const QString& text) {
+    connect(&messages_, &ViewModel::Messages::posted, this,
+        [this](ViewModel::Messages::Kind kind, const QString& text, const QString& details) {
             switch (kind) {
                 case ViewModel::Messages::Kind::Info:
-                    toastNotifier_->showInfo(text);
+                    toastNotifier_->showInfo(text, details);
                     break;
                 case ViewModel::Messages::Kind::Success:
-                    toastNotifier_->showSuccess(text);
+                    toastNotifier_->showSuccess(text, details);
                     break;
                 case ViewModel::Messages::Kind::Error:
-                    toastNotifier_->showError(text);
+                    toastNotifier_->showError(text, details);
                     break;
             }
         });
@@ -471,6 +477,43 @@ MainWindow::MainWindow(App::Core& core, QWidget* parent)
     bindNowPlaying();
     bindActivePlaylist();
     bindBrowse();
+}
+
+QWidget* MainWindow::makeConnectionButton(ViewModel::ConnectionStatus& status)
+{
+    // Only while not all is online: no network, or a service that can't be
+    // reached. A click checks every service now; the tooltip says which and
+    // since when, and what waits to be sent.
+    auto* button = new QToolButton(nowPlayingBar_);
+    button->setObjectName(QStringLiteral("connectionButton"));
+    button->setProperty("variant", "icon");
+    // Square like the transport buttons beside it (see the menu button).
+    button->setFixedSize(Theme::Metrics::iconButtonSize, Theme::Metrics::iconButtonSize);
+    button->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
+    const auto refresh = [button, &status]() {
+        button->setVisible(status.visible());
+        // At rest like the transport buttons beside it: a state, not an alarm.
+        button->setIcon(Theme::icon(status.checking() ? QStringLiteral("refresh") : QStringLiteral("cloud_off"),
+            Theme::IconColor::InkSecondary, Theme::Metrics::iconGlyphSize));
+        // A heading, a line per service (and for what waits to be sent), and
+        // the click's hint apart under a rule, quieter.
+        const Theme::Palette& pal = Theme::palette();
+        QString html = QStringLiteral("<b>%1</b>").arg(status.text().toHtmlEscaped());
+        for (const QString& line : status.details().split(QLatin1Char('\n'), Qt::SkipEmptyParts))
+            html += QStringLiteral("<br><span style=\"color:%1\">%2</span>")
+                        .arg(pal.inkSecondary.name(), line.toHtmlEscaped());
+        if (status.state() != ViewModel::ConnectionStatus::NoNetwork)
+            html += QStringLiteral("<hr><i><span style=\"color:%1\">%2</span></i>")
+                        .arg(pal.inkSecondary.name(), tr("Click to check now").toHtmlEscaped());
+        button->setToolTip(html);
+        button->setAccessibleName(status.text());
+    };
+    Theme::followTheme(button, refresh);
+    connect(&status, &ViewModel::ConnectionStatus::changed, button, refresh);
+    connect(&status, &ViewModel::ConnectionStatus::checkingChanged, button, refresh);
+    connect(button, &QToolButton::clicked, &status, &ViewModel::ConnectionStatus::checkNow);
+    refresh();
+    return button;
 }
 
 void MainWindow::bindNowPlaying()
@@ -819,10 +862,7 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
 
 bool MainWindow::canDownloadPlaylist(const QString& sourceId, const Playlist& playlist) const
 {
-    if (!downloads_.isEnabled() || sourceId.isEmpty() || playlist.kind == QStringLiteral("radioStation"))
-        return false;
-    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    return client != nullptr && ViewModel::Downloads::canSave(client->capabilities());
+    return trackActions_.canDownloadPlaylist(sourceId, playlist);
 }
 
 void MainWindow::onHeroContextMenuRequested(const QPoint& pos)
@@ -998,15 +1038,11 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
 void MainWindow::showTrackMenu(
     const QString& sourceId, const Track& track, const QPoint& globalPos, std::function<void()> play)
 {
-    Rpc::RpcClient* client = sourceManager_.client(sourceId);
-    const QJsonObject capabilities = client != nullptr ? client->capabilities() : QJsonObject();
-    const QJsonObject feedback = capabilities.value(QStringLiteral("feedback")).toObject();
-    const bool likeSupported = feedback.value(QStringLiteral("like")).toBool();
-    const bool dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
-    const bool radioSupported
-        = capabilities.value(QStringLiteral("browse")).toObject().value(QStringLiteral("radio")).toBool();
-    // Only while downloads are on (Settings → Downloads).
-    const bool downloadSupported = downloads_.isEnabled() && ViewModel::Downloads::canSave(capabilities);
+    const ViewModel::TrackActions::Available available = trackActions_.available(sourceId);
+    const bool likeSupported = available.like;
+    const bool dislikeSupported = available.dislike;
+    const bool radioSupported = available.radio;
+    const bool downloadSupported = available.download;
     const QString webUrl = track.webUrl.value_or(QString());
 
     auto* menu = new QMenu(this);
@@ -1026,10 +1062,10 @@ void MainWindow::showTrackMenu(
     menu->addAction(
         Theme::icon(QStringLiteral("play_arrow"), Theme::IconColor::Ink, 16), tr("Play"), this, std::move(play));
     menu->addAction(Theme::icon(QStringLiteral("playlist_play"), Theme::IconColor::Ink, 16), tr("Play Next"), this,
-        [this, sourceId, track]() { playback_.enqueueNext(sourceId, track); });
+        [this, sourceId, track]() { trackActions_.playNext(sourceId, track); });
     menu->addAction(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Add to Queue"), this,
-        [this, sourceId, track]() { playback_.enqueueAtEnd(sourceId, track); });
-    if (playlistEditing_.canEdit(sourceId)) {
+        [this, sourceId, track]() { trackActions_.addToQueue(sourceId, track); });
+    if (available.playlists) {
         QMenu* playlists
             = menu->addMenu(Theme::icon(QStringLiteral("playlist_add"), Theme::IconColor::Ink, 16), tr("Playlists"));
         // Filled on first open only — getTrackPlaylists is a round-trip.
@@ -1072,22 +1108,9 @@ void MainWindow::showTrackMenu(
 
     if (radioSupported) {
         menu->addSeparator();
-        // The bare track id — each backend that declares browse.radio
-        // decides for itself how to turn a track id into whatever
-        // station-addressing scheme it needs (e.g. Yandex's rotor API
-        // wants a "track:<id>"-style address; YouTube's get_watch_playlist
-        // takes a plain videoId directly). A front-imposed prefix here
-        // broke YouTube radio (it received "track:<id>" as a literal,
-        // invalid videoId) — seed is source-defined per docs/protocol.md
-        // §7.1, so the front must not format it.
         menu->addAction(Theme::icon(QStringLiteral("radio"), Theme::IconColor::Ink, 16),
-            tr("Start Radio from This Track"), this, [this, sourceId, id = track.id, title = track.title]() {
-                // Not in the source's playlists, but saved with its tracks
-                // like any active playlist, so the next run restores it.
-                ActiveContext context { sourceId,
-                    Playlist { id, tr("Radio: %1").arg(title), std::nullopt, std::nullopt, 0,
-                        QStringLiteral("radioStation") } };
-                activePlaylist_.startRadio(sourceId, id, context).detach();
+            tr("Start Radio from This Track"), this, [this, sourceId, track]() {
+                trackActions_.startRadio(sourceId, track, tr("Radio: %1").arg(track.title));
             });
     }
 

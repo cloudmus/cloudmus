@@ -219,17 +219,24 @@ QMenu QCheckBox:disabled, QMenu QRadioButton:disabled { color: %10; }
         .arg(hex(p.inkSecondary), hex(p.inkTertiary));
 }
 
-// Scoped to [themed="true"] (both busyIndicator_ instances opt in via
-// setProperty), not a bare QProgressBar type selector — see this file's
-// top-of-namespace rule comment.
+// Scoped to [themed="true"] (the busyIndicator_ instances and the cache
+// meter opt in via setProperty), not a bare QProgressBar type selector — see
+// this file's top-of-namespace rule comment.
+//
+// A meter's radius is its exact half-height, for the same reason as the
+// buttons' in buttonsBlock(): QSS doesn't clamp an oversized radius.
 QString progressBarBlock(const Palette& p)
 {
     return QStringLiteral(R"(QProgressBar[themed="true"] {
     background: %1;
     border: none;
 }
-QProgressBar[themed="true"]::chunk { background: %2; })")
-        .arg(hex(p.surface300), hex(p.accent));
+QProgressBar[themed="true"]::chunk { background: %2; }
+QProgressBar[themed="true"][nearlyFull="true"]::chunk { background: %3; }
+QProgressBar[themed="true"][meter="true"],
+QProgressBar[themed="true"][meter="true"]::chunk { border-radius: %4px; })")
+        .arg(hex(p.surface300), hex(p.accent), hex(p.danger))
+        .arg(QString::number(Metrics::meterHeight / 2));
 }
 
 QString sidebarTreeBlock(const Palette& p)

@@ -11,10 +11,6 @@
         <source>Removed from &quot;%1&quot;</source>
         <translation>Выдалена з «%1»</translation>
     </message>
-    <message>
-        <source>%1: %2</source>
-        <translation>%1: %2</translation>
-    </message>
 </context>
 <context>
     <name>App::SourceSession</name>
@@ -317,6 +313,10 @@
         <source>&quot;%1&quot; is unavailable</source>
         <translation>«%1» недаступны</translation>
     </message>
+    <message>
+        <source>No network connection: playing downloaded tracks</source>
+        <translation>Няма падключэння да сеткі: гучаць спампаваныя трэкі</translation>
+    </message>
 </context>
 <context>
     <name>QLineEdit</name>
@@ -579,6 +579,10 @@
     <message>
         <source>Code copied</source>
         <translation>Код скапіяваны</translation>
+    </message>
+    <message>
+        <source>Click to check now</source>
+        <translation>Націсніце, каб праверыць зараз</translation>
     </message>
     <message>
         <source>History</source>
@@ -1591,6 +1595,53 @@ You can try again later or download the new version yourself.</source>
         <source>History</source>
         <translation>Гісторыя</translation>
     </message>
+    <message>
+        <source>No network connection, and nothing of %1 is downloaded to play</source>
+        <translation>Няма падключэння да сеткі, а з %1 нічога не спампавана</translation>
+    </message>
+    <message>
+        <source>No network connection: playing downloaded tracks</source>
+        <translation>Няма падключэння да сеткі: гучаць спампаваныя трэкі</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+        <source>No network</source>
+        <translation>Няма сеткі</translation>
+    </message>
+    <message>
+        <source>%1 is unreachable</source>
+        <translation>Няма сувязі з %1</translation>
+    </message>
+    <message>
+        <source>Services are unreachable</source>
+        <translation>Няма сувязі з сэрвісамі</translation>
+    </message>
+    <message>
+        <source>Online</source>
+        <translation>У сетцы</translation>
+    </message>
+    <message>
+        <source>The device is not connected to a network</source>
+        <translation>Прылада не падключана да сеткі</translation>
+    </message>
+    <message>
+        <source>%1: unreachable since %2</source>
+        <translation>%1: няма сувязі з %2</translation>
+    </message>
+    <message>
+        <source>%1: unreachable since %2 (%3)</source>
+        <translation>%1: няма сувязі з %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n action(s) will be sent once the connection is back</source>
+        <translation>
+            <numerusform>%n дзеянне будзе адпраўлена, калі сувязь аднавіцца</numerusform>
+            <numerusform>%n дзеянні будуць адпраўлены, калі сувязь аднавіцца</numerusform>
+            <numerusform>%n дзеянняў будуць адпраўлены, калі сувязь аднавіцца</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::Downloads</name>
@@ -1638,6 +1689,25 @@ You can try again later or download the new version yourself.</source>
         <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
         <translation>Захавана %1 з %2 трэкаў з «%3» — %4</translation>
     </message>
+    <message>
+        <source>Not enough free space on the disk</source>
+        <translation>Недастаткова вольнага месца на дыску</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Messages</name>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>No network connection</source>
+        <translation>Няма падключэння да сеткі</translation>
+    </message>
+    <message>
+        <source>%1: no network connection</source>
+        <translation>%1: няма падключэння да сеткі</translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::NowPlaying</name>
@@ -1648,10 +1718,6 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Removed from Liked</source>
         <translation>Выдалена з падабаных</translation>
-    </message>
-    <message>
-        <source>%1: %2</source>
-        <translation>%1: %2</translation>
     </message>
     <message>
         <source>Disliked</source>
@@ -1688,6 +1754,14 @@ You can try again later or download the new version yourself.</source>
         <source>%1 — waiting</source>
         <translation>%1 — чакае</translation>
     </message>
+    <message>
+        <source>Only %1 MB left on the disk: tracks aren&apos;t downloaded ahead, and old ones are removed.</source>
+        <translation>На дыску засталося ўсяго %1 МБ: трэкі не загружаюцца загадзя, старыя выдаляюцца.</translation>
+    </message>
+    <message>
+        <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
+        <translation>На дыску засталося ўсяго %1 МБ: загрузка спынена, гуляць могуць толькі ўжо загружаныя трэкі.</translation>
+    </message>
 </context>
 <context>
     <name>ViewModel::SidebarModel</name>
@@ -1704,15 +1778,11 @@ You can try again later or download the new version yourself.</source>
     <name>ViewModel::Sources</name>
     <message>
         <source>%1 is unavailable</source>
-        <translation>%1 недаступны</translation>
+        <translation>Няма сувязі з %1</translation>
     </message>
     <message>
         <source>timed out loading playlists</source>
         <translation>скончыўся час чакання загрузкі плэйлістаў</translation>
-    </message>
-    <message>
-        <source>%1: %2</source>
-        <translation>%1: %2</translation>
     </message>
 </context>
 </TS>

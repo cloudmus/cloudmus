@@ -217,14 +217,19 @@ fn write_manifests(appdir: &Path, dir: &Path) -> Vec<PathBuf> {
     let python = appdir.join("usr/bin/python3");
     let mut written = Vec::new();
     for (id, module, name) in [
-        ("local-folder", "cloudmus_backend_local", "Local Folder"),
+        ("local-folder", "", "Local Folder"),
         ("yandex-music", "cloudmus_backend_yandex", "Yandex Music"),
         ("youtube-music", "cloudmus_backend_ytmusic", "YouTube Music"),
     ] {
+        let argv = if module.is_empty() {
+            json!([appdir.join("usr/bin/cloudmus-backend-local-folder")])
+        } else {
+            json!([python, "-m", module])
+        };
         let manifest = json!({
             "id": id,
             "name": name,
-            "argv": [python.to_string_lossy(), "-m", module],
+            "argv": argv,
             "protocolVersion": "1.2",
             "icon": appdir.join(format!("usr/share/cloudmus/backend-icons/{id}.svg")).to_string_lossy(),
             // Not every backend has one; the front skips a missing file.

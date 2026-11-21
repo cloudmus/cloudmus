@@ -80,9 +80,12 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install jinja2 pyyaml
 python protocol/codegen/generate.py --lang python cpp
 
-# Shared transport, all backends, and the TUI front
+# Shared transport, the Python backends, and the TUI front
 pip install -e backends/py-rpc-common -e backends/yandex-music \
-    -e backends/local-folder -e backends/youtube-music -e fronts/tui
+    -e backends/youtube-music -e fronts/tui
+
+# Rust backend, used by both fronts in dev mode
+cargo build --locked --manifest-path backends/local-folder/Cargo.toml
 ```
 
 Run the TUI:
@@ -232,13 +235,14 @@ menu, as on macOS; Settings → General can make it show the window instead.
 ## Tests
 
 ```bash
-pytest backends/                               # all backend tests, from the repo root
+pytest backends/                               # Python backends, from the repo root
+cargo test --locked --manifest-path backends/local-folder/Cargo.toml
 (cd fronts/tui && python -m pytest tests/ -q)   # TUI
 ctest --test-dir fronts/qt/build                # Qt front
 
 # Conformance suite: drives a real backend over the wire, validates against the schemas
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_yandex
-python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local
+python -m rpc_common.testing.conformance backends/local-folder/target/debug/cloudmus-backend-local-folder
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_ytmusic
 ```
 

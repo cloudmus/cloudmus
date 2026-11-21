@@ -202,6 +202,7 @@ private slots:
         QTRY_VERIFY(playback_->preloader().isCached(QStringLiteral("fake"), track(QStringLiteral("a")).id));
         const qint64 before = preload_->cacheUsedBytes();
         QVERIFY(before >= 6 * 1024 * 1024);
+        QCOMPARE(preload_->cacheUsedFraction(), double(before) / (1024.0 * 1024 * 1024));
 
         QSignalSpy used(preload_.get(), &Preload::cacheUsedChanged);
         preload_->clearCache();
@@ -210,6 +211,9 @@ private slots:
         QCOMPARE(stateFor(QStringLiteral("d")), Preload::State::Ready);
         QVERIFY(preload_->cacheUsedBytes() < before);
         QVERIFY(preload_->cacheUsedBytes() >= 2 * 1024 * 1024);
+
+        preload_->setCacheMaxMb(0);
+        QCOMPARE(preload_->cacheUsedFraction(), 0.0); // nothing set aside: nothing to fill
     }
 
     // Stepped: progress is told in quarters of a track — a few repaints per

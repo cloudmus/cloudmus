@@ -25,6 +25,7 @@ public:
     // Every backend manifest found (discoverManifests(), scanned once),
     // enabled or not.
     const QList<BackendManifest>& manifests();
+    void discoverNewSources();
 
     // The environment each backend process gets (Net::backendEnvironment()
     // — its proxy); the front's own environment without one.
@@ -45,8 +46,21 @@ public:
     void setDisabledIds(const QStringList& ids);
     bool isEnabled(const QString& sourceId) const { return !disabledIds_.contains(sourceId); }
 
-    // Spawns every enabled backend and starts its handshake. Safe to
-    // call once at startup.
+    // Spawned only when asked for, startDeferred(): a process and its memory
+    // saved for a source with nothing to do yet. Still announced by startAll().
+    // Call before startAll().
+    void setDeferredIds(const QStringList& ids);
+    bool isDeferred(const QString& sourceId) const { return deferredIds_.contains(sourceId); }
+    // No-op for one that isn't deferred.
+    void startDeferred(const QString& sourceId);
+
+    // What startAll() leaves the processes waiting for, so that what's already
+    // known of the sources is on screen before they take the CPU. Their
+    // announcement doesn't wait.
+    void setSpawnDelay(int ms) { spawnDelayMs_ = ms; }
+
+    // Announces every enabled backend, spawns it and starts its handshake.
+    // Safe to call once at startup.
     void startAll();
 
     // Switches one backend on (spawned, with a fresh restart budget) or
@@ -64,6 +78,10 @@ public:
     // A backend's own settings just changed (settings.update succeeded):
     // anything it lists may have too.
     void notifySettingsChanged(const QString& sourceId) { emit settingsChanged(sourceId); }
+
+    // Known and enabled, but not answering yet: waiting to be spawned (or
+    // deferred), or its handshake still under way. Not one that gave up.
+    bool isStarting(const QString& sourceId);
 
     QList<RpcClient*> clients() const;
     RpcClient* client(const QString& sourceId) const;
@@ -89,6 +107,7 @@ signals:
 
 private:
     void startOne(const BackendManifest& manifest);
+    void spawnWaiting();
     void watch(RpcClient* client);
 
     static constexpr int kMaxRestartAttempts = 3;
@@ -98,6 +117,8 @@ private:
     std::function<QProcessEnvironment(const QString&)> environmentProvider_;
     QString locale_;
     QSet<QString> disabledIds_;
+    QSet<QString> deferredIds_;
+    int spawnDelayMs_ = 0;
     QSet<QString> unavailableIds_;
     QHash<QString, RpcClient*> clientsById_;
     QHash<QString, int> restartAttempts_;

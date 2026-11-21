@@ -23,7 +23,9 @@ Translator::Translator(QString resourcePrefix, QObject* parent)
 
 void Translator::setLanguage(const QString& setting)
 {
-    const QString code = resolveLanguage(setting, QLocale::system().uiLanguages());
+    setting_ = setting;
+    const QString code
+        = resolveLanguage(setting, systemLanguages_.isEmpty() ? QLocale::system().uiLanguages() : systemLanguages_);
     if (code == language_)
         return;
 
@@ -45,6 +47,14 @@ void Translator::setLanguage(const QString& setting)
     QLocale::setDefault(QLocale(code));
     language_ = code;
     emit languageChanged(code);
+}
+
+void Translator::setSystemLanguages(const QStringList& uiLanguages)
+{
+    if (uiLanguages == systemLanguages_)
+        return;
+    systemLanguages_ = uiLanguages;
+    setLanguage(setting_);
 }
 
 } // namespace I18n

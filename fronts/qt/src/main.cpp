@@ -16,7 +16,7 @@
 #include "AppIdentity.h"
 #include "AppShortcuts.h"
 #include "Autostart.h"
-#include "Core.h"
+#include "DesktopCore.h"
 #include "Coro.h"
 #include "CoverArtCache.h"
 #include "CrashReporter.h"
@@ -261,7 +261,7 @@ int main(int argc, char** argv)
     appFont.setHintingPreference(QFont::PreferVerticalHinting);
 #endif
     QApplication::setFont(appFont);
-    App::Core core;
+    App::DesktopCore core;
     core.analytics().configure(QStringLiteral(CLOUDMUS_GA4_MEASUREMENT_ID), QStringLiteral(CLOUDMUS_VERSION));
     core.analytics().setDebugView(debugLoggingRequested());
     // --update-from=<x.y.z>: check for updates as if that version were

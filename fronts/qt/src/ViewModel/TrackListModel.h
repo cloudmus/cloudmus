@@ -1,0 +1,145 @@
+#pragma once
+
+#include <QAbstractListModel>
+#include <QDateTime>
+#include <QString>
+#include <QVector>
+
+#include "Models.h"
+
+namespace Covers {
+class CoverArtCache;
+}
+namespace Library {
+class TrackStates;
+}
+
+namespace ViewModel {
+
+class Preload;
+
+// "1 track" / "12 tracks" — the app ships no translation files, so
+// tr("%n track(s)") would show its raw "(s)" form.
+inline QString trackCountText(int count)
+{
+    return count == 1 ? QStringLiteral("1 track") : QStringLiteral("%1 tracks").arg(count);
+}
+
+// Tracks as rows, for any view of them: a QTableView-free list on the desktop
+// (one instance per MainWindow, repointed at a new source/track set whenever
+// the sidebar selection changes), QML on mobile. roleNames() lists the roles
+// of plain types, the ones that can cross a process (see fronts/mobile).
+class TrackListModel : public QAbstractListModel {
+    Q_OBJECT
+
+public:
+    enum Role {
+        TrackRole = Qt::UserRole + 1,
+        SourceIdRole,
+        // Invalid QDateTime (the default) unless set via
+        // setMixedSourceTracks() with a valid MixedSourceEntry::playedAt —
+        // currently only History populates this. TrackRowDelegate checks
+        // QDateTime::isValid() to decide whether to draw it at all.
+        PlayedAtRole,
+        // From Library::TrackStates (see setTrackStates()), not the Track
+        // copy: bool, or invalid while unknown.
+        LikedRole,
+        DislikedRole,
+        // When the track was last played at all (any list), UTC; invalid if never.
+        LastPlayedRole,
+        // From Library::TrackStates, only once the track's stream has been
+        // resolved in this run: a Library::StreamQuality, else invalid.
+        StreamQualityRole,
+        // From Library::TrackStates: bool, true once the source said the
+        // track can't be played.
+        UnavailableRole,
+        // From ViewModel::Preload (see setPreload()): whether the track is
+        // downloaded (bool), and how far a download under way has got
+        // (0..1; invalid when none is).
+        CachedRole,
+        DownloadProgressRole,
+        // The track's fields in plain types, for QML.
+        TrackIdRole,
+        TitleRole,
+        ArtistRole,
+        AlbumRole,
+        DurationMsRole,
+        ExplicitRole,
+        WebUrlRole,
+        // A local file to show the cover from, once at hand (see
+        // setCovers()): empty until then.
+        CoverFileRole,
+        // The row of the track that plays (see setCurrentTrack()).
+        IsCurrentRole,
+    };
+
+    // One row for setMixedSourceTracks() — see that method's doc comment
+    // for why a mixed-source list needs a per-row sourceId. playedAt is
+    // separate from Track itself (a protocol type, not a
+    // when-the-user-played-it fact) so History::PlaybackHistory stays the
+    // one place that knows about play history at all.
+    struct MixedSourceEntry {
+        QString sourceId;
+        Track track;
+        QDateTime playedAt;
+    };
+
+    explicit TrackListModel(QObject* parent = nullptr);
+
+    void setTracks(const QString& sourceId, const QList<Track>& tracks);
+    // For a list spanning more than one backend (currently only History,
+    // see MainWindow::showHistory()) — PlaybackController::loadQueue takes
+    // one sourceId for the whole queue, so double-clicking a row here plays
+    // just that track instead of queuing the rest of the list (see
+    // MainWindow::onTrackDoubleClicked / isMixedSource()).
+    void setMixedSourceTracks(const QList<MixedSourceEntry>& entries);
+    // The same for a list that changed rather than a new one: what's still there
+    // stays as it is, row for row, for a view to keep its scroll position and
+    // everything drawn. What's gone from the start or the end, or was replaced in
+    // between, goes alone; a list with nothing in common is a reset after all.
+    void updateMixedSourceTracks(const QList<MixedSourceEntry>& entries);
+    void appendTracks(const QList<Track>& tracks);
+    // One row in/out of a mixed-source list (setMixedSourceTracks) —
+    // e.g. after adding a track to / removing it from the playlist shown.
+    void appendEntry(const QString& sourceId, const Track& track);
+    // Removes the first row with this (sourceId, trackId); no-op if none.
+    void removeFirst(const QString& sourceId, const QString& trackId);
+    void clear();
+    // Where LikedRole/DislikedRole/LastPlayedRole come from — rows
+    // repaint whenever it reports a change. Without one those roles are
+    // empty. See Library::TrackStates.
+    void setTrackStates(Library::TrackStates* states);
+    // Where CachedRole/DownloadProgressRole come from; without one they're
+    // empty.
+    void setPreload(Preload* preload);
+    // Where CoverFileRole comes from; without one it's empty.
+    void setCovers(Covers::CoverArtCache* covers);
+    // Which track IsCurrentRole marks: none if empty.
+    void setCurrentTrack(const QString& sourceId, const QString& trackId);
+
+    const QString& sourceId() const { return sourceId_; }
+    bool isMixedSource() const { return mixedSource_; }
+    QString sourceIdAt(int row) const;
+    const Track& trackAt(int row) const { return tracks_[row]; }
+    QList<Track> allTracks() const { return QList<Track>(tracks_.begin(), tracks_.end()); }
+
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
+    QHash<int, QByteArray> roleNames() const override;
+
+private:
+    void onStateChanged(const QString& sourceId, const QString& trackId);
+
+    Library::TrackStates* states_ = nullptr;
+    Preload* preload_ = nullptr;
+    Covers::CoverArtCache* covers_ = nullptr;
+    QString currentSourceId_;
+    QString currentTrackId_;
+    QString sourceId_;
+    QVector<Track> tracks_;
+    QVector<QString> mixedSourceIds_; // parallel to tracks_, only populated when mixedSource_
+    QVector<QDateTime> playedAt_; // parallel to tracks_, only populated when mixedSource_
+    bool mixedSource_ = false;
+};
+
+} // namespace ViewModel

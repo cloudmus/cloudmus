@@ -1,5 +1,4 @@
 FROM ubuntu:24.04
-
 ENV DEBIAN_FRONTEND=noninteractive \
     WINEARCH=win64 \
     WINEPREFIX=/opt/cloudmus-wine \
@@ -43,11 +42,14 @@ RUN mkdir -p /opt/windows-ninja && \
     && rm /tmp/ninja.zip
 
 # This archive has the headers, MinGW import library and standard x64 DLL.
-# It is the non-v3 Windows build linked from mpv.io/installation/.
-ARG MPV_ARCHIVE=mpv-dev-x86_64-20260928-git-e470f8986e.7z
-ARG MPV_SHA256=81795d759e01016f1550fd71651a1a5d59ab5c28ef31c0b6793224e9cff39459
+# It is the non-v3 Windows build linked from mpv.io/installation/
+# (shinchiro/mpv-winbuild-cmake), mirrored in our own "build-deps" release:
+# that project keeps its nightly builds for about 40 days only, and a pinned
+# one went missing. A newer one goes there too, by hand (gh release upload).
+ARG MPV_ARCHIVE=mpv-dev-x86_64-20261111-git-bcde6b93cc.7z
+ARG MPV_SHA256=273c079b11ea5575822f972756f4c9a71149a5c10130353abeb8586738938452
 RUN curl -fL --retry 3 -o /tmp/mpv.7z \
-        "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260928/${MPV_ARCHIVE}" \
+        "https://github.com/cloudmus/cloudmus/releases/download/build-deps/${MPV_ARCHIVE}" \
     && echo "${MPV_SHA256}  /tmp/mpv.7z" | sha256sum -c - \
     && mkdir -p /opt/mpv/lib \
     && 7z x -y /tmp/mpv.7z -o/opt/mpv >/dev/null \
@@ -101,3 +103,17 @@ RUN curl -fL --retry 3 -o /tmp/taglib.tar.gz \
     && mkdir -p /opt/taglib \
     && tar -xzf /tmp/taglib.tar.gz -C /opt/taglib --strip-components=1 \
     && rm /tmp/taglib.tar.gz
+
+# Rust builds the native local-folder backend with the Windows GNU ABI.
+ARG RUST_VERSION=1.98.0
+ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo
+ENV PATH=/opt/cargo/bin:$PATH
+RUN apt-get update && apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL --retry 3 https://sh.rustup.rs -o /tmp/rustup.sh \
+    && sh /tmp/rustup.sh -y --profile minimal --no-modify-path --default-toolchain "${RUST_VERSION}" \
+        --target x86_64-pc-windows-gnu \
+    && rm /tmp/rustup.sh
+# Cargo's procedural macros link for the Linux host even during a cross-build.
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/*

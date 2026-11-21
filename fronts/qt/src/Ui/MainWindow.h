@@ -10,7 +10,7 @@
 #include <optional>
 
 #include "AuthStates.h"
-#include "Core.h"
+#include "DesktopCore.h"
 #include "Coro.h"
 #include "PlaybackController.h"
 #include "Settings.h"
@@ -42,13 +42,18 @@ class CoverArtCache;
 }
 
 namespace ViewModel {
+class ConnectionStatus;
 class SidebarModel;
+}
+
+namespace ViewModel {
+class TrackListModel;
 }
 
 namespace Ui {
 
 class NavItemDelegate;
-class TrackListModel;
+using ViewModel::TrackListModel;
 class TrackRowDelegate;
 class NowPlayingBar;
 class SourcePanel;
@@ -65,7 +70,7 @@ class MainWindow : public QMainWindow {
 public:
     // `core`: everything the window shows and acts on — it outlives the
     // window (see App::Core).
-    explicit MainWindow(App::Core& core, QWidget* parent = nullptr);
+    explicit MainWindow(App::DesktopCore& core, QWidget* parent = nullptr);
     ~MainWindow() override;
 
     // Called by the tray's Quit action — bypasses close-to-tray.
@@ -99,6 +104,8 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    // The offline indicator beside the menu button.
+    QWidget* makeConnectionButton(ViewModel::ConnectionStatus& status);
     // Hooks the toolbar, the hero panel and the playing-row highlight up
     // to nowPlaying_, and shows its current state right away.
     void bindNowPlaying();
@@ -226,6 +233,7 @@ private:
     ViewModel::ActivePlaylist& activePlaylist_;
     // What's open in the sheet, and signing in from a source's page.
     ViewModel::Browse& browse_;
+    ViewModel::TrackActions& trackActions_;
     ViewModel::SourcePage& sourcePage_;
 
     void repositionTrackListBusyIndicator();

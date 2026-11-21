@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QHash>
+#include <QSet>
 #include <QStandardItemModel>
 #include <QString>
 #include <QStringList>
@@ -63,6 +64,9 @@ public:
         // for rows outside this model that reuse NavItemDelegate (the
         // Settings dialog's sidebar).
         ThemeIconRole,
+        // A source header's service can't be reached (App::Connectivity):
+        // a cloud_off at the right edge, unless a warning is there already.
+        IsOfflineRole,
     };
 
     explicit SidebarModel(QObject* parent = nullptr);
@@ -117,6 +121,10 @@ public:
     // re-applies the path to every row it creates.
     void setSourceIconPath(const QString& sourceId, const QString& iconPath);
 
+    // Remembered per source id like the icon path, for the header row
+    // setSource() builds anew.
+    void setSourceOffline(const QString& sourceId, bool offline);
+
     // All of a source's playlists (Wave/Liked/regular, the order it listed
     // them in — including ones the sidebar doesn't show), its icon path
     // and whether its playlists are being (re)loaded — for its page.
@@ -124,6 +132,8 @@ public:
     // Updates a playlist row's stored trackCount after an add/remove.
     void setPlaylistTrackCount(const QString& sourceId, const QString& playlistId, int trackCount);
     QString sourceIconPath(const QString& sourceId) const { return sourceIconPaths_.value(sourceId); }
+    // As the source calls itself (the rows show it in capitals).
+    QString sourceName(const QString& sourceId) const { return sourceNames_.value(sourceId); }
     bool isSourceLoading(const QString& sourceId) const;
 
     // Marks the active playlist's row (clearing the previous one). History
@@ -154,6 +164,9 @@ private:
     void refreshActiveMarks(QStandardItem* parent);
 
     QHash<QString, QString> sourceIconPaths_;
+
+    QSet<QString> offlineSources_;
+    QHash<QString, QString> sourceNames_;
     QHash<QString, QList<Playlist>> playlists_;
     QHash<QString, QStringList> favorites_; // only sources with the user's own list
     QString activeSourceId_;

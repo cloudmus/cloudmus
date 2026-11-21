@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QTranslator>
 
 namespace I18n {
@@ -23,12 +24,18 @@ public:
     void setLanguage(const QString& setting);
     // The language in effect — a code from supportedLanguages().
     const QString& language() const { return language_; }
+    // What "follow the system" means, when this process can't tell (the
+    // Android playback service has no Android locale): the UI process's
+    // QLocale::uiLanguages(). Empty: ask QLocale::system() here.
+    void setSystemLanguages(const QStringList& uiLanguages);
 
 signals:
     void languageChanged(const QString& code);
 
 private:
     QString resourcePrefix_;
+    QString setting_;
+    QStringList systemLanguages_;
     QString language_;
     QTranslator appTranslator_;
     QTranslator qtTranslator_;

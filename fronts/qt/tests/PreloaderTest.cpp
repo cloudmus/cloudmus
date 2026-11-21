@@ -11,6 +11,7 @@
 #include "Preloader.h"
 #include "ProxyRouting.h"
 #include "StreamDownload.h"
+#include "DiskSpace.h"
 #include "TrackCache.h"
 
 namespace Tests {
@@ -103,6 +104,56 @@ private slots:
         cache_.reset();
         upstream_.reset();
         dir_.reset();
+    }
+
+    // Little room: only the playing track comes down. None: not even that,
+    // and it isn't failed, it goes on when there's room again.
+    void aFullDiskHoldsDownloadsBack()
+    {
+        namespace Disk = Playback::DiskSpace;
+        using State = Playback::Preloader::State;
+        const QString src = QStringLiteral("src");
+        qint64 free = Disk::kCriticalBytes + 1;
+        cache_->setFreeSpaceProvider([&]() { return free; });
+        QCOMPARE(cache_->space(), Playback::TrackCache::Space::Low);
+
+        preloader_->setWindow({ playing(QStringLiteral("a")), upcoming(QStringLiteral("b")) });
+        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("a")), State::Ready);
+        QTest::qWait(100);
+        QCOMPARE(preloader_->stateOf(src, QStringLiteral("b")), State::Waiting);
+        QVERIFY(!resolveCalls_.contains(QStringLiteral("b")));
+
+        free = Disk::kCriticalBytes - 1;
+        cache_->setFreeSpaceProvider([&]() { return free; });
+        preloader_->setWindow({ playing(QStringLiteral("c")) });
+        QTest::qWait(100);
+        QCOMPARE(preloader_->stateOf(src, QStringLiteral("c")), State::Waiting);
+        QVERIFY(!QFileInfo::exists(cache_->partPath(Playback::TrackCache::keyFor(src, QStringLiteral("c")))));
+
+        free = Disk::kLowBytes * 2;
+        cache_->setFreeSpaceProvider([&]() { return free; });
+        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("c")), State::Ready);
+    }
+
+    // One under way stops, whatever it is, when the disk runs out.
+    void aDownloadUnderWayStopsWhenTheDiskRunsOut()
+    {
+        namespace Disk = Playback::DiskSpace;
+        using State = Playback::Preloader::State;
+        const QString src = QStringLiteral("src");
+        upstream_->held.insert(QStringLiteral("/a"));
+        qint64 free = Disk::kLowBytes * 2;
+        cache_->setFreeSpaceProvider([&]() { return free; });
+        preloader_->setWindow({ playing(QStringLiteral("a")) });
+        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("a")), State::Downloading);
+
+        free = Disk::kCriticalBytes - 1;
+        cache_->setFreeSpaceProvider([&]() { return free; });
+        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("a")), State::Waiting);
+        upstream_->held.clear();
+        free = Disk::kLowBytes * 2;
+        cache_->setFreeSpaceProvider([&]() { return free; });
+        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("a")), State::Ready);
     }
 
     // The point of it all: nothing takes the link from the track the

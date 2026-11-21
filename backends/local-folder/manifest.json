@@ -1,7 +1,7 @@
 {
   "id": "local-folder",
   "name": "Local Folder",
-  "argv": ["python3", "-m", "cloudmus_backend_local"],
+  "argv": ["./target/debug/cloudmus-backend-local-folder"],
   "protocolVersion": "1.12",
   "icon": "icon.svg"
 }

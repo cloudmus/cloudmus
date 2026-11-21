@@ -1,0 +1,562 @@
+{
+ "Playback": {
+  "ru": "Воспроизведение",
+  "be": "Прайграванне",
+  "de": "Wiedergabe",
+  "es": "Reproducción",
+  "fr": "Lecture",
+  "it": "Riproduzione"
+ },
+ "Saving tracks is off. Saved tracks are for your own listening on this device.": {
+  "ru": "Сохранение треков выключено. Сохранённые треки — только для личного прослушивания на этом устройстве.",
+  "be": "Захаванне трэкаў выключана. Захаваныя трэкі — толькі для асабістага праслухоўвання на гэтай прыладзе.",
+  "de": "Das Speichern von Titeln ist aus. Gespeicherte Titel sind nur zum eigenen Hören auf diesem Gerät gedacht.",
+  "es": "Guardar pistas está desactivado. Las pistas guardadas son solo para tu uso personal en este dispositivo.",
+  "fr": "L’enregistrement des pistes est désactivé. Les pistes enregistrées sont réservées à votre écoute personnelle sur cet appareil.",
+  "it": "Il salvataggio dei brani è disattivato. I brani salvati sono solo per l’ascolto personale su questo dispositivo."
+ },
+ "Allow saving tracks to this device": {
+  "ru": "Разрешить сохранение треков на это устройство",
+  "be": "Дазволіць захаванне трэкаў на гэтую прыладу",
+  "de": "Speichern von Titeln auf diesem Gerät erlauben",
+  "es": "Permitir guardar pistas en este dispositivo",
+  "fr": "Autoriser l’enregistrement des pistes sur cet appareil",
+  "it": "Consenti il salvataggio dei brani su questo dispositivo"
+ },
+ "Save playing track": {
+  "ru": "Сохранить текущий трек",
+  "be": "Захаваць бягучы трэк",
+  "de": "Aktuellen Titel speichern",
+  "es": "Guardar la pista actual",
+  "fr": "Enregistrer la piste en cours",
+  "it": "Salva il brano in riproduzione"
+ },
+ "Nothing saved yet": {
+  "ru": "Пока ничего не сохранено",
+  "be": "Пакуль нічога не захавана",
+  "de": "Noch nichts gespeichert",
+  "es": "Aún no hay nada guardado",
+  "fr": "Rien d’enregistré pour le moment",
+  "it": "Ancora nulla di salvato"
+ },
+ "Sign in to see the playlists": {
+  "ru": "Войдите, чтобы увидеть плейлисты",
+  "be": "Увайдзіце, каб убачыць плэйлісты",
+  "de": "Melden Sie sich an, um Playlists zu sehen",
+  "es": "Inicia sesión para ver las listas de reproducción",
+  "fr": "Connectez-vous pour voir les listes de lecture",
+  "it": "Accedi per vedere le playlist"
+ },
+ "Open %1 on any device and enter this code:": {
+  "ru": "Откройте %1 на любом устройстве и введите этот код:",
+  "be": "Адкрыйце %1 на любой прыладзе і ўвядзіце гэты код:",
+  "de": "Öffnen Sie %1 auf einem beliebigen Gerät und geben Sie diesen Code ein:",
+  "es": "Abre %1 en cualquier dispositivo e introduce este código:",
+  "fr": "Ouvrez %1 sur n’importe quel appareil et saisissez ce code :",
+  "it": "Apri %1 su qualsiasi dispositivo e inserisci questo codice:"
+ },
+ "Copied": {
+  "ru": "Скопировано",
+  "be": "Скапіравана",
+  "de": "Kopiert",
+  "es": "Copiado",
+  "fr": "Copié",
+  "it": "Copiato"
+ },
+ "Favorites": {
+  "ru": "Избранное",
+  "be": "Абранае",
+  "de": "Favoriten",
+  "es": "Favoritos",
+  "fr": "Favoris",
+  "it": "Preferiti"
+ },
+ "All playlists and stations": {
+  "ru": "Все плейлисты и станции",
+  "be": "Усе плэйлісты і станцыі",
+  "de": "Alle Playlists und Sender",
+  "es": "Todas las listas y emisoras",
+  "fr": "Toutes les listes de lecture et stations",
+  "it": "Tutte le playlist e stazioni"
+ },
+ "%1 tracks": {
+  "ru": "Треков: %1",
+  "be": "Трэкаў: %1",
+  "de": "%1 Titel",
+  "es": "%1 pistas",
+  "fr": "%1 pistes",
+  "it": "%1 brani"
+ },
+ "1 track": {
+  "ru": "1 трек",
+  "be": "1 трэк",
+  "de": "1 Titel",
+  "es": "1 pista",
+  "fr": "1 piste",
+  "it": "1 brano"
+ },
+ "No sources": {
+  "ru": "Нет источников",
+  "be": "Няма крыніц",
+  "de": "Keine Quellen",
+  "es": "Sin fuentes",
+  "fr": "Aucune source",
+  "it": "Nessuna sorgente"
+ },
+ "Reconnecting to the player…": {
+  "ru": "Подключение к плееру…",
+  "be": "Падключэнне да прайгравальніка…",
+  "de": "Verbindung zum Player wird hergestellt …",
+  "es": "Reconectando con el reproductor…",
+  "fr": "Reconnexion au lecteur…",
+  "it": "Riconnessione al lettore…"
+ },
+ "Nothing is playing": {
+  "ru": "Ничего не играет",
+  "be": "Нічога не іграе",
+  "de": "Es wird nichts wiedergegeben",
+  "es": "No se reproduce nada",
+  "fr": "Aucune lecture en cours",
+  "it": "Nessuna riproduzione"
+ },
+ "Open the Library": {
+  "ru": "Открыть библиотеку",
+  "be": "Адкрыць бібліятэку",
+  "de": "Bibliothek öffnen",
+  "es": "Abrir la biblioteca",
+  "fr": "Ouvrir la bibliothèque",
+  "it": "Apri la libreria"
+ },
+ "Now playing": {
+  "ru": "Сейчас играет",
+  "be": "Зараз іграе",
+  "de": "Jetzt läuft",
+  "es": "En reproducción",
+  "fr": "En cours de lecture",
+  "it": "In riproduzione"
+ },
+ "No connection": {
+  "ru": "Нет сети",
+  "be": "Няма сеткі",
+  "de": "Kein Netz",
+  "es": "Sin red",
+  "fr": "Pas de réseau",
+  "it": "Nessuna rete"
+ },
+ "Press play to start the station": {
+  "ru": "Нажмите «Воспроизвести», чтобы запустить станцию",
+  "be": "Націсніце «Прайграць», каб запусціць станцыю",
+  "de": "Drücken Sie auf Wiedergabe, um den Sender zu starten",
+  "es": "Pulsa reproducir para iniciar la emisora",
+  "fr": "Appuyez sur lecture pour lancer la station",
+  "it": "Premi riproduci per avviare la stazione"
+ },
+ "No tracks": {
+  "ru": "Нет треков",
+  "be": "Няма трэкаў",
+  "de": "Keine Titel",
+  "es": "Sin pistas",
+  "fr": "Aucune piste",
+  "it": "Nessun brano"
+ },
+ "Proxy": {
+  "ru": "Прокси",
+  "be": "Проксі",
+  "de": "Proxy",
+  "es": "Proxy",
+  "fr": "Proxy",
+  "it": "Proxy"
+ },
+ "New proxy": {
+  "ru": "Новый прокси",
+  "be": "Новы проксі",
+  "de": "Neuer Proxy",
+  "es": "Nuevo proxy",
+  "fr": "Nouveau proxy",
+  "it": "Nuovo proxy"
+ },
+ "Name": {
+  "ru": "Название",
+  "be": "Назва",
+  "de": "Name",
+  "es": "Nombre",
+  "fr": "Nom",
+  "it": "Nome"
+ },
+ "Host or IP": {
+  "ru": "Хост или IP",
+  "be": "Хост або IP",
+  "de": "Host oder IP",
+  "es": "Host o IP",
+  "fr": "Hôte ou IP",
+  "it": "Host o IP"
+ },
+ "e.g. 192.168.1.10": {
+  "ru": "напр., 192.168.1.10",
+  "be": "напр., 192.168.1.10",
+  "de": "z. B. 192.168.1.10",
+  "es": "p. ej., 192.168.1.10",
+  "fr": "p. ex. 192.168.1.10",
+  "it": "ad es. 192.168.1.10"
+ },
+ "Port": {
+  "ru": "Порт",
+  "be": "Порт",
+  "de": "Port",
+  "es": "Puerto",
+  "fr": "Port",
+  "it": "Porta"
+ },
+ "Username": {
+  "ru": "Имя пользователя",
+  "be": "Імя карыстальніка",
+  "de": "Benutzername",
+  "es": "Usuario",
+  "fr": "Nom d’utilisateur",
+  "it": "Nome utente"
+ },
+ "Optional": {
+  "ru": "Необязательно",
+  "be": "Неабавязкова",
+  "de": "Optional",
+  "es": "Opcional",
+  "fr": "Facultatif",
+  "it": "Facoltativo"
+ },
+ "Password": {
+  "ru": "Пароль",
+  "be": "Пароль",
+  "de": "Passwort",
+  "es": "Contraseña",
+  "fr": "Mot de passe",
+  "it": "Password"
+ },
+ "Save": {
+  "ru": "Сохранить",
+  "be": "Захаваць",
+  "de": "Speichern",
+  "es": "Guardar",
+  "fr": "Enregistrer",
+  "it": "Salva"
+ },
+ "Saved: type to replace": {
+  "ru": "Сохранено — введите, чтобы заменить",
+  "be": "Захавана — увядзіце, каб замяніць",
+  "de": "Gespeichert – zum Ersetzen eingeben",
+  "es": "Guardado: escribe para reemplazar",
+  "fr": "Enregistré — saisissez pour remplacer",
+  "it": "Salvato — digita per sostituire"
+ },
+ "Play when the system starts": {
+  "ru": "Играть при запуске системы",
+  "be": "Іграць пры запуску сістэмы",
+  "de": "Beim Systemstart abspielen",
+  "es": "Reproducir al iniciar el sistema",
+  "fr": "Lire au démarrage du système",
+  "it": "Riproduci all’avvio del sistema"
+ },
+ "How many tracks after the playing one are downloaded in advance, so they start at once and play through a bad connection.": {
+  "ru": "Сколько треков после играющего скачивается заранее, чтобы они начинались сразу и играли даже при плохой связи.",
+  "be": "Колькі трэкаў пасля бягучага спампоўваецца загадзя, каб яны пачыналіся адразу і іграли нават пры дрэннай сувязі.",
+  "de": "Wie viele Titel nach dem laufenden im Voraus heruntergeladen werden, damit sie sofort starten und auch bei schlechter Verbindung durchlaufen.",
+  "es": "Cuántas pistas después de la actual se descargan por adelantado, para que empiecen al instante y suenen aunque la conexión sea mala.",
+  "fr": "Combien de pistes après celle en cours sont téléchargées à l’avance, pour démarrer aussitôt et se lire même avec une mauvaise connexion.",
+  "it": "Quanti brani dopo quello in riproduzione vengono scaricati in anticipo, così partono subito e proseguono anche con una connessione scarsa."
+ },
+ "Tracks ahead in a playlist": {
+  "ru": "Треков вперёд в плейлисте",
+  "be": "Трэкаў наперад у плэйлісце",
+  "de": "Titel im Voraus in einer Playlist",
+  "es": "Pistas por adelantado en una lista",
+  "fr": "Pistes d’avance dans une liste",
+  "it": "Brani in anticipo in una playlist"
+ },
+ "Tracks ahead in a radio": {
+  "ru": "Треков вперёд в радио",
+  "be": "Трэкаў наперад у радыё",
+  "de": "Titel im Voraus im Radio",
+  "es": "Pistas por adelantado en una radio",
+  "fr": "Pistes d’avance dans une radio",
+  "it": "Brani in anticipo in una radio"
+ },
+ "Disk space for tracks": {
+  "ru": "Место на диске для треков",
+  "be": "Месца на дыску для трэкаў",
+  "de": "Speicherplatz für Titel",
+  "es": "Espacio en disco para pistas",
+  "fr": "Espace disque pour les pistes",
+  "it": "Spazio su disco per i brani"
+ },
+ "MB": {
+  "ru": "МБ",
+  "be": "МБ",
+  "de": "MB",
+  "es": "MB",
+  "fr": "Mo",
+  "it": "MB"
+ },
+ "Proxies a source can connect through: choose one on the source's own page. Everything of that source goes through it: the source itself, its streams and its covers.": {
+  "ru": "Прокси, через которые может подключаться источник: выберите нужный на странице самого источника. Через него идёт всё, что относится к источнику: он сам, его потоки и обложки.",
+  "be": "Проксі, праз якія можа падключацца крыніца: выберыце патрэбны на старонцы самой крыніцы. Праз яго ідзе ўсё, што адносіцца да крыніцы: яна сама, яе плыні і вокладкі.",
+  "de": "Proxys, über die sich eine Quelle verbinden kann: Wählen Sie einen auf der Seite der Quelle. Alles dieser Quelle läuft darüber: die Quelle selbst, ihre Streams und ihre Cover.",
+  "es": "Proxies a través de los que puede conectarse una fuente: elige uno en la página de la propia fuente. Todo lo de esa fuente pasa por él: la fuente, sus streams y sus carátulas.",
+  "fr": "Proxys par lesquels une source peut se connecter : choisissez-en un sur la page de la source. Tout ce qui concerne cette source passe par lui : la source elle-même, ses flux et ses pochettes.",
+  "it": "Proxy attraverso cui una sorgente può connettersi: scegline uno nella pagina della sorgente. Tutto ciò che la riguarda passa da lì: la sorgente stessa, i suoi flussi e le sue copertine."
+ },
+ "Privacy": {
+  "ru": "Конфиденциальность",
+  "be": "Прыватнасць",
+  "de": "Datenschutz",
+  "es": "Privacidad",
+  "fr": "Confidentialité",
+  "it": "Privacy"
+ },
+ "Interface": {
+  "ru": "Интерфейс",
+  "be": "Інтэрфейс",
+  "de": "Oberfläche",
+  "es": "Interfaz",
+  "fr": "Interface",
+  "it": "Interfaccia"
+ },
+ "Theme": {
+  "ru": "Тема",
+  "be": "Тэма",
+  "de": "Design",
+  "es": "Tema",
+  "fr": "Thème",
+  "it": "Tema"
+ },
+ "Language": {
+  "ru": "Язык",
+  "be": "Мова",
+  "de": "Sprache",
+  "es": "Idioma",
+  "fr": "Langue",
+  "it": "Lingua"
+ },
+ "Scale": {
+  "ru": "Масштаб",
+  "be": "Маштаб",
+  "de": "Skalierung",
+  "es": "Escala",
+  "fr": "Échelle",
+  "it": "Scala"
+ },
+ "App": {
+  "ru": "Приложение",
+  "be": "Праграма",
+  "de": "App",
+  "es": "Aplicación",
+  "fr": "Application",
+  "it": "App"
+ },
+ "Connection": {
+  "ru": "Подключение",
+  "be": "Падключэнне",
+  "de": "Verbindung",
+  "es": "Conexión",
+  "fr": "Connexion",
+  "it": "Connessione"
+ },
+ "The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. Applies to the next station you start.": {
+  "ru": "Радио пропускает столько последних проигранных треков этого источника или все проигранные за указанное число дней, если их больше, пока есть что играть. Действует со следующей запущенной станции.",
+  "be": "Радыё прапускае столькі апошніх прайграных трэкаў гэтай крыніцы або ўсе прайграныя за ўказаную колькасць дзён, калі іх болей, пакуль ёсць што іграць. Дзейнічае з наступнай запушчанай станцыі.",
+  "de": "Das Radio lässt so viele der zuletzt gespielten Titel dieser Quelle aus – oder alle der angegebenen Tage, wenn das mehr ist –, solange es noch andere spielen kann. Gilt ab dem nächsten gestarteten Sender.",
+  "es": "La radio omite esta cantidad de las últimas pistas reproducidas de esta fuente, o todas las de esos días si son más, mientras tenga otras que poner. Se aplica a la próxima emisora que inicies.",
+  "fr": "La radio écarte ce nombre des dernières pistes écoutées de cette source, ou toutes celles de ces jours si c’est plus, tant qu’il en reste d’autres à lire. S’applique à la prochaine station lancée.",
+  "it": "La radio esclude questo numero degli ultimi brani riprodotti da questa sorgente, o tutti quelli di questi giorni se sono di più, finché ne ha altri da riprodurre. Vale dalla prossima stazione avviata."
+ },
+ "Tracks before a repeat": {
+  "ru": "Треков до повтора",
+  "be": "Трэкаў да паўтору",
+  "de": "Titel vor einer Wiederholung",
+  "es": "Pistas antes de repetir",
+  "fr": "Pistes avant une répétition",
+  "it": "Brani prima di una ripetizione"
+ },
+ "Or days": {
+  "ru": "Или дней",
+  "be": "Або дзён",
+  "de": "Oder Tage",
+  "es": "O días",
+  "fr": "Ou jours",
+  "it": "Oppure giorni"
+ },
+ "Connections": {
+  "ru": "Соединения",
+  "be": "Злучэнні",
+  "de": "Verbindungen",
+  "es": "Conexiones",
+  "fr": "Connexions",
+  "it": "Connessioni"
+ },
+ "How many parts of a track are downloaded at once. A service that slows each connection down gives several more in all. Applies to the next track.": {
+  "ru": "На сколько частей скачивается трек одновременно. Сервис, замедляющий каждое соединение, в сумме даёт больше. Действует со следующего трека.",
+  "be": "На колькі частак спампоўваецца трэк адначасова. Сервіс, які запавольвае кожнае злучэнне, у суме дае болей. Дзейнічае з наступнага трэка.",
+  "de": "In wie vielen Teilen ein Titel gleichzeitig heruntergeladen wird. Ein Dienst, der jede Verbindung bremst, liefert insgesamt mehr. Gilt ab dem nächsten Titel.",
+  "es": "En cuántas partes se descarga una pista a la vez. Un servicio que ralentiza cada conexión da más en total. Se aplica a la próxima pista.",
+  "fr": "En combien de parties une piste est téléchargée à la fois. Un service qui ralentit chaque connexion en donne plus au total. S’applique à la prochaine piste.",
+  "it": "In quante parti viene scaricato un brano alla volta. Un servizio che rallenta ogni connessione ne dà di più in tutto. Vale dal prossimo brano."
+ },
+ "Play next": {
+  "ru": "Играть следующим",
+  "be": "Іграць наступным",
+  "de": "Als Nächstes spielen",
+  "es": "Reproducir a continuación",
+  "fr": "Lire ensuite",
+  "it": "Riproduci dopo"
+ },
+ "Add to queue": {
+  "ru": "Добавить в очередь",
+  "be": "Дадаць у чаргу",
+  "de": "Zur Warteschlange hinzufügen",
+  "es": "Añadir a la cola",
+  "fr": "Ajouter à la file",
+  "it": "Aggiungi alla coda"
+ },
+ "Playlists…": {
+  "ru": "Плейлисты…",
+  "be": "Плэйлісты…",
+  "de": "Playlists …",
+  "es": "Listas de reproducción…",
+  "fr": "Listes de lecture…",
+  "it": "Playlist…"
+ },
+ "Remove dislike": {
+  "ru": "Убрать «Не нравится»",
+  "be": "Зняць «Не падабаецца»",
+  "de": "„Gefällt mir nicht“ entfernen",
+  "es": "Quitar «No me gusta»",
+  "fr": "Ne plus ne pas aimer",
+  "it": "Togli «Non mi piace»"
+ },
+ "Start radio from this track": {
+  "ru": "Запустить радио по этому треку",
+  "be": "Запусціць радыё па гэтым трэку",
+  "de": "Radio ab diesem Titel starten",
+  "es": "Iniciar radio desde esta pista",
+  "fr": "Lancer la radio à partir de cette piste",
+  "it": "Avvia la radio da questo brano"
+ },
+ "Save to downloads": {
+  "ru": "Сохранить в загрузки",
+  "be": "Захаваць у спампоўкі",
+  "de": "In Downloads speichern",
+  "es": "Guardar en descargas",
+  "fr": "Enregistrer dans les téléchargements",
+  "it": "Salva nei download"
+ },
+ "It works": {
+  "ru": "Работает",
+  "be": "Працуе",
+  "de": "Funktioniert",
+  "es": "Funciona",
+  "fr": "Ça fonctionne",
+  "it": "Funziona"
+ },
+ "Couldn't be started": {
+  "ru": "Не удалось запустить",
+  "be": "Не ўдалося запусціць",
+  "de": "Konnte nicht gestartet werden",
+  "es": "No se pudo iniciar",
+  "fr": "Impossible à démarrer",
+  "it": "Impossibile avviare"
+ },
+ "A switched-off source doesn't start and isn't listed.": {
+  "ru": "Выключенный источник не запускается и не показывается в списке.",
+  "be": "Выключаная крыніца не запускаецца і не паказваецца ў спісе.",
+  "de": "Eine ausgeschaltete Quelle wird nicht gestartet und nicht aufgelistet.",
+  "es": "Una fuente desactivada no se inicia ni aparece en la lista.",
+  "fr": "Une source désactivée ne démarre pas et n’est pas listée.",
+  "it": "Una sorgente disattivata non si avvia e non compare nell’elenco."
+ },
+ "Its proxy was removed: it uses the system connection.": {
+  "ru": "Его прокси удалён — используется системное подключение.",
+  "be": "Яго проксі выдалены — выкарыстоўваецца сістэмнае падключэнне.",
+  "de": "Der zugehörige Proxy wurde entfernt – es wird die Systemverbindung verwendet.",
+  "es": "Su proxy se eliminó: usa la conexión del sistema.",
+  "fr": "Son proxy a été supprimé — il utilise la connexion système.",
+  "it": "Il suo proxy è stato rimosso: usa la connessione di sistema."
+ },
+ "Music storage": {
+  "be": "Сховішча музыкі",
+  "de": "Musikspeicher",
+  "es": "Almacenamiento de música",
+  "fr": "Stockage de la musique",
+  "it": "Archiviazione della musica",
+  "ru": "Хранилище музыки"
+ },
+ "Show all device music": {
+  "be": "Паказваць усю музыку на прыладзе",
+  "de": "Alle Musik auf dem Gerät anzeigen",
+  "es": "Mostrar toda la música del dispositivo",
+  "fr": "Afficher toute la musique de l’appareil",
+  "it": "Mostra tutta la musica sul dispositivo",
+  "ru": "Показывать всю музыку на устройстве"
+ },
+ "Storage permissions": {
+  "be": "Дазволы на доступ да сховішча",
+  "de": "Speicherberechtigungen",
+  "es": "Permisos de almacenamiento",
+  "fr": "Autorisations de stockage",
+  "it": "Autorizzazioni di archiviazione",
+  "ru": "Разрешения на доступ к хранилищу"
+ },
+ "Check music storage": {
+  "be": "Праверыць сховішча музыкі",
+  "de": "Musikspeicher prüfen",
+  "es": "Comprobar el almacenamiento de música",
+  "fr": "Vérifier le stockage de la musique",
+  "it": "Controlla l’archiviazione della musica",
+  "ru": "Проверить хранилище музыки"
+ },
+ "Couldn't open the audio file. Check its permissions.": {
+  "be": "Не ўдалося адкрыць аўдыяфайл. Праверце дазволы.",
+  "de": "Die Audiodatei konnte nicht geöffnet werden. Prüfe die Berechtigungen.",
+  "es": "No se pudo abrir el archivo de audio. Comprueba sus permisos.",
+  "fr": "Impossible d’ouvrir le fichier audio. Vérifiez ses autorisations.",
+  "it": "Impossibile aprire il file audio. Controlla le autorizzazioni.",
+  "ru": "Не удалось открыть аудиофайл. Проверьте разрешения."
+ },
+ "Couldn't publish the track": {
+  "be": "Не ўдалося апублікаваць трэк",
+  "de": "Der Titel konnte nicht veröffentlicht werden",
+  "es": "No se pudo publicar la pista",
+  "fr": "Impossible de publier le titre",
+  "it": "Impossibile pubblicare il brano",
+  "ru": "Не удалось опубликовать трек"
+ },
+ "Couldn't find the file to save": {
+  "be": "Не ўдалося знайсці файл для захавання",
+  "de": "Die zu speichernde Datei wurde nicht gefunden",
+  "es": "No se encontró el archivo que se iba a guardar",
+  "fr": "Impossible de trouver le fichier à enregistrer",
+  "it": "Impossibile trovare il file da salvare",
+  "ru": "Не удалось найти файл для сохранения"
+ },
+ "Saved to %1. Check shared storage permissions and free space.": {
+  "be": "Захавана ў %1. Праверце дазволы і вольнае месца ў агульным сховішчы.",
+  "de": "In %1 gespeichert. Prüfe die Berechtigungen und den freien Platz im gemeinsamen Speicher.",
+  "es": "Guardado en %1. Comprueba los permisos y el espacio libre del almacenamiento compartido.",
+  "fr": "Enregistré dans %1. Vérifiez les autorisations et l’espace libre du stockage partagé.",
+  "it": "Salvato in %1. Controlla le autorizzazioni e lo spazio libero dell’archiviazione condivisa.",
+  "ru": "Сохранено в %1. Проверьте разрешения и свободное место в общем хранилище."
+ },
+ "Opened audio": {
+  "be": "Адкрыты аўдыяфайл",
+  "de": "Geöffnete Audiodatei",
+  "es": "Audio abierto",
+  "fr": "Audio ouvert",
+  "it": "Audio aperto",
+  "ru": "Открытое аудио"
+ },
+ "Written to the log": {
+  "be": "Запісана ў журнал",
+  "de": "Ins Protokoll geschrieben",
+  "es": "Registrado en el registro",
+  "fr": "Écrit dans le journal",
+  "it": "Scritto nel registro",
+  "ru": "Записано в журнал"
+ }
+}

@@ -25,6 +25,7 @@ from rpc_common.errors import OfflineError
 from rpc_common.generated.models import StreamDescriptor
 
 from . import quality
+from .i18n import tr
 
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 4.0
@@ -32,6 +33,9 @@ MAX_ATTEMPTS = 3
 # With the network down every attempt fails the same way, so one more try
 # (a blip) is all it gets before the track is reported as offline.
 OFFLINE_ATTEMPTS = 2
+# "Unavailable" is answered for tracks that play later: asked this many
+# times, each on a fresh session, before it counts.
+UNAVAILABLE_ANSWERS = 2
 # A YoutubeDL session YouTube has flagged keeps getting URLs that
 # googlevideo answers with 403, until the process restarts — so it's
 # thrown away after this long even when nothing failed.
@@ -64,12 +68,14 @@ def _codec_name(acodec: str | None) -> str | None:
     return "aac" if acodec.startswith("mp4a") else acodec.split(".")[0]
 
 
+# Match the age restriction specifically. YouTube's bot check also starts
+# with "sign in to confirm" and can affect every track on a connection.
 _NON_TRANSIENT_SIGNATURES = (
     "video unavailable",
     "this video is not available",
     "private video",
     "copyright",
-    "sign in to confirm",
+    "sign in to confirm your age",
     "not available in your country",
     "members-only",
 )
@@ -102,6 +108,10 @@ _ydl_lock = threading.Lock()
 
 class StreamRejected(Exception):
     """googlevideo answered 403 to the URL yt-dlp just produced."""
+
+
+class BotCheckRequired(Exception):
+    """YouTube requested human verification on the current connection."""
 
 
 def _drop_session() -> None:
@@ -203,6 +213,7 @@ async def resolve_stream_with_retry(
     delay = RETRY_INITIAL_DELAY
     last_exc: Exception | None = None
     offline_failures = 0
+    unavailable_answers = 0
     for attempt in range(1, MAX_ATTEMPTS + 1):
         if cancel_event.is_set():
             raise asyncio.CancelledError
@@ -213,7 +224,19 @@ async def resolve_stream_with_retry(
         except Exception as e:
             last_exc = e
             if isinstance(e, yt_dlp.utils.DownloadError) and _is_non_transient(e):
-                raise LookupError(f"video unavailable: {video_id}") from e
+                # YouTube answers "unavailable" to a track that plays fine
+                # a while later (a flagged session or exit address, a
+                # moment's region check): once more, with a fresh session,
+                # before it is called unplayable.
+                unavailable_answers += 1
+                if unavailable_answers >= UNAVAILABLE_ANSWERS:
+                    raise LookupError(f"video unavailable: {video_id}") from e
+                _drop_session()
+                try:
+                    await asyncio.wait_for(cancel_event.wait(), timeout=RETRY_INITIAL_DELAY)
+                    raise asyncio.CancelledError
+                except asyncio.TimeoutError:
+                    continue
             if not isinstance(e, StreamRejected) and _is_offline(e):
                 offline_failures += 1
                 if offline_failures >= OFFLINE_ATTEMPTS:
@@ -226,4 +249,11 @@ async def resolve_stream_with_retry(
             except asyncio.TimeoutError:
                 pass
             delay = min(delay * 2, RETRY_MAX_DELAY)
+    if isinstance(last_exc, yt_dlp.utils.DownloadError):
+        message = str(last_exc).lower()
+        if "sign in to confirm" in message and "not a bot" in message:
+            raise BotCheckRequired(tr(
+                "YouTube wants to verify that you're human. "
+                "Change the connection in the YouTube Music source settings and try again."
+            )) from last_exc
     raise RuntimeError(f"failed after {MAX_ATTEMPTS} attempts: {last_exc}")

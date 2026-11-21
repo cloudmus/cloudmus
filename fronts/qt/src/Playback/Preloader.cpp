@@ -1,5 +1,7 @@
 #include "Preloader.h"
 
+#include "AudioPlayer.h"
+
 #include <QFile>
 #include <QLoggingCategory>
 #include <QPointer>
@@ -29,6 +31,10 @@ Preloader::Preloader(TrackCache& cache, QObject* parent)
     , cache_(cache)
     , network_(new NetworkPool(this))
 {
+    connect(&cache_, &TrackCache::spaceChanged, this, [this]() {
+        scheduleLater();
+        emit progressChanged();
+    });
 }
 
 Preloader::~Preloader() = default;
@@ -183,6 +189,20 @@ void Preloader::scheduleLater()
         Qt::QueuedConnection);
 }
 
+bool Preloader::mayDownload(const QString& key) const
+{
+    switch (cache_.space()) {
+        case TrackCache::Space::Fine:
+            return true;
+        case TrackCache::Space::Low:
+            // What's listened to, and what was asked for by name.
+            return (!order_.isEmpty() && order_.first() == key) || demanded_.contains(key);
+        case TrackCache::Space::Critical:
+            break;
+    }
+    return false;
+}
+
 void Preloader::schedule()
 {
     // Over a copy: what a signal emitted on the way leads to may change
@@ -203,6 +223,9 @@ void Preloader::schedule()
             continue;
         // Found out above, and nothing to wait for.
         if (it->item.local)
+            continue;
+        // Held back, not failed: it goes on when there's room again.
+        if (!mayDownload(key))
             continue;
         if (it->state == State::Downloading) {
             active = key;
@@ -268,6 +291,11 @@ Rpc::Task<void> Preloader::resolveAsync(QString key, int generation, Rpc::Task<S
     } catch (const Rpc::RpcCallException& e) {
         qCDebug(lcPreload) << "resolving a track failed:" << e.what();
         const QJsonObject& data = e.error().data;
+        if (alive && e.isOffline()) {
+            const auto it = entries_.find(key);
+            if (it != entries_.end())
+                emit offlineSeen(it->item.sourceId);
+        }
         // The source says it can never be played: tell, so it is skipped
         // rather than tried again whenever it comes up.
         if (alive && data.value(QStringLiteral("reason")).toString() == QStringLiteral("unavailable")) {
@@ -304,9 +332,11 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
 {
     Entry& entry = entries_[key];
     const QUrl url(stream.url);
-    if (url.isLocalFile()) {
+    if (AudioPlayer::isLocalInput(url)) {
         // Nothing to download: the source's own file is the track.
         entry.readyPath = url.toLocalFile();
+        if (entry.readyPath.isEmpty())
+            entry.contentUrl = stream.url;
         setState(key, State::Ready);
         emit ready(entry.item.sourceId, entry.item.trackId);
         scheduleLater();
@@ -317,7 +347,10 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
         entry.download = new StreamDownload(*network_, cache_.partPath(key), this);
         connect(entry.download, &StreamDownload::completed, this, [this, key]() { onCompleted(key); });
         connect(entry.download, &StreamDownload::failed, this, [this, key](bool expired) { onFailed(key, expired); });
-        connect(entry.download, &StreamDownload::progressed, this, &Preloader::progressChanged);
+        connect(entry.download, &StreamDownload::progressed, this, [this]() {
+            cache_.writing();
+            emit progressChanged();
+        });
     }
     qCDebug(lcPreload) << "downloading" << entry.item.title << "from byte" << entry.download->bytesAvailable();
     entry.download->setSource(StreamSource { url, route.value_or(QNetworkProxy(QNetworkProxy::DefaultProxy)),
@@ -325,6 +358,11 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
     const int wanted = connectionsProvider_ ? connectionsProvider_(entry.item.sourceId) : 0;
     entry.download->setConnections(
         qBound(1, wanted > 0 ? wanted : stream.maxConnections.value_or(1), Config::Settings::kMaxDownloadConnections));
+    // The disk may have filled up while the URL was being asked for.
+    if (!mayDownload(key)) {
+        setState(key, State::Waiting);
+        return;
+    }
     setState(key, State::Downloading);
     entry.download->start();
 }
@@ -473,6 +511,15 @@ QString Preloader::readyPath(const QString& sourceId, const QString& trackId)
     return it != entries_.constEnd() && it->state == State::Ready ? it->readyPath : QString();
 }
 
+QString Preloader::readyUrl(const QString& sourceId, const QString& trackId)
+{
+    const auto it = entries_.constFind(TrackCache::keyFor(sourceId, trackId));
+    if (it != entries_.constEnd() && it->state == State::Ready && !it->contentUrl.isEmpty())
+        return it->contentUrl;
+    const QString path = readyPath(sourceId, trackId);
+    return path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString();
+}
+
 StreamDownload* Preloader::download(const QString& sourceId, const QString& trackId) const
 {
     const auto it = entries_.constFind(TrackCache::keyFor(sourceId, trackId));
@@ -495,6 +542,7 @@ void Preloader::discard(const QString& sourceId, const QString& trackId)
         QFile::remove(cache_.partPath(key));
     }
     it->readyPath.clear();
+    it->contentUrl.clear();
     it->item.stream.reset();
     it->freshUrls = 0;
     setState(key, State::Waiting);

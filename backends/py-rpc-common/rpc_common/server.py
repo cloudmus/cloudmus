@@ -15,7 +15,8 @@ import sys
 import time
 from typing import Any, Awaitable, Callable, NoReturn
 
-from . import jsonrpc, transport
+from . import errors, jsonrpc, transport
+from .connection import ConnectionMonitor, Probe
 from .i18n import Translator
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,10 @@ _MAX_LOGGED_VALUE_CHARS = 2000
 # Methods whose params can carry a password or another secret: logged as
 # "<redacted>" instead (the result is still logged — neither returns one).
 _REDACTED_PARAMS_METHODS = {"auth.submit", "settings.update"}
+
+# What a backend can only answer by asking its service: one of these working
+# while offline is worth a probe (ConnectionMonitor.reached_maybe()).
+_UPSTREAM_PREFIXES = ("catalog.", "feedback.", "playback.play", "playback.resolveStream")
 
 
 def _summarize(value: Any) -> str:
@@ -75,6 +80,8 @@ class BackendServer:
         # The requests being handled — see run().
         self._tasks: set[asyncio.Task] = set()
         self._writer: transport.NdjsonWriter | None = None
+        # Whether the service can be reached — see set_connection_probe().
+        self.connection: ConnectionMonitor | None = None
 
         @self.method("localization.setLanguage")
         def handle_set_language(params: dict[str, Any], request_id: int) -> dict[str, Any]:
@@ -98,6 +105,27 @@ class BackendServer:
 
         return decorator
 
+    def set_connection_probe(self, probe: Probe) -> ConnectionMonitor:
+        """Declares connectionCheck (docs/protocol.md §7.9): connection.check
+        runs `probe`, and connection/changed goes out when the state changes —
+        on a request failing for lack of a network, on a probe. Returns the
+        monitor, for the backend's background work to report to
+        (ConnectionMonitor.report_failure())."""
+        monitor = ConnectionMonitor(probe, self._notify_when_running, self.translator.tr)
+        self.connection = monitor
+        self.capabilities = {**self.capabilities, "connectionCheck": True}
+
+        @self.method("connection.check")
+        async def handle_check(params: dict[str, Any], request_id: int) -> dict[str, Any]:
+            return await monitor.check()
+
+        return monitor
+
+    async def _notify_when_running(self, method: str, params: dict[str, Any]) -> None:
+        # A probe can finish before run() has a writer (a test calling check()).
+        if self._writer is not None:
+            await self.notify(method, params)
+
     async def notify(self, method: str, params: dict[str, Any] | None = None) -> None:
         assert self._writer is not None, "notify() called before run() started"
         # <~ (not -> or <-): this is the backend pushing unsolicited, not a
@@ -109,7 +137,7 @@ class BackendServer:
         locale = params.get("locale")
         self.translator.set_locale(locale if isinstance(locale, str) else None)
         return {
-            "protocolVersion": "1.18",
+            "protocolVersion": "1.19",
             "source": {
                 "id": self.source_id,
                 "name": self.source_name,
@@ -158,6 +186,10 @@ class BackendServer:
             )
             if request_id is not None:
                 await writer.send(jsonrpc.make_result(request_id, result))
+            if self.connection is not None and isinstance(method_name, str) and method_name.startswith(
+                _UPSTREAM_PREFIXES
+            ):
+                self.connection.reached_maybe()
         except BackendError as exc:
             logger.warning(
                 "<- %s id=%s failed (%.0fms): code=%s message=%s data=%s",
@@ -168,7 +200,28 @@ class BackendServer:
                 await writer.send(
                     jsonrpc.make_error(request_id, exc.code, exc.message, exc.data)
                 )
+            if (
+                self.connection is not None
+                and isinstance(exc.data, dict)
+                and exc.data.get("reason") == errors.REASON_OFFLINE
+            ):
+                await self.connection.report_failure(errors.OfflineError(exc.message))
         except Exception as exc:  # noqa: BLE001 - must never crash the stdio loop
+            if errors.is_offline_failure(exc):
+                # No network is no bug, and the front has its own way of it.
+                logger.warning("<- %s id=%s offline: %s", method_name, request_id, exc)
+                if request_id is not None:
+                    await writer.send(
+                        jsonrpc.make_error(
+                            request_id,
+                            errors.UPSTREAM_UNREACHABLE,
+                            str(exc),
+                            errors.app_error_data(retryable=True, reason=errors.REASON_OFFLINE),
+                        )
+                    )
+                if self.connection is not None:
+                    await self.connection.report_failure(exc)
+                return
             logger.exception("unhandled error in %s id=%s", method_name, request_id)
             if request_id is not None:
                 await writer.send(jsonrpc.make_error(request_id, -32603, str(exc)))

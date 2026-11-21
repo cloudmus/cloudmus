@@ -1,4 +1,4 @@
-"""cloudmus TUI front. Generalized from ym_player/tui.py: no longer imports
+"""CloudMus TUI front. Generalized from ym_player/tui.py: no longer imports
 yandex_music or any backend-specific module — everything goes through
 source_manager/rpc_client, and the sidebar/track list/save-action are all
 driven by each connected backend's declared capabilities instead of being

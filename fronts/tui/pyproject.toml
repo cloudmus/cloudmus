@@ -1,7 +1,7 @@
 [project]
 name = "cloudmus-tui"
 version = "0.1.0"
-description = "cloudmus TUI front: spawns backend processes and speaks JSON-RPC 2.0 to them over stdio"
+description = "CloudMus TUI front: spawns backend processes and speaks JSON-RPC 2.0 to them over stdio"
 requires-python = ">=3.11"
 dependencies = [
     "textual>=8.0",

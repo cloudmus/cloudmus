@@ -477,3 +477,22 @@ async def test_a_song_is_served_once_and_not_again_after_it_played():
     await session.track_started(song)
     await session._top_up(replace=True, anchor=song)
     assert [t["id"] for t in capture.emitted[0]["tracks"]] == [other]
+
+
+@pytest.mark.asyncio
+async def test_deferred_feedback_goes_to_the_history_and_changes_nothing_queued():
+    # Kept by the front while there was no network (docs/protocol.md §7.4).
+    ids = [_vid(f"d{i}") for i in range(6)]
+    client = _FakeClient({(None, MIX, False): _batch(*ids)})
+    capture = _Capture()
+    session = RadioSession(client, capture)
+    await session.start(MIX)
+    calls = list(client.calls)
+
+    await session.track_finished(_vid("old1"), played_ms=200000, queued_after=0, deferred=True)
+    await session.skip(_vid("old2"), played_ms=60000, deferred=True)
+    await _settle()
+
+    assert client.calls == calls  # nothing fetched, nothing replaced
+    assert capture.emitted == []
+    assert set(client.reported) == {_vid("old1"), _vid("old2")}

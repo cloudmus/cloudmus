@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playback_channel">Playback</string>
+    <string name="close">Close</string>
+    <string name="open">Open CloudMus</string>
+    <string name="like">Like</string>
+    <string name="dislike">Dislike</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="repeat">Repeat</string>
+    <string name="repeat_one">Repeat one</string>
+</resources>

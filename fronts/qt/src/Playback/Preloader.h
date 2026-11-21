@@ -104,6 +104,7 @@ public:
     // The file to play the whole track from — the cached one, or a local
     // source's own; empty if there is none (yet).
     QString readyPath(const QString& sourceId, const QString& trackId);
+    QString readyUrl(const QString& sourceId, const QString& trackId);
     // The download of a wanted track that has one under way or paused.
     StreamDownload* download(const QString& sourceId, const QString& trackId) const;
     // Forgets a track that turned out unplayable, cached file included.
@@ -131,6 +132,8 @@ public:
 
 signals:
     void ready(const QString& sourceId, const QString& trackId);
+    // The source said it can't reach its service.
+    void offlineSeen(const QString& sourceId);
     void failed(const QString& sourceId, const QString& trackId);
     // Resolving found that the source can't play the track at all
     // (error reason "unavailable"); failed() follows.
@@ -149,6 +152,7 @@ private:
         State state = State::Waiting;
         StreamDownload* download = nullptr;
         QString readyPath;
+        QString contentUrl;
         // Asked for a URL, not answered yet.
         bool resolving = false;
         std::function<void()> cancelResolve;
@@ -162,6 +166,8 @@ private:
     void pinWanted();
     // A fresh start for a track that failed (a stream known now, or asked for).
     void restart(const QString& key);
+    // Whether the disk has room for this one (TrackCache::Space).
+    bool mayDownload(const QString& key) const;
     void schedule();
     void scheduleLater();
     // False: it can't even be started — failed on the spot.

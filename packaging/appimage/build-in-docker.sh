@@ -118,7 +118,6 @@ cp -a "$(dirname "$(dirname "${BUNDLED_PYTHON3}")")" "${APPDIR}/usr/python-runti
 "${APPDIR}/usr/python-runtime/bin/pip3" install --no-cache-dir \
     ./backends/py-rpc-common \
     ./backends/yandex-music \
-    ./backends/local-folder \
     ./backends/youtube-music
 ln -s ../python-runtime/bin/python3 "${APPDIR}/usr/bin/python3"
 
@@ -460,6 +459,7 @@ done
 mv "${APPDIR}/AppRun" "${APPDIR}/AppRun.real"
 cp build-apprun/target/release/cloudmus-apprun "${APPDIR}/AppRun"
 chmod +x "${APPDIR}/AppRun"
+install -m 755 build-apprun/target/release/cloudmus-backend-local-folder "${APPDIR}/usr/bin/"
 # What AppRun reads at run time: the version for Sentry's release field, and
 # the DSN when the build has one (a build without it reports nothing).
 mkdir -p "${APPDIR}/usr/share/cloudmus"

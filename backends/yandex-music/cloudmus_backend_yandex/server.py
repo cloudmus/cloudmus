@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 
 from rpc_common import errors
 from rpc_common.generated.methods import emit_track_stream_ready
@@ -8,9 +9,11 @@ from rpc_common.generated.models import StreamReadyParams
 from rpc_common.server import BackendError, BackendServer
 
 from .i18n import tr, translator
-from . import catalog, client as client_module, config, playback
+from . import catalog, client as client_module, config, http_session, playback
 from .auth import DeviceAuthSession
 from .radio import RadioSession
+
+API_ROOT = "https://api.music.yandex.net/"
 
 CAPABILITIES = {
     "playback": {
@@ -20,13 +23,26 @@ CAPABILITIES = {
         "controls": {"pause": False, "seek": False, "volume": False},
     },
     "browse": {"playlists": True, "likedTracks": True, "radio": True, "search": False, "editPlaylists": True},
-    "feedback": {"like": True, "dislike": True, "skip": True},
+    "feedback": {"like": True, "dislike": True, "skip": True, "played": True},
     # Saved by the front from the stream playback.resolveStream returns —
     # in the quality set for streaming (docs/protocol.md §7.5).
     "download": False,
     "downloadFromStream": True,
     "auth": {"required": True, "flow": "deviceCode"},
 }
+
+
+def _iso_millis(value: str) -> str:
+    """The front's ISO-8601 UTC time as play-audio wants it
+    (YYYY-MM-DDThh:mm:ss.SSSZ): without the milliseconds it answers
+    invalid-timestamp."""
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        moment = datetime.now(timezone.utc)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.") + f"{moment.microsecond // 1000:03d}Z"
 
 
 def build_server() -> BackendServer:
@@ -44,6 +60,14 @@ def build_server() -> BackendServer:
     settings = config.settings_store()
     settings.register(server)
 
+    # connection.check (docs/protocol.md §7.9): the API's root answers
+    # without a session, through the same pooled session and proxy as the
+    # rest.
+    async def probe() -> None:
+        await asyncio.to_thread(http_session.probe, API_ROOT)
+
+    connection = server.set_connection_probe(probe)
+
     auth_session = DeviceAuthSession()
     radio_session: RadioSession | None = None
     inflight_plays: dict[int, asyncio.Task] = {}
@@ -52,7 +76,7 @@ def build_server() -> BackendServer:
         nonlocal radio_session
         client = client_module.get_client()
         if radio_session is None or radio_session.client is not client:
-            radio_session = RadioSession(client, server.notify)
+            radio_session = RadioSession(client, server.notify, connection)
         return radio_session
 
     # --- auth ---
@@ -262,12 +286,38 @@ def build_server() -> BackendServer:
 
     @server.method("feedback.trackFinished")
     async def handle_track_finished(params: dict, request_id: int) -> dict:
-        await get_radio_session().track_finished(params["trackId"], params["playedMs"], params.get("queuedAfter"))
+        await get_radio_session().track_finished(
+            params["trackId"],
+            params["playedMs"],
+            params.get("queuedAfter"),
+            played_at=params.get("playedAt"),
+            deferred=bool(params.get("deferred")),
+        )
         return {}
 
     @server.method("feedback.skip")
     async def handle_skip(params: dict, request_id: int) -> dict:
-        await get_radio_session().skip(params["trackId"], params["playedMs"])
+        await get_radio_session().skip(
+            params["trackId"], params["playedMs"], played_at=params.get("playedAt"), deferred=bool(params.get("deferred"))
+        )
+        return {}
+
+    @server.method("feedback.played")
+    async def handle_played(params: dict, request_id: int) -> dict:
+        # The account's listening history (docs/protocol.md §7.4): what
+        # the service's own players send at the end of a play.
+        track_id, _, album_id = params["trackId"].partition(":")
+        seconds = params["playedMs"] / 1000
+        await asyncio.to_thread(
+            client_module.get_client().play_audio,
+            track_id,
+            "cloudmus",
+            album_id or track_id,
+            from_cache=bool(params.get("deferred")),
+            timestamp=_iso_millis(params["playedAt"]),
+            total_played_seconds=seconds,
+            end_position_seconds=seconds,
+        )
         return {}
 
     return server

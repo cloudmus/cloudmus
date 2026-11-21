@@ -2,7 +2,7 @@
 
 Runnable directly: `python -m rpc_common.testing.conformance <argv...>`
 where <argv...> is the backend's own manifest "argv" (e.g. `python -m
-cloudmus_backend_local`).
+cloudmus_backend_yandex`).
 """
 from __future__ import annotations
 
@@ -124,6 +124,15 @@ async def _check_localization(writer: Any, reader: Any, ids: Any, caps: dict, pa
     passed.append("localization.setLanguage switches among declared locales and falls back to en")
 
 
+async def _response_to(reader: Any, request_id: int) -> dict:
+    while True:
+        message = await reader.__anext__()
+        if message.get("id") == request_id:
+            return message
+        if message.get("method") is None:
+            raise ConformanceFailure(f"expected the answer to {request_id}, got {message!r}")
+
+
 async def run_conformance(argv: list[str]) -> list[str]:
     """Spawns the backend, drives it through the checks below, returns a list
     of human-readable descriptions of checks that passed. Raises
@@ -186,6 +195,16 @@ async def run_conformance(argv: list[str]) -> list[str]:
             passed.append("catalog.listPlaylists results match schema")
         elif caps["browse"]["playlists"]:
             passed.append("catalog.listPlaylists skipped (backend requires auth, not authenticated)")
+
+        if caps.get("connectionCheck"):
+            check_id = next(ids)
+            await writer.send(jsonrpc.make_request(check_id, "connection.check", {}))
+            # connection/changed may come ahead of the answer.
+            response = await asyncio.wait_for(_response_to(reader, check_id), timeout=10)
+            state = response.get("result", {}).get("state")
+            if state not in ("online", "offline"):
+                raise ConformanceFailure(f"connection.check must answer online or offline: {response!r}")
+            passed.append(f"connection.check answers in time ({state})")
 
         if "localization" in caps:
             await _check_localization(writer, reader, ids, caps, passed)

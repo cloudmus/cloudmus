@@ -1,4 +1,4 @@
-"""Exercise each backend through its packaged Windows Python and stdio pipes."""
+"""Exercise each backend through its packaged command and stdio pipes."""
 
 import json
 import pathlib
@@ -12,7 +12,8 @@ def main(install_dir: pathlib.Path) -> None:
         manifest = json.loads((install_dir / "backends" / f"{backend_id}.json").read_text(encoding="utf-8"))
         argv = manifest["argv"]
         argv[0] = str((install_dir / "backends" / argv[0]).resolve())
-        assert pathlib.Path(argv[0]).resolve() == python.resolve(), argv
+        expected = install_dir / "backends" / "cloudmus-backend-local-folder.exe" if backend_id == "local-folder" else python
+        assert pathlib.Path(argv[0]).resolve() == expected.resolve(), argv
         request = {
             "jsonrpc": "2.0",
             "id": 1,

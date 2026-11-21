@@ -26,6 +26,9 @@
 
 namespace Ui {
 
+using ViewModel::TrackListModel;
+using ViewModel::trackCountText;
+
 namespace {
 
 constexpr int kAnimationMs = 150;

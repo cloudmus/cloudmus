@@ -38,6 +38,9 @@
 
 namespace Ui {
 
+using ViewModel::TrackListModel;
+using ViewModel::trackCountText;
+
 namespace {
 constexpr int kIconSize = 32;
 constexpr int kCardMaxWidth = 520;

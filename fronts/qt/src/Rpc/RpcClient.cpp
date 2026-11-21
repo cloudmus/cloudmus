@@ -27,10 +27,11 @@ constexpr int kInitializeTimeoutMs = 30000;
 // implementation to get right.
 class CallAwaiter {
 public:
-    CallAwaiter(RpcClient& client, int id, int timeoutMs)
+    CallAwaiter(RpcClient& client, int id, int timeoutMs, bool timeNow)
         : client_(client)
         , id_(id)
         , timeoutMs_(timeoutMs)
+        , timeNow_(timeNow)
     {
     }
 
@@ -39,7 +40,7 @@ public:
     void await_suspend(std::coroutine_handle<> h)
     {
         client_.registerPending(
-            id_, timeoutMs_,
+            id_, timeoutMs_, timeNow_,
             [this, h](const QJsonObject& result) mutable {
                 value_ = result;
                 h.resume();
@@ -61,6 +62,7 @@ private:
     RpcClient& client_;
     int id_;
     int timeoutMs_;
+    bool timeNow_;
     std::optional<QJsonObject> value_;
     std::optional<RpcError> error_;
 };
@@ -129,7 +131,7 @@ Task<void> RpcClient::start(QProcessEnvironment environment, QString locale)
     transport_.start(manifest_.argv, environment);
 
     QJsonObject params {
-        { QStringLiteral("protocolVersion"), QStringLiteral("1.18") },
+        { QStringLiteral("protocolVersion"), QStringLiteral("1.19") },
         { QStringLiteral("front"),
             QJsonObject { { QStringLiteral("name"), QStringLiteral("cloudmus-qt") },
                 { QStringLiteral("version"), QStringLiteral("0.1.0") } } },
@@ -155,6 +157,11 @@ Task<void> RpcClient::start(QProcessEnvironment environment, QString locale)
     sourceDescription_ = source.value(QStringLiteral("description")).toString();
     capabilities_ = result.value(QStringLiteral("capabilities")).toObject();
     available_ = true;
+    const auto untimed = std::exchange(untimed_, { });
+    for (auto it = untimed.cbegin(); it != untimed.cend(); ++it) {
+        if (pending_.contains(it.key()))
+            armTimeout(it.key(), it.value());
+    }
 }
 
 Task<void> RpcClient::setLanguage(QString locale)
@@ -192,13 +199,25 @@ Task<QJsonObject> RpcClient::callRawWithId(int id, QString method, QJsonObject p
         { QStringLiteral("params"), params },
     };
     transport_.writeMessage(request);
-    co_return co_await CallAwaiter(*this, id, timeoutMs);
+    // A call made while the backend is still starting (a phone's cold Python
+    // takes seconds) waits for the handshake first: that time is not the
+    // call's own.
+    const bool timeNow = available_ || method == QStringLiteral("initialize");
+    co_return co_await CallAwaiter(*this, id, timeoutMs, timeNow);
 }
 
-void RpcClient::registerPending(
-    int id, int timeoutMs, std::function<void(const QJsonObject&)> onResult, std::function<void(RpcError)> onError)
+void RpcClient::registerPending(int id, int timeoutMs, bool timeNow, std::function<void(const QJsonObject&)> onResult,
+    std::function<void(RpcError)> onError)
 {
     pending_.insert(id, PendingEntry { std::move(onResult), std::move(onError) });
+    if (timeNow)
+        armTimeout(id, timeoutMs);
+    else
+        untimed_.insert(id, timeoutMs);
+}
+
+void RpcClient::armTimeout(int id, int timeoutMs)
+{
     QTimer::singleShot(timeoutMs, this, [this, id]() {
         auto it = pending_.find(id);
         if (it == pending_.end())
@@ -253,6 +272,9 @@ void RpcClient::dispatchNotification(const QString& method, const QJsonObject& p
     } else if (method == QStringLiteral("download/progress")) {
         if (notifications.onDownloadProgress)
             notifications.onDownloadProgress(DownloadProgressParams::fromJson(params));
+    } else if (method == QStringLiteral("connection/changed")) {
+        if (notifications.onConnectionChanged)
+            notifications.onConnectionChanged(ConnectionChangedParams::fromJson(params));
     } else if (method == QStringLiteral("auth/prompt")) {
         if (onAuthPromptRaw)
             onAuthPromptRaw(params); // see the member's doc comment for why this bypasses `notifications`
@@ -269,6 +291,7 @@ void RpcClient::dispatchNotification(const QString& method, const QJsonObject& p
 
 void RpcClient::failAllPending(const RpcError& err)
 {
+    untimed_.clear();
     const auto pending = std::exchange(pending_, { });
     for (const auto& entry : pending) {
         entry.onError(err);

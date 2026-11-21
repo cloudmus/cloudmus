@@ -44,8 +44,14 @@ void SourceSession::wire(Rpc::RpcClient* client)
         // An error about the track being started moves playback on, saying
         // so itself; any other is shown as the source worded it.
         const QJsonObject data = e.data && e.data->isObject() ? e.data->toObject() : QJsonObject();
-        if (!playback_.handleTrackError(client->sourceId(), data))
-            messages_.error(e.message);
+        if (playback_.handleTrackError(client->sourceId(), data))
+            return;
+        messages_.failure(QString(), e.message,
+            data.value(QStringLiteral("reason")).toString() == QStringLiteral("offline"),
+            /*quietOffline=*/true);
+    };
+    client->notifications.onConnectionChanged = [this, client](const ConnectionChangedParams& p) {
+        emit connectionChanged(client->sourceId(), p.state == QStringLiteral("online"), p.detail.value_or(QString()));
     };
     client->notifications.onDownloadProgress
         = [this, client](const DownloadProgressParams& p) { emit downloadProgress(client->sourceId(), p); };
@@ -101,7 +107,7 @@ Rpc::Task<void> SourceSession::signIn(Rpc::RpcClient* client)
         // exactly how a Retry click could look like it did nothing.
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcSourceSession) << "auth.getStatus/auth.start failed for" << client->sourceId() << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.failure(client->sourceName(), e);
     }
 }
 
@@ -118,9 +124,49 @@ Rpc::Task<QString> SourceSession::submitSignIn(QString sourceId, QJsonObject fie
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());
         qCWarning(lcSourceSession) << "auth.submit failed for" << sourceId << ":" << message;
-        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
+        messages_.failure(client->sourceName(), e);
         co_return message;
     }
+    co_return QString();
+}
+
+bool SourceSession::wake(const QString& sourceId)
+{
+    if (!sourceManager_.isDeferred(sourceId))
+        return false;
+    sourceManager_.startDeferred(sourceId);
+    return true;
+}
+
+QJsonObject SourceSession::capabilities(const QString& sourceId) const
+{
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    return client != nullptr && client->available() ? client->capabilities() : QJsonObject();
+}
+
+bool SourceSession::canSignOut(const QString& sourceId) const
+{
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    return client != nullptr && client->available()
+        && client->capabilities().value(QStringLiteral("auth")).toObject().value(QStringLiteral("required")).toBool()
+        && !authStates_.state(sourceId).hasProblem;
+}
+
+Rpc::Task<QString> SourceSession::signOut(QString sourceId)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return QString();
+    try {
+        co_await Rpc::authLogout(*client);
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcSourceSession) << "auth.logout failed for" << sourceId << ":" << message;
+        messages_.failure(client->sourceName(), e);
+        co_return message;
+    }
+    // auth.logout sends no notification.
+    authStates_.setSignedOut(sourceId);
     co_return QString();
 }
 

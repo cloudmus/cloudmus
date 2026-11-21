@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
 namespace App {
 class SourceSession;
@@ -25,6 +26,14 @@ public:
     bool isBusy(const QString& sourceId) const { return busy_.contains(sourceId); }
     void signIn(const QString& sourceId);
     void submit(const QString& sourceId, const QJsonObject& fields);
+    // See App::SourceSession::wake().
+    bool wake(const QString& sourceId);
+    bool canSignOut(const QString& sourceId) const;
+    QJsonObject capabilities(const QString& sourceId) const;
+    // What it can do as ids for a page to word ("radio", "download", ...), in
+    // the order to list them; empty while the source isn't running.
+    QStringList capabilityIds(const QString& sourceId) const;
+    void signOut(const QString& sourceId);
 
 signals:
     void busyChanged(const QString& sourceId, bool busy);

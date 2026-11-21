@@ -1,4 +1,5 @@
 #include <QMouseEvent>
+#include <QProgressBar>
 #include <QSpinBox>
 #include <QTemporaryDir>
 #include <QTest>
@@ -134,6 +135,11 @@ private slots:
         QCOMPARE(preload_->radioTracks(), 0);
         QCOMPARE(preload_->cacheMaxMb(), 256);
         QCOMPARE(settings_->preloadPlaylistTracks(), 8);
+        // The bar follows the applied limit: nothing cached, nothing filled.
+        const QList<QProgressBar*> bars = host_->findChildren<QProgressBar*>();
+        QCOMPARE(bars.size(), 1);
+        QCOMPARE(bars.at(0)->value(), 0);
+        QVERIFY(!bars.at(0)->property("nearlyFull").toBool());
     }
 
 private:

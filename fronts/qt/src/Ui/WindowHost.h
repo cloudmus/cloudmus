@@ -6,7 +6,7 @@
 #include <memory>
 
 namespace App {
-class Core;
+class DesktopCore;
 }
 
 namespace Ui {
@@ -23,7 +23,7 @@ class WindowHost : public QObject {
     Q_OBJECT
 
 public:
-    explicit WindowHost(App::Core& core, QObject* parent = nullptr);
+    explicit WindowHost(App::DesktopCore& core, QObject* parent = nullptr);
     ~WindowHost() override;
 
     MainWindow* window() const { return window_.get(); }
@@ -50,7 +50,7 @@ signals:
 private:
     void create();
 
-    App::Core& core_;
+    App::DesktopCore& core_;
     std::unique_ptr<MainWindow> window_;
     bool recreatePending_ = false;
 };

@@ -1,5 +1,6 @@
 #include "ThemedToolTip.h"
 
+#include <QAbstractTextDocumentLayout>
 #include <QCoreApplication>
 #include <QCursor>
 #include <QFontMetrics>
@@ -7,9 +8,13 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QTextDocument>
+
 #include <QScreen>
 #include <QVariantAnimation>
 #include <QWidget>
+#include <cmath>
+#include <memory>
 
 #include "PopupWindow.h"
 #include "Radius.h"
@@ -56,6 +61,7 @@ public:
         : QWidget(
               nullptr, Theme::popupWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput))
     {
+        setObjectName(QStringLiteral("themedToolTip"));
         Theme::preparePopup(this, /*clickThrough=*/true);
         setAttribute(Qt::WA_TranslucentBackground); // real transparency outside the rounded shape
         setAttribute(Qt::WA_ShowWithoutActivating);
@@ -91,7 +97,24 @@ public:
     {
         text_ = text;
         const QFontMetrics metrics(font());
-        const QSize textSize = metrics.size(Qt::TextSingleLine, text_);
+        // Several lines are kept as they are, and a long one wraps — by the
+        // font's own measure, about as wide as a line of a book.
+        const int maxWidth = metrics.averageCharWidth() * kMaxLineChars;
+        QSize textSize;
+        if (Qt::mightBeRichText(text_)) {
+            // Rich text (an offline indicator's heading, lines and hint):
+            // laid out as a document, no wider than its longest line needs.
+            richText_ = std::make_unique<QTextDocument>();
+            richText_->setDefaultFont(font());
+            richText_->setDocumentMargin(0);
+            richText_->setHtml(text_);
+            richText_->setTextWidth(maxWidth);
+            richText_->setTextWidth(qMin<qreal>(maxWidth, std::ceil(richText_->idealWidth())));
+            textSize = richText_->size().toSize();
+        } else {
+            richText_.reset();
+            textSize = metrics.boundingRect(QRect(0, 0, maxWidth, QWIDGETSIZE_MAX), textFlags(), text_).size();
+        }
         const int padX = Theme::Spacing::space2;
         const int padY = Theme::Spacing::space1;
         const QSize contentSize(textSize.width() + padX * 2, textSize.height() + padY * 2);
@@ -142,10 +165,30 @@ protected:
         painter.drawPath(path);
 
         painter.setPen(pal.ink);
-        painter.drawText(contentRect, Qt::AlignCenter, text_);
+        const int padX = Theme::Spacing::space2;
+        const int padY = Theme::Spacing::space1;
+        if (richText_) {
+            painter.save();
+            painter.translate(contentRect.topLeft() + QPoint(padX, padY));
+            QAbstractTextDocumentLayout::PaintContext context;
+            context.palette.setColor(QPalette::Text, pal.ink);
+            richText_->documentLayout()->draw(&painter, context);
+            painter.restore();
+            return;
+        }
+        painter.drawText(contentRect.adjusted(padX, padY, -padX, -padY), textFlags(), text_);
     }
 
 private:
+    static constexpr int kMaxLineChars = 60;
+
+    // One line centred, as ever; more of them read from the left.
+    int textFlags() const
+    {
+        return Qt::TextWordWrap | Qt::AlignVCenter
+            | (text_.contains(QLatin1Char('\n')) ? Qt::AlignLeft : Qt::AlignHCenter);
+    }
+
     void animateOpacityTo(qreal target)
     {
         if (Theme::popupFade() == Theme::PopupFade::None) {
@@ -189,6 +232,7 @@ private:
     }
 
     QString text_;
+    std::unique_ptr<QTextDocument> richText_; // when text_ is rich text
     QVariantAnimation* opacityAnim_;
     qreal opacity_ = 0.0;
 };

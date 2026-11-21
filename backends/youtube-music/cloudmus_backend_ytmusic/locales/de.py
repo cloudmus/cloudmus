@@ -27,6 +27,8 @@ STRINGS = {'expected true or false': 'true oder false erwartet',
  'YouTube Music streaming service': 'Streamingdienst YouTube Music',
  'Liked Songs': 'Titel, die mir gefallen',
  'Track in playlist not found': 'Titel in der Playlist nicht gefunden',
+ "YouTube wants to verify that you're human. Change the connection in the YouTube Music source settings and try again.":
+     'YouTube möchte prüfen, ob du ein Mensch bist. Ändere die Verbindung in den Einstellungen der Quelle YouTube Music und versuche es erneut.',
  'Track not playable: {error}': 'Titel nicht abspielbar: {error}',
  'Open <a href="https://music.youtube.com">music.youtube.com</a> in your browser while signed in, open <b>DevTools → Network</b>, click any request to <code>music.youtube.com</code>, and paste its <b>Request Headers</b> (Firefox) or <b>Copy as cURL (bash)</b> (Chrome) below.': 'Öffnen '
                                                                                                                                                                                                                                                                                       'Sie '
@@ -67,4 +69,10 @@ STRINGS = {'expected true or false': 'true oder false erwartet',
                                                                                                                                                                                                                                                                                       '(Chrome) '
                                                                                                                                                                                                                                                                                       'ein.',
  'Do this in a private window and close it afterwards without signing out: a browser that keeps using the same session soon makes these headers stop working.': 'Tun Sie das in einem privaten Fenster und schließen Sie es danach, ohne sich abzumelden: Ein Browser, der dieselbe Sitzung weiter nutzt, macht diese Header bald ungültig.',
- 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music hat diese Sitzung abgemeldet. Melden Sie sich erneut an.'}
+ 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music hat diese Sitzung abgemeldet. Melden Sie sich erneut an.',
+ "the service's address can't be resolved": 'die Adresse des Dienstes lässt sich nicht auflösen',
+ "the service doesn't answer in time": 'der Dienst antwortet nicht rechtzeitig',
+ 'the connection is refused': 'die Verbindung wird abgelehnt',
+ "the proxy can't be reached": 'der Proxy ist nicht erreichbar',
+ 'the network is unreachable': 'das Netzwerk ist nicht erreichbar',
+ "a secure connection can't be made": 'eine sichere Verbindung kommt nicht zustande'}

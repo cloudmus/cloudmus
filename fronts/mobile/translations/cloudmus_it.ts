@@ -1,0 +1,1086 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="it_IT" sourcelanguage="en">
+  <context>
+    <name>App::PlaylistEditing</name>
+    <message>
+      <source>Added to "%1"</source>
+      <translation>Aggiunto a «%1»</translation>
+    </message>
+    <message>
+      <source>Removed from "%1"</source>
+      <translation>Rimosso da «%1»</translation>
+    </message>
+  </context>
+  <context>
+    <name>App::SourceSession</name>
+    <message>
+      <source>%1: %2</source>
+      <translation>%1: %2</translation>
+    </message>
+  </context>
+  <context>
+    <name>DeveloperPage</name>
+    <message>
+      <source>Developer tools</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Device</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Log</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Copied to %1</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Open log</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Export zip</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Head unit</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Python probe</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Running, it takes a minute…</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Log system probe</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Exporting…</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Export system apps</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Playback</source>
+      <translation>Riproduzione</translation>
+    </message>
+    <message>
+      <source>An experiment against the click of a pause or a track changed by hand: fade out first, then wait for the silence to reach the speakers. Off by default: mpv's volume changes in steps, and each step can be heard.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Audio output</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>OpenSL chunk</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Frames handed to the output at a time; 480 is 10 ms at 48 kHz. Smaller makes the fade smoother; too small and a slow device crackles.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Fade</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>ms</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Off</source>
+      <translation>Off</translation>
+    </message>
+    <message>
+      <source>Wait after the fade</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Session</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Play on after another sound, if it took up to</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>30 s</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>1 min</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>5 min</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Stop and close</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Scrolling</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Fling speed</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Deceleration</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Show frames per second</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Blur</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Dynamic blur behind glass</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>The panel over the screen shows what's behind it as it changes, not as it was when the panel came up. Takes more of the GPU while such a panel is open.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Drawing (after a restart)</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Render loop</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Default</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Merge touch moves into one per frame</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Check music storage</source>
+      <translation>Controlla l’archiviazione della musica</translation>
+    </message>
+  </context>
+  <context>
+    <name>DownloadsPage</name>
+    <message>
+      <source>Downloads</source>
+      <translation>Download</translation>
+    </message>
+    <message>
+      <source>Saving tracks is off. Saved tracks are for your own listening on this device.</source>
+      <translation>Il salvataggio dei brani è disattivato. I brani salvati sono solo per l’ascolto personale su questo dispositivo.</translation>
+    </message>
+    <message>
+      <source>Allow saving tracks to this device</source>
+      <translation>Consenti il salvataggio dei brani su questo dispositivo</translation>
+    </message>
+    <message>
+      <source>Save playing track</source>
+      <translation>Salva il brano in riproduzione</translation>
+    </message>
+    <message>
+      <source>Clear</source>
+      <translation>Svuota</translation>
+    </message>
+    <message>
+      <source>Nothing saved yet</source>
+      <translation>Ancora nulla di salvato</translation>
+    </message>
+  </context>
+  <context>
+    <name>LibraryPage</name>
+    <message>
+      <source>Sign in to see the playlists</source>
+      <translation>Accedi per vedere le playlist</translation>
+    </message>
+    <message>
+      <source>Open %1 on any device and enter this code:</source>
+      <translation>Apri %1 su qualsiasi dispositivo e inserisci questo codice:</translation>
+    </message>
+    <message>
+      <source>Copied</source>
+      <translation>Copiato</translation>
+    </message>
+    <message>
+      <source>Sign in</source>
+      <translation>Accedi</translation>
+    </message>
+    <message>
+      <source>Favorites</source>
+      <translation>Preferiti</translation>
+    </message>
+    <message>
+      <source>All playlists and stations</source>
+      <translation>Tutte le playlist e stazioni</translation>
+    </message>
+    <message>
+      <source>Radio</source>
+      <translation>Radio</translation>
+    </message>
+    <message>
+      <source>%1 tracks</source>
+      <translation>%1 brani</translation>
+    </message>
+    <message>
+      <source>No playlists</source>
+      <translation>Nessuna playlist</translation>
+    </message>
+    <message>
+      <source>No sources</source>
+      <translation>Nessuna sorgente</translation>
+    </message>
+    <message>
+      <source>Sign out</source>
+      <translation>Esci</translation>
+    </message>
+  </context>
+  <context>
+    <name>LogPage</name>
+    <message>
+      <source>Log</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>All</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>This boot</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Startup</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Search</source>
+      <translation>Ricerca</translation>
+    </message>
+  </context>
+  <context>
+    <name>Main</name>
+    <message>
+      <source>Reconnecting to the player…</source>
+      <translation>Riconnessione al lettore…</translation>
+    </message>
+    <message>
+      <source>Starting…</source>
+      <translation>Avvio…</translation>
+    </message>
+  </context>
+  <context>
+    <name>MainPage</name>
+    <message>
+      <source>Filter by title, artist or album</source>
+      <translation>Filtra per titolo, artista o album</translation>
+    </message>
+    <message>
+      <source>Nothing is playing</source>
+      <translation>Nessuna riproduzione</translation>
+    </message>
+    <message>
+      <source>Open the Library</source>
+      <translation>Apri la libreria</translation>
+    </message>
+  </context>
+  <context>
+    <name>NowPlayingPage</name>
+    <message>
+      <source>Now playing</source>
+      <translation>In riproduzione</translation>
+    </message>
+  </context>
+  <context>
+    <name>OfflineBadge</name>
+    <message>
+      <source>No connection</source>
+      <translation>Nessuna rete</translation>
+    </message>
+  </context>
+  <context>
+    <name>Playback::PlaybackController</name>
+    <message>
+      <source>Can't open the audio output</source>
+      <translation>Impossibile aprire l'uscita audio</translation>
+    </message>
+    <message>
+      <source>No network connection: playing the next downloaded track</source>
+      <translation>Nessuna connessione: riproduzione del prossimo brano scaricato</translation>
+    </message>
+    <message>
+      <source>"%1" is unavailable, skipped</source>
+      <translation>«%1» non è disponibile, saltato</translation>
+    </message>
+    <message>
+      <source>No network connection, and no downloaded track follows</source>
+      <translation>Nessuna connessione e nessun brano scaricato segue</translation>
+    </message>
+    <message>
+      <source>"%1" is unavailable</source>
+      <translation>«%1» non è disponibile</translation>
+    </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Nessuna connessione di rete: in riproduzione i brani scaricati</translation>
+    </message>
+  </context>
+  <context>
+    <name>PlaylistPage</name>
+    <message>
+      <source>%1 tracks</source>
+      <translation>%1 brani</translation>
+    </message>
+    <message>
+      <source>Filter by title, artist or album</source>
+      <translation>Filtra per titolo, artista o album</translation>
+    </message>
+    <message>
+      <source>Press play to start the station</source>
+      <translation>Premi riproduci per avviare la stazione</translation>
+    </message>
+    <message>
+      <source>No tracks</source>
+      <translation>Nessun brano</translation>
+    </message>
+  </context>
+  <context>
+    <name>ProxyPage</name>
+    <message>
+      <source>Proxy</source>
+      <translation>Proxy</translation>
+    </message>
+    <message>
+      <source>New proxy</source>
+      <translation>Nuovo proxy</translation>
+    </message>
+    <message>
+      <source>Name</source>
+      <translation>Nome</translation>
+    </message>
+    <message>
+      <source>e.g. Home SOCKS</source>
+      <translation>ad es. SOCKS di casa</translation>
+    </message>
+    <message>
+      <source>Host or IP</source>
+      <translation>Host o IP</translation>
+    </message>
+    <message>
+      <source>e.g. 192.168.1.10</source>
+      <translation>ad es. 192.168.1.10</translation>
+    </message>
+    <message>
+      <source>Port</source>
+      <translation>Porta</translation>
+    </message>
+    <message>
+      <source>1080</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Username</source>
+      <translation>Nome utente</translation>
+    </message>
+    <message>
+      <source>Optional</source>
+      <translation>Facoltativo</translation>
+    </message>
+    <message>
+      <source>Password</source>
+      <translation>Password</translation>
+    </message>
+    <message>
+      <source>Save</source>
+      <translation>Salva</translation>
+    </message>
+    <message>
+      <source>Check</source>
+      <translation>Verifica</translation>
+    </message>
+    <message>
+      <source>Remove</source>
+      <translation>Rimuovi</translation>
+    </message>
+  </context>
+  <context>
+    <name>QObject</name>
+    <message>
+      <source>Unknown Artist</source>
+      <translation>Artista sconosciuto</translation>
+    </message>
+    <message>
+      <source>Unknown Source</source>
+      <translation>Sorgente sconosciuta</translation>
+    </message>
+    <message>
+      <source>Unknown Album</source>
+      <translation>Album sconosciuto</translation>
+    </message>
+    <message>
+      <source>Unknown track</source>
+      <translation>Brano sconosciuto</translation>
+    </message>
+    <message>
+      <source>%1 of %2 KB</source>
+      <translation>%1 di %2 KB</translation>
+    </message>
+    <message>
+      <source>%1 of %2 MB</source>
+      <translation>%1 di %2 MB</translation>
+    </message>
+    <message>
+      <source>Waiting</source>
+      <translation>In attesa</translation>
+    </message>
+    <message>
+      <source>Saved %1 of %2 tracks</source>
+      <translation>Salvati %1 brani su %2</translation>
+    </message>
+    <message>
+      <source>Saved</source>
+      <translation>Salvato</translation>
+    </message>
+    <message>
+      <source>Failed</source>
+      <translation>Non riuscito</translation>
+    </message>
+    <message>
+      <source>Cancelled</source>
+      <translation>Annullato</translation>
+    </message>
+    <message>
+      <source>Listing tracks…</source>
+      <translation>Elenco dei brani…</translation>
+    </message>
+    <message>
+      <source>%1 of %2 tracks</source>
+      <translation>%1 brani su %2</translation>
+    </message>
+    <message>
+      <source>Saving…</source>
+      <translation>Salvataggio…</translation>
+    </message>
+  </context>
+  <context>
+    <name>SettingField</name>
+    <message>
+      <source>Saved: type to replace</source>
+      <translation>Salvato — digita per sostituire</translation>
+    </message>
+  </context>
+  <context>
+    <name>SettingsPage</name>
+    <message>
+      <source>Settings</source>
+      <translation>Impostazioni</translation>
+    </message>
+    <message>
+      <source>Playback</source>
+      <translation>Riproduzione</translation>
+    </message>
+    <message>
+      <source>Play when the system starts</source>
+      <translation>Riproduci all’avvio del sistema</translation>
+    </message>
+    <message>
+      <source>Preloading</source>
+      <translation>Precaricamento</translation>
+    </message>
+    <message>
+      <source>How many tracks after the playing one are downloaded in advance, so they start at once and play through a bad connection.</source>
+      <translation>Quanti brani dopo quello in riproduzione vengono scaricati in anticipo, così partono subito e proseguono anche con una connessione scarsa.</translation>
+    </message>
+    <message>
+      <source>Tracks ahead in a playlist</source>
+      <translation>Brani in anticipo in una playlist</translation>
+    </message>
+    <message>
+      <source>Tracks ahead in a radio</source>
+      <translation>Brani in anticipo in una radio</translation>
+    </message>
+    <message>
+      <source>Disk space for tracks</source>
+      <translation>Spazio su disco per i brani</translation>
+    </message>
+    <message>
+      <source>MB</source>
+      <translation>MB</translation>
+    </message>
+    <message>
+      <source>%1 used</source>
+      <translation>%1 in uso</translation>
+    </message>
+    <message>
+      <source>Clear</source>
+      <translation>Svuota</translation>
+    </message>
+    <message>
+      <source>Sources</source>
+      <translation>Sorgenti</translation>
+    </message>
+    <message>
+      <source>Network</source>
+      <translation>Rete</translation>
+    </message>
+    <message>
+      <source>Proxies a source can connect through: choose one on the source's own page. Everything of that source goes through it: the source itself, its streams and its covers.</source>
+      <translation>Proxy attraverso cui una sorgente può connettersi: scegline uno nella pagina della sorgente. Tutto ciò che la riguarda passa da lì: la sorgente stessa, i suoi flussi e le sue copertine.</translation>
+    </message>
+    <message>
+      <source>Add proxy</source>
+      <translation>Aggiungi proxy</translation>
+    </message>
+    <message>
+      <source>Privacy</source>
+      <translation>Privacy</translation>
+    </message>
+    <message>
+      <source>Send usage statistics to Google Analytics</source>
+      <translation>Invia statistiche d’uso a Google Analytics</translation>
+    </message>
+    <message>
+      <source>Interface</source>
+      <translation>Interfaccia</translation>
+    </message>
+    <message>
+      <source>Theme</source>
+      <translation>Tema</translation>
+    </message>
+    <message>
+      <source>Auto</source>
+      <translation>Auto</translation>
+    </message>
+    <message>
+      <source>Light</source>
+      <translation>Chiaro</translation>
+    </message>
+    <message>
+      <source>Dark</source>
+      <translation>Scuro</translation>
+    </message>
+    <message>
+      <source>Language</source>
+      <translation>Lingua</translation>
+    </message>
+    <message>
+      <source>Scale</source>
+      <translation>Scala</translation>
+    </message>
+    <message>
+      <source>App</source>
+      <translation>App</translation>
+    </message>
+    <message>
+      <source>Developer tools</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Music storage</source>
+      <translation>Archiviazione della musica</translation>
+    </message>
+    <message>
+      <source>Show all device music</source>
+      <translation>Mostra tutta la musica sul dispositivo</translation>
+    </message>
+    <message>
+      <source>Storage permissions</source>
+      <translation>Autorizzazioni di archiviazione</translation>
+    </message>
+  </context>
+  <context>
+    <name>SourceSettingsPage</name>
+    <message>
+      <source>Enabled</source>
+      <translation>Attivata</translation>
+    </message>
+    <message>
+      <source>Connection</source>
+      <translation>Connessione</translation>
+    </message>
+    <message>
+      <source>Radio</source>
+      <translation>Radio</translation>
+    </message>
+    <message>
+      <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. Applies to the next station you start.</source>
+      <translation>La radio esclude questo numero degli ultimi brani riprodotti da questa sorgente, o tutti quelli di questi giorni se sono di più, finché ne ha altri da riprodurre. Vale dalla prossima stazione avviata.</translation>
+    </message>
+    <message>
+      <source>Tracks before a repeat</source>
+      <translation>Brani prima di una ripetizione</translation>
+    </message>
+    <message>
+      <source>Or days</source>
+      <translation>Oppure giorni</translation>
+    </message>
+    <message>
+      <source>Off</source>
+      <translation>Off</translation>
+    </message>
+    <message>
+      <source>Downloading</source>
+      <translation>Download in corso</translation>
+    </message>
+    <message>
+      <source>Connections</source>
+      <translation>Connessioni</translation>
+    </message>
+    <message>
+      <source>How many parts of a track are downloaded at once. A service that slows each connection down gives several more in all. Applies to the next track.</source>
+      <translation>In quante parti viene scaricato un brano alla volta. Un servizio che rallenta ogni connessione ne dà di più in tutto. Vale dal prossimo brano.</translation>
+    </message>
+    <message>
+      <source>Auto</source>
+      <translation>Auto</translation>
+    </message>
+    <message>
+      <source>Loading settings…</source>
+      <translation>Caricamento delle impostazioni…</translation>
+    </message>
+    <message>
+      <source>Couldn't load the settings: %1</source>
+      <translation>Impossibile caricare le impostazioni: %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>Theme</name>
+    <message>
+      <source>Today</source>
+      <translation>Oggi</translation>
+    </message>
+    <message>
+      <source>Yesterday</source>
+      <translation>Ieri</translation>
+    </message>
+  </context>
+  <context>
+    <name>TrackSheet</name>
+    <message>
+      <source>Explicit</source>
+      <translation>Esplicito</translation>
+    </message>
+    <message>
+      <source>Album</source>
+      <translation>Album</translation>
+    </message>
+    <message>
+      <source>Duration</source>
+      <translation>Durata</translation>
+    </message>
+    <message>
+      <source>Quality</source>
+      <translation>Qualità</translation>
+    </message>
+    <message>
+      <source>Source</source>
+      <translation>Sorgente</translation>
+    </message>
+    <message>
+      <source>Last played</source>
+      <translation>Ascoltato</translation>
+    </message>
+    <message>
+      <source>Never</source>
+      <translation>Mai</translation>
+    </message>
+    <message>
+      <source>Play</source>
+      <translation>Riproduci</translation>
+    </message>
+    <message>
+      <source>Play next</source>
+      <translation>Riproduci dopo</translation>
+    </message>
+    <message>
+      <source>Add to queue</source>
+      <translation>Aggiungi alla coda</translation>
+    </message>
+    <message>
+      <source>Playlists…</source>
+      <translation>Playlist…</translation>
+    </message>
+    <message>
+      <source>Unlike</source>
+      <translation>Togli «Mi piace»</translation>
+    </message>
+    <message>
+      <source>Like</source>
+      <translation>Mi piace</translation>
+    </message>
+    <message>
+      <source>Remove dislike</source>
+      <translation>Togli «Non mi piace»</translation>
+    </message>
+    <message>
+      <source>Dislike</source>
+      <translation>Non mi piace</translation>
+    </message>
+    <message>
+      <source>Start radio from this track</source>
+      <translation>Avvia la radio da questo brano</translation>
+    </message>
+    <message>
+      <source>Radio: %1</source>
+      <translation>Radio: %1</translation>
+    </message>
+    <message>
+      <source>Open track page</source>
+      <translation>Apri la pagina del brano</translation>
+    </message>
+    <message>
+      <source>Save to downloads</source>
+      <translation>Salva nei download</translation>
+    </message>
+    <message>
+      <source>Couldn't load playlists</source>
+      <translation>Impossibile caricare le playlist</translation>
+    </message>
+  </context>
+  <context>
+    <name>Ui::Platform</name>
+    <message>
+      <source>Python isn't in this APK</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Python works: the details are in the log</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Python failed: the details are in the log</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Only on Android</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>The log is in %1</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Android only</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Listing packages…</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>%1 — %2 of %3 MB</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Written to the log</source>
+      <translation>Scritto nel registro</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::ActivePlaylist</name>
+    <message>
+      <source>History</source>
+      <translation>Cronologia</translation>
+    </message>
+    <message>
+      <source>No network connection: playing downloaded tracks</source>
+      <translation>Nessuna connessione di rete: in riproduzione i brani scaricati</translation>
+    </message>
+    <message>
+      <source>No network connection, and nothing of %1 is downloaded to play</source>
+      <translation>Nessuna connessione di rete, e nulla di %1 è scaricato</translation>
+    </message>
+    <message>
+      <source>Couldn't open the audio file. Check its permissions.</source>
+      <translation>Impossibile aprire il file audio. Controlla le autorizzazioni.</translation>
+    </message>
+    <message>
+      <source>Opened audio</source>
+      <translation>Audio aperto</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+      <source>No network</source>
+      <translation>Nessuna rete</translation>
+    </message>
+    <message>
+      <source>%1 is unreachable</source>
+      <translation>%1 non è raggiungibile</translation>
+    </message>
+    <message>
+      <source>Services are unreachable</source>
+      <translation>I servizi non sono raggiungibili</translation>
+    </message>
+    <message>
+      <source>Online</source>
+      <translation>Online</translation>
+    </message>
+    <message>
+      <source>The device is not connected to a network</source>
+      <translation>Il dispositivo non è connesso a una rete</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2</source>
+      <translation>%1: non raggiungibile dalle %2</translation>
+    </message>
+    <message>
+      <source>%1: unreachable since %2 (%3)</source>
+      <translation>%1: non raggiungibile dalle %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+      <source>%n action(s) will be sent once the connection is back</source>
+      <translation>
+        <numerusform>%n azione verrà inviata al ritorno della connessione</numerusform>
+        <numerusform>%n azioni verranno inviate al ritorno della connessione</numerusform>
+      </translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::Downloads</name>
+    <message>
+      <source>%1 isn't running</source>
+      <translation>%1 non è in esecuzione</translation>
+    </message>
+    <message>
+      <source>Can't create the folder %1</source>
+      <translation>Impossibile creare la cartella %1</translation>
+    </message>
+    <message>
+      <source>Not enough free space on the disk</source>
+      <translation>Spazio libero su disco insufficiente</translation>
+    </message>
+    <message>
+      <source>%1 can't save tracks</source>
+      <translation>%1 non può salvare brani</translation>
+    </message>
+    <message>
+      <source>%1: %2</source>
+      <translation>%1: %2</translation>
+    </message>
+    <message>
+      <source>The track couldn't be downloaded</source>
+      <translation>Impossibile scaricare il brano</translation>
+    </message>
+    <message>
+      <source>Couldn't write the file to %1</source>
+      <translation>Impossibile scrivere il file in %1</translation>
+    </message>
+    <message>
+      <source>Saved "%1"</source>
+      <translation>Salvato «%1»</translation>
+    </message>
+    <message>
+      <source>Couldn't save "%1"</source>
+      <translation>Impossibile salvare «%1»</translation>
+    </message>
+    <message>
+      <source>"%1" has no tracks to save</source>
+      <translation>«%1» non ha brani da salvare</translation>
+    </message>
+    <message>
+      <source>Saved %1 tracks of "%2"</source>
+      <translation>Salvati %1 brani di «%2»</translation>
+    </message>
+    <message>
+      <source>Saved %1 of %2 tracks of "%3" — %4</source>
+      <translation>Salvati %1 brani su %2 di «%3» — %4</translation>
+    </message>
+    <message>
+      <source>Couldn't find the file to save</source>
+      <translation>Impossibile trovare il file da salvare</translation>
+    </message>
+    <message>
+      <source>Couldn't publish the track</source>
+      <translation>Impossibile pubblicare il brano</translation>
+    </message>
+    <message>
+      <source>Saved to %1. Check shared storage permissions and free space.</source>
+      <translation>Salvato in %1. Controlla le autorizzazioni e lo spazio libero dell’archiviazione condivisa.</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::MediaTree</name>
+    <message>
+      <source>1 track</source>
+      <translation>1 brano</translation>
+    </message>
+    <message>
+      <source>%1 tracks</source>
+      <translation>%1 brani</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::Messages</name>
+    <message>
+      <source>%1: %2</source>
+      <translation>%1: %2</translation>
+    </message>
+    <message>
+      <source>No network connection</source>
+      <translation>Nessuna connessione di rete</translation>
+    </message>
+    <message>
+      <source>%1: no network connection</source>
+      <translation>%1: nessuna connessione di rete</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::NowPlaying</name>
+    <message>
+      <source>Added to Liked</source>
+      <translation>Aggiunto ai brani che ti piacciono</translation>
+    </message>
+    <message>
+      <source>Removed from Liked</source>
+      <translation>Rimosso dai brani che ti piacciono</translation>
+    </message>
+    <message>
+      <source>Disliked</source>
+      <translation>Non mi piace</translation>
+    </message>
+    <message>
+      <source>Removed dislike</source>
+      <translation>«Non mi piace» rimosso</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::PlaylistScreen</name>
+    <message>
+      <source>History</source>
+      <translation>Cronologia</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::Preload</name>
+    <message>
+      <source>Only %1 MB left on the disk: tracks aren't downloaded ahead, and old ones are removed.</source>
+      <translation>Restano solo %1 MB sul disco: i brani non vengono scaricati in anticipo e quelli vecchi vengono rimossi.</translation>
+    </message>
+    <message>
+      <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
+      <translation>Restano solo %1 MB sul disco: il download è stato interrotto, si possono riprodurre solo i brani già scaricati.</translation>
+    </message>
+    <message>
+      <source>Downloaded ahead: %1 of %2</source>
+      <translation>Scaricati in anticipo: %1 di %2</translation>
+    </message>
+    <message>
+      <source>%1 — downloaded</source>
+      <translation>%1 — scaricato</translation>
+    </message>
+    <message>
+      <source>%1 — %2%</source>
+      <translation>%1 — %2%</translation>
+    </message>
+    <message>
+      <source>%1 — couldn't be downloaded</source>
+      <translation>%1 — impossibile scaricare</translation>
+    </message>
+    <message>
+      <source>%1 — waiting, %2% so far</source>
+      <translation>%1 — in attesa, %2% finora</translation>
+    </message>
+    <message>
+      <source>%1 — waiting</source>
+      <translation>%1 — in attesa</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::SettingsScreen</name>
+    <message>
+      <source>It works</source>
+      <translation>Funziona</translation>
+    </message>
+    <message>
+      <source>Off</source>
+      <translation>Off</translation>
+    </message>
+    <message>
+      <source>Couldn't be started</source>
+      <translation>Impossibile avviare</translation>
+    </message>
+    <message>
+      <source>Not signed in</source>
+      <translation>Accesso non effettuato</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::SidebarModel</name>
+    <message>
+      <source>Playlists</source>
+      <translation>Playlist</translation>
+    </message>
+    <message>
+      <source>History</source>
+      <translation>Cronologia</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::SourceSettingsScreen</name>
+    <message>
+      <source>A switched-off source doesn't start and isn't listed.</source>
+      <translation>Una sorgente disattivata non si avvia e non compare nell’elenco.</translation>
+    </message>
+    <message>
+      <source>The source couldn't be started.</source>
+      <translation>Impossibile avviare la sorgente.</translation>
+    </message>
+    <message>
+      <source>Starting…</source>
+      <translation>Avvio…</translation>
+    </message>
+    <message>
+      <source>Uses the system's proxy settings, if any.</source>
+      <translation>Usa le impostazioni proxy del sistema, se presenti.</translation>
+    </message>
+    <message>
+      <source>Its proxy was removed: it uses the system connection.</source>
+      <translation>Il suo proxy è stato rimosso: usa la connessione di sistema.</translation>
+    </message>
+    <message>
+      <source>System</source>
+      <translation>Sistema</translation>
+    </message>
+    <message>
+      <source>Direct</source>
+      <translation>Diretta</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::Sources</name>
+    <message>
+      <source>%1 is unavailable</source>
+      <translation>%1 non è disponibile</translation>
+    </message>
+    <message>
+      <source>timed out loading playlists</source>
+      <translation>timeout durante il caricamento delle playlist</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::TrackScreen</name>
+    <message>
+      <source>%1 kbps</source>
+      <translation>%1 kbps</translation>
+    </message>
+  </context>
+</TS>

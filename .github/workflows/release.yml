@@ -1,4 +1,4 @@
-# Builds the AppImage, the Windows installer and the macOS DMGs on a
+# Builds the AppImage, the Windows installer, the macOS DMGs and the APK on a
 # release tag (x.y.z, e.g. 1.2.0) and attaches them to that tag's GitHub
 # release — creating the release if the tag was
 # pushed from git, or reusing it if it was created in the GitHub UI
@@ -38,6 +38,10 @@ jobs:
           path: dist
       - uses: actions/download-artifact@v8
         with:
+          name: android
+          path: dist
+      - uses: actions/download-artifact@v8
+        with:
           pattern: macos-*
           merge-multiple: true
           path: dist
@@ -46,7 +50,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          # The AppImage/installer/DMGs are already named with their own
+          # The AppImage/installer/DMGs/APK are already named with their own
           # version (packaging/appimage and packaging/windows's
           # build-in-docker.sh, packaging/macos/build-app.sh, from `git
           # describe`), which matches TAG
@@ -54,11 +58,13 @@ jobs:
           appimage_asset="$(ls dist/CloudMus-*-x86_64.AppImage)"
           windows_asset="$(ls dist/CloudMus-*-x86_64-Setup.exe)"
           macos_assets=(dist/CloudMus-*.dmg)
+          android_asset="$(ls dist/CloudMus-*-arm64-v8a.apk)"
           # Only the builds of this very tag: a name with a commit count or
           # hash (0.5.1-12-gabc1234, -dirty) is an intermediate build and
           # never goes to a release.
           test "$appimage_asset" = "dist/CloudMus-${TAG}-x86_64.AppImage"
           test "$windows_asset" = "dist/CloudMus-${TAG}-x86_64-Setup.exe"
+          test "$android_asset" = "dist/CloudMus-${TAG}-arm64-v8a.apk"
           test "${macos_assets[*]}" = "dist/CloudMus-${TAG}-arm64.dmg dist/CloudMus-${TAG}-x86_64.dmg"
           # Release notes = the annotated tag's message minus its first
           # line (the version), see docs/releasing.md. Re-fetched
@@ -79,4 +85,4 @@ jobs:
           else
               gh release create "$TAG" --verify-tag --title "$TAG" "${notes[@]}"
           fi
-          gh release upload "$TAG" "$appimage_asset" "$windows_asset" "${macos_assets[@]}" --clobber
+          gh release upload "$TAG" "$appimage_asset" "$windows_asset" "${macos_assets[@]}" "$android_asset" --clobber

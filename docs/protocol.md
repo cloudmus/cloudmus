@@ -1,4 +1,4 @@
-# cloudmus Source/Front RPC Protocol
+# CloudMus Source/Front RPC Protocol
 
 **Version:** `1.12` (see §12 for versioning rules)
 
@@ -235,11 +235,13 @@ defaults, since the front does not assume any implicit capability.
 | `browse.editPlaylists` | bool | Optional (1.3+). `catalog.getTrackPlaylists` / `addToPlaylist` / `removeFromPlaylist` (§7.6) are supported on the source's `editable` playlists. |
 | `browse.search` | bool | `catalog.search` supported (reserved for future use; no method defined yet in v1 — see §13). |
 | `feedback.like` / `.dislike` / `.skip` | bool | Corresponding `feedback.*` methods (§7.4) are accepted. |
+| `feedback.played` | bool | Optional (1.19+). `feedback.played` (§7.4) is accepted: the source passes plays outside a radio on to the service's listening history. |
 | `download` | bool | `catalog.downloadTrack` (§7.5) is supported. |
 | `downloadControl` | bool | Optional (1.7+). Downloads report `download/progress` and can be stopped with `catalog.cancelDownload` (§7.5). |
 | `downloadFromStream` | bool | Optional (1.12+). The front may save a track from the stream `playback.resolveStream` returns, downloading, naming and tagging the file itself; the source needs no `catalog.downloadTrack` (§7.5). |
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `network` | bool | Optional (1.10+), **defaults to `true` when absent**: the source reaches the network, so the front offers its per-source Connection setting (system / direct / proxy) and routes the source's streams and covers through it. A source working only with local files declares `false`. |
+| `connectionCheck` | bool | Optional (1.19+). `connection.check` (§7.9) is supported, and the source sends `connection/changed` (§8) when it notices its service go away or come back. |
 | `localization` | object | Optional (1.11+). `{"locales": [string, ...]}`: the source can answer user-facing strings in these languages (BCP-47, English implied) and supports `localization.setLanguage` (§7.8). |
 | `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
 | `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
@@ -500,8 +502,9 @@ results here are just acks.
 | `feedback.unlike` | `{"trackId": string}` | `feedback.like` |
 | `feedback.undislike` | `{"trackId": string}` | `feedback.dislike` |
 | `feedback.trackStarted` | `{"trackId": string, "queuedAfter"?: number}` | `browse.radio` (radio attribution; `queuedAfter`: §7.1) |
-| `feedback.trackFinished` | `{"trackId": string, "playedMs": number, "queuedAfter"?: number}` | `browse.radio` |
-| `feedback.skip` | `{"trackId": string, "playedMs": number}` | `feedback.skip` or `browse.radio` |
+| `feedback.trackFinished` | `{"trackId": string, "playedMs": number, "queuedAfter"?: number, "playedAt"?: string, "deferred"?: bool}` | `browse.radio` |
+| `feedback.skip` | `{"trackId": string, "playedMs": number, "playedAt"?: string, "deferred"?: bool}` | `feedback.skip` or `browse.radio` |
+| `feedback.played` | `{"trackId": string, "playedMs": number, "playedAt": string, "deferred"?: bool}` | `feedback.played` (1.19+) |
 
 All return `{}` on success. `trackStarted`/`trackFinished`/`skip` exist
 specifically to let a radio/wave-style source adapt its recommendations —
@@ -513,6 +516,25 @@ capability flag — a source that can like can un-like). Liking/disliking a
 track is exclusive: a successful `like` clears any prior dislike and vice
 versa (both shipped sources enforce this server-side), so a front should
 mirror that locally rather than showing both states lit up at once.
+
+`feedback.played` (1.19+) reports a track played outside a radio — played to
+its end, or for long enough to count (the front decides; CloudMus goes by
+30 seconds or half the track). `playedAt` is when it started (ISO-8601 UTC).
+The source passes it on to the service's listening history where the service
+has one; where it has none, the source declares no `feedback.played`.
+
+**Sent late (1.19+).** With no network, a front may keep these calls and send
+them once the source can reach its service again (§7.9), in the order they
+were made. `like`/`unlike`/`dislike`/`undislike` and the playlist edits of
+§7.6 are sent as they are: they set a state, so sending one late, or twice,
+does no harm. `trackFinished`, `skip` and `played` come with `deferred: true`
+and the `playedAt` of the play. A deferred event counts for the service's
+history and taste (the station's or the account's), but it belongs to a
+session that may be long gone: the source changes nothing queued for it —
+no `radio/tracksAdded`, no `replaceUpcoming` — and it may drop one that its
+service has no use for. A front never defers `trackStarted`: it only says
+where the listener is now. A deferred call that fails with a non-retryable
+error (§9) is dropped.
 
 ### 7.6 Editing playlists
 
@@ -676,6 +698,34 @@ switch; the front re-reads what it displays (`settings.describe`,
 in `initialize`, so the result carries it again (`description`, optional)
 in the new language.
 
+### 7.9 Connection state (1.19+)
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `connection.check` | `{}` | `{"state": "online" \| "offline", "detail"?: string}` | `connectionCheck` |
+
+Whether the source can reach its service now. The source makes one light
+request to the service (a status endpoint, or the front page, through the
+source's proxy, §4.3), with a short timeout (about 5 seconds) so that the
+answer comes within the method's 10. `"offline"` is an answer, not an
+error: it covers no network, a DNS failure, a refused or timed-out
+connection, and a service that answers with a server error. `detail` says
+which, for a tooltip; it is not shown otherwise. An expired session is not
+`"offline"` — that is §10's business — and the check never starts a sign-in.
+
+Besides the check, a source declaring `connectionCheck` sends
+`connection/changed` (§8) whenever what it sees changes: a request or a
+background task of its own (a radio top-up, say) failing for lack of a
+network makes it `"offline"`; a check or a request reaching the service
+again makes it `"online"`. Only changes are sent, not every failure.
+
+The front decides how often to check. CloudMus checks every networked
+source every 30 seconds while the system says there is a network, at once
+before playing a track that is not downloaded from a source it has as
+offline, and on demand (a click on its offline indicator); it does not check
+at all while the system says there is no network. Without `connectionCheck`
+a front falls back to retrying a `catalog.listPlaylists`.
+
 ---
 
 ## 8. Notifications (source → front, unsolicited)
@@ -686,6 +736,7 @@ in the new language.
 | `track/streamReady` | `{"requestId": number, "trackId": string, "stream": StreamDescriptor}` | `providesStream` sources, asynchronously after `playback.play` |
 | `radio/tracksAdded` | `{"stationId": string, "tracks": [Track, ...], "replaceUpcoming"?: bool}` | Any source with `browse.radio`, proactively as it tops up the queue (§7.1 for `replaceUpcoming`) |
 | `download/progress` | `{"downloadId": string, "receivedBytes": number, "totalBytes"?: number}` | Sources with `downloadControl` (1.7+), while a named download transfers (§7.5) |
+| `connection/changed` | `{"state": "online" \| "offline", "detail"?: string}` | Sources with `connectionCheck` (1.19+), when they notice their service go away or come back (§7.9) |
 | `auth/prompt` | flow-specific, see §10 | Sources with `auth.required: true`, mid-flow |
 | `auth/statusChanged` | `{"status": "authenticated"} \| {"status": "error", "message": string}` | Any source, on auth state transitions |
 | `error` | `{"code": number, "message": string, "data"?: object}` | Any source, for non-fatal issues worth surfacing in the UI (e.g. "track unavailable, skipping") |
@@ -740,6 +791,11 @@ When a source cannot produce the stream of a track — in the response of
     not help.
   - `"offline"` (with `1200`): the source cannot reach its service —
     there is no network. The track itself may well be fine.
+
+The same `data.reason: "offline"` with `1200` can come in the Error Response
+to any request a source can't serve without its service (`catalog.*`,
+`playback.play`). The front keeps what it has of the source (its playlists),
+and asks again once there may be a network.
 
 A front reacts without a retry loop of its own: for `unavailable` it tells
 the user and moves on to the next track; for `offline` it tells the user

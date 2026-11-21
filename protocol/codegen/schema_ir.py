@@ -1,5 +1,5 @@
 """Builds a small language-agnostic intermediate representation (IR) of the
-cloudmus protocol from protocol/schema/*.yaml + protocol/methods.yaml, for
+CloudMus protocol from protocol/schema/*.yaml + protocol/methods.yaml, for
 generate.py to render into per-language stubs.
 
 Only the constructs this protocol actually uses are supported: string /

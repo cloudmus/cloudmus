@@ -8,8 +8,8 @@
 
 class QVBoxLayout;
 
-namespace Rpc {
-class SourceManager;
+namespace ViewModel {
+class SourceSettings;
 }
 
 namespace Ui {
@@ -28,7 +28,7 @@ class NetworkPage : public Page {
     Q_OBJECT
 
 public:
-    NetworkPage(Config::Settings& settings, Rpc::SourceManager& sourceManager, ToastNotifier& toasts,
+    NetworkPage(Config::Settings& settings, ViewModel::SourceSettings& sourceSettings, ToastNotifier& toasts,
         RestartRequests& restarts, QObject* parent = nullptr);
 
     QString id() const override { return QStringLiteral("network"); }
@@ -53,7 +53,7 @@ private:
     ProxyEditor* addEditor(const Config::ProxyConfig& proxy);
 
     Config::Settings& settings_;
-    Rpc::SourceManager& sourceManager_;
+    ViewModel::SourceSettings& sourceSettings_;
     ToastNotifier& toasts_;
     RestartRequests& restarts_;
 

@@ -241,12 +241,7 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     connect(stopButton_, &QPushButton::clicked, this, &NowPlayingBar::stopClicked);
     connect(shuffleButton_, &QPushButton::clicked, this, &NowPlayingBar::shuffleClicked);
     connect(repeatButton_, &QPushButton::clicked, this, [this]() {
-        using Playback::RepeatMode;
-        RepeatMode next = RepeatMode::Off;
-        if (repeat_ == RepeatMode::Off)
-            next = radio_ ? RepeatMode::One : RepeatMode::All;
-        else if (repeat_ == RepeatMode::All)
-            next = RepeatMode::One;
+        const Playback::RepeatMode next = ViewModel::NowPlaying::nextRepeatMode(repeat_, radio_);
         // Qt already flipped the checked state; setPlayModes() (called
         // back with what took effect) sets the real one.
         emit repeatClicked(next);
