@@ -47,13 +47,23 @@ Task<void> runStart(SourceManager& manager, RpcClient* client, QProcessEnvironme
     // its shutdown() was a no-op then, as nothing was up yet.
     const auto superseded = [&manager, client]() { return manager.client(client->manifest().id) != client; };
     try {
-        co_await client->start(std::move(environment), std::move(locale));
+        co_await client->start(std::move(environment), locale);
         if (superseded()) {
             co_await client->shutdown();
             co_return;
         }
         qCInfo(lcSourceManager) << client->manifest().id << "connected —" << client->sourceName()
                                 << "capabilities=" << client->capabilities();
+        // The language changed while it started (on Android the UI says
+        // which it is only once it's up): setLocale() skipped it then.
+        // Not listed yet, so nothing to read again.
+        if (manager.locale() != locale) {
+            try {
+                co_await client->setLanguage(manager.locale());
+            } catch (const std::exception& e) {
+                qCWarning(lcSourceManager) << client->manifest().id << "could not switch language:" << e.what();
+            }
+        }
         // Before it's listed: its first list has the library in it.
         co_await sendLibraryTo(manager, client, false);
         if (superseded())
