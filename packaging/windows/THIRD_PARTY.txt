@@ -1,6 +1,8 @@
 CloudMus for Windows bundles Qt 6.9.3, libmpv, the Vulkan loader,
-CPython 3.13.7, MinGW runtime libraries and Python packages used by its
-three backends.
+CPython 3.13.7, MinGW runtime libraries and Python packages used by three
+of its backends. The fourth, Spotify (backends\cloudmus-backend-spotify.exe),
+is built from librespot and other Rust crates: their licenses are in
+THIRD_PARTY-spotify.txt, alongside.
 
 Qt: https://www.qt.io/licensing/open-source-lgpl-obligations
 libmpv: https://github.com/mpv-player/mpv/blob/master/Copyright

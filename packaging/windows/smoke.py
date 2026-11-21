@@ -8,11 +8,13 @@ import sys
 
 def main(install_dir: pathlib.Path) -> None:
     python = install_dir / "python" / "python.exe"
-    for backend_id in ("local-folder", "yandex-music", "youtube-music"):
+    for backend_id in ("local-folder", "yandex-music", "youtube-music", "spotify"):
         manifest = json.loads((install_dir / "backends" / f"{backend_id}.json").read_text(encoding="utf-8"))
         argv = manifest["argv"]
         argv[0] = str((install_dir / "backends" / argv[0]).resolve())
-        assert pathlib.Path(argv[0]).resolve() == python.resolve(), argv
+        # The Spotify backend is an exe of its own; the rest run on the bundled Python.
+        program = install_dir / "backends" / "cloudmus-backend-spotify.exe" if backend_id == "spotify" else python
+        assert pathlib.Path(argv[0]).resolve() == program.resolve(), argv
         request = {
             "jsonrpc": "2.0",
             "id": 1,

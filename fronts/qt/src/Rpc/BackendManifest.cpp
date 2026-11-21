@@ -49,6 +49,20 @@ void preferRepoVenvInterpreter(BackendManifest& manifest, const QString& repoRoo
     }
 }
 
+// A dev-mode manifest's own program — a path like the Spotify backend's
+// "../target/release/cloudmus-backend-spotify" — is relative to the
+// manifest's directory, not to wherever the front was started. A bare
+// name ("python3") is still looked up on PATH.
+void resolveRelativeProgram(BackendManifest& manifest)
+{
+    if (manifest.argv.isEmpty())
+        return;
+    const QString& program = manifest.argv.first();
+    if (!program.contains(u'/') || QDir::isAbsolutePath(program))
+        return;
+    manifest.argv[0] = QFileInfo(manifest.manifestPath).absoluteDir().absoluteFilePath(program);
+}
+
 // A file named by the manifest, relative to the manifest's own directory;
 // empty if not named or missing.
 QString manifestFile(const QString& manifestPath, const QJsonObject& obj, const QString& key)
@@ -140,6 +154,7 @@ QList<BackendManifest> discoverManifests()
                 if (seenIds.contains(manifest.id))
                     continue;
                 preferRepoVenvInterpreter(manifest, repoRoot);
+                resolveRelativeProgram(manifest);
                 seenIds.insert(manifest.id);
                 result.append(manifest);
             }

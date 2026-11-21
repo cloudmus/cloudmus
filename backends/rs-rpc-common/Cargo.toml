@@ -1,0 +1,19 @@
+[package]
+name = "cloudmus-rpc-common"
+version = "0.1.0"
+edition = "2021"
+description = "CloudMus backends in Rust: JSON-RPC over stdio, protocol types generated from protocol/"
+license = "MIT"
+publish = false
+
+[lib]
+name = "rpc_common"
+
+[dependencies]
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "sync", "time"] }
+
+[dev-dependencies]
+tempfile = "3"

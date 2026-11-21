@@ -54,9 +54,12 @@ backend is treated as gone.
 | `backends/yandex-music` | Yandex Music | `deviceCode` (OAuth) | yes | My Wave, stations | yes |
 | `backends/youtube-music` | YouTube Music | `usernamePassword` (browser headers, see its [README](../backends/youtube-music/README.md)) | yes | mixes, from a track | yes |
 | `backends/local-folder` | A local music folder (subfolders → playlists) | none | playlists | — | — |
+| `backends/spotify` | Spotify (Premium), through librespot — see its [README](../backends/spotify/README.md) | `oauthRedirect` | yes | from a track, Liked Songs | from the stream |
 
 `backends/py-rpc-common` is the shared Python NDJSON/JSON-RPC transport and
-the conformance suite.
+the conformance suite; `backends/rs-rpc-common` is its counterpart for
+backends in Rust, which share one cargo workspace (`backends/Cargo.toml`,
+output in `backends/target/`).
 
 | Front | Description | Stack |
 |---|---|---|
@@ -68,6 +71,7 @@ the conformance suite.
 Requirements:
 
 - Python ≥ 3.11
+- Rust (stable), for the backends in Rust (`backends/Cargo.toml`) — or Docker, see below
 - `libmpv` (the Qt front also needs its development package and `pkg-config`)
 - `jinja2`, `pyyaml` (protocol code generation)
 - Qt front: Qt 6 (Core, Widgets, Network, DBus, Svg), CMake ≥ 3.21, a C++20
@@ -78,18 +82,38 @@ python3 -m venv .venv && source .venv/bin/activate
 
 # Typed protocol stubs (gitignored; regenerate after any change under protocol/)
 pip install jinja2 pyyaml
-python protocol/codegen/generate.py --lang python cpp
+python protocol/codegen/generate.py --lang python cpp rust
 
 # Shared transport, all backends, and the TUI front
 pip install -e backends/py-rpc-common -e backends/yandex-music \
     -e backends/local-folder -e backends/youtube-music -e fronts/tui
+
+# The backends in Rust (Spotify's manifest runs backends/target/release/)
+(cd backends && cargo build --release --locked)
 ```
+
+Without a local Rust, build it in the same pinned image as `AppRun` (the
+binary is static musl, so it runs on the host):
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -e CARGO_HOME=/workspace/build-spotify/cargo-home \
+    -e CARGO_TARGET_DIR=/workspace/backends/target -v "$PWD":/workspace:z \
+    -w /workspace/backends rust:1.98.0-alpine cargo build --release --locked
+```
+
+(`cargo test --locked` the same way runs its tests.)
 
 Run the TUI:
 
 ```bash
 CLOUDMUS_DEV_BACKENDS=1 cloudmus      # or: python -m cloudmus_tui
 ```
+
+Or all in one: `./run-dev.sh` regenerates the stubs, builds the Spotify
+backend (with a local cargo, else in Docker as above) and the Qt front, and
+runs it with `CLOUDMUS_DEV_BACKENDS=1`; arguments go to the app. While an
+installed AppImage runs, its manifests in `~/.config/cloudmus/backends.d`
+win over the checkout's for the backends it bundles.
 
 Build and run the Qt front (CMake regenerates the C++ stubs itself):
 
@@ -155,7 +179,11 @@ Build the Windows x64 NSIS installer from Linux with Docker:
 The Windows builder in `packaging/windows/` installs the official Qt MinGW
 toolchain and runs Windows CMake under Wine. Its first run downloads several
 large archives; subsequent runs reuse Docker layers. It also bundles a
-Windows Python runtime and the three backends. `build-windows/` and
+Windows Python runtime and the Python backends; the Spotify backend is
+cross-built with MinGW beforehand (`packaging/build-spotify.sh windows`, in
+the pinned `rust:alpine` image — so is the AppImage's, with `linux`). Both
+leave its binary and `THIRD_PARTY-spotify.txt` (the licenses of its Rust
+crates) in `build-spotify/`. `build-windows/` and
 `dist/windows-stage/` are generated and can be deleted. A release tag supplies
 the installer and About-dialog version. `CLOUDMUS_GA4_MEASUREMENT_ID` is
 forwarded to either Docker build when set.
@@ -232,7 +260,8 @@ menu, as on macOS; Settings → General can make it show the window instead.
 ## Tests
 
 ```bash
-pytest backends/                               # all backend tests, from the repo root
+pytest backends/                               # Python backend tests, from the repo root
+(cd backends && cargo test --locked)            # Rust: rs-rpc-common and its backends
 (cd fronts/tui && python -m pytest tests/ -q)   # TUI
 ctest --test-dir fronts/qt/build                # Qt front
 
@@ -240,6 +269,9 @@ ctest --test-dir fronts/qt/build                # Qt front
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_yandex
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_ytmusic
+python -m rpc_common.testing.conformance backends/target/release/cloudmus-backend-spotify
+(cd backends && cargo build --locked --examples)
+python -m rpc_common.testing.conformance backends/target/debug/examples/minimal  # the Rust server itself
 ```
 
 The root `pyproject.toml` isn't a package: it only sets pytest's
@@ -289,7 +321,10 @@ download's speed under `cloudmus.net.download`.
    `~/.config/cloudmus/backends.d/`, so a backend of your own works with a
    release build too.
 3. Implement the protocol methods (`initialize`, `catalog.*`, `playback.*`,
-   …) on top of `backends/py-rpc-common`.
+   …) on top of `backends/py-rpc-common`, or in Rust on top of
+   `backends/rs-rpc-common`: add the crate to `backends/Cargo.toml`'s
+   members and take the protocol's types from `rpc_common::generated`
+   (`examples/minimal.rs` there is the smallest one).
 4. Make it pass the conformance suite.
 5. Translate what it sends to the front (docs/protocol.md §7.8). Each
    backend has its own dictionaries, `<package>/locales/<lang>.py`
@@ -475,7 +510,7 @@ version.
 
 ```
 protocol/            Protocol schemas (schema/, methods.yaml) + codegen/
-backends/            py-rpc-common/ and one folder per service
+backends/            py-rpc-common/, rs-rpc-common/ and one folder per service (spotify/ is Rust)
 fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, build script, apprun/: the Rust AppRun)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)

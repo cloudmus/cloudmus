@@ -49,11 +49,14 @@ class DeviceAuthSession:
         return {"status": self.status}
 
     def start(self, notify: NotifyFn) -> None:
-        if self._task is not None and not self._task.done():
+        # A cancelled run may still be winding down (it notices on its next
+        # poll); auth.start right after auth.cancel — the front's Start over
+        # — begins a new one beside it rather than waiting on it.
+        if self._task is not None and not self._task.done() and not self._cancel_event.is_set():
             return  # already in progress
         self._cancel_event = threading.Event()
         self.status = "pending"
-        self._task = asyncio.create_task(self._run(notify))
+        self._task = asyncio.create_task(self._run(notify, self._cancel_event))
 
     def cancel(self) -> None:
         self._cancel_event.set()
@@ -62,10 +65,15 @@ class DeviceAuthSession:
         if self.status == "pending":
             self.status = "unauthenticated"
 
-    async def _run(self, notify: NotifyFn) -> None:
+    async def _run(self, notify: NotifyFn, cancel_event: threading.Event) -> None:
+        """One sign-in attempt. `cancel_event` is this run's own: once it is
+        set the run changes nothing and tells the front nothing, so a newer
+        run started meanwhile is left alone."""
         loop = asyncio.get_event_loop()
 
         def on_code(code) -> None:
+            if cancel_event.is_set():
+                return
             asyncio.run_coroutine_threadsafe(
                 notify(
                     "auth/prompt",
@@ -82,21 +90,22 @@ class DeviceAuthSession:
         def run_blocking() -> str:
             device_client = Client()
             token = device_client.device_auth(
-                on_code=on_code, should_cancel=self._cancel_event.is_set
+                on_code=on_code, should_cancel=cancel_event.is_set
             )
             return token.access_token
 
         try:
             access_token = await asyncio.to_thread(run_blocking)
         except Exception as e:
+            if cancel_event.is_set():
+                return
             logger.debug("device auth failed: %s", e)
             self.status = "error"
             self.error_message = str(e)
             await emit_auth_status_changed(notify, StatusChangedParams(status="error", message=str(e)))
             return
 
-        if self._cancel_event.is_set():
-            self.status = "unauthenticated"
+        if cancel_event.is_set():
             return
 
         config.set_token(access_token)

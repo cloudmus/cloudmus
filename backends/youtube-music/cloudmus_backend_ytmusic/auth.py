@@ -260,7 +260,9 @@ class DeviceOAuthSession:
         return {"status": self.status}
 
     async def start(self, notify: NotifyFn) -> None:
-        if self._task is not None and not self._task.done():
+        # A cancelled run may still be winding down; auth.start right after
+        # auth.cancel (the front's Start over) begins a new one beside it.
+        if self._task is not None and not self._task.done() and not self._cancel_event.is_set():
             return  # already in progress
         self._cancel_event = asyncio.Event()
         self.status = "pending"
@@ -268,16 +270,19 @@ class DeviceOAuthSession:
         # expiresInSec) can take minutes; start() only kicks it off. async
         # def purely so this and BrowserAuthSession.start() share one
         # `await auth_session.start(...)` call site in server.py.
-        self._task = asyncio.create_task(self._run(notify))
+        self._task = asyncio.create_task(self._run(notify, self._cancel_event))
 
     def cancel(self) -> None:
         self._cancel_event.set()
-        # The polling task resets this too, but only once it wakes up — the
-        # front asks for the status right after auth.cancel returns.
+        # The front asks for the status right after auth.cancel returns,
+        # before the polling task wakes up to notice.
         if self.status == "pending":
             self.status = "unauthenticated"
 
-    async def _run(self, notify: NotifyFn) -> None:
+    async def _run(self, notify: NotifyFn, cancel_event: asyncio.Event) -> None:
+        """One sign-in attempt. `cancel_event` is this run's own: once it is
+        set the run changes nothing and tells the front nothing, so a newer
+        run started meanwhile is left alone."""
         creds_pair = config.get_client_credentials()
         if creds_pair is None:
             await self._fail(
@@ -295,8 +300,12 @@ class DeviceOAuthSession:
         try:
             code = await asyncio.to_thread(credentials.get_code)
         except Exception as e:
+            if cancel_event.is_set():
+                return
             logger.debug("device code request failed: %s", e)
             await self._fail(notify, str(e))
+            return
+        if cancel_event.is_set():
             return
 
         await notify(
@@ -310,11 +319,12 @@ class DeviceOAuthSession:
         )
 
         try:
-            raw_token = await self._poll_until_authorized(credentials, code)
+            raw_token = await self._poll_until_authorized(credentials, code, cancel_event)
         except _Cancelled:
-            self.status = "unauthenticated"
             return
         except Exception as e:
+            if cancel_event.is_set():
+                return
             logger.debug("device auth failed: %s", e)
             await self._fail(notify, str(e))
             return
@@ -324,7 +334,9 @@ class DeviceOAuthSession:
         self.status = "authenticated"
         await emit_auth_status_changed(notify, StatusChangedParams(status="authenticated"))
 
-    async def _poll_until_authorized(self, credentials: OAuthCredentials, code: dict) -> dict:
+    async def _poll_until_authorized(
+        self, credentials: OAuthCredentials, code: dict, cancel_event: asyncio.Event
+    ) -> dict:
         interval = code.get("interval") or DEFAULT_POLL_INTERVAL_SEC
         deadline = time.monotonic() + code["expires_in"]
 
@@ -333,12 +345,14 @@ class DeviceOAuthSession:
                 raise TimeoutError("device code expired before sign-in was completed")
 
             try:
-                await asyncio.wait_for(self._cancel_event.wait(), timeout=interval)
+                await asyncio.wait_for(cancel_event.wait(), timeout=interval)
                 raise _Cancelled  # cancel_event was set during the poll-interval wait
             except asyncio.TimeoutError:
                 pass
 
             response = await asyncio.to_thread(credentials.token_from_code, code["device_code"])
+            if cancel_event.is_set():
+                raise _Cancelled
             if "access_token" in response:
                 return response
             error = response.get("error")

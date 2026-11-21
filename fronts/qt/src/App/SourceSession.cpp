@@ -105,6 +105,27 @@ Rpc::Task<void> SourceSession::signIn(Rpc::RpcClient* client)
     }
 }
 
+Rpc::Task<void> SourceSession::restartSignIn(QString sourceId)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return;
+    try {
+        co_await Rpc::authCancel(*client);
+    } catch (const std::exception& e) {
+        // Best effort: the sign-in may have just ended on its own.
+        qCWarning(lcSourceSession) << "auth.cancel failed for" << sourceId << ":" << e.what();
+    }
+    try {
+        // A source starts anew after a cancel (docs/protocol.md §10).
+        co_await Rpc::authStart(*client);
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcSourceSession) << "auth.start failed for" << sourceId << ":" << message;
+        messages_.error(tr("%1: %2").arg(client->sourceName(), message));
+    }
+}
+
 Rpc::Task<QString> SourceSession::submitSignIn(QString sourceId, QJsonObject fields)
 {
     Rpc::RpcClient* client = sourceManager_.client(sourceId);

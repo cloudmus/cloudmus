@@ -82,16 +82,26 @@ python3 packaging/windows/build-python-env.py \
 xvfb-run -a wine "${stage_dir}/python/python.exe" -m compileall -q -j 0 \
     --invalidation-mode unchecked-hash "$(winepath -w "${stage_dir}/python/Lib/site-packages")"
 
+# The Spotify backend, cross-built by build-windows.sh before this container
+# started (packaging/build-spotify.sh): one exe with no DLLs of its own.
+cp build-spotify/target/x86_64-pc-windows-gnu/release/cloudmus-backend-spotify.exe "${stage_dir}/backends/"
+cp build-spotify/THIRD_PARTY-spotify.txt "${stage_dir}/"
+
 python3 - "${stage_dir}/backends" <<'PY'
 import json
 import pathlib
 import sys
 
 dest = pathlib.Path(sys.argv[1])
-for backend_id in ('local-folder', 'yandex-music', 'youtube-music'):
+for backend_id in ('local-folder', 'yandex-music', 'youtube-music', 'spotify'):
     source = pathlib.Path('backends') / backend_id
     manifest = json.loads((source / 'manifest.json').read_text(encoding='utf-8'))
-    manifest['argv'] = ['../python/python.exe', *manifest['argv'][1:]]
+    if backend_id == 'spotify':
+        # Its own exe, next to the manifest (a relative argv[0] is resolved
+        # against the manifest's directory).
+        manifest['argv'] = ['cloudmus-backend-spotify.exe']
+    else:
+        manifest['argv'] = ['../python/python.exe', *manifest['argv'][1:]]
     # manifest['icon'] is "icon.svg", resolved relative to the manifest's
     # own directory (Rpc::BackendManifest::parseManifest) — on Linux/dev
     # that's backends/<id>/icon.svg, next to backends/<id>/manifest.json,

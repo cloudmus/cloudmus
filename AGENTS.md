@@ -12,7 +12,9 @@ Details: `docs/development.md`. Before touching `fronts/qt/`, read
 | `protocol/` | Schema-first protocol: `schema/*.yaml`, `methods.yaml`, `codegen/` | YAML, Python + Jinja2 |
 | `docs/protocol.md` | Normative protocol spec (wins over `protocol/`) | |
 | `backends/py-rpc-common/` | Shared NDJSON/JSON-RPC transport + conformance suite | Python ≥ 3.11 |
+| `backends/rs-rpc-common/` | The same for backends in Rust; `backends/Cargo.toml` is their workspace | Rust |
 | `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11 |
+| `backends/spotify/` | Spotify backend on librespot, with its own JSON-RPC runtime | Rust |
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
 | `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
 | `packaging/appimage/`, `build-appimage.sh` | AppImage build in Docker | |
@@ -21,9 +23,10 @@ Details: `docs/development.md`. Before touching `fronts/qt/`, read
 ## Generated code
 
 Protocol stubs are gitignored build artifacts — never edit or commit
-`backends/py-rpc-common/rpc_common/generated/` or `fronts/qt/generated/`.
+`backends/py-rpc-common/rpc_common/generated/`, `fronts/qt/generated/` or
+`backends/rs-rpc-common/src/generated/`.
 Regenerate after a fresh checkout or any change under `protocol/`:
-`python protocol/codegen/generate.py --lang python cpp`.
+`python protocol/codegen/generate.py --lang python cpp rust`.
 
 ## Changing the protocol
 
@@ -44,6 +47,7 @@ goes through the protocol, backends declare support via capabilities.
 source .venv/bin/activate      # setup: docs/development.md
 pytest backends/                                  # from the repo root
 (cd fronts/tui && python -m pytest tests/ -q)
+(cd backends && cargo test --locked)              # Rust backends + rs-rpc-common
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local  # per backend
 ```
 
@@ -60,7 +64,10 @@ in Docker, running under Wine, and what only a real Windows can show.
 
 - English everywhere. Match surrounding code; comments explain *why*.
 - New backend: `backends/<service>/` with `manifest.json`, built on
-  `py-rpc-common`, passing the conformance suite.
+  `py-rpc-common` (Python) or `rs-rpc-common` (Rust, a member of
+  `backends/Cargo.toml`), passing the conformance suite. A Rust backend
+  takes protocol types and names from `rpc_common::generated`, never
+  spelled by hand.
 - Git flow (`docs/development.md`, "Branches and git flow"): work goes to
   `develop` or a `feature/*`/`bugfix/*` branch off it, never straight to
   `master`; `master` only gets release and hotfix merges.

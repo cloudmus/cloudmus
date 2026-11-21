@@ -1,5 +1,6 @@
 #include "ProxyRouting.h"
 
+#include <QHostAddress>
 #include <QNetworkProxyFactory>
 #include <QNetworkProxyQuery>
 #include <QUrl>
@@ -132,6 +133,14 @@ QNetworkProxy networkProxy(const Connection& connection, const QUrl& url)
             break;
     }
     return systemProxy(url);
+}
+
+QNetworkProxy streamProxy(const QNetworkProxy& route, const QUrl& url)
+{
+    const QString host = url.host();
+    if (host.compare(u"localhost", Qt::CaseInsensitive) == 0 || QHostAddress(host).isLoopback())
+        return QNetworkProxy(QNetworkProxy::NoProxy);
+    return route;
 }
 
 std::optional<QNetworkProxy> environmentProxy(const QUrl& url)
