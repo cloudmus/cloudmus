@@ -188,10 +188,11 @@ Page {
                     SourceLogo {
                         id: currentLogo
                         objectName: "currentSourceLogo"
-                        visible: logo !== ""
+                        visible: logo !== "" || icon !== ""
                         implicitWidth: Theme.dp(36)
                         implicitHeight: Theme.dp(36)
                         logo: page.library && page.library.currentSourceLogo ? page.library.currentSourceLogo : ""
+                        icon: page.library && page.library.currentSourceIcon ? page.library.currentSourceIcon : ""
                         // Loading its playlists: round the logo, as round Play.
                         Spinner {
                             objectName: "sourceSpinner"

@@ -37,6 +37,7 @@ class LibraryScreen : public QObject {
     Q_PROPERTY(QString activeSourceIcon READ activeSourceIcon NOTIFY activeSourceIconChanged)
     // In full color, for where it stands out; the icons only for lists of them.
     Q_PROPERTY(QString activeSourceLogo READ activeSourceLogo NOTIFY activeSourceLogoChanged)
+    Q_PROPERTY(QString currentSourceIcon READ currentSourceIcon NOTIFY currentSourceIconChanged)
     Q_PROPERTY(QString currentSourceLogo READ currentSourceLogo NOTIFY currentSourceLogoChanged)
     // Signing in to the source picked: needed at all, then what it asks for.
     Q_PROPERTY(bool authNeeded READ authNeeded NOTIFY authNeededChanged)
@@ -62,6 +63,7 @@ public:
     QString activeSourceName() const;
     QString activeSourceIcon() const;
     QString activeSourceLogo() const;
+    QString currentSourceIcon() const;
     QString currentSourceLogo() const;
     bool authNeeded() const;
     QString authUrl() const;
@@ -92,6 +94,7 @@ signals:
     void activeSourceNameChanged();
     void activeSourceIconChanged();
     void activeSourceLogoChanged();
+    void currentSourceIconChanged();
     void currentSourceLogoChanged();
     void authNeededChanged();
     void authUrlChanged();

@@ -67,6 +67,8 @@ QString LibraryScreen::activeSourceLogo() const
     return fileUrl(sources_.logoPath(sourceId.isEmpty() ? currentSourceId_ : sourceId));
 }
 
+QString LibraryScreen::currentSourceIcon() const { return fileUrl(sources_.iconPath(currentSourceId_)); }
+
 QString LibraryScreen::currentSourceLogo() const { return fileUrl(sources_.logoPath(currentSourceId_)); }
 
 bool LibraryScreen::authNeeded() const { return authStates_.state(currentSourceId_).hasProblem; }
@@ -230,6 +232,7 @@ void LibraryScreen::rebuild()
     emit activeSourceNameChanged();
     emit activeSourceIconChanged();
     emit activeSourceLogoChanged();
+    emit currentSourceIconChanged();
     emit currentSourceLogoChanged();
     emit authNeededChanged();
     emit authUrlChanged();
