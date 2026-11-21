@@ -11,6 +11,32 @@ namespace {
 
 Q_LOGGING_CATEGORY(lcSourceManager, "cloudmus.rpc.sourcemanager")
 
+bool wantsHostMedia(const RpcClient* client)
+{
+    return client->capabilities().value(QStringLiteral("hostMedia")).toBool();
+}
+
+} // namespace
+
+// The current library to one source; `announce`: the source was running
+// already, so what it lists is to be read again.
+Task<void> sendLibraryTo(SourceManager& manager, RpcClient* client, bool announce)
+{
+    HostMedia* media = manager.hostMedia_;
+    if (media == nullptr || !client->available() || !wantsHostMedia(client) || media->libraryPath().isEmpty())
+        co_return;
+    try {
+        co_await mediaSetLibrary(*client, SetLibraryParams { media->libraryPath(), int(media->revision()) });
+    } catch (const RpcCallException& e) {
+        qCWarning(lcSourceManager) << client->manifest().id << "did not take the media library:" << e.error().message;
+        co_return;
+    }
+    if (announce && manager.client(client->manifest().id) == client)
+        manager.notifySettingsChanged(client->manifest().id);
+}
+
+namespace {
+
 // Runs client->start(), reporting success/failure back through the two
 // SourceManager signals. A free coroutine (not a SourceManager method) so
 // it can be detach()ed cleanly from startOne() without SourceManager itself
@@ -28,6 +54,10 @@ Task<void> runStart(SourceManager& manager, RpcClient* client, QProcessEnvironme
         }
         qCInfo(lcSourceManager) << client->manifest().id << "connected —" << client->sourceName()
                                 << "capabilities=" << client->capabilities();
+        // Before it's listed: its first list has the library in it.
+        co_await sendLibraryTo(manager, client, false);
+        if (superseded())
+            co_return;
         emit manager.sourceReady(client);
     } catch (const RpcCallException& e) {
         if (superseded())
@@ -93,6 +123,24 @@ void SourceManager::setLocale(const QString& locale)
         if (client->available())
             runSetLanguage(*this, client, locale_).detach();
     }
+}
+
+void SourceManager::setHostMedia(HostMedia* media)
+{
+    if (hostMedia_ != nullptr)
+        disconnect(hostMedia_, nullptr, this, nullptr);
+    hostMedia_ = media;
+    if (media != nullptr) {
+        connect(media, &HostMedia::changed, this, &SourceManager::sendLibrary);
+        connect(media, &HostMedia::permissionNeededChanged, this, &SourceManager::mediaPermissionNeededChanged);
+    }
+    emit mediaPermissionNeededChanged();
+}
+
+void SourceManager::sendLibrary()
+{
+    for (RpcClient* client : std::as_const(clientsById_))
+        sendLibraryTo(*this, client, true).detach();
 }
 
 void SourceManager::setDisabledIds(const QStringList& ids) { disabledIds_ = QSet<QString>(ids.begin(), ids.end()); }
@@ -168,6 +216,10 @@ void SourceManager::startOne(const BackendManifest& manifest)
     auto* client = new RpcClient(manifest, this);
     clientsById_.insert(manifest.id, client);
     watch(client);
+    client->notifications.onMediaWanted = [this, id = manifest.id](const MediaWantedParams& params) {
+        if (hostMedia_ != nullptr)
+            hostMedia_->want(id, params.scope == QStringLiteral("all"));
+    };
     // Asked anew for every spawn, restarts included: the source's proxy may
     // have changed since the last one.
     const QProcessEnvironment environment

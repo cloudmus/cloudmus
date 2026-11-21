@@ -176,9 +176,16 @@ adb logcat -s CloudmusStart             # startup milestones
 The Local Folder source shows tracks saved by CloudMus. In the source settings
 you can enter one additional absolute folder path, including a mounted USB
 path on a head unit. The app checks the path under its own Android permissions.
-Settings → Music storage → **Show all device music** includes the audio indexed
-by MediaStore after you grant Android's audio or storage permission. None of
-these actions opens a system folder chooser.
+The source's **Device music** setting adds the rest of the audio MediaStore
+indexes; switching it on asks for Android's audio or storage permission, and
+Settings → Music storage offers the question again until it's granted. None
+of these actions opens a system folder chooser.
+
+The app hands MediaStore's index to the sources that ask for it
+(`hostMedia`, `docs/protocol.md` §7.10): `MusicStorage.java` writes it to
+`files/android-music.json` whenever MediaStore changes, and the core sends
+it with `media.setLibrary`. What a source wants (`media/wanted`) decides
+whether the index lists only what CloudMus saved or everything.
 
 CloudMus first saves to shared `Music/CloudMus`. Android 8–9 uses direct file
 access with the storage permission. Android 10 and later publishes tagged files

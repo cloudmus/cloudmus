@@ -66,19 +66,21 @@ impl Library {
         if let Some(root) = config::music_root() {
             library.add_root(&root, "", tr("Root"), tr("Library"), None);
         }
-        if let Some(index) = config::android_index() {
+        if let Some(index) = config::host_library() {
             if let Ok(bytes) = fs::read(&index) {
                 match serde_json::from_slice::<Value>(&bytes) {
-                    Ok(data) => library.add_android(&data, tr),
-                    Err(error) => eprintln!("local-folder: read Android index: {error}"),
+                    Ok(data) => library.add_host(&data, tr),
+                    Err(error) => eprintln!("local-folder: read the host's media library: {error}"),
                 }
             }
         }
         library
     }
 
-    fn add_android(&mut self, data: &Value, tr: impl Fn(&str) -> String) {
-        if let Some(roots) = data["roots"].as_array() {
+    // The media library the front's platform keeps (media.setLibrary): the
+    // app's own folders, read as files, and its items, played by their uri.
+    fn add_host(&mut self, data: &Value, tr: impl Fn(&str) -> String) {
+        if let Some(roots) = data["folders"].as_array() {
             for root in roots {
                 let (Some(id), Some(path)) = (root["id"].as_str(), root["path"].as_str()) else {
                     continue;
@@ -92,9 +94,14 @@ impl Library {
                 );
             }
         }
-        if let Some(records) = data["records"].as_array() {
+        if let Some(records) = data["items"].as_array() {
+            let device_music = config::device_music();
             let mut seen = HashSet::new();
             for record in records {
+                // What the front still lists from before the setting changed.
+                if record["own"] != true && !device_music {
+                    continue;
+                }
                 let (Some(id), Some(uri)) = (record["id"].as_str(), record["uri"].as_str()) else {
                     continue;
                 };
@@ -112,7 +119,7 @@ impl Library {
                         continue;
                     }
                 }
-                let (key, title) = if record["saved"] == true {
+                let (key, title) = if record["own"] == true {
                     let folder = record["relativePath"]
                         .as_str()
                         .and_then(|path| path.strip_prefix("Music/CloudMus/"))
@@ -234,7 +241,7 @@ impl Library {
             return None;
         }
         let id = relative_id(entry.strip_prefix(root).ok()?)?;
-        if config::android_index().is_some() && !self.seen.insert(resolved.clone()) {
+        if config::host_library().is_some() && !self.seen.insert(resolved.clone()) {
             return None;
         }
         Some(Track::File {
@@ -334,7 +341,7 @@ impl Track {
 fn media_metadata(record: &Value, include_cover: bool) -> (metadata::Metadata, Option<String>) {
     let path = record["path"]
         .as_str()
-        .filter(|_| record["saved"] == true)
+        .filter(|_| record["own"] == true)
         .map(Path::new)
         .filter(|path| fs::File::open(path).is_ok());
     let mut info = path
@@ -458,11 +465,11 @@ fn resolve_file(root: &Path, id: &str) -> Option<Value> {
 }
 
 pub fn resolve(id: &str) -> Option<Value> {
-    if let (Some(index), Some(suffix)) = (config::android_index(), id.strip_prefix("@android/")) {
+    if let (Some(index), Some(suffix)) = (config::host_library(), id.strip_prefix("@android/")) {
         let data: Value = serde_json::from_slice(&fs::read(index).ok()?).ok()?;
         let (kind, path) = suffix.split_once('/')?;
         if kind == "media" {
-            let record = data["records"]
+            let record = data["items"]
                 .as_array()?
                 .iter()
                 .find(|item| item["id"] == id)?;
@@ -482,7 +489,7 @@ pub fn resolve(id: &str) -> Option<Value> {
             }
             return Some(stream);
         }
-        let root = data["roots"]
+        let root = data["folders"]
             .as_array()?
             .iter()
             .find(|root| root["id"] == kind)?["path"]

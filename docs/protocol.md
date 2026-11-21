@@ -242,6 +242,7 @@ defaults, since the front does not assume any implicit capability.
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `network` | bool | Optional (1.10+), **defaults to `true` when absent**: the source reaches the network, so the front offers its per-source Connection setting (system / direct / proxy) and routes the source's streams and covers through it. A source working only with local files declares `false`. |
 | `connectionCheck` | bool | Optional (1.19+). `connection.check` (§7.9) is supported, and the source sends `connection/changed` (§8) when it notices its service go away or come back. |
+| `hostMedia` | bool | Optional (1.20+). The source shows the media library the front's platform keeps (Android's MediaStore): it takes `media.setLibrary` and sends `media/wanted` (§7.10). A front without such a library ignores it. |
 | `localization` | object | Optional (1.11+). `{"locales": [string, ...]}`: the source can answer user-facing strings in these languages (BCP-47, English implied) and supports `localization.setLanguage` (§7.8). |
 | `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
 | `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
@@ -726,6 +727,40 @@ offline, and on demand (a click on its offline indicator); it does not check
 at all while the system says there is no network. Without `connectionCheck`
 a front falls back to retrying a `catalog.listPlaylists`.
 
+### 7.10 The host's media library (1.20+)
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `media.setLibrary` | `{"path": string, "revision": number}` | `{}` | `hostMedia` |
+
+Some platforms keep an index of the audio on the device, and an app may only
+reach most of it through that index (Android's MediaStore and its
+`content://` URIs). A source can't link against the platform, so the front
+hands the index over. `path` names a JSON file in the shape of
+`protocol/schema/media_library.yaml`:
+
+- `scope`: `"own"`, only what this app saved, or `"all"`, the rest of the
+  device's audio too.
+- `folders`: the app's own folders, `{"id", "path"}`, which the source may
+  read as ordinary files.
+- `items`: one per track, `{"id", "uri", "title", "artist"?, "album"?,
+  "durationMs"?, "mimeType"?, "path"?, "relativePath"?, "size"?,
+  "modified"?, "own"?, "codec"?, "bitrateKbps"?, "coverUrl"?}`. An item's
+  `id` stays the same while it exists. Its `uri` is what the source gives
+  back as a `StreamDescriptor` `url`: the front knows how to open it.
+
+The front writes the file anew and calls `media.setLibrary` with a higher
+`revision` each time the library changes: first between `initialize` and
+the source's first `catalog.listPlaylists`, then whenever it changes. After
+a later call the front lists the source again. The source reads the file
+when it needs it; it doesn't keep `path` from one run to the next.
+
+The source says how much it wants with `media/wanted` (§8): `{"scope":
+"own" | "all"}`, right after its `initialize` answer and whenever that
+changes (a setting of its own, say). For `"all"` the front may have to ask
+the user's permission first. Until it has it, the library's `scope` stays
+`"own"`, and a source shows nothing beyond what that covers.
+
 ---
 
 ## 8. Notifications (source → front, unsolicited)
@@ -737,6 +772,7 @@ a front falls back to retrying a `catalog.listPlaylists`.
 | `radio/tracksAdded` | `{"stationId": string, "tracks": [Track, ...], "replaceUpcoming"?: bool}` | Any source with `browse.radio`, proactively as it tops up the queue (§7.1 for `replaceUpcoming`) |
 | `download/progress` | `{"downloadId": string, "receivedBytes": number, "totalBytes"?: number}` | Sources with `downloadControl` (1.7+), while a named download transfers (§7.5) |
 | `connection/changed` | `{"state": "online" \| "offline", "detail"?: string}` | Sources with `connectionCheck` (1.19+), when they notice their service go away or come back (§7.9) |
+| `media/wanted` | `{"scope": "own" \| "all"}` | Sources with `hostMedia` (1.20+), after `initialize` and when it changes (§7.10) |
 | `auth/prompt` | flow-specific, see §10 | Sources with `auth.required: true`, mid-flow |
 | `auth/statusChanged` | `{"status": "authenticated"} \| {"status": "error", "message": string}` | Any source, on auth state transitions |
 | `error` | `{"code": number, "message": string, "data"?: object}` | Any source, for non-fatal issues worth surfacing in the UI (e.g. "track unavailable, skipping") |

@@ -82,13 +82,10 @@ public final class UiBridge {
         return "yes";
     }
 
-    public static String deviceMusicEnabled(Context context) {
-        return MusicStorage.deviceMusic(context) ? "yes" : "";
-    }
-
-    public static void setDeviceMusicEnabled(Context context, boolean enabled) {
+    // A source asked for all the device's music: the system's question.
+    public static void requestMusicPermission(Context context) {
         if (context instanceof MainActivity)
-            ((MainActivity) context).setDeviceMusicEnabled(enabled);
+            ((MainActivity) context).requestMusicPermission();
     }
 
     public static void grantMusicStorage(Context context) {

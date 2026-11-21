@@ -58,6 +58,16 @@ ApplicationWindow {
         target: uiSettings
         function onColorSchemeChanged() { window.applyAppearance() }
     }
+    // A source's Device music was switched on: the system asks once, right
+    // then. Settings keeps a row for asking again.
+    Connections {
+        target: window.backend.settingsScreen
+        ignoreUnknownSignals: true
+        function onMediaPermissionNeededChanged() {
+            if (window.backend.settingsScreen.mediaPermissionNeeded === true)
+                window.platform.requestMusicPermission()
+        }
+    }
     Binding { target: Theme; property: "dynamicBlur"; value: uiSettings.dynamicBlur }
     Binding { target: Theme; property: "flickMaxVelocityBase"; value: uiSettings.flickMaxVelocity }
     Binding { target: Theme; property: "flickDecelerationBase"; value: uiSettings.flickDeceleration }

@@ -253,10 +253,11 @@ Page {
             SettingsGroup {
                 shown: page.platform.android
                 title: qsTr("Music storage")
-                SettingSwitch {
-                    title: qsTr("Show all device music")
-                    checked: page.platform.deviceMusicEnabled()
-                    onToggled: (checked) => page.platform.setDeviceMusicEnabled(checked)
+                // A source's Device music is on, and Android hasn't let it in yet.
+                SettingsRow {
+                    visible: page.screen !== null && page.screen.mediaPermissionNeeded === true
+                    text: qsTr("Allow reading the device's music")
+                    onClicked: page.platform.requestMusicPermission()
                 }
                 SettingsRow {
                     text: qsTr("Storage permissions")

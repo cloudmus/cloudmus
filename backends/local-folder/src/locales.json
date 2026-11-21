@@ -22,7 +22,8 @@
     "Additional music folder": "Дадатковая папка з музыкай",
     "Enter an absolute path to a readable folder.": "Увядзіце абсалютны шлях да папкі, даступнай для чытання.",
     "Saved tracks": "Захаваныя трэкі",
-    "Device music": "Музыка на прыладзе"
+    "Device music": "Музыка на прыладзе",
+    "Music other apps put on this device, besides the tracks saved here.": "Музыка, якую іншыя праграмы захавалі на гэтай прыладзе, акрамя трэкаў, захаваных тут."
   },
   "de": {
     "expected true or false": "true oder false erwartet",
@@ -47,7 +48,8 @@
     "Additional music folder": "Zusätzlicher Musikordner",
     "Enter an absolute path to a readable folder.": "Gib den absoluten Pfad zu einem lesbaren Ordner ein.",
     "Saved tracks": "Gespeicherte Titel",
-    "Device music": "Musik auf dem Gerät"
+    "Device music": "Musik auf dem Gerät",
+    "Music other apps put on this device, besides the tracks saved here.": "Musik, die andere Apps auf diesem Gerät abgelegt haben, zusätzlich zu den hier gespeicherten Titeln."
   },
   "es": {
     "expected true or false": "se esperaba true o false",
@@ -72,7 +74,8 @@
     "Additional music folder": "Carpeta de música adicional",
     "Enter an absolute path to a readable folder.": "Introduce la ruta absoluta de una carpeta con acceso de lectura.",
     "Saved tracks": "Pistas guardadas",
-    "Device music": "Música del dispositivo"
+    "Device music": "Música del dispositivo",
+    "Music other apps put on this device, besides the tracks saved here.": "Música que otras apps guardaron en este dispositivo, además de las pistas guardadas aquí."
   },
   "fr": {
     "expected true or false": "true ou false attendu",
@@ -97,7 +100,8 @@
     "Additional music folder": "Dossier de musique supplémentaire",
     "Enter an absolute path to a readable folder.": "Saisissez le chemin absolu d’un dossier accessible en lecture.",
     "Saved tracks": "Titres enregistrés",
-    "Device music": "Musique sur l’appareil"
+    "Device music": "Musique sur l’appareil",
+    "Music other apps put on this device, besides the tracks saved here.": "La musique que d'autres applis ont mise sur cet appareil, en plus des titres enregistrés ici."
   },
   "it": {
     "expected true or false": "atteso true o false",
@@ -122,7 +126,8 @@
     "Additional music folder": "Cartella musicale aggiuntiva",
     "Enter an absolute path to a readable folder.": "Inserisci il percorso assoluto di una cartella accessibile in lettura.",
     "Saved tracks": "Brani salvati",
-    "Device music": "Musica sul dispositivo"
+    "Device music": "Musica sul dispositivo",
+    "Music other apps put on this device, besides the tracks saved here.": "La musica che altre app hanno messo su questo dispositivo, oltre ai brani salvati qui."
   },
   "ru": {
     "expected true or false": "ожидается true или false",
@@ -147,6 +152,7 @@
     "Additional music folder": "Дополнительная папка с музыкой",
     "Enter an absolute path to a readable folder.": "Введите абсолютный путь к папке, доступной для чтения.",
     "Saved tracks": "Сохранённые треки",
-    "Device music": "Музыка на устройстве"
+    "Device music": "Музыка на устройстве",
+    "Music other apps put on this device, besides the tracks saved here.": "Музыка, которую другие приложения сохранили на этом устройстве, вдобавок к трекам, сохранённым здесь."
   }
 }

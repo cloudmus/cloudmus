@@ -216,22 +216,11 @@ QString Platform::probeMusicStorage() const
     return tr("Written to the log");
 }
 
-bool Platform::deviceMusicEnabled() const
+void Platform::requestMusicPermission()
 {
 #ifdef Q_OS_ANDROID
-    return !bridgeString("deviceMusicEnabled").isEmpty();
-#else
-    return false;
-#endif
-}
-
-void Platform::setDeviceMusicEnabled(bool enabled)
-{
-#ifdef Q_OS_ANDROID
-    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setDeviceMusicEnabled",
-        QNativeInterface::QAndroidApplication::context(), jboolean(enabled));
-#else
-    Q_UNUSED(enabled);
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "requestMusicPermission",
+        QNativeInterface::QAndroidApplication::context());
 #endif
 }
 

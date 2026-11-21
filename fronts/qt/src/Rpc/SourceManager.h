@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "BackendManifest.h"
+#include "HostMedia.h"
 #include "RpcClient.h"
 
 namespace Rpc {
@@ -43,6 +44,13 @@ public:
     // What the front calls a source before it has answered: the manifest's
     // name in the current language.
     QString displayName(const BackendManifest& manifest) const { return manifest.displayName(locale_); }
+
+    // The platform's media library, for sources with hostMedia: each gets
+    // it before its sourceReady(), and again whenever it changes (then a
+    // settingsChanged(), as what it lists changed). Its media/wanted goes
+    // to it. Call before startAll(); none by default.
+    void setHostMedia(HostMedia* media);
+    HostMedia* hostMedia() const { return hostMedia_; }
 
     // Backends the user switched off: never spawned, and not restarted.
     // Call before startAll().
@@ -107,11 +115,16 @@ signals:
     // A running backend's process went down on its own (it is restarted,
     // if any attempts are left).
     void sourceCrashed(const QString& sourceId);
+    // HostMedia::permissionNeeded() changed.
+    void mediaPermissionNeededChanged();
 
 private:
     void startOne(const BackendManifest& manifest);
     void spawnWaiting();
     void watch(RpcClient* client);
+    void sendLibrary();
+
+    friend Task<void> sendLibraryTo(SourceManager& manager, RpcClient* client, bool announce);
 
     static constexpr int kMaxRestartAttempts = 3;
     static constexpr int kRestartDelaysMs[3] = { 2000, 5000, 10000 };
@@ -119,6 +132,7 @@ private:
     std::optional<QList<BackendManifest>> manifests_;
     std::function<QProcessEnvironment(const QString&)> environmentProvider_;
     QString locale_;
+    HostMedia* hostMedia_ = nullptr;
     QSet<QString> disabledIds_;
     QSet<QString> deferredIds_;
     int spawnDelayMs_ = 0;

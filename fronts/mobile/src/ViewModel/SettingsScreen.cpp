@@ -46,6 +46,8 @@ SettingsScreen::SettingsScreen(App::Core& core, SourceSettings& sourceSettings, 
     connect(&manager, &Rpc::SourceManager::sourceStarting, this, [this]() { rebuildSources(); });
     connect(&manager, &Rpc::SourceManager::sourceStopped, this, [this]() { rebuildSources(); });
     connect(&manager, &Rpc::SourceManager::sourceReady, this, [this]() { rebuildSources(); });
+    connect(&manager, &Rpc::SourceManager::mediaPermissionNeededChanged, this,
+        &SettingsScreen::mediaPermissionNeededChanged);
     connect(&manager, &Rpc::SourceManager::sourceUnavailable, this, [this]() { rebuildSources(); });
     connect(&core_.authStates(), &Rpc::AuthStates::changed, this, [this]() { rebuildSources(); });
     // Texts the core builds itself are in the new language from the next
@@ -88,6 +90,12 @@ void SettingsScreen::setAnalytics(bool on)
         return;
     core_.analytics().setEnabled(on);
     emit analyticsChanged();
+}
+
+bool SettingsScreen::mediaPermissionNeeded() const
+{
+    const Rpc::HostMedia* media = core_.sourceManager().hostMedia();
+    return media != nullptr && media->permissionNeeded();
 }
 
 QString SettingsScreen::language() const { return core_.settings().language(); }

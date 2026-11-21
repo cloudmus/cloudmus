@@ -70,6 +70,12 @@ fn dispatch(method: &str, params: &Value, tr: impl Fn(&str) -> String) -> RpcRes
     }
 }
 
+// How much of the host's media library to be given (docs/protocol.md §7.10).
+fn media_wanted() -> Value {
+    let scope = if config::device_music() { "all" } else { "own" };
+    json!({"jsonrpc": "2.0", "method": "media/wanted", "params": {"scope": scope}})
+}
+
 fn reply(id: Value, result: RpcResult) -> Value {
     match result {
         Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
@@ -154,7 +160,7 @@ fn main() -> io::Result<()> {
             "initialize" => {
                 locale = select_locale(params["locale"].as_str());
                 Ok(json!({
-                    "protocolVersion": "1.19",
+                    "protocolVersion": "1.20",
                     "source": {"id": "local-folder", "name": "Local Folder", "version": "0.1.0",
                         "description": translations[locale][DESCRIPTION].as_str().unwrap_or(DESCRIPTION)},
                     "capabilities": {
@@ -163,7 +169,8 @@ fn main() -> io::Result<()> {
                         "browse": {"playlists": true, "likedTracks": false, "radio": false, "search": false},
                         "feedback": {"like": false, "dislike": false, "skip": false},
                         "download": false, "auth": {"required": false, "flow": "none"},
-                        "network": false, "settings": true, "localization": {"locales": LOCALES}
+                        "network": false, "settings": true, "hostMedia": true,
+                        "localization": {"locales": LOCALES}
                     }
                 }))
             }
@@ -177,10 +184,21 @@ fn main() -> io::Result<()> {
                 None => Err(error(-32602, "locale: expected text")),
             },
             "shutdown" => Ok(json!({})),
+            "media.setLibrary" => match params["path"].as_str() {
+                Some(path) if !path.is_empty() => {
+                    config::set_host_library(path.into());
+                    Ok(json!({}))
+                }
+                _ => Err(error(-32602, "path: expected text")),
+            },
             "settings.describe" | "settings.update" => {
                 handle(&message, |key| {
                     translations[locale][key].as_str().unwrap_or(key).to_owned()
                 })?;
+                // Device music may have been switched.
+                if method == "settings.update" {
+                    write_messages(&[media_wanted()])?;
+                }
                 continue;
             }
             _ => {
@@ -191,7 +209,11 @@ fn main() -> io::Result<()> {
             }
         };
         if !id.is_null() {
+            let ok = result.is_ok();
             write_messages(&[reply(id.clone(), result)])?;
+            if ok && method == "initialize" {
+                write_messages(&[media_wanted()])?;
+            }
         }
         if method == "shutdown" {
             break;

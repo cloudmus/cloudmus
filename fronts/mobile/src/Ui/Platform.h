@@ -63,8 +63,9 @@ public:
     // car's widget lists) into the log; what to tell the user.
     Q_INVOKABLE QString logSystemProbe() const;
     Q_INVOKABLE QString probeMusicStorage() const;
-    Q_INVOKABLE bool deviceMusicEnabled() const;
-    Q_INVOKABLE void setDeviceMusicEnabled(bool enabled);
+    // The system's question for reading the device's music, which a source
+    // asked for (ViewModel::SettingsScreen::mediaPermissionNeeded).
+    Q_INVOKABLE void requestMusicPermission();
     Q_INVOKABLE void grantMusicStorage() const;
     // The head unit's system APKs into a zip, for working out its media
     // widget at home (Android). Hundreds of MB: on a worker thread, the

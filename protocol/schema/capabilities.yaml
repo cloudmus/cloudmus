@@ -60,6 +60,9 @@ properties:
   # optional (1.19+): connection.check, and connection/changed when the
   # source notices its service go away or come back
   connectionCheck: {type: boolean}
+  # optional (1.20+): media.setLibrary and media/wanted — the source shows
+  # the media library the front's platform keeps (docs/protocol.md §7.10)
+  hostMedia: {type: boolean}
   # optional (1.11+): localization.setLanguage; `locales` lists the
   # languages (BCP-47) the source can answer in, English being the default
   localization:

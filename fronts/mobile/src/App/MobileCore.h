@@ -32,6 +32,9 @@ public:
         // car, where a start has to be quick on little CPU.
         int spawnDelayMs = 0;
         int refreshDelayMs = 0;
+        // The platform's media library (Rpc::SourceManager::setHostMedia),
+        // if it has one.
+        Rpc::HostMedia* hostMedia = nullptr;
     };
 
     explicit MobileCore(const Paths& paths, QObject* parent = nullptr);

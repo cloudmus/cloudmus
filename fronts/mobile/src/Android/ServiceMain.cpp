@@ -1,6 +1,8 @@
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
+#include <QFileInfo>
+#include <QSet>
 #include <QImageWriter>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -20,6 +22,7 @@
 
 #include "Core.h"
 #include "Downloads.h"
+#include "HostMedia.h"
 #include "Host.h"
 #include "Jni.h"
 #include "Log.h"
@@ -56,6 +59,8 @@ jclass storageClass = nullptr;
 jmethodID openContentMethod = nullptr;
 jmethodID publishMethod = nullptr;
 jmethodID remuxOpusMethod = nullptr;
+jmethodID setWantAllMethod = nullptr;
+jmethodID permissionNeededMethod = nullptr;
 jmethodID onStateMethod = nullptr;
 jmethodID onTrackMethod = nullptr;
 jmethodID onQueueMethod = nullptr;
@@ -255,6 +260,59 @@ bool remuxOpus(const QString& input, const QString& output)
     return !Android::Jni::checkException(env, "MusicStorage.remuxOpus") && ready;
 }
 
+// MusicStorage.java's index of MediaStore and the app's own folders, for the
+// sources with hostMedia (docs/protocol.md §7.10). Lives on the core thread.
+class AndroidHostMedia final : public Rpc::HostMedia {
+public:
+    explicit AndroidHostMedia(QString path)
+        : path_(std::move(path))
+    {
+    }
+
+    QString libraryPath() const override { return QFileInfo::exists(path_) ? path_ : QString(); }
+    qint64 revision() const override { return revision_; }
+
+    void want(const QString& sourceId, bool all) override
+    {
+        if (all)
+            wantingAll_.insert(sourceId);
+        else
+            wantingAll_.remove(sourceId);
+        JNIEnv* env = Android::Jni::env();
+        env->CallStaticVoidMethod(storageClass, setWantAllMethod, jboolean(!wantingAll_.isEmpty()));
+        Android::Jni::checkException(env, "MusicStorage.setWantAll");
+        updatePermission();
+    }
+
+    bool permissionNeeded() const override { return permissionNeeded_; }
+
+    // MusicStorage wrote a new index.
+    void publish()
+    {
+        ++revision_;
+        updatePermission();
+        emit changed();
+    }
+
+private:
+    void updatePermission()
+    {
+        JNIEnv* env = Android::Jni::env();
+        const bool needed = env->CallStaticBooleanMethod(storageClass, permissionNeededMethod);
+        if (Android::Jni::checkException(env, "MusicStorage.permissionNeeded") || needed == permissionNeeded_)
+            return;
+        permissionNeeded_ = needed;
+        emit permissionNeededChanged();
+    }
+
+    QString path_;
+    qint64 revision_ = 1;
+    QSet<QString> wantingAll_;
+    bool permissionNeeded_ = false;
+};
+
+AndroidHostMedia* hostMediaInstance = nullptr; // only touched in the core thread
+
 ViewModel::Downloads::PublishResult publishTrack(const QString& path, const QString& subfolder)
 {
     JNIEnv* env = Android::Jni::env();
@@ -285,7 +343,6 @@ void setUpBackends(
     set("XDG_CACHE_HOME", cacheDir);
     set("TMPDIR", cacheDir);
     set("CLOUDMUS_NATIVE_BACKENDS_DIR", nativeBackendDir);
-    set("CLOUDMUS_ANDROID_MUSIC_INDEX", filesDir + QStringLiteral("/android-music.json"));
     // Qt's own HTTPS (streams, covers): the OpenSSL that came with Python.
     set("ANDROID_OPENSSL_SUFFIX", QStringLiteral("_python"));
     set("LD_LIBRARY_PATH", libraryDir);
@@ -316,7 +373,9 @@ void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nat
     setUpBackends(filesDir, cacheDir, libraryDir, nativeBackendDir);
     // A second for the UI to come up on what's saved; a few more before the
     // saved lists are refreshed, behind the music that has started by then.
-    App::MobileCore core({ QString(), filesDir + QStringLiteral("/core.ini"), 1000, 5000 });
+    AndroidHostMedia hostMedia(filesDir + QStringLiteral("/android-music.json"));
+    hostMediaInstance = &hostMedia;
+    App::MobileCore core({ QString(), filesDir + QStringLiteral("/core.ini"), 1000, 5000, &hostMedia });
     coreInstance = &core;
     core.core().downloads().setPublisher(QStringLiteral("Music/CloudMus"), publishTrack, remuxOpus);
     core.core().playback().setContentOpener(openContent);
@@ -402,6 +461,7 @@ void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nat
     std::lock_guard lock(mutex);
     receiver = nullptr;
     coreInstance = nullptr;
+    hostMediaInstance = nullptr;
 }
 
 QString toQString(JNIEnv* env, jstring text)
@@ -440,6 +500,8 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     publishMethod
         = env->GetStaticMethodID(storageClass, "publish", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
     remuxOpusMethod = env->GetStaticMethodID(storageClass, "remuxOpus", "(Ljava/lang/String;Ljava/lang/String;)Z");
+    setWantAllMethod = env->GetStaticMethodID(storageClass, "setWantAll", "(Z)V");
+    permissionNeededMethod = env->GetStaticMethodID(storageClass, "permissionNeeded", "()Z");
     if (Android::Jni::checkException(env, "MusicStorage methods"))
         return JNI_ERR;
     onReadyMethod = env->GetStaticMethodID(bridgeClass, "onCoreReady", "()V");
@@ -480,14 +542,10 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativePyth
 
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeMusicChanged(JNIEnv*, jclass)
 {
+    // The sources with hostMedia get it, and are listed anew.
     post([] {
-        if (!coreInstance)
-            return;
-        auto& core = coreInstance->core();
-        for (const auto* client : core.sourceManager().clients()) {
-            if (client->available() && !client->usesNetwork())
-                core.sources().refresh(client->sourceId());
-        }
+        if (hostMediaInstance)
+            hostMediaInstance->publish();
     });
 }
 

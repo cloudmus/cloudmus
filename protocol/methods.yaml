@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.19"
+protocolVersion: "1.20"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -404,6 +404,23 @@ methods:
         description: {type: string}
     timeoutMs: 5000
 
+  # --- 7.10 The host's media library ---
+  media.setLibrary:
+    # optional (1.20+): the media library the front's platform keeps (such
+    # as Android's MediaStore), for a source with hostMedia — docs/protocol.md
+    # §7.10. `path` names a JSON file in the shape of
+    # schema/media_library.yaml; the front writes it anew, then calls this,
+    # each time the library changes.
+    requiresCapability: hostMedia
+    params:
+      type: object
+      required: [path, revision]
+      properties:
+        path: {type: string}
+        revision: {type: integer}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
   # --- 10. Auth ---
   auth.getStatus:
     params: {type: object, properties: {}, required: []}
@@ -487,6 +504,18 @@ notifications:
       properties:
         state: {type: string, enum: [online, offline]}
         detail: {type: string}
+
+  media/wanted:
+    # optional (1.20+): how much of the host's media library a source with
+    # hostMedia wants — docs/protocol.md §7.10. "own": what this app saved;
+    # "all": everything on the device, for which the front may have to ask
+    # the user's permission.
+    params:
+      x-name: MediaWantedParams
+      type: object
+      required: [scope]
+      properties:
+        scope: {type: string, enum: [own, all]}
 
   auth/prompt:
     # Flow-specific shape (deviceCode | usernamePassword | oauthRedirect, see

@@ -86,18 +86,11 @@ public class MainActivity extends QtActivity {
         startService(command);
     }
 
-    void setDeviceMusicEnabled(boolean enabled) {
+    void requestMusicPermission() {
         runOnUiThread(() -> {
-            try {
-                MusicStorage.setDeviceMusic(this, enabled);
-                String permission = MusicStorage.readPermission();
-                if (enabled && checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED)
-                    requestPermissions(new String[] {permission}, 2);
-                else
-                    startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
-            } catch (java.io.IOException error) {
-                CmLog.e(TAG, "could not save device music setting", error);
-            }
+            String permission = MusicStorage.readPermission();
+            if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED)
+                requestPermissions(new String[] {permission}, 2);
         });
     }
 

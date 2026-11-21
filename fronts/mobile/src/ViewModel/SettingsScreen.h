@@ -33,6 +33,9 @@ class SettingsScreen : public QObject {
     Q_PROPERTY(bool proxyChecking READ proxyChecking NOTIFY proxyCheckingChanged)
     Q_PROPERTY(bool proxyCheckOk READ proxyCheckOk NOTIFY proxyCheckOkChanged)
     Q_PROPERTY(QString proxyCheckText READ proxyCheckText NOTIFY proxyCheckTextChanged)
+    // A source wants all the device's music, and the system's permission to
+    // read it is still to be given (Rpc::HostMedia::permissionNeeded()).
+    Q_PROPERTY(bool mediaPermissionNeeded READ mediaPermissionNeeded NOTIFY mediaPermissionNeededChanged)
 
 public:
     SettingsScreen(App::Core& core, SourceSettings& sourceSettings, QObject* parent = nullptr);
@@ -51,6 +54,7 @@ public:
     bool proxyChecking() const { return proxyChecking_; }
     bool proxyCheckOk() const { return proxyCheckOk_; }
     QString proxyCheckText() const { return proxyCheckText_; }
+    bool mediaPermissionNeeded() const;
 
 public slots:
     void setPlaylistTracks(int tracks);
@@ -78,6 +82,7 @@ signals:
     void analyticsChanged();
     void languageChanged();
     void proxyCheckingChanged();
+    void mediaPermissionNeededChanged();
     void proxyCheckOkChanged();
     void proxyCheckTextChanged();
 

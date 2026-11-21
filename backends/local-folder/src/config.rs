@@ -3,6 +3,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::RwLock;
 
 pub const MUSIC_ENV: &str = "CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR";
 pub const DESCRIPTION: &str = "Scanned for music: each folder in it becomes a playlist. The CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR environment variable, if set, overrides it.";
@@ -109,8 +110,25 @@ fn configured_music(config: &Map<String, Value>) -> Option<&str> {
         .and_then(Value::as_str)
 }
 
-pub fn android_index() -> Option<PathBuf> {
-    env_path("CLOUDMUS_ANDROID_MUSIC_INDEX")
+// The file the front's last media.setLibrary named: the media library its
+// platform keeps (docs/protocol.md §7.10). None on a front without one.
+static HOST_LIBRARY: RwLock<Option<PathBuf>> = RwLock::new(None);
+
+pub fn host_library() -> Option<PathBuf> {
+    HOST_LIBRARY.read().unwrap().clone()
+}
+
+pub fn set_host_library(path: PathBuf) {
+    *HOST_LIBRARY.write().unwrap() = Some(path);
+}
+
+/// Whether to show everything in the host's library, not only what the app
+/// saved: the scope media/wanted asks for.
+pub fn device_music() -> bool {
+    load(&config_file())
+        .ok()
+        .and_then(|config| config.get("settings")?.get("deviceMusic")?.as_bool())
+        .unwrap_or(false)
 }
 
 pub fn music_root() -> Option<PathBuf> {
@@ -121,11 +139,11 @@ pub fn music_root() -> Option<PathBuf> {
     if let Some(path) = configured_music(&config).filter(|path| !path.is_empty()) {
         return Some(expand(path));
     }
-    android_index().is_none().then(default_music)
+    host_library().is_none().then(default_music)
 }
 
 pub fn describe(tr: impl Fn(&str) -> String) -> Value {
-    let android = android_index().is_some();
+    let android = host_library().is_some();
     let default = if android {
         String::new()
     } else {
@@ -137,13 +155,22 @@ pub fn describe(tr: impl Fn(&str) -> String) -> Value {
     } else {
         "Music folder"
     };
+    let mut fields = vec![json!({
+        "key": "musicDir", "type": "path", "pathKind": "directory", "group": "library",
+        "label": tr(label), "description": tr(if android { "Enter an absolute path to a readable folder." } else { DESCRIPTION }),
+        "default": default, "value": configured_music(&config).unwrap_or(&default)
+    })];
+    if android {
+        fields.push(json!({
+            "key": "deviceMusic", "type": "boolean", "group": "library",
+            "label": tr("Device music"),
+            "description": tr("Music other apps put on this device, besides the tracks saved here."),
+            "default": false, "value": device_music()
+        }));
+    }
     json!({
         "groups": [{"id": "library", "title": tr("Library")}],
-        "fields": [{
-            "key": "musicDir", "type": "path", "pathKind": "directory", "group": "library",
-            "label": tr(label), "description": tr(if android { "Enter an absolute path to a readable folder." } else { DESCRIPTION }),
-            "default": default, "value": configured_music(&config).unwrap_or(&default)
-        }]
+        "fields": fields
     })
 }
 
@@ -151,8 +178,14 @@ pub fn update(
     values: &Map<String, Value>,
     tr: impl Fn(&str) -> String,
 ) -> Result<(), (String, String)> {
-    let android = android_index().is_some();
+    let android = host_library().is_some();
     for (key, value) in values {
+        if key == "deviceMusic" {
+            if !value.is_boolean() {
+                return Err((key.clone(), tr("expected true or false")));
+            }
+            continue;
+        }
         if key != "musicDir" {
             return Err((key.clone(), tr("unknown setting")));
         }
@@ -199,6 +232,15 @@ pub fn update(
         } else {
             settings.insert("musicDir".into(), value.clone());
         }
+    }
+    match values.get("deviceMusic") {
+        Some(Value::Bool(true)) => {
+            settings.insert("deviceMusic".into(), Value::Bool(true));
+        }
+        Some(_) => {
+            settings.remove("deviceMusic");
+        }
+        None => {}
     }
     config.insert("settings".into(), Value::Object(settings));
     let write = || -> io::Result<()> {

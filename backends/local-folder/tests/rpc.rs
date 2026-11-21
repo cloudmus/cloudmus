@@ -8,6 +8,7 @@ struct Backend {
     process: Child,
     input: ChildStdin,
     output: BufReader<ChildStdout>,
+    notifications: Vec<Value>,
 }
 
 impl Backend {
@@ -18,13 +19,9 @@ impl Backend {
             .env("APPDATA", config)
             .env("XDG_CACHE_HOME", config)
             .env("LOCALAPPDATA", config)
-            .env_remove("CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR")
-            .env_remove("CLOUDMUS_ANDROID_MUSIC_INDEX");
+            .env_remove("CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR");
         if let Some(root) = music {
             command.env("CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR", root);
-        }
-        if let Some(index) = index {
-            command.env("CLOUDMUS_ANDROID_MUSIC_INDEX", index);
         }
         let mut process = command
             .stdin(Stdio::piped())
@@ -37,20 +34,45 @@ impl Backend {
             process,
             input,
             output,
+            notifications: Vec::new(),
         };
         let result = backend.call("initialize", json!({"locale": "ru_RU.UTF-8"}));
         assert_eq!(result["source"]["id"], "local-folder");
+        assert_eq!(result["capabilities"]["hostMedia"], true);
         assert_ne!(
             result["source"]["description"],
             "Music files from a folder on this computer"
         );
+        assert_eq!(backend.notification()["params"]["scope"], "own");
+        if let Some(index) = index {
+            backend.call("media.setLibrary", json!({"path": index, "revision": 1}));
+        }
         backend
     }
 
-    fn recv(&mut self) -> Value {
+    // The next notification, kept on the way or still to come.
+    fn notification(&mut self) -> Value {
+        if !self.notifications.is_empty() {
+            return self.notifications.remove(0);
+        }
         let mut line = String::new();
         self.output.read_line(&mut line).unwrap();
-        serde_json::from_str(&line).unwrap()
+        let message: Value = serde_json::from_str(&line).unwrap();
+        assert!(message.get("id").is_none(), "{message}");
+        message
+    }
+
+    // The next response; notifications on the way are kept.
+    fn recv(&mut self) -> Value {
+        loop {
+            let mut line = String::new();
+            self.output.read_line(&mut line).unwrap();
+            let message: Value = serde_json::from_str(&line).unwrap();
+            if message.get("id").is_some() {
+                return message;
+            }
+            self.notifications.push(message);
+        }
     }
 
     fn send(&mut self, method: &str, params: Value) -> Value {
@@ -137,7 +159,7 @@ fn lists_nested_and_loose_tracks_and_resolves_webm() {
         backend.call("playback.play", json!({"trackId": tracks[1]["id"]}))["accepted"],
         true
     );
-    let notification = backend.recv();
+    let notification = backend.notification();
     assert_eq!(notification["method"], "track/streamReady");
     assert_eq!(notification["params"]["requestId"], 7);
     assert_eq!(notification["params"]["stream"], stream["stream"]);
@@ -209,21 +231,29 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
     );
     let cover = url::Url::from_file_path(temp.path().join("cover.jpg")).unwrap();
     let index = write_file(temp.path(), "library.json", json!({
-        "roots": [{"id": "internal", "path": library}],
-        "records": [
-            {"id": "@android/media/external/audio/media/1", "saved": true,
+        "scope": "all",
+        "folders": [{"id": "internal", "path": library}],
+        "items": [
+            {"id": "@android/media/external/audio/media/1", "own": true,
                 "path": saved, "uri": "content://media/external/audio/media/1"},
-            {"id": "@android/media/external/audio/media/2", "saved": false,
+            {"id": "@android/media/external/audio/media/2", "own": false,
                 "title":"Device song", "mimeType":"audio/mp4", "uri":"content://media/external/audio/media/2"},
-            {"id": "@android/media/external/audio/media/3", "saved": true,
+            {"id": "@android/media/external/audio/media/3", "own": true,
                 "title":"Older saved song", "mimeType":"audio/webm", "uri":"content://media/external/audio/media/3",
                 "path": published},
-            {"id": "@android/media/external/audio/media/4", "saved": true,
+            {"id": "@android/media/external/audio/media/4", "own": true,
                 "title":"Scoped song", "mimeType":"audio/ogg", "uri":"content://media/external/audio/media/4",
                 "coverUrl": cover.as_str(), "codec": "opus", "bitrateKbps": 128}
         ]
     }).to_string().as_bytes());
     let mut backend = Backend::start(temp.path(), None, Some(&index));
+    // Only what the app saved, until device music is switched on.
+    let result = backend.call("catalog.listPlaylists", json!({}));
+    assert_eq!(result["playlists"].as_array().unwrap().len(), 2);
+    let fields = backend.call("settings.describe", json!({}))["fields"].clone();
+    assert!(fields.as_array().unwrap().iter().any(|field| field["key"] == "deviceMusic"));
+    backend.call("settings.update", json!({"values": {"deviceMusic": true}}));
+    assert_eq!(backend.notification()["params"]["scope"], "all");
     let result = backend.call("catalog.listPlaylists", json!({}));
     assert_eq!(result["playlists"].as_array().unwrap().len(), 3);
     let result = backend.call(

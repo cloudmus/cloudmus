@@ -27,6 +27,7 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
     applyPlaybackExperiments();
     // As the desktop's main() does: the streams go through a local relay.
     Net::bypassProxyForLoopback();
+    core_.sourceManager().setHostMedia(paths.hostMedia);
     core_.sourceManager().startAll();
 }
 

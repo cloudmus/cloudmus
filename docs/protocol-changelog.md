@@ -5,6 +5,17 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.20 — the host's media library
+
+- **Additive, backward-compatible**: optional capability `hostMedia` with
+  the request `media.setLibrary` → `{}` and the notification `media/wanted`
+  (§7.10): the front hands a source the media library its platform keeps
+  (Android's MediaStore), in a JSON file shaped as
+  `protocol/schema/media_library.yaml`, and the source says whether it
+  wants the whole device's audio or only what the app saved. Replaces the
+  Android app's `CLOUDMUS_ANDROID_MUSIC_INDEX` variable, which only the
+  Local Folder source read.
+
 ## 1.19 — connection state, and feedback sent late
 
 - **Additive, backward-compatible**: optional capability `connectionCheck`

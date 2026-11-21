@@ -92,18 +92,20 @@ final class MusicStorage {
         refresh = worker.schedule(MusicStorage::writeIndex, 250, TimeUnit.MILLISECONDS);
     }
 
-    private static File flag(Context context) {
-        return new File(context.getFilesDir(), "include-device-music");
+    // A source asked for all the device's music (media/wanted), not only
+    // what this app saved: from the core, docs/protocol.md §7.10.
+    private static volatile boolean wantAll;
+
+    static void setWantAll(boolean all) {
+        if (wantAll == all)
+            return;
+        wantAll = all;
+        refresh();
     }
 
-    static boolean deviceMusic(Context context) { return flag(context).isFile(); }
-
-    static void setDeviceMusic(Context context, boolean enabled) throws IOException {
-        File file = flag(context);
-        if (enabled)
-            file.createNewFile();
-        else
-            Files.deleteIfExists(file.toPath());
+    // Wanted, and not allowed yet: the app is to ask the user.
+    static boolean permissionNeeded() {
+        return wantAll && app != null && !granted(app, readPermission());
     }
 
     static String readPermission() {
@@ -160,9 +162,9 @@ final class MusicStorage {
         }
     }
 
-    private static JSONObject record(Uri uri, String title, String mime, boolean saved) throws Exception {
+    private static JSONObject record(Uri uri, String title, String mime, boolean own) throws Exception {
         return new JSONObject().put("id", "@android/media/" + uri.getEncodedPath()).put("uri", uri.toString())
-            .put("title", title).put("mimeType", mime).put("saved", saved);
+            .put("title", title).put("mimeType", mime).put("own", own);
     }
 
     private static String cell(Cursor rows, String key) {
@@ -189,7 +191,7 @@ final class MusicStorage {
                 JSONObject saved = result.get(uri.toString());
                 String title = cell(rows, "title");
                 JSONObject item = record(uri, title.isEmpty() ? cell(rows, "_display_name") : title,
-                    cell(rows, "mime_type"), !all || (saved != null && saved.optBoolean("saved")));
+                    cell(rows, "mime_type"), !all || (saved != null && saved.optBoolean("own")));
                 fillMediaRow(item, rows);
                 result.put(uri.toString(), item);
             }
@@ -280,7 +282,7 @@ final class MusicStorage {
     private static void addScopedMetadata(Map<String, JSONObject> records) throws Exception {
         Map<String, JSONObject> current = new LinkedHashMap<>();
         for (JSONObject item : records.values()) {
-            if (!item.optBoolean("saved"))
+            if (!item.optBoolean("own"))
                 continue;
             String path = item.optString("path");
             if (!path.isEmpty() && new File(path).canRead())
@@ -312,6 +314,9 @@ final class MusicStorage {
             JSONObject own = owned();
             for (java.util.Iterator<String> it = own.keys(); it.hasNext();) {
                 JSONObject item = own.getJSONObject(it.next());
+                // Saved by an older version as "saved".
+                item.remove("saved");
+                item.put("own", true);
                 Uri uri = Uri.parse(item.getString("uri"));
                 String[] columns = { "title", "artist", "album", "duration", "_data", "_size", "date_modified" };
                 try (Cursor cursor = app.getContentResolver().query(uri, columns, null, null, null)) {
@@ -326,7 +331,7 @@ final class MusicStorage {
                     CmLog.w(TAG, "check published media: " + error.getClass().getSimpleName());
                 }
             }
-            boolean all = deviceMusic(app) && granted(app, readPermission());
+            boolean all = wantAll && granted(app, readPermission());
             if (Build.VERSION.SDK_INT >= 29) {
                 for (String volume : MediaStore.getExternalVolumeNames(app)) {
                     try {
@@ -343,12 +348,14 @@ final class MusicStorage {
                 }
             }
             addScopedMetadata(records);
-            String index = new JSONObject().put("roots", roots).put("records", new JSONArray(records.values())).toString();
+            // schema/media_library.yaml, for media.setLibrary.
+            String index = new JSONObject().put("scope", all ? "all" : "own").put("folders", roots)
+                .put("items", new JSONArray(records.values())).toString();
             if (!index.equals(lastIndex)) {
                 atomicWrite(new AtomicFile(new File(app.getFilesDir(), INDEX)), index);
                 lastIndex = index;
+                CoreBridge.nativeMusicChanged();
             }
-            CoreBridge.nativeMusicChanged();
         } catch (Exception error) {
             CmLog.e(TAG, "update local music index", error);
         }

@@ -82,6 +82,7 @@ add_library(cloudmus-core STATIC
     ${CLOUDMUS_QT_DIR}/src/Rpc/BackendManifest.cpp
     ${CLOUDMUS_QT_DIR}/src/Rpc/RpcClient.cpp
     ${CLOUDMUS_QT_DIR}/src/Rpc/SourceManager.cpp
+    ${CLOUDMUS_QT_DIR}/src/Rpc/HostMedia.h
     ${CLOUDMUS_QT_DIR}/src/Rpc/AuthStates.cpp
 
     ${CLOUDMUS_QT_DIR}/src/Playback/AudioPlayer.cpp
