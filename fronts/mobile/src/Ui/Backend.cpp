@@ -42,6 +42,7 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , favorites_(&core.library().favoriteRows())
     , otherPlaylists_(&core.library().otherRows())
     , openTracks_(&core.playlistScreen().rows())
+    , openFolders_(&core.playlistScreen().folderRows())
     , trackPlaylists_(&core.trackScreen().playlistRows())
     , settingsSources_(&core.settingsScreen().sourceRows())
     , settingsProxies_(&core.settingsScreen().proxyRows())
@@ -76,6 +77,7 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquire(downloadsScreen_, Remote::Names::downloadsScreen);
     acquire(playlistScreen_, Remote::Names::playlistScreen);
     acquireModel(openTracks_, Remote::Names::openTracks);
+    acquireModel(openFolders_, Remote::Names::openFolders);
     acquire(trackScreen_, Remote::Names::trackScreen);
     acquireModel(trackPlaylists_, Remote::Names::trackPlaylists);
     acquire(settingsScreen_, Remote::Names::settingsScreen);
@@ -115,6 +117,7 @@ Backend::~Backend()
         delete downloadsScreen_.data();
         delete playlistScreen_.data();
         delete openTracks_.data();
+        delete openFolders_.data();
         delete trackScreen_.data();
         delete trackPlaylists_.data();
         delete settingsScreen_.data();

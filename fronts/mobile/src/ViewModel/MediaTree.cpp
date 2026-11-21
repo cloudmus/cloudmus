@@ -107,7 +107,12 @@ QList<MediaTree::Item> MediaTree::playlistsOf(const QString& sourceId)
             items.append(toItem(*it));
     }
     for (const Playlist& playlist : playlists) {
-        if (!sources_.isFavorite(sourceId, playlist.id))
+        // The top level only, as the Library: a folder's subfolders would
+        // make a car's list endless.
+        const bool inside = playlist.parentId
+            && std::any_of(playlists.cbegin(), playlists.cend(),
+                [&](const Playlist& other) { return other.id == *playlist.parentId; });
+        if (!inside && !sources_.isFavorite(sourceId, playlist.id))
             items.append(toItem(playlist));
     }
     return items;

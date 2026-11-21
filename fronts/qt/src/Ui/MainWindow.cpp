@@ -252,10 +252,14 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     // Rows already there (a window created while the app runs) too.
     if (sidebarModel_->rowCount() > 0)
         restoreExpansion(QModelIndex(), 0, sidebarModel_->rowCount() - 1);
-    connect(sidebarView_, &QTreeView::expanded, this,
-        [this](const QModelIndex& index) { sources_.setCollapsed(ViewModel::SidebarModel::nodeKey(index), false); });
-    connect(sidebarView_, &QTreeView::collapsed, this,
-        [this](const QModelIndex& index) { sources_.setCollapsed(ViewModel::SidebarModel::nodeKey(index), true); });
+    // Sources keeps the rows not as they start (SidebarModel::
+    // expandedByDefault()): the groups the user closed, the folders opened.
+    const auto remember = [this](const QModelIndex& index, bool expanded) {
+        const QString key = ViewModel::SidebarModel::nodeKey(index);
+        sources_.setCollapsed(key, expanded != ViewModel::SidebarModel::expandedByDefault(key));
+    };
+    connect(sidebarView_, &QTreeView::expanded, this, [remember](const QModelIndex& index) { remember(index, true); });
+    connect(sidebarView_, &QTreeView::collapsed, this, [remember](const QModelIndex& index) { remember(index, false); });
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
     // A playlist has two actions: Enter opens its page, Space plays it. A
@@ -1004,7 +1008,8 @@ void MainWindow::restoreExpansion(const QModelIndex& parent, int first, int last
     const std::function<void(const QModelIndex&)> apply = [&](const QModelIndex& index) {
         const QString key = ViewModel::SidebarModel::nodeKey(index);
         if (!key.isEmpty())
-            sidebarView_->setExpanded(index, !sources_.isCollapsed(key));
+            sidebarView_->setExpanded(
+                index, ViewModel::SidebarModel::expandedByDefault(key) != sources_.isCollapsed(key));
         for (int row = 0; row < sidebarModel_->rowCount(index); ++row)
             apply(sidebarModel_->index(row, 0, index));
     };

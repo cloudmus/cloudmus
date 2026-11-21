@@ -4,6 +4,7 @@
 #include <QString>
 
 #include "OpenPlaylist.h"
+#include "RowsModel.h"
 #include "TrackFilterModel.h"
 #include "TrackListModel.h"
 
@@ -26,6 +27,9 @@ class PlaylistScreen : public QObject {
     Q_PROPERTY(bool isHistory READ isHistory NOTIFY isHistoryChanged)
     Q_PROPERTY(bool isFavorite READ isFavorite NOTIFY isFavoriteChanged)
     Q_PROPERTY(bool canDownload READ canDownload NOTIFY canDownloadChanged)
+    // Opened from a playlist it's inside of (openFolder()): goBack() returns
+    // there.
+    Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY canGoBackChanged)
 
 public:
     explicit PlaylistScreen(App::Core& core, QObject* parent = nullptr);
@@ -33,6 +37,9 @@ public:
     OpenPlaylist& open() { return open_; }
     TrackFilterModel& rows() { return filter_; }
     TrackListModel& allRows() { return tracks_; }
+    // The playlists inside this one (Playlist.parentId): a folder's
+    // subfolders.
+    RowsModel& folderRows() { return folders_; }
 
     QString title() const;
     int count() const { return int(open_.rows().size()); }
@@ -42,10 +49,14 @@ public:
     bool isHistory() const { return open_.context().isHistory; }
     bool isFavorite() const;
     bool canDownload() const;
+    bool canGoBack() const { return !trail_.isEmpty(); }
 
 public slots:
     void openPlaylist(const QString& sourceId, const QString& playlistId);
     void openHistory();
+    // One of folderRows(), with the way back to this one.
+    void openFolder(const QString& playlistId);
+    void goBack();
     void close();
     // `row`: of the filtered rows.
     void playRow(int row);
@@ -63,6 +74,7 @@ signals:
     void isHistoryChanged();
     void isFavoriteChanged();
     void canDownloadChanged();
+    void canGoBackChanged();
     // Its source went away: nothing left to show.
     void closed();
 
@@ -70,11 +82,16 @@ private:
     void refill();
     void markCurrent();
     void announce();
+    void rebuildFolders();
+    void show(const QString& sourceId, const QString& playlistId);
 
     App::Core& core_;
     OpenPlaylist open_;
     TrackListModel tracks_;
     TrackFilterModel filter_;
+    RowsModel folders_;
+    // The playlists openFolder() came from, the last one on top.
+    QStringList trail_;
 };
 
 } // namespace ViewModel

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Controls.impl
 import QtQuick.Layouts
 
 // A playlist opened from the Library, or History: its tracks, playing from
@@ -14,6 +15,15 @@ Page {
     signal trackMenuRequested()
 
     readonly property QtObject screen: backend.playlistScreen
+
+    // Back from a folder opened inside another goes to that one; true if it
+    // did (the page stays). Main's stack asks before it pops.
+    function backInside() {
+        if (!page.screen || page.screen.canGoBack !== true)
+            return false
+        page.screen.goBack()
+        return true
+    }
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property bool wide: width > height * 1.1
 
@@ -78,7 +88,10 @@ Page {
                     Layout.alignment: Qt.AlignTop
                     iconName: "arrow_back"
                     color: "#FFFFFF"
-                    onClicked: page.closeRequested()
+                    onClicked: {
+                        if (!page.backInside())
+                            page.closeRequested()
+                    }
                 }
                 Cover {
                     Layout.preferredWidth: Theme.dp(page.wide ? 88 : 80)
@@ -161,6 +174,72 @@ Page {
             Layout.fillHeight: true
             clip: true
             model: page.backend.openTracks
+            // The playlists inside this one: a folder's subfolders, each with
+            // everything under it.
+            header: Column {
+                width: ListView.view ? ListView.view.width : 0
+                Repeater {
+                    model: page.backend.openFolders
+                    delegate: ItemDelegate {
+                        id: folder
+                        required property var playlistId
+                        required property var title
+                        required property var trackCount
+                        required property var coverUrl
+                        objectName: "folder_" + folder.playlistId
+                        width: parent ? parent.width : 0
+                        height: Theme.rowHeight
+                        topPadding: 0
+                        bottomPadding: 0
+                        leftPadding: Theme.padding
+                        rightPadding: Theme.dp(8)
+                        onClicked: page.screen.openFolder(folder.playlistId)
+                        background: Rectangle {
+                            color: folder.down && folderRipple.flat ? Theme.surface200 : "transparent"
+                            Ripple {
+                                id: folderRipple
+                                pressed: folder.pressed
+                                pressX: folder.pressX
+                                pressY: folder.pressY
+                            }
+                        }
+                        contentItem: RowLayout {
+                            spacing: Theme.dp(12)
+                            Cover {
+                                Layout.preferredWidth: Theme.dp(48)
+                                Layout.preferredHeight: Theme.dp(48)
+                                source: folder.coverUrl || ""
+                                seed: folder.title || ""
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.dp(2)
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: folder.title || ""
+                                    color: Theme.ink
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontBody
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: qsTr("%1 tracks").arg(folder.trackCount)
+                                    color: Theme.inkSecondary
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSmall
+                                }
+                            }
+                            IconImage {
+                                source: "qrc:/icons/chevron_right.svg"
+                                sourceSize: Qt.size(Theme.dp(22), Theme.dp(22))
+                                color: Theme.inkTertiary
+                            }
+                        }
+                    }
+                }
+            }
             delegate: TrackRow {
                 playing: page.nowPlaying && page.nowPlaying.playing === true
                 showMenu: true

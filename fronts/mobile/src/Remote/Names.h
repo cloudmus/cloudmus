@@ -18,6 +18,7 @@ inline const QString favorites = QStringLiteral("Favorites");
 inline const QString otherPlaylists = QStringLiteral("OtherPlaylists");
 inline const QString playlistScreen = QStringLiteral("PlaylistScreen");
 inline const QString openTracks = QStringLiteral("OpenTracks");
+inline const QString openFolders = QStringLiteral("OpenFolders");
 inline const QString trackScreen = QStringLiteral("TrackScreen");
 inline const QString trackPlaylists = QStringLiteral("TrackPlaylists");
 inline const QString settingsScreen = QStringLiteral("SettingsScreen");

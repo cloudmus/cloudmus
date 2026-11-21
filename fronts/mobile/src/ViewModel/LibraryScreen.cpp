@@ -219,7 +219,14 @@ void LibraryScreen::rebuild()
     }
     favoriteRows_.setRows(favorites);
     QList<QVariantHash> others;
+    const auto listed = [&playlists](const QString& id) {
+        return std::any_of(
+            playlists.cbegin(), playlists.cend(), [&id](const Playlist& playlist) { return playlist.id == id; });
+    };
     for (const Playlist& playlist : playlists) {
+        // One inside another is on its parent's page (PlaylistScreen::folderRows()).
+        if (playlist.parentId && listed(*playlist.parentId))
+            continue;
         if (!sources_.isFavorite(currentSourceId_, playlist.id))
             others.append(playlistRow(playlist));
     }

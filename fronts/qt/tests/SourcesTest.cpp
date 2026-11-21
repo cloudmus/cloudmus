@@ -68,6 +68,40 @@ private slots:
             *sourceManager_, *session_, authStates_, *editing_, coverArtCache_, *settings_, messages_);
     }
 
+    // A playlist inside another (Playlist.parentId) is listed under it, a
+    // favorite's children under the favorite; one with a parent it doesn't
+    // have goes with the rest. Folders start collapsed, groups expanded.
+    void playlistsNestUnderTheirParents()
+    {
+        using Model = ViewModel::SidebarModel;
+        const auto playlist = [](const QString& id, std::optional<QString> parent) {
+            Playlist p;
+            p.id = id;
+            p.title = id;
+            p.kind = QStringLiteral("playlist");
+            p.parentId = std::move(parent);
+            return p;
+        };
+        Model model;
+        model.setFavorites(QStringLiteral("fake"), QStringList { QStringLiteral("all") });
+        model.setSource(QStringLiteral("fake"), QStringLiteral("Fake"),
+            { playlist(QStringLiteral("all"), std::nullopt), playlist(QStringLiteral("saved"), QStringLiteral("all")),
+                playlist(QStringLiteral("artist"), std::nullopt),
+                playlist(QStringLiteral("album"), QStringLiteral("artist")),
+                playlist(QStringLiteral("stray"), QStringLiteral("gone")) });
+        const auto parentOf = [&model](const QString& id) {
+            return model.indexForPlaylist(QStringLiteral("fake"), id).parent().data(Model::PlaylistIdRole).toString();
+        };
+        QCOMPARE(parentOf(QStringLiteral("saved")), QStringLiteral("all"));
+        QCOMPARE(parentOf(QStringLiteral("album")), QStringLiteral("artist"));
+        QCOMPARE(parentOf(QStringLiteral("artist")), QString()); // the Playlists group
+        QCOMPARE(parentOf(QStringLiteral("stray")), QString());
+        const QString folder = Model::nodeKey(model.indexForPlaylist(QStringLiteral("fake"), QStringLiteral("artist")));
+        QVERIFY(!folder.isEmpty());
+        QVERIFY(!Model::expandedByDefault(folder));
+        QVERIFY(Model::expandedByDefault(Model::nodeKey(model.indexForSource(QStringLiteral("fake")))));
+    }
+
     // With no network a source keeps what it listed, from the last run too,
     // and it's not an error; a listing that works again replaces it.
     void theListOutlivesALostNetwork()

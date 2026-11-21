@@ -91,6 +91,8 @@ void SidebarModel::populate(QStandardItem* root, const QString& sourceId)
     const QList<Playlist> playlists = playlists_.value(sourceId);
     const QStringList favorites = favoritesFor(sourceId);
 
+    // Each playlist's row, for the ones inside it (Playlist.parentId).
+    QHash<QString, QStandardItem*> rows;
     const auto appendItem = [&](QStandardItem* parent, const Playlist& p) {
         Kind kind = Kind::Playlist;
         if (p.kind == QStringLiteral("radioStation"))
@@ -104,6 +106,7 @@ void SidebarModel::populate(QStandardItem* root, const QString& sourceId)
         item->setData(QVariant::fromValue(p), PlaylistDataRole);
         item->setData(isActive(item), IsActiveRole);
         parent->appendRow(item);
+        rows.insert(p.id, item);
     };
 
     // Favorites sit directly under the source root, in the user's order;
@@ -123,6 +126,12 @@ void SidebarModel::populate(QStandardItem* root, const QString& sourceId)
     for (const Playlist& p : playlists) {
         if (p.kind != QStringLiteral("playlist") || favorites.contains(p.id))
             continue;
+        // Inside its parent, which the list has ahead of it: a folder's
+        // subfolders. One whose parent isn't shown goes with the rest.
+        if (QStandardItem* parent = p.parentId ? rows.value(*p.parentId) : nullptr) {
+            appendItem(parent, p);
+            continue;
+        }
         if (playlistsHeader == nullptr) {
             // .toUpper() here, not a paint-time transform — see the
             // design system's label-upper convention (SourcePanel/
@@ -146,9 +155,16 @@ QString SidebarModel::nodeKey(const QModelIndex& index)
             return QStringLiteral("source:") + sourceId;
         case Kind::PlaylistsHeader:
             return QStringLiteral("playlists:") + sourceId;
+        case Kind::Playlist:
+            return QStringLiteral("folder:") + sourceId + u':' + index.data(PlaylistIdRole).toString();
         default:
             return QString();
     }
+}
+
+bool SidebarModel::expandedByDefault(const QString& nodeKey)
+{
+    return !nodeKey.startsWith(QLatin1String("folder:"));
 }
 
 void SidebarModel::ensureHistoryItem()

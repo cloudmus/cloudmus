@@ -68,7 +68,8 @@ public:
     // regular playlists stay in their group.
     bool toggleFavorite(const QString& sourceId, const QString& playlistId);
 
-    // Rows the user collapsed, by SidebarModel::nodeKey().
+    // Rows the user left not as they start (SidebarModel::expandedByDefault()):
+    // the groups closed, the folders opened. By SidebarModel::nodeKey().
     bool isCollapsed(const QString& nodeKey) const { return collapsed_.contains(nodeKey); }
     void setCollapsed(const QString& nodeKey, bool collapsed);
 

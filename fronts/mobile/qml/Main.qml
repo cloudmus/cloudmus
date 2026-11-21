@@ -166,7 +166,7 @@ ApplicationWindow {
                 trackSheet.close()
             else if (nowPlayingSheet.shown)
                 nowPlayingSheet.close()
-            else
+            else if (!(currentItem && currentItem.backInside && currentItem.backInside()))
                 close()
         }
         Keys.onBackPressed: (event) => {

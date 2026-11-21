@@ -42,6 +42,7 @@ class Backend : public QObject {
     Q_PROPERTY(QObject* downloadsScreen READ downloadsScreen NOTIFY readyChanged)
     Q_PROPERTY(QObject* playlistScreen READ playlistScreen NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* openTracks READ openTracks NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* openFolders READ openFolders NOTIFY readyChanged)
     Q_PROPERTY(QObject* trackScreen READ trackScreen NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* trackPlaylists READ trackPlaylists NOTIFY readyChanged)
     Q_PROPERTY(QObject* settingsScreen READ settingsScreen NOTIFY readyChanged)
@@ -78,6 +79,7 @@ public:
     QObject* mainScreen() const { return ready_ ? mainScreen_.data() : nullptr; }
     QObject* playlistScreen() const { return ready_ ? playlistScreen_.data() : nullptr; }
     QAbstractItemModel* openTracks() const { return ready_ ? openTracks_.data() : nullptr; }
+    QAbstractItemModel* openFolders() const { return ready_ ? openFolders_.data() : nullptr; }
     QObject* trackScreen() const { return ready_ ? trackScreen_.data() : nullptr; }
     QAbstractItemModel* trackPlaylists() const { return ready_ ? trackPlaylists_.data() : nullptr; }
     QObject* settingsScreen() const { return ready_ ? settingsScreen_.data() : nullptr; }
@@ -111,6 +113,7 @@ private:
     QPointer<QAbstractItemModel> favorites_;
     QPointer<QAbstractItemModel> otherPlaylists_;
     QPointer<QAbstractItemModel> openTracks_;
+    QPointer<QAbstractItemModel> openFolders_;
     QPointer<QAbstractItemModel> trackPlaylists_;
     QPointer<QAbstractItemModel> settingsSources_;
     QPointer<QAbstractItemModel> settingsProxies_;
