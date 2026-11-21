@@ -5,6 +5,14 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.22 — deleting
+
+- **Additive, backward-compatible**: optional capability `browse.delete`
+  with `catalog.deleteTracks` and `catalog.deletePlaylist` (§7.11), and
+  optional `deletable` on `Track` and `Playlist`: a source that keeps the
+  music itself deletes tracks, or a folder with everything in it. Items of
+  the host's media library come back for the front to delete.
+
 ## 1.21 — playlists inside playlists
 
 - **Additive, backward-compatible**: optional `Playlist.parentId` (§6): a

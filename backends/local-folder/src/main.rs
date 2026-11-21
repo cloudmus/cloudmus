@@ -66,6 +66,17 @@ fn dispatch(method: &str, params: &Value, tr: impl Fn(&str) -> String) -> RpcRes
             Ok(json!({"stream": stream}))
         }
         "playback.cancel" => Ok(json!({})),
+        "catalog.deleteTracks" => {
+            let ids = params["trackIds"]
+                .as_array()
+                .and_then(|ids| ids.iter().map(Value::as_str).collect::<Option<Vec<_>>>())
+                .ok_or_else(|| error(-32602, &format!("trackIds: {}", tr("expected text"))))?;
+            Ok(catalog::delete_tracks(&ids, &tr))
+        }
+        "catalog.deletePlaylist" => {
+            let id = required("playlistId")?;
+            catalog::delete_playlist(id, &tr).ok_or_else(|| missing("Playlist not found", "playlistId", id))
+        }
         _ => Err(error(-32601, &format!("method not found: {method}"))),
     }
 }
@@ -160,13 +171,14 @@ fn main() -> io::Result<()> {
             "initialize" => {
                 locale = select_locale(params["locale"].as_str());
                 Ok(json!({
-                    "protocolVersion": "1.21",
+                    "protocolVersion": "1.22",
                     "source": {"id": "local-folder", "name": "Local Folder", "version": "0.1.0",
                         "description": translations[locale][DESCRIPTION].as_str().unwrap_or(DESCRIPTION)},
                     "capabilities": {
                         "playback": {"providesStream": true, "resolveStream": true, "selfPlayback": false,
                             "controls": {"pause": false, "seek": false, "volume": false}},
-                        "browse": {"playlists": true, "likedTracks": false, "radio": false, "search": false},
+                        "browse": {"playlists": true, "likedTracks": false, "radio": false, "search": false,
+                            "delete": true},
                         "feedback": {"like": false, "dislike": false, "skip": false},
                         "download": false, "auth": {"required": false, "flow": "none"},
                         "network": false, "settings": true, "hostMedia": true,

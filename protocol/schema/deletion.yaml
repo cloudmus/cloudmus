@@ -1,0 +1,34 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: deletion.yaml
+title: Deletion
+# What catalog.deleteTracks / catalog.deletePlaylist did (docs/protocol.md
+# §7.11).
+type: object
+required: [deleted, host, failed]
+properties:
+  # Gone.
+  deleted: {type: array, items: {type: string}}
+  # Items of the host's media library (§7.10) the source can't delete
+  # itself: the front deletes them by their uri, then sends the library anew.
+  host:
+    type: array
+    items:
+      type: object
+      x-name: HostDeletion
+      required: [trackId, uri]
+      properties:
+        trackId: {type: string}
+        uri: {type: string}
+      additionalProperties: false
+  # Not deleted, and why, for the user.
+  failed:
+    type: array
+    items:
+      type: object
+      x-name: FailedDeletion
+      required: [trackId, message]
+      properties:
+        trackId: {type: string}
+        message: {type: string}
+      additionalProperties: false
+additionalProperties: false

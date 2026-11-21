@@ -18,12 +18,16 @@ struct Playlist {
     parent: Option<String>,
     // Where it's listed among the others: its group, then its path.
     order: (u8, String),
+    // A folder; not a group's root, which is all of it.
+    deletable: bool,
     tracks: Vec<Track>,
 }
 
 #[derive(Clone)]
 enum Track {
-    File { id: String, path: PathBuf },
+    // `root`: the folder it was found under, which deleting it never empties
+    // away.
+    File { id: String, path: PathBuf, root: PathBuf },
     Media(Value),
 }
 
@@ -157,6 +161,7 @@ impl Library {
                         title: folders[depth - 1].clone(),
                         parent,
                         order: (group, path),
+                        deletable: true,
                         tracks: Vec::new(),
                     })
                     .tracks
@@ -168,6 +173,7 @@ impl Library {
                     title: root_title.clone(),
                     parent: None,
                     order: (group, String::new()),
+                    deletable: false,
                     tracks: Vec::new(),
                 })
                 .tracks
@@ -269,6 +275,7 @@ impl Library {
         Some(Track::File {
             id: format!("{prefix}{id}"),
             path: entry,
+            root: root.to_path_buf(),
         })
     }
 
@@ -343,8 +350,9 @@ impl Track {
             .iter()
             .map(|name| json!({"id": name, "name": name}))
             .collect();
-        let mut track =
-            json!({"id": self.id(), "title": title, "artists": artists, "durationMs": duration});
+        let mut track = json!({
+            "id": self.id(), "title": title, "artists": artists, "durationMs": duration, "deletable": true
+        });
         if !album.is_empty() && album != "<unknown>" {
             track["album"] = json!({"id": album, "title": album});
         }
@@ -452,6 +460,9 @@ pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
             if let Some(parent) = &list.parent {
                 playlist["parentId"] = json!(parent);
             }
+            if list.deletable {
+                playlist["deletable"] = json!(true);
+            }
             playlist
         })
         .collect();
@@ -462,6 +473,58 @@ pub fn tracks(id: &str, tr: impl Fn(&str) -> String) -> Option<Value> {
     let library = Library::new(tr);
     let (_, playlist) = library.lists().find(|(key, _)| *key == id)?;
     Some(json!({"tracks": playlist.tracks.iter().map(Track::track).collect::<Vec<_>>() }))
+}
+
+// Deletes the tracks it can (files), hands back the ones the front's media
+// library keeps (docs/protocol.md §7.11), and says why for the rest. A folder
+// a deleted file leaves empty goes too, up to the folder it was found under.
+fn delete(library: &Library, ids: &[&str], tr: &impl Fn(&str) -> String) -> Value {
+    let mut tracks = std::collections::HashMap::new();
+    for (_, list) in library.lists() {
+        for track in &list.tracks {
+            tracks.entry(track.id()).or_insert(track);
+        }
+    }
+    let (mut deleted, mut host, mut failed) = (Vec::new(), Vec::new(), Vec::new());
+    for &id in ids {
+        match tracks.get(id) {
+            None => failed.push(json!({"trackId": id, "message": tr("Track not found")})),
+            Some(Track::Media(record)) => match record["uri"].as_str() {
+                Some(uri) => host.push(json!({"trackId": id, "uri": uri})),
+                None => failed.push(json!({"trackId": id, "message": tr("Track not found")})),
+            },
+            Some(Track::File { path, root, .. }) => match fs::remove_file(path) {
+                Ok(()) => {
+                    deleted.push(json!(id));
+                    let mut folder = path.parent();
+                    while let Some(dir) = folder.filter(|dir| dir.starts_with(root) && *dir != root.as_path()) {
+                        // Only an empty one: fails otherwise, and that's the end.
+                        if fs::remove_dir(dir).is_err() {
+                            break;
+                        }
+                        folder = dir.parent();
+                    }
+                }
+                Err(error) => {
+                    eprintln!("local-folder: delete {}: {error}", path.display());
+                    failed.push(json!({"trackId": id, "message": format!("{}: {error}", path.display())}));
+                }
+            },
+        }
+    }
+    json!({"deleted": deleted, "host": host, "failed": failed})
+}
+
+pub fn delete_tracks(ids: &[&str], tr: impl Fn(&str) -> String) -> Value {
+    delete(&Library::new(&tr), ids, &tr)
+}
+
+/// None if there's no such playlist, or it isn't one to delete.
+pub fn delete_playlist(id: &str, tr: impl Fn(&str) -> String) -> Option<Value> {
+    let library = Library::new(&tr);
+    let (_, list) = library.lists().find(|(key, list)| *key == id && list.deletable)?;
+    let ids: Vec<&str> = list.tracks.iter().map(Track::id).collect();
+    Some(delete(&library, &ids, &tr))
 }
 
 fn resolve_file(root: &Path, id: &str) -> Option<Value> {

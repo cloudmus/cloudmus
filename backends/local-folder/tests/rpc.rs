@@ -337,3 +337,51 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
         assert_eq!(result["stream"]["bitrateKbps"], track["bitrateKbps"]);
     }
 }
+
+#[test]
+fn deletes_tracks_and_folders_and_hands_back_host_items() {
+    let temp = tempfile::tempdir().unwrap();
+    let music = temp.path().join("Music");
+    let single = write_file(&music, "Artist/Single/one.mp3", b"");
+    write_file(&music, "Artist/Album/two.mp3", b"");
+    write_file(&music, "Artist/Album/three.mp3", b"");
+    write_file(&music, "Other/four.mp3", b"");
+    let index = write_file(temp.path(), "library.json", json!({
+        "scope": "own", "folders": [],
+        "items": [{"id": "@android/media/external/audio/media/9", "own": true, "title": "Saved",
+            "uri": "content://media/external/audio/media/9", "relativePath": "Music/CloudMus/"}]
+    }).to_string().as_bytes());
+    let mut backend = Backend::start(temp.path(), Some(&music), Some(&index));
+    let lists = backend.call("catalog.listPlaylists", json!({}))["playlists"].clone();
+    let deletable = |id: &str| {
+        lists.as_array().unwrap().iter().find(|list| list["id"] == id).unwrap()["deletable"] == true
+    };
+    assert!(!deletable("__root__"));
+    assert!(!deletable("@android/saved-media"));
+    assert!(deletable("Artist/Album"));
+
+    // One track: its folder, left empty, goes with it; the parent stays.
+    let result = backend.call("catalog.deleteTracks", json!({"trackIds": ["Artist/Single/one.mp3", "missing.mp3"]}));
+    assert_eq!(result["deleted"], json!(["Artist/Single/one.mp3"]));
+    assert_eq!(result["failed"][0]["trackId"], "missing.mp3");
+    assert!(!single.exists() && !music.join("Artist/Single").exists());
+    assert!(music.join("Artist").is_dir());
+
+    // A folder with what's in it.
+    let result = backend.call("catalog.deletePlaylist", json!({"playlistId": "Artist"}));
+    assert_eq!(result["deleted"].as_array().unwrap().len(), 2);
+    assert!(!music.join("Artist").exists());
+    assert!(music.join("Other/four.mp3").exists());
+    assert_eq!(
+        backend.send("catalog.deletePlaylist", json!({"playlistId": "__root__"}))["error"]["code"],
+        1300
+    );
+
+    // What the front's library keeps, the front deletes.
+    let result = backend.call(
+        "catalog.deleteTracks",
+        json!({"trackIds": ["@android/media/external/audio/media/9"]}),
+    );
+    assert_eq!(result["host"][0]["uri"], "content://media/external/audio/media/9");
+    assert_eq!(result["deleted"], json!([]));
+}

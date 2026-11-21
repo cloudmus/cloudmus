@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.21"
+protocolVersion: "1.22"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -333,6 +333,31 @@ methods:
       required: [trackCount]
       properties: {trackCount: {type: integer}}
     timeoutMs: 20000
+
+  # --- 7.11 Deleting ---
+  catalog.deleteTracks:
+    # optional (1.22+): deletes these tracks (Track.deletable) from where
+    # they're kept — docs/protocol.md §7.11.
+    requiresCapability: browse.delete
+    params:
+      type: object
+      required: [trackIds]
+      properties:
+        trackIds: {type: array, items: {type: string}}
+    result: {$ref: "schema/deletion.yaml"}
+    timeoutMs: 60000
+
+  catalog.deletePlaylist:
+    # optional (1.22+): deletes a playlist (Playlist.deletable) and every
+    # track in it, such as a folder with what's under it — §7.11.
+    requiresCapability: browse.delete
+    params:
+      type: object
+      required: [playlistId]
+      properties:
+        playlistId: {type: string}
+    result: {$ref: "schema/deletion.yaml"}
+    timeoutMs: 60000
 
   # --- 7.5 Download ---
   catalog.downloadTrack:

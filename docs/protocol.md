@@ -232,6 +232,7 @@ defaults, since the front does not assume any implicit capability.
 | `browse.playlists` | bool | `catalog.listPlaylists` / `catalog.listTracks` supported. |
 | `browse.likedTracks` | bool | `catalog.listLiked` supported. |
 | `browse.radio` | bool | `catalog.startRadio` and `radio/tracksAdded` supported. |
+| `browse.delete` | bool | Optional (1.22+). `catalog.deleteTracks` / `catalog.deletePlaylist` (§7.11) delete what is marked `deletable`. |
 | `browse.editPlaylists` | bool | Optional (1.3+). `catalog.getTrackPlaylists` / `addToPlaylist` / `removeFromPlaylist` (§7.6) are supported on the source's `editable` playlists. |
 | `browse.search` | bool | `catalog.search` supported (reserved for future use; no method defined yet in v1 — see §13). |
 | `feedback.like` / `.dislike` / `.skip` | bool | Corresponding `feedback.*` methods (§7.4) are accepted. |
@@ -275,7 +276,8 @@ expected to always emit the full shape above.
                                     // such page (e.g. local-folder tracks). No matching capability flag —
                                     // same precedent as coverUrl/liked/explicit: front just checks presence.
   "codec": "flac",                 // optional (1.15+), lowercase short codec name, as in StreamDescriptor (§6)
-  "bitrateKbps": 905               // optional (1.15+), the audio's bitrate in kbit/s
+  "bitrateKbps": 905,              // optional (1.15+), the audio's bitrate in kbit/s
+  "deletable": true                // optional (1.22+): catalog.deleteTracks can delete it (§7.11)
 }
 ```
 
@@ -295,6 +297,7 @@ source doesn't know them.
   "kind": "playlist",              // one of "playlist" | "liked" | "radioStation"
   "editable": true,                // optional (1.3+): the user's own playlist — tracks can be added/removed (§7.6)
   "featured": true,                // optional (1.6+): worth showing at the source's top level by default
+  "deletable": true,               // optional (1.22+): catalog.deletePlaylist deletes it and its tracks (§7.11)
   "parentId": "2"                  // optional (1.21+): listed inside that playlist
 }
 ```
@@ -770,6 +773,28 @@ The source says how much it wants with `media/wanted` (§8): `{"scope":
 changes (a setting of its own, say). For `"all"` the front may have to ask
 the user's permission first. Until it has it, the library's `scope` stays
 `"own"`, and a source shows nothing beyond what that covers.
+
+### 7.11 Deleting (1.22+)
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `catalog.deleteTracks` | `{"trackIds": [string, ...]}` | `Deletion` | `browse.delete` |
+| `catalog.deletePlaylist` | `{"playlistId": string}` | `Deletion` | `browse.delete` |
+
+For a source that keeps the music itself, such as files: a track marked
+`deletable` is deleted from where it's kept, not only from a list.
+`catalog.deletePlaylist` deletes a `deletable` playlist with every track in
+it — a folder with everything under it; a folder a deletion leaves empty
+goes too. A playlist that isn't `deletable` fails with `1300`.
+
+`Deletion` (`protocol/schema/deletion.yaml`) is `{"deleted": [trackId,
+...], "host": [{"trackId", "uri"}, ...], "failed": [{"trackId",
+"message"}, ...]}`. `host` lists the items of the host's media library
+(§7.10) among them: the source can't delete those, so the front does, by
+their `uri` — asking the user first where the platform wants that, for
+another app's files — and then sends the library anew. `failed` says why a
+track wasn't deleted, for the user. The front asks the user before it calls
+either method; a deletion can't be undone.
 
 ---
 
