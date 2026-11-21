@@ -153,6 +153,8 @@ QList<BackendManifest> discoverManifests()
                     continue;
                 if (seenIds.contains(manifest.id))
                     continue;
+                if (manifest.argv.first().startsWith(QStringLiteral("./")))
+                    manifest.argv[0] = dir.absoluteFilePath(manifest.argv.first());
                 preferRepoVenvInterpreter(manifest, repoRoot);
                 seenIds.insert(manifest.id);
                 result.append(manifest);

@@ -60,7 +60,7 @@ still succeeds but prints a warning and leaves the output unformatted.
    A bare `{type: object, properties: {}}` means "no fields" (used for
    empty params/results like `auth.cancel`'s `{}`) and needs no name.
 3. Regenerate both languages, run the Python test suites
-   (`backends/py-rpc-common`, `backends/yandex-music`, `backends/local-folder`),
+   (`backends/py-rpc-common`, `backends/yandex-music`, `backends/youtube-music`),
    and rebuild whatever's consuming `fronts/qt/generated/`.
 4. Update `docs/protocol.md` prose and add a `docs/protocol-changelog.md`
    entry (MINOR for anything additive/optional, MAJOR for anything that

@@ -54,10 +54,10 @@ mkdir "$site"
 # Pure Python only: no compiler for the target here.
 "$venv_python" -m pip install --quiet --target "$site" --no-deps --only-binary=:all: \
     --platform any --implementation py --abi none --python-version "${python_version%.*}" \
-    certifi charset-normalizer idna mutagen PySocks requests typing-extensions urllib3 \
+    certifi charset-normalizer idna PySocks requests typing-extensions urllib3 \
     "yandex-music>=3.0.0" "ytmusicapi>=1.8,<2" "yt-dlp==2026.9.27.232945.dev0"
 (cd "$root" && "$venv_python" protocol/codegen/generate.py --lang python)
-for package in backends/py-rpc-common/rpc_common backends/local-folder/cloudmus_backend_local \
+for package in backends/py-rpc-common/rpc_common \
     backends/yandex-music/cloudmus_backend_yandex backends/youtube-music/cloudmus_backend_ytmusic; do
     cp -r "$root/$package" "$site/"
 done
@@ -66,8 +66,7 @@ find "$site" -maxdepth 1 -name '*.dist-info' -type d -exec rm -rf {} +
 rm -rf "${site:?}/bin"
 cp "$here/../python/"* "$tree/"
 
-# Manifests for Rpc::discoverManifests(), icons beside them. Not the local
-# folder source: the app has no access to folders on the device for it.
+# Manifests and icons for the Python sources.
 mkdir "$tree/backends"
 "$venv_python" - "$root/backends" "$tree/backends" <<'PY'
 import json, pathlib, shutil, sys

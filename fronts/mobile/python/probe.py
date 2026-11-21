@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 
-BACKENDS = ["cloudmus_backend_local", "cloudmus_backend_yandex", "cloudmus_backend_ytmusic"]
+BACKENDS = ["cloudmus_backend_yandex", "cloudmus_backend_ytmusic"]
 
 
 def say(*args):

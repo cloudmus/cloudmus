@@ -1,4 +1,4 @@
-# The CloudMus package: the Qt6 front, the three Python backends and the
+# The CloudMus package: the Qt6 front, the bundled backends and the
 # launcher that seeds their manifests. flake.nix at the repository root builds
 # it from this checkout.
 #
@@ -169,17 +169,11 @@ let
     doCheck = false;
   };
 
-  backendLocalFolder = python.pkgs.buildPythonPackage {
+  backendLocalFolder = pkgs.rustPlatform.buildRustPackage {
     pname = "cloudmus-backend-local-folder";
     version = "0.1.0";
-    pyproject = true;
     src = "${src}/backends/local-folder";
-    build-system = [ python.pkgs.setuptools ];
-    dependencies = [
-      rpcCommon
-      python.pkgs.mutagen
-    ];
-    doCheck = false;
+    cargoLock.lockFile = "${src}/backends/local-folder/Cargo.lock";
   };
 
   backendYoutubeMusic = python.pkgs.buildPythonPackage {
@@ -216,10 +210,9 @@ let
     ];
   };
 
-  # All three sources the AppImage ships.
+  # The Python sources the AppImage ships.
   backendPython = python.withPackages (_: [
     rpcCommon
-    backendLocalFolder
     backendYandexMusic
     backendYoutubeMusic
   ]);
@@ -254,7 +247,9 @@ let
     builtins.toJSON (
       backend
       // {
-        argv = [
+        argv = if id == "local-folder" then [
+          "${backendLocalFolder}/bin/cloudmus-backend-local-folder"
+        ] else [
           "${backendPython}/bin/python3"
           "-m"
           (builtins.elemAt backend.argv 2)

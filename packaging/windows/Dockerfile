@@ -1,5 +1,4 @@
 FROM ubuntu:24.04
-
 ENV DEBIAN_FRONTEND=noninteractive \
     WINEARCH=win64 \
     WINEPREFIX=/opt/cloudmus-wine \
@@ -104,3 +103,17 @@ RUN curl -fL --retry 3 -o /tmp/taglib.tar.gz \
     && mkdir -p /opt/taglib \
     && tar -xzf /tmp/taglib.tar.gz -C /opt/taglib --strip-components=1 \
     && rm /tmp/taglib.tar.gz
+
+# Rust builds the native local-folder backend with the Windows GNU ABI.
+ARG RUST_VERSION=1.98.0
+ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo
+ENV PATH=/opt/cargo/bin:$PATH
+RUN apt-get update && apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL --retry 3 https://sh.rustup.rs -o /tmp/rustup.sh \
+    && sh /tmp/rustup.sh -y --profile minimal --no-modify-path --default-toolchain "${RUST_VERSION}" \
+        --target x86_64-pc-windows-gnu \
+    && rm /tmp/rustup.sh
+# Cargo's procedural macros link for the Linux host even during a cross-build.
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev \
+    && rm -rf /var/lib/apt/lists/*

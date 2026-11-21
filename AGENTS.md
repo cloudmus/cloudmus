@@ -19,7 +19,7 @@ feature is a request for an explanation by default.
 | `protocol/` | Schema-first protocol: `schema/*.yaml`, `methods.yaml`, `codegen/` | YAML, Python + Jinja2 |
 | `docs/protocol.md` | Normative protocol spec (wins over `protocol/`) | |
 | `backends/py-rpc-common/` | Shared NDJSON/JSON-RPC transport + conformance suite | Python ≥ 3.11 |
-| `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11 |
+| `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11, Rust for local-folder |
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
 | `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
 | `fronts/mobile/` | Mobile front MVP (Android APK + Linux debug build); `docs/android.md` | C++20, Qt 6.7, QML, Media3 |
@@ -52,7 +52,9 @@ goes through the protocol, backends declare support via capabilities.
 source .venv/bin/activate      # setup: docs/development.md
 pytest backends/                                  # from the repo root
 (cd fronts/tui && python -m pytest tests/ -q)
-python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local  # per backend
+cargo test --locked --manifest-path backends/local-folder/Cargo.toml
+cargo build --locked --manifest-path backends/local-folder/Cargo.toml
+python -m rpc_common.testing.conformance backends/local-folder/target/debug/cloudmus-backend-local-folder
 ```
 
 `CLOUDMUS_DEV_BACKENDS=1` makes fronts use backends from this checkout.

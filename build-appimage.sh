@@ -65,7 +65,8 @@ docker run --rm \
     -v "$PWD":/workspace:z \
     -w /workspace/packaging/appimage/apprun \
     rust:1.98.0-alpine \
-    cargo build --release --locked
+    sh -ec 'cargo build --release --locked
+            cargo build --release --locked --manifest-path /workspace/backends/local-folder/Cargo.toml'
 
 docker build \
     "${proxy_build_args[@]}" \

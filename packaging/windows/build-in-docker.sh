@@ -71,7 +71,7 @@ EOF
 wheel_dir="$(mktemp -d)"
 trap 'rm -rf "${wheel_dir}"' EXIT
 pip wheel --no-deps --wheel-dir "${wheel_dir}" \
-    ./backends/py-rpc-common ./backends/local-folder \
+    ./backends/py-rpc-common \
     ./backends/yandex-music ./backends/youtube-music
 python3 packaging/windows/build-python-env.py \
     "${stage_dir}/python/Lib/site-packages" "${wheel_dir}"
@@ -82,6 +82,11 @@ python3 packaging/windows/build-python-env.py \
 xvfb-run -a wine "${stage_dir}/python/python.exe" -m compileall -q -j 0 \
     --invalidation-mode unchecked-hash "$(winepath -w "${stage_dir}/python/Lib/site-packages")"
 
+CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc \
+    cargo build --release --locked --target x86_64-pc-windows-gnu \
+    --manifest-path backends/local-folder/Cargo.toml --target-dir "${build_dir}/rust"
+cp "${build_dir}/rust/x86_64-pc-windows-gnu/release/cloudmus-backend-local-folder.exe" "${stage_dir}/backends/"
+
 python3 - "${stage_dir}/backends" <<'PY'
 import json
 import pathlib
@@ -91,7 +96,10 @@ dest = pathlib.Path(sys.argv[1])
 for backend_id in ('local-folder', 'yandex-music', 'youtube-music'):
     source = pathlib.Path('backends') / backend_id
     manifest = json.loads((source / 'manifest.json').read_text(encoding='utf-8'))
-    manifest['argv'] = ['../python/python.exe', *manifest['argv'][1:]]
+    manifest['argv'] = (
+        ['cloudmus-backend-local-folder.exe'] if backend_id == 'local-folder'
+        else ['../python/python.exe', *manifest['argv'][1:]]
+    )
     # manifest['icon'] is "icon.svg", resolved relative to the manifest's
     # own directory (Rpc::BackendManifest::parseManifest) — on Linux/dev
     # that's backends/<id>/icon.svg, next to backends/<id>/manifest.json,

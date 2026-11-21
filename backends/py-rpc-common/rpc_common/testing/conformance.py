@@ -2,7 +2,7 @@
 
 Runnable directly: `python -m rpc_common.testing.conformance <argv...>`
 where <argv...> is the backend's own manifest "argv" (e.g. `python -m
-cloudmus_backend_local`).
+cloudmus_backend_yandex`).
 """
 from __future__ import annotations
 
