@@ -27,6 +27,8 @@ STRINGS = {'expected true or false': 'чакаецца true або false',
  'YouTube Music streaming service': 'Стрымінгавы сэрвіс YouTube Music',
  'Liked Songs': 'Песні, што спадабаліся',
  'Track in playlist not found': 'Трэк у плэйлісце не знойдзены',
+ "YouTube wants to verify that you're human. Change the connection in the YouTube Music source settings and try again.":
+     'YouTube просіць пацвердзіць, што вы чалавек. Змяніце падключэнне ў наладах крыніцы YouTube Music і паспрабуйце зноў.',
  'Track not playable: {error}': 'Трэк немагчыма прайграць: {error}',
  'Open <a href="https://music.youtube.com">music.youtube.com</a> in your browser while signed in, open <b>DevTools → Network</b>, click any request to <code>music.youtube.com</code>, and paste its <b>Request Headers</b> (Firefox) or <b>Copy as cURL (bash)</b> (Chrome) below.': 'Адкрыйце '
                                                                                                                                                                                                                                                                                       '<a '

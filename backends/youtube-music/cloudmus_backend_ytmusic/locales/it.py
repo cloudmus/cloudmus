@@ -27,6 +27,8 @@ STRINGS = {'expected true or false': 'atteso true o false',
  'YouTube Music streaming service': 'Servizio di streaming YouTube Music',
  'Liked Songs': 'Brani che mi piacciono',
  'Track in playlist not found': 'Brano non trovato nella playlist',
+ "YouTube wants to verify that you're human. Change the connection in the YouTube Music source settings and try again.":
+     'YouTube vuole verificare che tu sia una persona. Cambia la connessione nelle impostazioni della sorgente YouTube Music e riprova.',
  'Track not playable: {error}': 'Brano non riproducibile: {error}',
  'Open <a href="https://music.youtube.com">music.youtube.com</a> in your browser while signed in, open <b>DevTools → Network</b>, click any request to <code>music.youtube.com</code>, and paste its <b>Request Headers</b> (Firefox) or <b>Copy as cURL (bash)</b> (Chrome) below.': 'Apri '
                                                                                                                                                                                                                                                                                       '<a '

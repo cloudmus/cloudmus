@@ -244,11 +244,15 @@ def build_server() -> BackendServer:
                 )
                 return
             except Exception as e:
+                message = (
+                    str(e) if isinstance(e, playback.BotCheckRequired)
+                    else tr("Failed to resolve stream for {track}: {error}", track=track_id, error=e)
+                )
                 await server.notify(
                     "error",
                     {
                         "code": errors.UPSTREAM_UNREACHABLE,
-                        "message": tr("Failed to resolve stream for {track}: {error}", track=track_id, error=e),
+                        "message": message,
                         "data": errors.app_error_data(
                             retryable=True,
                             track_id=track_id,

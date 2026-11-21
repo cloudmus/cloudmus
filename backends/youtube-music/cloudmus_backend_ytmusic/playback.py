@@ -25,6 +25,7 @@ from rpc_common.errors import OfflineError
 from rpc_common.generated.models import StreamDescriptor
 
 from . import quality
+from .i18n import tr
 
 RETRY_INITIAL_DELAY = 1.0
 RETRY_MAX_DELAY = 4.0
@@ -107,6 +108,10 @@ _ydl_lock = threading.Lock()
 
 class StreamRejected(Exception):
     """googlevideo answered 403 to the URL yt-dlp just produced."""
+
+
+class BotCheckRequired(Exception):
+    """YouTube requested human verification on the current connection."""
 
 
 def _drop_session() -> None:
@@ -244,4 +249,11 @@ async def resolve_stream_with_retry(
             except asyncio.TimeoutError:
                 pass
             delay = min(delay * 2, RETRY_MAX_DELAY)
+    if isinstance(last_exc, yt_dlp.utils.DownloadError):
+        message = str(last_exc).lower()
+        if "sign in to confirm" in message and "not a bot" in message:
+            raise BotCheckRequired(tr(
+                "YouTube wants to verify that you're human. "
+                "Change the connection in the YouTube Music source settings and try again."
+            )) from last_exc
     raise RuntimeError(f"failed after {MAX_ATTEMPTS} attempts: {last_exc}")

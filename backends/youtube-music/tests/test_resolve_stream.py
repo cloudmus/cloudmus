@@ -4,6 +4,7 @@ import pytest
 from yt_dlp.utils import DownloadError
 
 from cloudmus_backend_ytmusic import playback, server
+from cloudmus_backend_ytmusic.i18n import translator
 from rpc_common.generated.models import StreamDescriptor
 from rpc_common.server import BackendError
 
@@ -67,7 +68,11 @@ async def test_unavailable_and_offline_errors_carry_the_track_and_reason(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_youtube_bot_check_is_a_retryable_upstream_error(monkeypatch):
+@pytest.mark.parametrize(("locale", "hint"), [
+    ("en", "Change the connection in the YouTube Music source settings"),
+    ("ru", "Смените подключение в настройках источника YouTube Music"),
+])
+async def test_youtube_bot_check_explains_how_to_retry(monkeypatch, locale, hint):
     def extract(video_id):
         raise DownloadError(f"ERROR: [youtube] {video_id}: Sign in to confirm you’re not a bot.")
 
@@ -75,9 +80,23 @@ async def test_youtube_bot_check_is_a_retryable_upstream_error(monkeypatch):
     monkeypatch.setattr(playback, "RETRY_INITIAL_DELAY", 0.01)
     monkeypatch.setattr(playback, "RETRY_MAX_DELAY", 0.01)
     backend = server.build_server()
+    notification = asyncio.get_running_loop().create_future()
 
-    with pytest.raises(BackendError, match="not a bot") as info:
-        await backend._handlers["playback.resolveStream"]({"trackId": "42"}, 7)
+    async def notify(method, params):
+        notification.set_result((method, params))
 
+    monkeypatch.setattr(backend, "notify", notify)
+    previous_locale = translator.locale
+    backend._handlers["localization.setLanguage"]({"locale": locale}, 1)
+    try:
+        with pytest.raises(BackendError, match=hint) as info:
+            await backend._handlers["playback.resolveStream"]({"trackId": "42"}, 7)
+        assert backend._handlers["playback.play"]({"trackId": "42"}, 8) == {"accepted": True}
+        method, params = await asyncio.wait_for(notification, 1)
+    finally:
+        translator.set_locale(previous_locale)
+
+    assert method == "error"
     assert info.value.code == 1200
     assert info.value.data == {"retryable": True, "trackId": "42"}
+    assert params == {"code": info.value.code, "message": str(info.value), "data": info.value.data}
