@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
 use std::sync::{mpsc, Arc, Mutex};
 
-const DESCRIPTION: &str = "Music files from a folder on this computer";
+const DESCRIPTION: &str = "Music files on this device";
 const LOCALES: [&str; 7] = ["en", "be", "de", "es", "fr", "it", "ru"];
 
 fn select_locale(value: Option<&str>) -> &'static str {

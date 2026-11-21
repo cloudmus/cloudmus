@@ -41,7 +41,7 @@ impl Backend {
         assert_eq!(result["capabilities"]["hostMedia"], true);
         assert_ne!(
             result["source"]["description"],
-            "Music files from a folder on this computer"
+            "Music files on this device"
         );
         assert_eq!(backend.notification()["params"]["scope"], "own");
         if let Some(index) = index {

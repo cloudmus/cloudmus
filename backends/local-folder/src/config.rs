@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
 pub const MUSIC_ENV: &str = "CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR";
-pub const DESCRIPTION: &str = "Scanned for music: each folder in it becomes a playlist. The CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR environment variable, if set, overrides it.";
+pub const DESCRIPTION: &str = "Scanned for music: each folder in it becomes a playlist.";
 
 fn env_path(key: &str) -> Option<PathBuf> {
     env::var_os(key)
@@ -142,25 +142,26 @@ pub fn music_root() -> Option<PathBuf> {
     host_library().is_none().then(default_music)
 }
 
-pub fn describe(tr: impl Fn(&str) -> String) -> Value {
-    let android = host_library().is_some();
-    let default = if android {
+/// The music folder's default: the platform's own, unless the front's media
+/// library stands for it (as MediaStore does for Android's Music folder).
+fn default_root() -> String {
+    if host_library().is_some() {
         String::new()
     } else {
         default_music().to_string_lossy().into_owned()
-    };
+    }
+}
+
+// The same fields on every platform; only Device music needs a host library.
+pub fn describe(tr: impl Fn(&str) -> String) -> Value {
+    let default = default_root();
     let config = load(&config_file()).unwrap_or_default();
-    let label = if android {
-        "Additional music folder"
-    } else {
-        "Music folder"
-    };
     let mut fields = vec![json!({
         "key": "musicDir", "type": "path", "pathKind": "directory", "group": "library",
-        "label": tr(label), "description": tr(if android { "Enter an absolute path to a readable folder." } else { DESCRIPTION }),
+        "label": tr("Music folder"), "description": tr(DESCRIPTION),
         "default": default, "value": configured_music(&config).unwrap_or(&default)
     })];
-    if android {
+    if host_library().is_some() {
         fields.push(json!({
             "key": "deviceMusic", "type": "boolean", "group": "library",
             "label": tr("Device music"),
@@ -178,7 +179,6 @@ pub fn update(
     values: &Map<String, Value>,
     tr: impl Fn(&str) -> String,
 ) -> Result<(), (String, String)> {
-    let android = host_library().is_some();
     for (key, value) in values {
         if key == "deviceMusic" {
             if !value.is_boolean() {
@@ -194,20 +194,22 @@ pub fn update(
             .ok_or_else(|| (key.clone(), tr("expected text")))?;
         if !text.is_empty() {
             let path = expand(text);
-            if android && !path.is_absolute() {
+            if !path.is_absolute() {
                 return Err((
                     key.clone(),
                     tr("Enter an absolute path to a readable folder."),
                 ));
             }
-            if android {
-                fs::read_dir(&path).map_err(|error| {
-                    eprintln!("local-folder: read_dir {}: {error}", path.display());
+            // Read, not only looked at: on Android a folder can be there
+            // and still be closed to the app.
+            fs::read_dir(&path).map_err(|error| {
+                eprintln!("local-folder: read_dir {}: {error}", path.display());
+                if error.kind() == io::ErrorKind::NotFound {
+                    (key.clone(), tr("no such folder"))
+                } else {
                     (key.clone(), format!("{}: {error}", path.display()))
-                })?;
-            } else if !path.is_dir() {
-                return Err((key.clone(), tr("no such folder")));
-            }
+                }
+            })?;
         }
     }
 
@@ -222,12 +224,7 @@ pub fn update(
         settings.entry("musicDir").or_insert(legacy);
     }
     if let Some(value) = values.get("musicDir") {
-        let default = if android {
-            PathBuf::new()
-        } else {
-            default_music()
-        };
-        if value.as_str() == default.to_str() {
+        if value.as_str() == Some(default_root().as_str()) {
             settings.remove("musicDir");
         } else {
             settings.insert("musicDir".into(), value.clone());

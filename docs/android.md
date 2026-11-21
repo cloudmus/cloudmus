@@ -174,7 +174,7 @@ adb logcat -s CloudmusStart             # startup milestones
 ## Local music and saving
 
 The Local Folder source shows tracks saved by CloudMus. In the source settings
-you can enter one additional absolute folder path, including a mounted USB
+you can set a music folder by its absolute path, including a mounted USB
 path on a head unit. The app checks the path under its own Android permissions.
 The source's **Device music** setting adds the rest of the audio MediaStore
 indexes; switching it on asks for Android's audio or storage permission, and
