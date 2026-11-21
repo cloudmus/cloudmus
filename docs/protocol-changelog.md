@@ -5,6 +5,14 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.21 — playlists inside playlists
+
+- **Additive, backward-compatible**: optional `Playlist.parentId` (§6): a
+  playlist listed inside another, as a folder inside a folder. Local
+  Folder lists all its music first, then each folder with everything under
+  it, a folder's subfolders inside it. A front that doesn't know the field
+  shows the list flat.
+
 ## 1.20 — the host's media library
 
 - **Additive, backward-compatible**: optional capability `hostMedia` with

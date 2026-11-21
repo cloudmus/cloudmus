@@ -126,15 +126,27 @@ fn lists_nested_and_loose_tracks_and_resolves_webm() {
     let mut backend = Backend::start(temp.path(), Some(&music), None);
     let result = backend.call("catalog.listPlaylists", json!({}));
     let playlists = result["playlists"].as_array().unwrap();
-    assert_eq!(playlists.len(), 2);
+    // All of it first, then each folder with what's under it, a folder
+    // inside another listed under it.
+    let summary: Vec<_> = playlists
+        .iter()
+        .map(|list| {
+            (
+                list["id"].as_str().unwrap(),
+                list["trackCount"].as_i64().unwrap(),
+                list["parentId"].as_str(),
+            )
+        })
+        .collect();
     assert_eq!(
-        (
-            playlists[0]["id"].as_str(),
-            playlists[0]["trackCount"].as_i64()
-        ),
-        (Some("Альбом"), Some(2))
+        summary,
+        [
+            ("__root__", 3, None),
+            ("Альбом", 2, None),
+            ("Альбом/Live", 1, Some("Альбом"))
+        ]
     );
-    assert_eq!(playlists[1]["id"], "__root__");
+    assert_ne!(playlists[0]["title"], "All music");
 
     let result = backend.call("catalog.listTracks", json!({"playlistId": "Альбом"}));
     let tracks = result["tracks"].as_array().unwrap();
@@ -243,22 +255,52 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
                 "path": published},
             {"id": "@android/media/external/audio/media/4", "own": true,
                 "title":"Scoped song", "mimeType":"audio/ogg", "uri":"content://media/external/audio/media/4",
-                "coverUrl": cover.as_str(), "codec": "opus", "bitrateKbps": 128}
+                "coverUrl": cover.as_str(), "codec": "opus", "bitrateKbps": 128},
+            {"id": "@android/media/external/audio/media/5", "own": true,
+                "title":"Nested song", "mimeType":"audio/mpeg", "uri":"content://media/external/audio/media/5",
+                "relativePath": "Music/CloudMus/Artist/Album/"}
         ]
     }).to_string().as_bytes());
     let mut backend = Backend::start(temp.path(), None, Some(&index));
     // Only what the app saved, until device music is switched on.
     let result = backend.call("catalog.listPlaylists", json!({}));
-    assert_eq!(result["playlists"].as_array().unwrap().len(), 2);
+    let lists = result["playlists"].as_array().unwrap();
+    let summary: Vec<_> = lists
+        .iter()
+        .map(|list| (list["id"].as_str().unwrap(), list["parentId"].as_str()))
+        .collect();
+    assert_eq!(
+        summary,
+        [
+            ("@android/saved-media", None),
+            ("@android/saved-media/Artist", Some("@android/saved-media")),
+            ("@android/saved-media/Artist/Album", Some("@android/saved-media/Artist"))
+        ]
+    );
+    assert_eq!(lists[2]["title"], "Album");
     let fields = backend.call("settings.describe", json!({}))["fields"].clone();
     assert!(fields.as_array().unwrap().iter().any(|field| field["key"] == "deviceMusic"));
     backend.call("settings.update", json!({"values": {"deviceMusic": true}}));
     assert_eq!(backend.notification()["params"]["scope"], "all");
     let result = backend.call("catalog.listPlaylists", json!({}));
-    assert_eq!(result["playlists"].as_array().unwrap().len(), 3);
+    let ids: Vec<_> = result["playlists"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|list| list["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "@android/saved-media",
+            "@android/saved-media/Artist",
+            "@android/saved-media/Artist/Album",
+            "@android/device-media"
+        ]
+    );
     let result = backend.call(
         "catalog.listTracks",
-        json!({"playlistId":"@android/internal/__root__"}),
+        json!({"playlistId":"@android/saved-media"}),
     );
     let track = &result["tracks"][0];
     assert_eq!(track["id"], "@android/internal/offline.mp3");
@@ -280,13 +322,16 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
         json!({"playlistId":"@android/saved-media"}),
     );
     let tracks = result["tracks"].as_array().unwrap();
-    assert_eq!(tracks.len(), 2);
-    assert_eq!(tracks[0]["codec"], "opus");
-    assert!(tracks[0]["bitrateKbps"].as_u64().unwrap() > 0);
-    assert_eq!(tracks[1]["coverUrl"], cover.as_str());
+    // The app's folder's file, then what MediaStore has of the app's.
+    assert_eq!(tracks.len(), 4);
+    assert_eq!(tracks[0]["id"], "@android/internal/offline.mp3");
     assert_eq!(tracks[1]["codec"], "opus");
-    assert_eq!(tracks[1]["bitrateKbps"], 128);
-    for track in tracks {
+    assert!(tracks[1]["bitrateKbps"].as_u64().unwrap() > 0);
+    assert_eq!(tracks[2]["coverUrl"], cover.as_str());
+    assert_eq!(tracks[2]["codec"], "opus");
+    assert_eq!(tracks[2]["bitrateKbps"], 128);
+    assert_eq!(tracks[3]["title"], "Nested song");
+    for track in &tracks[..3] {
         let result = backend.call("playback.resolveStream", json!({"trackId": track["id"]}));
         assert_eq!(result["stream"]["codec"], track["codec"]);
         assert_eq!(result["stream"]["bitrateKbps"], track["bitrateKbps"]);

@@ -18,11 +18,11 @@
     "Library": "Бібліятэка",
     "Music folder": "Тэчка з музыкай",
     "Scanned for music: each folder in it becomes a playlist.": "Сканіруецца на наяўнасць музыкі: кожная тэчка ў ёй становіцца плэйлістом.",
-    "Root": "Корань",
     "Enter an absolute path to a readable folder.": "Увядзіце абсалютны шлях да папкі, даступнай для чытання.",
     "Saved tracks": "Захаваныя трэкі",
     "Device music": "Музыка на прыладзе",
-    "Music other apps put on this device, besides the tracks saved here.": "Музыка, якую іншыя праграмы захавалі на гэтай прыладзе, акрамя трэкаў, захаваных тут."
+    "Music other apps put on this device, besides the tracks saved here.": "Музыка, якую іншыя праграмы захавалі на гэтай прыладзе, акрамя трэкаў, захаваных тут.",
+    "All music": "Уся музыка"
   },
   "de": {
     "expected true or false": "true oder false erwartet",
@@ -43,11 +43,11 @@
     "Library": "Bibliothek",
     "Music folder": "Musikordner",
     "Scanned for music: each folder in it becomes a playlist.": "Wird nach Musik durchsucht: Jeder Ordner darin wird zu einer Playlist.",
-    "Root": "Stammverzeichnis",
     "Enter an absolute path to a readable folder.": "Gib den absoluten Pfad zu einem lesbaren Ordner ein.",
     "Saved tracks": "Gespeicherte Titel",
     "Device music": "Musik auf dem Gerät",
-    "Music other apps put on this device, besides the tracks saved here.": "Musik, die andere Apps auf diesem Gerät abgelegt haben, zusätzlich zu den hier gespeicherten Titeln."
+    "Music other apps put on this device, besides the tracks saved here.": "Musik, die andere Apps auf diesem Gerät abgelegt haben, zusätzlich zu den hier gespeicherten Titeln.",
+    "All music": "Alle Musik"
   },
   "es": {
     "expected true or false": "se esperaba true o false",
@@ -68,11 +68,11 @@
     "Library": "Biblioteca",
     "Music folder": "Carpeta de música",
     "Scanned for music: each folder in it becomes a playlist.": "Se analiza en busca de música: cada carpeta se convierte en una lista de reproducción.",
-    "Root": "Raíz",
     "Enter an absolute path to a readable folder.": "Introduce la ruta absoluta de una carpeta con acceso de lectura.",
     "Saved tracks": "Pistas guardadas",
     "Device music": "Música del dispositivo",
-    "Music other apps put on this device, besides the tracks saved here.": "Música que otras apps guardaron en este dispositivo, además de las pistas guardadas aquí."
+    "Music other apps put on this device, besides the tracks saved here.": "Música que otras apps guardaron en este dispositivo, además de las pistas guardadas aquí.",
+    "All music": "Toda la música"
   },
   "fr": {
     "expected true or false": "true ou false attendu",
@@ -93,11 +93,11 @@
     "Library": "Bibliothèque",
     "Music folder": "Dossier de musique",
     "Scanned for music: each folder in it becomes a playlist.": "Analysé pour trouver de la musique : chaque dossier devient une liste de lecture.",
-    "Root": "Racine",
     "Enter an absolute path to a readable folder.": "Saisissez le chemin absolu d’un dossier accessible en lecture.",
     "Saved tracks": "Titres enregistrés",
     "Device music": "Musique sur l’appareil",
-    "Music other apps put on this device, besides the tracks saved here.": "La musique que d'autres applis ont mise sur cet appareil, en plus des titres enregistrés ici."
+    "Music other apps put on this device, besides the tracks saved here.": "La musique que d'autres applis ont mise sur cet appareil, en plus des titres enregistrés ici.",
+    "All music": "Toute la musique"
   },
   "it": {
     "expected true or false": "atteso true o false",
@@ -118,11 +118,11 @@
     "Library": "Libreria",
     "Music folder": "Cartella della musica",
     "Scanned for music: each folder in it becomes a playlist.": "Viene analizzata alla ricerca di musica: ogni cartella diventa una playlist.",
-    "Root": "Radice",
     "Enter an absolute path to a readable folder.": "Inserisci il percorso assoluto di una cartella accessibile in lettura.",
     "Saved tracks": "Brani salvati",
     "Device music": "Musica sul dispositivo",
-    "Music other apps put on this device, besides the tracks saved here.": "La musica che altre app hanno messo su questo dispositivo, oltre ai brani salvati qui."
+    "Music other apps put on this device, besides the tracks saved here.": "La musica che altre app hanno messo su questo dispositivo, oltre ai brani salvati qui.",
+    "All music": "Tutta la musica"
   },
   "ru": {
     "expected true or false": "ожидается true или false",
@@ -143,10 +143,10 @@
     "Library": "Библиотека",
     "Music folder": "Папка с музыкой",
     "Scanned for music: each folder in it becomes a playlist.": "Сканируется на наличие музыки: каждая вложенная папка становится плейлистом.",
-    "Root": "Корень",
     "Enter an absolute path to a readable folder.": "Введите абсолютный путь к папке, доступной для чтения.",
     "Saved tracks": "Сохранённые треки",
     "Device music": "Музыка на устройстве",
-    "Music other apps put on this device, besides the tracks saved here.": "Музыка, которую другие приложения сохранили на этом устройстве, вдобавок к трекам, сохранённым здесь."
+    "Music other apps put on this device, besides the tracks saved here.": "Музыка, которую другие приложения сохранили на этом устройстве, вдобавок к трекам, сохранённым здесь.",
+    "All music": "Вся музыка"
   }
 }

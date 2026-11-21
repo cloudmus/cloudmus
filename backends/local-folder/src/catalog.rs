@@ -11,11 +11,17 @@ use crate::{config, metadata};
 
 const ROOT: &str = "__root__";
 
+// A folder of tracks, listed as a playlist with everything under it.
 struct Playlist {
     title: String,
+    // The playlist it's listed under (Playlist.parentId); none at the top.
+    parent: Option<String>,
+    // Where it's listed among the others: its group, then its path.
+    order: (u8, String),
     tracks: Vec<Track>,
 }
 
+#[derive(Clone)]
 enum Track {
     File { id: String, path: PathBuf },
     Media(Value),
@@ -23,9 +29,13 @@ enum Track {
 
 struct Library {
     playlists: BTreeMap<String, Playlist>,
-    loose: Option<Playlist>,
     seen: HashSet<PathBuf>,
 }
+
+// The groups of the top level, in the order they're listed.
+const MUSIC_FOLDER: u8 = 0;
+const SAVED: u8 = 1;
+const DEVICE: u8 = 2;
 
 fn relative_id(path: &Path) -> Option<String> {
     path.components()
@@ -60,46 +70,144 @@ impl Library {
     fn new(tr: impl Fn(&str) -> String) -> Self {
         let mut library = Self {
             playlists: BTreeMap::new(),
-            loose: None,
             seen: HashSet::new(),
         };
+        let host = config::host_library().and_then(|index| match fs::read(&index) {
+            Ok(bytes) => serde_json::from_slice::<Value>(&bytes)
+                .map_err(|error| eprintln!("local-folder: read the host's media library: {error}"))
+                .ok(),
+            Err(_) => None,
+        });
         if let Some(root) = config::music_root() {
-            library.add_root(&root, "", tr("Root"), tr("Library"), None);
+            let tracks = library.scan(&root, "");
+            // With the device's own library beside it, it's one folder among
+            // others: named as such.
+            let title = match (&host, root.file_name().and_then(|name| name.to_str())) {
+                (Some(_), Some(name)) => name.to_owned(),
+                _ => tr("All music"),
+            };
+            library.add_tree(MUSIC_FOLDER, ROOT, title, "", false, tracks);
         }
-        if let Some(index) = config::host_library() {
-            if let Ok(bytes) = fs::read(&index) {
-                match serde_json::from_slice::<Value>(&bytes) {
-                    Ok(data) => library.add_host(&data, tr),
-                    Err(error) => eprintln!("local-folder: read the host's media library: {error}"),
-                }
-            }
+        if let Some(data) = host {
+            library.add_host(&data, tr);
         }
         library
     }
 
+    // Every audio file under `root`, with the folders it's in, below `root`.
+    fn scan(&mut self, root: &Path, prefix: &str) -> Vec<(Vec<String>, Track)> {
+        let Ok(canonical) = fs::canonicalize(root) else {
+            return Vec::new();
+        };
+        let mut found = Vec::new();
+        let mut directories = vec![(root.to_path_buf(), Vec::new())];
+        while let Some((directory, folders)) = directories.pop() {
+            if !fs::canonicalize(&directory).is_ok_and(|path| path.starts_with(&canonical)) {
+                continue;
+            }
+            for entry in entries(&directory) {
+                // A link to a folder isn't followed: it could lead out, or round.
+                if entry
+                    .symlink_metadata()
+                    .is_ok_and(|metadata| metadata.is_dir())
+                {
+                    let Some(name) = entry.file_name().and_then(|name| name.to_str()) else {
+                        continue;
+                    };
+                    let mut inner: Vec<String> = folders.clone();
+                    inner.push(name.to_owned());
+                    directories.push((entry, inner));
+                } else if let Some(track) = self.file(root, &canonical, prefix, entry) {
+                    found.push((folders.clone(), track));
+                }
+            }
+        }
+        found
+    }
+
+    // A playlist `root_id` with all of `tracks`, and one for each folder
+    // they're in, holding what's under it. A folder's id is `root_id`'s
+    // children's prefix plus its path: for the music folder, the bare path
+    // (its top folders are listed beside it, as they always were); for the
+    // others, under their root.
+    fn add_tree(
+        &mut self,
+        group: u8,
+        root_id: &str,
+        root_title: String,
+        folder_prefix: &str,
+        nested: bool,
+        tracks: Vec<(Vec<String>, Track)>,
+    ) {
+        if tracks.is_empty() {
+            return;
+        }
+        let mut lists: BTreeMap<String, Playlist> = BTreeMap::new();
+        for (folders, track) in tracks {
+            for depth in 1..=folders.len() {
+                let path = folders[..depth].join("/");
+                let parent = if depth > 1 {
+                    Some(format!("{folder_prefix}{}", folders[..depth - 1].join("/")))
+                } else {
+                    nested.then(|| root_id.to_owned())
+                };
+                lists
+                    .entry(format!("{folder_prefix}{path}"))
+                    .or_insert_with(|| Playlist {
+                        title: folders[depth - 1].clone(),
+                        parent,
+                        order: (group, path),
+                        tracks: Vec::new(),
+                    })
+                    .tracks
+                    .push(track.clone());
+            }
+            lists
+                .entry(root_id.to_owned())
+                .or_insert_with(|| Playlist {
+                    title: root_title.clone(),
+                    parent: None,
+                    order: (group, String::new()),
+                    tracks: Vec::new(),
+                })
+                .tracks
+                .push(track);
+        }
+        for (id, mut list) in lists {
+            list.tracks.sort_by(|left, right| left.id().cmp(right.id()));
+            match self.playlists.get_mut(&id) {
+                Some(existing) => existing.tracks.extend(list.tracks),
+                None => {
+                    self.playlists.insert(id, list);
+                }
+            }
+        }
+    }
+
     // The media library the front's platform keeps (media.setLibrary): the
     // app's own folders, read as files, and its items, played by their uri.
+    // What the app saved goes under Saved tracks, by the folders the saving
+    // made; the rest of the device's music under Device music, by its folders.
     fn add_host(&mut self, data: &Value, tr: impl Fn(&str) -> String) {
+        const SAVED_ID: &str = "@android/saved-media";
+        const DEVICE_ID: &str = "@android/device-media";
+        let mut saved = Vec::new();
         if let Some(roots) = data["folders"].as_array() {
             for root in roots {
                 let (Some(id), Some(path)) = (root["id"].as_str(), root["path"].as_str()) else {
                     continue;
                 };
-                self.add_root(
-                    Path::new(path),
-                    &format!("@android/{id}/"),
-                    tr("Saved tracks"),
-                    tr("Saved tracks"),
-                    Some(tr("Saved tracks")),
-                );
+                saved.extend(self.scan(Path::new(path), &format!("@android/{id}/")));
             }
         }
+        let mut device = Vec::new();
         if let Some(records) = data["items"].as_array() {
             let device_music = config::device_music();
             let mut seen = HashSet::new();
             for record in records {
+                let own = record["own"] == true;
                 // What the front still lists from before the setting changed.
-                if record["own"] != true && !device_music {
+                if !own && !device_music {
                     continue;
                 }
                 let (Some(id), Some(uri)) = (record["id"].as_str(), record["uri"].as_str()) else {
@@ -119,113 +227,27 @@ impl Library {
                         continue;
                     }
                 }
-                let (key, title) = if record["own"] == true {
-                    let folder = record["relativePath"]
-                        .as_str()
-                        .and_then(|path| path.strip_prefix("Music/CloudMus/"))
-                        .and_then(|path| path.split('/').next())
-                        .filter(|folder| !folder.is_empty());
-                    let title = tr("Saved tracks");
-                    match folder {
-                        Some(folder) => (
-                            format!("@android/saved-media/{folder}"),
-                            format!("{title} · {folder}"),
-                        ),
-                        None => ("@android/saved-media".into(), title),
-                    }
+                let relative = record["relativePath"].as_str().unwrap_or_default();
+                let relative = if own {
+                    relative.strip_prefix("Music/CloudMus/").unwrap_or_default()
                 } else {
-                    ("@android/device-media".into(), tr("Device music"))
+                    relative
                 };
-                self.playlists
-                    .entry(key)
-                    .or_insert_with(|| Playlist {
-                        title,
-                        tracks: Vec::new(),
-                    })
-                    .tracks
-                    .push(Track::Media(record.clone()));
-            }
-        }
-    }
-
-    fn add_root(
-        &mut self,
-        root: &Path,
-        prefix: &str,
-        root_title: String,
-        library_title: String,
-        fixed_title: Option<String>,
-    ) {
-        let canonical = match fs::canonicalize(root) {
-            Ok(path) => path,
-            Err(error) => {
-                if error.kind() != std::io::ErrorKind::NotFound {
-                    eprintln!("local-folder: canonicalize {}: {error}", root.display());
-                }
-                return;
-            }
-        };
-        let mut loose = Vec::new();
-        let mut has_subdirs = false;
-        for path in entries(root) {
-            if path.is_dir() {
-                has_subdirs = true;
-                let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-                    continue;
-                };
-                let mut tracks = Vec::new();
-                let mut directories = vec![path.clone()];
-                while let Some(directory) = directories.pop() {
-                    if !fs::canonicalize(&directory).is_ok_and(|path| path.starts_with(&canonical))
-                    {
-                        continue;
-                    }
-                    for entry in entries(&directory) {
-                        if entry
-                            .symlink_metadata()
-                            .is_ok_and(|metadata| metadata.is_dir())
-                        {
-                            directories.push(entry);
-                        } else if let Some(track) = self.file(root, &canonical, prefix, entry) {
-                            tracks.push(track);
-                        }
-                    }
-                }
-                tracks.sort_by(|left, right| left.id().cmp(right.id()));
-                if !tracks.is_empty() {
-                    let title = match &fixed_title {
-                        Some(label) => format!("{label} · {name}"),
-                        None => name.into(),
-                    };
-                    self.playlists
-                        .insert(format!("{prefix}{name}"), Playlist { title, tracks });
-                }
-            } else if let Some(track) = self.file(root, &canonical, prefix, path) {
-                loose.push(track);
-            }
-        }
-        if !loose.is_empty() {
-            let title = fixed_title
-                .or_else(|| {
-                    root.file_name()
-                        .and_then(|name| name.to_str())
-                        .map(str::to_owned)
-                })
-                .unwrap_or(if has_subdirs {
-                    root_title
+                let folders = relative
+                    .split('/')
+                    .filter(|part| !part.is_empty())
+                    .map(str::to_owned)
+                    .collect();
+                let entry = (folders, Track::Media(record.clone()));
+                if own {
+                    saved.push(entry);
                 } else {
-                    library_title
-                });
-            let playlist = Playlist {
-                title,
-                tracks: loose,
-            };
-            if prefix.is_empty() {
-                self.loose = Some(playlist);
-            } else {
-                self.playlists.insert(format!("{prefix}{ROOT}"), playlist);
+                    device.push(entry);
+                }
             }
         }
+        self.add_tree(SAVED, SAVED_ID, tr("Saved tracks"), &format!("{SAVED_ID}/"), true, saved);
+        self.add_tree(DEVICE, DEVICE_ID, tr("Device music"), &format!("{DEVICE_ID}/"), true, device);
     }
 
     fn file(
@@ -250,11 +272,12 @@ impl Library {
         })
     }
 
+    // In the order they're listed: each group's root, then its folders, a
+    // folder before what's in it.
     fn lists(&self) -> impl Iterator<Item = (&str, &Playlist)> {
-        self.playlists
-            .iter()
-            .map(|(id, list)| (id.as_str(), list))
-            .chain(self.loose.iter().map(|list| (ROOT, list)))
+        let mut lists: Vec<_> = self.playlists.iter().map(|(id, list)| (id.as_str(), list)).collect();
+        lists.sort_by(|left, right| left.1.order.cmp(&right.1.order));
+        lists.into_iter()
     }
 }
 
@@ -423,9 +446,13 @@ pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
     let lists: Vec<_> = library
         .lists()
         .map(|(id, list)| {
-            json!({
+            let mut playlist = json!({
                 "id": id, "title": list.title, "trackCount": list.tracks.len(), "kind": "playlist"
-            })
+            });
+            if let Some(parent) = &list.parent {
+                playlist["parentId"] = json!(parent);
+            }
+            playlist
         })
         .collect();
     json!({"playlists": lists})

@@ -294,7 +294,8 @@ source doesn't know them.
   "trackCount": 42,
   "kind": "playlist",              // one of "playlist" | "liked" | "radioStation"
   "editable": true,                // optional (1.3+): the user's own playlist — tracks can be added/removed (§7.6)
-  "featured": true                 // optional (1.6+): worth showing at the source's top level by default
+  "featured": true,                // optional (1.6+): worth showing at the source's top level by default
+  "parentId": "2"                  // optional (1.21+): listed inside that playlist
 }
 ```
 `kind: "radioStation"` playlists (e.g. My Wave) have no fixed track
@@ -314,6 +315,15 @@ recommended stations). It is only a default: which entries a front puts at
 the top level is the user's choice (favorites), kept by the front. A front
 talking to a source that marks nothing `featured` (e.g. one older than 1.6)
 treats every `liked` and `radioStation` entry as featured.
+
+`parentId` (1.21+) puts a playlist inside another one from the same list, as
+a folder inside a folder: a music folder's albums inside its artists, say.
+The parent comes before its children in the list. A playlist with children
+still has tracks of its own — typically everything under it — and plays
+like any other. A front shows the children under their parent (a tree, or a
+list on the parent's page); its top level is the playlists with no
+`parentId`. One that doesn't know `parentId` shows the list flat. A
+`parentId` the list doesn't have is treated as absent.
 
 ### PlaybackState
 ```jsonc
