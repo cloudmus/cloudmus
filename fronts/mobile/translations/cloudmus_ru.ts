@@ -220,6 +220,10 @@
       <source>Merge touch moves into one per frame</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Check music storage</source>
+      <translation>Проверить хранилище музыки</translation>
+    </message>
   </context>
   <context>
     <name>DownloadsPage</name>
@@ -647,6 +651,18 @@
       <source>Developer tools</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Music storage</source>
+      <translation>Хранилище музыки</translation>
+    </message>
+    <message>
+      <source>Show all device music</source>
+      <translation>Показывать всю музыку на устройстве</translation>
+    </message>
+    <message>
+      <source>Storage permissions</source>
+      <translation>Разрешения на доступ к хранилищу</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>
@@ -835,6 +851,10 @@
       <source>%1 — %2 of %3 MB</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Written to the log</source>
+      <translation>Записано в журнал</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ActivePlaylist</name>
@@ -849,6 +869,14 @@
     <message>
       <source>No network connection, and nothing of %1 is downloaded to play</source>
       <translation>Нет подключения к сети, а из %1 ничего не скачано</translation>
+    </message>
+    <message>
+      <source>Couldn't open the audio file. Check its permissions.</source>
+      <translation>Не удалось открыть аудиофайл. Проверьте разрешения.</translation>
+    </message>
+    <message>
+      <source>Opened audio</source>
+      <translation>Открытое аудио</translation>
     </message>
   </context>
   <context>
@@ -939,6 +967,18 @@
     <message>
       <source>Saved %1 of %2 tracks of "%3" — %4</source>
       <translation>Сохранено %1 из %2 треков из «%3» — %4</translation>
+    </message>
+    <message>
+      <source>Couldn't find the file to save</source>
+      <translation>Не удалось найти файл для сохранения</translation>
+    </message>
+    <message>
+      <source>Couldn't publish the track</source>
+      <translation>Не удалось опубликовать трек</translation>
+    </message>
+    <message>
+      <source>Saved to %1. Check shared storage permissions and free space.</source>
+      <translation>Сохранено в %1. Проверьте разрешения и свободное место в общем хранилище.</translation>
     </message>
   </context>
   <context>

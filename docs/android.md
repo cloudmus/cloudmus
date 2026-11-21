@@ -11,11 +11,13 @@ with a Linux build of the same code for debugging.
   offers it all to views in another process. A replica only carries
   properties, signals and slots, so what is offered acts through slots, passes
   plain types, and gives each property a notify signal of its own.
-- **Backends**: the APK carries CPython and the Yandex Music and YouTube Music
-  backends (`tools/bundle-python.sh`; no local folder source yet), unpacked
-  into the app's files on the first run. The service starts them like the
-  desktop does, through `libcmpython.so`, the one place Android lets an app
-  exec from. There's no CPython for 32-bit units, so no APK for them.
+- **Backends**: the APK carries the Rust local-folder executable and CPython
+  with Yandex Music and YouTube Music. The service runs each over stdio.
+  Android extracts `libcmlocalfolder.so` and `libcmpython.so` to its
+  executable library directory. The Python runtime and packages are
+  unpacked into app files on first run (`tools/bundle-python.sh`).
+  The local-folder source can start if Python preparation fails. APKs are
+  built for arm64-v8a and x86_64.
 - **Views** (`qml/`, `src/Ui`): `Ui::Backend` hands QML the view models
   themselves (one process) or replicas of them (`Remote::Host`).
 - **Android** (`android/`): the player is a Media3 `MediaLibraryService` in
@@ -81,7 +83,12 @@ Qt Shader Tools builds the views' own shaders (`fronts/mobile/shaders/`, such
 as the touch ripple) to `.qsb`, for the desktop kit and Android alike.
 
 Plus an Android SDK with `platforms/android-34` and `build-tools/35.0.0`,
-NDK r26b (`ndk/26.1.10909125`) and JDK 17 (`CLOUDMUS_JAVA17_HOME`).
+NDK r26b (`ndk/26.1.10909125`), JDK 17 (`CLOUDMUS_JAVA17_HOME`) and Rust.
+Install the Rust target for each ABI you build.
+
+```bash
+rustup target add aarch64-linux-android x86_64-linux-android
+```
 
 ```bash
 ./build-android.sh                    # arm64-v8a → dist/CloudMus-<version>-arm64-v8a.apk
@@ -130,8 +137,7 @@ adb logcat -s CloudmusStart             # startup milestones
   from the bar and down from the top.
 - Settings apply at once. A source's page (whether it runs, its connection and
   its own settings) restarts the source when a change takes that; opening it
-  starts a source left unstarted for wanting a sign-in. There's no language
-  setting yet: the QML has no translations. No download folder either.
+  starts a source left unstarted for wanting a sign-in.
 - Media browsers (the car's Media Center, Android Auto) list the playlists:
   a folder for each source, even a single one (Media Center makes tabs of the
   root's folders and shows nothing else there), favorites first, as a grid of
@@ -164,6 +170,37 @@ adb logcat -s CloudmusStart             # startup milestones
   started the player. Head units differ in what they send when the car
   starts (many sleep rather than reboot, so `BOOT_COMPLETED` may not come):
   the log lists every broadcast the receiver gets.
+
+## Local music and saving
+
+The Local Folder source shows tracks saved by CloudMus. In the source settings
+you can enter one additional absolute folder path, including a mounted USB
+path on a head unit. The app checks the path under its own Android permissions.
+Settings → Music storage → **Show all device music** includes the audio indexed
+by MediaStore after you grant Android's audio or storage permission. None of
+these actions opens a system folder chooser.
+
+CloudMus first saves to shared `Music/CloudMus`. Android 8–9 uses direct file
+access with the storage permission. Android 10 and later publishes tagged files
+through MediaStore. On these versions, WebM/Opus audio is repackaged as Ogg Opus
+without re-encoding before the title, artist and cover are written. If shared
+storage refuses the write, CloudMus uses its
+app-specific Music directory or its internal files if the external volume is
+unavailable. Check the Downloads page for the actual destination. Android
+removes app-specific files on uninstall. The playback disk-space limit also
+applies to saved tracks and temporary files.
+
+In Developer tools, **Check music storage** tests creation, writing and
+deletion in the candidate locations. In the Log page, filter for
+`MusicStorage` to find the SDK, permission state, volumes, available bytes
+and the stage of any failed write. After changing permissions in Android
+Settings or reconnecting a drive, run the check again. Vendor partitions
+listed in a head unit's firmware can have different access rules at runtime.
+
+When another app offers **Open with CloudMus** for an audio file, the track
+plays immediately after insertion in the current queue. Playback continues
+with the rest of that queue. A provider can give CloudMus either a temporary
+read grant or one that persists across restarts.
 
 ## Android Auto
 

@@ -17,6 +17,16 @@
 
 #include <mpv/client.h>
 
+#ifdef Q_OS_ANDROID
+#include <mpv/stream_cb.h>
+#include <poll.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <atomic>
+#include <cerrno>
+#endif
+
 #include "StreamRelay.h"
 
 namespace Playback {
@@ -289,6 +299,91 @@ void AudioPlayer::setStartPosition(qint64 positionMs)
     startPositionSet_ = true;
 }
 
+bool AudioPlayer::isLocalInput(const QUrl& url)
+{
+#ifdef Q_OS_ANDROID
+    if (url.scheme() == QStringLiteral("content"))
+        return true;
+#endif
+    return url.isLocalFile();
+}
+
+#ifdef Q_OS_ANDROID
+namespace {
+struct ContentFile {
+    int fd;
+    qint64 size;
+    bool seekable;
+    std::atomic<bool> cancelled { false };
+};
+
+int64_t readContent(void* cookie, char* buffer, uint64_t size)
+{
+    auto* file = static_cast<ContentFile*>(cookie);
+    if (!file->seekable) {
+        // A content provider may stream through a pipe. Poll so a changed
+        // track can cancel the read even when the provider sends no data.
+        pollfd info { file->fd, POLLIN, 0 };
+        while (!file->cancelled.load()) {
+            const int ready = ::poll(&info, 1, 100);
+            if (ready > 0)
+                break;
+            if (ready < 0 && errno != EINTR)
+                return MPV_ERROR_GENERIC;
+        }
+    }
+    if (file->cancelled.load())
+        return MPV_ERROR_GENERIC;
+    ssize_t result;
+    do {
+        result = ::read(file->fd, buffer, size_t(size));
+    } while (result < 0 && errno == EINTR);
+    return result;
+}
+
+int64_t seekContent(void* cookie, int64_t position)
+{
+    const auto offset = ::lseek(static_cast<ContentFile*>(cookie)->fd, position, SEEK_SET);
+    return offset < 0 ? MPV_ERROR_UNSUPPORTED : offset;
+}
+
+int64_t sizeContent(void* cookie) { return static_cast<ContentFile*>(cookie)->size; }
+
+void cancelContent(void* cookie) { static_cast<ContentFile*>(cookie)->cancelled.store(true); }
+
+void closeContent(void* cookie)
+{
+    auto* file = static_cast<ContentFile*>(cookie);
+    ::close(file->fd);
+    delete file;
+}
+}
+
+void AudioPlayer::setContentOpener(std::function<int(const QString&)> opener)
+{
+    contentOpener_ = std::move(opener);
+    const int error
+        = mpv_stream_cb_add_ro(mpv_, "content", this, [](void* user, char* uri, mpv_stream_cb_info* info) -> int {
+              const auto& open = static_cast<AudioPlayer*>(user)->contentOpener_;
+              const int fd = open(QString::fromUtf8(uri));
+              if (fd < 0)
+                  return MPV_ERROR_LOADING_FAILED;
+              struct stat metadata { };
+              const bool seekable = ::lseek(fd, 0, SEEK_CUR) >= 0;
+              const bool sized = ::fstat(fd, &metadata) == 0 && S_ISREG(metadata.st_mode);
+              info->cookie = new ContentFile { fd, sized ? metadata.st_size : MPV_ERROR_UNSUPPORTED, seekable };
+              info->read_fn = readContent;
+              info->seek_fn = seekable ? seekContent : nullptr;
+              info->size_fn = sized ? sizeContent : nullptr;
+              info->close_fn = closeContent;
+              info->cancel_fn = cancelContent;
+              return 0;
+          });
+    if (error < 0)
+        qCWarning(lcAudioPlayer) << "content stream registration failed:" << mpv_error_string(error);
+}
+#endif
+
 void AudioPlayer::play(const QString& url, const QString& title, const std::optional<QNetworkProxy>& route,
     const QMap<QString, QString>& headers)
 {
@@ -302,7 +397,7 @@ void AudioPlayer::play(const QString& url, const QString& title, const std::opti
     // it (Qt's file reply has no HTTP status) — whatever route or headers
     // the source carries.
     const QUrl parsed(url);
-    if (parsed.isLocalFile() || parsed.scheme().isEmpty()) {
+    if (isLocalInput(parsed) || parsed.scheme().isEmpty()) {
         loadUrl(url);
         return;
     }

@@ -62,6 +62,10 @@ public:
     // The head unit's media setup (launcher, media services, the apps the
     // car's widget lists) into the log; what to tell the user.
     Q_INVOKABLE QString logSystemProbe() const;
+    Q_INVOKABLE QString probeMusicStorage() const;
+    Q_INVOKABLE bool deviceMusicEnabled() const;
+    Q_INVOKABLE void setDeviceMusicEnabled(bool enabled);
+    Q_INVOKABLE void grantMusicStorage() const;
     // The head unit's system APKs into a zip, for working out its media
     // widget at home (Android). Hundreds of MB: on a worker thread, the
     // progress in exportFraction/exportStatus, the outcome in

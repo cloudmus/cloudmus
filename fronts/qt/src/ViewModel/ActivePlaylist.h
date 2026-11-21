@@ -81,6 +81,8 @@ public:
 
     // Makes `context` active without touching playback.
     void setContext(const PlaylistContext& context);
+    void playLocalInput(const Track& track, const QString& url, bool persistent);
+    void reportLocalInputError();
     // Makes `context` active and plays `entries` from `startIndex` (History
     // fills its own; a radio station starts instead).
     void activate(const PlaylistContext& context, const QVector<Playback::QueueEntry>& entries, int startIndex);
@@ -149,6 +151,7 @@ private:
         const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
     void loadCachedTracks();
     void saveCachedTracks() const;
+    QVector<Playback::QueueEntry> restoredQueue(int& baseIndex) const;
     // Makes `context` active and plays it from what was saved of its tracks;
     // false if nothing was.
     bool activateFromCache(const PlaylistContext& context);
@@ -166,6 +169,8 @@ private:
     std::function<bool(const QString& sourceId)> offline_;
     PlaylistContext context_;
     QVector<Playback::QueueEntry> tracks_;
+    QVector<QPair<int, Playback::QueueEntry>> restoredInputs_;
+    QString lastLocalInputId_;
     bool loading_ = false;
     bool startingRadio_ = false;
     // The active playlist saved last run, until its source lists it.

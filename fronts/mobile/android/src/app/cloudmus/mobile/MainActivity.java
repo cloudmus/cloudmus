@@ -16,14 +16,16 @@ public class MainActivity extends QtActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         CmLog.mark("activity onCreate");
-        CmLog.i(TAG, "onCreate, intent " + getIntent());
+        CmLog.i(TAG, "onCreate action=" + getIntent().getAction());
         UiBridge.pythonProbeRequested = getIntent().getBooleanExtra("pythonProbe", false);
         super.onCreate(savedInstanceState);
         Appearance.setUp(this);
         preferFastestRefreshRate();
         hideFromOtherAccessibility();
-        // Shared Download/Cloudmus is a plain folder up to Android 10.
-        if (Build.VERSION.SDK_INT >= 23 && Build.VERSION.SDK_INT < 30
+        if (savedInstanceState == null)
+            openAudio(getIntent());
+        // Android 8–9 needs this grant to write shared music and logs.
+        if (Build.VERSION.SDK_INT <= 28
             && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
@@ -70,6 +72,33 @@ public class MainActivity extends QtActivity {
         CmLog.i(TAG, "permissions result: " + java.util.Arrays.toString(permissions) + " "
                 + java.util.Arrays.toString(results));
         CmLog.storageChanged();
+        startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
+    }
+
+    private void openAudio(Intent incoming) {
+        if (!Intent.ACTION_VIEW.equals(incoming.getAction()) || incoming.getData() == null)
+            return;
+        Intent command = new Intent(this, PlaybackService.class)
+            .setAction(PlaybackService.ACTION_OPEN_AUDIO)
+            .setDataAndType(incoming.getData(), incoming.getType())
+            .setFlags(incoming.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));
+        startService(command);
+    }
+
+    void setDeviceMusicEnabled(boolean enabled) {
+        runOnUiThread(() -> {
+            try {
+                MusicStorage.setDeviceMusic(this, enabled);
+                String permission = MusicStorage.readPermission();
+                if (enabled && checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED)
+                    requestPermissions(new String[] {permission}, 2);
+                else
+                    startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
+            } catch (java.io.IOException error) {
+                CmLog.e(TAG, "could not save device music setting", error);
+            }
+        });
     }
 
     // With the app on screen the head unit hands the steering-wheel buttons
@@ -114,8 +143,10 @@ public class MainActivity extends QtActivity {
 
     @Override
     protected void onNewIntent(Intent intent) {
-        CmLog.i(TAG, "onNewIntent " + intent);
+        CmLog.i(TAG, "onNewIntent action=" + intent.getAction());
         super.onNewIntent(intent);
+        setIntent(intent);
+        openAudio(intent);
     }
 
     // The UI's own start may have come too early for Android, and the service
@@ -123,6 +154,7 @@ public class MainActivity extends QtActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
         UiBridge.startService(this);
     }
 

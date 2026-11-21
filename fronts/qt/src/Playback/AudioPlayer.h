@@ -15,6 +15,7 @@
 #include "LevelFeed.h"
 
 class QTimer;
+class QUrl;
 
 struct mpv_handle;
 struct mpv_event;
@@ -53,6 +54,11 @@ public:
     explicit AudioPlayer(QObject* parent = nullptr, const QByteArray& audioOutput = "pipewire,pulse,alsa");
 #endif
     ~AudioPlayer() override;
+
+    static bool isLocalInput(const QUrl& url);
+#ifdef Q_OS_ANDROID
+    void setContentOpener(std::function<int(const QString&)> opener);
+#endif
 
     // A file on disk, or a stream fetched as mpv reads it. `route`: fetch
     // the stream through this proxy (NoProxy: explicitly directly); none —
@@ -117,6 +123,9 @@ private:
     // Qt::QueuedConnection) from mpvWakeup(), which libmpv calls from one of
     // its own internal threads — never touch mpv_ directly from there.
     Q_INVOKABLE void processMpvEvents();
+#ifdef Q_OS_ANDROID
+    std::function<int(const QString&)> contentOpener_;
+#endif
     void handleEvent(const mpv_event& event);
 
     static void mpvWakeup(void* ctx);

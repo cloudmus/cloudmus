@@ -12,6 +12,7 @@
 #include <QSaveFile>
 #include <QSet>
 #include <QTimer>
+#include <QUrl>
 
 #include "CoverArtCache.h"
 #include "Messages.h"
@@ -65,7 +66,18 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
     connect(this, &ActivePlaylist::entriesChanged, this, &ActivePlaylist::countChanged);
     connect(&playback_, &Playback::PlaybackController::queueChanged, this, [this]() {
         // A radio's track list grows through notifications, outside loadTracks().
-        if (context_.isRadio() && playback_.isRadio())
+        const bool hadInputs = !restoredInputs_.isEmpty();
+        restoredInputs_.clear();
+        int position = 0;
+        for (const auto& entry : playback_.queue()) {
+            if (!entry.localInput.isEmpty()) {
+                if (entry.persistentInput)
+                    restoredInputs_.append({ position, entry });
+            } else {
+                ++position;
+            }
+        }
+        if (hadInputs || !restoredInputs_.isEmpty() || (context_.isRadio() && playback_.isRadio()))
             saveCachedTracks();
         emit entriesChanged();
     });
@@ -73,9 +85,22 @@ ActivePlaylist::ActivePlaylist(Playback::PlaybackController& playback, Rpc::Sour
         [this](const Track& track, const QString& sourceId) {
             if (!context_.isValid())
                 return;
+            const auto& entry = playback_.queue()[playback_.currentIndex()];
+            if (!entry.localInput.isEmpty()) {
+                if (entry.persistentInput) {
+                    lastLocalInputId_ = track.id;
+                    settings_.setLastActiveTrack(track.id, playback_.currentIndex());
+                    saveCachedTracks();
+                }
+                return;
+            }
+            if (!lastLocalInputId_.isEmpty()) {
+                lastLocalInputId_.clear();
+                saveCachedTracks();
+            }
             if (!context_.isHistory && sourceId != context_.sourceId)
                 return;
-            if (context_.isRadio() && playback_.queue()[playback_.currentIndex()].userQueued)
+            if (context_.isRadio() && entry.userQueued)
                 return;
             settings_.setLastActiveTrack(track.id, playback_.currentIndex());
         });
@@ -201,9 +226,26 @@ void ActivePlaylist::loadCachedTracks()
                 }
             }
         }
+        lastLocalInputId_ = data.value(QStringLiteral("lastLocalInput")).toString();
+        for (const QJsonValue& value : data.value(QStringLiteral("localInputs")).toArray()) {
+            const QJsonObject row = value.toObject();
+            const QString uri = row.value(QStringLiteral("url")).toString();
+            const QUrl url(uri);
+            if (!Playback::AudioPlayer::isLocalInput(url))
+                continue;
+            try {
+                const Track track = Track::fromJson(row.value(QStringLiteral("track")).toObject());
+                restoredInputs_.append({ row.value(QStringLiteral("position")).toInt(),
+                    { QStringLiteral("local-file"), track, true, uri, true } });
+            } catch (const Rpc::ProtocolParseError&) {
+                continue;
+            }
+        }
     } catch (const Rpc::ProtocolParseError&) {
         context_ = { };
         tracks_.clear();
+        restoredInputs_.clear();
+        lastLocalInputId_.clear();
     }
 }
 
@@ -226,10 +268,15 @@ void ActivePlaylist::saveCachedTracks() const
         rows.append(QJsonObject {
             { QStringLiteral("sourceId"), entry.sourceId }, { QStringLiteral("track"), track.toJson() } });
     }
+    QJsonArray inputs;
+    for (const auto& [position, entry] : restoredInputs_)
+        inputs.append(QJsonObject { { QStringLiteral("position"), position },
+            { QStringLiteral("url"), entry.localInput }, { QStringLiteral("track"), entry.track.toJson() } });
     const QJsonObject data { { QStringLiteral("sourceId"), context_.sourceId },
         { QStringLiteral("playlistId"), context_.playlist.id },
         { QStringLiteral("kind"), context_.isHistory ? QStringLiteral("history") : context_.playlist.kind },
-        { QStringLiteral("playlist"), context_.playlist.toJson() }, { QStringLiteral("tracks"), rows } };
+        { QStringLiteral("playlist"), context_.playlist.toJson() }, { QStringLiteral("tracks"), rows },
+        { QStringLiteral("localInputs"), inputs }, { QStringLiteral("lastLocalInput"), lastLocalInputId_ } };
     const QString path = cachedTracksPath(settings_);
     QDir().mkpath(QFileInfo(path).absolutePath());
     QSaveFile file(path);
@@ -251,7 +298,12 @@ PlaylistContext ActivePlaylist::historyContext() const
 
 QVector<Playback::QueueEntry> ActivePlaylist::entries() const
 {
-    return playback_.hasQueue() ? playback_.queue() : tracks_;
+    if (playback_.hasQueue())
+        return playback_.queue();
+    if (restoredInputs_.isEmpty())
+        return tracks_;
+    int unused = 0;
+    return restoredQueue(unused);
 }
 
 int ActivePlaylist::resumeIndex() const
@@ -284,8 +336,11 @@ void ActivePlaylist::setContext(const PlaylistContext& context)
 {
     const bool changed = !context_.sameAs(context);
     context_ = context;
-    if (changed)
+    if (changed) {
         tracks_.clear();
+        restoredInputs_.clear();
+        lastLocalInputId_.clear();
+    }
     sources_.model().setActivePlaylist(context.isHistory ? QString() : context.sourceId,
         context.isHistory ? QStringLiteral("history") : context.playlist.id);
     settings_.setLastActivePlaylist({ context.isHistory ? QString() : context.sourceId, context.playlist.id,
@@ -434,6 +489,52 @@ Rpc::Task<void> ActivePlaylist::startRadio(
     emit startingRadioChanged(false);
 }
 
+QVector<Playback::QueueEntry> ActivePlaylist::restoredQueue(int& baseIndex) const
+{
+    QVector<Playback::QueueEntry> entries = tracks_;
+    int added = 0;
+    for (const auto& [position, entry] : restoredInputs_) {
+        const int target = qBound(0, position + added, int(entries.size()));
+        entries.insert(target, entry);
+        if (target <= baseIndex)
+            ++baseIndex;
+        ++added;
+    }
+    return entries;
+}
+
+void ActivePlaylist::reportLocalInputError()
+{
+    messages_.error(tr("Couldn't open the audio file. Check its permissions."));
+}
+
+void ActivePlaylist::playLocalInput(const Track& track, const QString& url, bool persistent)
+{
+    Playback::QueueEntry input { QStringLiteral("local-file"), track, true, url, persistent };
+    if (!context_.isValid() && persistent) {
+        const Playlist opened { QStringLiteral("opened-audio"), tr("Opened audio"), std::nullopt, std::nullopt,
+            1, QStringLiteral("playlist") };
+        setContext({ input.sourceId, opened });
+    }
+    if (playback_.hasQueue()) {
+        playback_.playLocalInput(std::move(input));
+        return;
+    }
+    int index = tracks_.isEmpty() ? -1 : resumeIndex();
+    auto entries = restoredQueue(index);
+    // A cached playlist can be visible while its playback queue is still empty.
+    // Keep its tracks when the audio request arrives before the source starts.
+    const int position = index + 1;
+    entries.insert(position, std::move(input));
+    if (context_.isRadio()) {
+        playback_.loadRadioQueue(context_.sourceId, QString(), std::move(entries), position);
+        if (sourceAnswers(context_.sourceId))
+            attachStation(context_.sourceId, context_.playlist.id).detach();
+    } else {
+        playback_.loadQueue(entries, position);
+    }
+}
+
 void ActivePlaylist::play()
 {
     if (!context_.isValid())
@@ -451,19 +552,36 @@ void ActivePlaylist::play()
             startOfflineRadio(context_, sources_.model().sourceName(context_.sourceId));
         else
             startRadio(context_.sourceId, context_.playlist.id, context_, resumeTrack).detach();
-    } else if (playback_.hasQueue())
+    } else if (playback_.hasQueue()) {
         playback_.playAt(0);
-    else
+    } else if (!restoredInputs_.isEmpty()) {
+        int index = resumeIndex();
+        auto queue = restoredQueue(index);
+        playback_.loadQueue(queue, qMin(index, int(queue.size()) - 1));
+        emit activated();
+    } else {
         activate(context_, tracks_, resumeIndex());
+    }
 }
 
 void ActivePlaylist::playRow(int row)
 {
     // The main list mirrors the queue once there is one (see entries()),
     // so its rows are queue indices.
-    if (playback_.hasQueue())
+    if (playback_.hasQueue()) {
         playback_.playAt(row);
-    else if (context_.isRadio() && row >= 0 && row < tracks_.size() && !sourceAnswers(context_.sourceId))
+    } else if (!restoredInputs_.isEmpty()) {
+        auto queue = entries();
+        if (row < 0 || row >= queue.size())
+            return;
+        if (context_.isRadio()) {
+            playback_.loadRadioQueue(context_.sourceId, QString(), std::move(queue), row);
+            if (sourceAnswers(context_.sourceId))
+                attachStation(context_.sourceId, context_.playlist.id).detach();
+        } else {
+            playback_.loadQueue(queue, row);
+        }
+    } else if (context_.isRadio() && row >= 0 && row < tracks_.size() && !sourceAnswers(context_.sourceId))
         playSavedRadio(row); // the station attaches once its source is up (attachStation())
     else if (context_.isRadio() && row >= 0 && row < tracks_.size())
         startRadio(context_.sourceId, context_.playlist.id, context_, tracks_[row].track).detach();
@@ -626,7 +744,25 @@ void ActivePlaylist::resumePlayback()
 
 void ActivePlaylist::resumeFromCache()
 {
-    if (!resumePending_ || !context_.isValid() || tracks_.isEmpty() || playback_.hasQueue())
+    if (!resumePending_ || !context_.isValid() || playback_.hasQueue())
+        return;
+    if (!lastLocalInputId_.isEmpty() && !restoredInputs_.isEmpty()) {
+        int index = resumeIndex();
+        auto queue = restoredQueue(index);
+        const auto found = std::find_if(queue.cbegin(), queue.cend(),
+            [this](const auto& entry) { return !entry.localInput.isEmpty() && entry.track.id == lastLocalInputId_; });
+        if (found != queue.cend()) {
+            const int start = int(found - queue.cbegin());
+            resumePending_ = false;
+            resumePosition();
+            if (context_.isRadio())
+                playback_.loadRadioQueue(context_.sourceId, QString(), std::move(queue), start);
+            else
+                playback_.loadQueue(queue, start);
+            return;
+        }
+    }
+    if (tracks_.isEmpty())
         return;
     const int index = resumeIndex();
     const Playback::QueueEntry& entry = tracks_[index];
@@ -639,8 +775,11 @@ void ActivePlaylist::resumeFromCache()
     // is still to come, and freshens its tracks behind the playing queue.
     if (context_.isRadio())
         playSavedRadio();
-    else
-        playback_.loadQueue(tracks_, index);
+    else {
+        int start = index;
+        const auto queue = restoredQueue(start);
+        playback_.loadQueue(queue, start);
+    }
 }
 
 bool ActivePlaylist::sourceAnswers(const QString& sourceId) const
@@ -733,10 +872,9 @@ QList<Track> ActivePlaylist::cachedRadioTracks(const QString& sourceId, int coun
 
 void ActivePlaylist::playSavedRadio(int index)
 {
-    QList<Track> tracks;
-    for (const Playback::QueueEntry& e : tracks_)
-        tracks.append(e.track);
-    playback_.startRadio(context_.sourceId, QString(), tracks, index >= 0 ? index : resumeIndex());
+    int start = index >= 0 ? index : resumeIndex();
+    auto queue = restoredQueue(start);
+    playback_.loadRadioQueue(context_.sourceId, QString(), std::move(queue), start);
 }
 
 Rpc::Task<void> ActivePlaylist::attachStation(QString sourceId, QString seed)

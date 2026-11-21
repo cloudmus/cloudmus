@@ -82,7 +82,12 @@ public final class CoreBridge {
     private CoreBridge() {
     }
 
-    public static native void nativeStart(String filesDir, String cacheDir, String pythonHome, String libraryDir);
+    static native void nativeMusicChanged();
+    static native void nativeOpenAudio(String uri, String title, String artist, long duration, boolean persistent);
+
+    private static native void nativeStart(Context application, String filesDir, String cacheDir, String libraryDir,
+                                           String nativeBackendDir);
+    private static native void nativePythonReady(String pythonHome, String libraryDir);
 
     public static native void nativeCommand(int command, long argument);
 
@@ -191,15 +196,52 @@ public final class CoreBridge {
         CmLog.mark("core: library loaded");
         Context application = context.getApplicationContext();
         new Thread(() -> {
-            File python = null;
+            File nativeBackends = prepareNativeBackends(application);
+            String libraryDir = application.getApplicationInfo().nativeLibraryDir;
+            nativeStart(application, application.getFilesDir().getPath(), application.getCacheDir().getPath(),
+                libraryDir, nativeBackends == null ? "" : nativeBackends.getPath());
             try {
-                python = PythonRuntime.prepare(application);
+                File python = PythonRuntime.prepare(application);
+                nativePythonReady(python.getPath(), libraryDir);
             } catch (Exception error) {
-                CmLog.e(TAG, "no Python, so no sources", error);
+                CmLog.e(TAG, "Python sources unavailable", error);
             }
-            nativeStart(application.getFilesDir().getPath(), application.getCacheDir().getPath(),
-                python == null ? "" : python.getPath(), application.getApplicationInfo().nativeLibraryDir);
         }, "core-start").start();
+    }
+
+    private static File prepareNativeBackends(Context app) {
+        File executable = new File(app.getApplicationInfo().nativeLibraryDir, "libcmlocalfolder.so");
+        if (!executable.canExecute()) {
+            CmLog.w(TAG, "Rust backend executable unavailable: " + executable);
+            return null;
+        }
+        File dir = new File(app.getFilesDir(), "native-backends");
+        String icon = "local-folder.svg";
+        try {
+            if (!dir.isDirectory() && !dir.mkdirs())
+                throw new java.io.IOException("cannot create manifest directory");
+            try (java.io.InputStream in = app.getAssets().open(icon)) {
+                java.nio.file.Files.copy(in, new File(dir, icon).toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            org.json.JSONObject manifest;
+            try (java.io.InputStream in = app.getAssets().open("local-folder.json")) {
+                java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+                byte[] buffer = new byte[4096];
+                for (int size; (size = in.read(buffer)) != -1;)
+                    bytes.write(buffer, 0, size);
+                manifest = new org.json.JSONObject(bytes.toString("UTF-8"));
+            }
+            manifest.put("argv", new org.json.JSONArray().put(executable.getAbsolutePath()));
+            manifest.put("icon", icon);
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(new File(dir, "local-folder.json"))) {
+                out.write(manifest.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            return dir;
+        } catch (Exception error) {
+            CmLog.e(TAG, "prepare Rust backend manifest", error);
+            return null;
+        }
     }
 
     private static void loadQtCore() {

@@ -1,5 +1,7 @@
 #include "Preloader.h"
 
+#include "AudioPlayer.h"
+
 #include <QFile>
 #include <QLoggingCategory>
 #include <QPointer>
@@ -330,9 +332,11 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
 {
     Entry& entry = entries_[key];
     const QUrl url(stream.url);
-    if (url.isLocalFile()) {
+    if (AudioPlayer::isLocalInput(url)) {
         // Nothing to download: the source's own file is the track.
         entry.readyPath = url.toLocalFile();
+        if (entry.readyPath.isEmpty())
+            entry.contentUrl = stream.url;
         setState(key, State::Ready);
         emit ready(entry.item.sourceId, entry.item.trackId);
         scheduleLater();
@@ -507,6 +511,15 @@ QString Preloader::readyPath(const QString& sourceId, const QString& trackId)
     return it != entries_.constEnd() && it->state == State::Ready ? it->readyPath : QString();
 }
 
+QString Preloader::readyUrl(const QString& sourceId, const QString& trackId)
+{
+    const auto it = entries_.constFind(TrackCache::keyFor(sourceId, trackId));
+    if (it != entries_.constEnd() && it->state == State::Ready && !it->contentUrl.isEmpty())
+        return it->contentUrl;
+    const QString path = readyPath(sourceId, trackId);
+    return path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString();
+}
+
 StreamDownload* Preloader::download(const QString& sourceId, const QString& trackId) const
 {
     const auto it = entries_.constFind(TrackCache::keyFor(sourceId, trackId));
@@ -529,6 +542,7 @@ void Preloader::discard(const QString& sourceId, const QString& trackId)
         QFile::remove(cache_.partPath(key));
     }
     it->readyPath.clear();
+    it->contentUrl.clear();
     it->item.stream.reset();
     it->freshUrls = 0;
     setState(key, State::Waiting);

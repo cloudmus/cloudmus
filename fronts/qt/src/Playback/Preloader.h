@@ -104,6 +104,7 @@ public:
     // The file to play the whole track from — the cached one, or a local
     // source's own; empty if there is none (yet).
     QString readyPath(const QString& sourceId, const QString& trackId);
+    QString readyUrl(const QString& sourceId, const QString& trackId);
     // The download of a wanted track that has one under way or paused.
     StreamDownload* download(const QString& sourceId, const QString& trackId) const;
     // Forgets a track that turned out unplayable, cached file included.
@@ -151,6 +152,7 @@ private:
         State state = State::Waiting;
         StreamDownload* download = nullptr;
         QString readyPath;
+        QString contentUrl;
         // Asked for a URL, not answered yet.
         bool resolving = false;
         std::function<void()> cancelResolve;

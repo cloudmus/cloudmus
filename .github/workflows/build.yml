@@ -194,6 +194,7 @@ jobs:
               .venv/bin/aqt install-qt linux desktop 6.7.3 linux_gcc_64 -O "$HOME/Qt" -m qtremoteobjects qtshadertools
               .venv/bin/aqt install-qt linux android 6.7.3 android_arm64_v8a -O "$HOME/Qt" -m qtremoteobjects qtshadertools
           fi
+          rustup target add aarch64-linux-android
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
               "platforms;android-34" "build-tools;35.0.0" "ndk;26.1.10909125" > /dev/null
 

@@ -77,6 +77,34 @@ public final class UiBridge {
     // What the head unit's media system looks like, into the log: a few
     // seconds of package queries, so off the calling thread. Run by hand
     // from Developer tools; at every start it filled the log.
+    public static String probeMusicStorage(Context context) {
+        context.startService(new Intent(context, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_PROBE));
+        return "yes";
+    }
+
+    public static String deviceMusicEnabled(Context context) {
+        return MusicStorage.deviceMusic(context) ? "yes" : "";
+    }
+
+    public static void setDeviceMusicEnabled(Context context, boolean enabled) {
+        if (context instanceof MainActivity)
+            ((MainActivity) context).setDeviceMusicEnabled(enabled);
+    }
+
+    public static void grantMusicStorage(Context context) {
+        if (context instanceof MainActivity) {
+            MainActivity activity = (MainActivity) context;
+            activity.runOnUiThread(() -> {
+                try {
+                    activity.startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.fromParts("package", context.getPackageName(), null)));
+                } catch (android.content.ActivityNotFoundException error) {
+                    CmLog.w("UiBridge", "App permissions screen is unavailable");
+                }
+            });
+        }
+    }
+
     public static String logSystemProbe(Context context) {
         new Thread(() -> SystemProbe.logAll(context), "system-probe").start();
         return "Written to the log";

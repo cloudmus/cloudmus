@@ -73,6 +73,8 @@ public:
         int current = 0; // index of the track under way / next
         int saved = 0;
         int failed = 0;
+        QString fallbackDirectory;
+        QString fallbackReason;
         // The track under way: bytes so far, and the file's size (-1 while
         // unknown — or for good, from a source without downloadControl).
         qint64 received = 0;
@@ -99,6 +101,16 @@ public:
     // of the ones that aren't there. Without one a source is only asked
     // with catalog.downloadTrack.
     void setPreloader(Playback::Preloader* preloader) { preloader_ = preloader; }
+
+    struct PublishResult {
+        QString directory;
+        QString fallback;
+        QString error;
+    };
+    using Publisher = std::function<PublishResult(const QString& path, const QString& subfolder)>;
+    using WebmPreparer = std::function<bool(const QString& input, const QString& output)>;
+    void setPublisher(QString directory, Publisher publisher, WebmPreparer prepareWebm = { });
+    QString directory() const;
 
     // Whether tracks of a source with these capabilities can be saved at
     // all — by the front (downloadFromStream, with a stream to resolve) or
@@ -132,6 +144,7 @@ public:
 
 signals:
     void changed();
+    void directoryChanged();
     void completed(const QString& sourceId, bool playlist, int savedCount);
 
 private:
@@ -140,7 +153,8 @@ private:
     Rpc::Task<void> run(int jobId);
     // One track by the front: from the cache or fetched, then written to
     // `destDir`. Throws with the reason when it can't.
-    Rpc::Task<void> saveFromStream(int jobId, QString sourceId, Track track, QString destDir);
+    Rpc::Task<QString> saveFromStream(int jobId, QString sourceId, Track track, QString destDir);
+    Rpc::Task<PublishResult> publish(QString path, QString subfolder);
     void finish(Job& job, const QString& lastError);
     void reportFetchProgress();
     void onProgress(const QString& sourceId, const QString& downloadId, qint64 received, std::optional<qint64> total);
@@ -151,6 +165,10 @@ private:
     Config::Settings& settings_;
     Messages& messages_;
     Playback::Preloader* preloader_ = nullptr;
+    Publisher publisher_;
+    WebmPreparer prepareWebm_;
+    QString preferredDirectory_;
+    QString publishedDirectory_;
     // A track being saved by the front: told by cancel() so it stops
     // waiting for it.
     std::function<void()> wakePlayerSave_;

@@ -173,6 +173,10 @@
       <source>Merge touch moves into one per frame</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Check music storage</source>
+      <translation>Musikspeicher prüfen</translation>
+    </message>
   </context>
   <context>
     <name>DownloadsPage</name>
@@ -588,6 +592,18 @@
       <source>Developer tools</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Music storage</source>
+      <translation>Musikspeicher</translation>
+    </message>
+    <message>
+      <source>Show all device music</source>
+      <translation>Alle Musik auf dem Gerät anzeigen</translation>
+    </message>
+    <message>
+      <source>Storage permissions</source>
+      <translation>Speicherberechtigungen</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>
@@ -772,6 +788,10 @@
       <source>%1 — %2 of %3 MB</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Written to the log</source>
+      <translation>Ins Protokoll geschrieben</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ActivePlaylist</name>
@@ -786,6 +806,14 @@
     <message>
       <source>No network connection, and nothing of %1 is downloaded to play</source>
       <translation>Keine Netzwerkverbindung, und von %1 ist nichts heruntergeladen</translation>
+    </message>
+    <message>
+      <source>Couldn't open the audio file. Check its permissions.</source>
+      <translation>Die Audiodatei konnte nicht geöffnet werden. Prüfe die Berechtigungen.</translation>
+    </message>
+    <message>
+      <source>Opened audio</source>
+      <translation>Geöffnete Audiodatei</translation>
     </message>
   </context>
   <context>
@@ -875,6 +903,18 @@
     <message>
       <source>Saved %1 of %2 tracks of "%3" — %4</source>
       <translation>%1 von %2 Titeln aus „%3“ gespeichert – %4</translation>
+    </message>
+    <message>
+      <source>Couldn't find the file to save</source>
+      <translation>Die zu speichernde Datei wurde nicht gefunden</translation>
+    </message>
+    <message>
+      <source>Couldn't publish the track</source>
+      <translation>Der Titel konnte nicht veröffentlicht werden</translation>
+    </message>
+    <message>
+      <source>Saved to %1. Check shared storage permissions and free space.</source>
+      <translation>In %1 gespeichert. Prüfe die Berechtigungen und den freien Platz im gemeinsamen Speicher.</translation>
     </message>
   </context>
   <context>

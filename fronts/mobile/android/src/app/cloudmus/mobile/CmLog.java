@@ -317,10 +317,10 @@ public final class CmLog {
         return mirror.dir.isDirectory() || mirror.dir.mkdirs();
     }
 
-    // Plain files in Download: Android 8-9 with the permission, 10 with
-    // legacy storage too; from 11 only the zip export (MediaStore) gets there.
+    // Plain files in Download on Android 8–9. On newer versions the zip
+    // export writes to Download through MediaStore.
     private static boolean canWriteShared() {
-        if (Build.VERSION.SDK_INT >= 30)
+        if (Build.VERSION.SDK_INT >= 29)
             return false;
         return context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             == PackageManager.PERMISSION_GRANTED;

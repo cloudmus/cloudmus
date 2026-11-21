@@ -127,6 +127,9 @@ QList<BackendManifest> discoverManifests()
     // ...or that the app unpacks as it runs (Android: PythonRuntime.java), with
     // the interpreter wherever the platform lets it be started from.
     const QProcessEnvironment system = QProcessEnvironment::systemEnvironment();
+    const QString nativeDir = system.value(QStringLiteral("CLOUDMUS_NATIVE_BACKENDS_DIR"));
+    if (!nativeDir.isEmpty())
+        scanDir(QDir(nativeDir), result, seenIds, true);
     const QString unpackedDir = system.value(QStringLiteral("CLOUDMUS_BACKENDS_DIR"));
     if (!unpackedDir.isEmpty()) {
         const qsizetype first = result.size();

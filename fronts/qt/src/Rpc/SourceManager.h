@@ -25,6 +25,7 @@ public:
     // Every backend manifest found (discoverManifests(), scanned once),
     // enabled or not.
     const QList<BackendManifest>& manifests();
+    void discoverNewSources();
 
     // The environment each backend process gets (Net::backendEnvironment()
     // — its proxy); the front's own environment without one.

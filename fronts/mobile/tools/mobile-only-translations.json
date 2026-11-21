@@ -478,5 +478,85 @@
   "es": "Su proxy se eliminó: usa la conexión del sistema.",
   "fr": "Son proxy a été supprimé — il utilise la connexion système.",
   "it": "Il suo proxy è stato rimosso: usa la connessione di sistema."
+ },
+ "Music storage": {
+  "be": "Сховішча музыкі",
+  "de": "Musikspeicher",
+  "es": "Almacenamiento de música",
+  "fr": "Stockage de la musique",
+  "it": "Archiviazione della musica",
+  "ru": "Хранилище музыки"
+ },
+ "Show all device music": {
+  "be": "Паказваць усю музыку на прыладзе",
+  "de": "Alle Musik auf dem Gerät anzeigen",
+  "es": "Mostrar toda la música del dispositivo",
+  "fr": "Afficher toute la musique de l’appareil",
+  "it": "Mostra tutta la musica sul dispositivo",
+  "ru": "Показывать всю музыку на устройстве"
+ },
+ "Storage permissions": {
+  "be": "Дазволы на доступ да сховішча",
+  "de": "Speicherberechtigungen",
+  "es": "Permisos de almacenamiento",
+  "fr": "Autorisations de stockage",
+  "it": "Autorizzazioni di archiviazione",
+  "ru": "Разрешения на доступ к хранилищу"
+ },
+ "Check music storage": {
+  "be": "Праверыць сховішча музыкі",
+  "de": "Musikspeicher prüfen",
+  "es": "Comprobar el almacenamiento de música",
+  "fr": "Vérifier le stockage de la musique",
+  "it": "Controlla l’archiviazione della musica",
+  "ru": "Проверить хранилище музыки"
+ },
+ "Couldn't open the audio file. Check its permissions.": {
+  "be": "Не ўдалося адкрыць аўдыяфайл. Праверце дазволы.",
+  "de": "Die Audiodatei konnte nicht geöffnet werden. Prüfe die Berechtigungen.",
+  "es": "No se pudo abrir el archivo de audio. Comprueba sus permisos.",
+  "fr": "Impossible d’ouvrir le fichier audio. Vérifiez ses autorisations.",
+  "it": "Impossibile aprire il file audio. Controlla le autorizzazioni.",
+  "ru": "Не удалось открыть аудиофайл. Проверьте разрешения."
+ },
+ "Couldn't publish the track": {
+  "be": "Не ўдалося апублікаваць трэк",
+  "de": "Der Titel konnte nicht veröffentlicht werden",
+  "es": "No se pudo publicar la pista",
+  "fr": "Impossible de publier le titre",
+  "it": "Impossibile pubblicare il brano",
+  "ru": "Не удалось опубликовать трек"
+ },
+ "Couldn't find the file to save": {
+  "be": "Не ўдалося знайсці файл для захавання",
+  "de": "Die zu speichernde Datei wurde nicht gefunden",
+  "es": "No se encontró el archivo que se iba a guardar",
+  "fr": "Impossible de trouver le fichier à enregistrer",
+  "it": "Impossibile trovare il file da salvare",
+  "ru": "Не удалось найти файл для сохранения"
+ },
+ "Saved to %1. Check shared storage permissions and free space.": {
+  "be": "Захавана ў %1. Праверце дазволы і вольнае месца ў агульным сховішчы.",
+  "de": "In %1 gespeichert. Prüfe die Berechtigungen und den freien Platz im gemeinsamen Speicher.",
+  "es": "Guardado en %1. Comprueba los permisos y el espacio libre del almacenamiento compartido.",
+  "fr": "Enregistré dans %1. Vérifiez les autorisations et l’espace libre du stockage partagé.",
+  "it": "Salvato in %1. Controlla le autorizzazioni e lo spazio libero dell’archiviazione condivisa.",
+  "ru": "Сохранено в %1. Проверьте разрешения и свободное место в общем хранилище."
+ },
+ "Opened audio": {
+  "be": "Адкрыты аўдыяфайл",
+  "de": "Geöffnete Audiodatei",
+  "es": "Audio abierto",
+  "fr": "Audio ouvert",
+  "it": "Audio aperto",
+  "ru": "Открытое аудио"
+ },
+ "Written to the log": {
+  "be": "Запісана ў журнал",
+  "de": "Ins Protokoll geschrieben",
+  "es": "Registrado en el registro",
+  "fr": "Écrit dans le journal",
+  "it": "Scritto nel registro",
+  "ru": "Записано в журнал"
  }
 }

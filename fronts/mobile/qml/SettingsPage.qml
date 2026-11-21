@@ -251,6 +251,20 @@ Page {
             }
 
             SettingsGroup {
+                shown: page.platform.android
+                title: qsTr("Music storage")
+                SettingSwitch {
+                    title: qsTr("Show all device music")
+                    checked: page.platform.deviceMusicEnabled()
+                    onToggled: (checked) => page.platform.setDeviceMusicEnabled(checked)
+                }
+                SettingsRow {
+                    text: qsTr("Storage permissions")
+                    onClicked: page.platform.grantMusicStorage()
+                }
+            }
+
+            SettingsGroup {
                 title: qsTr("App")
                 SettingsRow {
                     text: qsTr("Developer tools")

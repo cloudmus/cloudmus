@@ -66,6 +66,13 @@ public final class PlaybackService extends MediaLibraryService {
     static final String COMMAND_REPEAT = "app.cloudmus.mobile.REPEAT";
     private static final SessionCommand REPEAT = new SessionCommand(COMMAND_REPEAT, Bundle.EMPTY);
 
+    static final String ACTION_OPEN_AUDIO = "app.cloudmus.mobile.OPEN_AUDIO";
+    static final String ACTION_MUSIC_REFRESH = "app.cloudmus.mobile.MUSIC_REFRESH";
+    static final String ACTION_MUSIC_PROBE = "app.cloudmus.mobile.MUSIC_PROBE";
+
+    private final android.content.BroadcastReceiver volumes = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context context, Intent intent) { MusicStorage.refresh(); }
+    };
     private MediaLibrarySession session;
     private CorePlayer player;
     private PendingIntent openScreen;
@@ -82,6 +89,16 @@ public final class PlaybackService extends MediaLibraryService {
         CmLog.mark("service onCreate");
         super.onCreate();
         CoreBridge.start(this);
+        MusicStorage.start(this);
+        android.content.IntentFilter mounts = new android.content.IntentFilter(Intent.ACTION_MEDIA_MOUNTED);
+        mounts.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        mounts.addAction(Intent.ACTION_MEDIA_REMOVED);
+        mounts.addAction(Intent.ACTION_MEDIA_EJECT);
+        mounts.addDataScheme("file");
+        if (android.os.Build.VERSION.SDK_INT >= 33)
+            registerReceiver(volumes, mounts, RECEIVER_NOT_EXPORTED);
+        else
+            registerReceiver(volumes, mounts);
         openFirst = GwmMediaCenter.present(this);
         player = new CorePlayer(this, getMainLooper());
         CoreBridge.setListener(player);
@@ -122,8 +139,15 @@ public final class PlaybackService extends MediaLibraryService {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
         CmLog.mark("service onStartCommand " + action);
-        CmLog.i(TAG, "onStartCommand: " + intent + ", flags " + flags);
-        if (ACTION_AUTOPLAY.equals(action)) {
+        CmLog.i(TAG, "onStartCommand action=" + action + ", flags " + flags);
+        if (ACTION_OPEN_AUDIO.equals(action) && intent.getData() != null) {
+            autoplayed = true;
+            MusicStorage.openExternal(intent.getData(), intent.getFlags(), intent.getType());
+        } else if (ACTION_MUSIC_REFRESH.equals(action)) {
+            MusicStorage.refresh();
+        } else if (ACTION_MUSIC_PROBE.equals(action)) {
+            MusicStorage.probe();
+        } else if (ACTION_AUTOPLAY.equals(action)) {
             // Started with startForegroundService(): must be foreground within
             // seconds, whether or not playback comes up in time.
             startForeground(NOTIFICATION_ID, placeholderNotification());
@@ -307,6 +331,8 @@ public final class PlaybackService extends MediaLibraryService {
 
     @Override
     public void onDestroy() {
+        unregisterReceiver(volumes);
+        MusicStorage.stop();
         CmLog.i(TAG, "service onDestroy");
         CoreBridge.setListener(null);
         CoreBridge.setStopHandler(null);

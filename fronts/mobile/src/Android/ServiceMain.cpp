@@ -1,6 +1,9 @@
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QImageWriter>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMetaObject>
 #include <QSslSocket>
 #include <QStringList>
@@ -10,13 +13,17 @@
 #include <algorithm>
 #include <functional>
 #include <jni.h>
+#include <limits>
 #include <mutex>
 #include <thread>
 #include <vector>
 
+#include "Core.h"
+#include "Downloads.h"
 #include "Host.h"
 #include "Jni.h"
 #include "Log.h"
+#include "Messages.h"
 #include "MobileCore.h"
 #include "PlaybackController.h"
 
@@ -27,6 +34,7 @@
 // reported back through CoreBridge.onState().
 
 extern "C" int av_jni_set_java_vm(void* vm, void* logCtx);
+extern "C" int av_jni_set_android_app_ctx(void* context, void* logCtx);
 
 namespace {
 
@@ -44,6 +52,10 @@ enum Command {
 };
 
 jclass bridgeClass = nullptr;
+jclass storageClass = nullptr;
+jmethodID openContentMethod = nullptr;
+jmethodID publishMethod = nullptr;
+jmethodID remuxOpusMethod = nullptr;
 jmethodID onStateMethod = nullptr;
 jmethodID onTrackMethod = nullptr;
 jmethodID onQueueMethod = nullptr;
@@ -80,6 +92,8 @@ void reportState(App::MobileCore& core)
         jlong(now.positionMs()), jlong(now.durationMs()));
     Android::Jni::checkException(env, "CoreBridge.onState");
 }
+
+QString toQString(JNIEnv* env, jstring text);
 
 jstring toJava(JNIEnv* env, const QString& text)
 {
@@ -220,9 +234,46 @@ void reportBrowseResult(jint requestId, const QList<ViewModel::MediaTree::Item>&
     env->DeleteLocalRef(stringClass);
 }
 
+int openContent(const QString& uri)
+{
+    JNIEnv* env = Android::Jni::env();
+    const jstring input = toJava(env, uri);
+    const int fd = env->CallStaticIntMethod(storageClass, openContentMethod, input);
+    env->DeleteLocalRef(input);
+    return Android::Jni::checkException(env, "MusicStorage.openContent") ? -1 : fd;
+}
+
+bool remuxOpus(const QString& input, const QString& output)
+{
+    JNIEnv* env = Android::Jni::env();
+    const jstring source = toJava(env, input);
+    const jstring target = toJava(env, output);
+    const bool ready = env->CallStaticBooleanMethod(storageClass, remuxOpusMethod, source, target);
+    env->DeleteLocalRef(source);
+    env->DeleteLocalRef(target);
+    return !Android::Jni::checkException(env, "MusicStorage.remuxOpus") && ready;
+}
+
+ViewModel::Downloads::PublishResult publishTrack(const QString& path, const QString& subfolder)
+{
+    JNIEnv* env = Android::Jni::env();
+    const jstring file = toJava(env, path);
+    const jstring folder = toJava(env, subfolder);
+    const auto reply = static_cast<jstring>(env->CallStaticObjectMethod(storageClass, publishMethod, file, folder));
+    env->DeleteLocalRef(file);
+    env->DeleteLocalRef(folder);
+    if (Android::Jni::checkException(env, "MusicStorage.publish") || reply == nullptr)
+        return { { }, { }, QCoreApplication::translate("ViewModel::Downloads", "Couldn't publish the track") };
+    const auto result = QJsonDocument::fromJson(toQString(env, reply).toUtf8()).object();
+    env->DeleteLocalRef(reply);
+    return { result.value(QStringLiteral("directory")).toString(), result.value(QStringLiteral("fallback")).toString(),
+        result.value(QStringLiteral("error")).toString() };
+}
+
 // What the backends find around them. Their Python and data are the app's,
 // and these reach them through this process' environment.
-void setUpBackends(const QString& filesDir, const QString& cacheDir, const QString& pythonHome, const QString& libraryDir)
+void setUpBackends(
+    const QString& filesDir, const QString& cacheDir, const QString& libraryDir, const QString& nativeBackendDir)
 {
     // Qt's plugins (TLS, JPEG for the covers) are with the other libraries.
     // Qt's own activity tells it so; this process doesn't have one.
@@ -232,11 +283,16 @@ void setUpBackends(const QString& filesDir, const QString& cacheDir, const QStri
     set("XDG_CONFIG_HOME", filesDir + QStringLiteral("/config"));
     set("XDG_CACHE_HOME", cacheDir);
     set("TMPDIR", cacheDir);
+    set("CLOUDMUS_NATIVE_BACKENDS_DIR", nativeBackendDir);
+    set("CLOUDMUS_ANDROID_MUSIC_INDEX", filesDir + QStringLiteral("/android-music.json"));
     // Qt's own HTTPS (streams, covers): the OpenSSL that came with Python.
     set("ANDROID_OPENSSL_SUFFIX", QStringLiteral("_python"));
-    if (pythonHome.isEmpty())
-        return;
     set("LD_LIBRARY_PATH", libraryDir);
+}
+
+void setUpPython(const QString& pythonHome, const QString& libraryDir)
+{
+    const auto set = [](const char* name, const QString& value) { qputenv(name, value.toUtf8()); };
     set("PYTHONHOME", pythonHome);
     set("PYTHONPATH", pythonHome + QStringLiteral("/site-packages"));
     set("SSL_CERT_FILE", pythonHome + QStringLiteral("/site-packages/certifi/cacert.pem"));
@@ -244,7 +300,7 @@ void setUpBackends(const QString& filesDir, const QString& cacheDir, const QStri
     set("CLOUDMUS_BACKENDS_PYTHON", libraryDir + QStringLiteral("/libcmpython.so"));
 }
 
-void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString libraryDir)
+void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nativeBackendDir)
 {
     static int argc = 1;
     static char name[] = "cloudmus-core";
@@ -256,11 +312,13 @@ void runCore(QString filesDir, QString cacheDir, QString pythonHome, QString lib
     Logging::install(QStringLiteral("playback"), QString());
     Logging::mark(QStringLiteral("core thread started"));
 
-    setUpBackends(filesDir, cacheDir, pythonHome, libraryDir);
+    setUpBackends(filesDir, cacheDir, libraryDir, nativeBackendDir);
     // A second for the UI to come up on what's saved; a few more before the
     // saved lists are refreshed, behind the music that has started by then.
     App::MobileCore core({ QString(), filesDir + QStringLiteral("/core.ini"), 1000, 5000 });
     coreInstance = &core;
+    core.core().downloads().setPublisher(QStringLiteral("Music/CloudMus"), publishTrack, remuxOpus);
+    core.core().playback().setContentOpener(openContent);
     // Without it no stream or cover loads, and nothing else says why.
     qInfo() << "TLS:" << QSslSocket::activeBackend() << QSslSocket::supportsSsl()
             << QSslSocket::sslLibraryVersionString();
@@ -365,6 +423,17 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     onQueueMethod = env->GetStaticMethodID(bridgeClass, "onQueue", "(IIZZ[Ljava/lang/String;)V");
     onAutoplayMethod = env->GetStaticMethodID(bridgeClass, "onAutoplayChanged", "(Z)V");
     onResumeAfterLossMethod = env->GetStaticMethodID(bridgeClass, "onResumeAfterLossChanged", "(I)V");
+    jclass storage = env->FindClass("app/cloudmus/mobile/MusicStorage");
+    if (Android::Jni::checkException(env, "FindClass MusicStorage") || !storage)
+        return JNI_ERR;
+    storageClass = static_cast<jclass>(env->NewGlobalRef(storage));
+    env->DeleteLocalRef(storage);
+    openContentMethod = env->GetStaticMethodID(storageClass, "openContent", "(Ljava/lang/String;)I");
+    publishMethod
+        = env->GetStaticMethodID(storageClass, "publish", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
+    remuxOpusMethod = env->GetStaticMethodID(storageClass, "remuxOpus", "(Ljava/lang/String;Ljava/lang/String;)Z");
+    if (Android::Jni::checkException(env, "MusicStorage methods"))
+        return JNI_ERR;
     onReadyMethod = env->GetStaticMethodID(bridgeClass, "onCoreReady", "()V");
     onStoppedMethod = env->GetStaticMethodID(bridgeClass, "onStopped", "()V");
     onBrowseResultMethod = env->GetStaticMethodID(bridgeClass, "onBrowseResult", "(I[Ljava/lang/String;)V");
@@ -373,10 +442,68 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
 }
 
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeStart(
-    JNIEnv* env, jclass, jstring filesDir, jstring cacheDir, jstring pythonHome, jstring libraryDir)
+    JNIEnv* env, jclass, jobject application, jstring filesDir, jstring cacheDir, jstring libraryDir,
+    jstring nativeBackendDir)
 {
-    coreThread = std::thread(runCore, toQString(env, filesDir), toQString(env, cacheDir), toQString(env, pythonHome),
-        toQString(env, libraryDir));
+    // FFmpeg's content protocol uses this reference for the lifetime of the process.
+    static const bool contextRegistered = [env, application] {
+        jobject context = env->NewGlobalRef(application);
+        if (context && av_jni_set_android_app_ctx(context, nullptr) == 0)
+            return true;
+        env->DeleteGlobalRef(context);
+        return false;
+    }();
+    if (!contextRegistered)
+        qWarning() << "could not initialize the Android context for FFmpeg";
+    coreThread = std::thread(runCore, toQString(env, filesDir), toQString(env, cacheDir), toQString(env, libraryDir),
+        toQString(env, nativeBackendDir));
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativePythonReady(
+    JNIEnv* env, jclass, jstring pythonHome, jstring libraryDir)
+{
+    post([home = toQString(env, pythonHome), libraries = toQString(env, libraryDir)] {
+        if (!coreInstance)
+            return;
+        setUpPython(home, libraries);
+        coreInstance->core().sourceManager().discoverNewSources();
+    });
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeMusicChanged(JNIEnv*, jclass)
+{
+    post([] {
+        if (!coreInstance)
+            return;
+        auto& core = coreInstance->core();
+        for (const auto* client : core.sourceManager().clients()) {
+            if (client->available() && !client->usesNetwork())
+                core.sources().refresh(client->sourceId());
+        }
+    });
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeOpenAudio(
+    JNIEnv* env, jclass, jstring uri, jstring title, jstring artist, jlong duration, jboolean persistent)
+{
+    const QString url = toQString(env, uri);
+    const QString trackTitle = toQString(env, title);
+    const QString artistName = toQString(env, artist);
+    post([url, trackTitle, artistName, duration, persistent] {
+        if (!coreInstance)
+            return;
+        if (url.isEmpty()) {
+            coreInstance->core().activePlaylist().reportLocalInputError();
+            return;
+        }
+        Track track;
+        track.id = QString::fromLatin1(QCryptographicHash::hash(url.toUtf8(), QCryptographicHash::Sha256).toHex());
+        track.title = trackTitle;
+        if (!artistName.isEmpty())
+            track.artists.append(Artist { artistName, artistName });
+        track.durationMs = int(std::clamp<jlong>(duration, 0, std::numeric_limits<int>::max()));
+        coreInstance->core().activePlaylist().playLocalInput(track, url, persistent);
+    });
 }
 
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeCommand(

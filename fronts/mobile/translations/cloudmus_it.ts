@@ -173,6 +173,10 @@
       <source>Merge touch moves into one per frame</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Check music storage</source>
+      <translation>Controlla l’archiviazione della musica</translation>
+    </message>
   </context>
   <context>
     <name>DownloadsPage</name>
@@ -588,6 +592,18 @@
       <source>Developer tools</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Music storage</source>
+      <translation>Archiviazione della musica</translation>
+    </message>
+    <message>
+      <source>Show all device music</source>
+      <translation>Mostra tutta la musica sul dispositivo</translation>
+    </message>
+    <message>
+      <source>Storage permissions</source>
+      <translation>Autorizzazioni di archiviazione</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>
@@ -772,6 +788,10 @@
       <source>%1 — %2 of %3 MB</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>Written to the log</source>
+      <translation>Scritto nel registro</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ActivePlaylist</name>
@@ -786,6 +806,14 @@
     <message>
       <source>No network connection, and nothing of %1 is downloaded to play</source>
       <translation>Nessuna connessione di rete, e nulla di %1 è scaricato</translation>
+    </message>
+    <message>
+      <source>Couldn't open the audio file. Check its permissions.</source>
+      <translation>Impossibile aprire il file audio. Controlla le autorizzazioni.</translation>
+    </message>
+    <message>
+      <source>Opened audio</source>
+      <translation>Audio aperto</translation>
     </message>
   </context>
   <context>
@@ -875,6 +903,18 @@
     <message>
       <source>Saved %1 of %2 tracks of "%3" — %4</source>
       <translation>Salvati %1 brani su %2 di «%3» — %4</translation>
+    </message>
+    <message>
+      <source>Couldn't find the file to save</source>
+      <translation>Impossibile trovare il file da salvare</translation>
+    </message>
+    <message>
+      <source>Couldn't publish the track</source>
+      <translation>Impossibile pubblicare il brano</translation>
+    </message>
+    <message>
+      <source>Saved to %1. Check shared storage permissions and free space.</source>
+      <translation>Salvato in %1. Controlla le autorizzazioni e lo spazio libero dell’archiviazione condivisa.</translation>
     </message>
   </context>
   <context>

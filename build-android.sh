@@ -85,11 +85,17 @@ if [ ! -f "$mpv_dir/.done" ]; then
         "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/$mpv_version/libmpv-$mpv_version.aar"
     unzip -q "$work/libmpv.aar" -d "$mpv_dir"
     mkdir -p "$mpv_dir/include/mpv"
-    for header in client.h render.h; do
+    for header in client.h render.h stream_cb.h; do
         curl -fL -o "$mpv_dir/include/mpv/$header" \
             "https://raw.githubusercontent.com/mpv-player/mpv/$mpv_headers/libmpv/$header"
     done
     touch "$mpv_dir/.done"
+fi
+
+# Existing build directories may predate the stream callback header.
+if [ ! -f "$mpv_dir/include/mpv/stream_cb.h" ]; then
+    curl -fL -o "$mpv_dir/include/mpv/stream_cb.h" \
+        "https://raw.githubusercontent.com/mpv-player/mpv/$mpv_headers/libmpv/stream_cb.h"
 fi
 
 # The key an update has to come with: Android turns down another one. A debug
@@ -111,12 +117,22 @@ fi
 
 for abi in "${abis[@]}"; do
     case $abi in
-        arm64-v8a) kit=android_arm64_v8a ;;
+        arm64-v8a) kit=android_arm64_v8a; rust_target=aarch64-linux-android ;;
         armeabi-v7a) echo "no CPython for 32-bit units, so no sources there" >&2; exit 1 ;;
-        x86_64) kit=android_x86_64 ;;
+        x86_64) kit=android_x86_64; rust_target=x86_64-linux-android ;;
         *) echo "unknown ABI $abi" >&2; exit 1 ;;
     esac
     build=$work/$abi
+    case "$(uname -s)" in
+        Linux) ndk_host=linux-x86_64 ;;
+        Darwin) ndk_host=darwin-x86_64 ;;
+        *) echo "Unsupported Rust Android build host" >&2; exit 1 ;;
+    esac
+    rust_linker="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/$ndk_host/bin/$rust_target"26-clang
+    rust_linker_env="CARGO_TARGET_$(printf '%s' "$rust_target" | tr '[:lower:]-' '[:upper:]_')_LINKER"
+    env "$rust_linker_env=$rust_linker" cargo build --release --locked --target "$rust_target" \
+        --manifest-path backends/local-folder/Cargo.toml --target-dir "$work/rust"
+    native_backend="$work/rust/$rust_target/release/cloudmus-backend-local-folder"
     # CPython and the backends.
     fronts/mobile/tools/bundle-python.sh "$abi" "$work/python-$abi"
     python_args=(-DCLOUDMUS_PYTHON_ANDROID_DIR="$work/python-$abi")
@@ -128,7 +144,7 @@ for abi in "${abis[@]}"; do
         -DQT_HOST_PATH="$QT_ROOT/gcc_64" \
         -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
         -DQT_ANDROID_SIGN_APK=ON -DCLOUDMUS_MOBILE_SHARED_CORE=ON \
-        -DCLOUDMUS_MPV_ANDROID_DIR="$mpv_dir" "${python_args[@]}"
+        -DCLOUDMUS_MPV_ANDROID_DIR="$mpv_dir" -DCLOUDMUS_LOCAL_ANDROID_BINARY="$native_backend" "${python_args[@]}"
     cmake --build "$build" --target apk
     apk=$(find "$build" -name '*.apk' -path '*release*' | head -1)
     [ -n "$apk" ] || { echo "no APK built for $abi" >&2; exit 1; }

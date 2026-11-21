@@ -274,7 +274,7 @@ int PlaybackController::nextPlayableAfter(int from, bool downloadedOnly) const
         const QueueEntry& entry = queue_[next];
         if (isUnavailable(entry.sourceId, entry.track.id))
             continue;
-        if (downloadedOnly && !preloader_->isCached(entry.sourceId, entry.track.id))
+        if (downloadedOnly && entry.localInput.isEmpty() && !preloader_->isCached(entry.sourceId, entry.track.id))
             continue;
         return next;
     }
@@ -357,16 +357,22 @@ void PlaybackController::playAt(int index)
 void PlaybackController::startRadio(
     const QString& sourceId, const QString& stationId, const QList<Track>& initialTracks, int startIndex)
 {
+    QVector<QueueEntry> entries;
+    entries.reserve(initialTracks.size());
+    for (const Track& track : initialTracks)
+        entries.append({ sourceId, track });
+    loadRadioQueue(sourceId, stationId, std::move(entries), startIndex);
+}
+
+void PlaybackController::loadRadioQueue(
+    const QString& sourceId, const QString& stationId, QVector<QueueEntry> entries, int startIndex)
+{
     invalidatePrepared();
     setWaveMode(true);
     awaitingRadioTracks_ = false;
     waveSourceId_ = sourceId;
     waveStationId_ = stationId;
-    queue_.clear();
-    queue_.reserve(initialTracks.size());
-    for (const Track& t : initialTracks) {
-        queue_.append(QueueEntry { sourceId, t });
-    }
+    queue_ = std::move(entries);
     emit queueAvailabilityChanged(hasQueue());
     emit queueChanged();
     playIndex(startIndex);
@@ -423,25 +429,34 @@ void PlaybackController::sourceCameUp(const QString& sourceId)
 
 void PlaybackController::enqueueNext(const QString& sourceId, const Track& track)
 {
+    const int inserted = insertNext({ sourceId, track, true });
+    if (!hasCurrentTrack())
+        playIndex(inserted);
+    else
+        updatePreloadWindow();
+}
+
+void PlaybackController::playLocalInput(QueueEntry entry) { playAt(insertNext(std::move(entry))); }
+
+int PlaybackController::insertNext(QueueEntry entry)
+{
     invalidatePrepared();
     const bool wasEmpty = !hasQueue();
-    const int insertPos = hasCurrentTrack() ? index_ + 1 : 0;
-    queue_.insert(insertPos, QueueEntry { sourceId, track, /*userQueued=*/true });
+    const int current = hasCurrentTrack() ? index_ : -1;
+    const int insertPos = current + 1;
+    queue_.insert(insertPos, std::move(entry));
     if (shuffleActive()) {
         // "Play Next" means next in play order too.
         for (int& i : order_) {
             if (i >= insertPos)
                 ++i;
         }
-        order_.insert(order_.indexOf(index_) + 1, insertPos);
+        order_.insert(order_.indexOf(current) + 1, insertPos);
     }
     if (wasEmpty)
         emit queueAvailabilityChanged(true);
     emit queueChanged();
-    if (!hasCurrentTrack())
-        playIndex(0);
-    else
-        updatePreloadWindow();
+    return insertPos;
 }
 
 void PlaybackController::enqueueAtEnd(const QString& sourceId, const Track& track)
@@ -542,8 +557,9 @@ Rpc::Task<void> PlaybackController::playIndexAsync(int index, bool isRetry)
     // needs a fresh stream.
     {
         const QueueEntry cached = queue_[index];
-        const bool onDisk = !preloader_->readyPath(cached.sourceId, cached.track.id).isEmpty();
-        if (onDisk || (!isRetry && preloader_->download(cached.sourceId, cached.track.id) != nullptr)) {
+        const bool onDisk = !preloader_->readyUrl(cached.sourceId, cached.track.id).isEmpty();
+        if (!cached.localInput.isEmpty() || onDisk
+            || (!isRetry && preloader_->download(cached.sourceId, cached.track.id) != nullptr)) {
             qCDebug(lcPlayback) << "playing" << cached.track.id << (onDisk ? "from the cache" : "from its download");
             emit loadingChanged(true);
             playTimeoutTimer_->start(startTimeoutMs_);
@@ -750,13 +766,17 @@ void PlaybackController::startCurrentAudio(const std::optional<StreamDescriptor>
 
     // Loading indicator / playTimeoutTimer_ stay active until
     // AudioPlayer::started() or failed().
-    if (stream && QUrl(stream->url).isLocalFile()) {
+    if (!entry.localInput.isEmpty()) {
+        audioPlayer_->play(entry.localInput, title);
+        return;
+    }
+    if (stream && AudioPlayer::isLocalInput(QUrl(stream->url))) {
         audioPlayer_->play(stream->url, title);
         return;
     }
-    const QString file = preloader_->readyPath(entry.sourceId, entry.track.id);
+    const QString file = preloader_->readyUrl(entry.sourceId, entry.track.id);
     if (!file.isEmpty()) {
-        audioPlayer_->play(QUrl::fromLocalFile(file).toString(), title);
+        audioPlayer_->play(file, title);
         return;
     }
     if (StreamDownload* download = preloader_->download(entry.sourceId, entry.track.id)) {
@@ -1192,8 +1212,9 @@ void PlaybackController::updatePreloadWindow()
         // A source without a network has files of its own: nothing to
         // download for them.
         const Rpc::RpcClient* client = sourceManager_.client(entry.sourceId);
-        const bool local = client != nullptr && client->available() && !client->usesNetwork();
-        return Preloader::Item { entry.sourceId, entry.track.id, titleFor(entry.track), std::nullopt, true, local };
+        const bool direct = !entry.localInput.isEmpty();
+        const bool local = direct || (client != nullptr && client->available() && !client->usesNetwork());
+        return Preloader::Item { entry.sourceId, entry.track.id, titleFor(entry.track), std::nullopt, !direct, local };
     };
     QVector<Preloader::Item> items;
     QVector<QueueEntry> entries { queue_[head] };
@@ -1282,12 +1303,13 @@ void PlaybackController::prepareNext()
     if (nextIndex < 0 || nextIndex >= queue_.size())
         return;
     const QueueEntry& entry = queue_[nextIndex];
-    const QString file = preloader_->readyPath(entry.sourceId, entry.track.id);
+    const QString file
+        = entry.localInput.isEmpty() ? preloader_->readyUrl(entry.sourceId, entry.track.id) : entry.localInput;
     if (file.isEmpty())
         return;
     qCDebug(lcPlayback) << "the next track is downloaded, queued in mpv:" << nextIndex << entry.track.id;
     preparedIndex_ = nextIndex;
-    audioPlayer_->prepare(QUrl::fromLocalFile(file).toString(), titleFor(entry.track));
+    audioPlayer_->prepare(file, titleFor(entry.track));
 }
 
 void PlaybackController::promotePrepared(int nextIndex, bool manual)

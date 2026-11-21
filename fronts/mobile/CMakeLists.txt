@@ -331,6 +331,16 @@ if(ANDROID)
     foreach(_file IN LISTS _package_files)
         configure_file(android/${_file} ${_package}/${_file} COPYONLY)
     endforeach()
+    set(CLOUDMUS_LOCAL_ANDROID_BINARY "" CACHE FILEPATH "Rust backend executable for this Android ABI")
+    if(CLOUDMUS_LOCAL_ANDROID_BINARY)
+        add_custom_target(cloudmus-local-package
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${_package}/libs/${ANDROID_ABI}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CLOUDMUS_LOCAL_ANDROID_BINARY} ${_package}/libs/${ANDROID_ABI}/libcmlocalfolder.so)
+        add_dependencies(cloudmus-mobile cloudmus-local-package)
+        configure_file(../../backends/local-folder/manifest.json ${_package}/assets/local-folder.json COPYONLY)
+        configure_file(../../backends/local-folder/icon.svg ${_package}/assets/local-folder.svg COPYONLY)
+    endif()
     # CPython and the backends (tools/bundle-python.sh), where there's a build
     # of it for the ABI.
     set(CLOUDMUS_PYTHON_ANDROID_DIR "" CACHE PATH "What tools/bundle-python.sh made for this ABI")

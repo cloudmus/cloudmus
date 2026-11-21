@@ -35,6 +35,8 @@ struct QueueEntry {
     // Put there by the user (Play Next / Add to Queue) — survives a radio
     // replacing its upcoming tracks (see handleTracksAdded()).
     bool userQueued = false;
+    QString localInput = { };
+    bool persistentInput = false;
 };
 
 // Ties an Rpc::SourceManager (many backends) to one shared AudioPlayer
@@ -112,6 +114,7 @@ public:
     // The track, when it next starts, goes on from there rather than from its
     // beginning: what was playing when the app last ran. Not if little is left.
     void resumeAt(const QString& trackId, qint64 positionMs);
+    void loadRadioQueue(const QString& sourceId, const QString& stationId, QVector<QueueEntry> entries, int startIndex);
     // A radio playing without a station behind it yet.
     bool awaitsStation() const { return waveMode_ && waveStationId_.isEmpty(); }
     // Puts a started station behind the radio that awaitsStation(): what
@@ -131,6 +134,13 @@ public:
     // "queue it" just means "play it now" — same fallback loadQueue/
     // startRadio already have via playIndex().
     void enqueueNext(const QString& sourceId, const Track& track);
+    void playLocalInput(QueueEntry entry);
+#ifdef Q_OS_ANDROID
+    void setContentOpener(std::function<int(const QString&)> opener)
+    {
+        audioPlayer_->setContentOpener(std::move(opener));
+    }
+#endif
     void enqueueAtEnd(const QString& sourceId, const Track& track);
 
     // Called by whoever wires up RpcClient::notifications for each source
@@ -259,6 +269,7 @@ signals:
     void preloadWindowChanged(const QVector<QueueEntry>& entries);
 
 private:
+    int insertNext(QueueEntry entry);
     void playIndex(int index, bool isRetry = false);
     // isRetry: re-resolving the track that just failed to start — it was
     // already announced (trackChanged), so history and notifications must

@@ -82,6 +82,10 @@ Page {
                     }
                 }
                 TextButton {
+                    text: qsTr("Check music storage")
+                    onClicked: exportResult.text = page.platform.probeMusicStorage()
+                }
+                TextButton {
                     text: qsTr("Log system probe")
                     onClicked: exportResult.text = page.platform.logSystemProbe()
                 }

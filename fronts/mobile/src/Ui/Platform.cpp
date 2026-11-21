@@ -208,6 +208,41 @@ QString Platform::logSystemProbe() const
 #endif
 }
 
+QString Platform::probeMusicStorage() const
+{
+#ifdef Q_OS_ANDROID
+    bridgeString("probeMusicStorage");
+#endif
+    return tr("Written to the log");
+}
+
+bool Platform::deviceMusicEnabled() const
+{
+#ifdef Q_OS_ANDROID
+    return !bridgeString("deviceMusicEnabled").isEmpty();
+#else
+    return false;
+#endif
+}
+
+void Platform::setDeviceMusicEnabled(bool enabled)
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setDeviceMusicEnabled",
+        QNativeInterface::QAndroidApplication::context(), jboolean(enabled));
+#else
+    Q_UNUSED(enabled);
+#endif
+}
+
+void Platform::grantMusicStorage() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>(
+        "app/cloudmus/mobile/UiBridge", "grantMusicStorage", QNativeInterface::QAndroidApplication::context());
+#endif
+}
+
 void Platform::exportSystemApps()
 {
 #ifdef Q_OS_ANDROID

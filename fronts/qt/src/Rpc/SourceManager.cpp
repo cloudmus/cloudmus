@@ -69,6 +69,21 @@ const QList<BackendManifest>& SourceManager::manifests()
     return *manifests_;
 }
 
+void SourceManager::discoverNewSources()
+{
+    const auto known = manifests();
+    manifests_ = discoverManifests();
+    for (const auto& manifest : manifests()) {
+        const bool exists = std::any_of(known.cbegin(), known.cend(),
+            [&manifest](const BackendManifest& previous) { return previous.id == manifest.id; });
+        if (exists || !isEnabled(manifest.id))
+            continue;
+        emit sourceStarting(manifest);
+        if (!isDeferred(manifest.id))
+            startOne(manifest);
+    }
+}
+
 void SourceManager::setLocale(const QString& locale)
 {
     if (locale == locale_)

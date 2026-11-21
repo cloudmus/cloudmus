@@ -19,13 +19,14 @@ DownloadsScreen::DownloadsScreen(App::Core& core, QObject* parent)
     , rows_({ "jobId", "title", "status", "progress", "isRunning", "isOver", "hasFailed", "isPlaylist" })
 {
     connect(&core.downloads(), &Downloads::changed, this, &DownloadsScreen::rebuild);
+    connect(&core.downloads(), &Downloads::directoryChanged, this, &DownloadsScreen::directoryChanged);
     connect(&core.nowPlaying(), &NowPlaying::feedbackChanged, this, &DownloadsScreen::canSavePlayingChanged);
     rebuild();
 }
 
 bool DownloadsScreen::enabled() const { return core_.downloads().isEnabled(); }
 
-QString DownloadsScreen::directory() const { return core_.settings().downloadDirectory(); }
+QString DownloadsScreen::directory() const { return core_.downloads().directory(); }
 
 bool DownloadsScreen::canClear() const
 {
