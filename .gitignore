@@ -15,10 +15,14 @@ build-macos-*/
 dist/
 
 # protocol/codegen output — regenerate with:
-#   python protocol/codegen/generate.py --lang python cpp
+#   python protocol/codegen/generate.py --lang python cpp rust
 # see protocol/README.md
 backends/py-rpc-common/rpc_common/generated/
 fronts/qt/generated/
+backends/rs-rpc-common/src/generated/
+
+# cargo output of the Rust backends (backends/Cargo.toml)
+backends/target/
 
 # Qt Creator's local project state (build kit, paths — machine-specific)
 fronts/qt/.qtcreator/
