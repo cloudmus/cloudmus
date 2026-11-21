@@ -1,6 +1,9 @@
 package app.cloudmus.mobile;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
@@ -67,7 +70,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             trackId = id;
             durationMs = newDurationMs;
             trackItem = id.isEmpty() ? null : mediaItem(id, title, artist, album, coverFile);
-            invalidateState();
+            refresh();
         });
     }
 
@@ -117,7 +120,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             queueHasNext = hasNext;
             queueItems = items;
             queueData = built;
-            invalidateState();
+            refresh();
         });
     }
 
@@ -208,7 +211,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             shuffleSupported = newShuffleSupported;
             shuffle = newShuffle;
             repeat = newRepeat;
-            invalidateState();
+            refresh();
             if (feedbackListener != null)
                 feedbackListener.run();
         });
@@ -251,7 +254,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                 resumeHandler().removeCallbacks(pauseAfterHold);
                 resumeHandler().postDelayed(pauseAfterHold, PAUSE_HOLD_MS);
             }
-            invalidateState();
+            refresh();
         });
     }
 
@@ -263,7 +266,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     private static final long PAUSE_HOLD_MS = 1000;
     private final Runnable pauseAfterHold = () -> {
         setPlaying(false);
-        invalidateState();
+        refresh();
     };
 
     private void setPlaying(boolean now) {
@@ -414,6 +417,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             // Stop and release let it go; another player taking it pauses us.
             CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
         }
+        updateNoisyReceiver();
         return Futures.immediateVoidFuture();
     }
 
@@ -445,14 +449,17 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     protected ListenableFuture<?> handleStop() {
         CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
         abandonFocus();
+        updateNoisyReceiver();
         return Futures.immediateVoidFuture();
     }
 
     @NonNull
     @Override
     protected ListenableFuture<?> handleRelease() {
+        released = true;
         clearTransientLoss();
         cancelResume("released");
+        updateNoisyReceiver();
         abandonFocus();
         return Futures.immediateVoidFuture();
     }
@@ -530,7 +537,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     private void resumeCore() {
         playing = true;
         CoreBridge.command(CoreBridge.CMD_PLAY, 0);
-        invalidateState();
+        refresh();
     }
 
     // Resuming after a lost focus. Android has a player stay paused when
@@ -575,7 +582,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         resumeDeadline = 0;
         resumeHandler().removeCallbacks(resumePoll);
         CmLog.i(TAG, "resume after focus loss called off: " + why);
-        invalidateState();
+        refresh();
     }
 
     private void pollResume() {
@@ -601,7 +608,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             if (hasFocus)
                 resumeCore();
             else
-                invalidateState();
+                refresh();
             return;
         }
         resumeHandler().postDelayed(resumePoll, RESUME_POLL_MS);
@@ -720,6 +727,54 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         CmLog.i(TAG, "the other sound took " + lasted / 1000 + " s, not a call: staying paused");
         resumeHandler().removeCallbacks(pauseAfterHold);
         playing = false;
+        refresh();
+    }
+
+    // Headphones unplugged or a Bluetooth headset gone: Android has a player
+    // pause then, for the music not to go on out loud through the speaker.
+    // Media3 does it only for its own ExoPlayer. Taken as the user's pause:
+    // it calls off playing on after a lost focus too.
+    private final BroadcastReceiver noisyReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (AudioManager.ACTION_AUDIO_BECOMING_NOISY.equals(intent.getAction()))
+                onBecomingNoisy();
+        }
+    };
+    private boolean noisyRegistered;
+    private boolean released;
+
+    private void onBecomingNoisy() {
+        if (!playing && !awaitingResume())
+            return;
+        CmLog.i(TAG, "audio output went (headphones disconnected): pausing");
+        clearTransientLoss();
+        cancelResume("audio output went");
+        resumeHandler().removeCallbacks(pauseAfterHold);
+        playing = false;
+        CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
+        refresh();
+    }
+
+    // Listened to only while playing or about to play on, as ExoPlayer does.
+    private void updateNoisyReceiver() {
+        boolean wanted = !released && (playing || awaitingResume());
+        if (wanted == noisyRegistered)
+            return;
+        noisyRegistered = wanted;
+        if (wanted) {
+            IntentFilter filter = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+            if (Build.VERSION.SDK_INT >= 33)
+                context.registerReceiver(noisyReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            else
+                context.registerReceiver(noisyReceiver, filter);
+        } else {
+            context.unregisterReceiver(noisyReceiver);
+        }
+    }
+
+    private void refresh() {
+        updateNoisyReceiver();
         invalidateState();
     }
 
@@ -737,7 +792,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                 CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
                 if (playing)
                     armResume();
-                invalidateState();
+                refresh();
                 break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
@@ -747,7 +802,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                     callDuringLoss = false;
                     pollCall();
                     CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
-                    invalidateState();
+                    refresh();
                 }
                 break;
             default:
