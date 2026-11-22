@@ -116,6 +116,7 @@ add_library(cloudmus-core STATIC
     ${CLOUDMUS_QT_DIR}/src/App/Analytics.cpp
     ${CLOUDMUS_QT_DIR}/src/App/SourceSession.cpp
     ${CLOUDMUS_QT_DIR}/src/App/PlaylistEditing.cpp
+    ${CLOUDMUS_QT_DIR}/src/App/TrackDeletion.cpp
     ${CLOUDMUS_QT_DIR}/src/App/TrackFetch.cpp
     ${CLOUDMUS_QT_DIR}/src/App/ListeningTime.cpp
     ${CLOUDMUS_QT_DIR}/src/App/Connectivity.cpp

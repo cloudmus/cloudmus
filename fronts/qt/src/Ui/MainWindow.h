@@ -139,6 +139,10 @@ private:
     // the track has a webUrl.
     void showTrackMenu(
         const QString& sourceId, const Track& track, const QPoint& globalPos, std::function<void()> play);
+    // --- deleting from the disk (docs/protocol.md §7.11), through
+    // App::TrackDeletion; each asks first.
+    void confirmDeleteTracks(const QString& sourceId, const QList<Track>& tracks);
+    void confirmDeletePlaylist(const QString& sourceId, const Playlist& playlist);
     // --- editing playlists (docs/protocol.md §7.6), through
     // App::PlaylistEditing
     // Fills `menu` with the user's editable playlists on the track's
@@ -234,6 +238,7 @@ private:
     // What's open in the sheet, and signing in from a source's page.
     ViewModel::Browse& browse_;
     ViewModel::TrackActions& trackActions_;
+    App::TrackDeletion& trackDeletion_;
     ViewModel::SourcePage& sourcePage_;
 
     void repositionTrackListBusyIndicator();

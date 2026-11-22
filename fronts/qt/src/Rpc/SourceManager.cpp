@@ -143,6 +143,7 @@ void SourceManager::setHostMedia(HostMedia* media)
     if (media != nullptr) {
         connect(media, &HostMedia::changed, this, &SourceManager::sendLibrary);
         connect(media, &HostMedia::permissionNeededChanged, this, &SourceManager::mediaPermissionNeededChanged);
+        connect(media, &HostMedia::removalNeedsConsent, this, &SourceManager::mediaRemovalNeedsConsent);
     }
     emit mediaPermissionNeededChanged();
 }

@@ -36,10 +36,12 @@ Core::Core(QObject* parent)
           playlistEditing_, messages_, playlistTracks_)
     , activeTracks_(activePlaylist_, playback_, trackStates_, preload_, coverArtCache_)
     , trackActions_(sourceManager_, playback_, activePlaylist_, downloads_, playlistEditing_)
+    , trackDeletion_(sourceManager_, sources_, messages_)
     , sourcePage_(sourceSession_)
     , listeningTime_(playback_, analytics_)
     , connectionStatus_(connectivity_, sourceManager_, playback_)
 {
+    connect(&trackDeletion_, &TrackDeletion::deleted, &activePlaylist_, &ViewModel::ActivePlaylist::dropTracks);
     // The language first: whatever is created or spawned below already
     // speaks it.
     translator_.setLanguage(settings_.language());

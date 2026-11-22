@@ -10,6 +10,7 @@
         <file alias="play_arrow.svg">icons/symbols/play_arrow.svg</file>
         <file alias="pause.svg">icons/symbols/pause.svg</file>
         <file alias="stop.svg">icons/symbols/stop.svg</file>
+        <file alias="delete.svg">icons/symbols/delete.svg</file>
         <file alias="skip_previous.svg">icons/symbols/skip_previous.svg</file>
         <file alias="skip_next.svg">icons/symbols/skip_next.svg</file>
         <file alias="visibility.svg">icons/symbols/visibility.svg</file>

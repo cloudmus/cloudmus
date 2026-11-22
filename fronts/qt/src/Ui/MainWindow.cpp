@@ -140,6 +140,7 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     , activePlaylist_(core.activePlaylist())
     , browse_(core.browse())
     , trackActions_(core.trackActions())
+    , trackDeletion_(core.trackDeletion())
     , sourcePage_(core.sourcePage())
     , coverArtCache_(&core.coverArtCache())
     , playbackHistory_(&core.playbackHistory())
@@ -315,6 +316,8 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     activateCurrentOnKey(trackListView_, [this](const QModelIndex& index, Qt::Key) { onTrackDoubleClicked(index); });
     connect(trackRowDelegate_, &TrackRowDelegate::playRequested, this, &MainWindow::onTrackDoubleClicked);
     trackListView_->setContextMenuPolicy(Qt::CustomContextMenu);
+    // Several at once with Ctrl or Shift, to delete them together.
+    trackListView_->setSelectionMode(QAbstractItemView::ExtendedSelection);
     connect(trackListView_, &QListView::customContextMenuRequested, this, &MainWindow::onTrackContextMenuRequested);
 
     auto* trackListContainer = new QWidget(this);
@@ -856,6 +859,11 @@ void MainWindow::onSidebarContextMenuRequested(const QPoint& pos)
                 tr("Save Playlist to Downloads"), this,
                 [this, sourceId, playlist]() { downloads_.downloadPlaylist(sourceId, playlist); });
         }
+        if (trackDeletion_.canDelete(sourceId, playlist)) {
+            menu->addSeparator();
+            menu->addAction(Theme::icon(QStringLiteral("delete"), Theme::IconColor::Ink, 16), tr("Delete Folder…"),
+                this, [this, sourceId, playlist]() { confirmDeletePlaylist(sourceId, playlist); });
+        }
     } else {
         menu->deleteLater();
         return;
@@ -1036,8 +1044,53 @@ void MainWindow::onTrackContextMenuRequested(const QPoint& pos)
     if (!index.isValid())
         return;
     const int row = index.row();
-    showTrackMenu(trackListModel_->sourceIdAt(row), trackListModel_->trackAt(row),
-        trackListView_->viewport()->mapToGlobal(pos), [this, index]() { onTrackDoubleClicked(index); });
+    const QPoint globalPos = trackListView_->viewport()->mapToGlobal(pos);
+    // On one of several selected: what's for all of them — deleting the
+    // ones of the clicked row's source that can be.
+    const QModelIndexList selected = trackListView_->selectionModel()->selectedRows();
+    if (selected.size() > 1 && trackListView_->selectionModel()->isSelected(index)) {
+        const QString sourceId = trackListModel_->sourceIdAt(row);
+        QList<Track> tracks;
+        for (const QModelIndex& other : selected) {
+            const Track track = trackListModel_->trackAt(other.row());
+            if (trackListModel_->sourceIdAt(other.row()) == sourceId && trackDeletion_.canDelete(sourceId, track))
+                tracks.append(track);
+        }
+        if (tracks.isEmpty())
+            return;
+        auto* menu = new QMenu(this);
+        menu->setAttribute(Qt::WA_DeleteOnClose);
+        menu->addAction(Theme::icon(QStringLiteral("delete"), Theme::IconColor::Ink, 16),
+            tr("Delete %n Track(s) from Disk…", nullptr, int(tracks.size())), this,
+            [this, sourceId, tracks]() { confirmDeleteTracks(sourceId, tracks); });
+        Theme::popupMenu(menu, globalPos);
+        return;
+    }
+    showTrackMenu(trackListModel_->sourceIdAt(row), trackListModel_->trackAt(row), globalPos,
+        [this, index]() { onTrackDoubleClicked(index); });
+}
+
+void MainWindow::confirmDeleteTracks(const QString& sourceId, const QList<Track>& tracks)
+{
+    const QString heading = tracks.size() == 1 ? tr("Delete \"%1\" from the disk?").arg(tracks.first().title)
+                                               : tr("Delete %n track(s) from the disk?", nullptr, int(tracks.size()));
+    InfoDialog dialog(tr("Delete"), heading, tr("Deleted files can't be brought back."), tr("Delete"), this,
+        tr("Cancel"));
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    QStringList ids;
+    for (const Track& track : tracks)
+        ids.append(track.id);
+    trackDeletion_.deleteTracks(sourceId, ids);
+}
+
+void MainWindow::confirmDeletePlaylist(const QString& sourceId, const Playlist& playlist)
+{
+    InfoDialog dialog(tr("Delete"), tr("Delete \"%1\" and everything in it?").arg(playlist.title),
+        tr("Its %n track(s) are deleted from the disk, and can't be brought back.", nullptr, playlist.trackCount),
+        tr("Delete"), this, tr("Cancel"));
+    if (dialog.exec() == QDialog::Accepted)
+        trackDeletion_.deletePlaylist(sourceId, playlist);
 }
 
 void MainWindow::showTrackMenu(
@@ -1133,6 +1186,12 @@ void MainWindow::showTrackMenu(
             connect(downloadAction, &QAction::triggered, this,
                 [this, sourceId, track]() { downloads_.downloadTrack(sourceId, track); });
         }
+    }
+
+    if (trackDeletion_.canDelete(sourceId, track)) {
+        menu->addSeparator();
+        menu->addAction(Theme::icon(QStringLiteral("delete"), Theme::IconColor::Ink, 16), tr("Delete from Disk…"),
+            this, [this, sourceId, track]() { confirmDeleteTracks(sourceId, { track }); });
     }
 
     Theme::popupMenu(menu, globalPos);

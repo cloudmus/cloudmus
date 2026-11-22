@@ -156,4 +156,12 @@ void OpenPlaylist::applyEdit(
     emit rowsChanged();
 }
 
+void OpenPlaylist::dropTracks(const QString& sourceId, const QStringList& trackIds)
+{
+    const qsizetype removed = rows_.removeIf(
+        [&](const Row& row) { return row.sourceId == sourceId && trackIds.contains(row.track.id); });
+    if (removed > 0)
+        emit rowsChanged();
+}
+
 } // namespace ViewModel

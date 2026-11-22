@@ -557,6 +557,58 @@
 <context>
     <name>Ui::MainWindow</name>
     <message>
+        <source>Cancel</source>
+        <translation>Скасаваць</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Выдаліць</translation>
+    </message>
+    <message>
+        <source>Delete "%1" and everything in it?</source>
+        <translation>Выдаліць «%1» з усім змесцівам?</translation>
+    </message>
+    <message>
+        <source>Delete "%1" from the disk?</source>
+        <translation>Выдаліць «%1» з дыска?</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n Track(s) from Disk…</source>
+        <translation>
+            <numerusform>Выдаліць %n трэк з дыска…</numerusform>
+            <numerusform>Выдаліць %n трэкі з дыска…</numerusform>
+            <numerusform>Выдаліць %n трэкаў з дыска…</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n track(s) from the disk?</source>
+        <translation>
+            <numerusform>Выдаліць %n трэк з дыска?</numerusform>
+            <numerusform>Выдаліць %n трэкі з дыска?</numerusform>
+            <numerusform>Выдаліць %n трэкаў з дыска?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Delete Folder…</source>
+        <translation>Выдаліць тэчку…</translation>
+    </message>
+    <message>
+        <source>Delete from Disk…</source>
+        <translation>Выдаліць з дыска…</translation>
+    </message>
+    <message>
+        <source>Deleted files can't be brought back.</source>
+        <translation>Выдаленыя файлы нельга аднавіць.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Its %n track(s) are deleted from the disk, and can't be brought back.</source>
+        <translation>
+            <numerusform>Яе %n трэк будзе выдалены з дыска без магчымасці аднаўлення.</numerusform>
+            <numerusform>Яе %n трэкі будуць выдалены з дыска без магчымасці аднаўлення.</numerusform>
+            <numerusform>Яе %n трэкаў будуць выдалены з дыска без магчымасці аднаўлення.</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>A continuous radio station</source>
         <translation>Бесперапынная радыёстанцыя</translation>
     </message>
@@ -1783,6 +1835,29 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>timed out loading playlists</source>
         <translation>скончыўся час чакання загрузкі плэйлістаў</translation>
+    </message>
+</context>
+<context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+        <source>%n track(s) couldn't be deleted</source>
+        <translation>
+            <numerusform>%n трэк не ўдалося выдаліць</numerusform>
+            <numerusform>%n трэкі не ўдалося выдаліць</numerusform>
+            <numerusform>%n трэкаў не ўдалося выдаліць</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Deleted "%1"</source>
+        <translation>«%1» выдалена</translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n track(s)</source>
+        <translation>
+            <numerusform>Выдалены %n трэк</numerusform>
+            <numerusform>Выдалена %n трэкі</numerusform>
+            <numerusform>Выдалена %n трэкаў</numerusform>
+        </translation>
     </message>
 </context>
 </TS>

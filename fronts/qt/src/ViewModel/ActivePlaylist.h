@@ -98,6 +98,10 @@ public:
     Rpc::Task<void> startRadio(
         QString sourceId, QString seed, PlaylistContext context, std::optional<Track> resumeTrack = std::nullopt);
 
+    // The source deleted these tracks: they leave the playlist (not a running
+    // queue, which goes on as it is).
+    void dropTracks(const QString& sourceId, const QStringList& trackIds);
+
 public slots:
     // The hero's Play: (re)starts the active playlist.
     void play();

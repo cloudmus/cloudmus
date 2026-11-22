@@ -27,6 +27,7 @@
 #include "SourceManager.h"
 #include "SourcePage.h"
 #include "TrackActions.h"
+#include "TrackDeletion.h"
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TrackStates.h"
@@ -66,6 +67,7 @@ public:
     ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
     ViewModel::ActiveTracks& activeTracks() { return activeTracks_; }
     ViewModel::TrackActions& trackActions() { return trackActions_; }
+    TrackDeletion& trackDeletion() { return trackDeletion_; }
     ViewModel::SourcePage& sourcePage() { return sourcePage_; }
     ListeningTime& listeningTime() { return listeningTime_; }
     Connectivity& connectivity() { return connectivity_; }
@@ -115,6 +117,7 @@ private:
     ViewModel::ActivePlaylist activePlaylist_;
     ViewModel::ActiveTracks activeTracks_;
     ViewModel::TrackActions trackActions_;
+    TrackDeletion trackDeletion_;
     ViewModel::SourcePage sourcePage_;
     ListeningTime listeningTime_;
     Connectivity connectivity_;

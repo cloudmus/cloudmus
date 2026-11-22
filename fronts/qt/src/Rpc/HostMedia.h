@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 namespace Rpc {
 
@@ -25,11 +26,18 @@ public:
     // Everything was asked for, and the platform waits for the user to
     // allow it.
     virtual bool permissionNeeded() const { return false; }
+    // Deletes these items (a source's catalog.deleteTracks handed them back,
+    // docs/protocol.md §7.11); the platform may ask the user first. A new
+    // revision follows.
+    virtual void remove(const QStringList& uris) { Q_UNUSED(uris); }
 
 signals:
     // A new revision of the library is written.
     void changed();
     void permissionNeededChanged();
+    // Some of remove()'s items wait for the user's yes, which the app asks
+    // for with its own window.
+    void removalNeedsConsent(const QStringList& uris);
 };
 
 } // namespace Rpc

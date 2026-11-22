@@ -117,6 +117,8 @@ signals:
     void sourceCrashed(const QString& sourceId);
     // HostMedia::permissionNeeded() changed.
     void mediaPermissionNeededChanged();
+    // HostMedia::removalNeedsConsent(), passed on.
+    void mediaRemovalNeedsConsent(const QStringList& uris);
 
 private:
     void startOne(const BackendManifest& manifest);

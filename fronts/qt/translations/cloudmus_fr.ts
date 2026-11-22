@@ -557,6 +557,55 @@
 <context>
     <name>Ui::MainWindow</name>
     <message>
+        <source>Cancel</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Supprimer</translation>
+    </message>
+    <message>
+        <source>Delete "%1" and everything in it?</source>
+        <translation>Supprimer « %1 » et tout son contenu ?</translation>
+    </message>
+    <message>
+        <source>Delete "%1" from the disk?</source>
+        <translation>Supprimer « %1 » du disque ?</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n Track(s) from Disk…</source>
+        <translation>
+            <numerusform>Supprimer %n piste du disque…</numerusform>
+            <numerusform>Supprimer %n pistes du disque…</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n track(s) from the disk?</source>
+        <translation>
+            <numerusform>Supprimer %n piste du disque ?</numerusform>
+            <numerusform>Supprimer %n pistes du disque ?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Delete Folder…</source>
+        <translation>Supprimer le dossier…</translation>
+    </message>
+    <message>
+        <source>Delete from Disk…</source>
+        <translation>Supprimer du disque…</translation>
+    </message>
+    <message>
+        <source>Deleted files can't be brought back.</source>
+        <translation>Les fichiers supprimés ne peuvent pas être récupérés.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Its %n track(s) are deleted from the disk, and can't be brought back.</source>
+        <translation>
+            <numerusform>Sa %n piste sera supprimée du disque, sans retour possible.</numerusform>
+            <numerusform>Ses %n pistes seront supprimées du disque, sans retour possible.</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>A continuous radio station</source>
         <translation>Une station de radio continue</translation>
     </message>
@@ -1780,6 +1829,27 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
         <source>timed out loading playlists</source>
         <translation>délai dépassé lors du chargement des listes de lecture</translation>
+    </message>
+</context>
+<context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+        <source>%n track(s) couldn't be deleted</source>
+        <translation>
+            <numerusform>%n piste n’a pas pu être supprimée</numerusform>
+            <numerusform>%n pistes n’ont pas pu être supprimées</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Deleted "%1"</source>
+        <translation>« %1 » supprimé</translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n track(s)</source>
+        <translation>
+            <numerusform>%n piste supprimée</numerusform>
+            <numerusform>%n pistes supprimées</numerusform>
+        </translation>
     </message>
 </context>
 </TS>

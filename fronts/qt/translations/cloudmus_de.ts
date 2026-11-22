@@ -557,6 +557,55 @@
 <context>
     <name>Ui::MainWindow</name>
     <message>
+        <source>Cancel</source>
+        <translation>Abbrechen</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Löschen</translation>
+    </message>
+    <message>
+        <source>Delete "%1" and everything in it?</source>
+        <translation>„%1“ mit allem darin löschen?</translation>
+    </message>
+    <message>
+        <source>Delete "%1" from the disk?</source>
+        <translation>„%1“ von der Festplatte löschen?</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n Track(s) from Disk…</source>
+        <translation>
+            <numerusform>%n Titel von der Festplatte löschen…</numerusform>
+            <numerusform>%n Titel von der Festplatte löschen…</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n track(s) from the disk?</source>
+        <translation>
+            <numerusform>%n Titel von der Festplatte löschen?</numerusform>
+            <numerusform>%n Titel von der Festplatte löschen?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Delete Folder…</source>
+        <translation>Ordner löschen…</translation>
+    </message>
+    <message>
+        <source>Delete from Disk…</source>
+        <translation>Von der Festplatte löschen…</translation>
+    </message>
+    <message>
+        <source>Deleted files can't be brought back.</source>
+        <translation>Gelöschte Dateien können nicht wiederhergestellt werden.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Its %n track(s) are deleted from the disk, and can't be brought back.</source>
+        <translation>
+            <numerusform>Sein %n Titel wird von der Festplatte gelöscht und kann nicht wiederhergestellt werden.</numerusform>
+            <numerusform>Seine %n Titel werden von der Festplatte gelöscht und können nicht wiederhergestellt werden.</numerusform>
+        </translation>
+    </message>
+    <message>
         <source>A continuous radio station</source>
         <translation>Ein durchgehender Radiosender</translation>
     </message>
@@ -1780,6 +1829,27 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
     <message>
         <source>timed out loading playlists</source>
         <translation>Zeitüberschreitung beim Laden der Playlists</translation>
+    </message>
+</context>
+<context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+        <source>%n track(s) couldn't be deleted</source>
+        <translation>
+            <numerusform>%n Titel konnte nicht gelöscht werden</numerusform>
+            <numerusform>%n Titel konnten nicht gelöscht werden</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Deleted "%1"</source>
+        <translation>„%1“ gelöscht</translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n track(s)</source>
+        <translation>
+            <numerusform>%n Titel gelöscht</numerusform>
+            <numerusform>%n Titel gelöscht</numerusform>
+        </translation>
     </message>
 </context>
 </TS>

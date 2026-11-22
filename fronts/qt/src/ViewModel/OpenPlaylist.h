@@ -72,6 +72,8 @@ public:
     void load();
     void fillHistory();
     void announceRows() { emit rowsChanged(); }
+    // The source deleted these tracks (App::TrackDeletion): their rows go.
+    void dropTracks(const QString& sourceId, const QStringList& trackIds);
 
 signals:
     void rowsChanged();

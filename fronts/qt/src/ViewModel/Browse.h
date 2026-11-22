@@ -67,6 +67,8 @@ public:
     void openHistory();
     void openSource(const QString& sourceId);
     void close();
+    // The source deleted these tracks: they leave the open playlist.
+    void dropTracks(const QString& sourceId, const QStringList& trackIds) { open_.dropTracks(sourceId, trackIds); }
 
     // Plays the open playlist from `row` (making it the active one).
     void playRow(int row);

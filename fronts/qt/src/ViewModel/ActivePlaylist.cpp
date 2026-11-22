@@ -897,6 +897,18 @@ Rpc::Task<void> ActivePlaylist::attachStation(QString sourceId, QString seed)
     }
 }
 
+void ActivePlaylist::dropTracks(const QString& sourceId, const QStringList& trackIds)
+{
+    if (context_.isHistory || context_.sourceId != sourceId || playback_.hasQueue())
+        return;
+    const qsizetype removed = tracks_.removeIf(
+        [&](const Playback::QueueEntry& entry) { return trackIds.contains(entry.track.id); });
+    if (removed == 0)
+        return;
+    saveCachedTracks();
+    emit entriesChanged();
+}
+
 void ActivePlaylist::applyPlaylistEdit(
     const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount)
 {
