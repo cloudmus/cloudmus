@@ -417,10 +417,12 @@ impl Track {
     }
 }
 
+// What the item's file says, where the app may read it: its own files, and,
+// with the permission for the device's music, the others' — their pictures
+// are in the files, MediaStore doesn't list them.
 fn media_metadata(record: &Value, include_cover: bool) -> (metadata::Metadata, Option<String>) {
     let path = record["path"]
         .as_str()
-        .filter(|_| record["own"] == true)
         .map(Path::new)
         .filter(|path| fs::File::open(path).is_ok());
     let mut info = path

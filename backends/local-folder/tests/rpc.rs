@@ -244,6 +244,12 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
         "Music/published.webm",
         include_bytes!("data/sample.webm"),
     );
+    // Another app's file, which the app may read too.
+    let device = write_file(
+        temp.path(),
+        "Download/device.webm",
+        include_bytes!("data/sample.webm"),
+    );
     let cover = url::Url::from_file_path(temp.path().join("cover.jpg")).unwrap();
     let index = write_file(temp.path(), "library.json", json!({
         "scope": "all",
@@ -252,7 +258,8 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
             {"id": "@android/media/external/audio/media/1", "own": true,
                 "path": saved, "uri": "content://media/external/audio/media/1"},
             {"id": "@android/media/external/audio/media/2", "own": false,
-                "title":"Device song", "mimeType":"audio/mp4", "uri":"content://media/external/audio/media/2"},
+                "title":"Device song", "mimeType":"audio/mp4", "uri":"content://media/external/audio/media/2",
+                "path": device},
             {"id": "@android/media/external/audio/media/3", "own": true,
                 "title":"Older saved song", "mimeType":"audio/webm", "uri":"content://media/external/audio/media/3",
                 "path": published},
@@ -303,6 +310,12 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
             "@android/device-media"
         ]
     );
+    let result = backend.call(
+        "catalog.listTracks",
+        json!({"playlistId":"@android/device-media"}),
+    );
+    assert_eq!(result["tracks"][0]["title"], "Device song");
+    assert_eq!(result["tracks"][0]["codec"], "opus");
     let result = backend.call(
         "catalog.listTracks",
         json!({"playlistId":"@android/saved-media"}),
