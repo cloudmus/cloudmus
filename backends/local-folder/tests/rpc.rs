@@ -150,6 +150,10 @@ fn lists_nested_and_loose_tracks_and_resolves_webm() {
     );
     assert_eq!(playlists[0]["kind"], "radioStation");
     assert_ne!(playlists[1]["title"], "All music");
+    // A folder's files with everything under it; the wave has none.
+    let webm = include_bytes!("data/sample.webm").len() as u64;
+    let sizes: Vec<_> = playlists.iter().map(|list| list["sizeBytes"].as_u64()).collect();
+    assert_eq!(sizes, [None, Some(webm + 8), Some(webm + 8), Some(webm)]);
 
     let result = backend.call("catalog.listTracks", json!({"playlistId": "Альбом"}));
     let tracks = result["tracks"].as_array().unwrap();
@@ -269,7 +273,7 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
                 "coverUrl": cover.as_str(), "codec": "opus", "bitrateKbps": 128},
             {"id": "@android/media/external/audio/media/5", "own": true,
                 "title":"Nested song", "mimeType":"audio/mpeg", "uri":"content://media/external/audio/media/5",
-                "relativePath": "Music/CloudMus/Artist/Album/"}
+                "relativePath": "Music/CloudMus/Artist/Album/", "size": 4096}
         ]
     }).to_string().as_bytes());
     let mut backend = Backend::start(temp.path(), None, Some(&index));
@@ -290,6 +294,7 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
         ]
     );
     assert_eq!(lists[3]["title"], "Album");
+    assert_eq!(lists[3]["sizeBytes"], 4096);
     let fields = backend.call("settings.describe", json!({}))["fields"].clone();
     assert!(fields.as_array().unwrap().iter().any(|field| field["key"] == "deviceMusic"));
     backend.call("settings.update", json!({"values": {"deviceMusic": true}}));

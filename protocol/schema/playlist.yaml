@@ -14,4 +14,5 @@ properties:
   featured: {type: boolean}         # optional (1.6+); shown at the source's top level until the user picks their own favorites
   deletable: {type: boolean}        # optional (1.22+); catalog.deletePlaylist deletes it and its tracks
   parentId: {type: string}          # optional (1.21+); listed inside that playlist, as a folder inside a folder
+  sizeBytes: {type: integer, format: int64}  # optional (1.24+); how much its tracks' files take, in bytes
 additionalProperties: false

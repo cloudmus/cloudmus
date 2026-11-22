@@ -5,6 +5,12 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.24 — a folder's size
+
+- **Additive, backward-compatible**: optional `Playlist.sizeBytes` (§6): how
+  much the playlist's files take. Local Folder gives it for each folder and
+  for the host's media library, from the item's `size`.
+
 ## 1.23 — where a track is kept
 
 - **Additive, backward-compatible**: optional `Track.location` (§6): a local

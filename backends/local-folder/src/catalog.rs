@@ -26,8 +26,8 @@ struct Playlist {
 #[derive(Clone)]
 pub(crate) enum Track {
     // `root`: the folder it was found under, which deleting it never empties
-    // away.
-    File { id: String, path: PathBuf, root: PathBuf },
+    // away. `size`: the file's, in bytes.
+    File { id: String, path: PathBuf, root: PathBuf, size: u64 },
     Media(Value),
 }
 
@@ -265,9 +265,10 @@ impl Library {
     ) -> Option<Track> {
         metadata::mime(&metadata::extension(&entry))?;
         let resolved = fs::canonicalize(&entry).ok()?;
-        if !resolved.starts_with(canonical) || !resolved.is_file() {
+        if !resolved.starts_with(canonical) {
             return None;
         }
+        let size = fs::metadata(&resolved).ok().filter(fs::Metadata::is_file)?.len();
         let id = relative_id(entry.strip_prefix(root).ok()?)?;
         if config::host_library().is_some() && !self.seen.insert(resolved.clone()) {
             return None;
@@ -276,6 +277,7 @@ impl Library {
             id: format!("{prefix}{id}"),
             path: entry,
             root: root.to_path_buf(),
+            size,
         })
     }
 
@@ -293,6 +295,14 @@ impl Track {
         match self {
             Self::File { id, .. } => id,
             Self::Media(value) => value["id"].as_str().unwrap_or_default(),
+        }
+    }
+
+    // How much its file takes, in bytes; 0 when the host's item doesn't say.
+    fn size(&self) -> u64 {
+        match self {
+            Self::File { size, .. } => *size,
+            Self::Media(value) => value["size"].as_u64().unwrap_or_default(),
         }
     }
 
@@ -514,6 +524,10 @@ pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
             }
             if list.deletable {
                 playlist["deletable"] = json!(true);
+            }
+            let size: u64 = list.tracks.iter().map(Track::size).sum();
+            if size > 0 {
+                playlist["sizeBytes"] = json!(size);
             }
             playlist
         }))

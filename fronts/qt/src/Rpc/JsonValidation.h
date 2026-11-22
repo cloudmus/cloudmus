@@ -51,6 +51,15 @@ struct JsonField<int> {
     static const char* typeName() { return "integer"; }
 };
 
+// `format: int64` in the schema: a byte count, past int's 2 GB.
+template <>
+struct JsonField<qint64> {
+    static bool check(const QJsonValue& v) { return v.isDouble(); }
+    static qint64 extract(const QJsonValue& v) { return v.toInteger(); }
+    static QJsonValue toJson(qint64 v) { return v; }
+    static const char* typeName() { return "integer"; }
+};
+
 template <>
 struct JsonField<double> {
     static bool check(const QJsonValue& v) { return v.isDouble(); }

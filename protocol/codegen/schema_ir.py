@@ -61,6 +61,7 @@ class TypeIR:
     ref_name: str | None = None  # for object_ref
     enum: list[str] | None = None  # for string enum
     map_value: "TypeIR | None" = None  # for map
+    wide: bool = False  # for integer: `format: int64`, a count that can pass 2^31 (bytes)
 
 
 @dataclass
@@ -140,7 +141,7 @@ class _Builder:
         if node_type == "string":
             return TypeIR(kind="string", enum=node.get("enum"))
         if node_type == "integer":
-            return TypeIR(kind="integer")
+            return TypeIR(kind="integer", wide=node.get("format") == "int64")
         if node_type == "number":
             return TypeIR(kind="number")
         if node_type == "boolean":

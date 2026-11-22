@@ -45,6 +45,8 @@ def member_name(field_name: str) -> str:
 
 
 def _cpp_type(t: TypeIR) -> str:
+    if t.kind == "integer" and t.wide:
+        return "qint64"
     if t.kind in _PRIMITIVE_CPP:
         return _PRIMITIVE_CPP[t.kind]
     if t.kind == "object_ref":

@@ -73,7 +73,8 @@ Supported schema constructs: `string`/`integer`/`number`/`boolean`, `array`
 struct/dataclass), `$ref` to another schema file, string `enum`,
 `additionalProperties`-based maps or free-form ("any") objects, and `{}` —
 no `type` at all — for a value of any JSON type (a setting's
-`default`/`value`, whose type a sibling field decides). This is deliberately not a general JSON-Schema
+`default`/`value`, whose type a sibling field decides). An `integer` with
+`format: int64` is a 64-bit one in C++ (`qint64`), for byte counts. This is deliberately not a general JSON-Schema
 engine — it only supports what this protocol actually uses. Both language
 targets generate real validation code inline (required-field presence,
 per-field type/enum checks) rather than deferring to a runtime schema

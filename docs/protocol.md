@@ -305,7 +305,8 @@ for a track that's only on a service.
   "editable": true,                // optional (1.3+): the user's own playlist — tracks can be added/removed (§7.6)
   "featured": true,                // optional (1.6+): worth showing at the source's top level by default
   "deletable": true,               // optional (1.22+): catalog.deletePlaylist deletes it and its tracks (§7.11)
-  "parentId": "2"                  // optional (1.21+): listed inside that playlist
+  "parentId": "2",                 // optional (1.21+): listed inside that playlist
+  "sizeBytes": 356515840           // optional (1.24+): how much its tracks' files take
 }
 ```
 `kind: "radioStation"` playlists (e.g. My Wave) have no fixed track
@@ -334,6 +335,10 @@ like any other. A front shows the children under their parent (a tree, or a
 list on the parent's page); its top level is the playlists with no
 `parentId`. One that doesn't know `parentId` shows the list flat. A
 `parentId` the list doesn't have is treated as absent.
+
+`sizeBytes` (1.24+) is how much a source that keeps the music itself has in
+the playlist's files — a music folder with everything under it. A front
+shows it beside `trackCount`; absent, it shows the count alone.
 
 ### PlaybackState
 ```jsonc

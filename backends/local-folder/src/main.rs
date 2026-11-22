@@ -185,7 +185,7 @@ fn main() -> io::Result<()> {
             "initialize" => {
                 locale = select_locale(params["locale"].as_str());
                 Ok(json!({
-                    "protocolVersion": "1.23",
+                    "protocolVersion": "1.24",
                     "source": {"id": "local-folder", "name": "Local Folder", "version": "0.1.0",
                         "description": translations[locale][DESCRIPTION].as_str().unwrap_or(DESCRIPTION)},
                     "capabilities": {
