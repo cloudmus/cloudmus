@@ -289,8 +289,8 @@ Sources are switched on and off, signed in and configured in
   broken, [sigma67/ytmusicapi#676](https://github.com/sigma67/ytmusicapi/issues/676)).
   Step-by-step: [Setting up browser-header auth](backends/youtube-music/README.md#setting-up-browser-header-auth).
 - **Local folder** — plays your Music folder (XDG Music on Linux, the Windows
-  Music known folder on Windows, `~/Music` on macOS), each subfolder shown as a playlist; another folder can be
-  picked in the source's settings.
+  Music known folder on Windows, `~/Music` on macOS), each subfolder shown as a playlist, and a Wave of all of
+  it that learns from what you skip; another folder can be picked in the source's settings.
 - **Downloads** are off until turned on in Settings; they go to the same
   music folder unless you choose another one.
 
@@ -300,7 +300,7 @@ Sources are switched on and off, signed in and configured in
 |---|---|---|---|---|
 | [Yandex Music](https://music.yandex.ru) | code on Yandex's site | yes, editable | My Wave, stations | yes |
 | [YouTube Music](https://music.youtube.com) | browser headers | yes, editable | personal mixes, from a track | yes |
-| Local folder | — | subfolders as playlists | — | — |
+| Local folder | — | subfolders as playlists | Wave | — |
 
 Search isn't available yet. More services are planned — see above.
 

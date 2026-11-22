@@ -141,12 +141,14 @@ fn lists_nested_and_loose_tracks_and_resolves_webm() {
     assert_eq!(
         summary,
         [
+            ("__wave__", 0, None),
             ("__root__", 3, None),
             ("Альбом", 2, None),
             ("Альбом/Live", 1, Some("Альбом"))
         ]
     );
-    assert_ne!(playlists[0]["title"], "All music");
+    assert_eq!(playlists[0]["kind"], "radioStation");
+    assert_ne!(playlists[1]["title"], "All music");
 
     let result = backend.call("catalog.listTracks", json!({"playlistId": "Альбом"}));
     let tracks = result["tracks"].as_array().unwrap();
@@ -157,6 +159,7 @@ fn lists_nested_and_loose_tracks_and_resolves_webm() {
     assert_eq!(tracks[1]["codec"], "opus");
     assert!(tracks[1]["durationMs"].as_u64().unwrap() > 250);
     assert!(tracks[1]["bitrateKbps"].as_u64().unwrap() > 0);
+    assert_eq!(tracks[1]["location"], sample.display().to_string());
 
     let stream = backend.call(
         "playback.resolveStream",
@@ -210,7 +213,7 @@ fn settings_preserve_legacy_music_folder_and_other_config() {
     let fields = backend.call("settings.describe", json!({}));
     assert_eq!(fields["fields"][0]["value"], json!(music));
     assert_eq!(
-        backend.call("catalog.listPlaylists", json!({}))["playlists"][0]["trackCount"],
+        backend.call("catalog.listPlaylists", json!({}))["playlists"][1]["trackCount"],
         1
     );
     assert_eq!(
@@ -272,12 +275,13 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
     assert_eq!(
         summary,
         [
+            ("__wave__", None),
             ("@android/saved-media", None),
             ("@android/saved-media/Artist", Some("@android/saved-media")),
             ("@android/saved-media/Artist/Album", Some("@android/saved-media/Artist"))
         ]
     );
-    assert_eq!(lists[2]["title"], "Album");
+    assert_eq!(lists[3]["title"], "Album");
     let fields = backend.call("settings.describe", json!({}))["fields"].clone();
     assert!(fields.as_array().unwrap().iter().any(|field| field["key"] == "deviceMusic"));
     backend.call("settings.update", json!({"values": {"deviceMusic": true}}));
@@ -292,6 +296,7 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
     assert_eq!(
         ids,
         [
+            "__wave__",
             "@android/saved-media",
             "@android/saved-media/Artist",
             "@android/saved-media/Artist/Album",
@@ -331,6 +336,8 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
     assert_eq!(tracks[2]["codec"], "opus");
     assert_eq!(tracks[2]["bitrateKbps"], 128);
     assert_eq!(tracks[3]["title"], "Nested song");
+    assert_eq!(tracks[3]["location"], "Music/CloudMus/Artist/Album/");
+    assert_eq!(tracks[1]["location"], published.display().to_string());
     for track in &tracks[..3] {
         let result = backend.call("playback.resolveStream", json!({"trackId": track["id"]}));
         assert_eq!(result["stream"]["codec"], track["codec"]);
@@ -384,4 +391,53 @@ fn deletes_tracks_and_folders_and_hands_back_host_items() {
     );
     assert_eq!(result["host"][0]["uri"], "content://media/external/audio/media/9");
     assert_eq!(result["deleted"], json!([]));
+}
+
+#[test]
+fn the_wave_plays_everything_once_and_learns_from_skips() {
+    let temp = tempfile::tempdir().unwrap();
+    let music = temp.path().join("Music");
+    let mut all = Vec::new();
+    for folder in ["A/One", "A/Two", "B/Three"] {
+        for n in 0..6 {
+            write_file(&music, &format!("{folder}/{n}.mp3"), b"");
+            all.push(format!("{folder}/{n}.mp3"));
+        }
+    }
+    let mut backend = Backend::start(temp.path(), Some(&music), None);
+    let ids = |tracks: &Value| -> Vec<String> {
+        tracks.as_array().unwrap().iter().map(|track| track["id"].as_str().unwrap().to_owned()).collect()
+    };
+
+    // Not what was played lately, while there's other music.
+    let recent = &all[..4];
+    let result = backend.call("catalog.startRadio", json!({"seed": "__wave__", "recentTrackIds": recent}));
+    assert_eq!(result["stationId"], "wave");
+    let first = ids(&result["initialTracks"]);
+    assert_eq!(first.len(), 10);
+    assert!(first.iter().all(|id| !recent.contains(id)));
+
+    // Near the end of the queue it sends more, none it has sent.
+    backend.call("feedback.trackStarted", json!({"trackId": first[8], "queuedAfter": 1}));
+    let event = backend.notification();
+    assert_eq!(event["method"], "radio/tracksAdded");
+    assert!(event["params"].get("replaceUpcoming").is_none());
+    let more = ids(&event["params"]["tracks"]);
+    assert_eq!(more.len(), 4);
+    assert!(more.iter().all(|id| !first.contains(id)));
+
+    // A skip: what's queued is picked anew.
+    backend.call("feedback.skip", json!({"trackId": more[0], "playedMs": 1000}));
+    let event = backend.notification();
+    assert_eq!(event["params"]["replaceUpcoming"], true);
+    assert!(!ids(&event["params"]["tracks"]).contains(&more[0]));
+    // Late, it changes nothing queued.
+    backend.call("feedback.skip", json!({"trackId": first[0], "playedMs": 1000, "deferred": true}));
+    backend.call("feedback.trackStarted", json!({"trackId": first[1], "queuedAfter": 5}));
+    assert!(backend.notifications.is_empty());
+
+    assert_eq!(
+        backend.send("catalog.startRadio", json!({"seed": "A/One"}))["error"]["code"],
+        1300
+    );
 }

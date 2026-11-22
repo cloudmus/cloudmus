@@ -24,7 +24,7 @@ struct Playlist {
 }
 
 #[derive(Clone)]
-enum Track {
+pub(crate) enum Track {
     // `root`: the folder it was found under, which deleting it never empties
     // away.
     File { id: String, path: PathBuf, root: PathBuf },
@@ -289,14 +289,14 @@ impl Library {
 }
 
 impl Track {
-    fn id(&self) -> &str {
+    pub(crate) fn id(&self) -> &str {
         match self {
             Self::File { id, .. } => id,
             Self::Media(value) => value["id"].as_str().unwrap_or_default(),
         }
     }
 
-    fn track(&self) -> Value {
+    pub(crate) fn track(&self) -> Value {
         let (title, artists, album, duration, cover, codec, bitrate) = match self {
             Self::File { path, .. } => {
                 let info = metadata::read(path, true);
@@ -365,7 +365,55 @@ impl Track {
         if let Some(bitrate) = bitrate {
             track["bitrateKbps"] = json!(bitrate);
         }
+        if let Some(location) = self.location() {
+            track["location"] = json!(location);
+        }
         track
+    }
+
+    // The folders it's in, below where it was found: "Artist/Album".
+    pub(crate) fn folder(&self) -> String {
+        match self {
+            Self::File { path, root, .. } => path
+                .parent()
+                .and_then(|folder| folder.strip_prefix(root).ok())
+                .and_then(relative_id)
+                .unwrap_or_default(),
+            Self::Media(value) => value["relativePath"]
+                .as_str()
+                .unwrap_or_default()
+                .trim_matches('/')
+                .to_owned(),
+        }
+    }
+
+    // Its first artist, "" if it has none; read from the file's tags.
+    pub(crate) fn artist(&self) -> String {
+        match self {
+            Self::File { path, .. } => metadata::read(path, false)
+                .artists
+                .into_iter()
+                .next()
+                .unwrap_or_default(),
+            Self::Media(value) => value["artist"]
+                .as_str()
+                .filter(|name| *name != "<unknown>")
+                .unwrap_or_default()
+                .to_owned(),
+        }
+    }
+
+    // Where it's kept, for the user to read (Track.location): the file's
+    // path; for the host's item, its path, else the folder it's in.
+    fn location(&self) -> Option<String> {
+        match self {
+            Self::File { path, .. } => Some(path.display().to_string()),
+            Self::Media(value) => value["path"]
+                .as_str()
+                .filter(|path| !path.is_empty())
+                .map(str::to_owned)
+                .or_else(|| value["relativePath"].as_str().filter(|path| !path.is_empty()).map(str::to_owned)),
+        }
     }
 }
 
@@ -450,10 +498,12 @@ fn cover_room(dir: &Path, bytes: u64) -> bool {
 }
 
 pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
-    let library = Library::new(tr);
-    let lists: Vec<_> = library
-        .lists()
-        .map(|(id, list)| {
+    let library = Library::new(&tr);
+    // The wave first, when there's music to make it of.
+    let wave = (!library.playlists.is_empty()).then(|| crate::wave::playlist(&tr));
+    let lists: Vec<_> = wave
+        .into_iter()
+        .chain(library.lists().map(|(id, list)| {
             let mut playlist = json!({
                 "id": id, "title": list.title, "trackCount": list.tracks.len(), "kind": "playlist"
             });
@@ -464,9 +514,24 @@ pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
                 playlist["deletable"] = json!(true);
             }
             playlist
-        })
+        }))
         .collect();
     json!({"playlists": lists})
+}
+
+// Every track there is, once each: what a station picks from.
+pub(crate) fn pool(tr: impl Fn(&str) -> String) -> Vec<Track> {
+    let library = Library::new(tr);
+    let mut seen = HashSet::new();
+    let mut pool = Vec::new();
+    for (_, list) in library.lists() {
+        for track in &list.tracks {
+            if seen.insert(track.id().to_owned()) {
+                pool.push(track.clone());
+            }
+        }
+    }
+    pool
 }
 
 pub fn tracks(id: &str, tr: impl Fn(&str) -> String) -> Option<Value> {

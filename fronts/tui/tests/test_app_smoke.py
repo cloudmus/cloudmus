@@ -56,7 +56,7 @@ async def test_app_boots_with_local_folder_backend(tmp_path, local_folder_argv, 
         labels = [str(item.children[0].render()) for item in sidebar.children]
         assert any("AlbumA" in label for label in labels)
 
-        playlist_item = sidebar.children[0]
+        playlist_item = next(item for item in sidebar.children if "AlbumA" in str(item.children[0].render()))
         await app._load_source(playlist_item)
         await pilot.pause(0.2)
 
@@ -131,7 +131,11 @@ async def test_restart_restores_playlist_and_last_song_without_playing(tmp_path,
     first = PlayerApp(manifests=[manifest], session_path=path)
     async with first.run_test() as pilot:
         await pilot.pause()
-        await first._load_source(first.query_one("#sidebar").children[0])
+        await pilot.pause(0.2)
+        album_item = next(
+            item for item in first.query_one("#sidebar").children if "AlbumA" in str(item.children[0].render())
+        )
+        await first._load_source(album_item)
         assert len(first._current_tracks) == 2
         assert first.playback_engine is not None
         first.playback_engine.queue = [QueueEntry("local-folder", track) for track in first._current_tracks]

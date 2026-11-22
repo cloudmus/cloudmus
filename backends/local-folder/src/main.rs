@@ -2,6 +2,7 @@ mod catalog;
 mod config;
 mod matroska;
 mod metadata;
+mod wave;
 
 use serde_json::{json, Value};
 use std::io::{self, BufRead, Write};
@@ -66,6 +67,9 @@ fn dispatch(method: &str, params: &Value, tr: impl Fn(&str) -> String) -> RpcRes
             Ok(json!({"stream": stream}))
         }
         "playback.cancel" => Ok(json!({})),
+        "catalog.startRadio" => wave::start(params, &tr).ok_or_else(|| {
+            missing("Playlist not found", "seed", params["seed"].as_str().unwrap_or_default())
+        }),
         "catalog.deleteTracks" => {
             let ids = params["trackIds"]
                 .as_array()
@@ -106,6 +110,16 @@ fn write_messages(messages: &[Value]) -> io::Result<()> {
 fn handle(message: &Value, translate: impl Fn(&str) -> String) -> io::Result<()> {
     let method = message["method"].as_str().unwrap_or_default();
     let id = &message["id"];
+    // The wave's (§7.4): it learns, and may have more to queue.
+    if method.starts_with("feedback.") {
+        let event = wave::feedback(method, &message["params"], translate);
+        let mut messages = Vec::new();
+        if !id.is_null() {
+            messages.push(reply(id.clone(), Ok(json!({}))));
+        }
+        messages.extend(event);
+        return write_messages(&messages);
+    }
     let result = dispatch(method, &message["params"], translate);
     if id.is_null() {
         return Ok(());
@@ -171,13 +185,13 @@ fn main() -> io::Result<()> {
             "initialize" => {
                 locale = select_locale(params["locale"].as_str());
                 Ok(json!({
-                    "protocolVersion": "1.22",
+                    "protocolVersion": "1.23",
                     "source": {"id": "local-folder", "name": "Local Folder", "version": "0.1.0",
                         "description": translations[locale][DESCRIPTION].as_str().unwrap_or(DESCRIPTION)},
                     "capabilities": {
                         "playback": {"providesStream": true, "resolveStream": true, "selfPlayback": false,
                             "controls": {"pause": false, "seek": false, "volume": false}},
-                        "browse": {"playlists": true, "likedTracks": false, "radio": false, "search": false,
+                        "browse": {"playlists": true, "likedTracks": false, "radio": true, "search": false,
                             "delete": true},
                         "feedback": {"like": false, "dislike": false, "skip": false},
                         "download": false, "auth": {"required": false, "flow": "none"},

@@ -79,7 +79,7 @@ async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path, local_
         # local-folder must keep answering requests the whole time, unaffected.
         for _ in range(20):
             result = await app.source_manager.clients["local-folder"].request("catalog.listPlaylists", {})
-            assert len(result["playlists"]) == 2  # all the music, and AlbumA
+            assert len(result["playlists"]) == 3  # the wave, all the music, and AlbumA
             await pilot.pause(0.1)
 
         # source_manager's restart backoff (docs/development.md: 2s
@@ -145,7 +145,7 @@ async def test_repeatedly_crashing_backend_marked_unavailable(tmp_path, monkeypa
         assert "flaky" not in app.source_manager.clients
         # local-folder must be entirely unaffected by the other backend's crash-loop.
         result = await app.source_manager.clients["local-folder"].request("catalog.listPlaylists", {})
-        assert len(result["playlists"]) == 2  # all the music, and AlbumA
+        assert len(result["playlists"]) == 3  # the wave, all the music, and AlbumA
 
     await app.source_manager.shutdown_all()
     if app.playback_engine is not None:
