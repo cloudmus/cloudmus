@@ -219,6 +219,7 @@ Item {
                 anchors.topMargin: Theme.barHeight + Theme.padding / 2
                 anchors.bottomMargin: Theme.padding * 1.5 + Theme.insetBottom
                 nowPlaying: page.nowPlaying
+                playlist: page.backend.playlist
                 collapse: 1 - page.progress
                 // The bar, in the panel's coordinates: the page's width at its bottom.
                 miniRect: Qt.rect(-trackPanel.x, page.height - Theme.miniPlayerHeight - trackPanel.y, page.width, Theme.miniPlayerContent)

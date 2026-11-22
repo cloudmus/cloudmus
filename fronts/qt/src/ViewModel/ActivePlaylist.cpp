@@ -564,6 +564,12 @@ void ActivePlaylist::play()
     }
 }
 
+void ActivePlaylist::restartRadio()
+{
+    if (context_.isRadio())
+        play();
+}
+
 void ActivePlaylist::playRow(int row)
 {
     // The main list mirrors the queue once there is one (see entries()),

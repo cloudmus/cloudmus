@@ -119,7 +119,10 @@ void LibraryScreen::playPlaylistOf(const QString& sourceId, const QString& playl
     if (it == playlists.cend())
         return;
     const PlaylistContext& active = activePlaylist_.context();
-    if (nowPlaying_.hasTrack() && active.sourceId == sourceId && active.playlist.id == playlistId) {
+    // The one playing goes on — unless it's a radio: that starts anew, for
+    // new tracks.
+    if (nowPlaying_.hasTrack() && active.sourceId == sourceId && active.playlist.id == playlistId
+        && !active.isRadio()) {
         nowPlaying_.play();
         emit activated();
         return;

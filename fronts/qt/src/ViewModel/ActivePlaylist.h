@@ -110,6 +110,9 @@ public slots:
     void resume();
     // A row of the main list played.
     void playRow(int row);
+    // A radio's queue made anew: a new station, from the settings as they
+    // are now, in place of what it has queued. Nothing for a playlist.
+    void restartRadio();
 
 signals:
     void contextChanged();

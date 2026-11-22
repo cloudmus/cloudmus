@@ -749,8 +749,8 @@
         <translation>Leisemodus</translation>
     </message>
     <message>
-        <source>Shuffle isn&apos;t available for radio</source>
-        <translation>Zufallswiedergabe ist für Radio nicht verfügbar</translation>
+        <source>New tracks for the radio</source>
+        <translation>Neue Titel für das Radio</translation>
     </message>
     <message>
         <source>Shuffle: on</source>

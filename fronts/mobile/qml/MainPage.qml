@@ -251,6 +251,7 @@ Page {
                 // Hidden on a phone, where a cover of this size would be decoded for nothing
                 // at every change of track.
                 nowPlaying: page.wide ? page.nowPlaying : null
+                playlist: page.playlist
                 overAura: true
                 swipeEnabled: page.gesturesEnabled
                 swipeSurface: hero
@@ -283,10 +284,12 @@ Page {
                 visible: opacity > 0 && page.nowPlaying && page.nowPlaying.repeat !== undefined
                 IconButton {
                     objectName: "topShuffle"
-                    enabled: page.nowPlaying && page.nowPlaying.radio !== true
-                    iconName: "shuffle"
-                    color: page.nowPlaying && page.nowPlaying.shuffle === true ? Theme.accent : "#FFFFFF"
-                    onClicked: page.nowPlaying.toggleShuffle()
+                    // A radio has nothing to shuffle: new tracks instead.
+                    readonly property bool radio: page.nowPlaying !== null && page.nowPlaying.radio === true
+                    enabled: page.nowPlaying && (!radio || page.playlist !== null)
+                    iconName: radio ? "refresh" : "shuffle"
+                    color: !radio && page.nowPlaying && page.nowPlaying.shuffle === true ? Theme.accent : "#FFFFFF"
+                    onClicked: radio ? page.playlist.restartRadio() : page.nowPlaying.toggleShuffle()
                 }
                 IconButton {
                     objectName: "topRepeat"

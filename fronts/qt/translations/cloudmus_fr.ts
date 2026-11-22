@@ -749,8 +749,8 @@
         <translation>Mode silencieux</translation>
     </message>
     <message>
-        <source>Shuffle isn&apos;t available for radio</source>
-        <translation>Le mode aléatoire n’est pas disponible pour la radio</translation>
+        <source>New tracks for the radio</source>
+        <translation>Nouveaux titres pour la radio</translation>
     </message>
     <message>
         <source>Shuffle: on</source>

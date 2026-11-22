@@ -683,6 +683,13 @@ private slots:
 
         settings_->setSourceRadioRepeatGap(QStringLiteral("fake"), 9999);
         QCOMPARE(settings_->sourceRadioRepeatGap(QStringLiteral("fake")), Config::Settings::kMaxRadioRepeatGap);
+
+        // Made anew, a radio's queue is a new station's, with the settings
+        // as they are now.
+        settings_->setSourceRadioRepeatGap(QStringLiteral("fake"), 1);
+        active_->restartRadio();
+        QTRY_COMPARE(playback_->queue().size(), 1);
+        QCOMPARE(playback_->queue()[0].track.id, QStringLiteral("recent:heard-2"));
     }
 
     // A repeat gap in days reaches past the count of tracks, never short

@@ -752,8 +752,8 @@
         <translation>Тихий режим</translation>
     </message>
     <message>
-        <source>Shuffle isn&apos;t available for radio</source>
-        <translation>Перемешивание недоступно для радио</translation>
+        <source>New tracks for the radio</source>
+        <translation>Новые треки для радио</translation>
     </message>
     <message>
         <source>Shuffle: on</source>

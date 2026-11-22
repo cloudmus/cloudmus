@@ -752,8 +752,8 @@
         <translation>Ціхі рэжым</translation>
     </message>
     <message>
-        <source>Shuffle isn&apos;t available for radio</source>
-        <translation>Перамешванне недаступнае для радыё</translation>
+        <source>New tracks for the radio</source>
+        <translation>Новыя трэкі для радыё</translation>
     </message>
     <message>
         <source>Shuffle: on</source>

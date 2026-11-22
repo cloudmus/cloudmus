@@ -13,6 +13,8 @@ Item {
     id: panel
 
     property QtObject nowPlaying
+    // The active playlist: for a radio, shuffle's button asks it for new tracks.
+    property QtObject playlist
     property bool sideBySide: false
     // Over the generated background, which is dark in either theme.
     property bool overAura: false
@@ -500,10 +502,12 @@ Item {
                         // widen the title's slot at once.
                         opacity: (1 - panel.modesElsewhere) * panel._fullOnly
                         visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
-                        enabled: panel._fullOnly > 0 && panel.nowPlaying && panel.nowPlaying.radio !== true
-                        iconName: "shuffle"
-                        color: panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
-                        onClicked: panel.nowPlaying.toggleShuffle()
+                        // A radio has nothing to shuffle: new tracks instead.
+                        readonly property bool radio: panel.nowPlaying !== null && panel.nowPlaying.radio === true
+                        enabled: panel._fullOnly > 0 && panel.nowPlaying && (!radio || panel.playlist !== null)
+                        iconName: radio ? "refresh" : "shuffle"
+                        color: !radio && panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
+                        onClicked: radio ? panel.playlist.restartRadio() : panel.nowPlaying.toggleShuffle()
                     }
                     IconButton {
                         objectName: "repeatButton"

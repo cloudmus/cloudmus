@@ -124,6 +124,8 @@ signals:
     void stopClicked();
     // The user's requested state — see likeClicked() for why clicked(bool).
     void shuffleClicked(bool on);
+    // Shuffle's button, for a radio: new tracks in place of the queued ones.
+    void restartRadioClicked();
     // The next repeat mode in the button's cycle: off → list → track → off,
     // skipping the list for a radio.
     void repeatClicked(Playback::RepeatMode mode);

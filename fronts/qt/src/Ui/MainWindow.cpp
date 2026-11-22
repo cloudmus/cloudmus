@@ -540,6 +540,8 @@ void MainWindow::bindNowPlaying()
     connect(nowPlayingBar_, &NowPlayingBar::volumeChanged, &nowPlaying_, &NowPlaying::setVolume);
     connect(nowPlayingBar_, &NowPlayingBar::quietToggled, &nowPlaying_, &NowPlaying::setQuiet);
     connect(nowPlayingBar_, &NowPlayingBar::shuffleClicked, &nowPlaying_, &NowPlaying::setShuffle);
+    connect(nowPlayingBar_, &NowPlayingBar::restartRadioClicked, &activePlaylist_,
+        &ViewModel::ActivePlaylist::restartRadio);
     connect(nowPlayingBar_, &NowPlayingBar::repeatClicked, &nowPlaying_, &NowPlaying::setRepeatMode);
     connect(nowPlayingBar_, &NowPlayingBar::likeClicked, &nowPlaying_, &NowPlaying::setLiked);
     connect(nowPlayingBar_, &NowPlayingBar::dislikeClicked, &nowPlaying_, &NowPlaying::setDisliked);

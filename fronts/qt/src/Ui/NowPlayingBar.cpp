@@ -239,7 +239,12 @@ NowPlayingBar::NowPlayingBar(QWidget* parent)
     connect(playPauseButton_, &QPushButton::clicked, this, &NowPlayingBar::playPauseClicked);
     connect(nextButton_, &QPushButton::clicked, this, &NowPlayingBar::nextClicked);
     connect(stopButton_, &QPushButton::clicked, this, &NowPlayingBar::stopClicked);
-    connect(shuffleButton_, &QPushButton::clicked, this, &NowPlayingBar::shuffleClicked);
+    connect(shuffleButton_, &QPushButton::clicked, this, [this](bool on) {
+        if (radio_)
+            emit restartRadioClicked();
+        else
+            emit shuffleClicked(on);
+    });
     connect(repeatButton_, &QPushButton::clicked, this, [this]() {
         const Playback::RepeatMode next = ViewModel::NowPlaying::nextRepeatMode(repeat_, radio_);
         // Qt already flipped the checked state; setPlayModes() (called
@@ -432,9 +437,12 @@ void NowPlayingBar::setPlayModes(bool shuffle, Playback::RepeatMode repeat, bool
     using Playback::RepeatMode;
     repeat_ = repeat;
     radio_ = radio;
-    shuffleButton_->setEnabled(!radio);
+    // A radio has nothing to shuffle; its button makes the queue anew instead.
+    shuffleButton_->setCheckable(!radio);
     shuffleButton_->setChecked(shuffle && !radio);
-    shuffleButton_->setToolTip(radio ? tr("Shuffle isn't available for radio")
+    static_cast<IconHoverButton*>(shuffleButton_)
+        ->setIconName(radio ? QStringLiteral("refresh") : QStringLiteral("shuffle"));
+    shuffleButton_->setToolTip(radio ? tr("New tracks for the radio")
             : shuffle                ? tr("Shuffle: on")
                                      : tr("Shuffle: off"));
     repeatButton_->setChecked(repeat != RepeatMode::Off);
