@@ -372,6 +372,7 @@ Page {
                         required property var coverUrl
                         required property var isActive
                         required property var isStarting
+                        required property var path
                         width: tiles.cellWidth
                         height: tiles.cellHeight
                         focusPolicy: Qt.NoFocus
@@ -415,6 +416,20 @@ Page {
                                 font.pixelSize: Theme.fontSmall
                                 font.weight: Font.DemiBold
                                 elide: Text.ElideRight
+                            }
+                            // A folder from inside others: where it is, the
+                            // nearest of them kept when it doesn't fit.
+                            Text {
+                                objectName: "tilePath"
+                                Layout.fillWidth: true
+                                Layout.rightMargin: Theme.dp(10)
+                                Layout.topMargin: -Theme.dp(4)
+                                visible: text !== ""
+                                text: tile.path || ""
+                                color: Theme.inkTertiary
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSmall
+                                elide: Text.ElideLeft
                             }
                             Item { Layout.fillHeight: true }
                         }

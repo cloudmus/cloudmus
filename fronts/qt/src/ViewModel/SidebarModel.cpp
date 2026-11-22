@@ -1,5 +1,6 @@
 #include "SidebarModel.h"
 
+#include <QSet>
 #include <QVariant>
 
 #include <algorithm>
@@ -115,8 +116,14 @@ void SidebarModel::populate(QStandardItem* root, const QString& sourceId)
     for (const QString& id : favorites) {
         const auto it
             = std::find_if(playlists.cbegin(), playlists.cend(), [&](const Playlist& p) { return p.id == id; });
-        if (it != playlists.cend())
-            appendItem(root, *it);
+        if (it == playlists.cend())
+            continue;
+        appendItem(root, *it);
+        // A folder from inside another: where it is.
+        if (QStringList path = parentTitles(sourceId, id); !path.isEmpty()) {
+            path.append(it->title);
+            rows.value(id)->setData(path.join(QStringLiteral(" / ")), Qt::ToolTipRole);
+        }
     }
 
     // The rest of the kind: playlist entries are grouped under a lazily
@@ -145,6 +152,25 @@ void SidebarModel::populate(QStandardItem* root, const QString& sourceId)
         }
         appendItem(playlistsHeader, p);
     }
+}
+
+QStringList SidebarModel::parentTitles(const QString& sourceId, const QString& playlistId) const
+{
+    const QList<Playlist> playlists = playlists_.value(sourceId);
+    const auto find = [&playlists](const QString& id) {
+        return std::find_if(playlists.cbegin(), playlists.cend(), [&id](const Playlist& p) { return p.id == id; });
+    };
+    QStringList titles;
+    QSet<QString> seen { playlistId };
+    auto it = find(playlistId);
+    // Up the parents the list has; one listed twice ends it, a loop.
+    while (it != playlists.cend() && it->parentId && !seen.contains(*it->parentId)) {
+        seen.insert(*it->parentId);
+        it = find(*it->parentId);
+        if (it != playlists.cend())
+            titles.prepend(it->title);
+    }
+    return titles;
 }
 
 QString SidebarModel::nodeKey(const QModelIndex& index)

@@ -102,6 +102,31 @@ private slots:
         QVERIFY(Model::expandedByDefault(Model::nodeKey(model.indexForSource(QStringLiteral("fake")))));
     }
 
+    // A folder from inside others, put among the favorites, says where it is.
+    void aFavoriteFolderSaysWhereItIs()
+    {
+        using Model = ViewModel::SidebarModel;
+        const auto playlist = [](const QString& id, std::optional<QString> parent) {
+            Playlist p;
+            p.id = id;
+            p.title = id.toUpper();
+            p.kind = QStringLiteral("playlist");
+            p.parentId = std::move(parent);
+            return p;
+        };
+        Model model;
+        model.setFavorites(QStringLiteral("fake"), QStringList { QStringLiteral("album"), QStringLiteral("saved") });
+        model.setSource(QStringLiteral("fake"), QStringLiteral("Fake"),
+            { playlist(QStringLiteral("saved"), std::nullopt), playlist(QStringLiteral("artist"), QStringLiteral("saved")),
+                playlist(QStringLiteral("album"), QStringLiteral("artist")) });
+        QCOMPARE(model.parentTitles(QStringLiteral("fake"), QStringLiteral("album")),
+            (QStringList { QStringLiteral("SAVED"), QStringLiteral("ARTIST") }));
+        QVERIFY(model.parentTitles(QStringLiteral("fake"), QStringLiteral("saved")).isEmpty());
+        const QModelIndex album = model.indexForPlaylist(QStringLiteral("fake"), QStringLiteral("album"));
+        QCOMPARE(album.data(Qt::ToolTipRole).toString(), QStringLiteral("SAVED / ARTIST / ALBUM"));
+        QVERIFY(!model.indexForPlaylist(QStringLiteral("fake"), QStringLiteral("saved")).data(Qt::ToolTipRole).isValid());
+    }
+
     // With no network a source keeps what it listed, from the last run too,
     // and it's not an error; a listing that works again replaces it.
     void theListOutlivesALostNetwork()

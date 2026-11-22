@@ -129,6 +129,10 @@ public:
     // them in — including ones the sidebar doesn't show), its icon path
     // and whether its playlists are being (re)loaded — for its page.
     QList<Playlist> playlistsFor(const QString& sourceId) const;
+    // The titles of the playlists `playlistId` is inside (Playlist.parentId),
+    // the outermost first; empty at the top. For a favorite, shown away from
+    // its parents, to say where it is.
+    QStringList parentTitles(const QString& sourceId, const QString& playlistId) const;
     // Updates a playlist row's stored trackCount after an add/remove.
     void setPlaylistTrackCount(const QString& sourceId, const QString& playlistId, int trackCount);
     QString sourceIconPath(const QString& sourceId) const { return sourceIconPaths_.value(sourceId); }

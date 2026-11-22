@@ -18,8 +18,10 @@ namespace {
 
 QString fileUrl(const QString& path) { return path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString(); }
 
+// `path`: the folders it's in (Playlist.parentId), for one shown away from
+// them — a favorite.
 const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "kind", "coverUrl", "isActive",
-    "isStarting", "isFavorite" };
+    "isStarting", "isFavorite", "path" };
 
 } // namespace
 
@@ -171,6 +173,8 @@ QVariantHash LibraryScreen::playlistRow(const Playlist& playlist)
         { QStringLiteral("isActive"), active.sourceId == currentSourceId_ && active.playlist.id == playlist.id },
         { QStringLiteral("isStarting"), startingPlaylistId_ == playlist.id },
         { QStringLiteral("isFavorite"), sources_.isFavorite(currentSourceId_, playlist.id) },
+        { QStringLiteral("path"),
+            sources_.model().parentTitles(currentSourceId_, playlist.id).join(QStringLiteral(" / ")) },
     };
 }
 
