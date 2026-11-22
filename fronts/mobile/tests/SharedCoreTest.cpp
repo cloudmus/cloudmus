@@ -638,6 +638,24 @@ private slots:
             const QRectF at = button->mapRectToScene(button->boundingRect());
             QVERIFY2(at.top() >= 860 - 124 && at.bottom() <= 860, name);
         }
+        // Shuffle and repeat, top right, right of the title.
+        {
+            auto* title = findItem(page, QStringLiteral("trackTitle"));
+            const QRectF titleAt = title->mapRectToScene(title->boundingRect());
+            for (const char* name : { "miniShuffle", "miniRepeat" }) {
+                auto* button = findItem(page, QLatin1String(name));
+                QVERIFY2(button, name);
+                QTRY_VERIFY2(button->isVisible() && button->isEnabled(), name);
+                const QRectF at = button->mapRectToScene(button->boundingRect());
+                QVERIFY2(at.top() >= 860 - 124 && at.bottom() <= 860 - 124 + 70 && at.right() <= 420, name);
+                QVERIFY2(at.left() >= titleAt.left() + title->width() * title->scale() - 1, name);
+            }
+            const int repeat = core.nowPlaying().repeat();
+            QVERIFY(QMetaObject::invokeMethod(findItem(page, QStringLiteral("miniRepeat")), "clicked"));
+            QTRY_VERIFY(core.nowPlaying().repeat() != repeat);
+            while (core.nowPlaying().repeat() != repeat)
+                core.nowPlaying().cycleRepeat();
+        }
         // The cover, small, at the bar's left.
         {
             auto* cover = findItem(page, QStringLiteral("trackCover"));
@@ -668,6 +686,9 @@ private slots:
         QTRY_COMPARE(progress(), 1.0);
         // All of the screen, the cover as large as the width allows.
         QCOMPARE(surface->y(), 0.0);
+        // The mini player's modes are gone; the panel's own are there.
+        QVERIFY(!findItem(page, QStringLiteral("miniShuffle"))->isVisible());
+        QVERIFY(findItem(page, QStringLiteral("shuffleButton"))->isVisible());
         QVERIFY(findItem(page, QStringLiteral("trackCover"))->width() > 300);
         // It says what it plays from.
         auto* playlistName = findItem(page, QStringLiteral("nowPlayingPlaylist"));

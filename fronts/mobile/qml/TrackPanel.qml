@@ -83,11 +83,17 @@ Item {
     readonly property real _miniCover: Theme.dp(48)
     readonly property real _miniTop: miniRect.y + Theme.dp(10)
     readonly property real _miniTitleX: miniRect.x + _miniPad + _miniCover + Theme.dp(12)
-    readonly property real _miniTitleWidth: Math.max(1, miniRect.x + miniRect.width - _miniPad - _miniTitleX)
+    // Shuffle and repeat, right of the title, when the queue has them.
+    readonly property bool _hasModes: nowPlaying !== null && nowPlaying.repeat !== undefined
+    readonly property real _miniModesWidth: _hasModes ? Theme.touch * 2 : 0
+    readonly property real _miniTitleWidth: Math.max(1, miniRect.x + miniRect.width - _miniPad - _miniTitleX
+                                                     - (_hasModes ? _miniModesWidth - Theme.dp(4) : 0))
     // The transport's row, under the cover and the title.
     readonly property real _miniRowCenter: (_miniTop + _miniCover + miniRect.y + miniRect.height) / 2
     // Fading out in the first part of folding, in in the last of unfolding.
     readonly property real _fullOnly: Math.max(0, 1 - collapse * 2.5)
+    // The other way round: coming in in the last part of folding.
+    readonly property real _miniOnly: Math.max(0, collapse * 2.5 - 1.5)
 
     function _mix(from, to) { return from + (to - from) * progress }
     // The title's and the artist's sizes with the cover above them (at `progress`
@@ -495,29 +501,21 @@ Item {
                     parent: panel.modesUnderSeek ? seekBar.center : titleRow
                     visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
                     spacing: 0
-                    IconButton {
+                    ShuffleButton {
                         objectName: "shuffleButton"
                         Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
                         // Faded out in a mini player, but keeping its room: going, it'd
                         // widen the title's slot at once.
                         opacity: (1 - panel.modesElsewhere) * panel._fullOnly
-                        visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
-                        // A radio has nothing to shuffle: new tracks instead.
-                        readonly property bool radio: panel.nowPlaying !== null && panel.nowPlaying.radio === true
-                        enabled: panel._fullOnly > 0 && panel.nowPlaying && (!radio || panel.playlist !== null)
-                        iconName: radio ? "refresh" : "shuffle"
-                        color: !radio && panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
-                        onClicked: radio ? panel.playlist.restartRadio() : panel.nowPlaying.toggleShuffle()
+                        visible: panel.modesElsewhere < 1 && panel._hasModes
+                        enabled: panel._fullOnly > 0 && canClick
                     }
-                    IconButton {
+                    RepeatButton {
                         objectName: "repeatButton"
                         Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
                         opacity: (1 - panel.modesElsewhere) * panel._fullOnly
-                        visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
+                        visible: panel.modesElsewhere < 1 && panel._hasModes
                         enabled: panel._fullOnly > 0
-                        iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
-                        color: panel.nowPlaying && panel.nowPlaying.repeat > 0 ? Theme.accent : panel.inkColor
-                        onClicked: panel.nowPlaying.cycleRepeat()
                     }
                 }
                 IconButton {
@@ -597,6 +595,40 @@ Item {
         for (let i = 0; i < slot; ++i)
             at += _miniSizes[i] + gap
         return at + _miniSizes[slot] / 2
+    }
+
+    component ShuffleButton: IconButton {
+        // A radio has nothing to shuffle: new tracks instead.
+        readonly property bool radio: panel.nowPlaying !== null && panel.nowPlaying.radio === true
+        readonly property bool canClick: panel.nowPlaying !== null && (!radio || panel.playlist !== null)
+        iconName: radio ? "refresh" : "shuffle"
+        color: !radio && panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
+        onClicked: radio ? panel.playlist.restartRadio() : panel.nowPlaying.toggleShuffle()
+    }
+    component RepeatButton: IconButton {
+        iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
+        color: panel.nowPlaying && panel.nowPlaying.repeat > 0 ? Theme.accent : panel.inkColor
+        onClicked: panel.nowPlaying.cycleRepeat()
+    }
+
+    // The mini player's shuffle and repeat, right of the title: as the full
+    // panel's fade out, these come in from a little to the right.
+    Row {
+        id: miniModes
+        objectName: "miniModes"
+        readonly property real _slide: Theme.dp(24) * (1 - panel._miniOnly)
+        x: panel.miniRect.x + panel.miniRect.width - panel._miniPad + Theme.dp(4) - width + _slide
+        y: panel._miniTop + (panel._miniCover - height) / 2
+        opacity: panel._miniOnly
+        visible: panel._hasModes && opacity > 0
+        ShuffleButton {
+            objectName: "miniShuffle"
+            enabled: panel._miniOnly >= 1 && canClick
+        }
+        RepeatButton {
+            objectName: "miniRepeat"
+            enabled: panel._miniOnly >= 1
+        }
     }
 
     // Kept at the size it has here and scaled down for the mini player: at a
