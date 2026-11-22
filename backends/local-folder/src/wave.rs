@@ -1,7 +1,8 @@
-// The wave: a station of all the music there is, in an order that learns
-// from the listener — what's skipped comes up less, with its artist and its
-// folder (an album, say), what's played through comes up more
-// (docs/protocol.md §7.1).
+// The wave: a station of all the music there is, at random, learning from
+// the listener — what's skipped comes up less, with its artist and its folder
+// (an album, say), what's played through comes up more (docs/protocol.md
+// §7.1). It leaves out what the front says was played lately for as long as
+// there's anything else, then plays anything.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
@@ -133,42 +134,57 @@ impl Station {
         appeal
     }
 
-    // `count` more tracks out of `pool`: none it has served, none played
-    // lately while there are others — then the ones played longest ago.
-    fn pick(&mut self, pool: &[Track], count: usize) -> Vec<Value> {
+    // What a pick chooses from: what it hasn't served and wasn't played
+    // lately (catalog.startRadio's recentTrackIds, as the front's settings
+    // have it) — and once that's all gone, what it hasn't served, played
+    // lately or not; then anything but what it served last.
+    fn candidates<'a>(&self, pool: &'a [Track], round_again: bool) -> Vec<&'a Track> {
         let recent: HashSet<&str> = self.recent.iter().map(String::as_str).collect();
-        let mut fresh: Vec<&Track> = pool
+        let unserved = |track: &&Track| !self.served.contains_key(track.id());
+        let fresh: Vec<&Track> = pool
             .iter()
-            .filter(|track| !self.served.contains_key(track.id()) && !recent.contains(track.id()))
+            .filter(unserved)
+            .filter(|track| !recent.contains(track.id()))
             .collect();
-        if fresh.is_empty() {
-            // Played lately, the oldest first; then round again.
-            let by_id: HashMap<&str, &Track> = pool.iter().map(|track| (track.id(), track)).collect();
-            fresh = self
-                .recent
-                .iter()
-                .rev()
-                .filter(|id| !self.served.contains_key(id.as_str()))
-                .filter_map(|id| by_id.get(id.as_str()).copied())
-                .collect();
-            if fresh.is_empty() {
-                self.served.clear();
-                self.recent.clear();
-                fresh = pool.iter().collect();
-            }
-            return fresh
-                .into_iter()
-                .take(count)
-                .map(|track| self.serve(track))
-                .collect();
+        if !fresh.is_empty() {
+            return fresh;
         }
+        let unfiltered: Vec<&Track> = pool.iter().filter(unserved).collect();
+        if !unfiltered.is_empty() || !round_again {
+            return unfiltered;
+        }
+        let last = self.order.last().map(String::as_str);
+        let again: Vec<&Track> = pool.iter().filter(|track| Some(track.id()) != last).collect();
+        if again.is_empty() {
+            pool.iter().collect()
+        } else {
+            again
+        }
+    }
+
+    // `count` more tracks out of `pool`, at random, the ones it has
+    // learned to like more often.
+    fn pick(&mut self, pool: &[Track], count: usize) -> Vec<Value> {
         let mut picked = Vec::new();
         let mut last_artist = self
             .order
             .last()
             .and_then(|id| self.served.get(id))
             .map(|served| served.artist.clone());
-        while picked.len() < count && !fresh.is_empty() {
+        let mut fresh: Vec<&Track> = Vec::new();
+        // Everything served already: one more round, no more in one pick
+        // (a library of one track would fill the queue with it).
+        let mut round_again = true;
+        while picked.len() < count {
+            if fresh.is_empty() {
+                fresh = self.candidates(pool, round_again);
+                if fresh.is_empty() {
+                    break;
+                }
+                if fresh.iter().any(|track| self.served.contains_key(track.id())) {
+                    round_again = false;
+                }
+            }
             // A few at random, one of them by how much they appeal.
             let mut looked = Vec::new();
             for _ in 0..LOOK_AT.min(fresh.len()) {
@@ -205,18 +221,6 @@ impl Station {
         picked
     }
 
-    fn serve(&mut self, track: &Track) -> Value {
-        self.served.insert(
-            track.id().to_owned(),
-            Served {
-                artist: track.artist(),
-                folder: track.folder(),
-            },
-        );
-        self.order.push(track.id().to_owned());
-        track.track()
-    }
-
     // How many are queued after `id`: the front's count, else its own.
     fn queued_after(&self, id: &str, params: &Value) -> usize {
         params["queuedAfter"]
@@ -225,7 +229,7 @@ impl Station {
             .unwrap_or_else(|| {
                 self.order
                     .iter()
-                    .position(|served| served == id)
+                    .rposition(|served| served == id)
                     .map_or(0, |at| self.order.len() - at - 1)
             })
     }
@@ -270,21 +274,12 @@ pub fn feedback(method: &str, params: &Value, tr: impl Fn(&str) -> String) -> Op
     // A late one counts for the taste, and changes nothing queued.
     let deferred = params["deferred"] == true;
     match method {
+        // Next pressed: less of that from now on. What's queued stays — it
+        // was picked at random, it'd be picked anew no better; the next
+        // track's start tops it up.
         "feedback.skip" => {
             station.learn(id, SKIPPED);
-            if deferred {
-                return None;
-            }
-            // "Not this": what's queued is picked again, with that in mind —
-            // and what was queued may come up again later.
-            if let Some(at) = station.order.iter().position(|served| served == id) {
-                for dropped in station.order.split_off(at + 1) {
-                    station.served.remove(&dropped);
-                }
-            }
-            let pool = catalog::pool(tr);
-            let tracks = station.pick(&pool, AHEAD);
-            added(tracks, true)
+            None
         }
         "feedback.trackFinished" | "feedback.trackStarted" => {
             if method == "feedback.trackFinished" {

@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -407,7 +408,7 @@ fn deletes_tracks_and_folders_and_hands_back_host_items() {
 }
 
 #[test]
-fn the_wave_plays_everything_once_and_learns_from_skips() {
+fn the_wave_plays_everything_once_then_anything() {
     let temp = tempfile::tempdir().unwrap();
     let music = temp.path().join("Music");
     let mut all = Vec::new();
@@ -430,24 +431,32 @@ fn the_wave_plays_everything_once_and_learns_from_skips() {
     assert_eq!(first.len(), 10);
     assert!(first.iter().all(|id| !recent.contains(id)));
 
-    // Near the end of the queue it sends more, none it has sent.
+    // Near the end of the queue it sends more, none it has sent: the
+    // rest of what wasn't played lately, then — nothing else left — what was.
     backend.call("feedback.trackStarted", json!({"trackId": first[8], "queuedAfter": 1}));
     let event = backend.notification();
     assert_eq!(event["method"], "radio/tracksAdded");
     assert!(event["params"].get("replaceUpcoming").is_none());
     let more = ids(&event["params"]["tracks"]);
-    assert_eq!(more.len(), 4);
+    assert_eq!(more.len(), 7);
     assert!(more.iter().all(|id| !first.contains(id)));
+    assert!(more[..4].iter().all(|id| !recent.contains(id)));
+    assert!(more[4..].iter().all(|id| recent.contains(id)));
 
-    // A skip: what's queued is picked anew.
+    // A skip changes nothing queued, it was picked at random anyway.
     backend.call("feedback.skip", json!({"trackId": more[0], "playedMs": 1000}));
-    let event = backend.notification();
-    assert_eq!(event["params"]["replaceUpcoming"], true);
-    assert!(!ids(&event["params"]["tracks"]).contains(&more[0]));
-    // Late, it changes nothing queued.
     backend.call("feedback.skip", json!({"trackId": first[0], "playedMs": 1000, "deferred": true}));
-    backend.call("feedback.trackStarted", json!({"trackId": first[1], "queuedAfter": 5}));
+    backend.call("feedback.trackStarted", json!({"trackId": more[1], "queuedAfter": 5}));
     assert!(backend.notifications.is_empty());
+
+    // All of it served: round again, at random, from all of it but the last.
+    backend.call("feedback.trackStarted", json!({"trackId": more[6], "queuedAfter": 0}));
+    let again = ids(&backend.notification()["params"]["tracks"]);
+    let unique: HashSet<&String> = again.iter().collect();
+    assert_eq!(again.len(), 8);
+    assert_eq!(unique.len(), 8);
+    assert!(again.iter().all(|id| all.contains(id)));
+    assert_ne!(again[0], more[6]);
 
     assert_eq!(
         backend.send("catalog.startRadio", json!({"seed": "A/One"}))["error"]["code"],
