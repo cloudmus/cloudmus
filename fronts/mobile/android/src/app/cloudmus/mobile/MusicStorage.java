@@ -753,6 +753,8 @@ final class MusicStorage {
                 }
                 String title = name == null || name.isEmpty() ? "Audio" : name;
                 String artist = "";
+                String album = "";
+                String cover = "";
                 long duration = 0;
                 try {
                     MediaMetadataRetriever metadata = new MediaMetadataRetriever();
@@ -764,22 +766,52 @@ final class MusicStorage {
                         tag = metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
                         if (tag != null)
                             artist = tag;
+                        tag = metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM);
+                        if (tag != null)
+                            album = tag;
                         tag = metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
                         if (tag != null)
                             duration = Long.parseLong(tag);
+                        cover = saveExternalCover(uri, metadata.getEmbeddedPicture());
                     } finally {
                         metadata.release();
                     }
                 } catch (Exception ignored) { }
                 if (content)
                     externalInputs.add(uri.toString());
-                CoreBridge.nativeOpenAudio(uri.toString(), title, artist, duration, persistent);
+                CoreBridge.nativeOpenAudio(uri.toString(), title, artist, album, cover, duration, persistent);
             } catch (Exception error) {
                 CmLog.w(TAG, "open external audio scheme=" + uri.getScheme() + " authority=" + uri.getAuthority()
                     + " error=" + error.getClass().getSimpleName());
-                CoreBridge.nativeOpenAudio("", "", "", 0, false);
+                CoreBridge.nativeOpenAudio("", "", "", "", "", 0, false);
             }
         });
+    }
+
+    // The picture in an opened file, kept where the player and the system's
+    // media controls can show it; "" with none. One file per input, written
+    // anew on each open, as the file may have changed.
+    private static String saveExternalCover(Uri uri, byte[] cover) {
+        if (cover == null || cover.length == 0 || cover.length > 32 * 1024 * 1024)
+            return "";
+        try {
+            File dir = new File(app.getCacheDir(), "external-covers");
+            room(dir, cover.length);
+            String name = UUID.nameUUIDFromBytes(uri.toString().getBytes(StandardCharsets.UTF_8)).toString();
+            AtomicFile file = new AtomicFile(new File(dir, name + ".img"));
+            FileOutputStream out = file.startWrite();
+            try {
+                out.write(cover);
+                file.finishWrite(out);
+            } catch (IOException error) {
+                file.failWrite(out);
+                throw error;
+            }
+            return Uri.fromFile(file.getBaseFile()).toString();
+        } catch (IOException | RuntimeException error) {
+            CmLog.w(TAG, "save opened audio artwork: " + error.getClass().getSimpleName());
+            return "";
+        }
     }
 
     private static boolean looksLikeAudio(String name) {

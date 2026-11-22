@@ -81,7 +81,8 @@ public final class CoreBridge {
     }
 
     static native void nativeMusicChanged();
-    static native void nativeOpenAudio(String uri, String title, String artist, long duration, boolean persistent);
+    static native void nativeOpenAudio(String uri, String title, String artist, String album, String cover, long duration,
+                                       boolean persistent);
 
     private static native void nativeStart(Context application, String filesDir, String cacheDir, String libraryDir,
                                            String nativeBackendDir);

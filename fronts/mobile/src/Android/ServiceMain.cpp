@@ -579,12 +579,15 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeMusi
 }
 
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeOpenAudio(
-    JNIEnv* env, jclass, jstring uri, jstring title, jstring artist, jlong duration, jboolean persistent)
+    JNIEnv* env, jclass, jstring uri, jstring title, jstring artist, jstring album, jstring cover, jlong duration,
+    jboolean persistent)
 {
     const QString url = toQString(env, uri);
     const QString trackTitle = toQString(env, title);
     const QString artistName = toQString(env, artist);
-    post([url, trackTitle, artistName, duration, persistent] {
+    const QString albumTitle = toQString(env, album);
+    const QString coverUrl = toQString(env, cover);
+    post([url, trackTitle, artistName, albumTitle, coverUrl, duration, persistent] {
         if (!coreInstance)
             return;
         if (url.isEmpty()) {
@@ -596,6 +599,10 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeOpen
         track.title = trackTitle;
         if (!artistName.isEmpty())
             track.artists.append(Artist { artistName, artistName });
+        if (!albumTitle.isEmpty())
+            track.album = Album { albumTitle, albumTitle };
+        if (!coverUrl.isEmpty())
+            track.coverUrl = coverUrl;
         track.durationMs = int(std::clamp<jlong>(duration, 0, std::numeric_limits<int>::max()));
         coreInstance->core().activePlaylist().playLocalInput(track, url, persistent);
     });
