@@ -5,12 +5,15 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QImageReader>
 #include <QLoggingCategory>
 #include <QNetworkDiskCache>
 #include <QNetworkProxyFactory>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPointer>
 #include <QStandardPaths>
+#include <QThreadPool>
 #include <QTimer>
 #include <QUrl>
 
@@ -32,6 +35,24 @@ constexpr qint64 kFilesMaxBytes = qint64(200) * 1024 * 1024;
 constexpr int kFilesTrimDelayMs = 30000;
 // The largest side of a cover's file.
 constexpr int kFileSide = 1024;
+// What a local cover is decoded down to at the least: the other sizes asked
+// for while it's read are made from it.
+constexpr int kLocalReadSide = 1024;
+
+// A local picture, decoded no larger than needed for `side` (its shorter side
+// still that long, if it was); null if it can't be read.
+QImage readScaled(const QString& path, int side)
+{
+    QImageReader reader(path);
+    reader.setAutoTransform(true);
+    const QSize original = reader.size();
+    if (side > 0 && original.isValid() && (original.width() > side && original.height() > side))
+        reader.setScaledSize(original.scaled(side, side, Qt::KeepAspectRatioByExpanding));
+    QImage image = reader.read();
+    if (image.isNull())
+        qCWarning(lcCovers) << "can't read the cover" << path << reader.errorString();
+    return image;
+}
 } // namespace
 
 // Asks the cache, per request, which proxy that URL's source uses —
@@ -86,10 +107,20 @@ QString CoverArtCache::filePath(const QString& url) const
     return filesDir_ + QLatin1Char('/') + name + QStringLiteral(".jpg");
 }
 
+QString CoverArtCache::localPath(const QString& url)
+{
+    if (!url.startsWith(QLatin1String("file:"), Qt::CaseInsensitive))
+        return { };
+    const QString path = QUrl(url).toLocalFile();
+    return !path.isEmpty() && QFileInfo(path).isFile() ? path : QString();
+}
+
 QString CoverArtCache::localFile(const QString& url)
 {
     if (url.isEmpty())
         return { };
+    if (QString path = localPath(url); !path.isEmpty())
+        return path;
     const QString file = filePath(url);
     if (QFile::exists(file))
         return file;
@@ -135,6 +166,10 @@ QPixmap CoverArtCache::pixmap(const QString& url, QSize targetSize)
         return { };
     if (QPixmap* cached = memoryCache_.object(cacheKey(url, targetSize)))
         return *cached;
+    if (const QString path = localPath(url); !path.isEmpty()) {
+        readLocal(url, path, targetSize);
+        return { };
+    }
     if (const QImage* source = sourceCache_.object(url))
         return store(url, targetSize, *source);
     const auto flight = inFlight_.find(url);
@@ -148,15 +183,51 @@ QPixmap CoverArtCache::pixmap(const QString& url, QSize targetSize)
     return { };
 }
 
+void CoverArtCache::readLocal(const QString& url, const QString& path, QSize targetSize)
+{
+    if (unreadable_.contains(url))
+        return;
+    const auto flight = inFlight_.find(url);
+    if (flight != inFlight_.end()) {
+        if (!flight->contains(targetSize))
+            flight->append(targetSize);
+        return;
+    }
+    inFlight_.insert(url, { targetSize });
+    const int side = qMax(kLocalReadSide, qMax(targetSize.width(), targetSize.height()));
+    // Off the thread that paints: a large picture takes a while to decode.
+    QThreadPool::globalInstance()->start([self = QPointer<CoverArtCache>(this), url, path, side] {
+        const QImage image = readScaled(path, side);
+        QMetaObject::invokeMethod(
+            self.data(),
+            [self, url, image] {
+                if (!self)
+                    return;
+                const QList<QSize> sizes = self->inFlight_.take(url);
+                if (image.isNull()) {
+                    // Not again at every paint.
+                    self->unreadable_.insert(url);
+                    return;
+                }
+                for (const QSize& size : sizes)
+                    self->store(url, size, image);
+                emit self->pixmapReady(url);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
 QImage CoverArtCache::source(const QString& url) const
 {
+    if (const QString path = localPath(url); !path.isEmpty())
+        return readScaled(path, 0);
     const QImage* image = sourceCache_.object(url);
     return image != nullptr ? *image : QImage();
 }
 
 void CoverArtCache::request(const QString& url)
 {
-    if (url.isEmpty() || sourceCache_.contains(url) || inFlight_.contains(url))
+    if (url.isEmpty() || sourceCache_.contains(url) || inFlight_.contains(url) || !localPath(url).isEmpty())
         return;
     // No size asked for yet: only the decoded source is wanted.
     inFlight_.insert(url, { });

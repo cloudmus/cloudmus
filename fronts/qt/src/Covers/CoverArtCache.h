@@ -27,24 +27,34 @@ namespace Covers {
 // pixmapReady() to repaint once a background fetch completes — this is what
 // makes track-list thumbnails "fetch lazily for visible rows only": a
 // delegate only calls pixmap() for rows Qt actually asks it to paint.
+//
+// The caches are for covers from the internet. A local one (a file:// URL of
+// a file that's there: Local Folder's, the phone's media library's) is read
+// from its file each time it's wanted, already scaled down as it's decoded —
+// only the painted pixmap of the asked size is kept, as for any cover.
 class CoverArtCache : public QObject {
     Q_OBJECT
 
 public:
     explicit CoverArtCache(QObject* parent = nullptr);
 
+    // Null until it is at hand: this fetches it, or reads a local one off
+    // the disk, and pixmapReady() names it when it has come.
     QPixmap pixmap(const QString& url, QSize targetSize);
 
     // The cover as it was fetched, full size — for what isn't painted (a
     // saved track's picture). Null unless it is at hand already: nothing
-    // is fetched for this; request() does that.
+    // is fetched for this; request() does that. A local one is read from
+    // its file.
     QImage source(const QString& url) const;
     // Fetches a cover that isn't at hand, to be had from source() once
-    // pixmapReady() names it. Nothing happens for one that is, or on its way.
+    // pixmapReady() names it. Nothing happens for one that is, or on its way,
+    // or a local one.
     void request(const QString& url);
     // The cover as a file on disk, for what reads files rather than images
-    // (QML in another process). Empty until it is at hand: this asks for
-    // it, and pixmapReady() names it when it has come.
+    // (QML in another process): a local one's own file, at once. Another is
+    // empty until it is at hand: this asks for it, and pixmapReady() names it
+    // when it has come.
     QString localFile(const QString& url);
 
     // Covers are fetched the way their source connects (its proxy, see
@@ -71,6 +81,11 @@ signals:
 
 private:
     void trimFiles();
+    // The file a file:// URL names, if it's there; else empty.
+    static QString localPath(const QString& url);
+    // Reads a local cover on a worker, scaled down as it's decoded, for the
+    // sizes asked for meanwhile (inFlight_).
+    void readLocal(const QString& url, const QString& path, QSize targetSize);
     QString filePath(const QString& url) const;
     // Writes the cover as localFile()'s file, made smaller if it's huge; the
     // path, or empty if it can't be written.
@@ -97,6 +112,8 @@ private:
     // written as they come, as sourceCache_ may not keep a large one (or
     // may have let it go again by the time it's asked for once more).
     QSet<QString> filesWanted_;
+    // Local covers whose files couldn't be read.
+    QSet<QString> unreadable_;
     QHash<QString, QString> sourceForUrl_;
     ProxyProvider proxyProvider_;
     Fitter fitter_;
