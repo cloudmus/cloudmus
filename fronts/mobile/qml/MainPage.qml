@@ -58,6 +58,14 @@ Page {
         }
     }
 
+    // On a head unit, over to the track's screen (a phone has Now Playing for it).
+    function showTrack() {
+        if (!wide || ui.screenExpanded)
+            return
+        _animatingScreen = true
+        ui.screenExpanded = true
+    }
+
     // The track's screen has no room for it.
     onScreenProgressChanged: if (screenProgress > 0) filterOpen = false
 

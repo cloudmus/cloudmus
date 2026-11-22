@@ -84,6 +84,7 @@ public class MainActivity extends QtActivity {
             .setFlags(incoming.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));
         startService(command);
+        UiBridge.audioOpened();
     }
 
     private static final int DELETE_REQUEST = 3;

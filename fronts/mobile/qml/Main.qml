@@ -345,6 +345,30 @@ ApplicationWindow {
             stack.pop(null)
         }
     }
+    // Audio opened from another app: its track, with nothing over it — Now
+    // Playing on a phone, the track's screen on a head unit. Once there's a
+    // track to show: on a cold start the core comes up after the window.
+    property bool _openedTrackPending: false
+    readonly property bool _trackShowable: backend.ready && backend.nowPlaying !== null
+        && backend.nowPlaying.hasTrack === true
+    on_TrackShowableChanged: showOpenedTrack()
+    function showOpenedTrack() {
+        if (!_openedTrackPending || !_trackShowable)
+            return
+        _openedTrackPending = false
+        trackSheet.close()
+        stack.pop(null)
+        stack.currentItem.showTrack()
+        nowPlayingSheet.open()
+    }
+    Connections {
+        target: window.platform
+        ignoreUnknownSignals: true
+        function onAudioOpened() {
+            window._openedTrackPending = true
+            window.showOpenedTrack()
+        }
+    }
     Component {
         id: settingsPage
         SettingsPage {

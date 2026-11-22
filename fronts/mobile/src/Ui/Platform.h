@@ -54,6 +54,9 @@ public:
     Q_INVOKABLE void setStatusBarOverAura(bool over) const;
     // Android told of new insets: from its thread.
     void readInsets();
+    // Audio opened from another app, which Android may have told before Qt was
+    // up: audioOpened() for it.
+    void takeOpenedAudio();
 
     // Packs the log into a zip a file manager can reach; what to tell the
     // user (where it went, or what went wrong).
@@ -97,6 +100,9 @@ signals:
     // What to tell the user: where the zip went, or what went wrong.
     void systemAppsExported(const QString& result);
     void pythonProbeFinished(const QString& result);
+    // Another app had audio opened here ("Open with CloudMus"): on to the
+    // track. The audio itself goes to the core, which plays it.
+    void audioOpened();
 
 private:
     void pollExportProgress();

@@ -56,6 +56,8 @@ Platform::Platform(QString logDirectory, QObject* parent)
         QTimer::singleShot(0, this, &Platform::runPythonProbe);
     instance = this;
     readInsets();
+    // After the window has loaded, to see it.
+    QTimer::singleShot(0, this, &Platform::takeOpenedAudio);
 #endif
 }
 
@@ -358,6 +360,14 @@ void Platform::readInsets()
 #endif
 }
 
+void Platform::takeOpenedAudio()
+{
+#ifdef Q_OS_ANDROID
+    if (!bridgeString("takeAudioOpened").isEmpty())
+        emit audioOpened();
+#endif
+}
+
 void Platform::startService()
 {
 #ifdef Q_OS_ANDROID
@@ -374,5 +384,11 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UiBridge_nativeInsets
 {
     if (Ui::Platform* platform = Ui::instance.load())
         QMetaObject::invokeMethod(platform, &Ui::Platform::readInsets, Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UiBridge_nativeAudioOpened(JNIEnv*, jclass)
+{
+    if (Ui::Platform* platform = Ui::instance.load())
+        QMetaObject::invokeMethod(platform, &Ui::Platform::takeOpenedAudio, Qt::QueuedConnection);
 }
 #endif

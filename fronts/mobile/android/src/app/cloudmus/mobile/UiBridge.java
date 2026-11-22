@@ -140,6 +140,29 @@ public final class UiBridge {
         return requested ? "yes" : "";
     }
 
+    // Audio opened from another app (MainActivity): the screen goes to its
+    // track. Kept until Qt takes it, as the first one comes before Qt is up.
+    private static boolean audioOpened;
+
+    private static native void nativeAudioOpened();
+
+    static void audioOpened() {
+        synchronized (UiBridge.class) {
+            audioOpened = true;
+        }
+        try {
+            nativeAudioOpened();
+        } catch (UnsatisfiedLinkError notLoadedYet) {
+            // Platform takes it when it comes up.
+        }
+    }
+
+    public static synchronized String takeAudioOpened(Context context) {
+        boolean opened = audioOpened;
+        audioOpened = false;
+        return opened ? "yes" : "";
+    }
+
     public static String exportProgress(Context context) {
         return SystemProbe.exportProgress();
     }

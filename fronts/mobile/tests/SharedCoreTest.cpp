@@ -1065,6 +1065,57 @@ private slots:
         QSettings().remove(QStringLiteral("ui/screenExpanded"));
     }
 
+    // Audio opened from another app: whatever is open closes, and its track
+    // shows — Now Playing on a phone, the track's screen on a head unit.
+    void openedAudioShowsItsTrack()
+    {
+        QSettings().remove(QStringLiteral("ui/screenExpanded"));
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(420, 860);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* stack = window->findChild<QQuickItem*>("stack");
+        auto* sheet = window->findChild<QQuickItem*>("nowPlayingSheet");
+        auto* trackSheet = window->findChild<QObject*>("trackSheet");
+        auto* page = window->findChild<QQuickItem*>("playlist");
+        QVERIFY(stack && sheet && trackSheet && page);
+        QTRY_VERIFY(window->findChild<QQuickItem*>("nowPlaying") != nullptr);
+
+        QVERIFY(QMetaObject::invokeMethod(page, "settingsRequested"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        QVERIFY(QMetaObject::invokeMethod(trackSheet, "open"));
+        QTRY_VERIFY(trackSheet->property("opened").toBool());
+        QVERIFY(QMetaObject::invokeMethod(&platform, "audioOpened"));
+        QTRY_VERIFY(!trackSheet->property("visible").toBool());
+        QTRY_COMPARE(stack->property("depth").toInt(), 1);
+        QTRY_COMPARE(sheet->property("progress").toReal(), 1.0);
+
+        // A head unit: the track's screen, the hero grown beside the list.
+        window->resize(1280, 720);
+        QTRY_COMPARE(sheet->property("progress").toReal(), 0.0);
+        QCOMPARE(page->property("screenProgress").toReal(), 0.0);
+        QVERIFY(QMetaObject::invokeMethod(page, "libraryRequested"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        QVERIFY(QMetaObject::invokeMethod(&platform, "audioOpened"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 1);
+        QTRY_COMPARE(page->property("screenProgress").toReal(), 1.0);
+        QSettings().remove(QStringLiteral("ui/screenExpanded"));
+    }
+
     // A source can take seconds to start the next track. Until then the cover
     // thrown in stays, rather than the old one coming back, and no animation of a
     // new cover plays once the track has come.
