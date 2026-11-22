@@ -21,6 +21,8 @@ class PlaylistScreen : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString title READ title NOTIFY titleChanged)
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+    // How much the playlist's files take, "" when the source doesn't say.
+    Q_PROPERTY(QString sizeText READ sizeText NOTIFY sizeTextChanged)
     Q_PROPERTY(QString coverUrl READ coverUrl NOTIFY coverUrlChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
     Q_PROPERTY(bool isRadio READ isRadio NOTIFY isRadioChanged)
@@ -47,6 +49,7 @@ public:
 
     QString title() const;
     int count() const { return int(open_.rows().size()); }
+    QString sizeText() const;
     QString coverUrl() const;
     bool loading() const { return open_.isLoading(); }
     bool isRadio() const { return open_.context().isRadio(); }
@@ -78,6 +81,7 @@ public slots:
 signals:
     void titleChanged();
     void countChanged();
+    void sizeTextChanged();
     void coverUrlChanged();
     void loadingChanged();
     void isRadioChanged();

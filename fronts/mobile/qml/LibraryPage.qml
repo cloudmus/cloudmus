@@ -452,6 +452,7 @@ Page {
                         required property var playlistId
                         required property var title
                         required property var trackCount
+                        required property var sizeText
                         required property var kind
                         required property var coverUrl
                         required property var isActive
@@ -498,7 +499,7 @@ Page {
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: other.kind === "radioStation" ? qsTr("Radio") : qsTr("%1 tracks").arg(other.trackCount)
+                                    text: other.kind === "radioStation" ? qsTr("Radio") : qsTr("%1 tracks").arg(other.trackCount) + (other.sizeText ? " · " + other.sizeText : "")
                                     color: Theme.inkSecondary
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSmall

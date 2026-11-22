@@ -11,6 +11,7 @@
 #include "NowPlaying.h"
 #include "SourcePage.h"
 #include "Sources.h"
+#include "TrackListModel.h"
 
 namespace ViewModel {
 
@@ -19,9 +20,9 @@ namespace {
 QString fileUrl(const QString& path) { return path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString(); }
 
 // `path`: the folders it's in (Playlist.parentId), for one shown away from
-// them — a favorite.
-const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "kind", "coverUrl", "isActive",
-    "isStarting", "isFavorite", "path" };
+// them — a favorite. `sizeText`: how much its files take, "" when unknown.
+const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "sizeText", "kind", "coverUrl",
+    "isActive", "isStarting", "isFavorite", "path" };
 
 } // namespace
 
@@ -171,6 +172,7 @@ QVariantHash LibraryScreen::playlistRow(const Playlist& playlist)
         { QStringLiteral("playlistId"), playlist.id },
         { QStringLiteral("title"), playlist.title },
         { QStringLiteral("trackCount"), playlist.trackCount },
+        { QStringLiteral("sizeText"), ViewModel::playlistSizeText(playlist) },
         { QStringLiteral("kind"), playlist.kind },
         { QStringLiteral("coverUrl"), fileUrl(covers_.localFile(playlist.coverUrl.value_or(QString()))) },
         { QStringLiteral("isActive"), active.sourceId == currentSourceId_ && active.playlist.id == playlist.id },

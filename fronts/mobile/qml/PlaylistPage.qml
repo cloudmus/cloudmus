@@ -166,7 +166,8 @@ Page {
                     ShadowText {
                         Layout.fillWidth: true
                         visible: page.screen && !page.screen.isRadio
-                        text: page.screen ? qsTr("%1 tracks").arg(page.screen.count) : ""
+                        text: page.screen ? qsTr("%1 tracks").arg(page.screen.count)
+                              + (page.screen.sizeText ? " · " + page.screen.sizeText : "") : ""
                         color: "#D9FFFFFF"
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSmall
@@ -278,6 +279,7 @@ Page {
                         required property var playlistId
                         required property var title
                         required property var trackCount
+                        required property var sizeText
                         required property var coverUrl
                         objectName: "folder_" + folder.playlistId
                         width: parent ? parent.width : 0
@@ -318,7 +320,7 @@ Page {
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: qsTr("%1 tracks").arg(folder.trackCount)
+                                    text: qsTr("%1 tracks").arg(folder.trackCount) + (folder.sizeText ? " · " + folder.sizeText : "")
                                     color: Theme.inkSecondary
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSmall

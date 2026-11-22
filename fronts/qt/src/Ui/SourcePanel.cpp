@@ -39,7 +39,7 @@
 namespace Ui {
 
 using ViewModel::TrackListModel;
-using ViewModel::trackCountText;
+using ViewModel::playlistCountText;
 
 namespace {
 constexpr int kIconSize = 32;
@@ -304,7 +304,7 @@ private:
     {
         if (p.kind == QStringLiteral("radioStation"))
             return QObject::tr("Radio");
-        return trackCountText(p.trackCount);
+        return playlistCountText(p);
     }
 
     QPixmap generatedCover(const QString& seed)

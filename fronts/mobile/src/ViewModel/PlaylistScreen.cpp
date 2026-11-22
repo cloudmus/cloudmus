@@ -13,7 +13,7 @@ PlaylistScreen::PlaylistScreen(App::Core& core, QObject* parent)
     , core_(core)
     , open_(core.sourceManager(), core.trackStates(), core.coverArtCache(), core.playbackHistory(),
           core.activePlaylist(), core.playlistEditing(), core.messages(), core.playlistTracks())
-    , folders_({ "playlistId", "title", "trackCount", "coverUrl" })
+    , folders_({ "playlistId", "title", "trackCount", "sizeText", "coverUrl" })
 {
     tracks_.setTrackStates(&core.trackStates());
     tracks_.setPreload(&core.preload());
@@ -38,6 +38,12 @@ QString PlaylistScreen::title() const
 {
     const PlaylistContext& context = open_.context();
     return context.isHistory ? tr("History") : context.playlist.title;
+}
+
+QString PlaylistScreen::sizeText() const
+{
+    const PlaylistContext& context = open_.context();
+    return context.isHistory ? QString() : ViewModel::playlistSizeText(context.playlist);
 }
 
 QString PlaylistScreen::coverUrl() const
@@ -188,6 +194,7 @@ void PlaylistScreen::announce()
 {
     emit titleChanged();
     emit countChanged();
+    emit sizeTextChanged();
     emit coverUrlChanged();
     emit isRadioChanged();
     emit isHistoryChanged();
@@ -212,6 +219,7 @@ void PlaylistScreen::rebuildFolders()
                 { QStringLiteral("playlistId"), playlist.id },
                 { QStringLiteral("title"), playlist.title },
                 { QStringLiteral("trackCount"), playlist.trackCount },
+                { QStringLiteral("sizeText"), ViewModel::playlistSizeText(playlist) },
                 { QStringLiteral("coverUrl"), cover.isEmpty() ? QString() : QUrl::fromLocalFile(cover).toString() },
             });
         }

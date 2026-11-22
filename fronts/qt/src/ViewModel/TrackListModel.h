@@ -2,6 +2,7 @@
 
 #include <QAbstractListModel>
 #include <QDateTime>
+#include <QLocale>
 #include <QString>
 #include <QVector>
 
@@ -23,6 +24,28 @@ class Preload;
 inline QString trackCountText(int count)
 {
     return count == 1 ? QStringLiteral("1 track") : QStringLiteral("%1 tracks").arg(count);
+}
+
+// How much a playlist's files take, "340 MB" / "1.2 GB"; empty when the
+// source doesn't say (Playlist.sizeBytes). A decimal only below 10, where it
+// still tells sizes apart.
+inline QString playlistSizeText(const Playlist& playlist)
+{
+    const qint64 bytes = playlist.sizeBytes.value_or(0);
+    if (bytes <= 0)
+        return { };
+    double value = double(bytes);
+    while (value >= 1024)
+        value /= 1024;
+    return QLocale().formattedDataSize(bytes, value < 10 ? 1 : 0, QLocale::DataSizeTraditionalFormat);
+}
+
+// "12 tracks · 340 MB", or just the count.
+inline QString playlistCountText(const Playlist& playlist)
+{
+    const QString size = playlistSizeText(playlist);
+    const QString count = trackCountText(playlist.trackCount);
+    return size.isEmpty() ? count : count + QStringLiteral(" · ") + size;
 }
 
 // Tracks as rows, for any view of them: a QTableView-free list on the desktop

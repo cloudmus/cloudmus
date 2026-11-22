@@ -7,6 +7,7 @@
 #include "PlaybackController.h"
 #include "SourceManager.h"
 #include "Sources.h"
+#include "TrackListModel.h"
 
 namespace ViewModel {
 
@@ -47,7 +48,8 @@ QString folded(const QString& text)
     return result;
 }
 
-QString trackCountText(int count)
+// MediaTree's own, translated: the car shows it as is.
+QString translatedTrackCount(int count)
 {
     if (count <= 0)
         return { };
@@ -95,7 +97,10 @@ QList<MediaTree::Item> MediaTree::playlistsOf(const QString& sourceId)
 {
     const QList<Playlist> playlists = sources_.playlists(sourceId);
     const auto toItem = [&](const Playlist& playlist) {
-        return Item { playlistMediaId(sourceId, playlist.id), playlist.title, trackCountText(playlist.trackCount),
+        const QString count = translatedTrackCount(playlist.trackCount);
+        const QString size = ViewModel::playlistSizeText(playlist);
+        return Item { playlistMediaId(sourceId, playlist.id), playlist.title,
+            count.isEmpty() || size.isEmpty() ? count : count + QStringLiteral(" · ") + size,
             covers_.localFile(playlist.coverUrl.value_or(QString())), false };
     };
     QList<Item> items;

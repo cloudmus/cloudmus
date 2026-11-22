@@ -74,6 +74,7 @@
 
 namespace Ui {
 
+using ViewModel::playlistSizeText;
 using ViewModel::trackCountText;
 using ViewModel::TrackListModel;
 
@@ -707,7 +708,7 @@ void MainWindow::showBrowsePage()
             } else if (context.isHistory) {
                 sheet_->showTracks(tr("History"), QString(), QString(), QStringLiteral("history"), /*canPlayAll=*/true);
             } else {
-                sheet_->showTracks(context.playlist.title, trackCountText(context.playlist.trackCount),
+                sheet_->showTracks(context.playlist.title, playlistSubtitle(context.playlist.trackCount),
                     context.playlist.coverUrl.value_or(QString()), context.playlist.title, /*canPlayAll=*/true);
             }
             sheet_->setBusy(browse_.isLoading());
@@ -730,7 +731,14 @@ void MainWindow::showBrowseRows()
         rows.append({ row.sourceId, row.track, row.playedAt });
     sheet_->trackModel()->setMixedSourceTracks(rows);
     // Until the tracks are in, the count the playlist itself reports.
-    sheet_->setSubtitle(trackCountText(browse_.isLoading() ? browse_.context().playlist.trackCount : int(rows.size())));
+    sheet_->setSubtitle(playlistSubtitle(browse_.isLoading() ? browse_.context().playlist.trackCount : int(rows.size())));
+}
+
+// The open playlist's tracks, `count` of them, and how much its files take.
+QString MainWindow::playlistSubtitle(int count) const
+{
+    const QString size = playlistSizeText(browse_.context().playlist);
+    return size.isEmpty() ? trackCountText(count) : trackCountText(count) + QStringLiteral(" · ") + size;
 }
 
 MainWindow::~MainWindow()

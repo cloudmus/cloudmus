@@ -190,6 +190,7 @@ private:
     void showBrowsePage();
     // The open playlist's rows and their count.
     void showBrowseRows();
+    QString playlistSubtitle(int count) const;
 
     // Per-source sign-in state, shared with the Settings dialog's source
     // pages — see Rpc::AuthStates. Feeds both the sidebar's warning icon
