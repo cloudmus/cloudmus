@@ -61,6 +61,7 @@ jmethodID publishMethod = nullptr;
 jmethodID remuxOpusMethod = nullptr;
 jmethodID setWantAllMethod = nullptr;
 jmethodID permissionNeededMethod = nullptr;
+jmethodID deleteMediaMethod = nullptr;
 jmethodID onStateMethod = nullptr;
 jmethodID onTrackMethod = nullptr;
 jmethodID onQueueMethod = nullptr;
@@ -286,6 +287,33 @@ public:
 
     bool permissionNeeded() const override { return permissionNeeded_; }
 
+    void remove(const QStringList& uris) override
+    {
+        JNIEnv* env = Android::Jni::env();
+        jclass stringClass = env->FindClass("java/lang/String");
+        jobjectArray input = env->NewObjectArray(jsize(uris.size()), stringClass, nullptr);
+        for (qsizetype i = 0; i < uris.size(); ++i) {
+            jstring uri = toJava(env, uris.at(i));
+            env->SetObjectArrayElement(input, jsize(i), uri);
+            env->DeleteLocalRef(uri);
+        }
+        const auto pending
+            = static_cast<jobjectArray>(env->CallStaticObjectMethod(storageClass, deleteMediaMethod, input));
+        env->DeleteLocalRef(input);
+        env->DeleteLocalRef(stringClass);
+        if (Android::Jni::checkException(env, "MusicStorage.delete") || pending == nullptr)
+            return;
+        QStringList needConsent;
+        for (jsize i = 0; i < env->GetArrayLength(pending); ++i) {
+            auto uri = static_cast<jstring>(env->GetObjectArrayElement(pending, i));
+            needConsent.append(toQString(env, uri));
+            env->DeleteLocalRef(uri);
+        }
+        env->DeleteLocalRef(pending);
+        if (!needConsent.isEmpty())
+            emit removalNeedsConsent(needConsent);
+    }
+
     // MusicStorage wrote a new index.
     void publish()
     {
@@ -502,6 +530,7 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     remuxOpusMethod = env->GetStaticMethodID(storageClass, "remuxOpus", "(Ljava/lang/String;Ljava/lang/String;)Z");
     setWantAllMethod = env->GetStaticMethodID(storageClass, "setWantAll", "(Z)V");
     permissionNeededMethod = env->GetStaticMethodID(storageClass, "permissionNeeded", "()Z");
+    deleteMediaMethod = env->GetStaticMethodID(storageClass, "delete", "([Ljava/lang/String;)[Ljava/lang/String;");
     if (Android::Jni::checkException(env, "MusicStorage methods"))
         return JNI_ERR;
     onReadyMethod = env->GetStaticMethodID(bridgeClass, "onCoreReady", "()V");

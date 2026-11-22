@@ -197,6 +197,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/AuraBackground.qml
         qml/BodyText.qml
         qml/CapabilityTags.qml
+        qml/ConfirmDialog.qml
         qml/DropMenu.qml
         qml/DropMenuItem.qml
         qml/Chip.qml
@@ -257,7 +258,7 @@ qt_add_shaders(cloudmus-mobile-ui "shaders"
     PREFIX "/"
     FILES shaders/ripple.frag)
 
-set(_icons arrow_back chevron_right close cloud_off content_copy expand_less expand_more favorite favorite_border file_download heart_off
+set(_icons arrow_back check chevron_right close cloud_off content_copy delete expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
     visibility visibility_off warning logout)

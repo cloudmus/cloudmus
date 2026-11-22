@@ -317,6 +317,46 @@
   </context>
   <context>
     <name>PlaylistPage</name>
+    <message numerus="yes">
+      <source>%n selected</source>
+      <translation>
+        <numerusform>Выбраны %n</numerusform>
+        <numerusform>Выбрана %n</numerusform>
+        <numerusform>Выбрана %n</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>All</source>
+      <translation>Усе</translation>
+    </message>
+    <message>
+      <source>Delete</source>
+      <translation>Выдаліць</translation>
+    </message>
+    <message>
+      <source>Delete "%1" and everything in it?</source>
+      <translation>Выдаліць «%1» з усім змесцівам?</translation>
+    </message>
+    <message numerus="yes">
+      <source>Delete %n track(s)?</source>
+      <translation>
+        <numerusform>Выдаліць %n трэк?</numerusform>
+        <numerusform>Выдаліць %n трэкі?</numerusform>
+        <numerusform>Выдаліць %n трэкаў?</numerusform>
+      </translation>
+    </message>
+    <message numerus="yes">
+      <source>Its %n track(s) are deleted from the device and can't be brought back.</source>
+      <translation>
+        <numerusform>Яе %n трэк будзе выдалены з прылады без магчымасці аднаўлення.</numerusform>
+        <numerusform>Яе %n трэкі будуць выдалены з прылады без магчымасці аднаўлення.</numerusform>
+        <numerusform>Яе %n трэкаў будуць выдалены з прылады без магчымасці аднаўлення.</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>The files are deleted from the device and can't be brought back.</source>
+      <translation>Файлы будуць выдалены з прылады без магчымасці аднаўлення.</translation>
+    </message>
     <message>
       <source>%1 tracks</source>
       <translation>Трэкаў: %1</translation>
@@ -682,6 +722,22 @@
   </context>
   <context>
     <name>TrackSheet</name>
+    <message>
+      <source>Delete</source>
+      <translation>Выдаліць</translation>
+    </message>
+    <message>
+      <source>Delete "%1"?</source>
+      <translation>Выдаліць «%1»?</translation>
+    </message>
+    <message>
+      <source>Delete from the device</source>
+      <translation>Выдаліць з прылады</translation>
+    </message>
+    <message>
+      <source>The file is deleted from the device and can't be brought back.</source>
+      <translation>Файл будзе выдалены з прылады без магчымасці аднаўлення.</translation>
+    </message>
     <message>
       <source>Explicit</source>
       <translation>Для дарослых</translation>
@@ -1091,6 +1147,36 @@
     <message>
       <source>%1 kbps</source>
       <translation>%1 кбіт/с</translation>
+    </message>
+  </context>
+  <context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+      <source>%n track(s) couldn't be deleted</source>
+      <translation>
+        <numerusform>%n трэк не ўдалося выдаліць</numerusform>
+        <numerusform>%n трэкі не ўдалося выдаліць</numerusform>
+        <numerusform>%n трэкаў не ўдалося выдаліць</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>Deleted "%1"</source>
+      <translation>«%1» выдалена</translation>
+    </message>
+    <message numerus="yes">
+      <source>Deleted %n track(s)</source>
+      <translation>
+        <numerusform>Выдалены %n трэк</numerusform>
+        <numerusform>Выдалена %n трэкі</numerusform>
+        <numerusform>Выдалена %n трэкаў</numerusform>
+      </translation>
+    </message>
+  </context>
+  <context>
+    <name>ConfirmDialog</name>
+    <message>
+      <source>Cancel</source>
+      <translation>Скасаваць</translation>
     </message>
   </context>
 </TS>

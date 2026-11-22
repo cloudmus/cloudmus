@@ -317,6 +317,43 @@
   </context>
   <context>
     <name>PlaylistPage</name>
+    <message numerus="yes">
+      <source>%n selected</source>
+      <translation>
+        <numerusform>%n sélectionnée</numerusform>
+        <numerusform>%n sélectionnées</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>All</source>
+      <translation>Toutes</translation>
+    </message>
+    <message>
+      <source>Delete</source>
+      <translation>Supprimer</translation>
+    </message>
+    <message>
+      <source>Delete "%1" and everything in it?</source>
+      <translation>Supprimer « %1 » et tout son contenu ?</translation>
+    </message>
+    <message numerus="yes">
+      <source>Delete %n track(s)?</source>
+      <translation>
+        <numerusform>Supprimer %n piste ?</numerusform>
+        <numerusform>Supprimer %n pistes ?</numerusform>
+      </translation>
+    </message>
+    <message numerus="yes">
+      <source>Its %n track(s) are deleted from the device and can't be brought back.</source>
+      <translation>
+        <numerusform>Sa %n piste sera supprimée de l’appareil, sans retour possible.</numerusform>
+        <numerusform>Ses %n pistes seront supprimées de l’appareil, sans retour possible.</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>The files are deleted from the device and can't be brought back.</source>
+      <translation>Les fichiers seront supprimés de l’appareil, sans retour possible.</translation>
+    </message>
     <message>
       <source>%1 tracks</source>
       <translation>%1 pistes</translation>
@@ -682,6 +719,22 @@
   </context>
   <context>
     <name>TrackSheet</name>
+    <message>
+      <source>Delete</source>
+      <translation>Supprimer</translation>
+    </message>
+    <message>
+      <source>Delete "%1"?</source>
+      <translation>Supprimer « %1 » ?</translation>
+    </message>
+    <message>
+      <source>Delete from the device</source>
+      <translation>Supprimer de l’appareil</translation>
+    </message>
+    <message>
+      <source>The file is deleted from the device and can't be brought back.</source>
+      <translation>Le fichier sera supprimé de l’appareil, sans retour possible.</translation>
+    </message>
     <message>
       <source>Explicit</source>
       <translation>Explicite</translation>
@@ -1090,6 +1143,34 @@
     <message>
       <source>%1 kbps</source>
       <translation>%1 kb/s</translation>
+    </message>
+  </context>
+  <context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+      <source>%n track(s) couldn't be deleted</source>
+      <translation>
+        <numerusform>%n piste n’a pas pu être supprimée</numerusform>
+        <numerusform>%n pistes n’ont pas pu être supprimées</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>Deleted "%1"</source>
+      <translation>« %1 » supprimé</translation>
+    </message>
+    <message numerus="yes">
+      <source>Deleted %n track(s)</source>
+      <translation>
+        <numerusform>%n piste supprimée</numerusform>
+        <numerusform>%n pistes supprimées</numerusform>
+      </translation>
+    </message>
+  </context>
+  <context>
+    <name>ConfirmDialog</name>
+    <message>
+      <source>Cancel</source>
+      <translation>Annuler</translation>
     </message>
   </context>
 </TS>

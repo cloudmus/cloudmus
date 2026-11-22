@@ -44,6 +44,8 @@ class TrackScreen : public QObject {
     Q_PROPERTY(bool canStartRadio READ canStartRadio NOTIFY canStartRadioChanged)
     Q_PROPERTY(bool canDownload READ canDownload NOTIFY canDownloadChanged)
     Q_PROPERTY(bool canEditPlaylists READ canEditPlaylists NOTIFY canEditPlaylistsChanged)
+    // Its source can delete it from where it keeps it (docs/protocol.md §7.11).
+    Q_PROPERTY(bool canDelete READ canDelete NOTIFY canDeleteChanged)
     // loadPlaylists() under way; it failed.
     Q_PROPERTY(bool playlistsLoading READ playlistsLoading NOTIFY playlistsLoadingChanged)
     Q_PROPERTY(bool playlistsFailed READ playlistsFailed NOTIFY playlistsFailedChanged)
@@ -71,6 +73,7 @@ public:
     bool canDislike() const;
     bool canStartRadio() const;
     bool canDownload() const;
+    bool canDelete() const;
     bool canEditPlaylists() const;
     bool playlistsLoading() const { return playlistsLoading_; }
     bool playlistsFailed() const { return playlistsFailed_; }
@@ -90,6 +93,8 @@ public slots:
     // `title`: how the station is shown ("Radio: …"), in the view's language.
     void startRadio(const QString& title);
     void download();
+    // Asked first, by the page.
+    void deleteTrack();
     void loadPlaylists();
     void setInPlaylist(const QString& playlistId, bool in);
 
@@ -113,6 +118,7 @@ signals:
     void canStartRadioChanged();
     void canDownloadChanged();
     void canEditPlaylistsChanged();
+    void canDeleteChanged();
     void playlistsLoadingChanged();
     void playlistsFailedChanged();
 

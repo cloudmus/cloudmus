@@ -73,6 +73,8 @@ bool TrackScreen::canStartRadio() const { return core_.trackActions().available(
 
 bool TrackScreen::canDownload() const { return core_.trackActions().available(sourceId_).download; }
 
+bool TrackScreen::canDelete() const { return core_.trackDeletion().canDelete(sourceId_, track_); }
+
 bool TrackScreen::canEditPlaylists() const { return core_.trackActions().available(sourceId_).playlists; }
 
 void TrackScreen::showActiveRow(int filteredRow)
@@ -137,6 +139,12 @@ void TrackScreen::toggleDisliked()
 void TrackScreen::startRadio(const QString& title) { core_.trackActions().startRadio(sourceId_, track_, title); }
 
 void TrackScreen::download() { core_.downloads().downloadTrack(sourceId_, track_); }
+
+void TrackScreen::deleteTrack()
+{
+    if (canDelete())
+        core_.trackDeletion().deleteTracks(sourceId_, { track_.id });
+}
 
 void TrackScreen::loadPlaylists() { fetchPlaylists(sourceId_, track_).detach(); }
 
@@ -223,6 +231,7 @@ void TrackScreen::announce()
     emit canStartRadioChanged();
     emit canDownloadChanged();
     emit canEditPlaylistsChanged();
+    emit canDeleteChanged();
     announceState();
 }
 

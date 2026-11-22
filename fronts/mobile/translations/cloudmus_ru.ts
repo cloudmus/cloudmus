@@ -376,6 +376,46 @@
   </context>
   <context>
     <name>PlaylistPage</name>
+    <message numerus="yes">
+      <source>%n selected</source>
+      <translation>
+        <numerusform>Выбран %n</numerusform>
+        <numerusform>Выбрано %n</numerusform>
+        <numerusform>Выбрано %n</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>All</source>
+      <translation>Все</translation>
+    </message>
+    <message>
+      <source>Delete</source>
+      <translation>Удалить</translation>
+    </message>
+    <message>
+      <source>Delete "%1" and everything in it?</source>
+      <translation>Удалить «%1» со всем содержимым?</translation>
+    </message>
+    <message numerus="yes">
+      <source>Delete %n track(s)?</source>
+      <translation>
+        <numerusform>Удалить %n трек?</numerusform>
+        <numerusform>Удалить %n трека?</numerusform>
+        <numerusform>Удалить %n треков?</numerusform>
+      </translation>
+    </message>
+    <message numerus="yes">
+      <source>Its %n track(s) are deleted from the device and can't be brought back.</source>
+      <translation>
+        <numerusform>Её %n трек будет удалён с устройства без возможности восстановления.</numerusform>
+        <numerusform>Её %n трека будут удалены с устройства без возможности восстановления.</numerusform>
+        <numerusform>Её %n треков будут удалены с устройства без возможности восстановления.</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>The files are deleted from the device and can't be brought back.</source>
+      <translation>Файлы будут удалены с устройства без возможности восстановления.</translation>
+    </message>
     <message>
       <source>%1 tracks</source>
       <translation>Треков: %1</translation>
@@ -745,6 +785,22 @@
   </context>
   <context>
     <name>TrackSheet</name>
+    <message>
+      <source>Delete</source>
+      <translation>Удалить</translation>
+    </message>
+    <message>
+      <source>Delete "%1"?</source>
+      <translation>Удалить «%1»?</translation>
+    </message>
+    <message>
+      <source>Delete from the device</source>
+      <translation>Удалить с устройства</translation>
+    </message>
+    <message>
+      <source>The file is deleted from the device and can't be brought back.</source>
+      <translation>Файл будет удалён с устройства без возможности восстановления.</translation>
+    </message>
     <message>
       <source>Explicit</source>
       <translation>Для взрослых</translation>
@@ -1154,6 +1210,36 @@
     <message>
       <source>%1 kbps</source>
       <translation>%1 кбит/с</translation>
+    </message>
+  </context>
+  <context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+      <source>%n track(s) couldn't be deleted</source>
+      <translation>
+        <numerusform>%n трек не удалось удалить</numerusform>
+        <numerusform>%n трека не удалось удалить</numerusform>
+        <numerusform>%n треков не удалось удалить</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>Deleted "%1"</source>
+      <translation>«%1» удалено</translation>
+    </message>
+    <message numerus="yes">
+      <source>Deleted %n track(s)</source>
+      <translation>
+        <numerusform>Удалён %n трек</numerusform>
+        <numerusform>Удалено %n трека</numerusform>
+        <numerusform>Удалено %n треков</numerusform>
+      </translation>
+    </message>
+  </context>
+  <context>
+    <name>ConfirmDialog</name>
+    <message>
+      <source>Cancel</source>
+      <translation>Отмена</translation>
     </message>
   </context>
 </TS>

@@ -25,6 +25,7 @@ PlaylistScreen::PlaylistScreen(App::Core& core, QObject* parent)
     connect(&core.nowPlaying(), &NowPlaying::trackChanged, this, &PlaylistScreen::markCurrent);
     connect(&core.sources(), &Sources::sourceChanged, this, &PlaylistScreen::announce);
     connect(&core.coverArtCache(), &Covers::CoverArtCache::pixmapReady, this, &PlaylistScreen::coverUrlChanged);
+    connect(&core.trackDeletion(), &App::TrackDeletion::deleted, &open_, &OpenPlaylist::dropTracks);
     connect(&core.sources(), &Sources::sourceRemoved, this, [this](const QString& sourceId) {
         if (!open_.context().isHistory && open_.context().sourceId == sourceId) {
             close();
@@ -70,6 +71,46 @@ void PlaylistScreen::openFolder(const QString& playlistId)
         return;
     trail_.append(context.playlist.id);
     show(context.sourceId, playlistId);
+}
+
+bool PlaylistScreen::canDeletePlaylist() const
+{
+    const PlaylistContext& context = open_.context();
+    return !context.isHistory && core_.trackDeletion().canDelete(context.sourceId, context.playlist);
+}
+
+bool PlaylistScreen::canDeleteTracks() const
+{
+    return std::any_of(open_.rows().cbegin(), open_.rows().cend(), [this](const OpenPlaylist::Row& row) {
+        return core_.trackDeletion().canDelete(row.sourceId, row.track);
+    });
+}
+
+void PlaylistScreen::deleteRows(const QVariantList& rows)
+{
+    // By source: History mixes them.
+    QHash<QString, QStringList> bySource;
+    for (const QVariant& value : rows) {
+        const int row = filter_.sourceRow(value.toInt());
+        if (row < 0 || row >= open_.rows().size())
+            continue;
+        const OpenPlaylist::Row& entry = open_.rows().at(row);
+        if (core_.trackDeletion().canDelete(entry.sourceId, entry.track))
+            bySource[entry.sourceId].append(entry.track.id);
+    }
+    for (auto it = bySource.cbegin(); it != bySource.cend(); ++it)
+        core_.trackDeletion().deleteTracks(it.key(), it.value());
+}
+
+void PlaylistScreen::deletePlaylist()
+{
+    if (!canDeletePlaylist())
+        return;
+    const PlaylistContext& context = open_.context();
+    core_.trackDeletion().deletePlaylist(context.sourceId, context.playlist);
+    // It's gone: back where it was opened from.
+    if (!trail_.isEmpty())
+        goBack();
 }
 
 void PlaylistScreen::goBack()
@@ -134,6 +175,7 @@ void PlaylistScreen::refill()
     tracks_.setMixedSourceTracks(rows);
     markCurrent();
     emit countChanged();
+    emit canDeleteTracksChanged();
 }
 
 void PlaylistScreen::markCurrent()
@@ -152,6 +194,8 @@ void PlaylistScreen::announce()
     emit isFavoriteChanged();
     emit canDownloadChanged();
     emit canGoBackChanged();
+    emit canDeletePlaylistChanged();
+    emit canDeleteTracksChanged();
     rebuildFolders();
 }
 

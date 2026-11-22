@@ -48,6 +48,7 @@ SettingsScreen::SettingsScreen(App::Core& core, SourceSettings& sourceSettings, 
     connect(&manager, &Rpc::SourceManager::sourceReady, this, [this]() { rebuildSources(); });
     connect(&manager, &Rpc::SourceManager::mediaPermissionNeededChanged, this,
         &SettingsScreen::mediaPermissionNeededChanged);
+    connect(&manager, &Rpc::SourceManager::mediaRemovalNeedsConsent, this, &SettingsScreen::mediaDeleteConsentNeeded);
     connect(&manager, &Rpc::SourceManager::sourceUnavailable, this, [this]() { rebuildSources(); });
     connect(&core_.authStates(), &Rpc::AuthStates::changed, this, [this]() { rebuildSources(); });
     // Texts the core builds itself are in the new language from the next

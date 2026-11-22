@@ -67,6 +67,7 @@ ApplicationWindow {
             if (window.backend.settingsScreen.mediaPermissionNeeded === true)
                 window.platform.requestMusicPermission()
         }
+        function onMediaDeleteConsentNeeded(uris) { window.platform.requestMediaDelete(uris) }
     }
     Binding { target: Theme; property: "dynamicBlur"; value: uiSettings.dynamicBlur }
     Binding { target: Theme; property: "flickMaxVelocityBase"; value: uiSettings.flickMaxVelocity }

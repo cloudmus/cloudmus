@@ -83,6 +83,9 @@ signals:
     void languageChanged();
     void proxyCheckingChanged();
     void mediaPermissionNeededChanged();
+    // Other apps' tracks to delete: the UI has the system ask the user
+    // (Rpc::HostMedia::removalNeedsConsent()).
+    void mediaDeleteConsentNeeded(const QStringList& uris);
     void proxyCheckOkChanged();
     void proxyCheckTextChanged();
 

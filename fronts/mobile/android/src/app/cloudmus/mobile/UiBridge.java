@@ -82,6 +82,12 @@ public final class UiBridge {
         return "yes";
     }
 
+    // Another app's tracks to delete: the system asks the user.
+    public static void requestMediaDelete(Context context, String[] uris) {
+        if (context instanceof MainActivity)
+            ((MainActivity) context).requestMediaDelete(uris);
+    }
+
     // A source asked for all the device's music: the system's question.
     public static void requestMusicPermission(Context context) {
         if (context instanceof MainActivity)

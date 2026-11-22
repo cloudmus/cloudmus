@@ -21,6 +21,7 @@
 #include <memory>
 
 #ifdef Q_OS_ANDROID
+#include <QJniEnvironment>
 #include <QJniObject>
 #endif
 
@@ -214,6 +215,23 @@ QString Platform::probeMusicStorage() const
     bridgeString("probeMusicStorage");
 #endif
     return tr("Written to the log");
+}
+
+void Platform::requestMediaDelete(const QStringList& uris)
+{
+#ifdef Q_OS_ANDROID
+    QJniEnvironment env;
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray items = env->NewObjectArray(jsize(uris.size()), stringClass, nullptr);
+    for (qsizetype i = 0; i < uris.size(); ++i)
+        env->SetObjectArrayElement(items, jsize(i), QJniObject::fromString(uris.at(i)).object<jstring>());
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "requestMediaDelete",
+        "(Landroid/content/Context;[Ljava/lang/String;)V", QNativeInterface::QAndroidApplication::context(), items);
+    env->DeleteLocalRef(items);
+    env->DeleteLocalRef(stringClass);
+#else
+    Q_UNUSED(uris);
+#endif
 }
 
 void Platform::requestMusicPermission()

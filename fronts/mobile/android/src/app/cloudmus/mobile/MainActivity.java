@@ -86,6 +86,32 @@ public class MainActivity extends QtActivity {
         startService(command);
     }
 
+    private static final int DELETE_REQUEST = 3;
+
+    void requestMediaDelete(String[] uris) {
+        if (Build.VERSION.SDK_INT < 30 || uris.length == 0)
+            return;
+        runOnUiThread(() -> {
+            java.util.List<android.net.Uri> items = new java.util.ArrayList<>();
+            for (String uri : uris)
+                items.add(android.net.Uri.parse(uri));
+            try {
+                android.app.PendingIntent request
+                    = android.provider.MediaStore.createDeleteRequest(getContentResolver(), items);
+                startIntentSenderForResult(request.getIntentSender(), DELETE_REQUEST, null, 0, 0, 0);
+            } catch (Exception error) {
+                CmLog.e(TAG, "ask to delete tracks", error);
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int code, int result, Intent data) {
+        super.onActivityResult(code, result, data);
+        if (code == DELETE_REQUEST)
+            startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
+    }
+
     void requestMusicPermission() {
         runOnUiThread(() -> {
             String permission = MusicStorage.readPermission();

@@ -103,6 +103,39 @@ final class MusicStorage {
         refresh();
     }
 
+    // Deletes MediaStore items a source handed back (docs/protocol.md §7.11),
+    // from the core. What this app saved goes at once; another app's needs the
+    // user's yes (MediaStore.createDeleteRequest, from the activity): those
+    // come back. The index is written anew either way.
+    static synchronized String[] delete(String[] uris) {
+        java.util.List<String> needConsent = new java.util.ArrayList<>();
+        JSONObject own = owned();
+        boolean ownChanged = false;
+        for (String text : uris) {
+            Uri uri = Uri.parse(text);
+            try {
+                app.getContentResolver().delete(uri, null, null);
+                ownChanged |= own.remove(text) != null;
+            } catch (SecurityException error) {
+                if (Build.VERSION.SDK_INT >= 30)
+                    needConsent.add(text);
+                else
+                    CmLog.w(TAG, "delete " + text + ": " + error.getClass().getSimpleName());
+            } catch (RuntimeException error) {
+                CmLog.e(TAG, "delete " + text, error);
+            }
+        }
+        if (ownChanged) {
+            try {
+                atomicWrite(ownedFile(), own.toString());
+            } catch (IOException error) {
+                CmLog.e(TAG, "forget deleted tracks", error);
+            }
+        }
+        refresh();
+        return needConsent.toArray(new String[0]);
+    }
+
     // Wanted, and not allowed yet: the app is to ask the user.
     static boolean permissionNeeded() {
         return wantAll && app != null && !granted(app, readPermission());

@@ -66,6 +66,8 @@ public:
     // The system's question for reading the device's music, which a source
     // asked for (ViewModel::SettingsScreen::mediaPermissionNeeded).
     Q_INVOKABLE void requestMusicPermission();
+    // The system's question for deleting other apps' tracks.
+    Q_INVOKABLE void requestMediaDelete(const QStringList& uris);
     Q_INVOKABLE void grantMusicStorage() const;
     // The head unit's system APKs into a zip, for working out its media
     // widget at home (Android). Hundreds of MB: on a worker thread, the

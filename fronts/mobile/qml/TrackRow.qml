@@ -25,6 +25,11 @@ ItemDelegate {
     // History's rows: when it played.
     required property var playedAt
     property bool showMenu: false
+    // A long press picks it out (selectRequested), for something done to
+    // several at once; `selected` shows it picked.
+    property bool selectable: false
+    property bool selected: false
+    signal selectRequested()
     // For a list that narrows down to its covers: the width to lay itself out
     // at whatever the row's own is.
     property real layoutWidth: 0
@@ -41,11 +46,18 @@ ItemDelegate {
     // Basic's ItemDelegate pads more at the top than at the bottom.
     topPadding: 0
     bottomPadding: 0
-    onPressAndHold: if (showMenu) menuRequested()
+    onPressAndHold: {
+        if (selectable)
+            selectRequested()
+        else if (showMenu)
+            menuRequested()
+    }
     height: Theme.rowHeight + Theme.dp(8)
 
     background: Rectangle {
-        color: row.down && ripple.flat ? Theme.surface300 : (row.current ? Theme.surface200 : "transparent")
+        color: row.down && ripple.flat ? Theme.surface300
+             : row.selected ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+             : (row.current ? Theme.surface200 : "transparent")
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
         Ripple {
             id: ripple
@@ -91,6 +103,20 @@ ItemDelegate {
                 Layout.preferredHeight: Theme.dp(52)
                 source: row.coverUrl || ""
 
+                // Picked: a check over the cover.
+                Rectangle {
+                    objectName: "selectedMark"
+                    anchors.fill: parent
+                    radius: parent.radius
+                    visible: row.selected
+                    color: Theme.accent
+                    IconImage {
+                        anchors.centerIn: parent
+                        source: "qrc:/icons/check.svg"
+                        sourceSize: Qt.size(Theme.dp(28), Theme.dp(28))
+                        color: Theme.inkOnAccent
+                    }
+                }
                 // What plays now, over its cover.
                 Rectangle {
                     anchors.fill: parent

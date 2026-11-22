@@ -19,6 +19,10 @@ Page {
     // Back from a folder opened inside another goes to that one; true if it
     // did (the page stays). Main's stack asks before it pops.
     function backInside() {
+        if (page.selecting) {
+            page.selection = []
+            return true
+        }
         if (!page.screen || page.screen.canGoBack !== true)
             return false
         page.screen.goBack()
@@ -33,11 +37,49 @@ Page {
     readonly property bool auraSpansStatusBar: true
 
     // The loading spinner, the star and Save all.
+    // Rows picked with a long press (of the filtered rows), to delete them
+    // together; any change to the rows lets go of them.
+    property var selection: []
+    readonly property bool selecting: selection.length > 0
+    function toggleRow(row) {
+        const picked = page.selection.slice()
+        const at = picked.indexOf(row)
+        if (at >= 0)
+            picked.splice(at, 1)
+        else
+            picked.push(row)
+        page.selection = picked
+    }
+    Connections {
+        target: page.screen
+        function onCountChanged() { page.selection = [] }
+    }
+
+    ConfirmDialog {
+        id: confirm
+        objectName: "deleteConfirm"
+        property var onYes: null
+        onAccepted: if (onYes) onYes()
+    }
+    function confirmDeleteRows() {
+        const rows = page.selection.slice()
+        confirm.onYes = () => { page.screen.deleteRows(rows); page.selection = [] }
+        confirm.ask(qsTr("Delete %n track(s)?", "", rows.length),
+            qsTr("The files are deleted from the device and can't be brought back."), qsTr("Delete"))
+    }
+    function confirmDeleteFolder() {
+        confirm.onYes = () => page.screen.deletePlaylist()
+        confirm.ask(qsTr("Delete \"%1\" and everything in it?").arg(page.screen.title),
+            qsTr("Its %n track(s) are deleted from the device and can't be brought back.", "", page.screen.count),
+            qsTr("Delete"))
+    }
+
     readonly property bool loading: page.screen !== null && page.screen.loading === true
     readonly property bool canStar: page.screen !== null && page.screen.isHistory === false
     readonly property bool canDownload: page.screen !== null && page.screen.canDownload === true
     // Without any of them (History), none of the room they'd take.
-    readonly property bool hasHeaderActions: loading || canStar || canDownload
+    readonly property bool canDeleteFolder: page.screen !== null && page.screen.canDeletePlaylist === true
+    readonly property bool hasHeaderActions: loading || canStar || canDownload || canDeleteFolder
 
     component HeaderActions: RowLayout {
         property int buttonSize: Theme.touch
@@ -60,6 +102,14 @@ Page {
             iconName: "file_download"
             color: "#FFFFFF"
             onClicked: page.screen.downloadAll()
+        }
+        IconButton {
+            objectName: "deleteFolder"
+            visible: page.canDeleteFolder
+            size: parent.buttonSize
+            iconName: "delete"
+            color: "#FFFFFF"
+            onClicked: page.confirmDeleteFolder()
         }
     }
 
@@ -138,6 +188,49 @@ Page {
                     size: Theme.touchLarge
                     enabled: page.screen && (page.screen.isRadio || page.screen.count > 0)
                     onClicked: page.screen.playAll()
+                }
+            }
+            // Over it while rows are picked: how many, and what to do with them.
+            Rectangle {
+                objectName: "selectionBar"
+                anchors.fill: parent
+                anchors.topMargin: -Theme.insetTop
+                visible: page.selecting
+                color: Theme.surface200
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.topMargin: Theme.insetTop
+                    anchors.margins: Theme.dp(8)
+                    spacing: Theme.dp(8)
+                    IconButton {
+                        iconName: "close"
+                        onClicked: page.selection = []
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("%n selected", "", page.selection.length)
+                        color: Theme.ink
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontTitle
+                        font.weight: Font.Bold
+                        elide: Text.ElideRight
+                    }
+                    TextButton {
+                        objectName: "selectAll"
+                        text: qsTr("All")
+                        onClicked: {
+                            const all = []
+                            for (let row = 0; row < list.count; ++row)
+                                all.push(row)
+                            page.selection = all
+                        }
+                    }
+                    IconButton {
+                        objectName: "deleteSelected"
+                        iconName: "delete"
+                        color: Theme.danger
+                        onClicked: page.confirmDeleteRows()
+                    }
                 }
             }
         }
@@ -243,7 +336,15 @@ Page {
             delegate: TrackRow {
                 playing: page.nowPlaying && page.nowPlaying.playing === true
                 showMenu: true
-                onClicked: page.screen.playRow(index)
+                selectable: page.screen && page.screen.canDeleteTracks === true
+                selected: page.selection.indexOf(index) >= 0
+                onSelectRequested: page.toggleRow(index)
+                onClicked: {
+                    if (page.selecting)
+                        page.toggleRow(index)
+                    else
+                        page.screen.playRow(index)
+                }
                 onMenuRequested: {
                     page.backend.trackScreen.showOpenRow(index)
                     page.trackMenuRequested()

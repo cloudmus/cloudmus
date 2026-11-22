@@ -30,6 +30,10 @@ class PlaylistScreen : public QObject {
     // Opened from a playlist it's inside of (openFolder()): goBack() returns
     // there.
     Q_PROPERTY(bool canGoBack READ canGoBack NOTIFY canGoBackChanged)
+    // The playlist, a folder, can be deleted with what's in it; and so can
+    // tracks of its (docs/protocol.md §7.11).
+    Q_PROPERTY(bool canDeletePlaylist READ canDeletePlaylist NOTIFY canDeletePlaylistChanged)
+    Q_PROPERTY(bool canDeleteTracks READ canDeleteTracks NOTIFY canDeleteTracksChanged)
 
 public:
     explicit PlaylistScreen(App::Core& core, QObject* parent = nullptr);
@@ -50,6 +54,8 @@ public:
     bool isFavorite() const;
     bool canDownload() const;
     bool canGoBack() const { return !trail_.isEmpty(); }
+    bool canDeletePlaylist() const;
+    bool canDeleteTracks() const;
 
 public slots:
     void openPlaylist(const QString& sourceId, const QString& playlistId);
@@ -57,6 +63,10 @@ public slots:
     // One of folderRows(), with the way back to this one.
     void openFolder(const QString& playlistId);
     void goBack();
+    // Asked first, by the page. `rows`: of the filtered rows; the ones that
+    // can't be deleted are left.
+    void deleteRows(const QVariantList& rows);
+    void deletePlaylist();
     void close();
     // `row`: of the filtered rows.
     void playRow(int row);
@@ -75,6 +85,8 @@ signals:
     void isFavoriteChanged();
     void canDownloadChanged();
     void canGoBackChanged();
+    void canDeletePlaylistChanged();
+    void canDeleteTracksChanged();
     // Its source went away: nothing left to show.
     void closed();
 

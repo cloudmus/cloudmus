@@ -208,6 +208,13 @@ Popup {
         easing.type: Easing.OutCubic
     }
 
+    // Outlives the sheet, which closes as the question opens.
+    ConfirmDialog {
+        id: deleteConfirm
+        objectName: "deleteTrackConfirm"
+        onAccepted: sheet.track.deleteTrack()
+    }
+
     component Action: ItemDelegate {
         id: action
         property string iconName
@@ -543,6 +550,15 @@ Popup {
                     iconName: "file_download"
                     text: qsTr("Save to downloads")
                     onClicked: sheet.track.download()
+                }
+                Action {
+                    objectName: "deleteTrack"
+                    visible: sheet.track && sheet.track.canDelete === true
+                    iconName: "delete"
+                    tint: Theme.danger
+                    text: qsTr("Delete from the device")
+                    onClicked: deleteConfirm.ask(qsTr("Delete \"%1\"?").arg(sheet.track.title),
+                        qsTr("The file is deleted from the device and can't be brought back."), qsTr("Delete"))
                 }
             }
 
