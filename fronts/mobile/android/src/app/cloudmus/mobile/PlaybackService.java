@@ -237,10 +237,9 @@ public final class PlaybackService extends MediaLibraryService {
             .setIconResId(player.disliked() ? R.drawable.ic_heart_off : R.drawable.ic_heart_off_outline)
             .setSessionCommand(DISLIKE)
             .build() : null;
-        // In Media Center's row up, like comes first; the notification keeps
-        // the order it has always had.
-        CommandButton[] feedback = openFirst ? new CommandButton[] { like, dislike } : new CommandButton[] { dislike, like };
-        for (CommandButton button : feedback) {
+        // Like first, as in the app: in the notification, before previous;
+        // dislike after next.
+        for (CommandButton button : new CommandButton[] { like, dislike }) {
             if (button != null)
                 buttons.add(button);
         }
@@ -254,17 +253,17 @@ public final class PlaybackService extends MediaLibraryService {
 
     private ImmutableList<CommandButton> autoButtons() {
         ImmutableList.Builder<CommandButton> buttons = ImmutableList.builder();
-        if (player.dislikeSupported())
-            buttons.add(new CommandButton.Builder()
-                .setDisplayName(getString(R.string.dislike))
-                .setIconResId(player.disliked() ? R.drawable.ic_heart_off : R.drawable.ic_heart_off_outline)
-                .setSessionCommand(DISLIKE)
-                .build());
         if (player.likeSupported())
             buttons.add(new CommandButton.Builder()
                 .setDisplayName(getString(R.string.like))
                 .setIconResId(player.liked() ? R.drawable.ic_favorite : R.drawable.ic_favorite_border)
                 .setSessionCommand(LIKE)
+                .build());
+        if (player.dislikeSupported())
+            buttons.add(new CommandButton.Builder()
+                .setDisplayName(getString(R.string.dislike))
+                .setIconResId(player.disliked() ? R.drawable.ic_heart_off : R.drawable.ic_heart_off_outline)
+                .setSessionCommand(DISLIKE)
                 .build());
         // A radio has no list to shuffle.
         if (player.shuffleSupported())

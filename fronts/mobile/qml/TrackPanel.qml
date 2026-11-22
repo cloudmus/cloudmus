@@ -559,7 +559,7 @@ Item {
         }
     }
 
-    // In order: dislike, previous, play, next, like. As laid out here, and in a
+    // In order: like, previous, play, next, dislike. As laid out here, and in a
     // mini player, where they're spread over its width.
     readonly property real _rowSpacing: _mix(compact ? Theme.dp(2) : Theme.dp(10), Theme.dp(10))
     readonly property int _playSize: Math.round(_mix(compact ? Theme.dp(60) : Theme.dp(72), Theme.dp(72)))
@@ -567,8 +567,8 @@ Item {
     readonly property var _miniSizes: [Theme.touch, Theme.touch, Theme.touchLarge, Theme.touch, Theme.touch]
     // A service without likes: none here, and in a mini player there, disabled,
     // where they keep the others in their places.
-    readonly property var _supported: [nowPlaying !== null && nowPlaying.dislikeSupported === true, true, true, true,
-                                       nowPlaying !== null && nowPlaying.likeSupported === true]
+    readonly property var _supported: [nowPlaying !== null && nowPlaying.likeSupported === true, true, true, true,
+                                       nowPlaying !== null && nowPlaying.dislikeSupported === true]
     readonly property real _rowWidth: {
         let width = -_rowSpacing
         for (let i = 0; i < 5; ++i)
@@ -619,11 +619,11 @@ Item {
         }
     }
     TransportButton {
-        objectName: "transportDislike"
+        objectName: "transportLike"
         slot: 0
-        iconName: panel.nowPlaying && panel.nowPlaying.disliked ? "heart_off" : "heart_off_outline"
-        color: panel.inkColor
-        onClicked: panel.nowPlaying.setDisliked(!panel.nowPlaying.disliked)
+        iconName: panel.nowPlaying && panel.nowPlaying.liked ? "favorite" : "favorite_border"
+        color: panel.nowPlaying && panel.nowPlaying.liked ? Theme.accent : panel.inkColor
+        onClicked: panel.nowPlaying.setLiked(!panel.nowPlaying.liked)
     }
     TransportButton {
         objectName: "transportPrevious"
@@ -662,10 +662,10 @@ Item {
         onClicked: panel.nowPlaying.next()
     }
     TransportButton {
-        objectName: "transportLike"
+        objectName: "transportDislike"
         slot: 4
-        iconName: panel.nowPlaying && panel.nowPlaying.liked ? "favorite" : "favorite_border"
-        color: panel.nowPlaying && panel.nowPlaying.liked ? Theme.accent : panel.inkColor
-        onClicked: panel.nowPlaying.setLiked(!panel.nowPlaying.liked)
+        iconName: panel.nowPlaying && panel.nowPlaying.disliked ? "heart_off" : "heart_off_outline"
+        color: panel.inkColor
+        onClicked: panel.nowPlaying.setDisliked(!panel.nowPlaying.disliked)
     }
 }

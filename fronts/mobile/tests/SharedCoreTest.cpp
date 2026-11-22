@@ -632,7 +632,7 @@ private slots:
         auto* surface = findItem(page, QStringLiteral("nowPlayingSurface"));
         QVERIFY(surface);
         QCOMPARE(surface->y(), 860.0 - 124);
-        for (const char* name : { "transportDislike", "transportPrevious", "transportPlay", "transportNext", "transportLike" }) {
+        for (const char* name : { "transportLike", "transportPrevious", "transportPlay", "transportNext", "transportDislike" }) {
             auto* button = findItem(page, QLatin1String(name));
             QVERIFY2(button && button->isVisible(), name);
             const QRectF at = button->mapRectToScene(button->boundingRect());
