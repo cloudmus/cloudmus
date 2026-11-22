@@ -759,6 +759,10 @@
       <translation>Крыніца</translation>
     </message>
     <message>
+      <source>Location</source>
+      <translation>Размяшчэнне</translation>
+    </message>
+    <message>
       <source>Last played</source>
       <translation>Слухалі</translation>
     </message>

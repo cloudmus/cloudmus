@@ -277,7 +277,8 @@ expected to always emit the full shape above.
                                     // same precedent as coverUrl/liked/explicit: front just checks presence.
   "codec": "flac",                 // optional (1.15+), lowercase short codec name, as in StreamDescriptor (§6)
   "bitrateKbps": 905,              // optional (1.15+), the audio's bitrate in kbit/s
-  "deletable": true                // optional (1.22+): catalog.deleteTracks can delete it (§7.11)
+  "deletable": true,               // optional (1.22+): catalog.deleteTracks can delete it (§7.11)
+  "location": "/home/me/Music/Aurolab/Victory.flac"   // optional (1.23+): where it's kept
 }
 ```
 
@@ -285,6 +286,12 @@ expected to always emit the full shape above.
 audio without streaming it — a local file's. A stream's own values
 (StreamDescriptor, below) take over once it is resolved. Left out when the
 source doesn't know them.
+
+`location` (1.23+) says where a source that keeps the music itself has the
+track: a file's full path, or, for an item of the host's media library
+(§7.10), its path on the device. It is text for the user to read — a front
+shows it among the track's details and never opens or parses it. Left out
+for a track that's only on a service.
 
 ### Playlist
 ```jsonc

@@ -822,6 +822,10 @@
       <translation>Источник</translation>
     </message>
     <message>
+      <source>Location</source>
+      <translation>Расположение</translation>
+    </message>
+    <message>
       <source>Last played</source>
       <translation>Слушали</translation>
     </message>

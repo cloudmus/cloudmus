@@ -36,6 +36,8 @@ class TrackScreen : public QObject {
     Q_PROPERTY(QDateTime lastPlayedAt READ lastPlayedAt NOTIFY lastPlayedAtChanged)
     Q_PROPERTY(bool isExplicit READ isExplicit NOTIFY isExplicitChanged)
     Q_PROPERTY(QString webUrl READ webUrl NOTIFY webUrlChanged)
+    // Where its source keeps it, to read (Track.location): a file's path.
+    Q_PROPERTY(QString location READ location NOTIFY locationChanged)
     Q_PROPERTY(bool liked READ liked NOTIFY likedChanged)
     Q_PROPERTY(bool disliked READ disliked NOTIFY dislikedChanged)
     Q_PROPERTY(bool canPlay READ canPlay NOTIFY canPlayChanged)
@@ -66,6 +68,7 @@ public:
     QDateTime lastPlayedAt() const;
     bool isExplicit() const { return track_.explicit_.value_or(false); }
     QString webUrl() const { return track_.webUrl.value_or(QString()); }
+    QString location() const { return track_.location.value_or(QString()); }
     bool liked() const;
     bool disliked() const;
     bool canPlay() const { return bool(play_); }
@@ -102,6 +105,7 @@ signals:
     void titleChanged();
     void artistChanged();
     void albumChanged();
+    void locationChanged();
     void durationMsChanged();
     void coverUrlChanged();
     void seedChanged();

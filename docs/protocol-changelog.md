@@ -5,6 +5,12 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.23 — where a track is kept
+
+- **Additive, backward-compatible**: optional `Track.location` (§6): a local
+  track's path, shown among its details. Local Folder gives it for its
+  files and for the host's media library items.
+
 ## 1.22 — deleting
 
 - **Additive, backward-compatible**: optional capability `browse.delete`

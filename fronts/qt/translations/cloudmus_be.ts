@@ -517,6 +517,10 @@
         <translation>%1 кбіт/с</translation>
     </message>
     <message>
+        <source>Location</source>
+        <translation>Размяшчэнне</translation>
+    </message>
+    <message>
         <source>Last played</source>
         <translation>Слухалі</translation>
     </message>

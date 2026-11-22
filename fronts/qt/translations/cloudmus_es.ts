@@ -517,6 +517,10 @@
         <translation>%1 kbps</translation>
     </message>
     <message>
+        <source>Location</source>
+        <translation>Ubicación</translation>
+    </message>
+    <message>
         <source>Last played</source>
         <translation>Escuchada</translation>
     </message>

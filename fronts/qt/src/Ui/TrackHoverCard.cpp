@@ -260,12 +260,16 @@ protected:
                 QRect(textLeft, y, labelWidth, labelMetrics.height()), Qt::AlignLeft | Qt::AlignVCenter, row.first);
             painter.setPen(pal.ink);
             painter.drawText(QRect(valueLeft, y, valueWidth, labelMetrics.height()), Qt::AlignLeft | Qt::AlignVCenter,
-                labelMetrics.elidedText(row.second, Qt::ElideRight, valueWidth));
+                labelMetrics.elidedText(row.second, row.first == locationLabel() ? Qt::ElideMiddle : Qt::ElideRight,
+                    valueWidth));
             y += labelMetrics.height() + Theme::Spacing::space1;
         }
     }
 
 private:
+    // A path: its start and its file name both matter, so it's cut in the middle.
+    static QString locationLabel() { return tr("Location"); }
+
     bool hasBadges() const
     {
         return data_.liked.toBool() || data_.disliked.toBool() || data_.track.explicit_.value_or(false);
@@ -282,6 +286,8 @@ private:
             rows_.append({ tr("Quality"), quality });
         if (!data_.sourceName.isEmpty())
             rows_.append({ tr("Source"), data_.sourceName });
+        if (const QString location = data_.track.location.value_or(QString()); !location.isEmpty())
+            rows_.append({ locationLabel(), location });
         rows_.append({ tr("Last played"),
             data_.lastPlayedAt.isValid() ? TrackRowDelegate::formatPlayedAt(data_.lastPlayedAt) : tr("Never") });
     }

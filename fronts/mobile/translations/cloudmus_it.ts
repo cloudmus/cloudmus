@@ -756,6 +756,10 @@
       <translation>Sorgente</translation>
     </message>
     <message>
+      <source>Location</source>
+      <translation>Posizione</translation>
+    </message>
+    <message>
       <source>Last played</source>
       <translation>Ascoltato</translation>
     </message>

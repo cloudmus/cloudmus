@@ -257,10 +257,13 @@ Popup {
     component Fact: RowLayout {
         property alias label: name.text
         property alias value: fact.text
+        // A long one (a path) goes on over more lines, not cut off.
+        property bool wraps: false
         visible: fact.text !== ""
         Layout.fillWidth: true
         Text {
             id: name
+            Layout.alignment: Qt.AlignTop
             color: Theme.inkTertiary
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSmall
@@ -272,6 +275,8 @@ Popup {
             color: Theme.inkSecondary
             font.family: Theme.fontFamily
             font.pixelSize: Theme.fontSmall
+            wrapMode: parent.wraps ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+            maximumLineCount: parent.wraps ? 4 : 1
             elide: Text.ElideRight
         }
     }
@@ -481,6 +486,12 @@ Popup {
                 }
                 Fact { label: qsTr("Quality"); value: sheet.track ? sheet.track.quality : "" }
                 Fact { label: qsTr("Source"); value: sheet.track ? sheet.track.sourceName : "" }
+                Fact {
+                    objectName: "location"
+                    label: qsTr("Location")
+                    value: sheet.track ? sheet.track.location : ""
+                    wraps: true
+                }
                 Fact {
                     label: qsTr("Last played")
                     value: sheet.track && Theme.formatPlayedAt(sheet.track.lastPlayedAt) || qsTr("Never")

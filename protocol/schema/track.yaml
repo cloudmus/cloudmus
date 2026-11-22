@@ -37,4 +37,6 @@ properties:
                                      # when the source knows it before streaming (e.g. a local file)
   bitrateKbps: {type: integer, minimum: 1}   # optional (1.15+); the audio's bitrate in kbit/s, likewise
   deletable: {type: boolean}        # optional (1.22+); catalog.deleteTracks can delete it
+  location: {type: string}          # optional (1.23+); where the track is kept, for the user to read:
+                                     # a file's path, or a folder on the device (docs/protocol.md §6)
 additionalProperties: false

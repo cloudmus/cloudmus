@@ -225,6 +225,7 @@ void TrackScreen::announce()
     emit sourceNameChanged();
     emit isExplicitChanged();
     emit webUrlChanged();
+    emit locationChanged();
     emit canPlayChanged();
     emit canLikeChanged();
     emit canDislikeChanged();
