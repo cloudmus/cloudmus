@@ -603,7 +603,13 @@ Item {
         readonly property bool canClick: panel.nowPlaying !== null && (!radio || panel.playlist !== null)
         iconName: radio ? "refresh" : "shuffle"
         color: !radio && panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
-        onClicked: radio ? panel.playlist.restartRadio() : panel.nowPlaying.toggleShuffle()
+        // The new station is being asked for.
+        busy: radio && panel.playlist !== null && panel.playlist.startingRadio === true
+        onClicked: {
+            if (busy)
+                return
+            radio ? panel.playlist.restartRadio() : panel.nowPlaying.toggleShuffle()
+        }
     }
     component RepeatButton: IconButton {
         iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"

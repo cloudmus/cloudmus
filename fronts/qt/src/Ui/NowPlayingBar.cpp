@@ -440,6 +440,7 @@ void NowPlayingBar::setPlayModes(bool shuffle, Playback::RepeatMode repeat, bool
     // A radio has nothing to shuffle; its button makes the queue anew instead.
     shuffleButton_->setCheckable(!radio);
     shuffleButton_->setChecked(shuffle && !radio);
+    shuffleButton_->setEnabled(!(radio && radioStarting_));
     static_cast<IconHoverButton*>(shuffleButton_)
         ->setIconName(radio ? QStringLiteral("refresh") : QStringLiteral("shuffle"));
     shuffleButton_->setToolTip(radio ? tr("New tracks for the radio")
@@ -451,6 +452,12 @@ void NowPlayingBar::setPlayModes(bool shuffle, Playback::RepeatMode repeat, bool
     repeatButton_->setToolTip(repeat == RepeatMode::All ? tr("Repeat: list")
             : repeat == RepeatMode::One                 ? tr("Repeat: track")
                                                         : tr("Repeat: off"));
+}
+
+void NowPlayingBar::setRadioStarting(bool starting)
+{
+    radioStarting_ = starting;
+    shuffleButton_->setEnabled(!(radio_ && starting));
 }
 
 void NowPlayingBar::setTrackWebUrl(const QString& url)

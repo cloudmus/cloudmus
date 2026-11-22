@@ -15,6 +15,9 @@ AbstractButton {
     property real fillAmount: filled ? 1 : 0
     property int size: Theme.touch
     property int iconSize: Math.round(size * 0.5)
+    // A request it made is under way: a spinner in place of the icon, and
+    // further presses do nothing until it's done.
+    property bool busy: false
 
     // Controls fill a layout's width by default since Qt 6.5; an icon
     // button keeps its size.
@@ -66,6 +69,15 @@ AbstractButton {
             anchors.centerIn: parent
             icon: control.icon
             display: AbstractButton.IconOnly
+            visible: !control.busy
+        }
+        Spinner {
+            anchors.centerIn: parent
+            width: control.iconSize
+            height: control.iconSize
+            lineWidth: Math.max(Theme.dp(2), control.iconSize / 10)
+            running: control.busy
+            color: control.icon.color
         }
     }
 

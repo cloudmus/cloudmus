@@ -66,6 +66,9 @@ public:
     // radio's — shuffle is then unavailable, and repeat only toggles
     // between off and the current track.
     void setPlayModes(bool shuffle, Playback::RepeatMode repeat, bool radio);
+    // A radio's new station is being asked for: its button (shuffle's)
+    // waits, disabled, until that's done.
+    void setRadioStarting(bool starting);
     // Enables the "open track page" button iff url is non-empty (a track
     // without a webUrl, or no current track at all — pass an empty
     // string either way), and is what that button opens on click. Handled
@@ -193,6 +196,7 @@ private:
     QString currentWebUrl_;
     Playback::RepeatMode repeat_ = Playback::RepeatMode::Off;
     bool radio_ = false;
+    bool radioStarting_ = false;
 
     // Last known non-busy state, restored by setLikeBusy(false)/
     // setDislikeBusy(false) rather than recomputed — a busy transition

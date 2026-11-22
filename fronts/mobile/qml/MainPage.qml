@@ -289,7 +289,13 @@ Page {
                     enabled: page.nowPlaying && (!radio || page.playlist !== null)
                     iconName: radio ? "refresh" : "shuffle"
                     color: !radio && page.nowPlaying && page.nowPlaying.shuffle === true ? Theme.accent : "#FFFFFF"
-                    onClicked: radio ? page.playlist.restartRadio() : page.nowPlaying.toggleShuffle()
+                    // The new station is being asked for.
+                    busy: radio && page.playlist !== null && page.playlist.startingRadio === true
+                    onClicked: {
+                        if (busy)
+                            return
+                        radio ? page.playlist.restartRadio() : page.nowPlaying.toggleShuffle()
+                    }
                 }
                 IconButton {
                     objectName: "topRepeat"

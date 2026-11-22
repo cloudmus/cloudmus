@@ -74,8 +74,8 @@
 
 namespace Ui {
 
-using ViewModel::TrackListModel;
 using ViewModel::trackCountText;
+using ViewModel::TrackListModel;
 
 namespace {
 // Warning-level, so it always shows regardless of --debug/CLOUDMUS_QT_DEBUG
@@ -260,7 +260,8 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
         sources_.setCollapsed(key, expanded != ViewModel::SidebarModel::expandedByDefault(key));
     };
     connect(sidebarView_, &QTreeView::expanded, this, [remember](const QModelIndex& index) { remember(index, true); });
-    connect(sidebarView_, &QTreeView::collapsed, this, [remember](const QModelIndex& index) { remember(index, false); });
+    connect(
+        sidebarView_, &QTreeView::collapsed, this, [remember](const QModelIndex& index) { remember(index, false); });
     connect(sidebarView_, &QTreeView::clicked, this, &MainWindow::onSidebarActivated);
     connect(sidebarView_, &QTreeView::doubleClicked, this, &MainWindow::onSidebarDoubleClicked);
     // A playlist has two actions: Enter opens its page, Space plays it. A
@@ -647,6 +648,7 @@ void MainWindow::bindActivePlaylist()
             restoreTrackPositionPending_ = true;
     });
     connect(&activePlaylist_, &ActivePlaylist::startingRadioChanged, heroPanel_, &HeroPanel::setPlayBusy);
+    connect(&activePlaylist_, &ActivePlaylist::startingRadioChanged, nowPlayingBar_, &NowPlayingBar::setRadioStarting);
     // Playing something from the sheet (or the sidebar) brings the main
     // area back to front.
 
@@ -661,6 +663,7 @@ void MainWindow::bindActivePlaylist()
     refreshHero();
     trackListBusyIndicator_->setVisible(activePlaylist_.isLoading());
     heroPanel_->setPlayBusy(activePlaylist_.isStartingRadio());
+    nowPlayingBar_->setRadioStarting(activePlaylist_.isStartingRadio());
     syncSidebarSelection();
 }
 
@@ -1076,8 +1079,8 @@ void MainWindow::confirmDeleteTracks(const QString& sourceId, const QList<Track>
 {
     const QString heading = tracks.size() == 1 ? tr("Delete \"%1\" from the disk?").arg(tracks.first().title)
                                                : tr("Delete %n track(s) from the disk?", nullptr, int(tracks.size()));
-    InfoDialog dialog(tr("Delete"), heading, tr("Deleted files can't be brought back."), tr("Delete"), this,
-        tr("Cancel"));
+    InfoDialog dialog(
+        tr("Delete"), heading, tr("Deleted files can't be brought back."), tr("Delete"), this, tr("Cancel"));
     if (dialog.exec() != QDialog::Accepted)
         return;
     QStringList ids;
@@ -1169,9 +1172,8 @@ void MainWindow::showTrackMenu(
     if (radioSupported) {
         menu->addSeparator();
         menu->addAction(Theme::icon(QStringLiteral("radio"), Theme::IconColor::Ink, 16),
-            tr("Start Radio from This Track"), this, [this, sourceId, track]() {
-                trackActions_.startRadio(sourceId, track, tr("Radio: %1").arg(track.title));
-            });
+            tr("Start Radio from This Track"), this,
+            [this, sourceId, track]() { trackActions_.startRadio(sourceId, track, tr("Radio: %1").arg(track.title)); });
     }
 
     if (!webUrl.isEmpty() || downloadSupported) {
@@ -1192,8 +1194,8 @@ void MainWindow::showTrackMenu(
 
     if (trackDeletion_.canDelete(sourceId, track)) {
         menu->addSeparator();
-        menu->addAction(Theme::icon(QStringLiteral("delete"), Theme::IconColor::Ink, 16), tr("Delete from Disk…"),
-            this, [this, sourceId, track]() { confirmDeleteTracks(sourceId, { track }); });
+        menu->addAction(Theme::icon(QStringLiteral("delete"), Theme::IconColor::Ink, 16), tr("Delete from Disk…"), this,
+            [this, sourceId, track]() { confirmDeleteTracks(sourceId, { track }); });
     }
 
     Theme::popupMenu(menu, globalPos);
