@@ -71,6 +71,10 @@ signals:
 
 private:
     void trimFiles();
+    QString filePath(const QString& url) const;
+    // Writes the cover as localFile()'s file, made smaller if it's huge; the
+    // path, or empty if it can't be written.
+    QString writeFile(const QString& url, const QImage& image);
     friend class RoutingProxyFactory;
 
     // `requestUrl`: where to fetch from — `url` itself, or where it
@@ -89,6 +93,10 @@ private:
     QCache<QString, QImage> sourceCache_;
     // Url being fetched -> the sizes asked for meanwhile.
     QHash<QString, QList<QSize>> inFlight_;
+    // Urls localFile() was asked for and is fetching: their files are
+    // written as they come, as sourceCache_ may not keep a large one (or
+    // may have let it go again by the time it's asked for once more).
+    QSet<QString> filesWanted_;
     QHash<QString, QString> sourceForUrl_;
     ProxyProvider proxyProvider_;
     Fitter fitter_;

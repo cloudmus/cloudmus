@@ -38,6 +38,7 @@ QObject* makeAudioPulseTest();
 QObject* makeStarPromptTest();
 QObject* makePathsTest();
 QObject* makeTrackStatesTest();
+QObject* makeCoverArtCacheTest();
 QObject* makeTimingTest();
 QObject* makeSequenceTest();
 QObject* makeSingleInstanceTest();
@@ -62,7 +63,7 @@ int main(int argc, char** argv)
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
     for (auto make : { Tests::makeRpcClientTest, Tests::makeConnectivityTest, Tests::makeOutboxTest, Tests::makeTrackListUpdateTest, Tests::makeSourceSettingsTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest, Tests::makeRemotingTest,
-             Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeActivePlaylistTest,
+             Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeCoverArtCacheTest, Tests::makeActivePlaylistTest,
              Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
              Tests::makeTrackCacheTest, Tests::makeAudioFileProbeTest, Tests::makePreloaderTest,
              Tests::makePlaybackPreloadTest, Tests::makePreloadTest, Tests::makeTrackFileTest,

@@ -30,6 +30,8 @@ constexpr int kSourceCacheBytes = 24 * 1024 * 1024;
 // browsers to read; only the mobile front asks for any.
 constexpr qint64 kFilesMaxBytes = qint64(200) * 1024 * 1024;
 constexpr int kFilesTrimDelayMs = 30000;
+// The largest side of a cover's file.
+constexpr int kFileSide = 1024;
 } // namespace
 
 // Asks the cache, per request, which proxy that URL's source uses —
@@ -78,25 +80,42 @@ void CoverArtCache::trimFiles()
     }
 }
 
+QString CoverArtCache::filePath(const QString& url) const
+{
+    const QString name = QString::fromLatin1(QCryptographicHash::hash(url.toUtf8(), QCryptographicHash::Sha1).toHex());
+    return filesDir_ + QLatin1Char('/') + name + QStringLiteral(".jpg");
+}
+
 QString CoverArtCache::localFile(const QString& url)
 {
     if (url.isEmpty())
         return { };
-    const QString name = QString::fromLatin1(QCryptographicHash::hash(url.toUtf8(), QCryptographicHash::Sha1).toHex());
-    const QString file = filesDir_ + QLatin1Char('/') + name + QStringLiteral(".jpg");
+    const QString file = filePath(url);
     if (QFile::exists(file))
         return file;
     const QImage* image = sourceCache_.object(url);
     if (image == nullptr) {
+        filesWanted_.insert(url);
         request(url);
         return { };
     }
+    return writeFile(url, *image);
+}
+
+QString CoverArtCache::writeFile(const QString& url, const QImage& image)
+{
+    const QString file = filePath(url);
     if (!Playback::DiskSpace::hasRoom(filesDir_))
         return { };
     QDir().mkpath(filesDir_);
+    // A local file's own picture can be thousands of pixels wide: more than
+    // any screen shows a cover at, and slow for the other process to load.
+    const QImage fitted = image.width() > kFileSide || image.height() > kFileSide
+        ? image.scaled(kFileSide, kFileSide, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+        : image;
     // Written whole under another name: the other process may read it at once.
     const QString partial = file + QStringLiteral(".part");
-    if (!image->save(partial, "JPG", 90) || !QFile::rename(partial, file)) {
+    if (!fitted.save(partial, "JPG", 90) || !QFile::rename(partial, file)) {
         qCWarning(lcCovers) << "can't write the cover to" << file;
         QFile::remove(partial);
         return { };
@@ -199,17 +218,21 @@ void CoverArtCache::fetch(const QString& url, const QUrl& requestUrl, int redire
         }
         const QList<QSize> sizes = inFlight_.take(url);
         if (reply->error() != QNetworkReply::NoError) {
+            filesWanted_.remove(url);
             qCWarning(lcCovers) << "fetching" << url << "failed:" << reply->errorString();
             return;
         }
 
         QImage full;
         if (!full.loadFromData(reply->readAll())) {
+            filesWanted_.remove(url);
             qCWarning(lcCovers) << "can't decode the cover" << url;
             return;
         }
         for (const QSize& size : sizes)
             store(url, size, full);
+        if (filesWanted_.remove(url))
+            writeFile(url, full);
         // After the sizes above: an insert that doesn't fit deletes the image.
         sourceCache_.insert(url, new QImage(full), static_cast<int>(full.sizeInBytes()));
         emit pixmapReady(url);

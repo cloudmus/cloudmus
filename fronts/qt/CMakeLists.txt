@@ -573,6 +573,7 @@ add_executable(cloudmus-qt-tests
     tests/RemotingTest.cpp
     tests/PlaylistEditingTest.cpp
     tests/SourcesTest.cpp
+    tests/CoverArtCacheTest.cpp
     tests/ActivePlaylistTest.cpp
     tests/BrowseTest.cpp
     tests/DownloadsTest.cpp
