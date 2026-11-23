@@ -42,6 +42,21 @@ Flickable {
             contentY = Math.max(0, top)
     }
     onKeyboardOverlapChanged: Qt.callLater(revealFocused)
+
+    // A Flickable leaves contentY where it was as the content gets shorter (or
+    // the area taller): scrolled down a long page, a short one that comes in
+    // its place would show only the room past its end. Back within bounds.
+    function _clamp() {
+        if (moving || dragging)
+            return
+        const end = Math.max(0, contentHeight + bottomMargin - height)
+        if (contentY > end)
+            contentY = end
+    }
+    onContentHeightChanged: Qt.callLater(_clamp)
+    onHeightChanged: Qt.callLater(_clamp)
+    onBottomMarginChanged: Qt.callLater(_clamp)
+    onMovementEnded: _clamp()
     Connections {
         target: area.Window.window
         function onActiveFocusItemChanged() { Qt.callLater(area.revealFocused) }

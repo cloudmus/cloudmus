@@ -257,6 +257,12 @@ Page {
                 clip: true
                 contentWidth: width
                 contentHeight: column.implicitHeight + Theme.padding * 2
+                // Another source: its playlists from the top.
+                Connections {
+                    target: page.library
+                    ignoreUnknownSignals: true
+                    function onCurrentSourceIdChanged() { content.contentY = 0 }
+                }
 
                 ColumnLayout {
                     id: column

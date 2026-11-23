@@ -1467,6 +1467,32 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("miniPlayerEverywhere"), "toggled", Q_ARG(bool, true)));
     }
 
+    // Scrolled down long content that then gets short (another source's
+    // playlists): it's back in view, not scrolled past its end.
+    void scrollAreaStaysWithinShorterContent()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            ScrollArea {
+                width: 400; height: 600
+                contentWidth: width
+                contentHeight: 3000
+            }
+        )", QUrl());
+        std::unique_ptr<QObject> area(component.create());
+        QVERIFY2(area, qPrintable(component.errorString()));
+        QVERIFY(area->setProperty("contentY", 2400));
+        QVERIFY(area->setProperty("contentHeight", 400));
+        QTRY_COMPARE(area->property("contentY").toReal(), 0.0);
+        QVERIFY(area->setProperty("contentHeight", 3000));
+        QVERIFY(area->setProperty("contentY", 2400));
+        QVERIFY(area->setProperty("contentHeight", 1000));
+        QTRY_COMPARE(area->property("contentY").toReal(), 400.0);
+    }
+
     // The same seed gives the same picture, another seed another, opaque
     // edge to edge, at the size asked for.
     void auraDependsOnTheSeed()
