@@ -496,26 +496,22 @@ Item {
                     }
                 }
                 // What a queue does: not on the dev tracks, which don't have them.
-                // Moved together, for them to keep their order.
+                // Only their room is here; the buttons are the panel's own (below),
+                // each going between this slot and the mini player's.
                 RowLayout {
+                    id: modesSlots
                     parent: panel.modesUnderSeek ? seekBar.center : titleRow
-                    visible: panel.modesElsewhere < 1 && panel.nowPlaying && panel.nowPlaying.repeat !== undefined
+                    visible: panel.modesElsewhere < 1 && panel._hasModes
                     spacing: 0
-                    ShuffleButton {
-                        objectName: "shuffleButton"
+                    Item {
+                        id: shuffleSlot
                         Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
-                        // Faded out in a mini player, but keeping its room: going, it'd
-                        // widen the title's slot at once.
-                        opacity: (1 - panel.modesElsewhere) * panel._fullOnly
-                        visible: panel.modesElsewhere < 1 && panel._hasModes
-                        enabled: panel._fullOnly > 0 && canClick
+                        Layout.preferredHeight: Theme.touch
                     }
-                    RepeatButton {
-                        objectName: "repeatButton"
+                    Item {
+                        id: repeatSlot
                         Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
-                        opacity: (1 - panel.modesElsewhere) * panel._fullOnly
-                        visible: panel.modesElsewhere < 1 && panel._hasModes
-                        enabled: panel._fullOnly > 0
+                        Layout.preferredHeight: Theme.touch
                     }
                 }
                 IconButton {
@@ -617,24 +613,37 @@ Item {
         onClicked: panel.nowPlaying.cycleRepeat()
     }
 
-    // The mini player's shuffle and repeat, right of the title: as the full
-    // panel's fade out, these come in from a little to the right.
-    Row {
-        id: miniModes
-        objectName: "miniModes"
-        readonly property real _slide: Theme.dp(24) * (1 - panel._miniOnly)
-        x: panel.miniRect.x + panel.miniRect.width - panel._miniPad + Theme.dp(4) - width + _slide
-        y: panel._miniTop + (panel._miniCover - height) / 2
-        opacity: panel._miniOnly
+    // Shuffle and repeat: one pair, going from their slot beside the title (or
+    // under the seek bar) to the right of the mini player's title. Always
+    // enabled, so they don't change colour on the way.
+    // The slot's place in the panel's coordinates; the reads name what moves it.
+    function _slotPoint(slot) {
+        width; height; progress; details.x; details.y; details.width; details.height
+        titleRow.width; titleRow.height; seekBar.width; seekBar.height
+        slot.x; slot.y; slot.width; slot.height
+        return slot.mapToItem(panel, 0, 0)
+    }
+    function _modeX(slot, index) {
+        return _fold(_slotPoint(slot).x, miniRect.x + miniRect.width - _miniPad + Theme.dp(4)
+                                         - Theme.touch * 2 + Theme.touch * index)
+    }
+    function _modeY(slot) {
+        return _fold(_slotPoint(slot).y, _miniTop + (_miniCover - Theme.touch) / 2)
+    }
+    ShuffleButton {
+        objectName: "shuffleButton"
+        x: panel._modeX(shuffleSlot, 0)
+        y: panel._modeY(shuffleSlot)
+        opacity: panel._fold(1 - panel.modesElsewhere, 1)
         visible: panel._hasModes && opacity > 0
-        ShuffleButton {
-            objectName: "miniShuffle"
-            enabled: panel._miniOnly >= 1 && canClick
-        }
-        RepeatButton {
-            objectName: "miniRepeat"
-            enabled: panel._miniOnly >= 1
-        }
+        enabled: canClick
+    }
+    RepeatButton {
+        objectName: "repeatButton"
+        x: panel._modeX(repeatSlot, 1)
+        y: panel._modeY(repeatSlot)
+        opacity: panel._fold(1 - panel.modesElsewhere, 1)
+        visible: panel._hasModes && opacity > 0
     }
 
     // Kept at the size it has here and scaled down for the mini player: at a

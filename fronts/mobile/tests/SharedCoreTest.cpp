@@ -642,7 +642,7 @@ private slots:
         {
             auto* title = findItem(page, QStringLiteral("trackTitle"));
             const QRectF titleAt = title->mapRectToScene(title->boundingRect());
-            for (const char* name : { "miniShuffle", "miniRepeat" }) {
+            for (const char* name : { "shuffleButton", "repeatButton" }) {
                 auto* button = findItem(page, QLatin1String(name));
                 QVERIFY2(button, name);
                 QTRY_VERIFY2(button->isVisible() && button->isEnabled(), name);
@@ -651,7 +651,7 @@ private slots:
                 QVERIFY2(at.left() >= titleAt.left() + title->width() * title->scale() - 1, name);
             }
             const int repeat = core.nowPlaying().repeat();
-            QVERIFY(QMetaObject::invokeMethod(findItem(page, QStringLiteral("miniRepeat")), "clicked"));
+            QVERIFY(QMetaObject::invokeMethod(findItem(page, QStringLiteral("repeatButton")), "clicked"));
             QTRY_VERIFY(core.nowPlaying().repeat() != repeat);
             while (core.nowPlaying().repeat() != repeat)
                 core.nowPlaying().cycleRepeat();
@@ -686,8 +686,7 @@ private slots:
         QTRY_COMPARE(progress(), 1.0);
         // All of the screen, the cover as large as the width allows.
         QCOMPARE(surface->y(), 0.0);
-        // The mini player's modes are gone; the panel's own are there.
-        QVERIFY(!findItem(page, QStringLiteral("miniShuffle"))->isVisible());
+        // The same buttons, moved to the panel's slots.
         QVERIFY(findItem(page, QStringLiteral("shuffleButton"))->isVisible());
         QVERIFY(findItem(page, QStringLiteral("trackCover"))->width() > 300);
         // It says what it plays from.
