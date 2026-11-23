@@ -7,7 +7,7 @@ import Cloudmus.Mobile
 // further, on DeveloperPage.
 Page {
     id: page
-    bottomPadding: Theme.insetBottom
+    bottomPadding: Theme.pageInsetBottom
 
     property QtObject backend
     property QtObject platform
@@ -252,6 +252,14 @@ Page {
                             }
                         }
                     }
+                }
+                // A head unit has the track on its main screen, and no mini player.
+                SettingSwitch {
+                    objectName: "miniPlayerEverywhere"
+                    visible: page.width <= page.height * 1.1
+                    title: qsTr("Mini player on every screen")
+                    checked: page.ui.miniPlayerEverywhere
+                    onToggled: (checked) => page.ui.miniPlayerEverywhere = checked
                 }
                 SettingsCell {
                     visible: page.localizer !== null

@@ -7,7 +7,7 @@ import Cloudmus.Mobile
 // lines at the bottom, followed until scrolled up.
 Page {
     id: page
-    bottomPadding: Theme.insetBottom
+    bottomPadding: Theme.pageInsetBottom
 
     property QtObject backend
     property QtObject platform

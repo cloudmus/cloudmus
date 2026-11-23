@@ -9,7 +9,7 @@ import QtQuick.Layouts
 // indicator on the main screen.
 Page {
     id: page
-    bottomPadding: Theme.insetBottom
+    bottomPadding: Theme.pageInsetBottom
 
     property QtObject backend
     property QtObject platform

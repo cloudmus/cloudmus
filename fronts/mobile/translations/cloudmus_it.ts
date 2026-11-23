@@ -745,6 +745,10 @@
       <translation>Scala</translation>
     </message>
     <message>
+      <source>Mini player on every screen</source>
+      <translation>Mini lettore in ogni schermata</translation>
+    </message>
+    <message>
       <source>App</source>
       <translation>App</translation>
     </message>

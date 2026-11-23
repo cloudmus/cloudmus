@@ -745,6 +745,10 @@
       <translation>Skalierung</translation>
     </message>
     <message>
+      <source>Mini player on every screen</source>
+      <translation>Mini-Player auf jedem Bildschirm</translation>
+    </message>
+    <message>
       <source>App</source>
       <translation>App</translation>
     </message>

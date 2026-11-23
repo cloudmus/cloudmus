@@ -110,6 +110,11 @@ QtObject {
     // navigation bar it goes on under.
     readonly property int miniPlayerContent: dp(124)
     readonly property int miniPlayerHeight: miniPlayerContent + insetBottom
+    // The mini player over the pages other than the main one too (Main.qml).
+    property bool miniPlayerOnPages: false
+    // What a page leaves clear at its bottom: the navigation bar, or the mini
+    // player that goes on under it.
+    readonly property int pageInsetBottom: miniPlayerOnPages ? miniPlayerHeight : insetBottom
 
     // Fling physics (ScrollList): Qt's defaults (2500, 1500) cut a fast
     // swipe short and stop it hard. These felt native on a Pixel 7; still

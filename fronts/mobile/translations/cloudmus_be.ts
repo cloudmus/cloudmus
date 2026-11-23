@@ -750,6 +750,10 @@
       <translation>Маштаб</translation>
     </message>
     <message>
+      <source>Mini player on every screen</source>
+      <translation>Міні-плэер на ўсіх экранах</translation>
+    </message>
+    <message>
       <source>App</source>
       <translation>Праграма</translation>
     </message>

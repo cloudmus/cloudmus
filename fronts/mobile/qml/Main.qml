@@ -34,6 +34,8 @@ ApplicationWindow {
         property bool touchCompression: false
         property bool showFps: false
         property bool dynamicBlur: true
+        // A phone's mini player over every page, not just the main one.
+        property bool miniPlayerEverywhere: true
     }
 
     Binding {
@@ -178,6 +180,53 @@ ApplicationWindow {
         }
         Keys.onEscapePressed: goBack()
         focus: true
+        // Receding as Now Playing comes up over a page that's not the main
+        // one, which does so itself.
+        readonly property real _recede: player.everywhere && depth > 1 ? nowPlayingSheet.progress : 0
+        scale: 1 - 0.06 * _recede
+        opacity: 1 - 0.6 * _recede
+    }
+
+    // A phone's player: the mini player at the bottom and Now Playing grown out
+    // of it (NowPlayingPage). Over every page, staying put as they come and go;
+    // or, set so, on the main page only, going with it.
+    Item {
+        id: playerLayer
+        parent: pages
+        // Over the stack whichever of the two got into `pages` first.
+        z: 1
+        anchors.fill: stack
+        visible: stack.visible
+        // Now Playing lets presses through: none reach the page it's over.
+        MouseArea {
+            anchors.fill: parent
+            enabled: player.parent === playerLayer && nowPlayingSheet.progress >= 1
+        }
+    }
+    property Item mainPageItem: null
+    Binding { target: Theme; property: "miniPlayerOnPages"; value: player.everywhere && player.visible && stack.depth > 1 }
+    // Not made on a head unit: its cover would be decoded for nothing at every
+    // change of track.
+    Loader {
+        id: player
+        readonly property bool everywhere: uiSettings.miniPlayerEverywhere
+        parent: everywhere || !window.mainPageItem ? playerLayer : window.mainPageItem.playerSlot
+        anchors.fill: parent
+        active: nowPlayingSheet.narrow
+        visible: active && (nowPlayingSheet.shown
+            || (window.backend.nowPlaying !== null && window.backend.nowPlaying.hasTrack === true))
+        sourceComponent: NowPlayingPage {
+            objectName: "nowPlaying"
+            backend: window.backend
+            platform: window.platform
+            progress: nowPlayingSheet.progress
+            swipeEnabled: !trackSheet.visible
+            onOpenRequested: nowPlayingSheet.open()
+            onCloseRequested: nowPlayingSheet.close()
+            onTrackMenuRequested: trackSheet.open()
+            onDragged: (share) => nowPlayingSheet.follow(share)
+            onDragEnded: (velocity, fromOpen) => nowPlayingSheet.settleAfterDrag(velocity, fromOpen)
+        }
     }
 
     Component {
@@ -200,6 +249,7 @@ ApplicationWindow {
                 stack.open(libraryPage)
             }
             onTrackMenuRequested: trackSheet.open()
+            Component.onCompleted: window.mainPageItem = this
         }
     }
     Component {

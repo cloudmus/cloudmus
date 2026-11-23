@@ -745,6 +745,10 @@
       <translation>Échelle</translation>
     </message>
     <message>
+      <source>Mini player on every screen</source>
+      <translation>Mini-lecteur sur tous les écrans</translation>
+    </message>
+    <message>
       <source>App</source>
       <translation>Application</translation>
     </message>

@@ -8,7 +8,7 @@ import QtQuick.Layouts
 // other playlists in a list, where a star makes one a favorite.
 Page {
     id: page
-    bottomPadding: Theme.insetBottom
+    bottomPadding: Theme.pageInsetBottom
 
     property QtObject backend
     property QtObject platform

@@ -550,23 +550,11 @@ Page {
         }
     }
 
-    // Not made on a head unit: its cover would be decoded for nothing at every
-    // change of track.
-    Loader {
+    // Where a phone's player (NowPlayingPage, Main.qml) is when it's on this
+    // page only: it goes with the page as others come over it.
+    readonly property Item playerSlot: slot
+    Item {
+        id: slot
         anchors.fill: parent
-        active: !page.wide
-        visible: page.hasTrack || page.nowPlayingProgress > 0
-        sourceComponent: NowPlayingPage {
-            objectName: "nowPlaying"
-            backend: page.backend
-            platform: page.platform
-            progress: page.nowPlayingProgress
-            swipeEnabled: page.gesturesEnabled
-            onOpenRequested: page.nowPlayingRequested()
-            onCloseRequested: page.nowPlayingCloseRequested()
-            onTrackMenuRequested: page.trackMenuRequested()
-            onDragged: (share) => page.nowPlayingDragged(share)
-            onDragEnded: (velocity, fromOpen) => page.nowPlayingDragEnded(velocity, fromOpen)
-        }
     }
 }

@@ -1409,6 +1409,64 @@ private slots:
         QVERIFY(theme->setProperty("dark", true));
     }
 
+    // On a phone the mini player stays over the other pages too, which keep
+    // clear of it; set so, it's the main page's only.
+    void miniPlayerOverEveryPage()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(420, 860);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
+        auto* stack = window->findChild<QQuickItem*>("stack");
+        QVERIFY(theme && stack);
+        QTRY_VERIFY(window->findChild<QQuickItem*>("nowPlaying") != nullptr);
+        auto* mini = window->findChild<QQuickItem*>("nowPlaying");
+        QTRY_VERIFY(mini->isVisible());
+
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "settingsRequested"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        QTRY_VERIFY(!stack->property("busy").toBool());
+        auto* settings = window->findChild<QQuickItem*>("settings");
+        QVERIFY(settings);
+        QVERIFY(mini->isVisible());
+        QCOMPARE(settings->property("bottomPadding").toReal(), theme->property("miniPlayerHeight").toReal());
+        // Over the page, a tap on it still opens Now Playing.
+        auto* sheet = window->findChild<QQuickItem*>("nowPlayingSheet");
+        QVERIFY(sheet);
+        QTest::mouseClick(window, Qt::LeftButton, { }, QPoint(200, 860 - 100));
+        QTRY_COMPARE(sheet->property("progress").toReal(), 1.0);
+        QVERIFY(QMetaObject::invokeMethod(sheet, "close"));
+        QTRY_COMPARE(sheet->property("progress").toReal(), 0.0);
+
+        // Off: gone from this page, the room with it, and back on the main one.
+        auto* everywhere = window->findChild<QQuickItem*>("miniPlayerEverywhere");
+        QVERIFY(everywhere);
+        QVERIFY(QMetaObject::invokeMethod(everywhere, "toggled", Q_ARG(bool, false)));
+        QTRY_VERIFY(!mini->isVisible());
+        QCOMPARE(settings->property("bottomPadding").toReal(), theme->property("insetBottom").toReal());
+        QVERIFY(QMetaObject::invokeMethod(stack, "close"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 1);
+        QTRY_VERIFY(mini->isVisible());
+        // As it was, for the tests after.
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "settingsRequested"));
+        QTRY_VERIFY(window->findChild<QQuickItem*>("miniPlayerEverywhere") != nullptr);
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("miniPlayerEverywhere"), "toggled", Q_ARG(bool, true)));
+    }
+
     // The same seed gives the same picture, another seed another, opaque
     // edge to edge, at the size asked for.
     void auraDependsOnTheSeed()

@@ -7,7 +7,7 @@ import QtQuick.Layouts
 // them, saving it, a star for the favorites, a filter.
 Page {
     id: page
-    bottomPadding: Theme.insetBottom
+    bottomPadding: Theme.pageInsetBottom
 
     property QtObject backend
     property QtObject platform

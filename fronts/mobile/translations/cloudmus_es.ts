@@ -745,6 +745,10 @@
       <translation>Escala</translation>
     </message>
     <message>
+      <source>Mini player on every screen</source>
+      <translation>Minirreproductor en todas las pantallas</translation>
+    </message>
+    <message>
       <source>App</source>
       <translation>Aplicación</translation>
     </message>
