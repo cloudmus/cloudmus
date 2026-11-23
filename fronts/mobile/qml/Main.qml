@@ -47,6 +47,8 @@ ApplicationWindow {
     Binding { target: Theme; property: "insetTop"; value: Math.floor(window.platform.insetTop / Screen.devicePixelRatio) }
     Binding { target: Theme; property: "insetBottom"; value: Math.round(window.platform.insetBottom / Screen.devicePixelRatio) }
     Binding { target: Theme; property: "insetKeyboard"; value: Math.round(window.platform.insetKeyboard / Screen.devicePixelRatio) }
+    Binding { target: Theme; property: "insetLeft"; value: Math.round(window.platform.insetLeft / Screen.devicePixelRatio) }
+    Binding { target: Theme; property: "insetRight"; value: Math.round(window.platform.insetRight / Screen.devicePixelRatio) }
     function applyAppearance() {
         window.platform.setAppearance(uiSettings.colorScheme, Theme.dark, Theme.surface100.toString(), Theme.windowBackground.toString())
     }
@@ -133,8 +135,8 @@ ApplicationWindow {
         anchors.fill: parent
         // A bar on the side, on a phone on its side: only the bottom is drawn under.
         anchors.topMargin: Theme.insetTop
-        anchors.leftMargin: Math.round(window.platform.insetLeft / Screen.devicePixelRatio)
-        anchors.rightMargin: Math.round(window.platform.insetRight / Screen.devicePixelRatio)
+        anchors.leftMargin: Theme.insetLeft
+        anchors.rightMargin: Theme.insetRight
         visible: window.backend.ready
         initialItem: mainPage
 

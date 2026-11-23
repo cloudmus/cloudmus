@@ -6,14 +6,18 @@ import QtQuick.Templates as T
 // The menu a button drops: opens under its parent button, its right edges
 // lined up. Its panel unfolds downwards, then the entries come in one
 // after another, each sliding down a little as it fades in, as Android's own
-// menus do. Fill it with DropMenuItems. Every dropdown menu is this, so they
-// all appear the same way.
+// menus do. With `upwards` it's all the other way round, for a button at the
+// bottom of the screen: it opens over the button, unfolds upwards, and the
+// entries come in from the bottom one, sliding up. Fill it with
+// DropMenuItems. Every dropdown menu is this, so they all appear the same way.
 Menu {
     id: menu
 
+    // Opens over the button rather than under it.
+    property bool upwards: false
     // 0 → 1 while it opens: how far the panel has unfolded.
     property real unfold: 1
-    // Only downwards: a panel widening to the left reads as the menu jumping
+    // Only up or down: a panel widening to the left reads as the menu jumping
     // sideways, the more so when the first frames come late.
     readonly property real _panelWidth: width
     readonly property real _panelHeight: height * (0.3 + 0.7 * unfold)
@@ -34,13 +38,23 @@ Menu {
         if (!anchor || !parent)
             return
         const center = anchor.mapToItem(parent, anchor.width / 2, anchor.height / 2)
-        x = Math.round(center.x + anchor.width / 2 - width)
-        y = Math.round(center.y + anchor.height / 2)
+        // Clear of the window's edges and the system's bars at the sides. A
+        // button at the left (a head unit's) has its left edge lined up
+        // instead, rather than the menu going off past it.
+        const left = Theme.insetLeft + _edge
+        const right = parent.width - Theme.insetRight - _edge
+        let at = center.x + anchor.width / 2 - width
+        if (at < left)
+            at = center.x - anchor.width / 2
+        x = Math.round(Math.max(left, Math.min(at, right - width)))
+        y = Math.round(upwards ? center.y - anchor.height / 2 - height
+                               : center.y + anchor.height / 2)
     }
     // As wide as its longest entry, within bounds: a long label elides only
     // past the widest a menu gets. Set as it opens (_fit()), for the entries
     // available then.
     width: Theme.dp(200)
+    readonly property real _edge: Theme.dp(8)
     function _fit() {
         let widest = 0
         for (let i = 0; i < count; ++i) {
@@ -48,7 +62,7 @@ Menu {
             if (entry && entry.available !== false)
                 widest = Math.max(widest, entry.naturalWidth !== undefined ? entry.naturalWidth : entry.implicitWidth)
         }
-        const room = parent ? parent.width - Theme.dp(16) : Theme.dp(360)
+        const room = parent ? parent.width - Theme.insetLeft - Theme.insetRight - _edge * 2 : Theme.dp(360)
         width = Math.round(Math.max(Theme.dp(200), Math.min(widest + leftPadding + rightPadding, Theme.dp(360), room)))
     }
     padding: Theme.dp(4)
@@ -62,7 +76,8 @@ Menu {
     background: Item {
         Rectangle {
             anchors.right: parent.right
-            anchors.top: parent.top
+            // Growing away from the button.
+            y: menu.upwards ? parent.height - height : 0
             width: menu._panelWidth
             height: menu._panelHeight
             radius: Theme.radius
@@ -93,7 +108,7 @@ Menu {
         Item {
             id: window
             x: menu.width - menu._panelWidth - menu.leftPadding
-            y: -menu.topPadding
+            y: menu.upwards ? menu.height - menu.topPadding - menu._panelHeight : -menu.topPadding
             width: menu._panelWidth
             height: menu._panelHeight
             clip: true
@@ -109,15 +124,17 @@ Menu {
 
     onAboutToShow: {
         _fit()
-        _place()
         // An entry that came or went while it was closed isn't placed yet:
-        // the first frame would have the old height.
+        // the first frame would have the old height. Before placing: over
+        // the button it's placed by its height.
         entries.forceLayout()
+        _place()
+        // The one nearest the button first.
         let shown = 0
-        for (let i = 0; i < count; ++i) {
-            const entry = itemAt(i)
+        for (let n = 0; n < count; ++n) {
+            const entry = itemAt(upwards ? count - 1 - n : n)
             if (entry && entry.available && entry.appear)
-                entry.appear(60 + shown++ * 35)
+                entry.appear(60 + shown++ * 35, upwards)
         }
     }
 

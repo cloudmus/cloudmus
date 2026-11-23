@@ -12,10 +12,14 @@ MenuItem {
     property bool available: true
     // 0 → 1 as it comes in; the menu starts it with appear().
     property real _shown: 1
+    // Slides up into its place rather than down: in a menu opening upwards.
+    property bool _rising: false
 
-    // Comes in after `delay` ms: fades in, sliding down into its place.
-    function appear(delay) {
+    // Comes in after `delay` ms: fades in, sliding down (`rising`: up) into
+    // its place.
+    function appear(delay, rising) {
         appearing.stop()
+        _rising = rising === true
         _shown = 0
         wait.duration = delay
         appearing.start()
@@ -26,7 +30,7 @@ MenuItem {
     readonly property real naturalWidth: leftPadding + implicitContentWidth + rightPadding
     height: available ? Theme.touch : 0
     opacity: _shown
-    transform: Translate { y: -Theme.dp(8) * (1 - item._shown) }
+    transform: Translate { y: (item._rising ? 1 : -1) * Theme.dp(8) * (1 - item._shown) }
 
     SequentialAnimation {
         id: appearing

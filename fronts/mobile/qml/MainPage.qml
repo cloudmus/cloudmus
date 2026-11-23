@@ -366,7 +366,8 @@ Page {
                 opacity: page._panelRisen
                 visible: opacity > 0
                 onClicked: railMenu.open()
-                ListMenu { id: railMenu }
+                // At the bottom of the screen: opens over the button.
+                ListMenu { id: railMenu; objectName: "railDropMenu"; upwards: true }
             }
         }
 

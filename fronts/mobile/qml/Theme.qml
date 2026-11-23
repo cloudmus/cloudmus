@@ -99,6 +99,10 @@ QtObject {
     // under it, for the generated background to reach the screen's edge, and
     // what's to be read or pressed keeps clear of it. Set by Main.qml.
     property int insetBottom: 0
+    // A system bar at a side (a head unit's, a phone on its side): nothing
+    // goes under it. Set by Main.qml.
+    property int insetLeft: 0
+    property int insetRight: 0
     // What the on-screen keyboard covers from the window's bottom, the
     // navigation bar included; 0 with it hidden.
     property int insetKeyboard: 0

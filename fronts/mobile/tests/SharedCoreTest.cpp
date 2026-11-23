@@ -1023,6 +1023,21 @@ private slots:
             QCOMPARE(page->property("screenProgress").toReal(), 1.0);
             for (const qreal progress : std::as_const(drawn))
                 QVERIFY2(progress == 0.0 || progress == 1.0, qPrintable(QString::number(progress)));
+            // The list's menu, from the button at the left, clear of a system
+            // bar there: not right-aligned with the button, off the screen.
+            {
+                auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
+                QVERIFY(theme->setProperty("insetLeft", 60));
+                auto* menu = window->findChild<QObject*>("railDropMenu");
+                QVERIFY(menu);
+                QVERIFY(QMetaObject::invokeMethod(menu, "open"));
+                QTRY_VERIFY(menu->property("opened").toBool());
+                QVERIFY2(menu->property("x").toReal() >= 60, qPrintable(menu->property("x").toString()));
+                QVERIFY(menu->property("x").toReal() + menu->property("width").toReal() <= 1280);
+                QVERIFY(QMetaObject::invokeMethod(menu, "close"));
+                QTRY_VERIFY(!menu->property("visible").toBool());
+                QVERIFY(theme->setProperty("insetLeft", 0));
+            }
 
             auto* trackSheet = window->findChild<QObject*>("trackSheet");
             QVERIFY(trackSheet);
