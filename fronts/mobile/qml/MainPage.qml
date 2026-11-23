@@ -281,6 +281,7 @@ Page {
                 artSize: Qt.size(page.width - page._coversWidth, page.height + Theme.insetTop)
             }
             TrackPanel {
+                id: trackPanel
                 objectName: "trackPanel"
                 x: page._heroMargin + (page._railWidth - page._heroMargin) * page.screenProgress
                 y: page._heroMargin + (sourceBar.height + Theme.dp(10)) * (1 - page._panelRisen)
@@ -291,8 +292,11 @@ Page {
                 compact: page.height < Theme.dp(460)
                 // As large as it gets, beside the rest.
                 coverMaxSide: (page.height - page._heroMargin * 2 - Theme.insetBottom) * 0.8
-                // In the row with the source's button, until that folds away.
+                // In the row with the source's button, at its right end, until
+                // that folds away; then they go over to the title's row.
                 modesElsewhere: 1 - page._barFolded
+                modesAway: Qt.point(hero.width - page._heroMargin - Theme.touch * 2 - x,
+                                    page._heroMargin + (sourceBar.height - Theme.touch) / 2 - y)
                 sideCoverShare: 1
                 // With air around it; smaller on the track's screen, for the
                 // title to have the room. The picture stays at the larger size.
@@ -322,36 +326,6 @@ Page {
                 folded: page._barFolded
                 library: page.library
                 onClicked: page.libraryRequested()
-            }
-            RowLayout {
-                objectName: "topModes"
-                anchors.right: parent.right
-                anchors.rightMargin: page._heroMargin
-                y: page._heroMargin + (sourceBar.height - height) / 2
-                spacing: 0
-                opacity: 1 - page._barFolded
-                visible: opacity > 0 && page.nowPlaying && page.nowPlaying.repeat !== undefined
-                IconButton {
-                    objectName: "topShuffle"
-                    // A radio has nothing to shuffle: new tracks instead.
-                    readonly property bool radio: page.nowPlaying !== null && page.nowPlaying.radio === true
-                    enabled: page.nowPlaying && (!radio || page.playlist !== null)
-                    iconName: radio ? "refresh" : "shuffle"
-                    color: !radio && page.nowPlaying && page.nowPlaying.shuffle === true ? Theme.accent : "#FFFFFF"
-                    // The new station is being asked for.
-                    busy: radio && page.playlist !== null && page.playlist.startingRadio === true
-                    onClicked: {
-                        if (busy)
-                            return
-                        radio ? page.playlist.restartRadio() : page.nowPlaying.toggleShuffle()
-                    }
-                }
-                IconButton {
-                    objectName: "topRepeat"
-                    iconName: page.nowPlaying && page.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
-                    color: page.nowPlaying && page.nowPlaying.repeat > 0 ? Theme.accent : "#FFFFFF"
-                    onClicked: page.nowPlaying.cycleRepeat()
-                }
             }
             // The list's menu, in the screen's left column when it's the track's.
             DownloadButton {

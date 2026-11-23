@@ -1023,6 +1023,21 @@ private slots:
             QCOMPARE(page->property("screenProgress").toReal(), 1.0);
             for (const qreal progress : std::as_const(drawn))
                 QVERIFY2(progress == 0.0 || progress == 1.0, qPrintable(QString::number(progress)));
+            // Shuffle and repeat right of the title from the start, not over it.
+            {
+                auto* title = window->findChild<QQuickItem*>("trackTitle");
+                QVERIFY(title);
+                const QRectF titleAt = title->mapRectToScene(title->boundingRect());
+                for (const char* name : { "shuffleButton", "repeatButton" }) {
+                    auto* button = window->findChild<QQuickItem*>(QLatin1String(name));
+                    QVERIFY2(button && button->isVisible(), name);
+                    const QRectF at = button->mapRectToScene(button->boundingRect());
+                    QVERIFY2(at.left() >= titleAt.left() + title->width() * title->scale() - 1,
+                        qPrintable(QStringLiteral("%1 at %2, the title %3..%4").arg(name).arg(at.left())
+                            .arg(titleAt.left()).arg(titleAt.left() + title->width() * title->scale())));
+                    QVERIFY2(qAbs(at.center().y() - titleAt.center().y()) < titleAt.height(), name);
+                }
+            }
             // The list's menu, from the button at the left, clear of a system
             // bar there: not right-aligned with the button, off the screen.
             {
@@ -2505,10 +2520,10 @@ private slots:
         QVERIFY2(!scene(cover).intersects(scene(title)), "the cover runs into the title");
         QVERIFY(scene(cover).bottom() <= scene(panel).bottom() + 1);
         // Shuffle and repeat are up in the source's row, and the title has their room.
-        auto* topShuffle = window->findChild<QQuickItem*>("topShuffle");
-        QVERIFY(topShuffle && topShuffle->isVisible());
-        QVERIFY(!window->findChild<QQuickItem*>("shuffleButton")->isVisible());
-        QVERIFY(!scene(topShuffle).intersects(scene(bar)));
+        auto* shuffle = window->findChild<QQuickItem*>("shuffleButton");
+        QVERIFY(shuffle && shuffle->isVisible());
+        QVERIFY(!scene(shuffle).intersects(scene(bar)));
+        QVERIFY(qAbs(scene(shuffle).center().y() - scene(bar).center().y()) <= 1);
         QVERIFY(scene(title).width() >= 120);
         // The count went up to the list's title.
         QVERIFY(window->findChild<QQuickItem*>("playlistCount")->isVisible());

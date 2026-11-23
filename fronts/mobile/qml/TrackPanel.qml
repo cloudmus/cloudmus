@@ -62,6 +62,10 @@ Item {
                                                : Math.max(0, Math.min(width, _coverOnTop))
     // 1: shuffle and repeat are shown somewhere else; the title takes their room.
     property real modesElsewhere: 0
+    // Where that is, in the panel's coordinates: shuffle's top left, repeat
+    // right of it. Set, the buttons go there as `modesElsewhere` comes to 1
+    // rather than fade away; unset (null), they fade.
+    property var modesAway: null
     // Shuffle and repeat between the seek bar's times, not beside the title: a
     // phone's portrait has no width to spare for the title.
     property bool modesUnderSeek: false
@@ -622,21 +626,32 @@ Item {
     function _slotPoint(slot) {
         width; height; progress; details.x; details.y; details.width; details.height
         titleRow.width; titleRow.height; seekBar.width; seekBar.height
+        // Laid out after the rest at first (the track's screen at start):
+        // without these the buttons stayed over the title.
+        titleHolder.x; titleHolder.y; seekBar.x; seekBar.y
+        modesSlots.x; modesSlots.y; modesSlots.parent.x; modesSlots.parent.y
         slot.x; slot.y; slot.width; slot.height
         return slot.mapToItem(panel, 0, 0)
     }
     function _modeX(slot, index) {
-        return _fold(_slotPoint(slot).x, miniRect.x + miniRect.width - _miniPad + Theme.dp(4)
-                                         - Theme.touch * 2 + Theme.touch * index)
+        let at = _slotPoint(slot).x
+        if (modesAway)
+            at += (modesAway.x + Theme.touch * index - at) * modesElsewhere
+        return _fold(at, miniRect.x + miniRect.width - _miniPad + Theme.dp(4)
+                         - Theme.touch * 2 + Theme.touch * index)
     }
     function _modeY(slot) {
-        return _fold(_slotPoint(slot).y, _miniTop + (_miniCover - Theme.touch) / 2)
+        let at = _slotPoint(slot).y
+        if (modesAway)
+            at += (modesAway.y - at) * modesElsewhere
+        return _fold(at, _miniTop + (_miniCover - Theme.touch) / 2)
     }
+    readonly property real _modesOpacity: _fold(modesAway ? 1 : 1 - modesElsewhere, 1)
     ShuffleButton {
         objectName: "shuffleButton"
         x: panel._modeX(shuffleSlot, 0)
         y: panel._modeY(shuffleSlot)
-        opacity: panel._fold(1 - panel.modesElsewhere, 1)
+        opacity: panel._modesOpacity
         visible: panel._hasModes && opacity > 0
         enabled: canClick
     }
@@ -644,7 +659,7 @@ Item {
         objectName: "repeatButton"
         x: panel._modeX(repeatSlot, 1)
         y: panel._modeY(repeatSlot)
-        opacity: panel._fold(1 - panel.modesElsewhere, 1)
+        opacity: panel._modesOpacity
         visible: panel._hasModes && opacity > 0
     }
 
