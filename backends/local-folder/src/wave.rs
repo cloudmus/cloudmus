@@ -30,7 +30,7 @@ const LEAST: f64 = 0.05;
 
 pub fn playlist(tr: impl Fn(&str) -> String) -> Value {
     json!({
-        "id": ID, "title": tr("Wave"), "kind": "radioStation", "trackCount": 0, "featured": true,
+        "id": ID, "title": tr("Wave"), "kind": "radioStation", "trackCount": 0, "featured": true, "coverIcon": "wave",
         "description": tr("All your music, in an order that learns from what you skip and what you play through.")
     })
 }

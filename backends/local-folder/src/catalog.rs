@@ -20,6 +20,8 @@ struct Playlist {
     order: (u8, String),
     // A folder; not a group's root, which is all of it.
     deletable: bool,
+    // A glyph for its generated cover (Playlist.coverIcon).
+    icon: Option<&'static str>,
     tracks: Vec<Track>,
 }
 
@@ -90,7 +92,7 @@ impl Library {
                 (Some(_), Some(name)) => name.to_owned(),
                 _ => tr("All music"),
             };
-            library.add_tree(MUSIC_FOLDER, ROOT, title, "", false, tracks);
+            library.add_tree(MUSIC_FOLDER, ROOT, title, "", false, None, tracks);
         }
         if let Some(data) = host {
             library.add_host(&data, tr);
@@ -141,6 +143,7 @@ impl Library {
         root_title: String,
         folder_prefix: &str,
         nested: bool,
+        icon: Option<&'static str>,
         tracks: Vec<(Vec<String>, Track)>,
     ) {
         if tracks.is_empty() {
@@ -162,6 +165,7 @@ impl Library {
                         parent,
                         order: (group, path),
                         deletable: true,
+                        icon: None,
                         tracks: Vec::new(),
                     })
                     .tracks
@@ -174,6 +178,7 @@ impl Library {
                     parent: None,
                     order: (group, String::new()),
                     deletable: false,
+                    icon,
                     tracks: Vec::new(),
                 })
                 .tracks
@@ -252,8 +257,8 @@ impl Library {
                 }
             }
         }
-        self.add_tree(SAVED, SAVED_ID, tr("Saved tracks"), &format!("{SAVED_ID}/"), true, saved);
-        self.add_tree(DEVICE, DEVICE_ID, tr("Device music"), &format!("{DEVICE_ID}/"), true, device);
+        self.add_tree(SAVED, SAVED_ID, tr("Saved tracks"), &format!("{SAVED_ID}/"), true, Some("saved"), saved);
+        self.add_tree(DEVICE, DEVICE_ID, tr("Device music"), &format!("{DEVICE_ID}/"), true, Some("device"), device);
     }
 
     fn file(
@@ -513,6 +518,13 @@ pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
     let library = Library::new(&tr);
     // The wave first, when there's music to make it of.
     let wave = (!library.playlists.is_empty()).then(|| crate::wave::playlist(&tr));
+    // A folder with folders inside is shown as one; with only tracks, as an
+    // album (Playlist.coverIcon), unless its group names its own.
+    let parents: HashSet<&str> = library
+        .playlists
+        .values()
+        .filter_map(|list| list.parent.as_deref())
+        .collect();
     let lists: Vec<_> = wave
         .into_iter()
         .chain(library.lists().map(|(id, list)| {
@@ -522,6 +534,10 @@ pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
             if let Some(parent) = &list.parent {
                 playlist["parentId"] = json!(parent);
             }
+            let icon = list
+                .icon
+                .unwrap_or(if parents.contains(id) { "folder" } else { "album" });
+            playlist["coverIcon"] = json!(icon);
             if list.deletable {
                 playlist["deletable"] = json!(true);
             }

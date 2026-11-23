@@ -5,6 +5,13 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.25 — an icon on a generated cover
+
+- **Additive, backward-compatible**: optional `Playlist.coverIcon` (§6): a
+  glyph a front draws over the coloured cover it generates when there's no
+  `coverUrl`. Local Folder gives it for the Wave, Saved tracks and Device
+  music, and for each folder: `folder` with folders inside, `album` without.
+
 ## 1.24 — a folder's size
 
 - **Additive, backward-compatible**: optional `Playlist.sizeBytes` (§6): how

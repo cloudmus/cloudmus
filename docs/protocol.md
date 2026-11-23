@@ -306,7 +306,8 @@ for a track that's only on a service.
   "featured": true,                // optional (1.6+): worth showing at the source's top level by default
   "deletable": true,               // optional (1.22+): catalog.deletePlaylist deletes it and its tracks (§7.11)
   "parentId": "2",                 // optional (1.21+): listed inside that playlist
-  "sizeBytes": 356515840           // optional (1.24+): how much its tracks' files take
+  "sizeBytes": 356515840,          // optional (1.24+): how much its tracks' files take
+  "coverIcon": "saved"             // optional (1.25+): a glyph over the generated cover
 }
 ```
 `kind: "radioStation"` playlists (e.g. My Wave) have no fixed track
@@ -339,6 +340,15 @@ list on the parent's page); its top level is the playlists with no
 `sizeBytes` (1.24+) is how much a source that keeps the music itself has in
 the playlist's files — a music folder with everything under it. A front
 shows it beside `trackCount`; absent, it shows the count alone.
+
+`coverIcon` (1.25+) is for a playlist that stands for a kind of thing and has
+no picture of its own. A front that has no `coverUrl` to show generates a
+coloured cover from the title; with `coverIcon` it draws the named glyph over
+it. The names: `wave` (a station that learns), `saved` (what the app
+downloaded), `device` (the music kept on the device), `folder` (a folder
+with folders inside), `album` (a folder of tracks only). A front draws the glyph
+from its own set and ignores a name it doesn't know; `coverUrl`, when
+present, wins.
 
 ### PlaybackState
 ```jsonc
