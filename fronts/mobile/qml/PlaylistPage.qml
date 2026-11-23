@@ -13,20 +13,46 @@ Page {
     property QtObject platform
     signal closeRequested()
     signal trackMenuRequested()
+    signal downloadsRequested()
+    // A subfolder, opened at the next depth: Main pushes its page.
+    signal folderRequested(int depth)
 
-    readonly property QtObject screen: backend.playlistScreen
+    // Where it is in the stack of Playlist pages: 0 the one the Library opens,
+    // each subfolder one more. Each depth has a screen of its own, so a page
+    // under another keeps its rows and its place in them.
+    property int depth: 0
+    readonly property QtObject screen: {
+        backend.levelsRevision
+        return backend.playlistScreenAt(page.depth)
+    }
+    readonly property QtObject entriesModel: {
+        backend.levelsRevision
+        return backend.openEntriesAt(page.depth)
+    }
+    // How many of its first rows are subfolders; the tracks follow.
+    readonly property int folderCount: page.screen !== null && page.screen.folderCount !== undefined
+        ? page.screen.folderCount : 0
+    // The next depth's, asked for ahead, so a subfolder's page has it at once.
+    Component.onCompleted: backend.prepareLevel(page.depth + 1)
+    // Off the stack, however it left (its back button, the system's Back, the
+    // stack cleared): its screen lets go of the rows. After the transition,
+    // so it doesn't empty on its way out.
+    StackView.onRemoved: if (backend.playlistScreens) backend.playlistScreens.close(page.depth)
 
-    // Back from a folder opened inside another goes to that one; true if it
-    // did (the page stays). Main's stack asks before it pops.
+    // Back lets go of picked rows first; true if it did (the page stays).
+    // Main's stack asks before it pops.
     function backInside() {
         if (page.selecting) {
             page.selection = []
             return true
         }
-        if (!page.screen || page.screen.canGoBack !== true)
-            return false
-        page.screen.goBack()
-        return true
+        return false
+    }
+    // Its source went away, or it was deleted: nothing left to show.
+    Connections {
+        target: page.screen
+        ignoreUnknownSignals: true
+        function onClosed() { page.closeRequested() }
     }
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property bool wide: width > height * 1.1
@@ -36,7 +62,7 @@ Page {
     readonly property bool auraUnderStatusBar: true
     readonly property bool auraSpansStatusBar: true
 
-    // The loading spinner, the star and Save all.
+    // The star and Save all.
     // Rows picked with a long press (of the filtered rows), to delete them
     // together; any change to the rows lets go of them.
     property var selection: []
@@ -77,18 +103,14 @@ Page {
     readonly property bool loading: page.screen !== null && page.screen.loading === true
     readonly property bool canStar: page.screen !== null && page.screen.isHistory === false
     readonly property bool canDownload: page.screen !== null && page.screen.canDownload === true
+    readonly property bool downloading: page.screen !== null && page.screen.downloading === true
     // Without any of them (History), none of the room they'd take.
     readonly property bool canDeleteFolder: page.screen !== null && page.screen.canDeletePlaylist === true
-    readonly property bool hasHeaderActions: loading || canStar || canDownload || canDeleteFolder
+    readonly property bool hasHeaderActions: canStar || canDownload || downloading || canDeleteFolder
 
     component HeaderActions: RowLayout {
         property int buttonSize: Theme.touch
         spacing: 0
-        Spinner {
-            Layout.rightMargin: Theme.dp(6)
-            running: page.loading
-            color: "#FFFFFF"
-        }
         IconButton {
             visible: page.canStar
             size: parent.buttonSize
@@ -96,12 +118,25 @@ Page {
             color: "#FFFFFF"
             onClicked: page.screen.toggleFavorite()
         }
-        IconButton {
-            visible: page.canDownload
+        // A tap saves it; while it's being saved the button rings with its
+        // progress, and a tap goes to the Downloads page, where it can be
+        // stopped.
+        DownloadButton {
+            objectName: "downloadPlaylist"
+            visible: page.canDownload || page.downloading
             size: parent.buttonSize
-            iconName: "file_download"
             color: "#FFFFFF"
-            onClicked: page.screen.downloadAll()
+            ringColor: "#FFFFFF"
+            downloading: page.downloading
+            progress: page.screen !== null ? page.screen.downloadProgress : -1
+            onClicked: {
+                if (page.downloading) {
+                    page.downloadsRequested()
+                    return
+                }
+                page.screen.downloadAll()
+                page.platform.requestNotificationPermission()
+            }
         }
         IconButton {
             objectName: "deleteFolder"
@@ -147,7 +182,26 @@ Page {
                     Layout.preferredWidth: Theme.dp(page.wide ? 88 : 80)
                     Layout.preferredHeight: Theme.dp(page.wide ? 88 : 80)
                     source: page.screen ? page.screen.coverUrl : ""
+                    icon: page.screen ? page.screen.coverIcon : ""
                     seed: page.screen ? page.screen.title : ""
+                    // Loading shows on the cover: the buttons keep their places
+                    // and Play stays readable as Play.
+                    Rectangle {
+                        objectName: "loadingCover"
+                        anchors.fill: parent
+                        radius: parent.radius
+                        z: 3
+                        visible: page.loading
+                        color: "#33000000"
+                        Spinner {
+                            anchors.centerIn: parent
+                            width: Math.round(parent.width * 0.8)
+                            height: width
+                            running: page.loading
+                            lineWidth: Theme.dp(3)
+                            color: "#FFFFFF"
+                        }
+                    }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -221,7 +275,7 @@ Page {
                         text: qsTr("All")
                         onClicked: {
                             const all = []
-                            for (let row = 0; row < list.count; ++row)
+                            for (let row = 0; row < list.count - page.folderCount; ++row)
                                 all.push(row)
                             page.selection = all
                         }
@@ -267,28 +321,41 @@ Page {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            model: page.backend.openTracks
-            // The playlists inside this one: a folder's subfolders, each with
-            // everything under it.
-            header: Column {
+            // The subfolders (each with everything under it), then the tracks:
+            // one lazy list, so a folder with hundreds of subfolders builds
+            // only the rows in view.
+            model: page.entriesModel
+            cacheBuffer: Theme.rowHeight * 6
+            delegate: Item {
+                id: entry
+                required property int index
+                required property var model
+                // By place, not by a role: a replica's row is empty until it
+                // is fetched, and a choice made on that would stay.
+                readonly property bool isFolder: entry.index < page.folderCount
+                // The row among the tracks.
+                readonly property int trackIndex: entry.index - page.folderCount
                 width: ListView.view ? ListView.view.width : 0
-                Repeater {
-                    model: page.backend.openFolders
-                    delegate: ItemDelegate {
+                height: rowLoader.item ? rowLoader.item.height : Theme.rowHeight
+                Loader {
+                    id: rowLoader
+                    width: parent.width
+                    sourceComponent: entry.isFolder ? folderRow : trackRow
+                }
+                Component {
+                    id: folderRow
+                    ItemDelegate {
                         id: folder
-                        required property var playlistId
-                        required property var title
-                        required property var trackCount
-                        required property var sizeText
-                        required property var coverUrl
-                        objectName: "folder_" + folder.playlistId
-                        width: parent ? parent.width : 0
+                        objectName: "folder_" + (entry.model.playlistId || "")
                         height: Theme.rowHeight
                         topPadding: 0
                         bottomPadding: 0
                         leftPadding: Theme.padding
                         rightPadding: Theme.dp(8)
-                        onClicked: page.screen.openFolder(folder.playlistId)
+                        onClicked: {
+                            page.backend.playlistScreens.openFolder(page.depth, entry.model.playlistId)
+                            page.folderRequested(page.depth + 1)
+                        }
                         background: Rectangle {
                             color: folder.down && folderRipple.flat ? Theme.surface200 : "transparent"
                             Ripple {
@@ -303,15 +370,16 @@ Page {
                             Cover {
                                 Layout.preferredWidth: Theme.dp(48)
                                 Layout.preferredHeight: Theme.dp(48)
-                                source: folder.coverUrl || ""
-                                seed: folder.title || ""
+                                source: entry.model.coverUrl || ""
+                                icon: entry.model.coverIcon || ""
+                                seed: entry.model.title || ""
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: Theme.dp(2)
                                 Text {
                                     Layout.fillWidth: true
-                                    text: folder.title || ""
+                                    text: entry.model.title || ""
                                     color: Theme.ink
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontBody
@@ -320,7 +388,8 @@ Page {
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: qsTr("%1 tracks").arg(folder.trackCount) + (folder.sizeText ? " · " + folder.sizeText : "")
+                                    text: qsTr("%1 tracks").arg(entry.model.trackCount)
+                                        + (entry.model.sizeText ? " · " + entry.model.sizeText : "")
                                     color: Theme.inkSecondary
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSmall
@@ -334,22 +403,37 @@ Page {
                         }
                     }
                 }
-            }
-            delegate: TrackRow {
-                playing: page.nowPlaying && page.nowPlaying.playing === true
-                showMenu: true
-                selectable: page.screen && page.screen.canDeleteTracks === true
-                selected: page.selection.indexOf(index) >= 0
-                onSelectRequested: page.toggleRow(index)
-                onClicked: {
-                    if (page.selecting)
-                        page.toggleRow(index)
-                    else
-                        page.screen.playRow(index)
-                }
-                onMenuRequested: {
-                    page.backend.trackScreen.showOpenRow(index)
-                    page.trackMenuRequested()
+                Component {
+                    id: trackRow
+                    TrackRow {
+                        index: entry.trackIndex
+                        title: entry.model.title
+                        artist: entry.model.artist
+                        durationMs: entry.model.durationMs
+                        coverUrl: entry.model.coverUrl
+                        isCurrent: entry.model.isCurrent
+                        cached: entry.model.cached
+                        downloadProgress: entry.model.downloadProgress
+                        liked: entry.model.liked
+                        disliked: entry.model.disliked
+                        unavailable: entry.model.unavailable
+                        playedAt: entry.model.playedAt
+                        playing: page.nowPlaying && page.nowPlaying.playing === true
+                        showMenu: true
+                        selectable: page.screen && page.screen.canDeleteTracks === true
+                        selected: page.selection.indexOf(entry.trackIndex) >= 0
+                        onSelectRequested: page.toggleRow(entry.trackIndex)
+                        onClicked: {
+                            if (page.selecting)
+                                page.toggleRow(entry.trackIndex)
+                            else
+                                page.screen.playRow(entry.trackIndex)
+                        }
+                        onMenuRequested: {
+                            page.backend.trackScreen.showOpenRowAt(page.depth, entry.trackIndex)
+                            page.trackMenuRequested()
+                        }
+                    }
                 }
             }
             BodyText {

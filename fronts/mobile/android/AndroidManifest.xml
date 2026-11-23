@@ -113,6 +113,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- The downloads notification's Cancel, in the process that saves. -->
+        <receiver
+            android:name="app.cloudmus.mobile.DownloadNotice$CancelReceiver"
+            android:process=":playback"
+            android:exported="false" />
+
         <receiver android:name="app.cloudmus.mobile.BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

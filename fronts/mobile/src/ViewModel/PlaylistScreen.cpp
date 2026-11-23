@@ -13,7 +13,8 @@ PlaylistScreen::PlaylistScreen(App::Core& core, QObject* parent)
     , core_(core)
     , open_(core.sourceManager(), core.trackStates(), core.coverArtCache(), core.playbackHistory(),
           core.activePlaylist(), core.playlistEditing(), core.messages(), core.playlistTracks())
-    , folders_({ "playlistId", "title", "trackCount", "sizeText", "coverUrl" })
+    , folders_({ "playlistId", "title", "trackCount", "sizeText", "coverUrl", "coverIcon" })
+    , entries_(folders_, filter_, tracks_.roleNames())
 {
     tracks_.setTrackStates(&core.trackStates());
     tracks_.setPreload(&core.preload());
@@ -26,6 +27,7 @@ PlaylistScreen::PlaylistScreen(App::Core& core, QObject* parent)
     connect(&core.sources(), &Sources::sourceChanged, this, &PlaylistScreen::announce);
     connect(&core.coverArtCache(), &Covers::CoverArtCache::pixmapReady, this, &PlaylistScreen::coverUrlChanged);
     connect(&core.trackDeletion(), &App::TrackDeletion::deleted, &open_, &OpenPlaylist::dropTracks);
+    connect(&core.downloads(), &Downloads::changed, this, &PlaylistScreen::readDownload);
     connect(&core.sources(), &Sources::sourceRemoved, this, [this](const QString& sourceId) {
         if (!open_.context().isHistory && open_.context().sourceId == sourceId) {
             close();
@@ -52,6 +54,11 @@ QString PlaylistScreen::coverUrl() const
     return file.isEmpty() ? QString() : QUrl::fromLocalFile(file).toString();
 }
 
+QString PlaylistScreen::coverIcon() const
+{
+    return open_.context().playlist.coverIcon.value_or(QString());
+}
+
 bool PlaylistScreen::isFavorite() const
 {
     const PlaylistContext& context = open_.context();
@@ -64,20 +71,7 @@ bool PlaylistScreen::canDownload() const
     return !context.isHistory && core_.trackActions().canDownloadPlaylist(context.sourceId, context.playlist);
 }
 
-void PlaylistScreen::openPlaylist(const QString& sourceId, const QString& playlistId)
-{
-    trail_.clear();
-    show(sourceId, playlistId);
-}
-
-void PlaylistScreen::openFolder(const QString& playlistId)
-{
-    const PlaylistContext& context = open_.context();
-    if (context.isHistory || context.sourceId.isEmpty())
-        return;
-    trail_.append(context.playlist.id);
-    show(context.sourceId, playlistId);
-}
+void PlaylistScreen::openPlaylist(const QString& sourceId, const QString& playlistId) { show(sourceId, playlistId); }
 
 bool PlaylistScreen::canDeletePlaylist() const
 {
@@ -114,16 +108,8 @@ void PlaylistScreen::deletePlaylist()
         return;
     const PlaylistContext& context = open_.context();
     core_.trackDeletion().deletePlaylist(context.sourceId, context.playlist);
-    // It's gone: back where it was opened from.
-    if (!trail_.isEmpty())
-        goBack();
-}
-
-void PlaylistScreen::goBack()
-{
-    if (trail_.isEmpty())
-        return;
-    show(open_.context().sourceId, trail_.takeLast());
+    // It's gone: its page with it, back where it was opened from.
+    emit closed();
 }
 
 void PlaylistScreen::show(const QString& sourceId, const QString& playlistId)
@@ -134,21 +120,21 @@ void PlaylistScreen::show(const QString& sourceId, const QString& playlistId)
     if (it == playlists.cend())
         return;
     filter_.setNeedle(QString());
+    folderNeedle_.clear();
     open_.open(sourceId, *it);
     announce();
 }
 
 void PlaylistScreen::openHistory()
 {
-    trail_.clear();
     filter_.setNeedle(QString());
+    folderNeedle_.clear();
     open_.openHistory();
     announce();
 }
 
 void PlaylistScreen::close()
 {
-    trail_.clear();
     open_.close();
     announce();
 }
@@ -157,7 +143,13 @@ void PlaylistScreen::playRow(int row) { open_.playRow(filter_.sourceRow(row)); }
 
 void PlaylistScreen::playAll() { open_.playAll(); }
 
-void PlaylistScreen::setFilter(const QString& text) { filter_.setNeedle(text); }
+void PlaylistScreen::setFilter(const QString& text)
+{
+    filter_.setNeedle(text);
+    // The subfolders are filtered by their titles, as the tracks are.
+    folderNeedle_ = text.trimmed();
+    rebuildFolders();
+}
 
 void PlaylistScreen::toggleFavorite()
 {
@@ -172,13 +164,38 @@ void PlaylistScreen::downloadAll()
         core_.downloads().downloadPlaylist(open_.context().sourceId, open_.context().playlist);
 }
 
+void PlaylistScreen::readDownload()
+{
+    const PlaylistContext& context = open_.context();
+    const Downloads::Job* job
+        = context.isHistory ? nullptr : core_.downloads().playlistJob(context.sourceId, context.playlist.id);
+    // Saving turned on or off in Settings.
+    if (const bool can = canDownload(); can != canDownload_) {
+        canDownload_ = can;
+        emit canDownloadChanged();
+    }
+    const bool downloading = job != nullptr;
+    const double progress = job != nullptr ? job->progress() : -1;
+    if (downloading != downloading_) {
+        downloading_ = downloading;
+        emit downloadingChanged();
+    }
+    if (progress != downloadProgress_) {
+        downloadProgress_ = progress;
+        emit downloadProgressChanged();
+    }
+}
+
 void PlaylistScreen::refill()
 {
     QList<TrackListModel::MixedSourceEntry> rows;
     rows.reserve(open_.rows().size());
     for (const OpenPlaylist::Row& row : open_.rows())
         rows.append({ row.sourceId, row.track, row.playedAt });
-    tracks_.setMixedSourceTracks(rows);
+    // In place: the cached list first, then the fetched one, then edits; a
+    // view far down the list stays where it is, and only what changed is sent
+    // to the views' process. Another playlist's rows start over.
+    tracks_.updateMixedSourceTracks(rows);
     markCurrent();
     emit countChanged();
     emit canDeleteTracksChanged();
@@ -196,11 +213,13 @@ void PlaylistScreen::announce()
     emit countChanged();
     emit sizeTextChanged();
     emit coverUrlChanged();
+    emit coverIconChanged();
     emit isRadioChanged();
     emit isHistoryChanged();
     emit isFavoriteChanged();
+    canDownload_ = canDownload();
     emit canDownloadChanged();
-    emit canGoBackChanged();
+    readDownload();
     emit canDeletePlaylistChanged();
     emit canDeleteTracksChanged();
     rebuildFolders();
@@ -214,17 +233,24 @@ void PlaylistScreen::rebuildFolders()
         for (const Playlist& playlist : core_.sources().playlists(context.sourceId)) {
             if (playlist.parentId != context.playlist.id)
                 continue;
+            if (!folderNeedle_.isEmpty() && !playlist.title.contains(folderNeedle_, Qt::CaseInsensitive))
+                continue;
             const QString cover = core_.coverArtCache().localFile(playlist.coverUrl.value_or(QString()));
             rows.append({
                 { QStringLiteral("playlistId"), playlist.id },
                 { QStringLiteral("title"), playlist.title },
                 { QStringLiteral("trackCount"), playlist.trackCount },
                 { QStringLiteral("sizeText"), ViewModel::playlistSizeText(playlist) },
+                { QStringLiteral("coverIcon"), playlist.coverIcon.value_or(QString()) },
                 { QStringLiteral("coverUrl"), cover.isEmpty() ? QString() : QUrl::fromLocalFile(cover).toString() },
             });
         }
     }
     folders_.setRows(rows);
+    if (folders_.rowCount() != shownFolderCount_) {
+        shownFolderCount_ = folders_.rowCount();
+        emit folderCountChanged();
+    }
 }
 
 } // namespace ViewModel

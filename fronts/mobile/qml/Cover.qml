@@ -13,6 +13,15 @@ Rectangle {
     property string source
     // With no cover: generated art from this, as on the desktop, if set.
     property string seed
+    // With no cover: the glyph a source names for it (Playlist.coverIcon),
+    // drawn over the generated art.
+    property string icon
+    // The glyph (an icon's file name) when the source names none: a track's
+    // note, say.
+    property string fallbackIcon
+    readonly property string _glyph: ({
+        wave: "radio", saved: "file_download", device: "smartphone", folder: "folder", album: "album"
+    })[icon] || fallbackIcon
     // An accent line around it, for the one that's active.
     property bool outlined: false
     // For one that animates its size: corners masked live, the same at any size
@@ -71,13 +80,25 @@ Rectangle {
         interval: 300
         onTriggered: cover._settleSize()
     }
+    // Nothing to show (yet): the glyph, or a note, on the plain surface.
     IconImage {
         anchors.centerIn: parent
         visible: !cover._showing
-        source: "qrc:/icons/music_note.svg"
+        source: "qrc:/icons/" + (cover._glyph || "music_note") + ".svg"
         sourceSize.width: Math.round(cover.width * 0.45)
         sourceSize.height: Math.round(cover.width * 0.45)
         color: Theme.inkTertiary
+    }
+
+    // Over the generated art.
+    IconImage {
+        anchors.centerIn: parent
+        z: 1
+        visible: cover.source === "" && cover.seed !== "" && cover._glyph !== ""
+        source: cover._glyph !== "" ? "qrc:/icons/" + cover._glyph + ".svg" : ""
+        sourceSize.width: Math.round(cover.width * 0.5)
+        sourceSize.height: Math.round(cover.width * 0.5)
+        color: "#E6FFFFFF"
     }
 
     CrossfadeImage {

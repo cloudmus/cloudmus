@@ -110,8 +110,12 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
         src/ViewModel/MainScreen.h
         src/ViewModel/MediaTree.cpp
         src/ViewModel/MediaTree.h
+        src/ViewModel/PlaylistEntries.cpp
+        src/ViewModel/PlaylistEntries.h
         src/ViewModel/PlaylistScreen.cpp
         src/ViewModel/PlaylistScreen.h
+        src/ViewModel/PlaylistScreens.cpp
+        src/ViewModel/PlaylistScreens.h
         src/ViewModel/TrackScreen.cpp
         src/ViewModel/TrackScreen.h
         src/ViewModel/RowsModel.cpp
@@ -204,6 +208,8 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/Cover.qml
         qml/CrossfadeImage.qml
         qml/DeveloperPage.qml
+        qml/DownloadButton.qml
+        qml/DownloadsPage.qml
         qml/FpsOverlay.qml
         qml/EqualizerBars.qml
         qml/IconButton.qml
@@ -214,6 +220,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/OfflineBadge.qml
         qml/PlaylistPage.qml
         qml/PreloadCells.qml
+        qml/ProgressRing.qml
         qml/Ripple.qml
         qml/ProxyPage.qml
         qml/SettingField.qml
@@ -258,7 +265,7 @@ qt_add_shaders(cloudmus-mobile-ui "shaders"
     PREFIX "/"
     FILES shaders/ripple.frag)
 
-set(_icons arrow_back check chevron_right close cloud_off content_copy delete expand_less expand_more favorite favorite_border file_download heart_off
+set(_icons smartphone folder album arrow_back check chevron_right close cloud_off content_copy delete expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
     visibility visibility_off warning logout)

@@ -1,6 +1,7 @@
 #include "Backend.h"
 
 #include <QAbstractItemModelReplica>
+#include <QJSEngine>
 #include <QLoggingCategory>
 #include <QRemoteObjectDynamicReplica>
 #include <QRemoteObjectNode>
@@ -32,6 +33,7 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , mainScreen_(&core.mainScreen())
     , downloadsScreen_(&core.downloadsScreen())
     , playlistScreen_(&core.playlistScreen())
+    , playlistScreens_(&core.playlistScreens())
     , trackScreen_(&core.trackScreen())
     , settingsScreen_(&core.settingsScreen())
     , sourceSettings_(&core.sourceSettingsScreen())
@@ -41,8 +43,10 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , sources_(&core.library().sourceRows())
     , favorites_(&core.library().favoriteRows())
     , otherPlaylists_(&core.library().otherRows())
+    , downloads_(&core.downloadsScreen().jobRows())
     , openTracks_(&core.playlistScreen().rows())
     , openFolders_(&core.playlistScreen().folderRows())
+    , openEntries_(&core.playlistScreen().entries())
     , trackPlaylists_(&core.trackScreen().playlistRows())
     , settingsSources_(&core.settingsScreen().sourceRows())
     , settingsProxies_(&core.settingsScreen().proxyRows())
@@ -51,6 +55,9 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
 #endif
     , ready_(true)
 {
+#ifdef CLOUDMUS_MOBILE_SHARED_CORE
+    core_ = &core;
+#endif
 }
 #endif
 
@@ -75,9 +82,12 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquireModel(otherPlaylists_, Remote::Names::otherPlaylists);
     acquire(mainScreen_, Remote::Names::mainScreen);
     acquire(downloadsScreen_, Remote::Names::downloadsScreen);
+    acquireModel(downloads_, Remote::Names::downloads);
     acquire(playlistScreen_, Remote::Names::playlistScreen);
+    acquire(playlistScreens_, Remote::Names::playlistScreens);
     acquireModel(openTracks_, Remote::Names::openTracks);
     acquireModel(openFolders_, Remote::Names::openFolders);
+    acquireModel(openEntries_, Remote::Names::openEntries);
     acquire(trackScreen_, Remote::Names::trackScreen);
     acquireModel(trackPlaylists_, Remote::Names::trackPlaylists);
     acquire(settingsScreen_, Remote::Names::settingsScreen);
@@ -115,9 +125,18 @@ Backend::~Backend()
         delete otherPlaylists_.data();
         delete mainScreen_.data();
         delete downloadsScreen_.data();
+        delete downloads_.data();
         delete playlistScreen_.data();
+        delete playlistScreens_.data();
+        for (const Level& level : std::as_const(levels_)) {
+            delete level.screen.data();
+            delete level.tracks.data();
+            delete level.folders.data();
+            delete level.entries.data();
+        }
         delete openTracks_.data();
         delete openFolders_.data();
+        delete openEntries_.data();
         delete trackScreen_.data();
         delete trackPlaylists_.data();
         delete settingsScreen_.data();
@@ -154,6 +173,106 @@ void Backend::acquireModel(QPointer<QAbstractItemModel>& slot, const QString& na
         updateReady();
     });
 }
+
+Backend::Level* Backend::level(int depth)
+{
+    if (depth <= 0 || depth >= Remote::Names::playlistLevels)
+        return nullptr;
+    if (auto it = levels_.find(depth); it != levels_.end())
+        return &it.value();
+    Level& level = levels_[depth];
+#ifdef CLOUDMUS_MOBILE_SHARED_CORE
+#ifndef Q_OS_ANDROID
+    if (core_ != nullptr) {
+        ViewModel::PlaylistScreen& screen = core_->playlistScreens().at(depth);
+        level.screen = &screen;
+        level.tracks = &screen.rows();
+        level.folders = &screen.folderRows();
+        level.entries = &screen.entries();
+        level.screenValid = true;
+        level.modelsInitialized = 3;
+        return &level;
+    }
+#endif
+#endif
+    if (!node_)
+        return &level;
+    // Not counted in `ready`: the app is usable before any page is that deep.
+    const auto tell = [this, depth] {
+        if (levels_.value(depth).ready()) {
+            ++levelsRevision_;
+            emit levelsRevisionChanged();
+        }
+    };
+    QRemoteObjectDynamicReplica* screen
+        = node_->acquireDynamic(Remote::Names::atDepth(Remote::Names::playlistScreen, depth));
+    screen->setParent(this);
+    level.screen = screen;
+    connect(screen, &QRemoteObjectReplica::stateChanged, this,
+        [this, depth, tell](QRemoteObjectReplica::State state) {
+            levels_[depth].screenValid = state == QRemoteObjectReplica::Valid;
+            tell();
+        });
+    for (QPointer<QAbstractItemModel>* slot : { &level.tracks, &level.folders, &level.entries }) {
+        const QString name = slot == &level.tracks ? Remote::Names::atDepth(Remote::Names::openTracks, depth)
+            : slot == &level.folders               ? Remote::Names::atDepth(Remote::Names::openFolders, depth)
+                                                   : Remote::Names::atDepth(Remote::Names::openEntries, depth);
+        auto* model = node_->acquireModel(name);
+        model->setParent(this);
+        *slot = model;
+        connect(model, &QAbstractItemModelReplica::initialized, this, [this, depth, tell] {
+            ++levels_[depth].modelsInitialized;
+            tell();
+        });
+    }
+    return &level;
+}
+
+namespace {
+// Handed to QML by a method, an object without a parent would be the JS
+// engine's to delete; these are the core's or this one's.
+template <typename Object>
+Object* kept(Object* object)
+{
+    if (object != nullptr)
+        QJSEngine::setObjectOwnership(object, QJSEngine::CppOwnership);
+    return object;
+}
+} // namespace
+
+QObject* Backend::playlistScreenAt(int depth)
+{
+    if (depth <= 0)
+        return kept(playlistScreen());
+    const Level* found = ready_ ? level(depth) : nullptr;
+    return kept(found != nullptr && found->ready() ? found->screen.data() : nullptr);
+}
+
+QAbstractItemModel* Backend::openTracksAt(int depth)
+{
+    if (depth <= 0)
+        return kept(openTracks());
+    const Level* found = ready_ ? level(depth) : nullptr;
+    return kept(found != nullptr && found->ready() ? found->tracks.data() : nullptr);
+}
+
+QAbstractItemModel* Backend::openFoldersAt(int depth)
+{
+    if (depth <= 0)
+        return kept(openFolders());
+    const Level* found = ready_ ? level(depth) : nullptr;
+    return kept(found != nullptr && found->ready() ? found->folders.data() : nullptr);
+}
+
+QAbstractItemModel* Backend::openEntriesAt(int depth)
+{
+    if (depth <= 0)
+        return kept(openEntries());
+    const Level* found = ready_ ? level(depth) : nullptr;
+    return kept(found != nullptr && found->ready() ? found->entries.data() : nullptr);
+}
+
+void Backend::prepareLevel(int depth) { level(depth); }
 
 void Backend::updateReady()
 {

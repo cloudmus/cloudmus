@@ -20,6 +20,29 @@
     </message>
   </context>
   <context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+      <source>%n track(s) couldn't be deleted</source>
+      <translation>
+        <numerusform>%n трек не удалось удалить</numerusform>
+        <numerusform>%n трека не удалось удалить</numerusform>
+        <numerusform>%n треков не удалось удалить</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>Deleted "%1"</source>
+      <translation>«%1» удалено</translation>
+    </message>
+    <message numerus="yes">
+      <source>Deleted %n track(s)</source>
+      <translation>
+        <numerusform>Удалён %n трек</numerusform>
+        <numerusform>Удалено %n трека</numerusform>
+        <numerusform>Удалено %n треков</numerusform>
+      </translation>
+    </message>
+  </context>
+  <context>
     <name>CapabilityTags</name>
     <message>
       <source>Playlists</source>
@@ -61,9 +84,16 @@
       <source>Settings</source>
       <translation>Настройки</translation>
     </message>
-        <message>
+    <message>
       <source>Radio</source>
       <translation>Радио</translation>
+    </message>
+  </context>
+  <context>
+    <name>ConfirmDialog</name>
+    <message>
+      <source>Cancel</source>
+      <translation>Отмена</translation>
     </message>
   </context>
   <context>
@@ -226,6 +256,29 @@
     </message>
   </context>
   <context>
+    <name>DownloadsPage</name>
+    <message>
+      <source>Downloads</source>
+      <translation>Загрузки</translation>
+    </message>
+    <message>
+      <source>Saving tracks is off. It's turned on in Settings.</source>
+      <translation>Сохранение треков выключено. Его можно включить в настройках.</translation>
+    </message>
+    <message>
+      <source>Cancel all</source>
+      <translation>Отменить все</translation>
+    </message>
+    <message>
+      <source>Clear</source>
+      <translation>Очистить</translation>
+    </message>
+    <message>
+      <source>Nothing is being saved</source>
+      <translation>Ничего не сохраняется</translation>
+    </message>
+  </context>
+  <context>
     <name>LibraryPage</name>
     <message>
       <source>Sign in to see the playlists</source>
@@ -275,11 +328,11 @@
       <source>Settings</source>
       <translation>Настройки</translation>
     </message>
-      <message>
+    <message>
       <source>Capabilities</source>
       <translation>Возможности</translation>
     </message>
-      <message>
+    <message>
       <source>Refresh</source>
       <translation>Обновить</translation>
     </message>
@@ -292,7 +345,7 @@
     </message>
     <message>
       <source>All</source>
-      <translation type="unfinished" />
+      <translation type="unfinished">Все</translation>
     </message>
     <message>
       <source>This boot</source>
@@ -331,6 +384,18 @@
     <message>
       <source>Open the Library</source>
       <translation>Открыть библиотеку</translation>
+    </message>
+    <message>
+      <source>Save playlist</source>
+      <translation>Сохранить плейлист</translation>
+    </message>
+    <message>
+      <source>Downloads</source>
+      <translation>Загрузки</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Настройки</translation>
     </message>
   </context>
   <context>
@@ -712,6 +777,14 @@
       <source>Storage permissions</source>
       <translation>Разрешения на доступ к хранилищу</translation>
     </message>
+    <message>
+      <source>Downloads</source>
+      <translation>Загрузки</translation>
+    </message>
+    <message>
+      <source>What's being saved, and what has been</source>
+      <translation>Что сохраняется и что уже сохранено</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>
@@ -767,7 +840,7 @@
       <source>Couldn't load the settings: %1</source>
       <translation>Не удалось загрузить настройки: %1</translation>
     </message>
-      <message>
+    <message>
       <source>Capabilities</source>
       <translation>Возможности</translation>
     </message>
@@ -1049,6 +1122,33 @@
       <source>Saved to %1. Check shared storage permissions and free space.</source>
       <translation>Сохранено в %1. Проверьте разрешения и свободное место в общем хранилище.</translation>
     </message>
+    <message>
+      <source>"%1" is saved already</source>
+      <translation>Трек «%1» уже сохранён</translation>
+    </message>
+    <message>
+      <source>All tracks of "%1" are saved already</source>
+      <translation>Все треки из «%1» уже сохранены</translation>
+    </message>
+    <message>
+      <source>Saved %1 tracks of "%2", %3 were saved already</source>
+      <translation>Сохранено треков из «%2»: %1, ещё %3 уже были сохранены</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::DownloadsScreen</name>
+    <message>
+      <source>%1 — %2</source>
+      <translation>%1 — %2</translation>
+    </message>
+    <message>
+      <source>Saving "%1": %2</source>
+      <translation>Сохраняется «%1»: %2</translation>
+    </message>
+    <message>
+      <source>%1 (%2 more waiting)</source>
+      <translation>%1 (ещё в очереди: %2)</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::MediaTree</name>
@@ -1214,36 +1314,6 @@
     <message>
       <source>%1 kbps</source>
       <translation>%1 кбит/с</translation>
-    </message>
-  </context>
-  <context>
-    <name>App::TrackDeletion</name>
-    <message numerus="yes">
-      <source>%n track(s) couldn't be deleted</source>
-      <translation>
-        <numerusform>%n трек не удалось удалить</numerusform>
-        <numerusform>%n трека не удалось удалить</numerusform>
-        <numerusform>%n треков не удалось удалить</numerusform>
-      </translation>
-    </message>
-    <message>
-      <source>Deleted "%1"</source>
-      <translation>«%1» удалено</translation>
-    </message>
-    <message numerus="yes">
-      <source>Deleted %n track(s)</source>
-      <translation>
-        <numerusform>Удалён %n трек</numerusform>
-        <numerusform>Удалено %n трека</numerusform>
-        <numerusform>Удалено %n треков</numerusform>
-      </translation>
-    </message>
-  </context>
-  <context>
-    <name>ConfirmDialog</name>
-    <message>
-      <source>Cancel</source>
-      <translation>Отмена</translation>
     </message>
   </context>
 </TS>

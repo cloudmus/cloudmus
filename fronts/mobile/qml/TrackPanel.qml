@@ -81,7 +81,7 @@ Item {
     function _fold(full, mini) { return full + (mini - full) * collapse }
     readonly property real _miniPad: Theme.padding
     readonly property real _miniCover: Theme.dp(48)
-    readonly property real _miniTop: miniRect.y + Theme.dp(10)
+    readonly property real _miniTop: miniRect.y + Theme.dp(14)
     readonly property real _miniTitleX: miniRect.x + _miniPad + _miniCover + Theme.dp(12)
     // Shuffle and repeat, right of the title, when the queue has them.
     readonly property bool _hasModes: nowPlaying !== null && nowPlaying.repeat !== undefined
@@ -140,6 +140,7 @@ Item {
             scale: coverBox.width / width
             source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
             seed: panel.seed
+            fallbackIcon: "music_note"
             // The same on screen at any scale. In the picture itself, without a
             // GPU, it can't follow.
             radius: _masked && scale > 0 ? Theme.coverRadius / scale : Theme.coverRadius
@@ -174,6 +175,7 @@ Item {
             seed: panel._handingOver || panel._landed > 0 ? panel._frozenSeed
                 : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextSeed
                 : panel._swipeTo < 0 ? panel.neighbors.previousSeed : ""
+            fallbackIcon: "music_note"
             x: panel._swipeTo * coverBox.width * 0.85 * (1 - panel._newNear)
             opacity: Math.min(1, panel._newNear * 1.4)
             scale: panel._swipeScale(1 - panel._newNear)

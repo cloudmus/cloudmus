@@ -196,7 +196,25 @@ app-specific Music directory or its internal files if the external volume is
 unavailable. Settings → Saving tracks shows the actual destination, and the
 subfolders a track goes into (none, by source, by artist, by artist and album),
 as on the desktop. Android
-removes app-specific files on uninstall. The playback disk-space limit also
+removes app-specific files on uninstall.
+
+What's being saved is on the Downloads page (`DownloadsScreen`), one row per
+track or playlist, with its progress, a way to cancel each or all, and Clear for
+the finished ones. A playlist's download button on its page saves it; while
+it's being saved the button rings with its progress and a tap opens the
+Downloads page. On the main screen, saving the playing playlist, the Downloads
+page and Settings are in the list's menu (⋮; on a head unit with the screen
+turned to the track, in the left column), whose button rings while anything is
+being saved: a head unit shows no notifications. Settings → Saving tracks →
+Downloads and the system notification lead to the page too. Asking for a
+playlist that is already queued does nothing.
+
+The playback process posts the notification (`DownloadNotice.java`, channel
+"Downloads"): the item being saved, how far all of it has got, and Cancel, which
+stops everything. Once it's all over, the notification says how the last one
+ended, unless it was cancelled. On Android 13+ saving a track or playlist asks for
+the notification permission until it's granted (Android stops asking after two
+refusals); without it, only the app shows progress. The playback disk-space limit also
 applies to saved tracks and temporary files.
 
 In Developer tools, **Check music storage** tests creation, writing and

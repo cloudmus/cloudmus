@@ -43,7 +43,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 final class MusicStorage {
@@ -59,7 +58,18 @@ final class MusicStorage {
     private static final java.util.Set<String> externalInputs = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private static ContentObserver observer;
     private static String lastIndex;
-    private static ScheduledFuture<?> refresh;
+    // The index is rebuilt soon after a change, then at most once per
+    // INDEX_INTERVAL_MS: saving a playlist changes MediaStore every second or
+    // so, and each rebuild has every source list its tracks again. Its own
+    // lock: publish() holds the class's for as long as a copy takes, and the
+    // observer that calls refresh() runs on the main thread.
+    private static final long INDEX_INTERVAL_MS = 3000;
+    private static final Object indexLock = new Object();
+    private static boolean indexQueued; // guarded by indexLock
+    private static long lastIndexRun; // guarded by indexLock
+    // Saved tracks whose file the backend can read itself, by revision
+    // (see addScopedMetadata()): asked of the file system once. Index worker only.
+    private static java.util.Set<String> readableRevisions = new java.util.HashSet<>();
 
     private MusicStorage() { }
 
@@ -84,12 +94,25 @@ final class MusicStorage {
         observer = null;
     }
 
-    static synchronized void refresh() {
+    static void refresh() {
         if (app == null)
             return;
-        if (refresh != null)
-            refresh.cancel(false);
-        refresh = worker.schedule(MusicStorage::writeIndex, 250, TimeUnit.MILLISECONDS);
+        synchronized (indexLock) {
+            // One queued run takes in every change until it starts.
+            if (indexQueued)
+                return;
+            indexQueued = true;
+            long wait = Math.max(250, lastIndexRun + INDEX_INTERVAL_MS - android.os.SystemClock.elapsedRealtime());
+            worker.schedule(MusicStorage::runIndex, wait, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private static void runIndex() {
+        synchronized (indexLock) {
+            indexQueued = false;
+            lastIndexRun = android.os.SystemClock.elapsedRealtime();
+        }
+        writeIndex();
     }
 
     // A source asked for all the device's music (media/wanted), not only
@@ -314,14 +337,19 @@ final class MusicStorage {
 
     private static void addScopedMetadata(Map<String, JSONObject> records) throws Exception {
         Map<String, JSONObject> current = new LinkedHashMap<>();
+        java.util.Set<String> readable = new java.util.HashSet<>();
         for (JSONObject item : records.values()) {
             if (!item.optBoolean("own"))
                 continue;
-            String path = item.optString("path");
-            if (!path.isEmpty() && new File(path).canRead())
-                continue; // The Rust backend can read this file directly.
             String uri = item.getString("uri");
             String revision = uri + ":" + item.optLong("modified") + ":" + item.optLong("size");
+            // The Rust backend can read this file directly. Each check goes
+            // through the storage daemon: once per revision of a file.
+            String path = item.optString("path");
+            if (!path.isEmpty() && (readableRevisions.contains(revision) || new File(path).canRead())) {
+                readable.add(revision);
+                continue;
+            }
             JSONObject info = scopedMetadata.get(revision);
             if (info == null || (info.has("coverUrl")
                     && !new File(Uri.parse(info.getString("coverUrl")).getPath()).isFile()))
@@ -334,6 +362,7 @@ final class MusicStorage {
             }
         }
         scopedMetadata = current;
+        readableRevisions = readable;
     }
 
     private static void writeIndex() {
@@ -345,26 +374,10 @@ final class MusicStorage {
             addRoot(roots, "internal", internalMusic());
             Map<String, JSONObject> records = new LinkedHashMap<>();
             JSONObject own = owned();
-            for (java.util.Iterator<String> it = own.keys(); it.hasNext();) {
-                JSONObject item = own.getJSONObject(it.next());
-                // Saved by an older version as "saved".
-                item.remove("saved");
-                item.put("own", true);
-                Uri uri = Uri.parse(item.getString("uri"));
-                String[] columns = { "title", "artist", "album", "duration", "_data", "_size", "date_modified" };
-                try (Cursor cursor = app.getContentResolver().query(uri, columns, null, null, null)) {
-                    if (cursor != null && cursor.moveToFirst()) {
-                        String title = cell(cursor, "title");
-                        if (!title.isEmpty())
-                            item.put("title", title);
-                        fillMediaRow(item, cursor);
-                        records.put(uri.toString(), item);
-                    }
-                } catch (RuntimeException error) {
-                    CmLog.w(TAG, "check published media: " + error.getClass().getSimpleName());
-                }
-            }
             boolean all = wantAll && granted(app, readPermission());
+            // The volumes in one query each: they list the app's saved tracks
+            // (and with `all` everyone's), so most of the registry is found
+            // there without asking MediaStore of each track.
             if (Build.VERSION.SDK_INT >= 29) {
                 for (String volume : MediaStore.getExternalVolumeNames(app)) {
                     try {
@@ -378,6 +391,33 @@ final class MusicStorage {
                     query(records, "external", true);
                 } catch (Exception error) {
                     CmLog.e(TAG, "query audio volume external", error);
+                }
+            }
+            for (java.util.Iterator<String> it = own.keys(); it.hasNext();) {
+                JSONObject item = own.getJSONObject(it.next());
+                String key = item.getString("uri");
+                JSONObject found = records.get(key);
+                if (found != null) {
+                    found.put("own", true);
+                    continue;
+                }
+                // Not in a volume's list (Android 9 and older without `all`, or
+                // somewhere the query doesn't look): asked of on its own.
+                // Saved by an older version as "saved".
+                item.remove("saved");
+                item.put("own", true);
+                Uri uri = Uri.parse(key);
+                String[] columns = { "title", "artist", "album", "duration", "_data", "_size", "date_modified" };
+                try (Cursor cursor = app.getContentResolver().query(uri, columns, null, null, null)) {
+                    if (cursor != null && cursor.moveToFirst()) {
+                        String title = cell(cursor, "title");
+                        if (!title.isEmpty())
+                            item.put("title", title);
+                        fillMediaRow(item, cursor);
+                        records.put(key, item);
+                    }
+                } catch (RuntimeException error) {
+                    CmLog.w(TAG, "check published media: " + error.getClass().getSimpleName());
                 }
             }
             addScopedMetadata(records);
@@ -576,6 +616,45 @@ final class MusicStorage {
                 destination.delete();
         }
         return false;
+    }
+
+    // Whether a track is saved already where publish() would put it now:
+    // `<subfolder>/<baseName><one of extensions>` in shared Music/CloudMus (as
+    // MediaStore lists it, or as a file), or in a fallback folder. Saving it
+    // again would only add a copy beside it, which MediaStore names "... (1)".
+    static synchronized boolean isSaved(String subfolder, String baseName, String[] extensions) {
+        for (File base : new File[] {publicMusic(), externalMusic(), internalMusic()}) {
+            if (base == null)
+                continue;
+            for (String extension : extensions) {
+                try {
+                    if (new File(subdirectory(base, subfolder), baseName + extension).isFile())
+                        return true;
+                } catch (IOException | RuntimeException error) {
+                    CmLog.w(TAG, "look for a saved track in " + base + ": " + error.getMessage());
+                }
+            }
+        }
+        if (Build.VERSION.SDK_INT < 29)
+            return false;
+        // Scoped storage may not show the file itself; MediaStore lists the
+        // app's own tracks, and the others with the permission to read music.
+        StringBuilder names = new StringBuilder();
+        String[] arguments = new String[extensions.length + 1];
+        arguments[0] = relative(subfolder) + "/";
+        for (int i = 0; i < extensions.length; ++i) {
+            names.append(i == 0 ? "?" : ",?");
+            arguments[i + 1] = baseName + extensions[i];
+        }
+        String selection = MediaStore.MediaColumns.RELATIVE_PATH + "=? AND " + MediaStore.MediaColumns.DISPLAY_NAME
+            + " IN (" + names + ")";
+        try (Cursor rows = app.getContentResolver().query(
+                 audioCollection(), new String[] {MediaStore.MediaColumns._ID}, selection, arguments, null)) {
+            return rows != null && rows.moveToFirst();
+        } catch (RuntimeException error) {
+            CmLog.e(TAG, "look for a saved track in MediaStore", error);
+            return false;
+        }
     }
 
     // Called on the native download worker after a complete file has been tagged.

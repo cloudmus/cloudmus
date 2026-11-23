@@ -27,14 +27,39 @@ Popup {
     modal: true
     dim: true
     padding: Theme.dp(20)
+    // Comes up from a little lower and smaller, and goes back the same way.
+    // Not y: anchors place the dialog; the share is a translation of its own.
+    property real rise: 0
+    readonly property real _riseDistance: Theme.dp(32)
+    enter: Transition {
+        ParallelAnimation {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.durationFast; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "scale"; from: 0.9; to: 1; duration: 240; easing.type: Easing.OutCubic }
+            NumberAnimation { property: "rise"; from: 1; to: 0; duration: 240; easing.type: Easing.OutCubic }
+        }
+    }
+    exit: Transition {
+        ParallelAnimation {
+            NumberAnimation { property: "opacity"; to: 0; duration: Theme.durationFast; easing.type: Easing.InCubic }
+            NumberAnimation { property: "scale"; to: 0.94; duration: Theme.durationFast; easing.type: Easing.InCubic }
+            NumberAnimation { property: "rise"; to: 0.5; duration: Theme.durationFast; easing.type: Easing.InCubic }
+        }
+    }
+
     background: Rectangle {
         radius: Theme.dp(24)
         color: Theme.surface200
+        transform: Translate { y: dialog.rise * dialog._riseDistance }
     }
-    Overlay.modal: Rectangle { color: "#99000000" }
+    // What's behind darkens and lightens with it.
+    Overlay.modal: Rectangle {
+        color: "#99000000"
+        Behavior on opacity { NumberAnimation { duration: Theme.durationFast; easing.type: Easing.OutCubic } }
+    }
 
     contentItem: ColumnLayout {
         spacing: Theme.dp(12)
+        transform: Translate { y: dialog.rise * dialog._riseDistance }
         Text {
             Layout.fillWidth: true
             text: dialog.heading

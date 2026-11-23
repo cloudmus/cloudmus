@@ -57,7 +57,7 @@ Platform::Platform(QString logDirectory, QObject* parent)
     instance = this;
     readInsets();
     // After the window has loaded, to see it.
-    QTimer::singleShot(0, this, &Platform::takeOpenedAudio);
+    QTimer::singleShot(0, this, &Platform::takeOpenRequests);
 #endif
 }
 
@@ -244,6 +244,14 @@ void Platform::requestMusicPermission()
 #endif
 }
 
+void Platform::requestNotificationPermission() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "requestNotificationPermission",
+        QNativeInterface::QAndroidApplication::context());
+#endif
+}
+
 void Platform::grantMusicStorage() const
 {
 #ifdef Q_OS_ANDROID
@@ -360,11 +368,13 @@ void Platform::readInsets()
 #endif
 }
 
-void Platform::takeOpenedAudio()
+void Platform::takeOpenRequests()
 {
 #ifdef Q_OS_ANDROID
     if (!bridgeString("takeAudioOpened").isEmpty())
         emit audioOpened();
+    if (!bridgeString("takeDownloadsOpened").isEmpty())
+        emit downloadsOpened();
 #endif
 }
 
@@ -389,6 +399,12 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UiBridge_nativeInsets
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UiBridge_nativeAudioOpened(JNIEnv*, jclass)
 {
     if (Ui::Platform* platform = Ui::instance.load())
-        QMetaObject::invokeMethod(platform, &Ui::Platform::takeOpenedAudio, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(platform, &Ui::Platform::takeOpenRequests, Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UiBridge_nativeDownloadsOpened(JNIEnv*, jclass)
+{
+    if (Ui::Platform* platform = Ui::instance.load())
+        QMetaObject::invokeMethod(platform, &Ui::Platform::takeOpenRequests, Qt::QueuedConnection);
 }
 #endif

@@ -191,6 +191,7 @@ ApplicationWindow {
             onNowPlayingDragged: (share) => nowPlayingSheet.follow(share)
             onNowPlayingDragEnded: (velocity, fromOpen) => nowPlayingSheet.settleAfterDrag(velocity, fromOpen)
             onSettingsRequested: stack.open(settingsPage)
+            onDownloadsRequested: window.openDownloads()
             onLibraryRequested: {
                 if (window.backend.library)
                     window.backend.library.selectActiveSource()
@@ -210,17 +211,17 @@ ApplicationWindow {
                 stack.open(sourceSettingsPage)
             }
             onPlaylistRequested: stack.open(playlistPage)
+            onDownloadsRequested: window.openDownloads()
         }
     }
     Component {
         id: playlistPage
         PlaylistPage {
-            objectName: "playlistScreen"
-            onCloseRequested: {
-                backend.playlistScreen.close()
-                stack.close()
-            }
+            objectName: depth === 0 ? "playlistScreen" : "playlistScreen" + depth
+            onCloseRequested: stack.close()
+            onFolderRequested: (depth) => stack.open(playlistPage, { depth: depth })
             onTrackMenuRequested: trackSheet.open()
+            onDownloadsRequested: window.openDownloads()
         }
     }
     // Now Playing's background, ready before it's asked for: drawing one takes a
@@ -307,6 +308,7 @@ ApplicationWindow {
         objectName: "trackSheet"
         behind: pages
         backend: window.backend
+        platform: window.platform
     }
     // What the app has to tell the user, over everything.
     Toast {
@@ -369,6 +371,43 @@ ApplicationWindow {
             window.showOpenedTrack()
         }
     }
+    // The Downloads page, from the main screen's indicator, Settings, or the
+    // notification: on top of where the user is, once.
+    function openDownloads() {
+        trackSheet.close()
+        nowPlayingSheet.close()
+        if (stack.currentItem && stack.currentItem.objectName === "downloadsPage")
+            return
+        stack.open(downloadsPage)
+    }
+    Connections {
+        target: window.platform
+        ignoreUnknownSignals: true
+        function onDownloadsOpened() {
+            if (window.backend.ready)
+                window.openDownloads()
+            else
+                window._downloadsPending = true
+        }
+    }
+    // Tapped before the core was reachable (a cold start from the notification).
+    property bool _downloadsPending: false
+    Connections {
+        target: window.backend
+        function onReadyChanged() {
+            if (window.backend.ready && window._downloadsPending) {
+                window._downloadsPending = false
+                window.openDownloads()
+            }
+        }
+    }
+    Component {
+        id: downloadsPage
+        DownloadsPage {
+            objectName: "downloadsPage"
+            onCloseRequested: stack.close()
+        }
+    }
     Component {
         id: settingsPage
         SettingsPage {
@@ -377,6 +416,7 @@ ApplicationWindow {
             localizer: window.localizer
             onCloseRequested: stack.close()
             onDeveloperRequested: stack.open(developerPage)
+            onDownloadsRequested: window.openDownloads()
             onSourceRequested: (sourceId) => {
                 window.backend.sourceSettings.open(sourceId)
                 stack.open(sourceSettingsPage)

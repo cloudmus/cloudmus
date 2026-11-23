@@ -9,7 +9,7 @@
 #include "MainScreen.h"
 #include "MediaTree.h"
 #include "PlatformSettings.h"
-#include "PlaylistScreen.h"
+#include "PlaylistScreens.h"
 #include "SettingsScreen.h"
 #include "SourceSettings.h"
 #include "SourceSettingsScreen.h"
@@ -47,7 +47,9 @@ public:
     ViewModel::DownloadsScreen& downloadsScreen() { return downloadsScreen_; }
     ViewModel::PlatformSettings& settings() { return settings_; }
     ViewModel::LibraryScreen& library() { return library_; }
-    ViewModel::PlaylistScreen& playlistScreen() { return playlistScreen_; }
+    // The first level's, the one the Library opens.
+    ViewModel::PlaylistScreen& playlistScreen() { return playlistScreens_.at(0); }
+    ViewModel::PlaylistScreens& playlistScreens() { return playlistScreens_; }
     ViewModel::TrackScreen& trackScreen() { return trackScreen_; }
     ViewModel::MediaTree& mediaTree() { return mediaTree_; }
     ViewModel::SettingsScreen& settingsScreen() { return settingsScreen_; }
@@ -65,7 +67,7 @@ private:
     ViewModel::LibraryScreen library_;
     ViewModel::MainScreen mainScreen_;
     ViewModel::DownloadsScreen downloadsScreen_;
-    ViewModel::PlaylistScreen playlistScreen_;
+    ViewModel::PlaylistScreens playlistScreens_;
     ViewModel::TrackScreen trackScreen_;
     ViewModel::MediaTree mediaTree_;
     ViewModel::SourceSettings sourceSettings_;

@@ -6,15 +6,15 @@
 
 #include "Core.h"
 #include "MainScreen.h"
-#include "PlaylistScreen.h"
+#include "PlaylistScreens.h"
 
 namespace ViewModel {
 
-TrackScreen::TrackScreen(App::Core& core, MainScreen& mainScreen, PlaylistScreen& playlist, QObject* parent)
+TrackScreen::TrackScreen(App::Core& core, MainScreen& mainScreen, PlaylistScreens& playlists, QObject* parent)
     : QObject(parent)
     , core_(core)
     , mainScreen_(mainScreen)
-    , playlist_(playlist)
+    , playlistScreens_(playlists)
     , playlistRows_({ "playlistId", "title", "contains", "changing" })
 {
     connect(&core.trackStates(), &Library::TrackStates::changed, this,
@@ -86,13 +86,16 @@ void TrackScreen::showActiveRow(int filteredRow)
     show(tracks.sourceIdAt(row), tracks.trackAt(row), [this, row] { core_.activePlaylist().playRow(row); });
 }
 
-void TrackScreen::showOpenRow(int filteredRow)
+void TrackScreen::showOpenRow(int filteredRow) { showOpenRowAt(0, filteredRow); }
+
+void TrackScreen::showOpenRowAt(int depth, int filteredRow)
 {
-    const int row = playlist_.rows().sourceRow(filteredRow);
-    const TrackListModel& tracks = playlist_.allRows();
+    PlaylistScreen& playlist = playlistScreens_.at(depth);
+    const int row = playlist.rows().sourceRow(filteredRow);
+    const TrackListModel& tracks = playlist.allRows();
     if (row < 0 || row >= tracks.rowCount())
         return;
-    show(tracks.sourceIdAt(row), tracks.trackAt(row), [this, row] { playlist_.open().playRow(row); });
+    show(tracks.sourceIdAt(row), tracks.trackAt(row), [&playlist, row] { playlist.open().playRow(row); });
 }
 
 void TrackScreen::showPlaying()

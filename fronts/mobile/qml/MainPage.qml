@@ -31,11 +31,52 @@ Page {
     signal nowPlayingDragEnded(real velocity, bool fromOpen)
     signal settingsRequested()
     signal libraryRequested()
+    signal downloadsRequested()
     signal trackMenuRequested()
 
     readonly property QtObject nowPlaying: backend.nowPlaying
     readonly property QtObject playlist: backend.playlist
     readonly property QtObject library: backend.library
+    // Anything listed on the Downloads page: the way there, with how far it
+    // has got. A head unit shows no notifications; this is all it has.
+    readonly property QtObject downloads: backend.downloadsScreen
+    readonly property bool hasDownloads: downloads !== null && downloads.jobCount > 0
+    // What's seldom needed is in the list's menu (ListMenu): saving the playing
+    // playlist, the Downloads page, Settings. Its button rings while anything
+    // is being saved: a head unit shows no notifications.
+    readonly property bool canSavePlaylist: backend.mainScreen !== null
+        && backend.mainScreen.canDownloadPlaylist === true
+    readonly property bool savingPlaylist: backend.mainScreen !== null
+        && backend.mainScreen.playlistDownloading === true
+    readonly property bool downloadsActive: downloads !== null && downloads.active === true
+    readonly property real downloadsProgress: downloads !== null ? downloads.progress : -1
+    function savePlaylist() {
+        backend.mainScreen.downloadPlaylist()
+        platform.requestNotificationPermission()
+    }
+
+    component ListMenu: DropMenu {
+        DropMenuItem {
+            objectName: "savePlaylistEntry"
+            iconName: "file_download"
+            available: page.canSavePlaylist && !page.savingPlaylist
+            text: qsTr("Save playlist")
+            onTriggered: page.savePlaylist()
+        }
+        DropMenuItem {
+            objectName: "downloadsEntry"
+            iconName: "file_download"
+            available: page.hasDownloads
+            text: qsTr("Downloads")
+            onTriggered: page.downloadsRequested()
+        }
+        DropMenuItem {
+            objectName: "settingsEntry"
+            iconName: "tune"
+            text: qsTr("Settings")
+            onTriggered: page.settingsRequested()
+        }
+    }
     readonly property bool wide: width > height * 1.1
     readonly property bool hasTrack: nowPlaying && nowPlaying.hasTrack === true
     // A phone's, at the bottom.
@@ -312,16 +353,20 @@ Page {
                     onClicked: page.nowPlaying.cycleRepeat()
                 }
             }
-            // In the screen's left column when it's the track's.
-            IconButton {
-                objectName: "railSettings"
+            // The list's menu, in the screen's left column when it's the track's.
+            DownloadButton {
+                objectName: "railMenu"
                 x: page._heroMargin + (sourceBar.height - width) / 2
                 y: parent.height - height - page._heroMargin + Theme.dp(16) * (1 - page._panelRisen)
-                iconName: "tune"
+                iconName: "more_vert"
                 color: "#FFFFFF"
+                ringColor: "#FFFFFF"
+                downloading: page.downloadsActive
+                progress: page.downloadsProgress
                 opacity: page._panelRisen
                 visible: opacity > 0
-                onClicked: page.settingsRequested()
+                onClicked: railMenu.open()
+                ListMenu { id: railMenu }
             }
         }
 
@@ -410,14 +455,19 @@ Page {
                         opacity: 1 - page.screenProgress
                         onClicked: page.filterOpen = !page.filterOpen
                     }
-                    IconButton {
-                        objectName: "listSettings"
+                    DownloadButton {
+                        objectName: "listMenu"
                         // Narrows away as it moves to the left column.
                         Layout.preferredWidth: Theme.touch * (1 - page.screenProgress)
-                        iconName: "tune"
+                        iconName: "more_vert"
+                        color: Theme.ink
+                        ringColor: Theme.accent
+                        downloading: page.downloadsActive
+                        progress: page.downloadsProgress
                         opacity: 1 - page.screenProgress
                         visible: opacity > 0
-                        onClicked: page.settingsRequested()
+                        onClicked: listMenu.open()
+                        ListMenu { id: listMenu }
                     }
                     IconButton {
                         objectName: "screenModeToggle"

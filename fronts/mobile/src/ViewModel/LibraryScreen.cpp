@@ -21,7 +21,7 @@ QString fileUrl(const QString& path) { return path.isEmpty() ? QString() : QUrl:
 
 // `path`: the folders it's in (Playlist.parentId), for one shown away from
 // them — a favorite. `sizeText`: how much its files take, "" when unknown.
-const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "sizeText", "kind", "coverUrl",
+const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "sizeText", "kind", "coverUrl", "coverIcon",
     "isActive", "isStarting", "isFavorite", "path" };
 
 } // namespace
@@ -175,6 +175,7 @@ QVariantHash LibraryScreen::playlistRow(const Playlist& playlist)
         { QStringLiteral("sizeText"), ViewModel::playlistSizeText(playlist) },
         { QStringLiteral("kind"), playlist.kind },
         { QStringLiteral("coverUrl"), fileUrl(covers_.localFile(playlist.coverUrl.value_or(QString()))) },
+        { QStringLiteral("coverIcon"), playlist.coverIcon.value_or(QString()) },
         { QStringLiteral("isActive"), active.sourceId == currentSourceId_ && active.playlist.id == playlist.id },
         { QStringLiteral("isStarting"), startingPlaylistId_ == playlist.id },
         { QStringLiteral("isFavorite"), sources_.isFavorite(currentSourceId_, playlist.id) },

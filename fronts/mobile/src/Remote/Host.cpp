@@ -39,10 +39,18 @@ Host::Host(App::MobileCore& core, const QString& socketPath, QObject* parent)
     offerRows(library.otherRows(), Names::otherPlaylists);
     host_.enableRemoting(&core.mainScreen(), Names::mainScreen);
     host_.enableRemoting(&core.downloadsScreen(), Names::downloadsScreen);
-    ViewModel::PlaylistScreen& playlist = core.playlistScreen();
-    host_.enableRemoting(&playlist, Names::playlistScreen);
-    host_.enableRemoting(&playlist.rows(), Names::openTracks, playlist.allRows().roleNames().keys().toVector());
-    offerRows(playlist.folderRows(), Names::openFolders);
+    offerRows(core.downloadsScreen().jobRows(), Names::downloads);
+    static_assert(Names::playlistLevels == ViewModel::PlaylistScreens::kLevels);
+    host_.enableRemoting(&core.playlistScreens(), Names::playlistScreens);
+    for (int depth = 0; depth < ViewModel::PlaylistScreens::kLevels; ++depth) {
+        ViewModel::PlaylistScreen& playlist = core.playlistScreens().at(depth);
+        host_.enableRemoting(&playlist, Names::atDepth(Names::playlistScreen, depth));
+        host_.enableRemoting(&playlist.rows(), Names::atDepth(Names::openTracks, depth),
+            playlist.allRows().roleNames().keys().toVector());
+        offerRows(playlist.folderRows(), Names::atDepth(Names::openFolders, depth));
+        host_.enableRemoting(&playlist.entries(), Names::atDepth(Names::openEntries, depth),
+            playlist.entries().roleNames().keys().toVector());
+    }
     host_.enableRemoting(&core.trackScreen(), Names::trackScreen);
     offerRows(core.trackScreen().playlistRows(), Names::trackPlaylists);
     ViewModel::SettingsScreen& settingsScreen = core.settingsScreen();

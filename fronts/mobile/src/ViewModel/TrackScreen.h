@@ -17,7 +17,7 @@ class Core;
 namespace ViewModel {
 
 class MainScreen;
-class PlaylistScreen;
+class PlaylistScreens;
 
 // The details of one track, from any list, and what can be done with it: a
 // sheet's worth of plain properties and slots over TrackActions, NowPlaying,
@@ -53,7 +53,7 @@ class TrackScreen : public QObject {
     Q_PROPERTY(bool playlistsFailed READ playlistsFailed NOTIFY playlistsFailedChanged)
 
 public:
-    TrackScreen(App::Core& core, MainScreen& mainScreen, PlaylistScreen& playlist, QObject* parent = nullptr);
+    TrackScreen(App::Core& core, MainScreen& mainScreen, PlaylistScreens& playlists, QObject* parent = nullptr);
 
     RowsModel& playlistRows() { return playlistRows_; }
 
@@ -86,6 +86,8 @@ public slots:
     // (Rows as filtered there.)
     void showActiveRow(int filteredRow);
     void showOpenRow(int filteredRow);
+    // ...of the playlist page at `depth` of the stack.
+    void showOpenRowAt(int depth, int filteredRow);
     void showPlaying();
 
     void play();
@@ -135,7 +137,7 @@ private:
 
     App::Core& core_;
     MainScreen& mainScreen_;
-    PlaylistScreen& playlist_;
+    PlaylistScreens& playlistScreens_;
     RowsModel playlistRows_;
     QString sourceId_;
     Track track_;

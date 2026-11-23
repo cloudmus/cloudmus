@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractItemModel>
+#include <QHash>
 #include <QObject>
 #include <QPointer>
 #include <QTimer>
@@ -40,9 +41,18 @@ class Backend : public QObject {
     Q_PROPERTY(QAbstractItemModel* otherPlaylists READ otherPlaylists NOTIFY readyChanged)
     Q_PROPERTY(QObject* mainScreen READ mainScreen NOTIFY readyChanged)
     Q_PROPERTY(QObject* downloadsScreen READ downloadsScreen NOTIFY readyChanged)
+    Q_PROPERTY(QAbstractItemModel* downloads READ downloads NOTIFY readyChanged)
     Q_PROPERTY(QObject* playlistScreen READ playlistScreen NOTIFY readyChanged)
+    // Opens a folder's subfolder at the next level, closes a level's page
+    // (ViewModel::PlaylistScreens).
+    Q_PROPERTY(QObject* playlistScreens READ playlistScreens NOTIFY readyChanged)
+    // Goes up as a deeper level's screen and models come to hand: what
+    // playlistScreenAt() and the like give then.
+    Q_PROPERTY(int levelsRevision READ levelsRevision NOTIFY levelsRevisionChanged)
     Q_PROPERTY(QAbstractItemModel* openTracks READ openTracks NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* openFolders READ openFolders NOTIFY readyChanged)
+    // The subfolders and then the tracks, as one list (ViewModel::PlaylistEntries).
+    Q_PROPERTY(QAbstractItemModel* openEntries READ openEntries NOTIFY readyChanged)
     Q_PROPERTY(QObject* trackScreen READ trackScreen NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* trackPlaylists READ trackPlaylists NOTIFY readyChanged)
     Q_PROPERTY(QObject* settingsScreen READ settingsScreen NOTIFY readyChanged)
@@ -76,10 +86,22 @@ public:
     QAbstractItemModel* favorites() const { return ready_ ? favorites_.data() : nullptr; }
     QAbstractItemModel* otherPlaylists() const { return ready_ ? otherPlaylists_.data() : nullptr; }
     QObject* downloadsScreen() const { return ready_ ? downloadsScreen_.data() : nullptr; }
+    QAbstractItemModel* downloads() const { return ready_ ? downloads_.data() : nullptr; }
     QObject* mainScreen() const { return ready_ ? mainScreen_.data() : nullptr; }
     QObject* playlistScreen() const { return ready_ ? playlistScreen_.data() : nullptr; }
+    QObject* playlistScreens() const { return ready_ ? playlistScreens_.data() : nullptr; }
+    int levelsRevision() const { return levelsRevision_; }
+    // The Playlist page's at `depth` of the stack (0: the one the Library
+    // opens), and its rows and subfolders; null until they're to hand
+    // (levelsRevision). prepareLevel() asks for them ahead.
+    Q_INVOKABLE QObject* playlistScreenAt(int depth);
+    Q_INVOKABLE QAbstractItemModel* openTracksAt(int depth);
+    Q_INVOKABLE QAbstractItemModel* openFoldersAt(int depth);
+    Q_INVOKABLE QAbstractItemModel* openEntriesAt(int depth);
+    Q_INVOKABLE void prepareLevel(int depth);
     QAbstractItemModel* openTracks() const { return ready_ ? openTracks_.data() : nullptr; }
     QAbstractItemModel* openFolders() const { return ready_ ? openFolders_.data() : nullptr; }
+    QAbstractItemModel* openEntries() const { return ready_ ? openEntries_.data() : nullptr; }
     QObject* trackScreen() const { return ready_ ? trackScreen_.data() : nullptr; }
     QAbstractItemModel* trackPlaylists() const { return ready_ ? trackPlaylists_.data() : nullptr; }
     QObject* settingsScreen() const { return ready_ ? settingsScreen_.data() : nullptr; }
@@ -91,8 +113,21 @@ public:
 
 signals:
     void readyChanged();
+    void levelsRevisionChanged();
 
 private:
+    // A level of the Playlist pages past the first.
+    struct Level {
+        QPointer<QObject> screen;
+        QPointer<QAbstractItemModel> tracks;
+        QPointer<QAbstractItemModel> folders;
+        QPointer<QAbstractItemModel> entries;
+        bool screenValid = false;
+        int modelsInitialized = 0;
+        bool ready() const { return screenValid && modelsInitialized >= 3; }
+    };
+    // Acquired (remote) on first use; null depth 0 or past the levels.
+    Level* level(int depth);
     void acquire(QPointer<QObject>& slot, const QString& name);
     void acquireModel(QPointer<QAbstractItemModel>& slot, const QString& name);
     void updateReady();
@@ -105,6 +140,12 @@ private:
     QPointer<QObject> mainScreen_;
     QPointer<QObject> downloadsScreen_;
     QPointer<QObject> playlistScreen_;
+    QPointer<QObject> playlistScreens_;
+    QHash<int, Level> levels_;
+    int levelsRevision_ = 0;
+#ifndef Q_OS_ANDROID
+    App::MobileCore* core_ = nullptr;
+#endif
     QPointer<QObject> trackScreen_;
     QPointer<QObject> settingsScreen_;
     QPointer<QObject> sourceSettings_;
@@ -112,8 +153,10 @@ private:
     QPointer<QAbstractItemModel> sources_;
     QPointer<QAbstractItemModel> favorites_;
     QPointer<QAbstractItemModel> otherPlaylists_;
+    QPointer<QAbstractItemModel> downloads_;
     QPointer<QAbstractItemModel> openTracks_;
     QPointer<QAbstractItemModel> openFolders_;
+    QPointer<QAbstractItemModel> openEntries_;
     QPointer<QAbstractItemModel> trackPlaylists_;
     QPointer<QAbstractItemModel> settingsSources_;
     QPointer<QAbstractItemModel> settingsProxies_;

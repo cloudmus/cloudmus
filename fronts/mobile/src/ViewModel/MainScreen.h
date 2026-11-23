@@ -36,6 +36,11 @@ class MainScreen : public QObject {
     Q_PROPERTY(bool canGoPrevious READ canGoPrevious NOTIFY canGoPreviousChanged)
     Q_PROPERTY(QString previousCoverUrl READ previousCoverUrl NOTIFY previousCoverUrlChanged)
     Q_PROPERTY(QString previousSeed READ previousSeed NOTIFY previousSeedChanged)
+    // The playing playlist can be saved (downloadPlaylist()); it's queued or
+    // being saved, and how far it has got: 0..1, or -1 while unknown.
+    Q_PROPERTY(bool canDownloadPlaylist READ canDownloadPlaylist NOTIFY canDownloadPlaylistChanged)
+    Q_PROPERTY(bool playlistDownloading READ playlistDownloading NOTIFY playlistDownloadingChanged)
+    Q_PROPERTY(double playlistDownloadProgress READ playlistDownloadProgress NOTIFY playlistDownloadProgressChanged)
 
 public:
     explicit MainScreen(App::Core& core, QObject* parent = nullptr);
@@ -54,6 +59,9 @@ public:
     bool canGoPrevious() const { return previous_.exists; }
     QString previousCoverUrl() const { return previous_.coverUrl; }
     QString previousSeed() const { return previous_.seed; }
+    bool canDownloadPlaylist() const { return canDownload_; }
+    bool playlistDownloading() const { return downloading_; }
+    double playlistDownloadProgress() const { return downloadProgress_; }
 
 public slots:
     void setFilter(const QString& text);
@@ -64,6 +72,8 @@ public slots:
     // The app came to the foreground or left it (the UI process says so: the
     // core may run in a service of its own).
     void setViewShown(bool shown);
+    // Saves the playing playlist; nothing while it's being saved already.
+    void downloadPlaylist();
 
 signals:
     // What the app has to tell the user (ViewModel::Messages), in plain types.
@@ -82,6 +92,9 @@ signals:
     void canGoPreviousChanged();
     void previousCoverUrlChanged();
     void previousSeedChanged();
+    void canDownloadPlaylistChanged();
+    void playlistDownloadingChanged();
+    void playlistDownloadProgressChanged();
 
 private:
     struct Neighbor {
@@ -93,11 +106,15 @@ private:
     Neighbor neighbor(int delta) const;
     bool radioGoesOn() const;
     void refreshNeighbors();
+    void readDownload();
 
     App::Core& core_;
     Neighbor next_;
     Neighbor previous_;
     TrackFilterModel filter_;
+    bool canDownload_ = false;
+    bool downloading_ = false;
+    double downloadProgress_ = -1;
 };
 
 } // namespace ViewModel

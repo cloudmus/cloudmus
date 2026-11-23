@@ -54,9 +54,10 @@ public:
     Q_INVOKABLE void setStatusBarOverAura(bool over) const;
     // Android told of new insets: from its thread.
     void readInsets();
-    // Audio opened from another app, which Android may have told before Qt was
-    // up: audioOpened() for it.
-    void takeOpenedAudio();
+    // Audio opened from another app, or the downloads notification tapped,
+    // which Android may have told before Qt was up: audioOpened() and
+    // downloadsOpened() for them.
+    void takeOpenRequests();
 
     // Packs the log into a zip a file manager can reach; what to tell the
     // user (where it went, or what went wrong).
@@ -72,6 +73,9 @@ public:
     // The system's question for deleting other apps' tracks.
     Q_INVOKABLE void requestMediaDelete(const QStringList& uris);
     Q_INVOKABLE void grantMusicStorage() const;
+    // The system's question for posting notifications (Android 13+), for the
+    // one of what's being saved; asked when a download starts.
+    Q_INVOKABLE void requestNotificationPermission() const;
     // The head unit's system APKs into a zip, for working out its media
     // widget at home (Android). Hundreds of MB: on a worker thread, the
     // progress in exportFraction/exportStatus, the outcome in
@@ -103,6 +107,8 @@ signals:
     // Another app had audio opened here ("Open with CloudMus"): on to the
     // track. The audio itself goes to the core, which plays it.
     void audioOpened();
+    // The downloads notification was tapped: on to the Downloads page.
+    void downloadsOpened();
 
 private:
     void pollExportProgress();

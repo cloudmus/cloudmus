@@ -11,6 +11,8 @@ Popup {
     id: sheet
 
     property QtObject backend
+    // For the notification's permission, asked as a track is saved.
+    property QtObject platform: null
     // What it's glass over.
     property Item behind
     readonly property QtObject track: backend ? backend.trackScreen : null
@@ -424,6 +426,7 @@ Popup {
                     Layout.preferredHeight: Theme.dp(96)
                     source: sheet.track ? sheet.track.coverUrl : ""
                     seed: sheet.track ? sheet.track.seed : ""
+                    fallbackIcon: "music_note"
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -560,7 +563,11 @@ Popup {
                     visible: sheet.track && sheet.track.canDownload === true
                     iconName: "file_download"
                     text: qsTr("Save to downloads")
-                    onClicked: sheet.track.download()
+                    onClicked: {
+                        sheet.track.download()
+                        if (sheet.platform)
+                            sheet.platform.requestNotificationPermission()
+                    }
                 }
                 Action {
                     objectName: "deleteTrack"

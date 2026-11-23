@@ -71,13 +71,18 @@ AbstractButton {
             display: AbstractButton.IconOnly
             visible: !control.busy
         }
-        Spinner {
+        // Only while busy: every row of a list has a button, and a spinner
+        // brings a Canvas along.
+        Loader {
             anchors.centerIn: parent
-            width: control.iconSize
-            height: control.iconSize
-            lineWidth: Math.max(Theme.dp(2), control.iconSize / 10)
-            running: control.busy
-            color: control.icon.color
+            active: control.busy
+            sourceComponent: Spinner {
+                width: control.iconSize
+                height: control.iconSize
+                lineWidth: Math.max(Theme.dp(2), control.iconSize / 10)
+                running: true
+                color: control.icon.color
+            }
         }
     }
 

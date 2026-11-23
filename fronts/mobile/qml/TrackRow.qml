@@ -39,7 +39,8 @@ ItemDelegate {
     readonly property bool current: isCurrent === true
     property bool playing: false
 
-    width: ListView.view.width
+    // Its list's, or its parent's when something else (a Loader) holds it.
+    width: ListView.view ? ListView.view.width : (parent ? parent.width : 0)
     // Scaling with the rest: a column of covers takes them for its margins.
     leftPadding: Theme.dp(10)
     rightPadding: Theme.dp(10)
@@ -98,6 +99,7 @@ ItemDelegate {
             spacing: Theme.dp(14)
             opacity: row.unavailable === true ? 0.45 : 1
             Cover {
+                id: rowCover
                 objectName: "rowCover"
                 Layout.preferredWidth: Theme.dp(52)
                 Layout.preferredHeight: Theme.dp(52)
@@ -117,15 +119,17 @@ ItemDelegate {
                         color: Theme.inkOnAccent
                     }
                 }
-                // What plays now, over its cover.
-                Rectangle {
+                // What plays now, over its cover: only on that row.
+                Loader {
                     anchors.fill: parent
-                    radius: parent.radius
-                    visible: row.current && row.playing
-                    color: "#80000000"
-                    EqualizerBars {
-                        objectName: "playingBars"
-                        anchors.centerIn: parent
+                    active: row.current && row.playing
+                    sourceComponent: Rectangle {
+                        radius: rowCover.radius
+                        color: "#80000000"
+                        EqualizerBars {
+                            objectName: "playingBars"
+                            anchors.centerIn: parent
+                        }
                     }
                 }
             }

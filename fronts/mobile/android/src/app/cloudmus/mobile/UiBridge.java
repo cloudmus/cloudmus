@@ -163,6 +163,34 @@ public final class UiBridge {
         return opened ? "yes" : "";
     }
 
+    // The downloads notification tapped (MainActivity): the Downloads page.
+    // Kept until Qt takes it, as for audioOpened().
+    private static boolean downloadsOpened;
+
+    private static native void nativeDownloadsOpened();
+
+    static void downloadsOpened() {
+        synchronized (UiBridge.class) {
+            downloadsOpened = true;
+        }
+        try {
+            nativeDownloadsOpened();
+        } catch (UnsatisfiedLinkError notLoadedYet) {
+            // Platform takes it when it comes up.
+        }
+    }
+
+    public static synchronized String takeDownloadsOpened(Context context) {
+        boolean opened = downloadsOpened;
+        downloadsOpened = false;
+        return opened ? "yes" : "";
+    }
+
+    public static void requestNotificationPermission(Context context) {
+        if (context instanceof MainActivity)
+            ((MainActivity) context).requestNotificationPermission();
+    }
+
     public static String exportProgress(Context context) {
         return SystemProbe.exportProgress();
     }

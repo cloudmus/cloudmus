@@ -1358,8 +1358,6 @@ private slots:
             // The ripple sets out from where the bar was touched.
             auto* ripple = findItem(window->contentItem(), QStringLiteral("miniRipple"));
             QVERIFY(ripple);
-            auto* shader = ripple->findChild<QQuickItem*>("rippleShader");
-            QVERIFY(shader);
             // The wave is the page's, the bar is what of it is uncovered.
             auto* surface = findItem(window->contentItem(), QStringLiteral("nowPlayingSurface"));
             QVERIFY(surface);
@@ -1367,6 +1365,9 @@ private slots:
             const QPoint at(int(bar.left()) + 300, int(bar.top()) + 20);
             QTest::mousePress(window, Qt::LeftButton, { }, at);
             QTest::qWait(250);
+            // Made with the touch.
+            auto* shader = ripple->findChild<QQuickItem*>("rippleShader");
+            QVERIFY(shader);
             const QPointF origin = shader->property("origin").toPointF();
             const QPointF expected = ripple->mapFromScene(QPointF(at));
             QVERIFY2(qAbs(origin.x() - expected.x()) < 2 && qAbs(origin.y() - expected.y()) < 2,
@@ -1471,6 +1472,44 @@ private slots:
         QVERIFY(cover->property("_showing").toBool());
         QTRY_VERIFY(shown().endsWith(blueUrl));
         QVERIFY(cover->property("_showing").toBool());
+    }
+
+    // A dialog comes up from lower and smaller, and leaves the same way before
+    // it's gone.
+    void confirmDialogAnimates()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls.Basic
+            import Cloudmus.Mobile
+            ApplicationWindow {
+                width: 400; height: 600; visible: true
+                ConfirmDialog { objectName: "dialog" }
+            }
+        )", QUrl());
+        std::unique_ptr<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(root.get());
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QObject* dialog = root->findChild<QObject*>(QStringLiteral("dialog"));
+        QVERIFY(dialog);
+
+        QMetaObject::invokeMethod(dialog, "ask", Q_ARG(QVariant, QStringLiteral("Delete?")),
+            Q_ARG(QVariant, QString()), Q_ARG(QVariant, QStringLiteral("Delete")));
+        QVERIFY(dialog->property("visible").toBool());
+        QVERIFY(dialog->property("rise").toReal() > 0.5);
+        QVERIFY(dialog->property("scale").toReal() < 1.0);
+        QTRY_COMPARE(dialog->property("rise").toReal(), 0.0);
+        QTRY_COMPARE(dialog->property("scale").toReal(), 1.0);
+        QTRY_COMPARE(dialog->property("opacity").toReal(), 1.0);
+
+        QMetaObject::invokeMethod(dialog, "close");
+        // Still there, on its way out.
+        QVERIFY(dialog->property("visible").toBool());
+        QTRY_VERIFY(dialog->property("rise").toReal() > 0.0);
+        QTRY_COMPARE(dialog->property("visible").toBool(), false);
     }
 
     // The hero's cover changes as on the desktop: the new one settling in from
@@ -1988,6 +2027,67 @@ private slots:
         QCOMPARE(core.core().settings().downloadLayout(), Layout::ByArtistAlbum);
         QMetaObject::invokeMethod(screen, "setLayout", Q_ARG(int, int(Layout::Flat)));
         QTRY_COMPARE(screen->property("layout").toInt(), int(Layout::Flat));
+
+        // A job's row, with what's under way in a line and in the notice.
+        // Never ends by itself, in the fake: see FakeBackend.
+        QAbstractItemModel* rows = backend.downloads();
+        Track slow;
+        slow.id = QStringLiteral("slow");
+        slow.title = QStringLiteral("Slow one");
+        slow.durationMs = 1000;
+        core.core().downloads().downloadTrack(QStringLiteral("fake"), slow);
+        QTRY_COMPARE(rows->rowCount(), 1);
+        QTRY_COMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "title")).toString(), QStringLiteral("Slow one"));
+        // (A replica's row is empty until fetched: wait for the real id.)
+        QTRY_VERIFY(rows->data(rows->index(0, 0), roleOf(*rows, "jobId")).toInt() > 0);
+        QCOMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "isOver")).toBool(), false);
+        QTRY_COMPARE(screen->property("active").toBool(), true);
+        QTRY_COMPARE(screen->property("jobCount").toInt(), 1);
+        QTRY_VERIFY(screen->property("summary").toString().contains(QStringLiteral("Slow one")));
+        const ViewModel::DownloadsScreen::Notice notice = core.downloadsScreen().notice();
+        QVERIFY(notice.shown && notice.ongoing);
+        QCOMPARE(notice.title, QStringLiteral("Slow one"));
+
+        // The open playlist, waiting behind it: the header says so, and asking
+        // again doesn't queue it twice; its row on the Downloads page stops it.
+        QObject* playlist = backend.playlistScreen();
+        QTRY_COMPARE(core.core().sources().playlists(QStringLiteral("fake")).size(), 2);
+        QMetaObject::invokeMethod(
+            playlist, "openPlaylist", Q_ARG(QString, QStringLiteral("fake")), Q_ARG(QString, QStringLiteral("p1")));
+        QTRY_COMPARE(playlist->property("canDownload").toBool(), true);
+        QCOMPARE(playlist->property("downloading").toBool(), false);
+        QMetaObject::invokeMethod(playlist, "downloadAll");
+        QTRY_COMPARE(playlist->property("downloading").toBool(), true);
+        QMetaObject::invokeMethod(playlist, "downloadAll");
+        QTRY_COMPARE(rows->rowCount(), 2);
+        QTRY_VERIFY(screen->property("summary").toString().contains(QStringLiteral("1 more waiting")));
+        QTRY_VERIFY(rows->data(rows->index(1, 0), roleOf(*rows, "jobId")).toInt() > 0);
+        QMetaObject::invokeMethod(
+            screen, "cancel", Q_ARG(int, rows->data(rows->index(1, 0), roleOf(*rows, "jobId")).toInt()));
+        QTRY_COMPARE(playlist->property("downloading").toBool(), false);
+        QCOMPARE(core.core().downloads().jobs().size(), 2);
+        QCOMPARE(core.core().downloads().jobs().last().state, ViewModel::Downloads::State::Cancelled);
+
+        // The main screen's button is the playing playlist's.
+        QObject* main = backend.mainScreen();
+        QMetaObject::invokeMethod(playlist, "playAll");
+        QTRY_COMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
+        QTRY_COMPARE(main->property("canDownloadPlaylist").toBool(), true);
+        QCOMPARE(main->property("playlistDownloading").toBool(), false);
+        QMetaObject::invokeMethod(main, "downloadPlaylist");
+        QTRY_COMPARE(main->property("playlistDownloading").toBool(), true);
+        QTRY_COMPARE(rows->rowCount(), 3);
+
+        // Cancelling the rest from the page, and clearing it.
+        QMetaObject::invokeMethod(screen, "cancelAll");
+        QTRY_COMPARE(screen->property("active").toBool(), false);
+        QTRY_COMPARE(rows->data(rows->index(0, 0), roleOf(*rows, "isCancelled")).toBool(), true);
+        QTRY_COMPARE(screen->property("canClear").toBool(), true);
+        // All cancelled: nothing for the notification to tell.
+        QVERIFY(!core.downloadsScreen().notice().shown);
+        QMetaObject::invokeMethod(screen, "clearFinished");
+        QTRY_COMPARE(rows->rowCount(), 0);
+        QTRY_COMPARE(screen->property("jobCount").toInt(), 0);
         QMetaObject::invokeMethod(screen, "setEnabled", Q_ARG(bool, false));
         QTRY_COMPARE(core.core().downloads().isEnabled(), false);
     }
@@ -2557,6 +2657,137 @@ private slots:
         QTRY_VERIFY(!signOut->property("available").toBool());
     }
 
+    // A folder's subfolder opens as a page of its own over the folder's, which
+    // keeps what it showed; Back takes it off again. Through a replica, as on
+    // Android, where a deeper level's screen is asked for on the way.
+    void aSubfolderOpensAsAPage()
+    {
+        qputenv("CLOUDMUS_FAKE_SUBFOLDER", "1");
+        const auto unset = qScopeGuard([] { qunsetenv("CLOUDMUS_FAKE_SUBFOLDER"); });
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        Ui::Platform platform(dir.path());
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sources().playlists(QStringLiteral("fake")).size() == 3, 10000);
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(420, 860);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* stack = window->findChild<QQuickItem*>("stack");
+        QVERIFY(stack);
+
+        // The folder, opened as the Library does.
+        QMetaObject::invokeMethod(backend.playlistScreen(), "openPlaylist", Q_ARG(QString, QStringLiteral("fake")),
+            Q_ARG(QString, QStringLiteral("p1")));
+        QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "libraryRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        QMetaObject::invokeMethod(window->findChild<QQuickItem*>("library"), "playlistRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+        auto* parentPage = window->findChild<QQuickItem*>("playlistScreen");
+        QVERIFY(parentPage);
+        QTRY_COMPARE(backend.openTracks()->rowCount(), 2);
+        QQuickItem* folder = nullptr;
+        QTRY_COMPARE(backend.openFolders()->rowCount(), 1);
+        QTRY_VERIFY((folder = findItem(parentPage, QStringLiteral("folder_p3"))) != nullptr);
+
+        QMetaObject::invokeMethod(folder, "clicked");
+        QTRY_COMPARE(stack->property("depth").toInt(), 4);
+        QQuickItem* childPage = nullptr;
+        QTRY_VERIFY((childPage = window->findChild<QQuickItem*>("playlistScreen1")) != nullptr);
+        QTRY_VERIFY(childPage->property("screen").value<QObject*>() != nullptr);
+        QTRY_COMPARE(childPage->property("screen").value<QObject*>()->property("title").toString(),
+            QStringLiteral("Inside"));
+        // The one under it shows what it did.
+        QCOMPARE(parentPage->property("screen").value<QObject*>()->property("title").toString(),
+            QStringLiteral("First"));
+        QCOMPARE(core.playlistScreens().at(0).title(), QStringLiteral("First"));
+        QCOMPARE(backend.openTracks()->rowCount(), 2);
+
+        // Back: the subfolder's level lets go once its page is off the stack.
+        QMetaObject::invokeMethod(stack, "close");
+        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+        QTRY_VERIFY(core.playlistScreens().at(1).title().isEmpty());
+        QCOMPARE(core.playlistScreens().at(0).title(), QStringLiteral("First"));
+    }
+
+    // A folder with hundreds of subfolders: they and its tracks are one lazy
+    // list, so the page builds only the rows in view (a Repeater built every
+    // one at once, and the page hitched as it opened).
+    void manySubfoldersAreBuiltLazily()
+    {
+        qputenv("CLOUDMUS_FAKE_SUBFOLDER", "many");
+        const auto unset = qScopeGuard([] { qunsetenv("CLOUDMUS_FAKE_SUBFOLDER"); });
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        Ui::Platform platform(dir.path());
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sources().playlists(QStringLiteral("fake")).size() == 302, 10000);
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(420, 860);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* stack = window->findChild<QQuickItem*>("stack");
+
+        QMetaObject::invokeMethod(backend.playlistScreen(), "openPlaylist", Q_ARG(QString, QStringLiteral("fake")),
+            Q_ARG(QString, QStringLiteral("p1")));
+        QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "libraryRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        QMetaObject::invokeMethod(window->findChild<QQuickItem*>("library"), "playlistRequested");
+        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+        auto* page = window->findChild<QQuickItem*>("playlistScreen");
+        QVERIFY(page);
+        auto* list = findItem(page, QStringLiteral("playlistTracks"));
+        QVERIFY(list);
+        // All of it in the list: 300 folders and 2 tracks.
+        QTRY_COMPARE(list->property("count").toInt(), 302);
+        QCOMPARE(page->property("folderCount").toInt(), 300);
+        // A folder's row and a track's, by the roles of the one list.
+        QAbstractItemModel* entries = backend.openEntries();
+        QTRY_COMPARE(entries->data(entries->index(0, 0), roleOf(*entries, "isFolder")).toBool(), true);
+        QTRY_COMPARE(entries->data(entries->index(0, 0), roleOf(*entries, "title")).toString(), QStringLiteral("Inside"));
+        QTRY_COMPARE(entries->data(entries->index(300, 0), roleOf(*entries, "isFolder")).toBool(), false);
+        QTRY_COMPARE(entries->data(entries->index(300, 0), roleOf(*entries, "title")).toString(), QStringLiteral("Track t1"));
+        QTest::qWait(500);
+        int built = 0;
+        std::function<void(QQuickItem*)> count = [&](QQuickItem* item) {
+            if (item->objectName().startsWith(QLatin1String("folder_")))
+                ++built;
+            for (QQuickItem* child : item->childItems())
+                count(child);
+        };
+        count(list);
+        QVERIFY2(built > 0 && built < 40, qPrintable(QStringLiteral("%1 folder rows built").arg(built)));
+
+        // Scrolled to the end: the tracks, after the folders, play the right ones.
+        QMetaObject::invokeMethod(list, "positionViewAtEnd");
+        QTest::qWait(300);
+        QMetaObject::invokeMethod(backend.playlistScreen(), "playRow", Q_ARG(int, 1));
+        QTRY_VERIFY(core.nowPlaying().hasTrack());
+        QTRY_COMPARE(core.nowPlaying().track().id, QStringLiteral("t2"));
+    }
+
     void pagesOpen_data()
     {
         QTest::addColumn<QSize>("size");
@@ -2601,6 +2832,32 @@ private slots:
             }
         };
         shot("main");
+        // What's seldom needed is behind the list's menu: Settings there.
+        {
+            // The bar's, or the left column's with the screen turned to the
+            // track (as a test before may have left it).
+            auto* menuButton = window->findChild<QQuickItem*>("listMenu");
+            if (menuButton == nullptr || !menuButton->isVisible())
+                menuButton = window->findChild<QQuickItem*>("railMenu");
+            QVERIFY(menuButton && menuButton->isVisible());
+            QMetaObject::invokeMethod(menuButton, "clicked");
+            // The bar's menu's, not the left column's.
+            const auto shownEntry = [&window]() -> QQuickItem* {
+                for (QQuickItem* entry : window->findChildren<QQuickItem*>("settingsEntry")) {
+                    if (entry->isVisible())
+                        return entry;
+                }
+                return nullptr;
+            };
+            QTRY_VERIFY(shownEntry() != nullptr);
+            QQuickItem* settingsEntry = shownEntry();
+            QTest::qWait(400);
+            shot("main-menu");
+            QMetaObject::invokeMethod(settingsEntry, "triggered");
+            QTRY_COMPARE(window->findChild<QQuickItem*>("stack")->property("depth").toInt(), 2);
+            QMetaObject::invokeMethod(window->findChild<QQuickItem*>("stack"), "close");
+            QTRY_COMPARE(window->findChild<QQuickItem*>("stack")->property("depth").toInt(), 1);
+        }
         // Scrolled, its rows don't come out over the bar above it.
         auto* mainList = window->findChild<QQuickItem*>("mainList");
         QVERIFY(mainList && (mainList->clip() || mainList->parentItem()->clip()));
@@ -2636,9 +2893,9 @@ private slots:
             auto* details = window->findChild<QQuickItem*>("trackDetails");
             // What shows of it: the list itself keeps its width, and is cut off.
             auto* list = window->findChild<QQuickItem*>("mainList")->parentItem();
-            auto* railSettings = window->findChild<QQuickItem*>("railSettings");
+            auto* railMenu = window->findChild<QQuickItem*>("railMenu");
             auto* toggle = window->findChild<QObject*>("screenModeToggle");
-            QVERIFY(bar && panel && cover && details && list && railSettings && toggle);
+            QVERIFY(bar && panel && cover && details && list && railMenu && toggle);
             const auto sceneRect = [](QQuickItem* item) {
                 return item->mapRectToScene(QRectF(0, 0, item->width(), item->height()));
             };
@@ -2651,7 +2908,7 @@ private slots:
             const qreal normalBar = bar->width();
             const qreal normalTitleScale = window->findChild<QQuickItem*>("trackTitle")->scale();
             QVERIFY(!sceneRect(bar).intersects(normalCover));
-            QVERIFY(!railSettings->isVisible());
+            QVERIFY(!railMenu->isVisible());
             QVERIFY(sceneRect(details).top() > normalCover.top());
 
             // Another track: its cover comes as on the desktop, then is there alone.
@@ -2738,15 +2995,15 @@ private slots:
             // Nothing of it pushed out of its place.
             QVERIFY(details->implicitWidth() <= details->width());
             QVERIFY(sceneRect(details).right() <= sceneRect(list).left());
-            QVERIFY(railSettings->isVisible());
-            QVERIFY(sceneRect(railSettings).bottom() > window->height() * 0.8);
-            QVERIFY(sceneRect(railSettings).right() <= bigCover.left());
+            QVERIFY(railMenu->isVisible());
+            QVERIFY(sceneRect(railMenu).bottom() > window->height() * 0.8);
+            QVERIFY(sceneRect(railMenu).right() <= bigCover.left());
 
             QMetaObject::invokeMethod(toggle, "clicked");
             QTRY_VERIFY(settled("0"));
             QTRY_COMPARE(list->width(), normalList);
             QCOMPARE(bar->width(), normalBar);
-            QVERIFY(!railSettings->isVisible());
+            QVERIFY(!railMenu->isVisible());
 
             // The source's button goes to the Library, on the active playlist's source.
             QMetaObject::invokeMethod(bar, "clicked");
@@ -2851,6 +3108,58 @@ private slots:
         QMetaObject::invokeMethod(page, "trackMenuRequested");
         shot("track-sheet");
         QMetaObject::invokeMethod(window->findChild<QObject*>("trackSheet"), "close");
+
+        // Saving the playlist, behind a track that never ends (the fake's
+        // "slow"): the header's button rings, the main screen's indicator
+        // shows, and the Downloads page lists both.
+        core.core().downloads().setEnabled(true);
+        Track slow;
+        slow.id = QStringLiteral("slow");
+        slow.title = QStringLiteral("Slow one");
+        core.core().downloads().downloadTrack(QStringLiteral("fake"), slow);
+        // The header's, of the phone's or the wide layout's.
+        const auto shownButton = [page]() -> QQuickItem* {
+            for (QQuickItem* button : page->findChildren<QQuickItem*>("downloadPlaylist")) {
+                if (button->isVisible())
+                    return button;
+            }
+            return nullptr;
+        };
+        QTRY_VERIFY(shownButton() != nullptr);
+        QQuickItem* downloadButton = shownButton();
+        // A tap starts it; once it's under way, a tap goes on to the page,
+        // where it can be stopped.
+        QMetaObject::invokeMethod(downloadButton, "clicked");
+        QTRY_COMPARE(downloadButton->property("downloading").toBool(), true);
+        QCOMPARE(stack->property("depth").toInt(), 3);
+        // The main screen's list menu rings meanwhile, and leads to the page.
+        auto* listMenu = window->findChild<QQuickItem*>("listMenu");
+        QVERIFY(listMenu);
+        QTRY_COMPARE(listMenu->property("downloading").toBool(), true);
+        auto* downloadsEntry = window->findChild<QObject*>("downloadsEntry");
+        QVERIFY(downloadsEntry);
+        QTRY_COMPARE(downloadsEntry->property("available").toBool(), true);
+        shot("playlist-saving");
+        QMetaObject::invokeMethod(downloadButton, "clicked");
+        QTRY_COMPARE(stack->property("depth").toInt(), 4);
+        QTRY_COMPARE(backend.downloads()->rowCount(), 2);
+        // Once only, asked again.
+        QMetaObject::invokeMethod(window, "openDownloads");
+        QCOMPARE(stack->property("depth").toInt(), 4);
+        shot("downloads");
+        core.core().downloads().cancelAll();
+        QTRY_COMPARE(downloadButton->property("downloading").toBool(), false);
+        QTRY_COMPARE(listMenu->property("downloading").toBool(), false);
+        // Over, still listed until cleared: the way to the page stays.
+        QCOMPARE(playlist->property("hasDownloads").toBool(), true);
+        core.core().downloads().clearFinished();
+        QTRY_COMPARE(backend.downloads()->rowCount(), 0);
+        QTRY_COMPARE(playlist->property("hasDownloads").toBool(), false);
+        QCOMPARE(downloadsEntry->property("available").toBool(), false);
+        core.core().downloads().setEnabled(false);
+        QMetaObject::invokeMethod(stack, "close");
+        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+
         QMetaObject::invokeMethod(stack, "close");
         QTRY_COMPARE(stack->property("depth").toInt(), 2);
         // A message over the Library.

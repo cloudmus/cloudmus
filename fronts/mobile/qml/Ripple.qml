@@ -73,9 +73,17 @@ Item {
         }
     }
 
+    // Made on a touch and gone once the wave has faded: a list has one of these
+    // in every row, and a shader item each made them slow to build.
+    Loader {
+        anchors.fill: parent
+        active: ripple._fade > 0 || ripple.pressed
+        sourceComponent: waveComponent
+    }
+    Component {
+        id: waveComponent
     ShaderEffect {
         objectName: "rippleShader"
-        anchors.fill: parent
         visible: !ripple.flat && ripple._fade > 0
         property size size: Qt.size(width, height)
         property point origin: ripple._origin
@@ -95,5 +103,6 @@ Item {
             duration: 1000 * 1000
             loops: Animation.Infinite
         }
+    }
     }
 }

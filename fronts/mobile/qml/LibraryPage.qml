@@ -16,6 +16,7 @@ Page {
     signal settingsRequested()
     signal sourceSettingsRequested()
     signal playlistRequested()
+    signal downloadsRequested()
 
     readonly property QtObject library: backend.library
     readonly property bool wide: width > height * 1.1
@@ -140,6 +141,16 @@ Page {
                             }
                         }
                     }
+                }
+                // What's being saved: rings while anything is.
+                DownloadButton {
+                    objectName: "downloadsButton"
+                    readonly property QtObject saving: page.backend.downloadsScreen
+                    visible: saving !== null && saving.enabled === true
+                    Layout.alignment: Qt.AlignHCenter
+                    downloading: saving !== null && saving.active === true
+                    progress: saving !== null ? saving.progress : -1
+                    onClicked: page.downloadsRequested()
                 }
                 IconButton {
                     objectName: "history"
@@ -370,6 +381,7 @@ Page {
                         required property var trackCount
                         required property var kind
                         required property var coverUrl
+                        required property var coverIcon
                         required property var isActive
                         required property var isStarting
                         required property var path
@@ -389,6 +401,7 @@ Page {
                                 Layout.rightMargin: Theme.dp(10)
                                 Layout.preferredHeight: width
                                 source: tile.coverUrl || ""
+                                icon: tile.coverIcon || ""
                                 seed: tile.title || ""
                                 outlined: tile.isActive === true
                                 opacity: tile.down && tileRipple.flat ? 0.7 : 1
@@ -455,6 +468,7 @@ Page {
                         required property var sizeText
                         required property var kind
                         required property var coverUrl
+                        required property var coverIcon
                         required property var isActive
                         required property var isStarting
                         width: ListView.view.width
@@ -483,6 +497,7 @@ Page {
                                 Layout.preferredWidth: Theme.dp(48)
                                 Layout.preferredHeight: Theme.dp(48)
                                 source: other.coverUrl || ""
+                                icon: other.coverIcon || ""
                                 seed: other.title || ""
                             }
                             ColumnLayout {

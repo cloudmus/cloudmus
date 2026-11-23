@@ -17,6 +17,7 @@ Page {
     property QtObject localizer
     signal closeRequested()
     signal developerRequested()
+    signal downloadsRequested()
     // `proxy`: the row of the one to edit, null for a new one.
     signal sourceRequested(string sourceId)
     signal proxyRequested(var proxy)
@@ -76,6 +77,14 @@ Page {
                     description: qsTr("Saved tracks are for your own listening on this device.")
                     checked: page.saving ? page.saving.enabled : false
                     onToggled: (checked) => page.saving.setEnabled(checked)
+                }
+                SettingsRow {
+                    objectName: "downloadsRow"
+                    visible: page.saving !== null && page.saving.enabled === true
+                    text: qsTr("Downloads")
+                    subtitle: page.saving !== null && page.saving.summary !== "" ? page.saving.summary
+                        : qsTr("What's being saved, and what has been")
+                    onClicked: page.downloadsRequested()
                 }
                 // As the desktop's Downloads settings.
                 SettingsCell {

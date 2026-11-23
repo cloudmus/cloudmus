@@ -29,6 +29,8 @@
 #include "Messages.h"
 #include "MobileCore.h"
 #include "PlaybackController.h"
+#include "Throttle.h"
+#include "TrackFile.h"
 
 // The core as the playback service runs it: a library loaded by
 // CoreBridge.java into the :playback process, with Qt Core and no Qt
@@ -51,7 +53,8 @@ enum Command {
     Dislike,
     SetShuffle, // argument: 0 or 1
     SetRepeat, // argument: a Playback::RepeatMode
-    CycleRepeat
+    CycleRepeat,
+    CancelDownloads
 };
 
 jclass bridgeClass = nullptr;
@@ -59,6 +62,7 @@ jclass storageClass = nullptr;
 jmethodID openContentMethod = nullptr;
 jmethodID publishMethod = nullptr;
 jmethodID remuxOpusMethod = nullptr;
+jmethodID isSavedMethod = nullptr;
 jmethodID setWantAllMethod = nullptr;
 jmethodID permissionNeededMethod = nullptr;
 jmethodID deleteMediaMethod = nullptr;
@@ -74,6 +78,7 @@ jmethodID onReadyMethod = nullptr;
 jmethodID onStoppedMethod = nullptr;
 jmethodID onBrowseResultMethod = nullptr;
 jmethodID onLibraryChangedMethod = nullptr;
+jmethodID onDownloadsMethod = nullptr;
 
 std::mutex mutex;
 QObject* receiver = nullptr; // lives in the core thread, once it's up
@@ -241,6 +246,25 @@ void reportBrowseResult(jint requestId, const QList<ViewModel::MediaTree::Item>&
     env->DeleteLocalRef(stringClass);
 }
 
+// What's being saved, for the notification; the same once more isn't sent.
+void reportDownloads(App::MobileCore& core)
+{
+    static ViewModel::DownloadsScreen::Notice last;
+    const ViewModel::DownloadsScreen::Notice notice = core.downloadsScreen().notice();
+    if (notice == last)
+        return;
+    last = notice;
+    JNIEnv* env = Android::Jni::env();
+    const jstring texts[]
+        = { toJava(env, notice.title), toJava(env, notice.text), toJava(env, ViewModel::DownloadsScreen::tr("Cancel")),
+              toJava(env, ViewModel::DownloadsScreen::tr("Downloads")) };
+    env->CallStaticVoidMethod(bridgeClass, onDownloadsMethod, jboolean(notice.shown), jboolean(notice.ongoing),
+        jboolean(notice.failed), texts[0], texts[1], jint(notice.permille), texts[2], texts[3]);
+    Android::Jni::checkException(env, "CoreBridge.onDownloads");
+    for (const jstring text : texts)
+        env->DeleteLocalRef(text);
+}
+
 int openContent(const QString& uri)
 {
     JNIEnv* env = Android::Jni::env();
@@ -357,6 +381,28 @@ ViewModel::Downloads::PublishResult publishTrack(const QString& path, const QStr
         result.value(QStringLiteral("error")).toString() };
 }
 
+bool isTrackSaved(const QString& subfolder, const QString& baseName)
+{
+    JNIEnv* env = Android::Jni::env();
+    const QStringList extensions = Library::savedAudioExtensions();
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray array = env->NewObjectArray(jsize(extensions.size()), stringClass, nullptr);
+    for (jsize i = 0; i < jsize(extensions.size()); ++i) {
+        jstring value = toJava(env, extensions.at(i));
+        env->SetObjectArrayElement(array, i, value);
+        env->DeleteLocalRef(value);
+    }
+    const jstring folder = toJava(env, subfolder);
+    const jstring name = toJava(env, baseName);
+    const bool saved = env->CallStaticBooleanMethod(storageClass, isSavedMethod, folder, name, array);
+    const bool failed = Android::Jni::checkException(env, "MusicStorage.isSaved");
+    env->DeleteLocalRef(folder);
+    env->DeleteLocalRef(name);
+    env->DeleteLocalRef(array);
+    env->DeleteLocalRef(stringClass);
+    return !failed && saved;
+}
+
 // What the backends find around them. Their Python and data are the app's,
 // and these reach them through this process' environment.
 void setUpBackends(
@@ -405,7 +451,7 @@ void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nat
     hostMediaInstance = &hostMedia;
     App::MobileCore core({ QString(), filesDir + QStringLiteral("/core.ini"), 1000, 5000, &hostMedia });
     coreInstance = &core;
-    core.core().downloads().setPublisher(QStringLiteral("Music/CloudMus"), publishTrack, remuxOpus);
+    core.core().downloads().setPublisher(QStringLiteral("Music/CloudMus"), publishTrack, remuxOpus, isTrackSaved);
     core.core().playback().setContentOpener(openContent);
     // Without it no stream or cover loads, and nothing else says why.
     qInfo() << "TLS:" << QSslSocket::activeBackend() << QSslSocket::supportsSsl()
@@ -450,6 +496,11 @@ void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nat
         env->CallStaticVoidMethod(bridgeClass, onLibraryChangedMethod);
         Android::Jni::checkException(env, "CoreBridge.onLibraryChanged");
     });
+    // A notification's progress at most every second: Android drops updates
+    // that come faster.
+    auto* downloadsLater = new Timing::Throttle(1000, [&core] { reportDownloads(core); }, &core);
+    QObject::connect(&core.core().downloads(), &ViewModel::Downloads::changed, downloadsLater,
+        [downloadsLater] { downloadsLater->trigger(); });
     core.settings().onAutoplayChanged = [](bool enabled) {
         JNIEnv* env = Android::Jni::env();
         env->CallStaticVoidMethod(bridgeClass, onAutoplayMethod, jboolean(enabled));
@@ -528,6 +579,8 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     publishMethod
         = env->GetStaticMethodID(storageClass, "publish", "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;");
     remuxOpusMethod = env->GetStaticMethodID(storageClass, "remuxOpus", "(Ljava/lang/String;Ljava/lang/String;)Z");
+    isSavedMethod
+        = env->GetStaticMethodID(storageClass, "isSaved", "(Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)Z");
     setWantAllMethod = env->GetStaticMethodID(storageClass, "setWantAll", "(Z)V");
     permissionNeededMethod = env->GetStaticMethodID(storageClass, "permissionNeeded", "()Z");
     deleteMediaMethod = env->GetStaticMethodID(storageClass, "delete", "([Ljava/lang/String;)[Ljava/lang/String;");
@@ -537,6 +590,8 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     onStoppedMethod = env->GetStaticMethodID(bridgeClass, "onStopped", "()V");
     onBrowseResultMethod = env->GetStaticMethodID(bridgeClass, "onBrowseResult", "(I[Ljava/lang/String;)V");
     onLibraryChangedMethod = env->GetStaticMethodID(bridgeClass, "onLibraryChanged", "()V");
+    onDownloadsMethod = env->GetStaticMethodID(
+        bridgeClass, "onDownloads", "(ZZZLjava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V");
     return JNI_VERSION_1_6;
 }
 
@@ -649,6 +704,9 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeComm
                 break;
             case CycleRepeat:
                 now.cycleRepeat();
+                break;
+            case CancelDownloads:
+                coreInstance->core().downloads().cancelAll();
                 break;
             default:
                 break;

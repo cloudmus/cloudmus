@@ -32,6 +32,7 @@ public final class CoreBridge {
     public static final int CMD_SET_SHUFFLE = 8; // argument: 0 or 1
     public static final int CMD_SET_REPEAT = 9; // argument: one of REPEAT_*
     public static final int CMD_CYCLE_REPEAT = 10;
+    public static final int CMD_CANCEL_DOWNLOADS = 11;
 
     // Keep in step with Playback::RepeatMode.
     public static final int REPEAT_OFF = 0;
@@ -208,6 +209,7 @@ public final class CoreBridge {
         System.loadLibrary("cloudmus-core");
         CmLog.mark("core: library loaded");
         Context application = context.getApplicationContext();
+        DownloadNotice.clear(application);
         new Thread(() -> {
             File nativeBackends = prepareNativeBackends(application);
             String libraryDir = application.getApplicationInfo().nativeLibraryDir;
@@ -384,6 +386,15 @@ public final class CoreBridge {
         Context context = CmLog.context();
         if (context != null)
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(PREF_RESUME_AFTER_LOSS, seconds).apply();
+    }
+
+    // From the core, on its thread: what's being saved (DownloadsScreen::Notice).
+    @SuppressWarnings("unused")
+    static void onDownloads(boolean shown, boolean ongoing, boolean failed, String title, String text, int permille,
+                            String cancelLabel, String channelName) {
+        Context context = CmLog.context();
+        if (context != null)
+            DownloadNotice.show(context, shown, ongoing, failed, title, text, permille, cancelLabel, channelName);
     }
 
     // From the core: a view stopped the player (NowPlaying::stop()).

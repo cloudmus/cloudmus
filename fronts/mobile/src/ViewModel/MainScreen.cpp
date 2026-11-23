@@ -34,6 +34,41 @@ MainScreen::MainScreen(App::Core& core, QObject* parent)
     connect(&core.playback(), &Playback::PlaybackController::queueChanged, this, refresh);
     connect(&core.nowPlaying(), &NowPlaying::playModesChanged, this, refresh);
     connect(&core.coverArtCache(), &Covers::CoverArtCache::pixmapReady, this, refresh);
+    // Downloads turned on or off, a source coming up, another playlist playing.
+    connect(&core.downloads(), &Downloads::changed, this, &MainScreen::readDownload);
+    connect(&core.activePlaylist(), &ActivePlaylist::contextChanged, this, &MainScreen::readDownload);
+    connect(&core.sources(), &Sources::sourceChanged, this, &MainScreen::readDownload);
+    readDownload();
+}
+
+void MainScreen::downloadPlaylist()
+{
+    const PlaylistContext& context = core_.activePlaylist().context();
+    if (canDownload_)
+        core_.downloads().downloadPlaylist(context.sourceId, context.playlist);
+}
+
+void MainScreen::readDownload()
+{
+    const PlaylistContext& context = core_.activePlaylist().context();
+    const bool can = !context.isHistory && !context.isRadio()
+        && core_.trackActions().canDownloadPlaylist(context.sourceId, context.playlist);
+    const Downloads::Job* job
+        = context.isHistory ? nullptr : core_.downloads().playlistJob(context.sourceId, context.playlist.id);
+    const bool downloading = job != nullptr;
+    const double progress = job != nullptr ? job->progress() : -1;
+    if (can != canDownload_) {
+        canDownload_ = can;
+        emit canDownloadPlaylistChanged();
+    }
+    if (downloading != downloading_) {
+        downloading_ = downloading;
+        emit playlistDownloadingChanged();
+    }
+    if (progress != downloadProgress_) {
+        downloadProgress_ = progress;
+        emit playlistDownloadProgressChanged();
+    }
 }
 
 bool MainScreen::offline() const { return core_.connectionStatus().visible(); }

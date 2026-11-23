@@ -37,7 +37,20 @@ Menu {
         x = Math.round(center.x + anchor.width / 2 - width)
         y = Math.round(center.y + anchor.height / 2)
     }
-    width: Theme.dp(220)
+    // As wide as its longest entry, within bounds: a long label elides only
+    // past the widest a menu gets. Set as it opens (_fit()), for the entries
+    // available then.
+    width: Theme.dp(200)
+    function _fit() {
+        let widest = 0
+        for (let i = 0; i < count; ++i) {
+            const entry = itemAt(i)
+            if (entry && entry.available !== false)
+                widest = Math.max(widest, entry.naturalWidth !== undefined ? entry.naturalWidth : entry.implicitWidth)
+        }
+        const room = parent ? parent.width - Theme.dp(16) : Theme.dp(360)
+        width = Math.round(Math.max(Theme.dp(200), Math.min(widest + leftPadding + rightPadding, Theme.dp(360), room)))
+    }
     padding: Theme.dp(4)
     // A tap beside it only closes it, not lands on what's under it.
     modal: true
@@ -95,6 +108,7 @@ Menu {
     }
 
     onAboutToShow: {
+        _fit()
         _place()
         // An entry that came or went while it was closed isn't placed yet:
         // the first frame would have the old height.

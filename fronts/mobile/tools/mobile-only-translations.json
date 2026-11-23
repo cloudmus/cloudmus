@@ -558,5 +558,61 @@
   "fr": "Écrit dans le journal",
   "it": "Scritto nel registro",
   "ru": "Записано в журнал"
+ },
+ "Saving tracks is off. It's turned on in Settings.": {
+  "ru": "Сохранение треков выключено. Его можно включить в настройках.",
+  "be": "Захаванне трэкаў выключана. Яго можна ўключыць у наладах.",
+  "de": "Das Speichern von Titeln ist aus. Es lässt sich in den Einstellungen einschalten.",
+  "es": "Guardar pistas está desactivado. Se activa en Ajustes.",
+  "fr": "L’enregistrement des pistes est désactivé. Il s’active dans les réglages.",
+  "it": "Il salvataggio dei brani è disattivato. Si attiva nelle Impostazioni."
+ },
+ "Cancel all": {
+  "ru": "Отменить все",
+  "be": "Скасаваць усе",
+  "de": "Alle abbrechen",
+  "es": "Cancelar todo",
+  "fr": "Tout annuler",
+  "it": "Annulla tutto"
+ },
+ "Nothing is being saved": {
+  "ru": "Ничего не сохраняется",
+  "be": "Нічога не захоўваецца",
+  "de": "Es wird nichts gespeichert",
+  "es": "No se está guardando nada",
+  "fr": "Rien n’est en cours d’enregistrement",
+  "it": "Non si sta salvando nulla"
+ },
+ "What's being saved, and what has been": {
+  "ru": "Что сохраняется и что уже сохранено",
+  "be": "Што захоўваецца і што ўжо захавана",
+  "de": "Was gespeichert wird und was schon gespeichert ist",
+  "es": "Lo que se está guardando y lo ya guardado",
+  "fr": "Ce qui est en cours d’enregistrement et ce qui l’a été",
+  "it": "Cosa si sta salvando e cosa è già stato salvato"
+ },
+ "Saving \"%1\": %2": {
+  "ru": "Сохраняется «%1»: %2",
+  "be": "Захоўваецца «%1»: %2",
+  "de": "„%1“ wird gespeichert: %2",
+  "es": "Guardando «%1»: %2",
+  "fr": "Enregistrement de « %1 » : %2",
+  "it": "Salvataggio di «%1»: %2"
+ },
+ "%1 (%2 more waiting)": {
+  "ru": "%1 (ещё в очереди: %2)",
+  "be": "%1 (яшчэ ў чарзе: %2)",
+  "de": "%1 (%2 weitere warten)",
+  "es": "%1 (%2 más en espera)",
+  "fr": "%1 (%2 autres en attente)",
+  "it": "%1 (altri %2 in attesa)"
+ },
+ "Save playlist": {
+  "ru": "Сохранить плейлист",
+  "be": "Захаваць плэйліст",
+  "de": "Playlist speichern",
+  "es": "Guardar lista",
+  "fr": "Enregistrer la playlist",
+  "it": "Salva playlist"
  }
 }

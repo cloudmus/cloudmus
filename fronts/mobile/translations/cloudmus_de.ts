@@ -20,6 +20,81 @@
     </message>
   </context>
   <context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+      <source>%n track(s) couldn't be deleted</source>
+      <translation>
+        <numerusform>%n Titel konnte nicht gelöscht werden</numerusform>
+        <numerusform>%n Titel konnten nicht gelöscht werden</numerusform>
+      </translation>
+    </message>
+    <message>
+      <source>Deleted "%1"</source>
+      <translation>„%1“ gelöscht</translation>
+    </message>
+    <message numerus="yes">
+      <source>Deleted %n track(s)</source>
+      <translation>
+        <numerusform>%n Titel gelöscht</numerusform>
+        <numerusform>%n Titel gelöscht</numerusform>
+      </translation>
+    </message>
+  </context>
+  <context>
+    <name>CapabilityTags</name>
+    <message>
+      <source>Playlists</source>
+      <translation>Playlists</translation>
+    </message>
+    <message>
+      <source>Liked tracks</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Radio</source>
+      <translation>Radio</translation>
+    </message>
+    <message>
+      <source>Search</source>
+      <translation>Suche</translation>
+    </message>
+    <message>
+      <source>Playlist editing</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Likes</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Dislikes</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Streaming</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Seeking</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Downloads</source>
+      <translation>Downloads</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Einstellungen</translation>
+    </message>
+  </context>
+  <context>
+    <name>ConfirmDialog</name>
+    <message>
+      <source>Cancel</source>
+      <translation>Abbrechen</translation>
+    </message>
+  </context>
+  <context>
     <name>DeveloperPage</name>
     <message>
       <source>Developer tools</source>
@@ -179,6 +254,29 @@
     </message>
   </context>
   <context>
+    <name>DownloadsPage</name>
+    <message>
+      <source>Downloads</source>
+      <translation>Downloads</translation>
+    </message>
+    <message>
+      <source>Saving tracks is off. It's turned on in Settings.</source>
+      <translation>Das Speichern von Titeln ist aus. Es lässt sich in den Einstellungen einschalten.</translation>
+    </message>
+    <message>
+      <source>Cancel all</source>
+      <translation>Alle abbrechen</translation>
+    </message>
+    <message>
+      <source>Clear</source>
+      <translation>Leeren</translation>
+    </message>
+    <message>
+      <source>Nothing is being saved</source>
+      <translation>Es wird nichts gespeichert</translation>
+    </message>
+  </context>
+  <context>
     <name>LibraryPage</name>
     <message>
       <source>Sign in to see the playlists</source>
@@ -224,6 +322,18 @@
       <source>Sign out</source>
       <translation>Abmelden</translation>
     </message>
+    <message>
+      <source>Refresh</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Einstellungen</translation>
+    </message>
+    <message>
+      <source>Capabilities</source>
+      <translation type="unfinished" />
+    </message>
   </context>
   <context>
     <name>LogPage</name>
@@ -233,7 +343,7 @@
     </message>
     <message>
       <source>All</source>
-      <translation type="unfinished" />
+      <translation type="unfinished">Alle</translation>
     </message>
     <message>
       <source>This boot</source>
@@ -272,6 +382,18 @@
     <message>
       <source>Open the Library</source>
       <translation>Bibliothek öffnen</translation>
+    </message>
+    <message>
+      <source>Save playlist</source>
+      <translation>Playlist speichern</translation>
+    </message>
+    <message>
+      <source>Downloads</source>
+      <translation>Downloads</translation>
+    </message>
+    <message>
+      <source>Settings</source>
+      <translation>Einstellungen</translation>
     </message>
   </context>
   <context>
@@ -650,6 +772,14 @@
       <source>Storage permissions</source>
       <translation>Speicherberechtigungen</translation>
     </message>
+    <message>
+      <source>Downloads</source>
+      <translation>Downloads</translation>
+    </message>
+    <message>
+      <source>What's being saved, and what has been</source>
+      <translation>Was gespeichert wird und was schon gespeichert ist</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>
@@ -704,6 +834,10 @@
     <message>
       <source>Couldn't load the settings: %1</source>
       <translation>Einstellungen konnten nicht geladen werden: %1</translation>
+    </message>
+    <message>
+      <source>Capabilities</source>
+      <translation type="unfinished" />
     </message>
   </context>
   <context>
@@ -982,6 +1116,33 @@
       <source>Saved to %1. Check shared storage permissions and free space.</source>
       <translation>In %1 gespeichert. Prüfe die Berechtigungen und den freien Platz im gemeinsamen Speicher.</translation>
     </message>
+    <message>
+      <source>"%1" is saved already</source>
+      <translation>„%1“ ist schon gespeichert</translation>
+    </message>
+    <message>
+      <source>All tracks of "%1" are saved already</source>
+      <translation>Alle Titel aus „%1“ sind schon gespeichert</translation>
+    </message>
+    <message>
+      <source>Saved %1 tracks of "%2", %3 were saved already</source>
+      <translation>%1 Titel aus „%2“ gespeichert, %3 waren schon gespeichert</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::DownloadsScreen</name>
+    <message>
+      <source>%1 — %2</source>
+      <translation>%1 – %2</translation>
+    </message>
+    <message>
+      <source>Saving "%1": %2</source>
+      <translation>„%1“ wird gespeichert: %2</translation>
+    </message>
+    <message>
+      <source>%1 (%2 more waiting)</source>
+      <translation>%1 (%2 weitere warten)</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::MediaTree</name>
@@ -1147,34 +1308,6 @@
     <message>
       <source>%1 kbps</source>
       <translation>%1 kbit/s</translation>
-    </message>
-  </context>
-  <context>
-    <name>App::TrackDeletion</name>
-    <message numerus="yes">
-      <source>%n track(s) couldn't be deleted</source>
-      <translation>
-        <numerusform>%n Titel konnte nicht gelöscht werden</numerusform>
-        <numerusform>%n Titel konnten nicht gelöscht werden</numerusform>
-      </translation>
-    </message>
-    <message>
-      <source>Deleted "%1"</source>
-      <translation>„%1“ gelöscht</translation>
-    </message>
-    <message numerus="yes">
-      <source>Deleted %n track(s)</source>
-      <translation>
-        <numerusform>%n Titel gelöscht</numerusform>
-        <numerusform>%n Titel gelöscht</numerusform>
-      </translation>
-    </message>
-  </context>
-  <context>
-    <name>ConfirmDialog</name>
-    <message>
-      <source>Cancel</source>
-      <translation>Abbrechen</translation>
     </message>
   </context>
 </TS>

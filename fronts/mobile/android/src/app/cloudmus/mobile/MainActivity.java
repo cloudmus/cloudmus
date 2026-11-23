@@ -22,8 +22,10 @@ public class MainActivity extends QtActivity {
         Appearance.setUp(this);
         preferFastestRefreshRate();
         hideFromOtherAccessibility();
-        if (savedInstanceState == null)
+        if (savedInstanceState == null) {
             openAudio(getIntent());
+            openDownloads(getIntent());
+        }
         // Android 8–9 needs this grant to write shared music and logs.
         if (Build.VERSION.SDK_INT <= 28
             && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -85,6 +87,25 @@ public class MainActivity extends QtActivity {
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));
         startService(command);
         UiBridge.audioOpened();
+    }
+
+    private void openDownloads(Intent incoming) {
+        if (incoming.getBooleanExtra(DownloadNotice.EXTRA_OPEN_DOWNLOADS, false))
+            UiBridge.downloadsOpened();
+    }
+
+    private static final int NOTIFICATION_REQUEST = 4;
+
+    // Android 13+ asks; it stops asking by itself once the user has said no
+    // twice. The notification is all it's for: the app's own screen shows the
+    // same without it.
+    void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33)
+            return;
+        runOnUiThread(() -> {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+                requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_REQUEST);
+        });
     }
 
     private static final int DELETE_REQUEST = 3;
@@ -167,6 +188,7 @@ public class MainActivity extends QtActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         openAudio(intent);
+        openDownloads(intent);
     }
 
     // The UI's own start may have come too early for Android, and the service
