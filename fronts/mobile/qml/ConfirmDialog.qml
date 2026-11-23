@@ -3,7 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // A question before something that can't be undone, such as deleting:
-// a heading, a line on what happens, Cancel and the action. ask() opens it;
+// a heading, a line on what happens if it needs one, Cancel and the action. ask() opens it;
 // `accepted` comes on the action, only.
 Popup {
     id: dialog

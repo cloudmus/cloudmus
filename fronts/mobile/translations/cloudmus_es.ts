@@ -454,9 +454,12 @@
       <source>Delete</source>
       <translation>Eliminar</translation>
     </message>
-    <message>
-      <source>Delete "%1" and everything in it?</source>
-      <translation>¿Eliminar «%1» y todo su contenido?</translation>
+    <message numerus="yes">
+      <source>Delete "%1" with %n track(s)?</source>
+      <translation>
+        <numerusform>¿Eliminar «%1» con %n pista?</numerusform>
+        <numerusform>¿Eliminar «%1» con %n pistas?</numerusform>
+      </translation>
     </message>
     <message numerus="yes">
       <source>Delete %n track(s)?</source>
@@ -464,17 +467,6 @@
         <numerusform>¿Eliminar %n pista?</numerusform>
         <numerusform>¿Eliminar %n pistas?</numerusform>
       </translation>
-    </message>
-    <message numerus="yes">
-      <source>Its %n track(s) are deleted from the device and can't be brought back.</source>
-      <translation>
-        <numerusform>Su %n pista se eliminará del dispositivo y no se podrá recuperar.</numerusform>
-        <numerusform>Sus %n pistas se eliminarán del dispositivo y no se podrán recuperar.</numerusform>
-      </translation>
-    </message>
-    <message>
-      <source>The files are deleted from the device and can't be brought back.</source>
-      <translation>Los archivos se eliminarán del dispositivo y no se podrán recuperar.</translation>
     </message>
     <message>
       <source>%1 tracks</source>
@@ -864,10 +856,6 @@
     <message>
       <source>Delete from the device</source>
       <translation>Eliminar del dispositivo</translation>
-    </message>
-    <message>
-      <source>The file is deleted from the device and can't be brought back.</source>
-      <translation>El archivo se eliminará del dispositivo y no se podrá recuperar.</translation>
     </message>
     <message>
       <source>Explicit</source>

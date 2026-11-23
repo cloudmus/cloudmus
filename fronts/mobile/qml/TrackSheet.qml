@@ -575,8 +575,7 @@ Popup {
                     iconName: "delete"
                     tint: Theme.danger
                     text: qsTr("Delete from the device")
-                    onClicked: deleteConfirm.ask(qsTr("Delete \"%1\"?").arg(sheet.track.title),
-                        qsTr("The file is deleted from the device and can't be brought back."), qsTr("Delete"))
+                    onClicked: deleteConfirm.ask(qsTr("Delete \"%1\"?").arg(sheet.track.title), "", qsTr("Delete"))
                 }
             }
 

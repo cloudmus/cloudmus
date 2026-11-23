@@ -457,9 +457,13 @@
       <source>Delete</source>
       <translation>Удалить</translation>
     </message>
-    <message>
-      <source>Delete "%1" and everything in it?</source>
-      <translation>Удалить «%1» со всем содержимым?</translation>
+    <message numerus="yes">
+      <source>Delete "%1" with %n track(s)?</source>
+      <translation>
+        <numerusform>Удалить «%1» с %n треком?</numerusform>
+        <numerusform>Удалить «%1» с %n треками?</numerusform>
+        <numerusform>Удалить «%1» с %n треками?</numerusform>
+      </translation>
     </message>
     <message numerus="yes">
       <source>Delete %n track(s)?</source>
@@ -468,18 +472,6 @@
         <numerusform>Удалить %n трека?</numerusform>
         <numerusform>Удалить %n треков?</numerusform>
       </translation>
-    </message>
-    <message numerus="yes">
-      <source>Its %n track(s) are deleted from the device and can't be brought back.</source>
-      <translation>
-        <numerusform>Её %n трек будет удалён с устройства без возможности восстановления.</numerusform>
-        <numerusform>Её %n трека будут удалены с устройства без возможности восстановления.</numerusform>
-        <numerusform>Её %n треков будут удалены с устройства без возможности восстановления.</numerusform>
-      </translation>
-    </message>
-    <message>
-      <source>The files are deleted from the device and can't be brought back.</source>
-      <translation>Файлы будут удалены с устройства без возможности восстановления.</translation>
     </message>
     <message>
       <source>%1 tracks</source>
@@ -869,10 +861,6 @@
     <message>
       <source>Delete from the device</source>
       <translation>Удалить с устройства</translation>
-    </message>
-    <message>
-      <source>The file is deleted from the device and can't be brought back.</source>
-      <translation>Файл будет удалён с устройства без возможности восстановления.</translation>
     </message>
     <message>
       <source>Explicit</source>

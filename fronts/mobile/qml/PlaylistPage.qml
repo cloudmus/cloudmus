@@ -90,14 +90,12 @@ Page {
     function confirmDeleteRows() {
         const rows = page.selection.slice()
         confirm.onYes = () => { page.screen.deleteRows(rows); page.selection = [] }
-        confirm.ask(qsTr("Delete %n track(s)?", "", rows.length),
-            qsTr("The files are deleted from the device and can't be brought back."), qsTr("Delete"))
+        confirm.ask(qsTr("Delete %n track(s)?", "", rows.length), "", qsTr("Delete"))
     }
     function confirmDeleteFolder() {
         confirm.onYes = () => page.screen.deletePlaylist()
-        confirm.ask(qsTr("Delete \"%1\" and everything in it?").arg(page.screen.title),
-            qsTr("Its %n track(s) are deleted from the device and can't be brought back.", "", page.screen.count),
-            qsTr("Delete"))
+        confirm.ask(qsTr("Delete \"%1\" with %n track(s)?", "", page.screen.count).arg(page.screen.title),
+            "", qsTr("Delete"))
     }
 
     readonly property bool loading: page.screen !== null && page.screen.loading === true
