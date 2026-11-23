@@ -260,18 +260,27 @@ int runFakeBackend()
             // one at any time.
             notify(QStringLiteral("error"),
                 { { QStringLiteral("code"), 1200 }, { QStringLiteral("message"), QStringLiteral("heads up") } });
-            reply(id,
-                { { QStringLiteral("playlists"),
-                    QJsonArray {
-                        QJsonObject { { QStringLiteral("id"), QStringLiteral("p1") },
-                            { QStringLiteral("title"), QStringLiteral("First") }, { QStringLiteral("trackCount"), 2 },
-                            { QStringLiteral("kind"), QStringLiteral("playlist") },
-                            { QStringLiteral("editable"), true } },
-                        // Saved from someone else — not the user's to edit.
-                        QJsonObject { { QStringLiteral("id"), QStringLiteral("p2") },
-                            { QStringLiteral("title"), QStringLiteral("Saved") }, { QStringLiteral("trackCount"), 5 },
-                            { QStringLiteral("kind"), QStringLiteral("playlist") } },
-                    } } });
+            QJsonArray playlists {
+                QJsonObject { { QStringLiteral("id"), QStringLiteral("p1") },
+                    { QStringLiteral("title"), QStringLiteral("First") }, { QStringLiteral("trackCount"), 2 },
+                    { QStringLiteral("kind"), QStringLiteral("playlist") }, { QStringLiteral("editable"), true } },
+                // Saved from someone else — not the user's to edit.
+                QJsonObject { { QStringLiteral("id"), QStringLiteral("p2") },
+                    { QStringLiteral("title"), QStringLiteral("Saved") }, { QStringLiteral("trackCount"), 5 },
+                    { QStringLiteral("kind"), QStringLiteral("playlist") } },
+            };
+            // A folder inside the first, for a test that asks for it.
+            // ("many": a lot, as a library by artist has.)
+            if (qEnvironmentVariableIsSet("CLOUDMUS_FAKE_SUBFOLDER")) {
+                const int count = qEnvironmentVariable("CLOUDMUS_FAKE_SUBFOLDER") == QStringLiteral("many") ? 300 : 1;
+                for (int i = 0; i < count; ++i)
+                    playlists.append(QJsonObject {
+                        { QStringLiteral("id"), QStringLiteral("p%1").arg(i + 3) },
+                        { QStringLiteral("title"), i == 0 ? QStringLiteral("Inside") : QStringLiteral("Folder %1").arg(i) },
+                        { QStringLiteral("trackCount"), 2 }, { QStringLiteral("kind"), QStringLiteral("playlist") },
+                        { QStringLiteral("parentId"), QStringLiteral("p1") } });
+            }
+            reply(id, { { QStringLiteral("playlists"), playlists } });
         } else if (method == QStringLiteral("catalog.listTracks")) {
             const auto track = [](const QString& trackId) {
                 return QJsonObject { { QStringLiteral("id"), trackId },

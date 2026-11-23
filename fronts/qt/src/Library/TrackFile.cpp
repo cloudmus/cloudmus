@@ -121,6 +121,23 @@ QString audioExtension(const QString& path)
     return { };
 }
 
+QString trackFileBaseName(const Track& track)
+{
+    QStringList artists;
+    for (const Artist& artist : track.artists)
+        artists << artist.name;
+    return safePathSegment(
+        QStringLiteral("%1 - %2").arg(
+            artists.isEmpty() ? QObject::tr("Unknown Artist") : artists.join(QStringLiteral(", ")), track.title),
+        QObject::tr("Unknown track"));
+}
+
+QStringList savedAudioExtensions()
+{
+    return { QStringLiteral(".mp3"), QStringLiteral(".m4a"), QStringLiteral(".webm"), QStringLiteral(".opus"),
+        QStringLiteral(".ogg"), QStringLiteral(".flac") };
+}
+
 QString saveTrackFile(const QString& cachedFile, const QString& destDir, const Track& track, const QImage& cover)
 {
     const QString extension = audioExtension(cachedFile);
@@ -131,14 +148,7 @@ QString saveTrackFile(const QString& cachedFile, const QString& destDir, const T
     if (!QDir().mkpath(destDir))
         return { };
 
-    QStringList artists;
-    for (const Artist& artist : track.artists)
-        artists << artist.name;
-    const QString name = safePathSegment(
-        QStringLiteral("%1 - %2").arg(
-            artists.isEmpty() ? QObject::tr("Unknown Artist") : artists.join(QStringLiteral(", ")), track.title),
-        QObject::tr("Unknown track"));
-    const QString path = QDir(destDir).filePath(name + extension);
+    const QString path = QDir(destDir).filePath(trackFileBaseName(track) + extension);
 
     // Replaced like a backend's download did; the copy goes under its
     // final name so TagLib finds the format by the extension.

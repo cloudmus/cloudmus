@@ -2,6 +2,7 @@
 
 #include <QImage>
 #include <QString>
+#include <QStringList>
 
 #include "Models.h"
 
@@ -12,6 +13,12 @@ namespace Library {
 // when it is none of the formats saved here (.mp3, .m4a, .webm, .opus,
 // .ogg, .flac).
 QString audioExtension(const QString& path);
+
+// What saveTrackFile() calls a track's file, without the extension:
+// "<Artists> - <Title>", made safe for a path.
+QString trackFileBaseName(const Track& track);
+// The extensions audioExtension() gives: what a saved track's file ends in.
+QStringList savedAudioExtensions();
 
 // Saves a track the front has downloaded as `destDir/<Artists> - <Title>`
 // plus the extension its content calls for: a copy of `cachedFile` (which

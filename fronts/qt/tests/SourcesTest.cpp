@@ -127,6 +127,24 @@ private slots:
         QVERIFY(!model.indexForPlaylist(QStringLiteral("fake"), QStringLiteral("saved")).data(Qt::ToolTipRole).isValid());
     }
 
+    // Listed again behind the scenes (its settings or the media library
+    // changed) as it was: no loading state, and nothing told.
+    void aQuietRefreshThatChangesNothingSaysNothing()
+    {
+        const QString fake = QStringLiteral("fake");
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        QSignalSpy changed(sources_.get(), &ViewModel::Sources::sourceChanged);
+        loaded.clear();
+        sourceManager_->notifySettingsChanged(fake);
+        // The fake answers at once: a moment is plenty for the round trip.
+        QTest::qWait(500);
+        QCOMPARE(changed.size(), 0);
+        QCOMPARE(loaded.size(), 0);
+        QVERIFY(!sources_->playlists(fake).isEmpty());
+    }
+
     // With no network a source keeps what it listed, from the last run too,
     // and it's not an error; a listing that works again replaces it.
     void theListOutlivesALostNetwork()

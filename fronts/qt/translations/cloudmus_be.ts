@@ -20,6 +20,29 @@
     </message>
 </context>
 <context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+        <source>%n track(s) couldn&apos;t be deleted</source>
+        <translation>
+            <numerusform>%n трэк не ўдалося выдаліць</numerusform>
+            <numerusform>%n трэкі не ўдалося выдаліць</numerusform>
+            <numerusform>%n трэкаў не ўдалося выдаліць</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Deleted &quot;%1&quot;</source>
+        <translation>«%1» выдалена</translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n track(s)</source>
+        <translation>
+            <numerusform>Выдалены %n трэк</numerusform>
+            <numerusform>Выдалена %n трэкі</numerusform>
+            <numerusform>Выдалена %n трэкаў</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>Hotkeys</name>
     <message>
         <source>Show or hide the player</source>
@@ -569,11 +592,11 @@
         <translation>Выдаліць</translation>
     </message>
     <message>
-        <source>Delete "%1" and everything in it?</source>
+        <source>Delete &quot;%1&quot; and everything in it?</source>
         <translation>Выдаліць «%1» з усім змесцівам?</translation>
     </message>
     <message>
-        <source>Delete "%1" from the disk?</source>
+        <source>Delete &quot;%1&quot; from the disk?</source>
         <translation>Выдаліць «%1» з дыска?</translation>
     </message>
     <message numerus="yes">
@@ -601,11 +624,11 @@
         <translation>Выдаліць з дыска…</translation>
     </message>
     <message>
-        <source>Deleted files can't be brought back.</source>
+        <source>Deleted files can&apos;t be brought back.</source>
         <translation>Выдаленыя файлы нельга аднавіць.</translation>
     </message>
     <message numerus="yes">
-        <source>Its %n track(s) are deleted from the disk, and can't be brought back.</source>
+        <source>Its %n track(s) are deleted from the disk, and can&apos;t be brought back.</source>
         <translation>
             <numerusform>Яе %n трэк будзе выдалены з дыска без магчымасці аднаўлення.</numerusform>
             <numerusform>Яе %n трэкі будуць выдалены з дыска без магчымасці аднаўлення.</numerusform>
@@ -1652,6 +1675,14 @@ You can try again later or download the new version yourself.</source>
         <translation>Гісторыя</translation>
     </message>
     <message>
+        <source>Couldn&apos;t open the audio file. Check its permissions.</source>
+        <translation>Не ўдалося адкрыць аўдыяфайл. Праверце правы доступу да яго.</translation>
+    </message>
+    <message>
+        <source>Opened audio</source>
+        <translation>Адкрытае аўдыя</translation>
+    </message>
+    <message>
         <source>No network connection, and nothing of %1 is downloaded to play</source>
         <translation>Няма падключэння да сеткі, а з %1 нічога не спампавана</translation>
     </message>
@@ -1714,6 +1745,14 @@ You can try again later or download the new version yourself.</source>
         <translation>%1 не ўмее захоўваць трэкі</translation>
     </message>
     <message>
+        <source>Couldn&apos;t find the file to save</source>
+        <translation>Не ўдалося знайсці файл для захавання</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t publish the track</source>
+        <translation>Не ўдалося дадаць трэк у медыятэку</translation>
+    </message>
+    <message>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
@@ -1724,6 +1763,14 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Couldn&apos;t write the file to %1</source>
         <translation>Не ўдалося запісаць файл у %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1. Check shared storage permissions and free space.</source>
+        <translation>Захавана ў %1. Праверце дазволы на агульнае сховішча і вольнае месца.</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is saved already</source>
+        <translation>Трэк «%1» ужо захаваны</translation>
     </message>
     <message>
         <source>Saved &quot;%1&quot;</source>
@@ -1740,6 +1787,14 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>Saved %1 tracks of &quot;%2&quot;</source>
         <translation>Захавана трэкаў з «%2»: %1</translation>
+    </message>
+    <message>
+        <source>All tracks of &quot;%1&quot; are saved already</source>
+        <translation>Усе трэкі з «%1» ужо захаваныя</translation>
+    </message>
+    <message>
+        <source>Saved %1 tracks of &quot;%2&quot;, %3 were saved already</source>
+        <translation>Захавана трэкаў з «%2»: %1, яшчэ %3 ужо былі захаваныя</translation>
     </message>
     <message>
         <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
@@ -1839,29 +1894,6 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>timed out loading playlists</source>
         <translation>скончыўся час чакання загрузкі плэйлістаў</translation>
-    </message>
-</context>
-<context>
-    <name>App::TrackDeletion</name>
-    <message numerus="yes">
-        <source>%n track(s) couldn't be deleted</source>
-        <translation>
-            <numerusform>%n трэк не ўдалося выдаліць</numerusform>
-            <numerusform>%n трэкі не ўдалося выдаліць</numerusform>
-            <numerusform>%n трэкаў не ўдалося выдаліць</numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>Deleted "%1"</source>
-        <translation>«%1» выдалена</translation>
-    </message>
-    <message numerus="yes">
-        <source>Deleted %n track(s)</source>
-        <translation>
-            <numerusform>Выдалены %n трэк</numerusform>
-            <numerusform>Выдалена %n трэкі</numerusform>
-            <numerusform>Выдалена %n трэкаў</numerusform>
-        </translation>
     </message>
 </context>
 </TS>

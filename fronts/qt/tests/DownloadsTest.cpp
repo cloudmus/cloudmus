@@ -1,4 +1,5 @@
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QSignalSpy>
@@ -243,6 +244,59 @@ private slots:
         QCOMPARE(job.saved, 2);
         QCOMPARE(job.progress(), 1.0);
         QCOMPARE(posted.last().at(1).toString(), QStringLiteral("Saved 2 tracks of \"Playlist p1\""));
+    }
+
+    void aPlaylistBeingSavedIsntQueuedAgain()
+    {
+        downloads_->downloadTrack(QStringLiteral("fake"), track(QStringLiteral("slow")));
+        downloads_->downloadPlaylist(QStringLiteral("fake"), playlist(QStringLiteral("p1")));
+        downloads_->downloadPlaylist(QStringLiteral("fake"), playlist(QStringLiteral("p1")));
+        QCOMPARE(downloads_->jobs().size(), 2);
+        const ViewModel::Downloads::Job* job = downloads_->playlistJob(QStringLiteral("fake"), QStringLiteral("p1"));
+        QVERIFY(job != nullptr);
+        QCOMPARE(job->id, downloads_->jobs().last().id);
+        QCOMPARE(downloads_->playlistJob(QStringLiteral("fake"), QStringLiteral("p2")), nullptr);
+        downloads_->cancelAll();
+        QVERIFY(!downloads_->isActive());
+        QCOMPARE(downloads_->playlistJob(QStringLiteral("fake"), QStringLiteral("p1")), nullptr);
+        // Over: it can be asked for again.
+        downloads_->downloadPlaylist(QStringLiteral("fake"), playlist(QStringLiteral("p1")));
+        QVERIFY(downloads_->playlistJob(QStringLiteral("fake"), QStringLiteral("p1")) != nullptr);
+        QTRY_VERIFY(!downloads_->isActive());
+    }
+
+    // What's saved where it would go is left as it is: asking again saves no
+    // second copy and fetches nothing.
+    void aSavedTrackIsntSavedAgain()
+    {
+        useThePlayersOwnDownloads();
+        QSignalSpy posted(&messages_, &ViewModel::Messages::posted);
+        const Track a = streamTrack(QStringLiteral("a"));
+        downloads_->downloadTrack(QStringLiteral("fake"), a);
+        QTRY_VERIFY(!downloads_->isActive());
+        QCOMPARE(downloads_->jobs().last().saved, 1);
+        QVERIFY(QFile::exists(savedFile(a)));
+        const auto savedFiles = [this]() {
+            QStringList files;
+            QDirIterator it(settings_.downloadDirectory(), QDir::Files, QDirIterator::Subdirectories);
+            while (it.hasNext())
+                files << it.next();
+            files.sort();
+            return files;
+        };
+        const QStringList before = savedFiles();
+        const qsizetype fetched = upstream_->requests.size();
+
+        downloads_->downloadTrack(QStringLiteral("fake"), a);
+        QTRY_VERIFY(!downloads_->isActive());
+        const ViewModel::Downloads::Job& again = downloads_->jobs().last();
+        QCOMPARE(again.state, ViewModel::Downloads::State::Done);
+        QCOMPARE(again.skipped, 1);
+        QCOMPARE(again.saved, 0);
+        QCOMPARE(again.progress(), 1.0);
+        QCOMPARE(posted.last().at(1).toString(), QStringLiteral("\"Track a\" is saved already"));
+        QCOMPARE(savedFiles(), before);
+        QCOMPARE(upstream_->requests.size(), fetched);
     }
 
     void cancellingStopsTheTrackUnderWayAndTheQueueGoesOn()

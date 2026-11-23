@@ -10,6 +10,8 @@
 #include <QSaveFile>
 #include <QUrl>
 
+#include <algorithm>
+
 #include "AuthStates.h"
 #include "CoverArtCache.h"
 #include "Messages.h"
@@ -73,7 +75,13 @@ Sources::Sources(Rpc::SourceManager& sourceManager, App::SourceSession& sourceSe
         [this](Rpc::RpcClient* client) { load(client).detach(); });
     connect(
         &sourceSession, &App::SourceSession::signedIn, this, [this](Rpc::RpcClient* client) { load(client).detach(); });
-    connect(&sourceManager_, &Rpc::SourceManager::settingsChanged, this, &Sources::refresh);
+    // Behind the scenes: while a playlist is being saved, the host's media
+    // library changes every few seconds and the source is listed again each
+    // time; the views mustn't be stirred unless something changed.
+    connect(&sourceManager_, &Rpc::SourceManager::settingsChanged, this, [this](const QString& sourceId) {
+        if (Rpc::RpcClient* client = sourceManager_.client(sourceId))
+            load(client, true).detach();
+    });
     connect(&authStates_, &Rpc::AuthStates::changed, this, &Sources::showAuthState);
     // auth.logout (from the source's Settings page) leaves the playlists
     // listed until something reloads them; they're no longer the user's to see.
@@ -98,11 +106,21 @@ void Sources::refresh(const QString& sourceId)
         load(client).detach();
 }
 
-Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
+namespace {
+bool samePlaylists(const QList<Playlist>& a, const QList<Playlist>& b)
+{
+    return std::equal(a.cbegin(), a.cend(), b.cbegin(), b.cend(),
+        [](const Playlist& x, const Playlist& y) { return x.toJson() == y.toJson(); });
+}
+} // namespace
+
+Rpc::Task<void> Sources::load(Rpc::RpcClient* client, bool quiet)
 {
     const QString sourceId = client->sourceId();
-    model_.setSourceLoading(sourceId, client->sourceName(), true);
-    emit sourceChanged(sourceId);
+    if (!quiet) {
+        model_.setSourceLoading(sourceId, client->sourceName(), true);
+        emit sourceChanged(sourceId);
+    }
     const QJsonObject browse = client->capabilities().value(QStringLiteral("browse")).toObject();
     const bool shouldFetch = browse.value(QStringLiteral("playlists")).toBool()
         || browse.value(QStringLiteral("likedTracks")).toBool() || browse.value(QStringLiteral("radio")).toBool();
@@ -147,6 +165,10 @@ Rpc::Task<void> Sources::load(Rpc::RpcClient* client)
             qCWarning(lcSources) << "catalog.listPlaylists failed for" << sourceId << ":" << e.what();
         }
     }
+    // Listed again as it was: nothing to redo or tell.
+    if (quiet && !failed && !notSignedIn && !failing_.contains(sourceId)
+        && samePlaylists(playlists, model_.playlistsFor(sourceId)))
+        co_return;
     // Once a failure: what's retried with no network shouldn't say so each time.
     const bool newFailure = failed && !failing_.contains(sourceId);
     if (failed) {

@@ -20,6 +20,27 @@
     </message>
 </context>
 <context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+        <source>%n track(s) couldn&apos;t be deleted</source>
+        <translation>
+            <numerusform>No se pudo eliminar %n pista</numerusform>
+            <numerusform>No se pudieron eliminar %n pistas</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Deleted &quot;%1&quot;</source>
+        <translation>«%1» eliminado</translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n track(s)</source>
+        <translation>
+            <numerusform>%n pista eliminada</numerusform>
+            <numerusform>%n pistas eliminadas</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>Hotkeys</name>
     <message>
         <source>Show or hide the player</source>
@@ -569,11 +590,11 @@
         <translation>Eliminar</translation>
     </message>
     <message>
-        <source>Delete "%1" and everything in it?</source>
+        <source>Delete &quot;%1&quot; and everything in it?</source>
         <translation>¿Eliminar «%1» y todo su contenido?</translation>
     </message>
     <message>
-        <source>Delete "%1" from the disk?</source>
+        <source>Delete &quot;%1&quot; from the disk?</source>
         <translation>¿Eliminar «%1» del disco?</translation>
     </message>
     <message numerus="yes">
@@ -599,11 +620,11 @@
         <translation>Eliminar del disco…</translation>
     </message>
     <message>
-        <source>Deleted files can't be brought back.</source>
+        <source>Deleted files can&apos;t be brought back.</source>
         <translation>Los archivos eliminados no se pueden recuperar.</translation>
     </message>
     <message numerus="yes">
-        <source>Its %n track(s) are deleted from the disk, and can't be brought back.</source>
+        <source>Its %n track(s) are deleted from the disk, and can&apos;t be brought back.</source>
         <translation>
             <numerusform>Su %n pista se eliminará del disco y no se podrá recuperar.</numerusform>
             <numerusform>Sus %n pistas se eliminarán del disco y no se podrán recuperar.</numerusform>
@@ -1647,6 +1668,14 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
         <translation>Historial</translation>
     </message>
     <message>
+        <source>Couldn&apos;t open the audio file. Check its permissions.</source>
+        <translation>No se pudo abrir el archivo de audio. Comprueba sus permisos.</translation>
+    </message>
+    <message>
+        <source>Opened audio</source>
+        <translation>Audio abierto</translation>
+    </message>
+    <message>
         <source>No network connection, and nothing of %1 is downloaded to play</source>
         <translation>Sin conexión de red, y no hay nada descargado de %1</translation>
     </message>
@@ -1708,6 +1737,14 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
         <translation>%1 no puede guardar pistas</translation>
     </message>
     <message>
+        <source>Couldn&apos;t find the file to save</source>
+        <translation>No se encontró el archivo para guardar</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t publish the track</source>
+        <translation>No se pudo añadir la pista a la biblioteca multimedia</translation>
+    </message>
+    <message>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
@@ -1718,6 +1755,14 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
     <message>
         <source>Couldn&apos;t write the file to %1</source>
         <translation>No se pudo escribir el archivo en %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1. Check shared storage permissions and free space.</source>
+        <translation>Guardado en %1. Comprueba los permisos del almacenamiento compartido y el espacio libre.</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is saved already</source>
+        <translation>La pista «%1» ya está guardada</translation>
     </message>
     <message>
         <source>Saved &quot;%1&quot;</source>
@@ -1734,6 +1779,14 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
     <message>
         <source>Saved %1 tracks of &quot;%2&quot;</source>
         <translation>Guardadas %1 pistas de «%2»</translation>
+    </message>
+    <message>
+        <source>All tracks of &quot;%1&quot; are saved already</source>
+        <translation>Todas las pistas de «%1» ya están guardadas</translation>
+    </message>
+    <message>
+        <source>Saved %1 tracks of &quot;%2&quot;, %3 were saved already</source>
+        <translation>Se guardaron %1 pistas de «%2»; %3 ya estaban guardadas</translation>
     </message>
     <message>
         <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
@@ -1833,27 +1886,6 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
     <message>
         <source>timed out loading playlists</source>
         <translation>se agotó el tiempo al cargar las listas de reproducción</translation>
-    </message>
-</context>
-<context>
-    <name>App::TrackDeletion</name>
-    <message numerus="yes">
-        <source>%n track(s) couldn't be deleted</source>
-        <translation>
-            <numerusform>No se pudo eliminar %n pista</numerusform>
-            <numerusform>No se pudieron eliminar %n pistas</numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>Deleted "%1"</source>
-        <translation>«%1» eliminado</translation>
-    </message>
-    <message numerus="yes">
-        <source>Deleted %n track(s)</source>
-        <translation>
-            <numerusform>%n pista eliminada</numerusform>
-            <numerusform>%n pistas eliminadas</numerusform>
-        </translation>
     </message>
 </context>
 </TS>

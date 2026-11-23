@@ -53,6 +53,32 @@ private slots:
         QCOMPARE(reset.size() + removed.size() + inserted.size() + changed.size(), 0);
     }
 
+    // The track that plays changing touches its row and the one before, not
+    // every row: a view in another process fetches each row it's told of.
+    void theCurrentTrackTouchesTwoRows()
+    {
+        model_.setCurrentTrack(QStringLiteral("src"), QStringLiteral("a"));
+        QSignalSpy changed(&model_, &QAbstractItemModel::dataChanged);
+        model_.setCurrentTrack(QStringLiteral("src"), QStringLiteral("c"));
+        QCOMPARE(changed.size(), 2);
+        QCOMPARE(changed.at(0).at(0).value<QModelIndex>().row(), 0);
+        QCOMPARE(changed.at(0).at(1).value<QModelIndex>().row(), 0);
+        QCOMPARE(changed.at(1).at(0).value<QModelIndex>().row(), 2);
+        QVERIFY(model_.index(2).data(ViewModel::TrackListModel::IsCurrentRole).toBool());
+        QVERIFY(!model_.index(0).data(ViewModel::TrackListModel::IsCurrentRole).toBool());
+    }
+
+    // History's rows kept in place take their new time of play.
+    void aKeptRowTakesItsNewPlayTime()
+    {
+        QList<Entry> again = rows(QStringList { "a", "b", "c", "d" });
+        again[1].playedAt = QDateTime::fromSecsSinceEpoch(1000);
+        QSignalSpy changed(&model_, &QAbstractItemModel::dataChanged);
+        model_.updateMixedSourceTracks(again);
+        QCOMPARE(changed.size(), 1);
+        QCOMPARE(changed.first().at(0).value<QModelIndex>().row(), 1);
+    }
+
     void aStationGrowingOnlyAddsToTheEnd()
     {
         QSignalSpy reset(&model_, &QAbstractItemModel::modelReset);

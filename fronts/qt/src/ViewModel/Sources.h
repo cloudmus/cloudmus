@@ -87,7 +87,10 @@ signals:
     void sourceRemoved(const QString& sourceId);
 
 private:
-    Rpc::Task<void> load(Rpc::RpcClient* client);
+    // `quiet`: listed again behind the scenes (its settings or the host's
+    // media library changed), so no loading state, and nothing is said
+    // when the list comes back as it was.
+    Rpc::Task<void> load(Rpc::RpcClient* client, bool quiet = false);
     void removeSource(const QString& sourceId);
     void showAuthState(const QString& sourceId);
     // What it listed last, kept for a start with no network.

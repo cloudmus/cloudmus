@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QHash>
 #include <QDateTime>
 #include <QLocale>
 #include <QString>
@@ -152,12 +153,18 @@ public:
 
 private:
     void onStateChanged(const QString& sourceId, const QString& trackId);
+    // The rows of a track, for a change to one track to touch only those.
+    void emitForTrack(const QString& sourceId, const QString& trackId, const QList<int>& roles);
 
     Library::TrackStates* states_ = nullptr;
     Preload* preload_ = nullptr;
     Covers::CoverArtCache* covers_ = nullptr;
     QString currentSourceId_;
     QString currentTrackId_;
+    // CachedRole as a view last read it, by "<source>\n<track>": a cache
+    // change (which doesn't say which tracks) tells only of the rows whose
+    // value changed. A track never read needn't be told of.
+    mutable QHash<QString, bool> cachedShown_;
     QString sourceId_;
     QVector<Track> tracks_;
     QVector<QString> mixedSourceIds_; // parallel to tracks_, only populated when mixedSource_

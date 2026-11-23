@@ -20,6 +20,27 @@
     </message>
 </context>
 <context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+        <source>%n track(s) couldn&apos;t be deleted</source>
+        <translation>
+            <numerusform>%n Titel konnte nicht gelöscht werden</numerusform>
+            <numerusform>%n Titel konnten nicht gelöscht werden</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Deleted &quot;%1&quot;</source>
+        <translation>„%1“ gelöscht</translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n track(s)</source>
+        <translation>
+            <numerusform>%n Titel gelöscht</numerusform>
+            <numerusform>%n Titel gelöscht</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>Hotkeys</name>
     <message>
         <source>Show or hide the player</source>
@@ -569,11 +590,11 @@
         <translation>Löschen</translation>
     </message>
     <message>
-        <source>Delete "%1" and everything in it?</source>
+        <source>Delete &quot;%1&quot; and everything in it?</source>
         <translation>„%1“ mit allem darin löschen?</translation>
     </message>
     <message>
-        <source>Delete "%1" from the disk?</source>
+        <source>Delete &quot;%1&quot; from the disk?</source>
         <translation>„%1“ von der Festplatte löschen?</translation>
     </message>
     <message numerus="yes">
@@ -599,11 +620,11 @@
         <translation>Von der Festplatte löschen…</translation>
     </message>
     <message>
-        <source>Deleted files can't be brought back.</source>
+        <source>Deleted files can&apos;t be brought back.</source>
         <translation>Gelöschte Dateien können nicht wiederhergestellt werden.</translation>
     </message>
     <message numerus="yes">
-        <source>Its %n track(s) are deleted from the disk, and can't be brought back.</source>
+        <source>Its %n track(s) are deleted from the disk, and can&apos;t be brought back.</source>
         <translation>
             <numerusform>Sein %n Titel wird von der Festplatte gelöscht und kann nicht wiederhergestellt werden.</numerusform>
             <numerusform>Seine %n Titel werden von der Festplatte gelöscht und können nicht wiederhergestellt werden.</numerusform>
@@ -1647,6 +1668,14 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
         <translation>Verlauf</translation>
     </message>
     <message>
+        <source>Couldn&apos;t open the audio file. Check its permissions.</source>
+        <translation>Die Audiodatei lässt sich nicht öffnen. Prüfe ihre Berechtigungen.</translation>
+    </message>
+    <message>
+        <source>Opened audio</source>
+        <translation>Geöffnetes Audio</translation>
+    </message>
+    <message>
         <source>No network connection, and nothing of %1 is downloaded to play</source>
         <translation>Keine Netzwerkverbindung, und von %1 ist nichts heruntergeladen</translation>
     </message>
@@ -1708,6 +1737,14 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
         <translation>%1 kann keine Titel speichern</translation>
     </message>
     <message>
+        <source>Couldn&apos;t find the file to save</source>
+        <translation>Die zu speichernde Datei wurde nicht gefunden</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t publish the track</source>
+        <translation>Der Titel konnte nicht in die Mediathek aufgenommen werden</translation>
+    </message>
+    <message>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
@@ -1718,6 +1755,14 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
     <message>
         <source>Couldn&apos;t write the file to %1</source>
         <translation>Die Datei konnte nicht nach %1 geschrieben werden</translation>
+    </message>
+    <message>
+        <source>Saved to %1. Check shared storage permissions and free space.</source>
+        <translation>In %1 gespeichert. Prüfe die Berechtigungen für den gemeinsamen Speicher und den freien Platz.</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is saved already</source>
+        <translation>„%1“ ist schon gespeichert</translation>
     </message>
     <message>
         <source>Saved &quot;%1&quot;</source>
@@ -1734,6 +1779,14 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
     <message>
         <source>Saved %1 tracks of &quot;%2&quot;</source>
         <translation>%1 Titel aus „%2“ gespeichert</translation>
+    </message>
+    <message>
+        <source>All tracks of &quot;%1&quot; are saved already</source>
+        <translation>Alle Titel aus „%1“ sind schon gespeichert</translation>
+    </message>
+    <message>
+        <source>Saved %1 tracks of &quot;%2&quot;, %3 were saved already</source>
+        <translation>%1 Titel aus „%2“ gespeichert, %3 waren schon gespeichert</translation>
     </message>
     <message>
         <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
@@ -1833,27 +1886,6 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
     <message>
         <source>timed out loading playlists</source>
         <translation>Zeitüberschreitung beim Laden der Playlists</translation>
-    </message>
-</context>
-<context>
-    <name>App::TrackDeletion</name>
-    <message numerus="yes">
-        <source>%n track(s) couldn't be deleted</source>
-        <translation>
-            <numerusform>%n Titel konnte nicht gelöscht werden</numerusform>
-            <numerusform>%n Titel konnten nicht gelöscht werden</numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>Deleted "%1"</source>
-        <translation>„%1“ gelöscht</translation>
-    </message>
-    <message numerus="yes">
-        <source>Deleted %n track(s)</source>
-        <translation>
-            <numerusform>%n Titel gelöscht</numerusform>
-            <numerusform>%n Titel gelöscht</numerusform>
-        </translation>
     </message>
 </context>
 </TS>

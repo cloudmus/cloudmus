@@ -2,6 +2,8 @@
 
 #include <QUrl>
 
+#include <utility>
+
 #include "CoverArtCache.h"
 #include "Preload.h"
 #include "TrackStates.h"
@@ -104,8 +106,9 @@ void TrackListModel::updateMixedSourceTracks(const QList<MixedSourceEntry>& entr
         const Track& fresh = entries[row].track;
         Track& kept = tracks_[row];
         const bool looksDifferent = kept.title != fresh.title || kept.durationMs != fresh.durationMs
-            || kept.coverUrl != fresh.coverUrl;
+            || kept.coverUrl != fresh.coverUrl || playedAt_[row] != entries[row].playedAt;
         kept = fresh;
+        playedAt_[row] = entries[row].playedAt;
         if (looksDifferent)
             emit dataChanged(index(row), index(row));
     }
@@ -185,10 +188,22 @@ void TrackListModel::setPreload(Preload* preload)
             }
         }
     });
-    // The cache dropped or gained something — which tracks, it doesn't say.
+    // The cache dropped or gained something — which tracks, it doesn't say:
+    // told of are the rows shown otherwise than they are now. Telling of all
+    // of them had a view in another process fetch every row again, once per
+    // track saved.
     connect(preload_, &Preload::cacheUsedChanged, this, [this]() {
-        if (!tracks_.isEmpty())
-            emit dataChanged(index(0), index(tracks_.size() - 1), { CachedRole });
+        for (int row = 0; row < tracks_.size(); ++row) {
+            const QString sourceId = sourceIdAt(row);
+            const auto shown = cachedShown_.find(sourceId + QLatin1Char('\n') + tracks_[row].id);
+            if (shown == cachedShown_.end())
+                continue;
+            const bool cached = preload_->stateFor(sourceId, tracks_[row].id) == Preload::State::Ready;
+            if (cached == shown.value())
+                continue;
+            shown.value() = cached;
+            emit dataChanged(index(row), index(row), { CachedRole });
+        }
     });
 }
 
@@ -209,10 +224,23 @@ void TrackListModel::setCurrentTrack(const QString& sourceId, const QString& tra
 {
     if (sourceId == currentSourceId_ && trackId == currentTrackId_)
         return;
-    currentSourceId_ = sourceId;
-    currentTrackId_ = trackId;
-    if (!tracks_.isEmpty())
-        emit dataChanged(index(0), index(int(tracks_.size()) - 1), { IsCurrentRole });
+    const QString oldSourceId = std::exchange(currentSourceId_, sourceId);
+    const QString oldTrackId = std::exchange(currentTrackId_, trackId);
+    // The rows of the one it was and the one it is, not all of them.
+    if (!oldTrackId.isEmpty())
+        emitForTrack(oldSourceId, oldTrackId, { IsCurrentRole });
+    if (!trackId.isEmpty())
+        emitForTrack(sourceId, trackId, { IsCurrentRole });
+}
+
+void TrackListModel::emitForTrack(const QString& sourceId, const QString& trackId, const QList<int>& roles)
+{
+    for (int row = 0; row < tracks_.size(); ++row) {
+        if (tracks_[row].id == trackId && sourceIdAt(row) == sourceId) {
+            const QModelIndex idx = index(row);
+            emit dataChanged(idx, idx, roles);
+        }
+    }
 }
 
 void TrackListModel::onStateChanged(const QString& sourceId, const QString& trackId)
@@ -286,10 +314,14 @@ QVariant TrackListModel::data(const QModelIndex& index, int role) const
             const std::optional<bool>& flag = role == LikedRole ? state.liked : state.disliked;
             return flag.has_value() ? QVariant(*flag) : QVariant();
         }
-        case CachedRole:
+        case CachedRole: {
             if (preload_ == nullptr)
                 return { };
-            return preload_->stateFor(sourceIdAt(index.row()), t.id) == Preload::State::Ready;
+            const QString sourceId = sourceIdAt(index.row());
+            const bool cached = preload_->stateFor(sourceId, t.id) == Preload::State::Ready;
+            cachedShown_.insert(sourceId + QLatin1Char('\n') + t.id, cached);
+            return cached;
+        }
         case DownloadProgressRole:
             if (preload_ == nullptr
                 || preload_->stateFor(sourceIdAt(index.row()), t.id) != Preload::State::Downloading)

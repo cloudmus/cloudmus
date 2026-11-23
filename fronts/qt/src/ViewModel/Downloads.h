@@ -68,11 +68,15 @@ public:
         QString sourceId;
         QString title; // the track's, or the playlist's
         bool isPlaylist = false;
+        QString playlistId; // a playlist's
+
         State state = State::Queued;
         QList<Track> tracks; // a playlist's: empty until listed
         int current = 0; // index of the track under way / next
         int saved = 0;
         int failed = 0;
+        // Saved before, where it would go now: left as it was, not fetched.
+        int skipped = 0;
         QString fallbackDirectory;
         QString fallbackReason;
         // The track under way: bytes so far, and the file's size (-1 while
@@ -109,7 +113,11 @@ public:
     };
     using Publisher = std::function<PublishResult(const QString& path, const QString& subfolder)>;
     using WebmPreparer = std::function<bool(const QString& input, const QString& output)>;
-    void setPublisher(QString directory, Publisher publisher, WebmPreparer prepareWebm = { });
+    // Whether the publisher has `<subfolder>/<baseName>` with one of
+    // Library::savedAudioExtensions() already. Without a publisher the
+    // download folder is looked in.
+    using SavedCheck = std::function<bool(const QString& subfolder, const QString& baseName)>;
+    void setPublisher(QString directory, Publisher publisher, WebmPreparer prepareWebm = { }, SavedCheck isSaved = { });
     QString directory() const;
 
     // Whether tracks of a source with these capabilities can be saved at
@@ -120,10 +128,13 @@ public:
     static bool savesFromStream(const QJsonObject& capabilities);
 
     void downloadTrack(const QString& sourceId, const Track& track);
-    // A radio station has no fixed list to save — not accepted.
+    // A radio station has no fixed list to save — not accepted, nor a
+    // playlist already queued or being saved.
     void downloadPlaylist(const QString& sourceId, const Playlist& playlist);
     // Stops a queued or running job; for a playlist, all of it.
     void cancel(int jobId);
+    // Stops everything queued or running.
+    void cancelAll();
     // Forgets the jobs that are over (the panel's "Clear").
     void clearFinished();
 
@@ -131,6 +142,8 @@ public:
     const QList<Job>& jobs() const { return jobs_; }
     // Anything queued or running.
     bool isActive() const;
+    // The job queued or running for this playlist, or null.
+    const Job* playlistJob(const QString& sourceId, const QString& playlistId) const;
     // All of what's queued or running, 0..1 — or -1 while nothing of it
     // can be measured yet.
     double progress() const;
@@ -156,6 +169,9 @@ private:
     Rpc::Task<QString> saveFromStream(int jobId, QString sourceId, Track track, QString destDir);
     Rpc::Task<PublishResult> publish(QString path, QString subfolder);
     void finish(Job& job, const QString& lastError);
+    // Whether the track is saved already where it would go (`destDir`, under
+    // `root`): a check that can run on another thread.
+    std::function<bool()> savedCheckFor(const QString& root, const QString& destDir, const Track& track) const;
     void reportFetchProgress();
     void onProgress(const QString& sourceId, const QString& downloadId, qint64 received, std::optional<qint64> total);
 
@@ -167,6 +183,7 @@ private:
     Playback::Preloader* preloader_ = nullptr;
     Publisher publisher_;
     WebmPreparer prepareWebm_;
+    SavedCheck isSaved_;
     QString preferredDirectory_;
     QString publishedDirectory_;
     // A track being saved by the front: told by cancel() so it stops
