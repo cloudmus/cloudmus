@@ -142,30 +142,35 @@ Page {
                         }
                     }
                 }
-                // What's being saved: rings while anything is.
-                DownloadButton {
-                    objectName: "downloadsButton"
-                    readonly property QtObject saving: page.backend.downloadsScreen
-                    visible: saving !== null && saving.enabled === true
-                    Layout.alignment: Qt.AlignHCenter
-                    downloading: saving !== null && saving.active === true
-                    progress: saving !== null ? saving.progress : -1
-                    onClicked: page.downloadsRequested()
-                }
-                IconButton {
-                    objectName: "history"
-                    Layout.alignment: Qt.AlignHCenter
-                    iconName: "history"
-                    onClicked: {
-                        page.backend.playlistScreen.openHistory()
-                        page.playlistRequested()
-                    }
-                }
-                IconButton {
-                    Layout.alignment: Qt.AlignHCenter
+                // As many to a row as the column takes: one in a phone's, side by
+                // side in a head unit's, whose screen has no height to spare.
+                Flow {
+                    objectName: "libraryTools"
+                    Layout.fillWidth: true
                     Layout.margins: Theme.dp(8)
-                    iconName: "tune"
-                    onClicked: page.settingsRequested()
+                    spacing: page.wide ? Theme.dp(4) : 0
+                    // What's being saved: rings while anything is.
+                    DownloadButton {
+                        objectName: "downloadsButton"
+                        readonly property QtObject saving: page.backend.downloadsScreen
+                        visible: saving !== null && saving.enabled === true
+                        downloading: saving !== null && saving.active === true
+                        progress: saving !== null ? saving.progress : -1
+                        onClicked: page.downloadsRequested()
+                    }
+                    IconButton {
+                        objectName: "history"
+                        iconName: "history"
+                        onClicked: {
+                            page.backend.playlistScreen.openHistory()
+                            page.playlistRequested()
+                        }
+                    }
+                    IconButton {
+                        objectName: "librarySettings"
+                        iconName: "tune"
+                        onClicked: page.settingsRequested()
+                    }
                 }
             }
         }
