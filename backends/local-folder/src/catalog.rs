@@ -18,7 +18,7 @@ struct Playlist {
     parent: Option<String>,
     // Where it's listed among the others: its group, then its path.
     order: (u8, String),
-    // A folder; not a group's root, which is all of it.
+    // Its tracks can be deleted with it (catalog.deletePlaylist).
     deletable: bool,
     // A glyph for its generated cover (Playlist.coverIcon).
     icon: Option<&'static str>,
@@ -177,7 +177,9 @@ impl Library {
                     title: root_title.clone(),
                     parent: None,
                     order: (group, String::new()),
-                    deletable: false,
+                    // The device's own groups can be emptied as a whole; the
+                    // music folder's root is the user's own folder, left alone.
+                    deletable: nested,
                     icon,
                     tracks: Vec::new(),
                 })

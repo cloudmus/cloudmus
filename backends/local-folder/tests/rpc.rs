@@ -383,7 +383,7 @@ fn deletes_tracks_and_folders_and_hands_back_host_items() {
         lists.as_array().unwrap().iter().find(|list| list["id"] == id).unwrap()["deletable"] == true
     };
     assert!(!deletable("__root__"));
-    assert!(!deletable("@android/saved-media"));
+    assert!(deletable("@android/saved-media"));
     assert!(deletable("Artist/Album"));
 
     // One track: its folder, left empty, goes with it; the parent stays.
