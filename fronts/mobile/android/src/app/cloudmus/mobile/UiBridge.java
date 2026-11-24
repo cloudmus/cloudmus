@@ -69,6 +69,17 @@ public final class UiBridge {
         }
     }
 
+    // "<x> <y> <width> <height>" in pixels, in the window: where Android's
+    // start screen has its logo; empty without one (StartScreen).
+    public static String splashIcon(Context context) {
+        return StartScreen.iconRect();
+    }
+
+    // StartSplash.qml has drawn the same picture: Android's start screen goes.
+    public static void hideSplash(Context context) {
+        StartScreen.release();
+    }
+
     // Non-empty with a screen reader (TalkBack and the like) on.
     public static String screenReaderOn(Context context) {
         android.view.accessibility.AccessibilityManager manager

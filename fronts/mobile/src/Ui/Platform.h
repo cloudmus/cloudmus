@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QRectF>
 #include <QString>
 #include <QVariantList>
 
@@ -113,6 +114,12 @@ public:
     // The window's first frame: startup timing.
     // Also logs how it's drawn (refresh rate, graphics API, render loop).
     Q_INVOKABLE void markFirstFrame(QObject* window) const;
+    // Where Android's start screen has its logo, in the window's pixels (not
+    // device-independent): StartSplash.qml draws its own there. Empty without
+    // one (before Android 12, off Android, or it's gone).
+    Q_INVOKABLE QRectF splashIcon() const;
+    // StartSplash.qml has drawn the same: Android's start screen goes.
+    Q_INVOKABLE void hideSplash() const;
     // Starts the playback service (Android); the core comes up with it.
     static void startService();
     // Ends the process at once, the log written (Android).

@@ -362,6 +362,24 @@ void Platform::markFirstFrame(QObject* window) const
                                  << ", device pixel ratio " << quickWindow->devicePixelRatio();
 }
 
+QRectF Platform::splashIcon() const
+{
+#ifdef Q_OS_ANDROID
+    const QStringList parts = bridgeString("splashIcon").split(QLatin1Char(' '));
+    if (parts.size() == 4)
+        return QRectF(parts.at(0).toDouble(), parts.at(1).toDouble(), parts.at(2).toDouble(), parts.at(3).toDouble());
+#endif
+    return {};
+}
+
+void Platform::hideSplash() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>(
+        "app/cloudmus/mobile/UiBridge", "hideSplash", QNativeInterface::QAndroidApplication::context());
+#endif
+}
+
 void Platform::setAppearance(
     const QString& scheme, bool dark, const QString& barColor, const QString& backColor) const
 {

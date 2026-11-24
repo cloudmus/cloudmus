@@ -100,16 +100,12 @@ ApplicationWindow {
     FontLoader { source: "qrc:/fonts/Manrope-SemiBold.ttf" }
     FontLoader { source: "qrc:/fonts/Manrope-Bold.ttf" }
 
-    property bool coreSeen: false
-    Connections {
-        target: window.backend
-        function onReadyChanged() { if (window.backend.ready) window.coreSeen = true }
-    }
-
     // All that's under what comes over it, as one: a track's sheet is glass over it.
     Item {
         id: pages
         anchors.fill: parent
+        // Settling into place as the start screen fades from over them.
+        scale: 0.96 + 0.04 * (1 - startSplash.opacity)
     }
 
     // Under the status bar, which is see-through: a page with its own picture
@@ -139,7 +135,7 @@ ApplicationWindow {
         anchors.topMargin: Theme.insetTop
         anchors.leftMargin: Theme.insetLeft
         anchors.rightMargin: Theme.insetRight
-        visible: window.backend.ready
+        visible: startSplash.contentShown
         initialItem: mainPage
 
         // Opaque all the way: fading in, a page let the one below show through.
@@ -517,25 +513,16 @@ ApplicationWindow {
         }
     }
 
-    // While the core comes up (in the playback service on Android).
-    Column {
-        anchors.centerIn: parent
-        spacing: Theme.padding
-        visible: !window.backend.ready
-        Image {
-            anchors.horizontalCenter: parent.horizontalCenter
-            source: "qrc:/icons/logo.svg"
-            sourceSize.width: Theme.dp(72)
-            sourceSize.height: Theme.dp(72)
-        }
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            // Gone after having been there: the player's process was ended.
-            text: window.coreSeen ? qsTr("Reconnecting to the player…") : qsTr("Starting…")
-            color: Theme.inkSecondary
-            font.family: Theme.fontFamily
-            font.pixelSize: Theme.fontBody
-        }
+    // While the core comes up (in the playback service on Android): over
+    // the pages, taking over from Android's start screen.
+    StartSplash {
+        id: startSplash
+        objectName: "startSplash"
+        z: 1000
+        platform: window.platform
+        ready: window.backend.ready
+        startingText: qsTr("Starting…")
+        reconnectingText: qsTr("Reconnecting to the player…")
     }
 
     // Over everything, the sheets and menus too: they're in the window's overlay.

@@ -20,6 +20,7 @@ public class MainActivity extends QtActivity {
         UiBridge.pythonProbeRequested = getIntent().getBooleanExtra("pythonProbe", false);
         super.onCreate(savedInstanceState);
         Appearance.setUp(this);
+        StartScreen.hold(this);
         preferFastestRefreshRate();
         hideFromOtherAccessibility();
         if (savedInstanceState == null) {

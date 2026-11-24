@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 import android.os.Build;
 import android.view.View;
 import android.view.Window;
@@ -46,9 +48,14 @@ final class Appearance {
             window.setStatusBarContrastEnforced(false);
         }
         View decor = window.getDecorView();
-        if (prefs.contains("dark"))
+        if (prefs.contains("dark")) {
             paint(activity, prefs.getBoolean("dark", true), prefs.getInt("bar", 0), prefs.getInt("back", 0));
-        else
+            // Android 8–11 have no start screen of their own: the window's
+            // background is it (splash_background.xml), the logo kept until Qt
+            // has drawn over it (Android 12+: MainActivity).
+            if (Build.VERSION.SDK_INT < 31)
+                window.setBackgroundDrawable(withLogo(activity, prefs.getInt("back", 0)));
+        } else
             layOutUnderNavigationBar(decor, 0);
         decor.setOnApplyWindowInsetsListener((view, insets) -> {
             remember(insets);
@@ -63,6 +70,16 @@ final class Appearance {
             view.post(() -> paintIcons(activity));
             return view.onApplyWindowInsets(insets);
         });
+    }
+
+    // splash_background.xml in another color.
+    private static Drawable withLogo(Activity activity, int back) {
+        LayerDrawable layers = new LayerDrawable(
+            new Drawable[] {new ColorDrawable(back), activity.getDrawable(R.drawable.logo_disc)});
+        int side = Math.round(128 * activity.getResources().getDisplayMetrics().density);
+        layers.setLayerSize(1, side, side);
+        layers.setLayerGravity(1, android.view.Gravity.CENTER);
+        return layers;
     }
 
     private static void remember(WindowInsets insets) {

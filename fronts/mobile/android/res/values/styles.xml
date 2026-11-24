@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- What shows at once while Qt loads: the app's own background, as light
-         or dark as the system is (values-night), not a white flash. From then on
-         the bars follow the theme picked in Settings: see Appearance.java. -->
+         or dark as the system is (values-night), not a white flash, with the
+         logo StartSplash.qml takes over from (Android 12+: values-v31). From
+         then on the bars follow the theme picked in Settings: see
+         Appearance.java. -->
     <style name="CloudmusTheme" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/windowBackground</item>
+        <item name="android:windowBackground">@drawable/splash_background</item>
         <!-- The text selection's handles, which are Android's to draw. -->
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:statusBarColor">@color/surface100</item>

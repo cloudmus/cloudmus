@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+'s start screen icon: an icon without a background is drawn in
+     a square of which only the middle circle shows. The logo takes the middle
+     4/9 of it (1 - 2 × 5/18), 128dp at 288. How large the system draws it
+     is its own: StartScreen.java looks where it came out. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/logo_disc"
+    android:inset="27.7778%" />

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- values/styles.xml's, with Android's own start screen: our logo in
+         place of the launcher icon, at the size and place StartSplash.qml
+         takes over from. It stays until that has drawn (MainActivity). -->
+    <style name="CloudmusTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/windowBackground</item>
+        <item name="android:windowSplashScreenBackground">@color/windowBackground</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:statusBarColor">@color/surface100</item>
+        <item name="android:navigationBarColor">@color/windowBackground</item>
+        <item name="android:windowLightStatusBar">@bool/lightBars</item>
+        <item name="android:windowLightNavigationBar">@bool/lightBars</item>
+    </style>
+</resources>

@@ -86,6 +86,14 @@ QQuickItem* findItem(QQuickItem* root, const QString& name)
     return nullptr;
 }
 
+// The start screen gone from over the pages (StartSplash.qml): they're
+// drawn, at their own size, once the core is up and it has faded.
+bool startScreenGone(QQuickWindow* window)
+{
+    auto* splash = window->findChild<QQuickItem*>(QStringLiteral("startSplash"));
+    return splash && QTest::qWaitFor([&] { return !splash->isVisible(); }, 10000);
+}
+
 void forEachItem(QQuickItem* root, const std::function<void(QQuickItem*)>& visit)
 {
     visit(root);
@@ -488,6 +496,7 @@ private slots:
         QVERIFY(window);
         window->resize(360, 780);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
         QVERIFY(theme);
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
@@ -607,6 +616,7 @@ private slots:
         QVERIFY(window);
         window->resize(420, 860);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         auto* sheet = window->findChild<QQuickItem*>("nowPlayingSheet");
         QVERIFY(sheet);
         // The mini player is Now Playing folded up: one page, all along.
@@ -952,6 +962,7 @@ private slots:
         QVERIFY(window);
         window->resize(1280, 720);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         QTest::qWait(600);
         core.activePlaylist().playRow(1);
         QTRY_VERIFY(core.mainScreen().canGoPrevious());
@@ -1022,6 +1033,7 @@ private slots:
                 [&]() { drawn.append(page->property("screenProgress").toReal()); });
             window->resize(1280, 720);
             QVERIFY(QTest::qWaitForWindowExposed(window));
+            QVERIFY(startScreenGone(window));
             QTest::qWait(800);
             QCOMPARE(page->property("screenProgress").toReal(), 1.0);
             for (const qreal progress : std::as_const(drawn))
@@ -1120,6 +1132,7 @@ private slots:
         QVERIFY(window);
         window->resize(420, 860);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         auto* stack = window->findChild<QQuickItem*>("stack");
         auto* sheet = window->findChild<QQuickItem*>("nowPlayingSheet");
         auto* trackSheet = window->findChild<QObject*>("trackSheet");
@@ -1377,6 +1390,7 @@ private slots:
         QVERIFY(theme->setProperty("dark", false));
         window->resize(420, 860);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         // A bar over the bottom: the background goes under it, the rest not.
         QVERIFY(theme->setProperty("insetBottom", 40));
         QTRY_VERIFY(findItem(window->contentItem(), QStringLiteral("nowPlaying")) != nullptr);
@@ -1433,6 +1447,7 @@ private slots:
         QVERIFY(window);
         window->resize(420, 860);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         auto* theme = engine.singletonInstance<QObject*>("Cloudmus.Mobile", "Theme");
         auto* stack = window->findChild<QQuickItem*>("stack");
         QVERIFY(theme && stack);
@@ -2361,6 +2376,7 @@ private slots:
         QVERIFY(window);
         window->resize(411, 838);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         QTest::qWait(300);
         auto* page = window->findChild<QQuickItem*>("playlist");
         QVERIFY(page);
@@ -2396,6 +2412,7 @@ private slots:
         QVERIFY(window);
         window->resize(411, 838);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         const auto sharp = [&] {
             auto* nowPlaying = window->findChild<QQuickItem*>("nowPlaying");
             auto* picture = nowPlaying ? findItem(nowPlaying, QStringLiteral("trackCoverPicture")) : nullptr;
@@ -2493,6 +2510,7 @@ private slots:
         QVERIFY(window);
         window->resize(size);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         QTest::qWait(1200); // the first size settled, on everything
 
         auto* toggle = window->findChild<QQuickItem*>("screenModeToggle");
@@ -2556,6 +2574,7 @@ private slots:
         QVERIFY(window);
         window->resize(1280, 720);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         auto* badge = window->findChild<QQuickItem*>("offlineBadge");
         QVERIFY(badge);
         core.core().connectivity().reportReached(QStringLiteral("fake"));
@@ -2593,6 +2612,7 @@ private slots:
         QVERIFY(window);
         window->resize(720, 330);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         QTest::qWait(500);
 
         auto* panel = window->findChild<QQuickItem*>("trackPanel");
@@ -2672,6 +2692,7 @@ private slots:
         QVERIFY(window);
         window->resize(360, 780);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
 
         core.library().selectSource(fake);
         core.core().authStates().setPrompt(fake,
@@ -2809,6 +2830,7 @@ private slots:
         QVERIFY(window);
         window->resize(420, 860);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         auto* stack = window->findChild<QQuickItem*>("stack");
         QVERIFY(stack);
 
@@ -2873,6 +2895,7 @@ private slots:
         QVERIFY(window);
         window->resize(420, 860);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         auto* stack = window->findChild<QQuickItem*>("stack");
 
         QMetaObject::invokeMethod(backend.playlistScreen(), "openPlaylist", Q_ARG(QString, QStringLiteral("fake")),
@@ -3040,6 +3063,7 @@ private slots:
         QVERIFY(window);
         window->resize(size);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
         auto* stack = window->findChild<QQuickItem*>("stack");
         QVERIFY(stack);
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
@@ -3206,6 +3230,7 @@ private slots:
         QVERIFY(window);
         window->resize(size);
         QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
 
         auto* stack = window->findChild<QQuickItem*>("stack");
         QVERIFY(stack);

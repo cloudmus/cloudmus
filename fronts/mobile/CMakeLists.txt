@@ -225,6 +225,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/SourceSettingsPage.qml
         qml/Stepper.qml
         qml/Spinner.qml
+        qml/StartSplash.qml
         qml/TrackSheet.qml
         qml/AxisSwipe.qml
         qml/TrackTitleBlock.qml
