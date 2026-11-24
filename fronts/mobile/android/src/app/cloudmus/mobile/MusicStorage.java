@@ -75,6 +75,8 @@ final class MusicStorage {
 
     static void start(Context context) {
         app = context.getApplicationContext();
+        // Before the first index: what the sources asked for last time.
+        wantAll = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PREF_WANT_ALL, false);
         observer = new ContentObserver(new Handler(Looper.getMainLooper())) {
             @Override public void onChange(boolean selfChange) { refresh(); }
         };
@@ -116,13 +118,21 @@ final class MusicStorage {
     }
 
     // A source asked for all the device's music (media/wanted), not only
-    // what this app saved: from the core, docs/protocol.md §7.10.
+    // what this app saved: from the core, docs/protocol.md §7.10. Kept
+    // across launches: the source asks again only once it's up, and an
+    // index written before that, without the device's music, would be all
+    // it has when the app restores what played (a wave of the device's
+    // music, its tracks then not found).
     private static volatile boolean wantAll;
+    private static final String PREFS = "music-storage";
+    private static final String PREF_WANT_ALL = "wantAll";
 
     static void setWantAll(boolean all) {
         if (wantAll == all)
             return;
         wantAll = all;
+        if (app != null)
+            app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(PREF_WANT_ALL, all).apply();
         refresh();
     }
 
