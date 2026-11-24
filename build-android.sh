@@ -92,12 +92,12 @@ mpv_headers=v0.39.0
 mpv_dir=$work/libmpv-$mpv_version
 if [ ! -f "$mpv_dir/.done" ]; then
     rm -rf "$mpv_dir" && mkdir -p "$mpv_dir"
-    curl -fL -o "$work/libmpv.aar" \
+    curl -fL --retry 5 --retry-all-errors --retry-delay 5 -o "$work/libmpv.aar" \
         "https://repo1.maven.org/maven2/dev/jdtech/mpv/libmpv/$mpv_version/libmpv-$mpv_version.aar"
     unzip -q "$work/libmpv.aar" -d "$mpv_dir"
     mkdir -p "$mpv_dir/include/mpv"
     for header in client.h render.h stream_cb.h; do
-        curl -fL -o "$mpv_dir/include/mpv/$header" \
+        curl -fL --retry 5 --retry-all-errors --retry-delay 5 -o "$mpv_dir/include/mpv/$header" \
             "https://raw.githubusercontent.com/mpv-player/mpv/$mpv_headers/libmpv/$header"
     done
     touch "$mpv_dir/.done"
@@ -105,7 +105,7 @@ fi
 
 # Existing build directories may predate the stream callback header.
 if [ ! -f "$mpv_dir/include/mpv/stream_cb.h" ]; then
-    curl -fL -o "$mpv_dir/include/mpv/stream_cb.h" \
+    curl -fL --retry 5 --retry-all-errors --retry-delay 5 -o "$mpv_dir/include/mpv/stream_cb.h" \
         "https://raw.githubusercontent.com/mpv-player/mpv/$mpv_headers/libmpv/stream_cb.h"
 fi
 

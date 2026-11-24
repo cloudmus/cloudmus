@@ -27,7 +27,7 @@ fi
 
 rm -rf "${out:?}" && mkdir -p "$out"
 archive=$out/python.tar.gz
-curl -fsSL -o "$archive" \
+curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$archive" \
     "https://www.python.org/ftp/python/$python_version/python-$python_version-$triplet.tar.gz"
 echo "$sha256  $archive" | sha256sum -c --quiet
 mkdir "$out/unpacked"
