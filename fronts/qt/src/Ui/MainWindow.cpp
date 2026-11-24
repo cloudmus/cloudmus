@@ -201,7 +201,10 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     auto* menu = new QMenu(menuButton);
     menu->addAction(tr("Settings…"), this, [this]() { showSettingsDialog(); });
     menu->addAction(tr("Check for Updates…"), this, &MainWindow::checkForUpdatesRequested);
-    menu->addAction(tr("About CloudMus"), this, &MainWindow::showAboutDialog);
+    auto* aboutAction = menu->addAction(tr("About CloudMus"), this, &MainWindow::showAboutDialog);
+    Theme::followTheme(menu, [aboutAction]() {
+        aboutAction->setIcon(Theme::icon(QStringLiteral("cloudmus"), Theme::IconColor::Ink, 16));
+    });
     menu->addSeparator();
     menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
     menuButton->setMenu(menu);

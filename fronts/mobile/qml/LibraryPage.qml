@@ -174,7 +174,7 @@ Page {
                     }
                     IconButton {
                         objectName: "aboutButton"
-                        iconName: "info"
+                        iconName: "cloudmus"
                         onClicked: page.aboutRequested()
                     }
                 }
