@@ -70,6 +70,103 @@ Page {
             }
 
             SettingsGroup {
+                title: qsTr("Interface")
+                SettingsCell {
+                    SettingText { title: qsTr("Theme") }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing
+                        Repeater {
+                            model: [{ t: qsTr("Auto"), v: "auto" }, { t: qsTr("Light"), v: "light" },
+                                    { t: qsTr("Dark"), v: "dark" }]
+                            Chip {
+                                required property var modelData
+                                objectName: "scheme_" + modelData.v
+                                text: modelData.t
+                                checked: page.ui.colorScheme === modelData.v
+                                onClicked: {
+                                    page.ui.colorScheme = modelData.v
+                                    checked = Qt.binding(() => page.ui.colorScheme === modelData.v)
+                                }
+                            }
+                        }
+                    }
+                }
+                // A head unit has the track on its main screen, and no mini player.
+                SettingSwitch {
+                    objectName: "miniPlayerEverywhere"
+                    visible: page.width <= page.height * 1.1
+                    title: qsTr("Mini player on every screen")
+                    checked: page.ui.miniPlayerEverywhere
+                    onToggled: (checked) => page.ui.miniPlayerEverywhere = checked
+                }
+                // A list: there will be more languages.
+                SettingsCell {
+                    visible: page.localizer !== null
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.padding
+                        SettingText { title: qsTr("Language") }
+                        AppComboBox {
+                            objectName: "language"
+                            Layout.fillWidth: false
+                            Layout.preferredWidth: Math.min(Theme.dp(220), page.width * 0.5)
+                            // Auto, then every language in its own name.
+                            model: page.localizer
+                                ? [{ name: qsTr("Auto"), code: "" }].concat(page.localizer.languages) : []
+                            textRole: "name"
+                            valueRole: "code"
+                            currentIndex: page.localizer ? Math.max(0, indexOfValue(page.localizer.setting)) : 0
+                            onActivated: page.localizer.setSetting(currentValue)
+                        }
+                    }
+                }
+                SettingsCell {
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.padding
+                        SettingText { title: qsTr("Scale") }
+                        BodyText {
+                            Layout.fillWidth: false
+                            text: Theme.scale.toFixed(2) + "×"
+                        }
+                        TextButton {
+                            text: qsTr("Auto")
+                            enabled: page.ui.scale > 0
+                            onClicked: page.ui.scale = -1
+                        }
+                    }
+                    // Applied as the finger lets go: the page rescaled under the
+                    // finger would jump about. The bubble says where it's going.
+                    AppSlider {
+                        id: scaleSlider
+                        objectName: "scale"
+                        from: 0.75
+                        to: 2.5
+                        stepSize: 0.05
+                        value: Theme.scale
+                        bubbleText: value.toFixed(2) + "×"
+                        onPressedChanged: {
+                            if (pressed)
+                                return
+                            page.ui.scale = value
+                            value = Qt.binding(() => Theme.scale)
+                        }
+                    }
+                }
+            }
+
+            SettingsGroup {
+                title: qsTr("Privacy")
+                SettingSwitch {
+                    objectName: "analytics"
+                    title: qsTr("Send usage statistics to Google Analytics")
+                    checked: page.screen ? page.screen.analytics : false
+                    onToggled: (checked) => page.screen.setAnalytics(checked)
+                }
+            }
+
+            SettingsGroup {
                 title: qsTr("Saving tracks")
                 SettingSwitch {
                     objectName: "enableDownloads"
@@ -115,6 +212,21 @@ Page {
                             }
                         }
                     }
+                }
+            }
+
+            SettingsGroup {
+                shown: page.platform.android
+                title: qsTr("Music storage")
+                // A source's Device music is on, and Android hasn't let it in yet.
+                SettingsRow {
+                    visible: page.screen !== null && page.screen.mediaPermissionNeeded === true
+                    text: qsTr("Allow reading the device's music")
+                    onClicked: page.platform.requestMusicPermission()
+                }
+                SettingsRow {
+                    text: qsTr("Storage permissions")
+                    onClicked: page.platform.grantMusicStorage()
                 }
             }
 
@@ -193,24 +305,6 @@ Page {
             }
 
             SettingsGroup {
-                title: qsTr("Sources")
-                Repeater {
-                    model: page.backend.settingsSources
-                    SettingsRow {
-                        required property string sourceId
-                        required property string name
-                        required property string iconUrl
-                        required property string status
-                        objectName: "sourceRow_" + sourceId
-                        text: name
-                        iconSource: iconUrl
-                        subtitle: status
-                        onClicked: page.sourceRequested(sourceId)
-                    }
-                }
-            }
-
-            SettingsGroup {
                 title: qsTr("Network")
                 description: qsTr("Proxies a source can connect through: choose one on the source's own page. Everything of that source goes through it: the source itself, its streams and its covers.")
                 Repeater {
@@ -238,106 +332,20 @@ Page {
             }
 
             SettingsGroup {
-                title: qsTr("Privacy")
-                SettingSwitch {
-                    objectName: "analytics"
-                    title: qsTr("Send usage statistics to Google Analytics")
-                    checked: page.screen ? page.screen.analytics : false
-                    onToggled: (checked) => page.screen.setAnalytics(checked)
-                }
-            }
-
-            SettingsGroup {
-                title: qsTr("Interface")
-                SettingsCell {
-                    SettingText { title: qsTr("Theme") }
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: Theme.spacing
-                        Repeater {
-                            model: [{ t: qsTr("Auto"), v: "auto" }, { t: qsTr("Light"), v: "light" },
-                                    { t: qsTr("Dark"), v: "dark" }]
-                            Chip {
-                                required property var modelData
-                                objectName: "scheme_" + modelData.v
-                                text: modelData.t
-                                checked: page.ui.colorScheme === modelData.v
-                                onClicked: {
-                                    page.ui.colorScheme = modelData.v
-                                    checked = Qt.binding(() => page.ui.colorScheme === modelData.v)
-                                }
-                            }
-                        }
+                title: qsTr("Sources")
+                Repeater {
+                    model: page.backend.settingsSources
+                    SettingsRow {
+                        required property string sourceId
+                        required property string name
+                        required property string iconUrl
+                        required property string status
+                        objectName: "sourceRow_" + sourceId
+                        text: name
+                        iconSource: iconUrl
+                        subtitle: status
+                        onClicked: page.sourceRequested(sourceId)
                     }
-                }
-                // A head unit has the track on its main screen, and no mini player.
-                SettingSwitch {
-                    objectName: "miniPlayerEverywhere"
-                    visible: page.width <= page.height * 1.1
-                    title: qsTr("Mini player on every screen")
-                    checked: page.ui.miniPlayerEverywhere
-                    onToggled: (checked) => page.ui.miniPlayerEverywhere = checked
-                }
-                SettingsCell {
-                    visible: page.localizer !== null
-                    SettingText { title: qsTr("Language") }
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: Theme.spacing
-                        Repeater {
-                            // Auto, then every language in its own name.
-                            model: page.localizer
-                                ? [{ name: qsTr("Auto"), code: "" }].concat(page.localizer.languages) : []
-                            Chip {
-                                required property var modelData
-                                objectName: "language_" + (modelData.code || "auto")
-                                text: modelData.name
-                                checked: page.localizer.setting === modelData.code
-                                onClicked: {
-                                    page.localizer.setSetting(modelData.code)
-                                    checked = Qt.binding(() => page.localizer.setting === modelData.code)
-                                }
-                            }
-                        }
-                    }
-                }
-                SettingsCell {
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Theme.padding
-                        SettingText { title: qsTr("Scale") }
-                        BodyText {
-                            Layout.fillWidth: false
-                            text: Theme.scale.toFixed(2) + "×"
-                        }
-                        TextButton {
-                            text: qsTr("Auto")
-                            enabled: page.ui.scale > 0
-                            onClicked: page.ui.scale = -1
-                        }
-                    }
-                    AppSlider {
-                        from: 0.75
-                        to: 2.5
-                        stepSize: 0.05
-                        value: Theme.scale
-                        onMoved: page.ui.scale = value
-                    }
-                }
-            }
-
-            SettingsGroup {
-                shown: page.platform.android
-                title: qsTr("Music storage")
-                // A source's Device music is on, and Android hasn't let it in yet.
-                SettingsRow {
-                    visible: page.screen !== null && page.screen.mediaPermissionNeeded === true
-                    text: qsTr("Allow reading the device's music")
-                    onClicked: page.platform.requestMusicPermission()
-                }
-                SettingsRow {
-                    text: qsTr("Storage permissions")
-                    onClicked: page.platform.grantMusicStorage()
                 }
             }
 

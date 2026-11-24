@@ -187,6 +187,7 @@ qt_add_qml_module(cloudmus-mobile-ui
     VERSION 1.0
     QML_FILES
         qml/AboutPage.qml
+        qml/AppComboBox.qml
         qml/AppSlider.qml
         qml/AppSwitch.qml
         qml/AuraBackground.qml

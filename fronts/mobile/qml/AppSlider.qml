@@ -2,9 +2,12 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-// A slider in the theme's colors.
+// A slider in the theme's colors. With `bubbleText`, a bubble over the
+// handle says it while it's dragged.
 Slider {
     id: control
+
+    property string bubbleText
 
     Layout.fillWidth: true
     implicitHeight: Theme.touch
@@ -34,5 +37,31 @@ Slider {
         height: Theme.dp(22)
         radius: width / 2
         color: Theme.accent
+    }
+
+    ToolTip {
+        parent: control.handle
+        visible: control.pressed && control.bubbleText !== ""
+        text: control.bubbleText
+        y: -height - Theme.dp(8)
+        x: (parent.width - width) / 2
+        padding: Theme.dp(8)
+        leftPadding: Theme.dp(12)
+        rightPadding: Theme.dp(12)
+        delay: 0
+        timeout: -1
+        contentItem: Text {
+            text: control.bubbleText
+            color: Theme.inkOnAccent
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            font.weight: Font.DemiBold
+        }
+        background: Rectangle {
+            radius: height / 2
+            color: Theme.accent
+        }
+        enter: null
+        exit: null
     }
 }
