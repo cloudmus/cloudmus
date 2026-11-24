@@ -24,6 +24,83 @@ Page {
 
     background: Rectangle { color: Theme.surface0 }
 
+    // Another source picked: its page goes off up or down, the way the column
+    // goes, and the new one comes in from the other side. The data changes in
+    // between, while nothing shows: with the core in its own process (Android)
+    // it comes a moment after it's asked for, and a picture of the old page
+    // taken then would already have the new one.
+    property string _pendingSourceId: ""
+    property int _pendingRow: -1
+    property int _currentRow: -1
+    property int _direction: 1
+    property bool _awaitingSource: false
+    readonly property real _paneShift: Theme.dp(24)
+
+    function switchSource(sourceId, row) {
+        if (_pendingSourceId === "" && sourceId === library.currentSourceId) {
+            library.selectSource(sourceId) // wakes it, if it was left unstarted
+            return
+        }
+        if (sourceId === _pendingSourceId)
+            return
+        const from = _pendingSourceId !== "" ? _pendingRow : _currentRow
+        _direction = row >= from ? 1 : -1
+        _pendingSourceId = sourceId
+        _pendingRow = row
+        // Going already: it goes on, to this one instead.
+        if (paneOut.running)
+            return
+        paneIn.stop()
+        arrival.stop()
+        _awaitingSource = false
+        paneOut.start()
+    }
+    function _goTo() {
+        _awaitingSource = true
+        arrival.restart()
+        library.selectSource(_pendingSourceId)
+        // Shown already (picked back while the other went): no change to wait for.
+        if (_awaitingSource && library.currentSourceId === _pendingSourceId)
+            _comeIn()
+    }
+    function _comeIn() {
+        _awaitingSource = false
+        arrival.stop()
+        paneShift.y = _direction * _paneShift
+        paneIn.start()
+    }
+    ParallelAnimation {
+        id: paneOut
+        NumberAnimation {
+            target: sourcePane; property: "opacity"; to: 0
+            duration: Theme.durationFast; easing.type: Easing.InCubic
+        }
+        NumberAnimation {
+            target: paneShift; property: "y"; to: -page._direction * page._paneShift
+            duration: Theme.durationFast; easing.type: Easing.InCubic
+        }
+        onFinished: page._goTo()
+    }
+    ParallelAnimation {
+        id: paneIn
+        NumberAnimation {
+            target: sourcePane; property: "opacity"; to: 1
+            duration: Theme.durationPage; easing.type: Easing.OutCubic
+        }
+        NumberAnimation {
+            target: paneShift; property: "y"; to: 0
+            duration: Theme.durationPage; easing.type: Easing.OutCubic
+        }
+        onFinished: page._pendingSourceId = ""
+    }
+    // The source asked for may never come (gone meanwhile, another taken in
+    // its place): the page isn't left empty for it.
+    Timer {
+        id: arrival
+        interval: 500
+        onTriggered: if (page._awaitingSource) page._comeIn()
+    }
+
     function openPlaylist(playlistId) {
         backend.playlistScreen.openPlaylist(library.currentSourceId, playlistId)
         playlistRequested()
@@ -65,12 +142,20 @@ Page {
                         required property var isLoading
                         required property var hasError
                         required property var isCurrent
+                        required property int index
                         readonly property bool troubled: needsSignIn === true || hasError === true
                         width: ListView.view.width
                         height: Theme.touchLarge + Theme.dp(4)
-                        onClicked: page.library.selectSource(sourceRow.sourceId)
+                        // The one being gone to shows as picked at once, not
+                        // once the page shown has gone.
+                        readonly property bool shownCurrent: page._pendingSourceId !== ""
+                            ? sourceRow.sourceId === page._pendingSourceId : sourceRow.isCurrent === true
+                        // Where the page shown is in the column: which way the next goes.
+                        onIsCurrentChanged: if (sourceRow.isCurrent === true) page._currentRow = index
+                        Component.onCompleted: if (sourceRow.isCurrent === true) page._currentRow = index
+                        onClicked: page.switchSource(sourceRow.sourceId, index)
                         background: Rectangle {
-                            color: sourceRow.isCurrent === true ? Theme.surface300
+                            color: sourceRow.shownCurrent ? Theme.surface300
                                  : sourceRow.down && sourceRipple.flat ? Theme.surface200 : "transparent"
                             Ripple {
                                 id: sourceRipple
@@ -79,7 +164,7 @@ Page {
                                 pressY: sourceRow.pressY
                             }
                             Rectangle {
-                                visible: sourceRow.isCurrent === true
+                                visible: sourceRow.shownCurrent
                                 width: Theme.dp(3)
                                 height: parent.height
                                 color: Theme.accent
@@ -97,14 +182,14 @@ Page {
                                     source: sourceRow.iconUrl || ""
                                     sourceSize.width: width
                                     sourceSize.height: height
-                                    color: sourceRow.isCurrent === true ? Theme.accent : Theme.ink
+                                    color: sourceRow.shownCurrent ? Theme.accent : Theme.ink
                                 }
                                 // A source with no icon: its first letter.
                                 Text {
                                     anchors.centerIn: parent
                                     visible: !sourceRow.iconUrl
                                     text: (sourceRow.name || "?").charAt(0)
-                                    color: sourceRow.isCurrent === true ? Theme.accent : Theme.ink
+                                    color: sourceRow.shownCurrent ? Theme.accent : Theme.ink
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontTitle
                                     font.weight: Font.Bold
@@ -130,7 +215,7 @@ Page {
                                 color: Theme.ink
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontBody
-                                font.weight: sourceRow.isCurrent === true ? Font.Bold : Font.Medium
+                                font.weight: sourceRow.shownCurrent ? Font.Bold : Font.Medium
                                 elide: Text.ElideRight
                             }
                             IconImage {
@@ -183,9 +268,13 @@ Page {
 
         // The source picked.
         ColumnLayout {
+            id: sourcePane
+            objectName: "sourcePane"
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
+            // Moved by a transform: the layout has the position.
+            transform: Translate { id: paneShift }
 
             // The source's name and menu, staying put over what scrolls.
             RowLayout {
@@ -267,7 +356,11 @@ Page {
                 Connections {
                     target: page.library
                     ignoreUnknownSignals: true
-                    function onCurrentSourceIdChanged() { content.contentY = 0 }
+                    function onCurrentSourceIdChanged() {
+                        content.contentY = 0
+                        if (page._awaitingSource && page.library.currentSourceId === page._pendingSourceId)
+                            page._comeIn()
+                    }
                 }
 
                 ColumnLayout {
