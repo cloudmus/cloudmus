@@ -728,6 +728,22 @@
       <source>Saved: type to replace</source>
       <translation>Salvato — digita per sostituire</translation>
     </message>
+    <message>
+      <source>This file isn't on the device's storage: pick one that is.</source>
+      <translation>Questo file non è nella memoria del dispositivo: scegline uno che lo sia.</translation>
+    </message>
+    <message>
+      <source>This folder isn't on the device's storage: pick one that is.</source>
+      <translation>Questa cartella non è nella memoria del dispositivo: scegline una che lo sia.</translation>
+    </message>
+    <message>
+      <source>Choose a file</source>
+      <translation>Scegli file</translation>
+    </message>
+    <message>
+      <source>Choose a folder</source>
+      <translation>Scegli cartella</translation>
+    </message>
   </context>
   <context>
     <name>SettingsPage</name>

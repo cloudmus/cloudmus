@@ -728,6 +728,22 @@
       <source>Saved: type to replace</source>
       <translation>Gespeichert – zum Ersetzen eingeben</translation>
     </message>
+    <message>
+      <source>This file isn't on the device's storage: pick one that is.</source>
+      <translation>Diese Datei liegt nicht im Gerätespeicher: Wähle eine, die dort liegt.</translation>
+    </message>
+    <message>
+      <source>This folder isn't on the device's storage: pick one that is.</source>
+      <translation>Dieser Ordner liegt nicht im Gerätespeicher: Wähle einen, der dort liegt.</translation>
+    </message>
+    <message>
+      <source>Choose a file</source>
+      <translation>Datei auswählen</translation>
+    </message>
+    <message>
+      <source>Choose a folder</source>
+      <translation>Ordner auswählen</translation>
+    </message>
   </context>
   <context>
     <name>SettingsPage</name>

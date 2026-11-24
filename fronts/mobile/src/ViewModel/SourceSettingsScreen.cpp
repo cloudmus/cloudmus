@@ -18,7 +18,7 @@ SourceSettingsScreen::SourceSettingsScreen(App::Core& core, SourceSettings& sour
     , sourceSettings_(sourceSettings)
     , connectionRows_({ "connectionId", "title", "isCurrent" })
     , fieldRows_({ "key", "groupTitle", "groupDescription", "isFirst", "isLast", "label", "description", "type", "value", "isSet", "minimum",
-          "maximum", "options", "placeholder", "error" })
+          "maximum", "options", "placeholder", "pathKind", "error" })
 {
     Rpc::SourceManager& manager = core_.sourceManager();
     const auto refreshIfOpen = [this](const QString& sourceId) {
@@ -301,6 +301,8 @@ void SourceSettingsScreen::rebuildFields()
                 { QStringLiteral("maximum"), field.max.value_or(1000000) },
                 { QStringLiteral("options"), options },
                 { QStringLiteral("placeholder"), field.placeholder.value_or(QString()) },
+                // A path's: "directory" or "file".
+                { QStringLiteral("pathKind"), field.pathKind.value_or(QStringLiteral("directory")) },
                 { QStringLiteral("error"), fieldErrors_.value(field.key) },
             });
         }

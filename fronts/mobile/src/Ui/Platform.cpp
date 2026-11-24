@@ -281,6 +281,17 @@ void Platform::requestMusicPermission()
 #endif
 }
 
+void Platform::pickPath(bool directory) const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "pickPath",
+        "(Landroid/content/Context;Ljava/lang/String;)V", QNativeInterface::QAndroidApplication::context().object(),
+        QJniObject::fromString(directory ? QStringLiteral("yes") : QString()).object<jstring>());
+#else
+    Q_UNUSED(directory)
+#endif
+}
+
 void Platform::requestNotificationPermission() const
 {
 #ifdef Q_OS_ANDROID
@@ -679,6 +690,20 @@ QString fromJava(JNIEnv* env, jstring text)
     return result;
 }
 } // namespace
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_PathPicker_nativePicked(
+    JNIEnv* env, jclass, jstring path, jboolean cancelled)
+{
+    Ui::Platform* platform = Ui::instance.load();
+    if (!platform)
+        return;
+    QMetaObject::invokeMethod(
+        platform,
+        [platform, path = fromJava(env, path), cancelled = bool(cancelled)] {
+            emit platform->pathPicked(path, cancelled);
+        },
+        Qt::QueuedConnection);
+}
 
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UpdateInstaller_nativeInstallFinishedImpl(
     JNIEnv* env, jclass, jint status, jint installerStatus, jstring message)

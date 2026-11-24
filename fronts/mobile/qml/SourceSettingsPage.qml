@@ -134,6 +134,7 @@ Page {
                 Repeater {
                     model: page.backend.sourceFields
                     SettingField {
+                        platform: page.platform
                         onChanged: (key, value) => {
                             if (typeof value === "boolean")
                                 page.screen.setFieldBool(key, value)

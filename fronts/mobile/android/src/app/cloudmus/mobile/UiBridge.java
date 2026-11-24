@@ -120,6 +120,12 @@ public final class UiBridge {
             ((MainActivity) context).requestMusicPermission();
     }
 
+    // A source's path setting from the system's picker: a folder unless
+    // `directory` is empty. The answer comes back in PathPicker.
+    public static void pickPath(Context context, String directory) {
+        PathPicker.pick(context, !directory.isEmpty());
+    }
+
     public static void grantMusicStorage(Context context) {
         if (context instanceof MainActivity) {
             MainActivity activity = (MainActivity) context;

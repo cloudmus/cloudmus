@@ -23,7 +23,10 @@ ColumnLayout {
     required property int maximum
     required property var options
     required property string placeholder
+    required property string pathKind
     required property string error
+    // Ui::Platform: a path is also picked with the system's picker (Android).
+    property QtObject platform: null
 
     signal changed(string key, var value)
 
@@ -32,6 +35,31 @@ ColumnLayout {
     spacing: Theme.dp(8)
 
     readonly property bool isText: type === "string" || type === "path" || type === "secret"
+    readonly property bool canPick: type === "path" && platform !== null && platform.android === true
+    // This field asked the picker, and waits for its answer.
+    property bool picking: false
+    property string pickError: ""
+
+    Connections {
+        target: field.platform
+        enabled: field.picking
+        function onPathPicked(path, cancelled) {
+            field.picking = false
+            if (cancelled)
+                return
+            if (path === "") {
+                field.pickError = field.pathKind === "file"
+                    ? qsTr("This file isn't on the device's storage: pick one that is.")
+                    : qsTr("This folder isn't on the device's storage: pick one that is.")
+                return
+            }
+            field.pickError = ""
+            edit.text = path
+            field.changed(field.key, path)
+            // A source reads the music by path, which takes the permission.
+            field.platform.requestMusicPermission()
+        }
+    }
 
     Text {
         Layout.fillWidth: true
@@ -100,29 +128,46 @@ ColumnLayout {
                 }
             }
         }
-        InputField {
-            id: edit
-            objectName: "field_" + field.key
+        RowLayout {
+            Layout.fillWidth: true
             visible: field.isText
-            text: field.type === "secret" || !field.isText ? "" : String(field.value === undefined ? "" : field.value)
-            echoMode: field.type === "secret" ? TextInput.Password : TextInput.Normal
-            placeholderText: field.type === "secret" && field.isSet ? qsTr("Saved: type to replace") : field.placeholder
-            onEditingFinished: send()
-            function send() {
-                if (visible)
-                    field.changed(field.key, text)
-                if (field.type === "secret")
-                    clear()
+            spacing: Theme.spacing
+            InputField {
+                id: edit
+                objectName: "field_" + field.key
+                visible: field.isText
+                text: field.type === "secret" || !field.isText ? "" : String(field.value === undefined ? "" : field.value)
+                echoMode: field.type === "secret" ? TextInput.Password : TextInput.Normal
+                placeholderText: field.type === "secret" && field.isSet ? qsTr("Saved: type to replace") : field.placeholder
+                onEditingFinished: send()
+                function send() {
+                    if (visible)
+                        field.changed(field.key, text)
+                    if (field.type === "secret")
+                        clear()
+                }
+                // The back button leaves without the field ever losing focus.
+                Component.onDestruction: if (activeFocus) send()
             }
-            // The back button leaves without the field ever losing focus.
-            Component.onDestruction: if (activeFocus) send()
+            IconButton {
+                objectName: "pick_" + field.key
+                visible: field.canPick
+                iconName: "folder"
+                busy: field.picking
+                Accessible.name: field.pathKind === "file" ? qsTr("Choose a file") : qsTr("Choose a folder")
+                onClicked: {
+                    field.pickError = ""
+                    field.picking = true
+                    field.platform.pickPath(field.pathKind !== "file")
+                }
+            }
         }
         SettingText { description: field.type === "boolean" ? "" : field.description }
         Text {
             objectName: "fieldError_" + field.key
             Layout.fillWidth: true
-            visible: field.error !== ""
-            text: field.error
+            visible: text !== ""
+            text: field.pickError !== "" ? field.pickError : field.error
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             color: Theme.danger

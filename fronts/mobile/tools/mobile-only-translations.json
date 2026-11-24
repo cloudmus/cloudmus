@@ -774,5 +774,37 @@
   "es": "Buscar actualizaciones",
   "fr": "Rechercher des mises à jour",
   "it": "Cerca aggiornamenti"
+ },
+ "Choose a folder": {
+  "ru": "Выбрать папку",
+  "be": "Выбраць папку",
+  "de": "Ordner auswählen",
+  "es": "Elegir carpeta",
+  "fr": "Choisir un dossier",
+  "it": "Scegli cartella"
+ },
+ "Choose a file": {
+  "ru": "Выбрать файл",
+  "be": "Выбраць файл",
+  "de": "Datei auswählen",
+  "es": "Elegir archivo",
+  "fr": "Choisir un fichier",
+  "it": "Scegli file"
+ },
+ "This folder isn't on the device's storage: pick one that is.": {
+  "ru": "Эта папка не в памяти устройства: выберите папку из неё.",
+  "be": "Гэтая папка не ў памяці прылады: выберыце папку з яе.",
+  "de": "Dieser Ordner liegt nicht im Gerätespeicher: Wähle einen, der dort liegt.",
+  "es": "Esta carpeta no está en el almacenamiento del dispositivo: elige una que lo esté.",
+  "fr": "Ce dossier n’est pas dans le stockage de l’appareil : choisissez-en un qui l’est.",
+  "it": "Questa cartella non è nella memoria del dispositivo: scegline una che lo sia."
+ },
+ "This file isn't on the device's storage: pick one that is.": {
+  "ru": "Этот файл не в памяти устройства: выберите файл из неё.",
+  "be": "Гэты файл не ў памяці прылады: выберыце файл з яе.",
+  "de": "Diese Datei liegt nicht im Gerätespeicher: Wähle eine, die dort liegt.",
+  "es": "Este archivo no está en el almacenamiento del dispositivo: elige uno que lo esté.",
+  "fr": "Ce fichier n’est pas dans le stockage de l’appareil : choisissez-en un qui l’est.",
+  "it": "Questo file non è nella memoria del dispositivo: scegline uno che lo sia."
  }
 }

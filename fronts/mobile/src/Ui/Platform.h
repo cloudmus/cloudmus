@@ -106,6 +106,9 @@ public:
     // The system's question for reading the device's music, which a source
     // asked for (ViewModel::SettingsScreen::mediaPermissionNeeded).
     Q_INVOKABLE void requestMusicPermission();
+    // A source's path setting from the system's picker, a folder or a file:
+    // the answer in pathPicked(). Android only.
+    Q_INVOKABLE void pickPath(bool directory) const;
     // The system's question for deleting other apps' tracks.
     Q_INVOKABLE void requestMediaDelete(const QStringList& uris);
     Q_INVOKABLE void grantMusicStorage() const;
@@ -187,6 +190,9 @@ signals:
     void storeUpdateChecked(int versionCode, const QString& error, bool manual);
     void storeUpdateChanged();
     void updateServerChanged();
+    // pickPath()'s answer: the path, or empty for what isn't on the device's
+    // storage (a cloud's document); `cancelled` when nothing was picked.
+    void pathPicked(const QString& path, bool cancelled);
     // The store's flow is over without the app restarting: left
     // (`cancelled`) or failed.
     void storeUpdateEnded(bool cancelled, const QString& error);

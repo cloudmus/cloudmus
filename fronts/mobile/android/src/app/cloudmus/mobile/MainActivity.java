@@ -135,6 +135,8 @@ public class MainActivity extends QtActivity {
             startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
         if (code == UpdateServer.CHOOSE_REQUEST && result == RESULT_OK && data != null && data.getData() != null)
             UpdateServer.chosen(this, data.getData());
+        if (code == PathPicker.REQUEST)
+            PathPicker.picked(this, result, data);
     }
 
     void requestMusicPermission() {

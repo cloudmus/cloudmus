@@ -728,6 +728,22 @@
       <source>Saved: type to replace</source>
       <translation>Enregistré — saisissez pour remplacer</translation>
     </message>
+    <message>
+      <source>This file isn't on the device's storage: pick one that is.</source>
+      <translation>Ce fichier n’est pas dans le stockage de l’appareil : choisissez-en un qui l’est.</translation>
+    </message>
+    <message>
+      <source>This folder isn't on the device's storage: pick one that is.</source>
+      <translation>Ce dossier n’est pas dans le stockage de l’appareil : choisissez-en un qui l’est.</translation>
+    </message>
+    <message>
+      <source>Choose a file</source>
+      <translation>Choisir un fichier</translation>
+    </message>
+    <message>
+      <source>Choose a folder</source>
+      <translation>Choisir un dossier</translation>
+    </message>
   </context>
   <context>
     <name>SettingsPage</name>

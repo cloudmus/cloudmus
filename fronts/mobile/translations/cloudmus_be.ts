@@ -733,6 +733,22 @@
       <source>Saved: type to replace</source>
       <translation>Захавана — увядзіце, каб замяніць</translation>
     </message>
+    <message>
+      <source>This file isn't on the device's storage: pick one that is.</source>
+      <translation>Гэты файл не ў памяці прылады: выберыце файл з яе.</translation>
+    </message>
+    <message>
+      <source>This folder isn't on the device's storage: pick one that is.</source>
+      <translation>Гэтая папка не ў памяці прылады: выберыце папку з яе.</translation>
+    </message>
+    <message>
+      <source>Choose a file</source>
+      <translation>Выбраць файл</translation>
+    </message>
+    <message>
+      <source>Choose a folder</source>
+      <translation>Выбраць папку</translation>
+    </message>
   </context>
   <context>
     <name>SettingsPage</name>
