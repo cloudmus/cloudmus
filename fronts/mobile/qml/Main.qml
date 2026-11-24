@@ -537,11 +537,14 @@ ApplicationWindow {
         }
     }
 
+    // Over everything, the sheets and menus too: they're in the window's overlay.
     FpsOverlay {
-        anchors.top: parent.top
+        parent: Overlay.overlay
+        anchors.bottom: parent.bottom
         anchors.right: parent.right
-        anchors.margins: Theme.dp(6)
-        z: 100
+        anchors.bottomMargin: Theme.insetBottom + Theme.dp(6)
+        anchors.rightMargin: Theme.insetRight + Theme.dp(6)
+        z: 10000
         visible: uiSettings.showFps
     }
 
