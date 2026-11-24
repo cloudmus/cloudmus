@@ -28,6 +28,11 @@ struct Version {
 // Leading "v" allowed; nullopt for anything not starting with x.y.z.
 std::optional<Version> parseVersion(const QString& text);
 
+// The version an Android versionCode stands for, as fronts/mobile/CMakeLists.txt
+// makes one: x·10⁷ + y·10⁵ + z·10³ + the commits since the tag (dev if any).
+// A store tells the version it has by this code alone.
+std::optional<Version> versionFromCode(int code);
+
 // One published release with a file this platform can install.
 struct Release {
     Version version;
@@ -51,8 +56,8 @@ struct PendingUpdate {
     const Release& latest() const { return releases.first(); }
 };
 
-// The asset this platform installs from: the AppImage, the NSIS setup or
-// the DMG of this Mac's architecture.
+// The asset this platform installs from: the AppImage, the NSIS setup, the
+// DMG of this Mac's architecture or the APK of this Android's.
 QString platformAssetSuffix();
 
 // GitHub's GET /repos/{owner}/{repo}/releases response. Drafts,

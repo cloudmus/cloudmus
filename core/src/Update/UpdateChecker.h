@@ -42,6 +42,7 @@ public:
     void check(bool manual);
     // Not offered at startup any more; a newer version will be.
     void skip(const QString& version);
+    QString skippedVersion() const;
 
 signals:
     void updateAvailable(const Update::PendingUpdate& update, bool manual);

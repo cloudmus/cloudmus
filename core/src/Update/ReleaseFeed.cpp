@@ -29,9 +29,26 @@ std::optional<Version> parseVersion(const QString& text)
     return version;
 }
 
+std::optional<Version> versionFromCode(int code)
+{
+    if (code <= 0)
+        return std::nullopt;
+    Version version;
+    version.major = code / 10000000;
+    version.minor = code / 100000 % 100;
+    version.patch = code / 1000 % 100;
+    version.dev = code % 1000 != 0;
+    return version;
+}
+
 QString platformAssetSuffix()
 {
-#ifdef Q_OS_WIN
+#if defined(Q_OS_ANDROID) && defined(Q_PROCESSOR_X86_64)
+    // Not published (CI builds arm64 only): an emulator finds no update.
+    return QStringLiteral("-x86_64.apk");
+#elif defined(Q_OS_ANDROID)
+    return QStringLiteral("-arm64-v8a.apk");
+#elif defined(Q_OS_WIN)
     return QStringLiteral("-x86_64-Setup.exe");
 #elif defined(Q_OS_MACOS) && defined(Q_PROCESSOR_ARM_64)
     return QStringLiteral("-arm64.dmg");

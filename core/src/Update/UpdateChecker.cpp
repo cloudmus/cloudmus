@@ -50,6 +50,8 @@ void UpdateChecker::check(bool manual)
 
 void UpdateChecker::skip(const QString& version) { settings_.setSkippedUpdateVersion(version); }
 
+QString UpdateChecker::skippedVersion() const { return settings_.skippedUpdateVersion(); }
+
 void UpdateChecker::handleReply(QNetworkReply* reply)
 {
     reply->deleteLater();
