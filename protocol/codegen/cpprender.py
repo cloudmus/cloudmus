@@ -1,6 +1,6 @@
 """Precomputes everything templates/cpp/*.jinja need. Generated fromJson/
 toJson bodies are single calls (qualified as Rpc::...) into the hand-written
-helper templates in fronts/qt/src/Rpc/JsonValidation.h
+helper templates in core/src/Rpc/JsonValidation.h
 (Rpc::requiredField<T>/Rpc::optionalField<T>/Rpc::requiredArray<T>/
 Rpc::requiredMap<T>/... — see that header) rather than inlined per-field
 validation blocks, to keep generated output small; the actual validation

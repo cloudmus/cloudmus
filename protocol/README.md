@@ -29,7 +29,7 @@ this protocol needs, not a general JSON-RPC framework.
 
 ```
 python protocol/codegen/generate.py --lang python   # -> backends/py-rpc-common/rpc_common/generated/
-python protocol/codegen/generate.py --lang cpp       # -> fronts/qt/generated/
+python protocol/codegen/generate.py --lang cpp       # -> core/generated/
 python protocol/codegen/generate.py --lang python cpp  # both
 ```
 
@@ -61,7 +61,7 @@ still succeeds but prints a warning and leaves the output unformatted.
    empty params/results like `auth.cancel`'s `{}`) and needs no name.
 3. Regenerate both languages, run the Python test suites
    (`backends/py-rpc-common`, `backends/yandex-music`, `backends/youtube-music`),
-   and rebuild whatever's consuming `fronts/qt/generated/`.
+   and rebuild whatever's consuming `core/generated/`.
 4. Update `docs/protocol.md` prose and add a `docs/protocol-changelog.md`
    entry (MINOR for anything additive/optional, MAJOR for anything that
    changes or removes existing meaning — see `docs/protocol.md` §12).
@@ -88,10 +88,10 @@ wire shape is fully captured by their schema; one exception exists today —
 `auth/prompt`'s payload varies per `auth.flow` and isn't modeled as a
 `oneOf`, so it's still sent by hand in `cloudmus_backend_yandex/auth.py`).
 
-C++ output (`fronts/qt/generated/`): `Models.h` (structs with `fromJson`/
+C++ output (`core/generated/`): `Models.h` (structs with `fromJson`/
 `toJson`) and `RpcMethods.h` (typed call-wrapper declarations per method,
 forward-declaring the hand-written `Task<T>`/`RpcClient` runtime that
-implements them — see `fronts/qt/src/Rpc/`, `namespace Rpc`, per
+implements them — see `core/src/Rpc/`, `namespace Rpc`, per
 `fronts/qt/AGENTS.md`'s folder-matches-namespace rule). C++ field names that collide
 with a C++20 keyword (only `explicit` today) get a trailing underscore on
 the struct member; the JSON wire key is untouched.
@@ -100,7 +100,7 @@ Generated C++ bodies are one line per field (`out.id =
 Rpc::requiredField<QString>(obj, "Track", "id");`), not inlined
 presence/type-check blocks — the actual validation logic lives once, as a
 small set of hand-written templates in
-`fronts/qt/src/Rpc/JsonValidation.h` (`requiredField<T>`/`optionalField<T>`/
+`core/src/Rpc/JsonValidation.h` (`requiredField<T>`/`optionalField<T>`/
 `requiredArray<T>`/`requiredMap<T>`/`optionalMap<T>`/`required|optionalEnumField`,
 plus the `toJson*`/`insertOptional*` counterparts), keyed on a `JsonField<T>`
 trait (specialized for `QString`/`int`/`double`/`bool`/`QJsonValue`; the

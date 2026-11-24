@@ -29,7 +29,7 @@ PROTOCOL_DIR = CODEGEN_DIR.parent
 REPO_ROOT = PROTOCOL_DIR.parent
 
 PYTHON_OUT = REPO_ROOT / "backends" / "py-rpc-common" / "rpc_common" / "generated"
-CPP_OUT = REPO_ROOT / "fronts" / "qt" / "generated"
+CPP_OUT = REPO_ROOT / "core" / "generated"
 
 
 def _env(lang: str) -> jinja2.Environment:
@@ -56,10 +56,10 @@ def generate_python(ir: schema_ir.ProtocolIR) -> None:
 
 
 def _clang_format_inplace(paths: list[Path]) -> None:
-    """Applies fronts/qt/_clang-format (see fronts/qt/AGENTS.md) to generated C++ output
+    """Applies core/_clang-format (a copy of fronts/qt/_clang-format; see core/AGENTS.md) to generated C++ output
     so generated/ matches the same house style as hand-written code —
     clang-format finds it by walking up from each file's directory, same as
-    it would for any other file under fronts/qt/."""
+    it would for any other file under core/."""
     clang_format = shutil.which("clang-format")
     if clang_format is None:
         print("warning: clang-format not found on PATH — generated C++ left unformatted", file=sys.stderr)

@@ -1,5 +1,5 @@
 # cloudmus-core: everything below the view — backends, playback, state,
-# settings, view models — with no Qt Widgets (see fronts/qt/AGENTS.md). Shared
+# settings, view models — with no Qt Widgets (see core/AGENTS.md). Shared
 # by the desktop front and the mobile one (fronts/mobile), which add this
 # directory; so what only the desktop needs (hotkeys, updates, crash reports)
 # is in cloudmus-desktop-core instead, and paths are absolute.
@@ -7,12 +7,11 @@
 # Expects from the including project: C++20, AUTOMOC, the Qt6 Core, Gui and
 # Network targets, and a cloudmus-mpv target.
 
-get_filename_component(CLOUDMUS_QT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.. ABSOLUTE)
 if(NOT CLOUDMUS_REPO_ROOT)
-    get_filename_component(CLOUDMUS_REPO_ROOT ${CLOUDMUS_QT_DIR}/../.. ABSOLUTE)
+    get_filename_component(CLOUDMUS_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/.. ABSOLUTE)
 endif()
 
-# --- protocol/codegen: regenerate fronts/qt/generated/ whenever the schema
+# --- protocol/codegen: regenerate core/generated/ whenever the schema
 # or methods change, before anything tries to #include it. Requires Python +
 # jinja2/pyyaml at configure/build time — see protocol/README.md and the
 # plan's "Generated code: gitignored" note for why this tradeoff was made.
@@ -42,7 +41,7 @@ if(NOT CLOUDMUS_PREGENERATED_PROTOCOL)
         endif()
     endif()
 endif()
-set(GENERATED_DIR ${CLOUDMUS_QT_DIR}/generated)
+set(GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR}/generated)
 set(GENERATED_CPP_STAMP ${CMAKE_CURRENT_BINARY_DIR}/generated_cpp.stamp)
 
 file(GLOB_RECURSE PROTOCOL_SCHEMA_FILES ${CLOUDMUS_REPO_ROOT}/protocol/schema/*.yaml)
@@ -64,7 +63,7 @@ add_custom_command(
             ${CLOUDMUS_REPO_ROOT}/protocol/codegen/generate.py
             ${CLOUDMUS_REPO_ROOT}/protocol/codegen/schema_ir.py
             ${CLOUDMUS_REPO_ROOT}/protocol/codegen/cpprender.py
-    COMMENT "Regenerating fronts/qt/generated/ from protocol/"
+    COMMENT "Regenerating core/generated/ from protocol/"
     VERBATIM
 )
 add_custom_target(protocol_codegen_cpp DEPENDS ${GENERATED_CPP_STAMP})
@@ -77,74 +76,79 @@ else()
     add_custom_target(protocol_codegen_cpp)
 endif()
 
+# cloudmus-common (Qt Core/Gui alone: the language, the About data, the
+# cover aura) is a directory of its own, so the mobile front's UI process,
+# which links none of cloudmus-core, can add it by itself.
+if(NOT TARGET cloudmus-common)
+    add_subdirectory(common)
+endif()
+
 add_library(cloudmus-core STATIC
-    ${CLOUDMUS_QT_DIR}/src/Rpc/NdjsonTransport.cpp
-    ${CLOUDMUS_QT_DIR}/src/Rpc/BackendManifest.cpp
-    ${CLOUDMUS_QT_DIR}/src/Rpc/RpcClient.cpp
-    ${CLOUDMUS_QT_DIR}/src/Rpc/SourceManager.cpp
-    ${CLOUDMUS_QT_DIR}/src/Rpc/HostMedia.h
-    ${CLOUDMUS_QT_DIR}/src/Rpc/AuthStates.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Rpc/NdjsonTransport.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Rpc/BackendManifest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Rpc/RpcClient.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Rpc/SourceManager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Rpc/HostMedia.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Rpc/AuthStates.cpp
 
-    ${CLOUDMUS_QT_DIR}/src/Playback/AudioPlayer.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/AudioFileProbe.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/StreamRelay.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/DiskSpace.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/NetworkPool.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/StreamDownload.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/TrackCache.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/Preloader.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/PlaybackController.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/BeatDetector.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/LevelFeed.cpp
-    ${CLOUDMUS_QT_DIR}/src/Playback/CuePlayer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/AudioPlayer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/AudioFileProbe.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/StreamRelay.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/DiskSpace.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/NetworkPool.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/StreamDownload.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/TrackCache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/Preloader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/PlaybackController.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/BeatDetector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/LevelFeed.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback/CuePlayer.cpp
 
-    ${CLOUDMUS_QT_DIR}/src/Config/Paths.cpp
-    ${CLOUDMUS_QT_DIR}/src/Config/Settings.cpp
-    ${CLOUDMUS_QT_DIR}/src/I18n/Languages.cpp
-    ${CLOUDMUS_QT_DIR}/src/I18n/Translator.cpp
-    ${CLOUDMUS_QT_DIR}/src/Net/ProxyRouting.cpp
-    ${CLOUDMUS_QT_DIR}/src/Net/NetworkErrors.cpp
-    ${CLOUDMUS_QT_DIR}/src/Net/ParallelDownload.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Config/Paths.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Config/Settings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Net/ProxyRouting.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Net/NetworkErrors.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Net/ParallelDownload.cpp
 
-    ${CLOUDMUS_QT_DIR}/src/History/PlaybackHistory.cpp
-    ${CLOUDMUS_QT_DIR}/src/Library/TrackStates.cpp
-    ${CLOUDMUS_QT_DIR}/src/Library/DownloadPaths.cpp
-    ${CLOUDMUS_QT_DIR}/src/Library/TrackFile.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/History/PlaybackHistory.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Library/TrackStates.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Library/DownloadPaths.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Library/TrackFile.cpp
 
-    ${CLOUDMUS_QT_DIR}/src/Covers/CoverArtCache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Covers/CoverArtCache.cpp
 
-    ${CLOUDMUS_QT_DIR}/src/App/Core.cpp
-    ${CLOUDMUS_QT_DIR}/src/App/Analytics.cpp
-    ${CLOUDMUS_QT_DIR}/src/App/SourceSession.cpp
-    ${CLOUDMUS_QT_DIR}/src/App/PlaylistEditing.cpp
-    ${CLOUDMUS_QT_DIR}/src/App/TrackDeletion.cpp
-    ${CLOUDMUS_QT_DIR}/src/App/TrackFetch.cpp
-    ${CLOUDMUS_QT_DIR}/src/App/ListeningTime.cpp
-    ${CLOUDMUS_QT_DIR}/src/App/Connectivity.cpp
-    ${CLOUDMUS_QT_DIR}/src/App/Outbox.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/Core.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/Analytics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/SourceSession.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/PlaylistEditing.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/TrackDeletion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/TrackFetch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/ListeningTime.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/Connectivity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App/Outbox.cpp
 
 
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/AudioPulse.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/LogoSound.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/ConnectionStatus.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/Messages.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/NowPlaying.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/SidebarModel.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/Sources.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/ActivePlaylist.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/ActiveTracks.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/OpenPlaylist.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackActions.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackFilterModel.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/SourcePage.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/SourceSettings.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/Downloads.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/Preload.cpp
-    ${CLOUDMUS_QT_DIR}/src/ViewModel/TrackListModel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/AudioPulse.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/LogoSound.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/ConnectionStatus.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/Messages.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/NowPlaying.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/SidebarModel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/Sources.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/ActivePlaylist.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/ActiveTracks.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/OpenPlaylist.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/TrackActions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/TrackFilterModel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/SourcePage.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/SourceSettings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/Downloads.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/Preload.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/TrackListModel.cpp
 
 
-    ${CLOUDMUS_QT_DIR}/src/Timing/Debounce.cpp
-    ${CLOUDMUS_QT_DIR}/src/Timing/Throttle.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Timing/Debounce.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Timing/Throttle.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 )
@@ -174,27 +178,27 @@ target_compile_definitions(cloudmus-core PRIVATE
 
 # The logo's sound (Playback::CuePlayer, Cue::Logo): in the core, as the
 # mobile front plays it from its playback service, which has no other resources.
-set_source_files_properties(${CLOUDMUS_QT_DIR}/resources/sounds/cloudmus-logo.mp3
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/resources/sounds/cloudmus-logo.mp3
     PROPERTIES QT_RESOURCE_ALIAS cloudmus-logo.mp3)
 qt_add_resources(cloudmus-core "logoSound" PREFIX "/sounds"
-    FILES ${CLOUDMUS_QT_DIR}/resources/sounds/cloudmus-logo.mp3)
+    FILES ${CMAKE_CURRENT_SOURCE_DIR}/resources/sounds/cloudmus-logo.mp3)
 
 target_include_directories(cloudmus-core PUBLIC
     ${GENERATED_DIR}
-    ${CLOUDMUS_QT_DIR}/src/Rpc
-    ${CLOUDMUS_QT_DIR}/src/Playback
-    ${CLOUDMUS_QT_DIR}/src/Config
-    ${CLOUDMUS_QT_DIR}/src/I18n
-    ${CLOUDMUS_QT_DIR}/src/Net
-    ${CLOUDMUS_QT_DIR}/src/History
-    ${CLOUDMUS_QT_DIR}/src/Library
-    ${CLOUDMUS_QT_DIR}/src/Covers
-    ${CLOUDMUS_QT_DIR}/src/App
-    ${CLOUDMUS_QT_DIR}/src/ViewModel
-    ${CLOUDMUS_QT_DIR}/src/Timing
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Rpc
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Playback
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Config
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Net
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/History
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Library
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Covers
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/App
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Timing
 )
 
 target_link_libraries(cloudmus-core PUBLIC
+    cloudmus-common
     Qt6::Core
     Qt6::Gui
     Qt6::Network
@@ -236,4 +240,58 @@ else()
     # PUBLIC: the track file tests read the tags back with it.
     target_include_directories(cloudmus-core PUBLIC ${_taglib_dirs})
     target_link_libraries(cloudmus-core PUBLIC tag)
+endif()
+
+# --- tests (QtTest). cloudmus-core-test-support — the fake backend and the
+# helpers — is for the fronts' own tests too. cloudmus-core-tests, the core's
+# own, are built when the including project asks (the desktop front does):
+# `ctest`, or run bin/cloudmus-core-tests.
+option(CLOUDMUS_BUILD_CORE_TESTS "Build the core's own tests (cloudmus-core-tests)" OFF)
+if(BUILD_TESTING AND NOT ANDROID)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    add_library(cloudmus-core-test-support STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/FakeBackend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/FakeBackend.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/FakeUpstream.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/TestSupport.h
+    )
+    target_include_directories(cloudmus-core-test-support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+    target_link_libraries(cloudmus-core-test-support PUBLIC cloudmus-core Qt6::Test)
+
+    if(CLOUDMUS_BUILD_CORE_TESTS)
+        add_executable(cloudmus-core-tests
+            tests/main.cpp
+            tests/ActivePlaylistTest.cpp
+            tests/AnalyticsTest.cpp
+            tests/AudioFileProbeTest.cpp
+            tests/AudioPulseTest.cpp
+            tests/ConnectivityTest.cpp
+            tests/CoverArtCacheTest.cpp
+            tests/DownloadsTest.cpp
+            tests/I18nTest.cpp
+            tests/NowPlayingTest.cpp
+            tests/OutboxTest.cpp
+            tests/ParallelDownloadTest.cpp
+            tests/PathsTest.cpp
+            tests/PlaybackPreloadTest.cpp
+            tests/PlaylistEditingTest.cpp
+            tests/PreloaderTest.cpp
+            tests/PreloadTest.cpp
+            tests/RemotingTest.cpp
+            tests/RpcClientTest.cpp
+            tests/SequenceTest.cpp
+            tests/SourceSessionTest.cpp
+            tests/SourceSettingsTest.cpp
+            tests/SourcesTest.cpp
+            tests/StreamRelayTest.cpp
+            tests/TimingTest.cpp
+            tests/TrackCacheTest.cpp
+            tests/TrackFileTest.cpp
+            tests/TrackListUpdateTest.cpp
+            tests/TrackStatesTest.cpp
+        )
+        target_link_libraries(cloudmus-core-tests PRIVATE cloudmus-core-test-support)
+        # The test files' own directory: TrackFileTest finds data/ by it.
+        add_test(NAME cloudmus-core-tests COMMAND cloudmus-core-tests)
+    endif()
 endif()

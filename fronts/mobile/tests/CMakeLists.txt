@@ -3,9 +3,8 @@ find_package(Qt6 REQUIRED COMPONENTS Test)
 if(CLOUDMUS_MOBILE_SHARED_CORE)
     qt_add_executable(cloudmus-mobile-tests
         SharedCoreTest.cpp
-        ../../qt/tests/FakeBackend.cpp
     )
-    target_include_directories(cloudmus-mobile-tests PRIVATE ../../qt/tests)
+    target_link_libraries(cloudmus-mobile-tests PRIVATE cloudmus-core-test-support)
 else()
     # The dev tracks' own, until they are gone.
     qt_add_executable(cloudmus-mobile-tests

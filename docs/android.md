@@ -6,7 +6,7 @@ with a Linux build of the same code for debugging.
 ## Layout
 
 - **Core**: the desktop front's own `App::Core` and view models
-  (`fronts/qt/core`, the `cloudmus-core` library), kept to Qt 6.7 APIs. On top,
+  (`core/`, the `cloudmus-core` library, shared with the desktop front), kept to Qt 6.7 APIs. On top,
   `src/App/MobileCore` adds what only a phone or a car has, and `src/Remote`
   offers it all to views in another process. A replica only carries
   properties, signals and slots, so what is offered acts through slots, passes

@@ -60,7 +60,7 @@ let
   # --- Generated protocol code --------------------------------------------
   # protocol/codegen/generate.py renders both language bindings from
   # protocol/schema/*.yaml + methods.yaml. CMake regenerates the C++ ones
-  # itself into fronts/qt/generated/, but the Python ones land in
+  # itself into core/generated/, but the Python ones land in
   # backends/py-rpc-common/rpc_common/generated/ and are imported by
   # rpc_common and by every backend, so they must exist before that package is
   # built. Both output directories are gitignored, so the checkout has no

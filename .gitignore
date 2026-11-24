@@ -5,7 +5,7 @@ __pycache__/
 downloads/
 *.mp3
 # The app's own sound logo, not music.
-!fronts/qt/resources/sounds/cloudmus-logo.mp3
+!core/resources/sounds/cloudmus-logo.mp3
 build/
 build-asan/
 build-appimage/
@@ -20,7 +20,7 @@ dist/
 #   python protocol/codegen/generate.py --lang python cpp
 # see protocol/README.md
 backends/py-rpc-common/rpc_common/generated/
-fronts/qt/generated/
+core/generated/
 
 # Qt Creator's local project state (build kit, paths — machine-specific)
 fronts/qt/.qtcreator/

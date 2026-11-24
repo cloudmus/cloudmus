@@ -1,56 +1,56 @@
 <RCC>
     <qresource prefix="/icons">
-        <file>icons/logo.svg</file>
-        <file>icons/cloud.svg</file>
+        <file alias="icons/logo.svg">../../../core/resources/icons/logo.svg</file>
+        <file alias="icons/cloud.svg">../../../core/resources/icons/cloud.svg</file>
         <file>icons/small_logo.svg</file>
         <file>icons/tray_icon_dark.svg</file>
         <file>icons/tray_icon_light.svg</file>
     </qresource>
     <qresource prefix="/icons/symbols">
-        <file alias="play_arrow.svg">icons/symbols/play_arrow.svg</file>
-        <file alias="cloudmus.svg">icons/symbols/cloudmus.svg</file>
-        <file alias="logout.svg">icons/symbols/logout.svg</file>
-        <file alias="person.svg">icons/symbols/person.svg</file>
-        <file alias="pause.svg">icons/symbols/pause.svg</file>
-        <file alias="stop.svg">icons/symbols/stop.svg</file>
-        <file alias="delete.svg">icons/symbols/delete.svg</file>
-        <file alias="skip_previous.svg">icons/symbols/skip_previous.svg</file>
-        <file alias="skip_next.svg">icons/symbols/skip_next.svg</file>
-        <file alias="visibility.svg">icons/symbols/visibility.svg</file>
-        <file alias="visibility_off.svg">icons/symbols/visibility_off.svg</file>
-        <file alias="volume_down.svg">icons/symbols/volume_down.svg</file>
-        <file alias="volume_up.svg">icons/symbols/volume_up.svg</file>
-        <file alias="menu.svg">icons/symbols/menu.svg</file>
-        <file alias="warning.svg">icons/symbols/warning.svg</file>
-        <file alias="open_in_new.svg">icons/symbols/open_in_new.svg</file>
-        <file alias="refresh.svg">icons/symbols/refresh.svg</file>
-        <file alias="cloud_off.svg">icons/symbols/cloud_off.svg</file>
-        <file alias="undo.svg">icons/symbols/undo.svg</file>
-        <file alias="music_note.svg">icons/symbols/music_note.svg</file>
-        <file alias="chevron_right.svg">icons/symbols/chevron_right.svg</file>
-        <file alias="expand_more.svg">icons/symbols/expand_more.svg</file>
-        <file alias="expand_less.svg">icons/symbols/expand_less.svg</file>
-        <file alias="check.svg">icons/symbols/check.svg</file>
-        <file alias="favorite.svg">icons/symbols/favorite.svg</file>
-        <file alias="favorite_border.svg">icons/symbols/favorite_border.svg</file>
-        <file alias="star.svg">icons/symbols/star.svg</file>
-        <file alias="star_border.svg">icons/symbols/star_border.svg</file>
-        <file alias="shuffle.svg">icons/symbols/shuffle.svg</file>
-        <file alias="repeat.svg">icons/symbols/repeat.svg</file>
-        <file alias="repeat_one.svg">icons/symbols/repeat_one.svg</file>
-        <file alias="heart_off.svg">icons/symbols/heart_off.svg</file>
-        <file alias="heart_off_outline.svg">icons/symbols/heart_off_outline.svg</file>
-        <file alias="playlist_play.svg">icons/symbols/playlist_play.svg</file>
-        <file alias="playlist_add.svg">icons/symbols/playlist_add.svg</file>
-        <file alias="radio.svg">icons/symbols/radio.svg</file>
-        <file alias="file_download.svg">icons/symbols/file_download.svg</file>
-        <file alias="history.svg">icons/symbols/history.svg</file>
-        <file alias="tune.svg">icons/symbols/tune.svg</file>
-        <file alias="keyboard.svg">icons/symbols/keyboard.svg</file>
-        <file alias="public.svg">icons/symbols/public.svg</file>
-        <file alias="arrow_back.svg">icons/symbols/arrow_back.svg</file>
-        <file alias="close.svg">icons/symbols/close.svg</file>
-        <file alias="search.svg">icons/symbols/search.svg</file>
-        <file alias="content_copy.svg">icons/symbols/content_copy.svg</file>
+        <file alias="play_arrow.svg">../../../core/resources/icons/symbols/play_arrow.svg</file>
+        <file alias="cloudmus.svg">../../../core/resources/icons/symbols/cloudmus.svg</file>
+        <file alias="logout.svg">../../../core/resources/icons/symbols/logout.svg</file>
+        <file alias="person.svg">../../../core/resources/icons/symbols/person.svg</file>
+        <file alias="pause.svg">../../../core/resources/icons/symbols/pause.svg</file>
+        <file alias="stop.svg">../../../core/resources/icons/symbols/stop.svg</file>
+        <file alias="delete.svg">../../../core/resources/icons/symbols/delete.svg</file>
+        <file alias="skip_previous.svg">../../../core/resources/icons/symbols/skip_previous.svg</file>
+        <file alias="skip_next.svg">../../../core/resources/icons/symbols/skip_next.svg</file>
+        <file alias="visibility.svg">../../../core/resources/icons/symbols/visibility.svg</file>
+        <file alias="visibility_off.svg">../../../core/resources/icons/symbols/visibility_off.svg</file>
+        <file alias="volume_down.svg">../../../core/resources/icons/symbols/volume_down.svg</file>
+        <file alias="volume_up.svg">../../../core/resources/icons/symbols/volume_up.svg</file>
+        <file alias="menu.svg">../../../core/resources/icons/symbols/menu.svg</file>
+        <file alias="warning.svg">../../../core/resources/icons/symbols/warning.svg</file>
+        <file alias="open_in_new.svg">../../../core/resources/icons/symbols/open_in_new.svg</file>
+        <file alias="refresh.svg">../../../core/resources/icons/symbols/refresh.svg</file>
+        <file alias="cloud_off.svg">../../../core/resources/icons/symbols/cloud_off.svg</file>
+        <file alias="undo.svg">../../../core/resources/icons/symbols/undo.svg</file>
+        <file alias="music_note.svg">../../../core/resources/icons/symbols/music_note.svg</file>
+        <file alias="chevron_right.svg">../../../core/resources/icons/symbols/chevron_right.svg</file>
+        <file alias="expand_more.svg">../../../core/resources/icons/symbols/expand_more.svg</file>
+        <file alias="expand_less.svg">../../../core/resources/icons/symbols/expand_less.svg</file>
+        <file alias="check.svg">../../../core/resources/icons/symbols/check.svg</file>
+        <file alias="favorite.svg">../../../core/resources/icons/symbols/favorite.svg</file>
+        <file alias="favorite_border.svg">../../../core/resources/icons/symbols/favorite_border.svg</file>
+        <file alias="star.svg">../../../core/resources/icons/symbols/star.svg</file>
+        <file alias="star_border.svg">../../../core/resources/icons/symbols/star_border.svg</file>
+        <file alias="shuffle.svg">../../../core/resources/icons/symbols/shuffle.svg</file>
+        <file alias="repeat.svg">../../../core/resources/icons/symbols/repeat.svg</file>
+        <file alias="repeat_one.svg">../../../core/resources/icons/symbols/repeat_one.svg</file>
+        <file alias="heart_off.svg">../../../core/resources/icons/symbols/heart_off.svg</file>
+        <file alias="heart_off_outline.svg">../../../core/resources/icons/symbols/heart_off_outline.svg</file>
+        <file alias="playlist_play.svg">../../../core/resources/icons/symbols/playlist_play.svg</file>
+        <file alias="playlist_add.svg">../../../core/resources/icons/symbols/playlist_add.svg</file>
+        <file alias="radio.svg">../../../core/resources/icons/symbols/radio.svg</file>
+        <file alias="file_download.svg">../../../core/resources/icons/symbols/file_download.svg</file>
+        <file alias="history.svg">../../../core/resources/icons/symbols/history.svg</file>
+        <file alias="tune.svg">../../../core/resources/icons/symbols/tune.svg</file>
+        <file alias="keyboard.svg">../../../core/resources/icons/symbols/keyboard.svg</file>
+        <file alias="public.svg">../../../core/resources/icons/symbols/public.svg</file>
+        <file alias="arrow_back.svg">../../../core/resources/icons/symbols/arrow_back.svg</file>
+        <file alias="close.svg">../../../core/resources/icons/symbols/close.svg</file>
+        <file alias="search.svg">../../../core/resources/icons/symbols/search.svg</file>
+        <file alias="content_copy.svg">../../../core/resources/icons/symbols/content_copy.svg</file>
     </qresource>
 </RCC>

@@ -312,7 +312,7 @@ Page {
 
                 // The AI agents that wrote code for it, and what it's made with,
                 // each by its logo: the agents' mascots (the ones they have in their
-                // own apps, fronts/qt/resources/agents/make_sprites.py) wave.
+                // own apps, core/resources/agents/make_sprites.py) wave.
                 TabPane {
                     id: technologiesPane
                     objectName: "technologies"

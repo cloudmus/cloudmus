@@ -14,9 +14,10 @@ set(CMAKE_AUTOMOC ON)
 find_package(Qt6 6.7 REQUIRED COMPONENTS Concurrent Core Network RemoteObjects Gui Qml Quick QuickControls2 Svg LinguistTools ShaderTools)
 qt_standard_project_setup(REQUIRES 6.7)
 
-# The desktop front's sources the core shares as they are.
-set(QT_FRONT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../qt/src)
-set(QT_FRONT_RES ${CMAKE_CURRENT_SOURCE_DIR}/../qt/resources)
+# The library both fronts share (the desktop's too): sources and resources.
+set(CORE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../core)
+set(CORE_SRC ${CORE_DIR}/src)
+set(CORE_RES ${CORE_DIR}/resources)
 
 # --- libmpv: the system's on the desktop; on Android the prebuilt one from
 # the dev.jdtech.mpv:libmpv AAR, unpacked by build-android.sh with the
@@ -40,26 +41,18 @@ else()
     target_link_libraries(cloudmus-mobile-mpv INTERFACE PkgConfig::MPV)
 endif()
 
+# BUILD_TESTING for the core's test support too (core/CMakeLists.txt).
+include(CTest)
+
 set(_shared_core_default ON)
 option(CLOUDMUS_MOBILE_SHARED_CORE "Run App::Core rather than the dev tracks" ${_shared_core_default})
 
-# --- The language: the desktop front's I18n::Translator, which both processes
-# run (the views' own, and the core's). Where the core is in the binary
-# already (the desktop) it has it; the UI process on Android has none, so
-# builds the two files itself.
-if(ANDROID OR NOT CLOUDMUS_MOBILE_SHARED_CORE)
-    add_library(cloudmus-mobile-i18n STATIC
-        ${QT_FRONT_SRC}/I18n/Languages.cpp
-        ${QT_FRONT_SRC}/I18n/Languages.h
-        ${QT_FRONT_SRC}/I18n/Translator.cpp
-        ${QT_FRONT_SRC}/I18n/Translator.h
-    )
-    target_include_directories(cloudmus-mobile-i18n PUBLIC ${QT_FRONT_SRC}/I18n)
-    target_link_libraries(cloudmus-mobile-i18n PUBLIC Qt6::Core)
-    set_target_properties(cloudmus-mobile-i18n PROPERTIES POSITION_INDEPENDENT_CODE ON)
-else()
-    add_library(cloudmus-mobile-i18n INTERFACE)
-endif()
+# --- cloudmus-common: the language (I18n::Translator), which both processes
+# run (the views' own, and the core's), the About data and the cover aura.
+# Built on its own: the UI process on Android has none of cloudmus-core.
+add_subdirectory(${CORE_DIR}/common core-common)
+add_library(cloudmus-mobile-i18n INTERFACE)
+target_link_libraries(cloudmus-mobile-i18n INTERFACE cloudmus-common)
 
 # --- Logging: both processes, no Qt beyond Core.
 add_library(cloudmus-mobile-log STATIC
@@ -98,7 +91,7 @@ set_target_properties(cloudmus-mobile-core PROPERTIES POSITION_INDEPENDENT_CODE 
 if(CLOUDMUS_MOBILE_SHARED_CORE)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     add_library(cloudmus-mpv ALIAS cloudmus-mobile-mpv)
-    add_subdirectory(../qt/core qt-core)
+    add_subdirectory(${CORE_DIR} core)
     target_sources(cloudmus-mobile-core PRIVATE
         src/App/MobileCore.cpp
         src/App/MobileCore.h
@@ -134,14 +127,14 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
     target_compile_definitions(cloudmus-mobile-core PUBLIC CLOUDMUS_MOBILE_SHARED_CORE)
 else()
     target_sources(cloudmus-mobile-core PRIVATE
-        ${QT_FRONT_SRC}/Net/NetworkErrors.cpp
-        ${QT_FRONT_SRC}/Net/ParallelDownload.cpp
-        ${QT_FRONT_SRC}/Playback/AudioPlayer.cpp
-        ${QT_FRONT_SRC}/Playback/LevelFeed.cpp
-        ${QT_FRONT_SRC}/Playback/NetworkPool.cpp
-        ${QT_FRONT_SRC}/Playback/StreamDownload.cpp
-        ${QT_FRONT_SRC}/Playback/StreamRelay.cpp
-        ${QT_FRONT_SRC}/Timing/Throttle.cpp
+        ${CORE_SRC}/Net/NetworkErrors.cpp
+        ${CORE_SRC}/Net/ParallelDownload.cpp
+        ${CORE_SRC}/Playback/AudioPlayer.cpp
+        ${CORE_SRC}/Playback/LevelFeed.cpp
+        ${CORE_SRC}/Playback/NetworkPool.cpp
+        ${CORE_SRC}/Playback/StreamDownload.cpp
+        ${CORE_SRC}/Playback/StreamRelay.cpp
+        ${CORE_SRC}/Timing/Throttle.cpp
         src/DevTracks/ActivePlaylist.cpp
         src/DevTracks/ActivePlaylist.h
         src/DevTracks/MobileCore.cpp
@@ -154,7 +147,7 @@ else()
         src/DevTracks/Track.h
     )
     target_include_directories(cloudmus-mobile-core PUBLIC
-        src/DevTracks ${QT_FRONT_SRC}/Net ${QT_FRONT_SRC}/Playback ${QT_FRONT_SRC}/Timing)
+        src/DevTracks ${CORE_SRC}/Net ${CORE_SRC}/Playback ${CORE_SRC}/Timing)
 endif()
 
 # QR codes for signing in: one source file, no build of its own.
@@ -192,7 +185,6 @@ message(STATUS "Version ${CLOUDMUS_APK_VERSION}, APK code ${CLOUDMUS_APK_VERSION
 # --- The views: QML and what it binds to. A library of their own so the
 # tests drive the same pages the app shows.
 qt_add_library(cloudmus-mobile-ui STATIC
-    ${QT_FRONT_SRC}/Covers/MeshAura.cpp
     src/Ui/AuraImageProvider.cpp
     src/Ui/AuraImageProvider.h
     src/Ui/Backend.cpp
@@ -208,9 +200,9 @@ qt_add_library(cloudmus-mobile-ui STATIC
     ${qrcodegen_SOURCE_DIR}/cpp/qrcodegen.cpp
 )
 target_include_directories(cloudmus-mobile-ui PRIVATE ${qrcodegen_SOURCE_DIR}/cpp)
-target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote ${QT_FRONT_SRC}/About ${QT_FRONT_SRC}/Covers)
+target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
-    cloudmus-mobile-i18n cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
+    cloudmus-common cloudmus-mobile-i18n cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
 target_compile_definitions(cloudmus-mobile-ui PRIVATE CLOUDMUS_MOBILE_VERSION="${CLOUDMUS_APK_VERSION}")
 if(CLOUDMUS_MOBILE_SHARED_CORE)
     target_compile_definitions(cloudmus-mobile-ui PUBLIC CLOUDMUS_MOBILE_SHARED_CORE)
@@ -304,20 +296,20 @@ set(_icons smartphone folder album arrow_back check chevron_right close cloud_of
     visibility visibility_off warning logout)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
-    set(_file ${QT_FRONT_RES}/icons/symbols/${_icon}.svg)
+    set(_file ${CORE_RES}/icons/symbols/${_icon}.svg)
     set_source_files_properties(${_file} PROPERTIES QT_RESOURCE_ALIAS ${_icon}.svg)
     list(APPEND _icon_files ${_file})
 endforeach()
-set_source_files_properties(${QT_FRONT_RES}/icons/logo.svg PROPERTIES QT_RESOURCE_ALIAS logo.svg)
-set_source_files_properties(${QT_FRONT_RES}/icons/cloud.svg PROPERTIES QT_RESOURCE_ALIAS cloud.svg)
+set_source_files_properties(${CORE_RES}/icons/logo.svg PROPERTIES QT_RESOURCE_ALIAS logo.svg)
+set_source_files_properties(${CORE_RES}/icons/cloud.svg PROPERTIES QT_RESOURCE_ALIAS cloud.svg)
 qt_add_resources(cloudmus-mobile-ui "icons" PREFIX "/icons"
-    FILES ${_icon_files} ${QT_FRONT_RES}/icons/logo.svg ${QT_FRONT_RES}/icons/cloud.svg)
+    FILES ${_icon_files} ${CORE_RES}/icons/logo.svg ${CORE_RES}/icons/cloud.svg)
 # The About page's license text, people (Ui::Platform), technologies'
 # logos and waving AI agents, as the desktop has them.
-set(_about_files ../../LICENSE ${QT_FRONT_RES}/people.json
-    ${QT_FRONT_RES}/agents/clawd-waving.png ${QT_FRONT_RES}/agents/codex-waving.png)
+set(_about_files ../../LICENSE ${CORE_RES}/people.json
+    ${CORE_RES}/agents/clawd-waving.png ${CORE_RES}/agents/codex-waving.png)
 foreach(_logo qt mpv cpp rust python)
-    list(APPEND _about_files ${QT_FRONT_RES}/technologies/${_logo}.svg)
+    list(APPEND _about_files ${CORE_RES}/technologies/${_logo}.svg)
 endforeach()
 foreach(_file IN LISTS _about_files)
     get_filename_component(_name ${_file} NAME)
@@ -326,7 +318,7 @@ endforeach()
 qt_add_resources(cloudmus-mobile-ui "about" PREFIX "/about" FILES ${_about_files})
 set(_fonts)
 foreach(_weight Regular Medium SemiBold Bold)
-    set(_file ${QT_FRONT_RES}/fonts/Manrope-${_weight}.ttf)
+    set(_file ${CORE_RES}/fonts/Manrope-${_weight}.ttf)
     set_source_files_properties(${_file} PROPERTIES QT_RESOURCE_ALIAS Manrope-${_weight}.ttf)
     list(APPEND _fonts ${_file})
 endforeach()
@@ -433,7 +425,6 @@ if(ANDROID)
     )
 endif()
 
-include(CTest)
 if(BUILD_TESTING AND NOT ANDROID)
     add_subdirectory(tests)
 endif()

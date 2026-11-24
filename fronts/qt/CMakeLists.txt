@@ -79,7 +79,8 @@ set(CLOUDMUS_REPO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
 get_filename_component(CLOUDMUS_REPO_ROOT ${CLOUDMUS_REPO_ROOT} ABSOLUTE)
 
 # --- cloudmus-core: shared with the mobile front.
-add_subdirectory(core)
+set(CLOUDMUS_BUILD_CORE_TESTS ON)
+add_subdirectory(../../core core)
 
 # --- cloudmus-desktop-core: what the core has only on the desktop — hotkeys,
 # updates, crash reports. No Qt Widgets either.
@@ -108,6 +109,8 @@ else()
     target_sources(cloudmus-desktop-core PRIVATE src/Diagnostics/CrashReporterPosix.cpp src/Update/InstallerLinux.cpp)
 endif()
 target_include_directories(cloudmus-desktop-core PUBLIC
+    src/App
+    src/ViewModel
     src/Hotkeys
     src/Diagnostics
     src/Update
@@ -214,11 +217,9 @@ else()
 endif()
 
 add_library(cloudmus-ui STATIC
-    src/Covers/MeshAura.cpp
     src/Ui/MainWindow.cpp
     src/Ui/WindowHost.cpp
     src/Ui/DownloadsPanel.cpp
-    src/About/People.h
     src/Ui/AboutDialog.cpp
     src/Ui/SpriteAnimation.cpp
     src/Ui/StackTransition.cpp
@@ -291,7 +292,6 @@ add_dependencies(cloudmus-ui cloudmus_version)
 
 target_include_directories(cloudmus-ui PUBLIC
     ${VERSION_DIR}
-    src/About
     src/Ui
     src/Theme
     src/Integration
@@ -459,9 +459,9 @@ elseif(APPLE)
     set(_icns "${CMAKE_CURRENT_BINARY_DIR}/AppIcon.icns")
     add_custom_command(OUTPUT ${_icns}
         COMMAND ${CMAKE_COMMAND} -E rm -rf ${_iconset}
-        COMMAND cloudmus-make-iconset ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/logo.svg ${_iconset}
+        COMMAND cloudmus-make-iconset ${CLOUDMUS_REPO_ROOT}/core/resources/icons/logo.svg ${_iconset}
         COMMAND iconutil -c icns -o ${_icns} ${_iconset}
-        DEPENDS cloudmus-make-iconset ${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/logo.svg
+        DEPENDS cloudmus-make-iconset ${CLOUDMUS_REPO_ROOT}/core/resources/icons/logo.svg
         VERBATIM)
     target_sources(cloudmus-qt PRIVATE ${_icns})
     set_source_files_properties(${_icns} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
@@ -484,7 +484,7 @@ endif()
 # with the translations. Only those — a file given twice confuses lupdate's
 # namespaces.
 file(GLOB_RECURSE _tr_sources CONFIGURE_DEPENDS src/*.cpp src/*.h src/*.mm)
-foreach(_target cloudmus-core cloudmus-desktop-core cloudmus-ui cloudmus-qt)
+foreach(_target cloudmus-common cloudmus-core cloudmus-desktop-core cloudmus-ui cloudmus-qt)
     get_target_property(_target_sources ${_target} SOURCES)
     foreach(_source IN LISTS _target_sources)
         cmake_path(ABSOLUTE_PATH _source BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -503,7 +503,7 @@ qt_add_translations(cloudmus-qt
         translations/cloudmus_fr.ts
         translations/cloudmus_it.ts
         translations/cloudmus_ru.ts
-    SOURCE_TARGETS cloudmus-core cloudmus-desktop-core cloudmus-ui cloudmus-qt
+    SOURCE_TARGETS cloudmus-common cloudmus-core cloudmus-desktop-core cloudmus-ui cloudmus-qt
     SOURCES ${_tr_sources}
     RESOURCE_PREFIX /i18n
     LUPDATE_OPTIONS -no-obsolete -locations none -source-language en
@@ -564,44 +564,14 @@ target_link_libraries(cloudmus-download-bench PRIVATE cloudmus-core)
 if(BUILD_TESTING)
 add_executable(cloudmus-qt-tests
     tests/main.cpp
-    tests/FakeBackend.cpp
-    tests/RpcClientTest.cpp
-    tests/ConnectivityTest.cpp
-    tests/OutboxTest.cpp
-    tests/TrackListUpdateTest.cpp
-    tests/SourceSettingsTest.cpp
-    tests/SourceSessionTest.cpp
-    tests/NowPlayingTest.cpp
-    tests/RemotingTest.cpp
-    tests/PlaylistEditingTest.cpp
-    tests/SourcesTest.cpp
-    tests/CoverArtCacheTest.cpp
-    tests/ActivePlaylistTest.cpp
     tests/BrowseTest.cpp
-    tests/DownloadsTest.cpp
-    tests/AnalyticsTest.cpp
-    tests/StreamRelayTest.cpp
-    tests/TrackCacheTest.cpp
-    tests/AudioFileProbeTest.cpp
-    tests/PreloaderTest.cpp
-    tests/PlaybackPreloadTest.cpp
-    tests/PreloadTest.cpp
-    tests/TrackFileTest.cpp
     tests/CrashReporterTest.cpp
-    tests/UpdateTest.cpp
-    tests/ParallelDownloadTest.cpp
     tests/HotkeysTest.cpp
-    tests/I18nTest.cpp
-    tests/AudioPulseTest.cpp
-    tests/StarPromptTest.cpp
-    tests/PathsTest.cpp
-    tests/TrackStatesTest.cpp
-    tests/TimingTest.cpp
-    tests/SequenceTest.cpp
     tests/SingleInstanceTest.cpp
+    tests/StarPromptTest.cpp
+    tests/UpdateTest.cpp
 )
-target_include_directories(cloudmus-qt-tests PRIVATE tests)
-target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-desktop-core Qt6::Test)
+target_link_libraries(cloudmus-qt-tests PRIVATE cloudmus-desktop-core cloudmus-core-test-support Qt6::Test)
 # CrashReporterTest checks that a crash report names the crashing function.
 set_target_properties(cloudmus-qt-tests PROPERTIES ENABLE_EXPORTS ON)
 add_test(NAME cloudmus-qt-tests COMMAND cloudmus-qt-tests)
@@ -621,14 +591,13 @@ add_executable(cloudmus-qt-ui-tests
     tests/ui/ThemedToolTipTest.cpp
     tests/ui/AutostartTest.cpp
     tests/ui/ToastNotifierTest.cpp
-    tests/FakeBackend.cpp
     # Real glyphs, so a test can check what color an icon is tinted.
     resources/icons.qrc
     # The About dialog's license and contributors.
     resources/about.qrc
 )
 target_include_directories(cloudmus-qt-ui-tests PRIVATE tests)
-target_link_libraries(cloudmus-qt-ui-tests PRIVATE cloudmus-ui Qt6::Test)
+target_link_libraries(cloudmus-qt-ui-tests PRIVATE cloudmus-ui cloudmus-core-test-support Qt6::Test)
 add_test(NAME cloudmus-qt-ui-tests COMMAND cloudmus-qt-ui-tests)
 set_tests_properties(cloudmus-qt-ui-tests PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
 endif()

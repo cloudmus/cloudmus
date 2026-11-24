@@ -1,6 +1,6 @@
 # Sounds
 
-`cloudmus-logo.mp3` is CloudMus's own sound logo (a handpan, from the project's
+`cloudmus-logo.mp3` (in `core/resources/sounds/`, as both fronts play it) is CloudMus's own sound logo (a handpan, from the project's
 showcase), played when the logo is tapped in About; licensed as the app is.
 Brought up from -14 to -7.5 LUFS, as loud as the louder tracks around it: a
 3:1 compressor from -20 dB with its gain made up, then a limiter at -1 dBFS

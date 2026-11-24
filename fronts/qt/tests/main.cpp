@@ -8,40 +8,12 @@
 #include "FakeBackend.h"
 
 namespace Tests {
-QObject* makeRpcClientTest();
-QObject* makeConnectivityTest();
-QObject* makeOutboxTest();
-QObject* makeTrackListUpdateTest();
-QObject* makeSourceSettingsTest();
-QObject* makeSourceSessionTest();
-QObject* makeNowPlayingTest();
-QObject* makeRemotingTest();
-QObject* makePlaylistEditingTest();
-QObject* makeSourcesTest();
-QObject* makeActivePlaylistTest();
 QObject* makeBrowseTest();
-QObject* makeDownloadsTest();
-QObject* makeAnalyticsTest();
-QObject* makeStreamRelayTest();
-QObject* makeTrackCacheTest();
-QObject* makeAudioFileProbeTest();
-QObject* makePreloaderTest();
-QObject* makePlaybackPreloadTest();
-QObject* makePreloadTest();
-QObject* makeTrackFileTest();
 QObject* makeCrashReporterTest();
-QObject* makeUpdateTest();
-QObject* makeParallelDownloadTest();
 QObject* makeHotkeysTest();
-QObject* makeI18nTest();
-QObject* makeAudioPulseTest();
-QObject* makeStarPromptTest();
-QObject* makePathsTest();
-QObject* makeTrackStatesTest();
-QObject* makeCoverArtCacheTest();
-QObject* makeTimingTest();
-QObject* makeSequenceTest();
 QObject* makeSingleInstanceTest();
+QObject* makeStarPromptTest();
+QObject* makeUpdateTest();
 int runCrashReporterChildIfAsked(int argc, char** argv);
 }
 
@@ -62,15 +34,12 @@ int main(int argc, char** argv)
     // Anything a test saves goes to throwaway locations, not the user's.
     QStandardPaths::setTestModeEnabled(true);
     int failures = 0;
-    for (auto make : { Tests::makeRpcClientTest, Tests::makeConnectivityTest, Tests::makeOutboxTest, Tests::makeTrackListUpdateTest, Tests::makeSourceSettingsTest, Tests::makeSourceSessionTest, Tests::makeNowPlayingTest, Tests::makeRemotingTest,
-             Tests::makePlaylistEditingTest, Tests::makeSourcesTest, Tests::makeCoverArtCacheTest, Tests::makeActivePlaylistTest,
-             Tests::makeBrowseTest, Tests::makeDownloadsTest, Tests::makeAnalyticsTest, Tests::makeStreamRelayTest,
-             Tests::makeTrackCacheTest, Tests::makeAudioFileProbeTest, Tests::makePreloaderTest,
-             Tests::makePlaybackPreloadTest, Tests::makePreloadTest, Tests::makeTrackFileTest,
-             Tests::makeCrashReporterTest, Tests::makeUpdateTest, Tests::makeParallelDownloadTest,
-             Tests::makeHotkeysTest, Tests::makeI18nTest, Tests::makeAudioPulseTest, Tests::makeStarPromptTest,
-             Tests::makePathsTest, Tests::makeTrackStatesTest, Tests::makeTimingTest, Tests::makeSequenceTest,
-             Tests::makeSingleInstanceTest }) {
+    for (auto make : { Tests::makeBrowseTest,
+             Tests::makeCrashReporterTest,
+             Tests::makeHotkeysTest,
+             Tests::makeSingleInstanceTest,
+             Tests::makeStarPromptTest,
+             Tests::makeUpdateTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

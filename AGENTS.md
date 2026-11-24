@@ -2,8 +2,8 @@
 
 Music player: **fronts** (UI) and **backends** (one process per music
 service) talking JSON-RPC 2.0 over stdin/stdout, framed as NDJSON.
-Details: `docs/development.md`. Before touching `fronts/qt/`, read
-`fronts/qt/AGENTS.md`.
+Details: `docs/development.md`. Before touching `core/` or `fronts/qt/`, read
+`core/AGENTS.md` and `fronts/qt/AGENTS.md`.
 
 ## Questions and changes
 
@@ -19,6 +19,7 @@ feature is a request for an explanation by default.
 | `protocol/` | Schema-first protocol: `schema/*.yaml`, `methods.yaml`, `codegen/` | YAML, Python + Jinja2 |
 | `docs/protocol.md` | Normative protocol spec (wins over `protocol/`) | |
 | `backends/py-rpc-common/` | Shared NDJSON/JSON-RPC transport + conformance suite | Python ≥ 3.11 |
+| `core/` | `cloudmus-core`: the C++ library both Qt fronts build (RPC, playback, state, view models, tests, shared resources); `core/AGENTS.md` | C++20, Qt 6.7+, libmpv, CMake |
 | `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11, Rust for local-folder |
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
 | `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
@@ -29,7 +30,7 @@ feature is a request for an explanation by default.
 ## Generated code
 
 Protocol stubs are gitignored build artifacts — never edit or commit
-`backends/py-rpc-common/rpc_common/generated/` or `fronts/qt/generated/`.
+`backends/py-rpc-common/rpc_common/generated/` or `core/generated/`.
 Regenerate after a fresh checkout or any change under `protocol/`:
 `python protocol/codegen/generate.py --lang python cpp`.
 

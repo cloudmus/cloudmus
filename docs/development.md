@@ -61,6 +61,7 @@ the conformance suite.
 
 | Front | Description | Stack |
 |---|---|---|
+| `core` | Shared C++ library (`cloudmus-core`) of both Qt fronts — see [`core/AGENTS.md`](../core/AGENTS.md) | C++20, Qt 6.7+, libmpv, CMake |
 | `fronts/qt` | Desktop app, shipped as the AppImage | C++20, Qt 6, libmpv, CMake — see [`fronts/qt/AGENTS.md`](../fronts/qt/AGENTS.md) |
 | `fronts/tui` | Terminal player | Python 3.11+, Textual, python-mpv |
 
@@ -239,7 +240,7 @@ menu, as on macOS; Settings → General can make it show the window instead.
 pytest backends/                               # Python backends, from the repo root
 cargo test --locked --manifest-path backends/local-folder/Cargo.toml
 (cd fronts/tui && python -m pytest tests/ -q)   # TUI
-ctest --test-dir fronts/qt/build                # Qt front
+ctest --test-dir fronts/qt/build                # Qt front, with the core's tests
 
 # Conformance suite: drives a real backend over the wire, validates against the schemas
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_yandex
