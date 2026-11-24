@@ -323,7 +323,7 @@ Item {
                 spacing: Theme.dp(12)
                 IconImage {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    source: "qrc:/icons/" + (panel.platform && panel.platform.systemVolume * 2 < panel.platform.systemVolumeMax ? "volume_down" : "volume_up") + ".svg"
+                    source: "qrc:/icons/" + (trackSwipe.volumeLevel < 0.5 ? "volume_down" : "volume_up") + ".svg"
                     sourceSize.width: Theme.dp(28)
                     sourceSize.height: Theme.dp(28)
                     color: Theme.ink
@@ -338,8 +338,8 @@ Item {
                     Rectangle {
                         anchors.bottom: parent.bottom
                         width: parent.width
-                        height: panel.platform && panel.platform.systemVolumeMax > 0
-                                ? parent.height * panel.platform.systemVolume / panel.platform.systemVolumeMax : 0
+                        // Eased, between the system's steps too.
+                        height: parent.height * trackSwipe.volumeLevel
                         radius: width / 2
                         color: Theme.accent
                     }
@@ -417,7 +417,20 @@ Item {
             || (panel.platform !== null && panel._atRest && panel.collapse <= 0 && !panel._swiping
                 && panel._onCover(scenePress))
         readonly property bool adjustingVolume: axis === Qt.Vertical
-        property real startVolume: 0
+        // 0..1, where the finger is at, and what the bar shows and the system's
+        // volume goes by: that, eased after it. The system's few steps are taken
+        // one by one as it gets there, not jumped over by a quick finger.
+        property real startLevel: 0
+        property real volumeLevel: 0
+        Behavior on volumeLevel {
+            id: volumeEase
+            SmoothedAnimation { duration: 220; velocity: -1 }
+        }
+        onVolumeLevelChanged: {
+            const range = panel.platform ? panel.platform.systemVolumeMax : 0
+            if (range > 0)
+                panel.platform.setSystemVolume(Math.round(volumeLevel * range))
+        }
         // Across the cover where the finger came down.
         property real fingerX: 0
         onBegan: (way) => {
@@ -425,14 +438,18 @@ Item {
                 return
             fingerX = coverBox.mapFromItem(null, scenePress.x, scenePress.y).x
             panel.platform.readVolume()
-            startVolume = panel.platform.systemVolume
+            const range = panel.platform.systemVolumeMax
+            startLevel = range > 0 ? panel.platform.systemVolume / range : 0
+            // From where it is, not eased in from where the last swipe left it.
+            volumeEase.enabled = false
+            volumeLevel = startLevel
+            volumeEase.enabled = true
             volumeHud.show()
         }
         onMoved: (distance) => {
             if (axis === Qt.Vertical) {
-                const range = panel.platform.systemVolumeMax
-                if (range > 0)
-                    panel.platform.setSystemVolume(Math.round(startVolume - distance / Math.max(coverBox.height, Theme.dp(240)) * range))
+                volumeLevel = Math.max(0, Math.min(1,
+                    startLevel - distance / Math.max(coverBox.height, Theme.dp(240))))
                 return
             }
             if (distance === 0)

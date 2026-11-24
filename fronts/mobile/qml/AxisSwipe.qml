@@ -81,9 +81,11 @@ DragHandler {
                 view.interactive = false
             }
             _velocity = 0
+            // Told first: resetting the catch-up already moves it, and whoever's
+            // told must have set up (where it started from) before that.
+            began(_axis)
             _catchUp = 0
             catchUp.restart()
-            began(_axis)
             return
         }
         catchUp.stop()
