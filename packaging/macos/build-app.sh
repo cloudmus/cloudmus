@@ -2,7 +2,7 @@
 # Builds dist/CloudMus-<version>-<arch>.dmg (arch: x86_64 or arm64, this
 # machine's) — CloudMus.app with Qt, libmpv, a Python runtime and the
 # backends inside, here and in GitHub Actions alike. The update installer
-# (fronts/qt/src/Update/InstallerMac.cpp) expects CloudMus.app at the DMG's
+# (fronts/desktop/src/Update/InstallerMac.cpp) expects CloudMus.app at the DMG's
 # root, and release.yml the file's name.
 #
 # Needs what docs/development.md's "macOS" section sets up: Xcode's Command
@@ -80,7 +80,7 @@ sentry=OFF
 if [[ -n ${CLOUDMUS_SENTRY_DSN:-} ]]; then sentry=ON; fi
 # -g1: enough debug info for Sentry to name functions and lines in a crash
 # stack; it goes into the dSYM below, macdeployqt strips what ships.
-PKG_CONFIG_PATH=$deps/lib/pkgconfig cmake -S fronts/qt -B "$build" -G Ninja \
+PKG_CONFIG_PATH=$deps/lib/pkgconfig cmake -S fronts/desktop -B "$build" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
     -DCMAKE_C_FLAGS=-g1 -DCMAKE_CXX_FLAGS=-g1 \
     -DCLOUDMUS_SENTRY="$sentry" \

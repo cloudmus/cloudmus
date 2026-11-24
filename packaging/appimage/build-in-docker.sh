@@ -63,7 +63,7 @@ if [ "${CLOUDMUS_APPIMAGE_ASAN:-}" = 1 ]; then
     export NO_STRIP=1
     version="${version}-asan"
 fi
-# ccache (fronts/qt/CMakeLists.txt uses it when found). Its directory is in
+# ccache (fronts/desktop/CMakeLists.txt uses it when found). Its directory is in
 # the bind-mounted workspace, so it outlives the container and CI can cache
 # it; BASEDIR makes the entries independent of where the checkout is.
 export CCACHE_DIR="${REPO_ROOT}/.ccache"
@@ -71,7 +71,7 @@ export CCACHE_BASEDIR="${REPO_ROOT}"
 export CCACHE_MAXSIZE=1G
 export CCACHE_COMPILERCHECK=content
 # Clang, not the image's GCC 10: see the Dockerfile.
-cmake -S fronts/qt -B "${build_dir}" -G Ninja "${cmake_extra[@]}" \
+cmake -S fronts/desktop -B "${build_dir}" -G Ninja "${cmake_extra[@]}" \
     -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 \
     -DBUILD_TESTING=OFF -DPYTHON3_EXECUTABLE="$(command -v python3)"
 ccache --zero-stats >/dev/null
@@ -287,7 +287,7 @@ ln -s libcrypto.so.3 "${APPDIR}/usr/lib/libcrypto.so"
 # bullseye's libmpv-dev) all have real ELF NEEDED entries on it —
 # confirmed via objdump -p, and confirmed *not* our own doing: this
 # project's CMakeLists.txt requests no Qt6::OpenGL* component and no code
-# under fronts/qt/src/ touches QOpenGL* at all; AudioPlayer.cpp configures
+# under fronts/desktop/src/ touches QOpenGL* at all; AudioPlayer.cpp configures
 # mpv with vid=no (audio only), never mpv's GL render API either. That
 # "always present" assumption fails on a minimal/headless install (no
 # desktop Mesa stack pulled in), which is exactly what surfaced this as

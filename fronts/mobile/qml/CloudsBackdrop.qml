@@ -5,7 +5,7 @@ import QtQuick.Shapes
 // Faint clouds, in the logo's shape, flying out of the logo toward the viewer
 // behind a page's content. They swell with the music's loudness, rush forward
 // on its hits, and the vanishing point leans toward a finger on the screen.
-// A port of the desktop's Ui::CloudsBackdrop (fronts/qt/src/Ui/CloudsBackdrop.cpp),
+// A port of the desktop's Ui::CloudsBackdrop (fronts/desktop/src/Ui/CloudsBackdrop.cpp),
 // its numbers kept. Moves only while `running`.
 Item {
     id: backdrop

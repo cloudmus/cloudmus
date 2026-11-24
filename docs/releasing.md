@@ -6,7 +6,7 @@ installer, the macOS DMGs (x86_64 and arm64) and the Android APK (arm64-v8a),
 and publishes them on the
 GitHub release with the tag's message as its release notes. The app's
 version (shown in the About dialog) comes from the same tag via
-`git describe` (`fronts/qt/cmake/Version.cmake`).
+`git describe` (`fronts/desktop/cmake/Version.cmake`).
 
 Branches follow git flow (`docs/development.md`, "Branches and git flow"):
 `develop` collects the work, `master` holds only released versions, and a

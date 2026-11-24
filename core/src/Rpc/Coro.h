@@ -38,7 +38,7 @@ struct FinalAwaiter {
 } // namespace Detail
 
 // A minimal hand-written C++20 coroutine task type (no QCoro dependency,
-// per fronts/qt/AGENTS.md / the project's "Qt + stdlib only" rule) — lazy
+// per fronts/desktop/AGENTS.md / the project's "Qt + stdlib only" rule) — lazy
 // (doesn't run until awaited or explicitly started), single-await,
 // move-only. Two call patterns:
 //   - `co_await someTask()` from inside another coroutine.

@@ -127,7 +127,7 @@ adb logcat -s CloudmusStart             # startup milestones
   its saved tracks (the downloaded ones sound, the rest are skipped), and a
   track picked while the source starts waits for it (up to 30 s) instead of
   failing. The fresh lists replace the saved ones when the source answers.
-  Desktop does the same (shared code in `fronts/qt`).
+  Desktop does the same (shared code in `fronts/desktop`).
 - The window goes on under the system's navigation bar, which is see-through, so
   the generated background reaches the screen's edge; `Theme.insetBottom` is what
   the bar covers, and what's to be read or pressed keeps clear of it. Now Playing,

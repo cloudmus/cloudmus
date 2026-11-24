@@ -6,7 +6,7 @@ and the host's Wine runs the result. Neither replaces a real Windows machine
 for how things look (see [What Wine can't tell](#what-wine-cant-tell)).
 
 Windows-only code sits behind `Q_OS_WIN`, or in `*Win.cpp` files listed under
-`if(WIN32)` in `fronts/qt/CMakeLists.txt`. A Linux build doesn't compile any
+`if(WIN32)` in `fronts/desktop/CMakeLists.txt`. A Linux build doesn't compile any
 of it, so passing Linux tests says nothing about it: build for Windows too.
 
 ## Building

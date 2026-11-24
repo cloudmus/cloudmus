@@ -128,7 +128,7 @@ FetchContent_Declare(qrcodegen
     DOWNLOAD_EXTRACT_TIMESTAMP ON)
 FetchContent_MakeAvailable(qrcodegen)
 
-# The version, from the release tags, as the desktop's is (fronts/qt/cmake/Version.cmake):
+# The version, from the release tags, as the desktop's is (fronts/desktop/cmake/Version.cmake):
 # "0.6.4" on one, "0.6.4-163-geaef2c2" after it. The About page shows it; the
 # APK is named by it. The APK's code only has to grow, or Android won't take
 # the update: x.y.z, then the commits since (a thousand is more than there are

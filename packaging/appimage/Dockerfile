@@ -294,7 +294,7 @@ RUN apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Not from apt: bullseye's cmake package is 3.18.4, but
-# fronts/qt/CMakeLists.txt requires 3.21+ (cmake_minimum_required).
+# fronts/desktop/CMakeLists.txt requires 3.21+ (cmake_minimum_required).
 # PyPI's cmake wheel ships a recent prebuilt binary (manylinux, so it
 # runs fine against this old glibc) — simpler than adding Kitware's own
 # apt repo just for this.
@@ -308,7 +308,7 @@ RUN python3 -m pip install --no-cache-dir "cmake>=3.21"
 # the AppImage still needs nothing newer from the target machine.
 #
 # Also here: lld, which links the executables several times faster than
-# bullseye's GNU ld (fronts/qt/CMakeLists.txt picks it up from PATH), and
+# bullseye's GNU ld (fronts/desktop/CMakeLists.txt picks it up from PATH), and
 # ccache, whose cache directory build-in-docker.sh keeps in the workspace so
 # CI can restore it between runs.
 RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o /etc/apt/trusted.gpg.d/apt.llvm.org.asc \
@@ -319,7 +319,7 @@ RUN curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o /etc/apt/trusted.gp
     && ln -s /usr/lib/llvm-19/bin/ld.lld /usr/local/bin/ld.lld \
     && rm -rf /var/lib/apt/lists/*
 
-# sentry-native's HTTP transport (crash reports, see fronts/qt/CMakeLists.txt).
+# sentry-native's HTTP transport (crash reports, see fronts/desktop/CMakeLists.txt).
 # linuxdeploy bundles libcurl and what it needs along with the other
 # libraries cloudmus-qt links.
 RUN apt-get update \

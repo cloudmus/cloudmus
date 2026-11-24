@@ -4,7 +4,7 @@ on both reads the same on both.
 
 For each unfinished message in fronts/mobile/translations/cloudmus_<code>.ts,
 takes the translation of the same source text from
-fronts/qt/translations/cloudmus_<code>.ts (any context; the desktop's own
+fronts/desktop/translations/cloudmus_<code>.ts (any context; the desktop's own
 context wins), then from tools/mobile-only-translations.json for what the
 desktop has no text for. Run after `cmake --build build --target
 cloudmus-mobile-update-translations`; messages already translated are kept.

@@ -1,7 +1,7 @@
 # Agent instructions — core library (`core/`)
 
 On top of the root `AGENTS.md`. The `cloudmus-core` library is shared by the
-desktop front (`fronts/qt`) and the mobile one (`fronts/mobile`); neither owns
+desktop front (`fronts/desktop`) and the mobile one (`fronts/mobile`); neither owns
 it, and neither's sources may be reached into from here.
 
 ## Layout
@@ -26,7 +26,7 @@ it, and neither's sources may be reached into from here.
 ## Rules
 
 - The core does **not** link Qt Widgets — no widget headers here. Widgets
-  live in `fronts/qt`'s `cloudmus-ui`.
+  live in `fronts/desktop`'s `cloudmus-ui`.
 - The mobile front builds the core on Qt 6.7: keep it to 6.7 APIs.
 - What only one front needs goes into that front (the desktop's hotkeys,
   updates and crash reports: `cloudmus-desktop-core`), not here.
@@ -39,6 +39,6 @@ it, and neither's sources may be reached into from here.
 - New logic goes into the core (a service or view model) with a test in
   `core/tests/`, not into a front's widgets or QML.
 
-Building and testing: through a front's CMake project (`fronts/qt`,
+Building and testing: through a front's CMake project (`fronts/desktop`,
 `fronts/mobile`); the core is `add_subdirectory(../../core core)`. The core
 expects a `cloudmus-mpv` target from it.

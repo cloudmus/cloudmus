@@ -42,11 +42,11 @@ than committed, so there's nothing to go stale relative to `protocol/schema`
   Python backend or its tests (`rpc_common.generated.*` won't exist on a
   fresh checkout otherwise) — CI must run this before the Python test suites.
 - Run `python protocol/codegen/generate.py --lang cpp` before building
-  `fronts/qt` — CI/the build must run this before invoking CMake.
+  `fronts/desktop` — CI/the build must run this before invoking CMake.
 
 Requires (dev-time only, not a runtime dependency of any generated code):
 `pip install jinja2 pyyaml`. The C++ target also formats its own output with
-`clang-format` (via `fronts/qt/_clang-format`, see `fronts/qt/AGENTS.md`) as
+`clang-format` (via `fronts/desktop/_clang-format`, see `fronts/desktop/AGENTS.md`) as
 the last step of generation; if `clang-format` isn't on `PATH`, generation
 still succeeds but prints a warning and leaves the output unformatted.
 
@@ -92,7 +92,7 @@ C++ output (`core/generated/`): `Models.h` (structs with `fromJson`/
 `toJson`) and `RpcMethods.h` (typed call-wrapper declarations per method,
 forward-declaring the hand-written `Task<T>`/`RpcClient` runtime that
 implements them — see `core/src/Rpc/`, `namespace Rpc`, per
-`fronts/qt/AGENTS.md`'s folder-matches-namespace rule). C++ field names that collide
+`fronts/desktop/AGENTS.md`'s folder-matches-namespace rule). C++ field names that collide
 with a C++20 keyword (only `explicit` today) get a trailing underscore on
 the struct member; the JSON wire key is untouched.
 

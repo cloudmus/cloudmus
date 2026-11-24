@@ -1,13 +1,13 @@
-# Agent instructions — Qt front (`fronts/qt/`)
+# Agent instructions — desktop front (`fronts/desktop/`)
 
 On top of the root `AGENTS.md`.
 
 ## Build, run, test
 
 ```bash
-cmake -S fronts/qt -B fronts/qt/build && cmake --build fronts/qt/build
-CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
-ctest --test-dir fronts/qt/build
+cmake -S fronts/desktop -B fronts/desktop/build && cmake --build fronts/desktop/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/desktop/build/bin/cloudmus-qt
+ctest --test-dir fronts/desktop/build
 ```
 
 On macOS the app is `build/bin/CloudMus.app` (run
@@ -55,8 +55,8 @@ flag. A plain `QTimer` stays for timeouts and delays.
 - A folder under `src/` (and `core/src/`) is named exactly after the namespace it implements
   (`namespace Rpc` → `core/src/Rpc/`). Small helper sub-namespaces (`Rpc::Detail`)
   need no folder; `generated/` is exempt.
-- Format before committing (config: `fronts/qt/_clang-format`):
-  `clang-format -i fronts/qt/src/**/*.{h,cpp}` (the core: `core/AGENTS.md`)
+- Format before committing (config: `fronts/desktop/_clang-format`):
+  `clang-format -i fronts/desktop/src/**/*.{h,cpp}` (the core: `core/AGENTS.md`)
 - Don't hardcode sizes (pixel widths/heights, opening sizes, minimums)
   without need — use Qt's own mechanisms: layouts, size policies, stretch
   factors, layout size constraints (`QLayout::setSizeConstraint`), and

@@ -2,8 +2,8 @@
 
 Music player: **fronts** (UI) and **backends** (one process per music
 service) talking JSON-RPC 2.0 over stdin/stdout, framed as NDJSON.
-Details: `docs/development.md`. Before touching `core/` or `fronts/qt/`, read
-`core/AGENTS.md` and `fronts/qt/AGENTS.md`.
+Details: `docs/development.md`. Before touching `core/` or `fronts/desktop/`, read
+`core/AGENTS.md` and `fronts/desktop/AGENTS.md`.
 
 ## Questions and changes
 
@@ -22,7 +22,7 @@ feature is a request for an explanation by default.
 | `core/` | `cloudmus-core`: the C++ library both Qt fronts build (RPC, playback, state, view models, tests, shared resources); `core/AGENTS.md` | C++20, Qt 6.7+, libmpv, CMake |
 | `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11, Rust for local-folder |
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
-| `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
+| `fronts/desktop/` | Desktop front | C++20, Qt 6, libmpv, CMake |
 | `fronts/mobile/` | Mobile front MVP (Android APK + Linux debug build); `docs/android.md` | C++20, Qt 6.7, QML, Media3 |
 | `packaging/appimage/`, `build-appimage.sh` | AppImage build in Docker | |
 | `packaging/appimage/apprun/` | The AppImage's `AppRun`: static launcher that reports failed starts to Sentry | Rust (built in `rust:alpine`) |
@@ -45,7 +45,7 @@ goes through the protocol, backends declare support via capabilities.
 3. Update `docs/protocol.md` and add a `docs/protocol-changelog.md` entry —
    MINOR for additive/optional, MAJOR for changed/removed meaning. Prefer
    additive, optional fields.
-4. Update the users, run the tests, and build `fronts/qt`.
+4. Update the users, run the tests, and build `fronts/desktop`.
 
 ## Build and test
 

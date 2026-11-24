@@ -3,7 +3,7 @@ pragma Singleton
 import QtQuick
 
 // Colors, sizes and type of the mobile front. Colors are the desktop
-// front's palette (fronts/qt/src/Theme/Tokens.cpp); every size is in dp
+// front's palette (fronts/desktop/src/Theme/Tokens.cpp); every size is in dp
 // times `scale`, so one layout serves a phone and a 14" head unit.
 QtObject {
     id: theme

@@ -45,7 +45,7 @@ public:
         PlaylistIdRole,
         // The full Playlist (title/description/coverUrl/kind/...), so
         // MainWindow can show the playlist header without a second RPC
-        // round-trip — see fronts/qt/AGENTS.md/the plan on Playlist.kind.
+        // round-trip — see fronts/desktop/AGENTS.md/the plan on Playlist.kind.
         PlaylistDataRole,
         // A source header row's status flags — NavItemDelegate combines
         // them into the one status icon drawn at the row's right edge

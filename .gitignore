@@ -23,7 +23,7 @@ backends/py-rpc-common/rpc_common/generated/
 core/generated/
 
 # Qt Creator's local project state (build kit, paths — machine-specific)
-fronts/qt/.qtcreator/
+fronts/desktop/.qtcreator/
 
 # VS Code workspace settings (machine-specific)
 .vscode/

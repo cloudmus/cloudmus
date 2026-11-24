@@ -62,7 +62,7 @@ the conformance suite.
 | Front | Description | Stack |
 |---|---|---|
 | `core` | Shared C++ library (`cloudmus-core`) of both Qt fronts — see [`core/AGENTS.md`](../core/AGENTS.md) | C++20, Qt 6.7+, libmpv, CMake |
-| `fronts/qt` | Desktop app, shipped as the AppImage | C++20, Qt 6, libmpv, CMake — see [`fronts/qt/AGENTS.md`](../fronts/qt/AGENTS.md) |
+| `fronts/desktop` | Desktop app, shipped as the AppImage | C++20, Qt 6, libmpv, CMake — see [`fronts/desktop/AGENTS.md`](../fronts/desktop/AGENTS.md) |
 | `fronts/tui` | Terminal player | Python 3.11+, Textual, python-mpv |
 
 ## Building from source
@@ -99,9 +99,9 @@ CLOUDMUS_DEV_BACKENDS=1 cloudmus      # or: python -m cloudmus_tui
 Build and run the Qt front (CMake regenerates the C++ stubs itself):
 
 ```bash
-cmake -S fronts/qt -B fronts/qt/build
-cmake --build fronts/qt/build
-CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
+cmake -S fronts/desktop -B fronts/desktop/build
+cmake --build fronts/desktop/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/desktop/build/bin/cloudmus-qt
 ```
 
 The build is faster with `ccache` and `mold` (or `lld`) installed: CMake uses
@@ -180,9 +180,9 @@ pip install cmake ninja meson pkgconf aqtinstall
 aqt install-qt mac desktop 6.9.3 clang_64 -O ~/Qt     # the Qt the other builds use
 packaging/macos/build-deps.sh                         # libmpv, once (~20 min)
 PKG_CONFIG_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib/pkgconfig \
-    cmake -S fronts/qt -B fronts/qt/build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/Qt/6.9.3/macos
-cmake --build fronts/qt/build
-CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/CloudMus.app/Contents/MacOS/CloudMus
+    cmake -S fronts/desktop -B fronts/desktop/build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/Qt/6.9.3/macos
+cmake --build fronts/desktop/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/desktop/build/bin/CloudMus.app/Contents/MacOS/CloudMus
 ```
 
 The app is built as `CloudMus.app` (signed ad hoc on every build): macOS
@@ -240,7 +240,7 @@ menu, as on macOS; Settings → General can make it show the window instead.
 pytest backends/                               # Python backends, from the repo root
 cargo test --locked --manifest-path backends/local-folder/Cargo.toml
 (cd fronts/tui && python -m pytest tests/ -q)   # TUI
-ctest --test-dir fronts/qt/build                # Qt front, with the core's tests
+ctest --test-dir fronts/desktop/build                # Desktop front, with the core's tests
 
 # Conformance suite: drives a real backend over the wire, validates against the schemas
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_yandex
@@ -262,10 +262,10 @@ the user set a number on the source's settings page. To see what more
 connections are worth on a line, time a real file:
 
 ```bash
-cmake --build fronts/qt/build --target cloudmus-download-bench
+cmake --build fronts/desktop/build --target cloudmus-download-bench
 U=https://github.com/cloudmus/cloudmus/releases/download/0.6.3/CloudMus-0.6.3-x86_64.AppImage
-fronts/qt/build/bin/cloudmus-download-bench $U 1 --direct --seconds 30
-fronts/qt/build/bin/cloudmus-download-bench $U 5 --direct --seconds 30
+fronts/desktop/build/bin/cloudmus-download-bench $U 1 --direct --seconds 30
+fronts/desktop/build/bin/cloudmus-download-bench $U 5 --direct --seconds 30
 ```
 
 Without `--direct` it goes through the proxy the app would use
@@ -317,9 +317,9 @@ language). The language follows the system or the Language setting, and
 reaches the backends too (docs/protocol.md §7.8).
 
 - **Qt front**: texts are `tr("…")` in the code; the catalogs are
-  `fronts/qt/translations/cloudmus_<lang>.ts`, compiled into the app by the
+  `fronts/desktop/translations/cloudmus_<lang>.ts`, compiled into the app by the
   build. After adding or changing a text, run
-  `cmake --build fronts/qt/build --target update_translations` and translate
+  `cmake --build fronts/desktop/build --target update_translations` and translate
   the new entries (`linguist`, or edit the `.ts`). Text built once in a
   constructor is fine: a language change replaces the main window; but never
   cache a translated string in a `static`.
@@ -330,7 +330,7 @@ reaches the backends too (docs/protocol.md §7.8).
 | Variable | Effect |
 |---|---|
 | `CLOUDMUS_DEV_BACKENDS=1` | Discover backends from this checkout |
-| `CLOUDMUS_QT_DEBUG=1` | Qt front debug log (`~/.local/state/cloudmus/fronts/qt/debug.log`), same as `--debug` |
+| `CLOUDMUS_QT_DEBUG=1` | Desktop front debug log (`~/.local/state/cloudmus/fronts/qt/debug.log`), same as `--debug` |
 | `CLOUDMUS_UPDATE_CONNECTIONS=N` | Qt front: download an update over N connections at once (1–6) instead of 5 |
 | `CLOUDMUS_HOTKEYS_BACKEND=kglobalaccel\|portal\|x11\|none` | Qt front: use one global-hotkeys mechanism whatever the desktop (to try the portal on KDE, say) |
 | `CLOUDMUS_TUI_DEBUG=1` | TUI debug log, `./cloudmus-tui-debug.log` |

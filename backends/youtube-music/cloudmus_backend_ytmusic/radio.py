@@ -106,7 +106,7 @@ class RadioSession:
         # Told when a background report fails for lack of a network.
         self._connection = connection
         # Fixed for the whole session, echoed in every radio/tracksAdded —
-        # PlaybackController::handleTracksAdded (fronts/qt) silently drops
+        # PlaybackController::handleTracksAdded (fronts/desktop) silently drops
         # a notification whose stationId doesn't match what start()
         # returned, so this must never change once set.
         self.station_id: str | None = None

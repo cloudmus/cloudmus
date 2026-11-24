@@ -27,5 +27,5 @@ runs:
         if [ "$SOURCE_ROOT" = /workspace ]; then sudo ln -sfn "$GITHUB_WORKSPACE" /workspace; fi
         # Without it the upload still succeeds, just with no source in the
         # stacks: fail here instead of finding out from a crash.
-        test -f "$SOURCE_ROOT/fronts/qt/src/main.cpp"
+        test -f "$SOURCE_ROOT/fronts/desktop/src/main.cpp"
         sentry-cli debug-files upload --include-sources dist/symbols

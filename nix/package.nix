@@ -290,7 +290,7 @@ pkgs.stdenv.mkDerivation {
   version = fullVersion;
 
   nativeBuildInputs = [
-    pkgs.cmake # fronts/qt/CMakeLists.txt requires >= 3.21
+    pkgs.cmake # fronts/desktop/CMakeLists.txt requires >= 3.21
     pkgs.ninja
     pkgs.pkg-config # find_package(PkgConfig) for libmpv
     pkgs.qt6.qttools # Qt6::LinguistTools (lupdate/lrelease), a build-time tool
@@ -316,19 +316,19 @@ pkgs.stdenv.mkDerivation {
     pkgs.libxcb # xcb: KWin's X11 blur property + X11 global hotkeys
   ]
   # sentry-native from nixpkgs instead of the FetchContent call in
-  # fronts/qt/CMakeLists.txt: that one downloads the SDK during the build, and
+  # fronts/desktop/CMakeLists.txt: that one downloads the SDK during the build, and
   # a nix build runs without network.
   ++ lib.optional enableSentry pkgs.sentry-native;
 
-  # Read by fronts/qt/CMakeLists.txt when it configures. Empty means "this
+  # Read by fronts/desktop/CMakeLists.txt when it configures. Empty means "this
   # build reports nothing", which is what the disabled switches above are for.
   CLOUDMUS_SENTRY_DSN = lib.optionalString enableSentry sentryDsn;
   CLOUDMUS_GA4_MEASUREMENT_ID = lib.optionalString enableAnalytics analyticsMeasurementId;
 
-  # The CMake project is fronts/qt, there is no CMakeLists at the repo root.
+  # The CMake project is fronts/desktop, there is no CMakeLists at the repo root.
   # The cmake hook configures from a "build" subdirectory, so this is relative
   # to that.
-  cmakeDir = "../fronts/qt";
+  cmakeDir = "../fronts/desktop";
   cmakeBuildType = "Release";
   cmakeFlags = [
     # Beats the hook's own PATH lookup: generate.py needs jinja2+pyyaml.
@@ -366,7 +366,7 @@ pkgs.stdenv.mkDerivation {
   # path, so the xcb/wayland platform plugins are found.
 
   postInstall = ''
-    # fronts/qt/CMakeLists.txt declares no install() rules (upstream's AppImage
+    # fronts/desktop/CMakeLists.txt declares no install() rules (upstream's AppImage
     # copies the binary straight out of the build tree), so the binary and the
     # desktop integration are installed here. The cwd of this phase is the
     # cmake build directory, where the CMakeLists' CMAKE_RUNTIME_OUTPUT_DIRECTORY

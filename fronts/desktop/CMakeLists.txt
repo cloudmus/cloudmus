@@ -307,7 +307,7 @@ target_link_libraries(cloudmus-ui PUBLIC
 # and standard headers every file pulls in, so they are parsed once per
 # library. Only system headers go in — nothing that changes with a commit —
 # so a PCH is the same bytes on every machine and ccache can reuse objects.
-# The core list has no Widgets (see fronts/qt/AGENTS.md).
+# The core list has no Widgets (see fronts/desktop/AGENTS.md).
 option(CLOUDMUS_PCH "Precompile the Qt and standard headers" ON)
 if(CLOUDMUS_PCH)
     set(CLOUDMUS_PCH_CORE
