@@ -199,14 +199,20 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     menuButton->setIconSize(QSize(Theme::Metrics::iconGlyphSize, Theme::Metrics::iconGlyphSize));
     menuButton->setPopupMode(QToolButton::InstantPopup);
     auto* menu = new QMenu(menuButton);
-    menu->addAction(tr("Settings…"), this, [this]() { showSettingsDialog(); });
-    menu->addAction(tr("Check for Updates…"), this, &MainWindow::checkForUpdatesRequested);
+    auto* settingsAction = menu->addAction(tr("Settings…"), this, [this]() { showSettingsDialog(); });
+    auto* updatesAction = menu->addAction(tr("Check for Updates…"), this, &MainWindow::checkForUpdatesRequested);
     auto* aboutAction = menu->addAction(tr("About CloudMus"), this, &MainWindow::showAboutDialog);
-    Theme::followTheme(menu, [aboutAction]() {
-        aboutAction->setIcon(Theme::icon(QStringLiteral("cloudmus"), Theme::IconColor::Ink, 16));
-    });
     menu->addSeparator();
-    menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
+    auto* quitAction = menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
+    Theme::followTheme(menu, [=]() {
+        const auto glyph = [](const char* name) {
+            return Theme::icon(QString::fromLatin1(name), Theme::IconColor::Ink, 16);
+        };
+        settingsAction->setIcon(glyph("tune"));
+        updatesAction->setIcon(glyph("refresh"));
+        aboutAction->setIcon(glyph("cloudmus"));
+        quitAction->setIcon(glyph("logout"));
+    });
     menuButton->setMenu(menu);
     nowPlayingBar_->setTrailingWidget(makeConnectionButton(core.connectionStatus()));
     nowPlayingBar_->setTrailingWidget(menuButton);
