@@ -39,6 +39,21 @@ public final class UiBridge {
         activity.runOnUiThread(() -> Appearance.setOverAura(activity, !over.isEmpty()));
     }
 
+    // "<current> <max>": the music stream's volume, in the system's own steps.
+    public static String volume(Context context) {
+        android.media.AudioManager audio = context.getSystemService(android.media.AudioManager.class);
+        if (audio == null)
+            return "";
+        int stream = android.media.AudioManager.STREAM_MUSIC;
+        return audio.getStreamVolume(stream) + " " + audio.getStreamMaxVolume(stream);
+    }
+
+    public static void setVolume(Context context, int index) {
+        android.media.AudioManager audio = context.getSystemService(android.media.AudioManager.class);
+        if (audio != null)
+            audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, index, 0);
+    }
+
     // "<top> <left> <right> <bottom>" in pixels: what the system's bars cover.
     public static String windowInsets(Context context) {
         return Appearance.insets();

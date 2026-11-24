@@ -36,6 +36,10 @@ class Platform : public QObject {
     // What the on-screen keyboard covers from the bottom of the window, the
     // navigation bar included; 0 with it hidden.
     Q_PROPERTY(int insetKeyboard READ insetKeyboard NOTIFY insetsChanged)
+    // The system's music volume and its top, in the system's own steps (0 and 0
+    // where there's no way to tell).
+    Q_PROPERTY(int systemVolume READ systemVolume NOTIFY systemVolumeChanged)
+    Q_PROPERTY(int systemVolumeMax READ systemVolumeMax NOTIFY systemVolumeChanged)
     // exportSystemApps() under way, and how far: 0..1, -1 while it's still
     // counting what to copy; the package being copied.
     Q_PROPERTY(bool exportingApps READ exportingApps NOTIFY exportProgressChanged)
@@ -59,6 +63,11 @@ public:
     int insetRight() const { return insetRight_; }
     int insetBottom() const { return insetBottom_; }
     int insetKeyboard() const { return insetKeyboard_; }
+    int systemVolume() const { return volume_; }
+    int systemVolumeMax() const { return volumeMax_; }
+    Q_INVOKABLE void setSystemVolume(int index);
+    // Asks the system again: its own keys and knobs change it too.
+    Q_INVOKABLE void readVolume();
     // The theme for what's the system's to draw: the bars, the first frame of a
     // start. `scheme`: "auto", "light" or "dark"; `dark`: what that comes to.
     Q_INVOKABLE void setAppearance(
@@ -114,6 +123,7 @@ public:
 
 signals:
     void insetsChanged();
+    void systemVolumeChanged();
     void exportProgressChanged();
     // What to tell the user: where the zip went, or what went wrong.
     void systemAppsExported(const QString& result);
@@ -133,6 +143,8 @@ private:
     int insetRight_ = 0;
     int insetBottom_ = 0;
     int insetKeyboard_ = 0;
+    int volume_ = 0;
+    int volumeMax_ = 0;
     QThread* exportThread_ = nullptr;
     QTimer* exportPoll_ = nullptr;
     double exportFraction_ = -1;

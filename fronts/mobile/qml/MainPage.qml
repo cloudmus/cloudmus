@@ -281,6 +281,7 @@ Page {
 
             // Not inside: the hero clips, and this goes on up under the status bar.
             AuraBackground {
+                id: heroAura
                 objectName: "heroAura"
                 parent: page
                 z: -0.5
@@ -321,6 +322,12 @@ Page {
                 playlist: page.playlist
                 overAura: true
                 swipeEnabled: page.gesturesEnabled
+                volumeSwipe: page.wide && page.gesturesEnabled
+                platform: page.platform
+                // The level shows over the whole screen and blurs what's under it,
+                // the background and the track's title, position and buttons too.
+                glassLayer: glassLayer
+                glassBehind: [heroAura, hero]
                 swipeSurface: hero
                 neighbors: page.backend.mainScreen
                 playlistTitle: page.playlist && page.playlist.title ? page.playlist.title : ""
@@ -562,6 +569,14 @@ Page {
                 }
             }
         }
+    }
+
+    // Over the page's content, for what's frosted over it (TrackPanel's volume
+    // level), apart from what it blurs.
+    Item {
+        id: glassLayer
+        anchors.fill: parent
+        z: 10
     }
 
     // Where a phone's player (NowPlayingPage, Main.qml) is when it's on this

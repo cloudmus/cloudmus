@@ -225,6 +225,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/Stepper.qml
         qml/Spinner.qml
         qml/TrackSheet.qml
+        qml/AxisSwipe.qml
         qml/TrackTitleBlock.qml
         qml/NowPlayingPage.qml
         qml/PageBar.qml
@@ -260,7 +261,7 @@ qt_add_shaders(cloudmus-mobile-ui "shaders"
 set(_icons smartphone folder album arrow_back check chevron_right close cloud_off content_copy delete expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     cloudmus person radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
-    visibility visibility_off warning logout)
+    visibility visibility_off warning logout volume_down volume_up)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
     set(_file ${CORE_RES}/icons/symbols/${_icon}.svg)

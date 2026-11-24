@@ -26,6 +26,8 @@
 #include <QJniObject>
 #endif
 
+#include <algorithm>
+
 #include "People.h"
 #include "Log.h"
 
@@ -58,6 +60,7 @@ Platform::Platform(QString logDirectory, QObject* parent)
         QTimer::singleShot(0, this, &Platform::runPythonProbe);
     instance = this;
     readInsets();
+    readVolume();
     // After the window has loaded, to see it.
     QTimer::singleShot(0, this, &Platform::takeOpenRequests);
 #endif
@@ -384,6 +387,37 @@ void Platform::setStatusBarOverAura(bool over) const
         QJniObject::fromString(over ? QStringLiteral("yes") : QString()).object<jstring>());
 #else
     Q_UNUSED(over)
+#endif
+}
+
+void Platform::readVolume()
+{
+#ifdef Q_OS_ANDROID
+    const QStringList parts = bridgeString("volume").split(QLatin1Char(' '));
+    if (parts.size() != 2)
+        return;
+    const int volume = parts.at(0).toInt();
+    const int max = parts.at(1).toInt();
+    if (volume == volume_ && max == volumeMax_)
+        return;
+    volume_ = volume;
+    volumeMax_ = max;
+    emit systemVolumeChanged();
+#endif
+}
+
+void Platform::setSystemVolume(int index)
+{
+#ifdef Q_OS_ANDROID
+    index = std::clamp(index, 0, volumeMax_);
+    if (volumeMax_ <= 0 || index == volume_)
+        return;
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setVolume",
+        "(Landroid/content/Context;I)V", QNativeInterface::QAndroidApplication::context().object(), jint(index));
+    // What the system took, not what was asked for.
+    readVolume();
+#else
+    Q_UNUSED(index)
 #endif
 }
 

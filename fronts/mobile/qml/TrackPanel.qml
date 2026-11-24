@@ -22,6 +22,16 @@ Item {
     // Swiping sideways goes to the next or the previous track. Off under what's
     // over the panel.
     property bool swipeEnabled: true
+    // Swiping up or down on the cover sets the system's volume (a head unit,
+    // where the phone's own keys are out of reach).
+    property bool volumeSwipe: false
+    // Platform: the volume it sets.
+    property QtObject platform
+    // Where the volume's level goes, over all it blurs, and what that is, back to
+    // front (none of which may hold the layer). Unset: in the cover, blurring the
+    // pictures only.
+    property Item glassLayer: null
+    property list<Item> glassBehind
     // Where a swipe can begin: all around the panel, as far as what it's in goes,
     // not just on what the panel takes up at the moment.
     property Item swipeSurface: panel
@@ -122,6 +132,8 @@ Item {
                        panel._miniTop)
         width: panel._fold(panel._mix(panel._aboveSide, panel._besideSide), panel._miniCover)
         height: width
+        // Over the title while the volume's level shows in it: it reaches past the cover.
+        z: volumeHud.visible && volumeHud.parent === coverBox ? 10 : 0
         readonly property alias changing: cover.changing
         readonly property alias enteringScale: cover.enteringScale
         readonly property alias shownSource: cover.shownSource
@@ -132,61 +144,206 @@ Item {
         Behavior on breath { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
         scale: panel._fold(breath, 1)
 
-        Cover {
-            id: cover
-            objectName: "trackCoverPicture"
-            width: panel.coverMaxSide > 0 ? panel.coverMaxSide : coverBox.width
-            height: width
-            transformOrigin: Item.TopLeft
-            scale: coverBox.width / width
-            source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
-            seed: panel.seed
-            fallbackIcon: "music_note"
-            // The same on screen at any scale. In the picture itself, without a
-            // GPU, it can't follow.
-            radius: _masked && scale > 0 ? Theme.coverRadius / scale : Theme.coverRadius
-            liveCorners: true
-            // Under a swipe the new one has come in already, as the neighbor.
-            zoomOnChange: !panel._swiping
-            // Going off, smaller, from its center: its own scale is from its corner.
-            readonly property real _going: panel._swipeScale(panel._oldFar)
-            x: panel._swipeX + coverBox.width * (1 - _going) / 2
-            y: coverBox.width * (1 - _going) / 2
-            opacity: Math.max(0, 1 - panel._oldFar / 0.85) * (1 - panel._landed)
-            layer.enabled: panel._swipeLayers
-            layer.textureSize: panel._swipeTexture
-            layer.effect: MultiEffect {
-                autoPaddingEnabled: true
-                blurEnabled: true
-                blurMax: 32
-                blur: Math.min(1, panel._oldFar * 1.3)
+        // The pictures, apart from what's over them: the level's glass looks at this
+        // and at nothing of its own.
+        Item {
+            id: art
+            anchors.fill: parent
+            Cover {
+                id: cover
+                objectName: "trackCoverPicture"
+                width: panel.coverMaxSide > 0 ? panel.coverMaxSide : coverBox.width
+                height: width
+                transformOrigin: Item.TopLeft
+                scale: coverBox.width / width
+                source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
+                seed: panel.seed
+                fallbackIcon: "music_note"
+                // The same on screen at any scale. In the picture itself, without a
+                // GPU, it can't follow.
+                radius: _masked && scale > 0 ? Theme.coverRadius / scale : Theme.coverRadius
+                liveCorners: true
+                // Under a swipe the new one has come in already, as the neighbor.
+                zoomOnChange: !panel._swiping
+                // Going off, smaller, from its center: its own scale is from its corner.
+                readonly property real _going: panel._swipeScale(panel._oldFar)
+                x: panel._swipeX + coverBox.width * (1 - _going) / 2
+                y: coverBox.width * (1 - _going) / 2
+                opacity: Math.max(0, 1 - panel._oldFar / 0.85) * (1 - panel._landed)
+                layer.enabled: panel._swipeLayers
+                layer.textureSize: panel._swipeTexture
+                layer.effect: MultiEffect {
+                    autoPaddingEnabled: true
+                    blurEnabled: true
+                    blurMax: 32
+                    blur: Math.min(1, panel._oldFar * 1.3)
+                }
+                transform: Scale { xScale: cover._going; yScale: cover._going }
             }
-            transform: Scale { xScale: cover._going; yScale: cover._going }
+            // The track a swipe goes to, looking out from the side: only so far while
+            // the finger is on the old one, all the way once that's let go of.
+            Cover {
+                id: neighbor
+                objectName: "trackCoverNeighbor"
+                height: width
+                visible: panel._swipeTo !== 0
+                source: panel._handingOver || panel._landed > 0 ? panel._frozenSource
+                    : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextCoverUrl
+                    : panel._swipeTo < 0 ? panel.neighbors.previousCoverUrl : ""
+                seed: panel._handingOver || panel._landed > 0 ? panel._frozenSeed
+                    : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextSeed
+                    : panel._swipeTo < 0 ? panel.neighbors.previousSeed : ""
+                fallbackIcon: "music_note"
+                x: panel._swipeTo * coverBox.width * 0.85 * (1 - panel._newNear)
+                opacity: Math.min(1, panel._newNear * 1.4)
+                scale: panel._swipeScale(1 - panel._newNear)
+                layer.enabled: panel._swipeLayers
+                layer.textureSize: panel._swipeTexture
+                layer.effect: MultiEffect {
+                    autoPaddingEnabled: true
+                    blurEnabled: true
+                    blurMax: 32
+                    blur: Math.min(1, (1 - panel._newNear) * 1.3)
+                }
+            }
         }
-        // The track a swipe goes to, looking out from the side: only so far while
-        // the finger is on the old one, all the way once that's let go of.
-        Cover {
-            id: neighbor
-            objectName: "trackCoverNeighbor"
-            height: width
-            visible: panel._swipeTo !== 0
-            source: panel._handingOver || panel._landed > 0 ? panel._frozenSource
-                : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextCoverUrl
-                : panel._swipeTo < 0 ? panel.neighbors.previousCoverUrl : ""
-            seed: panel._handingOver || panel._landed > 0 ? panel._frozenSeed
-                : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextSeed
-                : panel._swipeTo < 0 ? panel.neighbors.previousSeed : ""
-            fallbackIcon: "music_note"
-            x: panel._swipeTo * coverBox.width * 0.85 * (1 - panel._newNear)
-            opacity: Math.min(1, panel._newNear * 1.4)
-            scale: panel._swipeScale(1 - panel._newNear)
-            layer.enabled: panel._swipeLayers
-            layer.textureSize: panel._swipeTexture
-            layer.effect: MultiEffect {
-                autoPaddingEnabled: true
-                blurEnabled: true
-                blurMax: 32
-                blur: Math.min(1, (1 - panel._newNear) * 1.3)
+        // The level, over the cover while it's being set and a moment after.
+        Rectangle {
+            id: volumeHud
+            objectName: "volumeHud"
+            // Over everything around it where there's a layer for it (glassLayer):
+            // what it blurs mustn't hold it.
+            parent: panel.glassLayer ? panel.glassLayer : coverBox
+            property bool shown: false
+            function show() { _place(); shown = true; hideTimer.restart() }
+            // Right of the finger, clear of the hand; left of it where the panel's
+            // edge is in the way; level with the cover's middle. Where it went
+            // down, not following it: placed as it shows.
+            readonly property real _gapToFinger: Theme.dp(48)
+            function _place() {
+                const fingerX = trackSwipe.fingerX
+                const right = coverBox.mapToItem(panel, fingerX, 0).x + _gapToFinger + width <= panel.width
+                const at = coverBox.mapToItem(parent, fingerX, coverBox.height / 2)
+                x = right ? at.x + _gapToFinger : at.x - _gapToFinger - width
+                y = at.y - height / 2
+            }
+            z: 3
+            width: Theme.dp(56)
+            // A small cover gets as tall a bar as a large one: it reaches past the cover.
+            height: Math.max(Theme.dp(180), Math.min(coverBox.height * 0.7, Theme.dp(260)))
+            radius: width / 2
+            // Frosted glass as the sheets have it (TrackSheet), but lighter: a small
+            // bar blurred that hard shows one color. What's under it, blurred, with
+            // a thin tint of the surface's color over. Plain without a GPU, where
+            // an effect shows nothing.
+            readonly property bool _glass: GraphicsInfo.api !== GraphicsInfo.Software
+                                           && GraphicsInfo.api !== GraphicsInfo.Unknown
+            color: _glass ? "transparent" : Theme.surface100
+            readonly property real _blurRoom: Theme.dp(40)
+            // What's behind it, back to front: glassBehind, or with none the pictures.
+            readonly property var _behind: panel.glassLayer && panel.glassBehind.length > 0 ? panel.glassBehind : [art]
+            Item {
+                anchors.fill: parent
+                visible: volumeHud._glass
+                layer.enabled: volumeHud._glass
+                layer.effect: MultiEffect {
+                    maskEnabled: true
+                    maskSource: hudShape
+                    maskThresholdMin: 0.5
+                    maskSpreadAtMin: 1
+                }
+                // What's behind it, each layer of it blurred and laid over the
+                // last: live, as the pictures move. With room around it: a blur
+                // reaches past the bar's edges, and with nothing there a bar this
+                // narrow came out one flat color.
+                Repeater {
+                    model: volumeHud._glass && volumeHud.visible ? volumeHud._behind : []
+                    delegate: Item {
+                        id: layerBehind
+                        required property var modelData
+                        x: -volumeHud._blurRoom
+                        y: -volumeHud._blurRoom
+                        width: volumeHud.width + volumeHud._blurRoom * 2
+                        height: volumeHud.height + volumeHud._blurRoom * 2
+                        ShaderEffectSource {
+                            id: snapshot
+                            visible: false
+                            anchors.fill: parent
+                            sourceItem: layerBehind.modelData
+                            live: Theme.dynamicBlur
+                            sourceRect: {
+                                const at = volumeHud.parent.mapToItem(layerBehind.modelData,
+                                    volumeHud.x - volumeHud._blurRoom, volumeHud.y - volumeHud._blurRoom)
+                                return Qt.rect(at.x, at.y, layerBehind.width, layerBehind.height)
+                            }
+                            textureSize: Qt.size(Math.max(1, width * Screen.devicePixelRatio / 2),
+                                                 Math.max(1, height * Screen.devicePixelRatio / 2))
+                        }
+                        MultiEffect {
+                            anchors.fill: parent
+                            source: snapshot
+                            autoPaddingEnabled: false
+                            blurEnabled: true
+                            blur: 1
+                            blurMax: 64
+                            saturation: 0.6
+                        }
+                    }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    color: Theme.surface100
+                    opacity: Theme.dark ? 0.72 : 0.66
+                }
+            }
+            Rectangle {
+                id: hudShape
+                anchors.fill: parent
+                radius: volumeHud.radius
+                visible: false
+                layer.enabled: volumeHud._glass
+            }
+            opacity: shown ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 200 } }
+            Timer {
+                id: hideTimer
+                interval: 800
+                onTriggered: if (!trackSwipe.adjustingVolume) volumeHud.shown = false
+                                  else restart()
+            }
+            Connections {
+                target: trackSwipe
+                function onAdjustingVolumeChanged() { if (!trackSwipe.adjustingVolume) hideTimer.restart() }
+            }
+            Column {
+                anchors.fill: parent
+                anchors.topMargin: Theme.dp(16)
+                anchors.bottomMargin: Theme.dp(16)
+                spacing: Theme.dp(12)
+                IconImage {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    source: "qrc:/icons/" + (panel.platform && panel.platform.systemVolume * 2 < panel.platform.systemVolumeMax ? "volume_down" : "volume_up") + ".svg"
+                    sourceSize.width: Theme.dp(28)
+                    sourceSize.height: Theme.dp(28)
+                    color: Theme.ink
+                }
+                // Fills from the bottom up: up is louder.
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Theme.dp(6)
+                    height: parent.height - Theme.dp(40)
+                    radius: width / 2
+                    color: Theme.surface300
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: panel.platform && panel.platform.systemVolumeMax > 0
+                                ? parent.height * panel.platform.systemVolume / panel.platform.systemVolumeMax : 0
+                        radius: width / 2
+                        color: Theme.accent
+                    }
+                }
             }
         }
     }
@@ -245,37 +402,60 @@ Item {
         _sourceBefore = cover.source
         swipeThrow.restart()
     }
-    DragHandler {
+    // Sideways: the tracks, as above. Up or down, on a head unit's cover: the
+    // volume (louder up; a cover's height of travel, at least a hand's width with
+    // a small one, is the whole range). One way per touch: see AxisSwipe. Up or
+    // down stays out of it where it isn't the volume's, a phone's Now Playing
+    // among them.
+    AxisSwipe {
         id: trackSwipe
         objectName: "trackSwipe"
         parent: panel.swipeSurface
-        enabled: panel.swipeEnabled && !panel._handingOver && panel._landed === 0
-        target: null
-        yAxis.enabled: false
-        property real velocity: 0
-        property double movedAt: 0
-        onActiveTranslationChanged: {
-            if (!active || activeTranslation.x === 0)
+        allowed: panel.swipeEnabled && !panel._handingOver && panel._landed === 0
+        vertical: panel.volumeSwipe
+        accepts: (way, scenePress) => way === Qt.Horizontal
+            || (panel.platform !== null && panel._atRest && panel.collapse <= 0 && !panel._swiping
+                && panel._onCover(scenePress))
+        readonly property bool adjustingVolume: axis === Qt.Vertical
+        property real startVolume: 0
+        // Across the cover where the finger came down.
+        property real fingerX: 0
+        onBegan: (way) => {
+            if (way !== Qt.Vertical)
                 return
-            velocity = centroid.velocity.x
-            movedAt = Date.now()
+            fingerX = coverBox.mapFromItem(null, scenePress.x, scenePress.y).x
+            panel.platform.readVolume()
+            startVolume = panel.platform.systemVolume
+            volumeHud.show()
+        }
+        onMoved: (distance) => {
+            if (axis === Qt.Vertical) {
+                const range = panel.platform.systemVolumeMax
+                if (range > 0)
+                    panel.platform.setSystemVolume(Math.round(startVolume - distance / Math.max(coverBox.height, Theme.dp(240)) * range))
+                return
+            }
+            if (distance === 0)
+                return
             swipeBack.stop()
-            const to = activeTranslation.x < 0 ? 1 : -1
+            const to = distance < 0 ? 1 : -1
             const can = panel._canSwipe(to)
             panel._swipeTo = can ? to : 0
-            panel._swipeX = can ? panel._swipePosition(activeTranslation.x) : activeTranslation.x * 0.15
+            panel._swipeX = can ? panel._swipePosition(distance) : distance * 0.15
         }
-        onActiveChanged: {
-            if (active)
+        onReleased: (thrown) => {
+            if (axis !== Qt.Horizontal)
                 return
-            // A finger that stopped before lifting hasn't thrown anything.
-            const thrown = Date.now() - movedAt < 100 ? velocity : 0
             const thrownThatWay = -thrown * panel._swipeTo > panel._swipeVelocity
             if (panel._swipeTo !== 0 && (panel._oldFar > 0.45 || thrownThatWay))
                 panel._throw()
             else
                 panel._swipeBack()
         }
+    }
+    function _onCover(scenePoint) {
+        const at = coverBox.mapFromItem(null, scenePoint.x, scenePoint.y)
+        return at.x >= 0 && at.x <= coverBox.width && at.y >= 0 && at.y <= coverBox.height
     }
     NumberAnimation {
         id: swipeBack
