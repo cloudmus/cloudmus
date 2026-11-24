@@ -62,10 +62,7 @@ QString socketPath() { return dataDir() + QStringLiteral("/core.sock"); }
 #ifndef Q_OS_ANDROID
 App::MobileCore::Paths corePaths()
 {
-    QString media = qEnvironmentVariable("CLOUDMUS_MOBILE_MEDIA");
-    if (media.isEmpty())
-        media = QStringLiteral(CLOUDMUS_MOBILE_MEDIA_DIR);
-    return { media, dataDir() + QStringLiteral("/core.ini") };
+    return { dataDir() + QStringLiteral("/core.ini") };
 }
 
 // `--core`: the core alone, offered over the socket — what the Android

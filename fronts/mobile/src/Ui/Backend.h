@@ -34,7 +34,6 @@ class Backend : public QObject {
     Q_PROPERTY(QObject* playlist READ playlist NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* tracks READ tracks NOTIFY readyChanged)
     Q_PROPERTY(QObject* settings READ settings NOTIFY readyChanged)
-    // Null in an APK on the dev tracks: they have no sources to choose from.
     Q_PROPERTY(QObject* library READ library NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* sources READ sources NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* favorites READ favorites NOTIFY readyChanged)

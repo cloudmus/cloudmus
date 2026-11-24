@@ -44,9 +44,6 @@ endif()
 # BUILD_TESTING for the core's test support too (core/CMakeLists.txt).
 include(CTest)
 
-set(_shared_core_default ON)
-option(CLOUDMUS_MOBILE_SHARED_CORE "Run App::Core rather than the dev tracks" ${_shared_core_default})
-
 # --- cloudmus-common: the language (I18n::Translator), which both processes
 # run (the views' own, and the core's), the About data and the cover aura.
 # Built on its own: the UI process on Android has none of cloudmus-core.
@@ -73,8 +70,7 @@ if(ANDROID)
 endif()
 set_target_properties(cloudmus-mobile-log PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-# --- The core: App::Core, the desktop front's own, with the real backends. Off,
-# src/DevTracks stands in for it, on Qt Core and Network alone.
+# --- The core: App::Core, the one both fronts share, with the real backends.
 
 add_library(cloudmus-mobile-core STATIC
     src/Remote/Host.cpp
@@ -88,67 +84,41 @@ target_link_libraries(cloudmus-mobile-core PUBLIC
     cloudmus-mobile-log cloudmus-mobile-mpv Qt6::Core Qt6::Network Qt6::RemoteObjects)
 set_target_properties(cloudmus-mobile-core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(CLOUDMUS_MOBILE_SHARED_CORE)
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-    add_library(cloudmus-mpv ALIAS cloudmus-mobile-mpv)
-    add_subdirectory(${CORE_DIR} core)
-    target_sources(cloudmus-mobile-core PRIVATE
-        src/App/MobileCore.cpp
-        src/App/MobileCore.h
-        src/ViewModel/LibraryScreen.cpp
-        src/ViewModel/LibraryScreen.h
-        src/ViewModel/DownloadsScreen.cpp
-        src/ViewModel/DownloadsScreen.h
-        src/ViewModel/ImitatedMusic.cpp
-        src/ViewModel/ImitatedMusic.h
-        src/ViewModel/MainScreen.cpp
-        src/ViewModel/MainScreen.h
-        src/ViewModel/MediaTree.cpp
-        src/ViewModel/MediaTree.h
-        src/ViewModel/PlaylistEntries.cpp
-        src/ViewModel/PlaylistEntries.h
-        src/ViewModel/PlaylistScreen.cpp
-        src/ViewModel/PlaylistScreen.h
-        src/ViewModel/PlaylistScreens.cpp
-        src/ViewModel/PlaylistScreens.h
-        src/ViewModel/PulseScreen.cpp
-        src/ViewModel/PulseScreen.h
-        src/ViewModel/TrackScreen.cpp
-        src/ViewModel/TrackScreen.h
-        src/ViewModel/RowsModel.cpp
-        src/ViewModel/RowsModel.h
-        src/ViewModel/SettingsScreen.cpp
-        src/ViewModel/SettingsScreen.h
-        src/ViewModel/SourceSettingsScreen.cpp
-        src/ViewModel/SourceSettingsScreen.h
-    )
-    target_include_directories(cloudmus-mobile-core PUBLIC src/App)
-    target_link_libraries(cloudmus-mobile-core PUBLIC cloudmus-core)
-    target_compile_definitions(cloudmus-mobile-core PUBLIC CLOUDMUS_MOBILE_SHARED_CORE)
-else()
-    target_sources(cloudmus-mobile-core PRIVATE
-        ${CORE_SRC}/Net/NetworkErrors.cpp
-        ${CORE_SRC}/Net/ParallelDownload.cpp
-        ${CORE_SRC}/Playback/AudioPlayer.cpp
-        ${CORE_SRC}/Playback/LevelFeed.cpp
-        ${CORE_SRC}/Playback/NetworkPool.cpp
-        ${CORE_SRC}/Playback/StreamDownload.cpp
-        ${CORE_SRC}/Playback/StreamRelay.cpp
-        ${CORE_SRC}/Timing/Throttle.cpp
-        src/DevTracks/ActivePlaylist.cpp
-        src/DevTracks/ActivePlaylist.h
-        src/DevTracks/MobileCore.cpp
-        src/DevTracks/MobileCore.h
-        src/DevTracks/NowPlaying.cpp
-        src/DevTracks/NowPlaying.h
-        src/DevTracks/QueuePlayer.cpp
-        src/DevTracks/QueuePlayer.h
-        src/DevTracks/Track.cpp
-        src/DevTracks/Track.h
-    )
-    target_include_directories(cloudmus-mobile-core PUBLIC
-        src/DevTracks ${CORE_SRC}/Net ${CORE_SRC}/Playback ${CORE_SRC}/Timing)
-endif()
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+add_library(cloudmus-mpv ALIAS cloudmus-mobile-mpv)
+add_subdirectory(${CORE_DIR} core)
+target_sources(cloudmus-mobile-core PRIVATE
+    src/App/MobileCore.cpp
+    src/App/MobileCore.h
+    src/ViewModel/LibraryScreen.cpp
+    src/ViewModel/LibraryScreen.h
+    src/ViewModel/DownloadsScreen.cpp
+    src/ViewModel/DownloadsScreen.h
+    src/ViewModel/ImitatedMusic.cpp
+    src/ViewModel/ImitatedMusic.h
+    src/ViewModel/MainScreen.cpp
+    src/ViewModel/MainScreen.h
+    src/ViewModel/MediaTree.cpp
+    src/ViewModel/MediaTree.h
+    src/ViewModel/PlaylistEntries.cpp
+    src/ViewModel/PlaylistEntries.h
+    src/ViewModel/PlaylistScreen.cpp
+    src/ViewModel/PlaylistScreen.h
+    src/ViewModel/PlaylistScreens.cpp
+    src/ViewModel/PlaylistScreens.h
+    src/ViewModel/PulseScreen.cpp
+    src/ViewModel/PulseScreen.h
+    src/ViewModel/TrackScreen.cpp
+    src/ViewModel/TrackScreen.h
+    src/ViewModel/RowsModel.cpp
+    src/ViewModel/RowsModel.h
+    src/ViewModel/SettingsScreen.cpp
+    src/ViewModel/SettingsScreen.h
+    src/ViewModel/SourceSettingsScreen.cpp
+    src/ViewModel/SourceSettingsScreen.h
+)
+target_include_directories(cloudmus-mobile-core PUBLIC src/App)
+target_link_libraries(cloudmus-mobile-core PUBLIC cloudmus-core)
 
 # QR codes for signing in: one source file, no build of its own.
 include(FetchContent)
@@ -204,9 +174,6 @@ target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
     cloudmus-common cloudmus-mobile-i18n cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
 target_compile_definitions(cloudmus-mobile-ui PRIVATE CLOUDMUS_MOBILE_VERSION="${CLOUDMUS_APK_VERSION}")
-if(CLOUDMUS_MOBILE_SHARED_CORE)
-    target_compile_definitions(cloudmus-mobile-ui PUBLIC CLOUDMUS_MOBILE_SHARED_CORE)
-endif()
 if(NOT ANDROID)
     # The desktop runs the core in the app; Android in the service.
     target_link_libraries(cloudmus-mobile-ui PUBLIC cloudmus-mobile-core)
@@ -334,10 +301,7 @@ set(_ts_files)
 foreach(_lang be de es fr it ru)
     list(APPEND _ts_files ${CMAKE_CURRENT_SOURCE_DIR}/translations/cloudmus_${_lang}.ts)
 endforeach()
-set(_tr_targets cloudmus-mobile-ui cloudmus-mobile-core)
-if(CLOUDMUS_MOBILE_SHARED_CORE)
-    list(APPEND _tr_targets cloudmus-core)
-endif()
+set(_tr_targets cloudmus-mobile-ui cloudmus-mobile-core cloudmus-core)
 qt_add_lupdate(TARGET update_translations
     TS_FILES ${_ts_files}
     SOURCE_TARGETS ${_tr_targets}
@@ -349,10 +313,6 @@ qt_add_resources(cloudmus-mobile-ui "i18n" PREFIX "/i18n" BASE ${CMAKE_CURRENT_B
 
 qt_add_executable(cloudmus-mobile src/Ui/main.cpp)
 target_link_libraries(cloudmus-mobile PRIVATE cloudmus-mobile-ui cloudmus-mobile-uiplugin)
-if(NOT ANDROID)
-    target_compile_definitions(cloudmus-mobile PRIVATE
-        CLOUDMUS_MOBILE_MEDIA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/media")
-endif()
 
 # --- Android: the playback service's library and the package.
 if(ANDROID)

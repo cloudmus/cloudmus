@@ -143,7 +143,7 @@ for abi in "${abis[@]}"; do
         -DCMAKE_BUILD_TYPE=Release \
         -DQT_HOST_PATH="$QT_ROOT/gcc_64" \
         -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
-        -DQT_ANDROID_SIGN_APK=ON -DCLOUDMUS_MOBILE_SHARED_CORE=ON \
+        -DQT_ANDROID_SIGN_APK=ON \
         -DCLOUDMUS_MPV_ANDROID_DIR="$mpv_dir" -DCLOUDMUS_LOCAL_ANDROID_BINARY="$native_backend" "${python_args[@]}"
     cmake --build "$build" --target apk
     apk=$(find "$build" -name '*.apk' -path '*release*' | head -1)

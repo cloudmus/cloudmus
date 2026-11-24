@@ -143,7 +143,7 @@ private slots:
     void replicasFollowTheCore()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         QVERIFY(host.listening());
         Ui::Backend backend(dir.filePath("core.sock"));
@@ -179,7 +179,7 @@ private slots:
     void libraryThroughAReplica()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         Ui::Backend backend(dir.filePath("core.sock"));
         QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
@@ -223,7 +223,7 @@ private slots:
     void mediaBrowsersListThePlaylists()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         ViewModel::MediaTree& tree = core.mediaTree();
         QSignalSpy changed(&tree, &ViewModel::MediaTree::changed);
         QTRY_COMPARE_WITH_TIMEOUT(tree.children(QStringLiteral("source/fake")).size(), 2, 10000);
@@ -298,7 +298,7 @@ private slots:
     void aPickInAMediaBrowserWaitsForItsSource()
     {
         QTemporaryDir dir;
-        const App::MobileCore::Paths paths { QString(), dir.filePath("core.ini"), 500, 0 };
+        const App::MobileCore::Paths paths { dir.filePath("core.ini"), 500, 0 };
         {
             App::MobileCore core(paths);
             QTRY_VERIFY_WITH_TIMEOUT(!core.mediaTree().children(QStringLiteral("root")).isEmpty(), 10000);
@@ -318,7 +318,7 @@ private slots:
     {
         qputenv("CLOUDMUS_FAKE_SETTINGS", "1");
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         // The config file outlives a test.
         core.core().settings().setProxies({ });
         core.core().settings().setSourceConnection(QStringLiteral("fake"), QLatin1String(Config::Settings::kSystemConnection));
@@ -435,7 +435,7 @@ private slots:
         };
         forget();
         const auto guard = qScopeGuard(forget);
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         QQmlEngine engine;
         Ui::Localizer localizer(backend, engine);
@@ -465,7 +465,7 @@ private slots:
     {
         qputenv("CLOUDMUS_FAKE_SETTINGS", "1");
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         core.core().settings().setProxies({ }); // the config file outlives a test
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
@@ -590,7 +590,7 @@ private slots:
     void nowPlayingFollowsTheFinger()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -936,7 +936,7 @@ private slots:
     void aSwipeWorksAllOverTheHeadUnitsPanel()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -1001,7 +1001,7 @@ private slots:
         QSettings().setValue(QStringLiteral("ui/screenExpanded"), true);
         {
             QTemporaryDir dir;
-            App::MobileCore core({ QString(), dir.filePath("core.ini") });
+            App::MobileCore core({ dir.filePath("core.ini") });
             Ui::Backend backend(core);
             Ui::Platform platform(dir.path());
             playFake(core);
@@ -1103,7 +1103,7 @@ private slots:
     {
         QSettings().remove(QStringLiteral("ui/screenExpanded"));
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -1358,7 +1358,7 @@ private slots:
     void miniPlayerInTheLightTheme()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -1417,7 +1417,7 @@ private slots:
     void miniPlayerOverEveryPage()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -1988,7 +1988,7 @@ private slots:
     void likesReachTheRows()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         Ui::Backend backend(dir.filePath("core.sock"));
         QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
@@ -2018,7 +2018,7 @@ private slots:
     void playlistAndTrackScreens()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         Ui::Backend backend(dir.filePath("core.sock"));
         QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
@@ -2109,7 +2109,7 @@ private slots:
     void messagesAndDownloads()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         Ui::Backend backend(dir.filePath("core.sock"));
         QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
@@ -2214,7 +2214,7 @@ private slots:
     void mainFilterAndPlayModes()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         Ui::Backend backend(dir.filePath("core.sock"));
         QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
@@ -2336,7 +2336,7 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(model.rowCount(), 4, 3000);
     }
 
-    // The pages come up and switch over the real core and the dev tracks;
+    // The pages come up and switch over the real core;
     // CLOUDMUS_MOBILE_SHOTS=<dir> also saves each, at a phone's and a head
     // unit's size, to look at.
     // A phone turned on its side and back, with a track playing, the way the
@@ -2344,7 +2344,7 @@ private slots:
     void turningThePhoneKeepsTheScreenAlive()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -2379,7 +2379,7 @@ private slots:
     void aCoverAfterTurningIsSharp()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -2428,7 +2428,7 @@ private slots:
         const QString settings = dir.filePath("core.ini");
         QSettings(settings, QSettings::IniFormat).setValue(QStringLiteral("unstartedSources"), QStringList { fake });
         {
-            App::MobileCore core({ QString(), settings });
+            App::MobileCore core({ settings });
             QTest::qWait(300);
             QVERIFY(core.core().sourceManager().client(fake) == nullptr);
             QTRY_VERIFY(core.library().sourceRows().rowCount() >= 1);
@@ -2445,7 +2445,7 @@ private slots:
                     .value(QStringLiteral("unstartedSources")).toStringList().contains(fake));
         }
         {
-            App::MobileCore core({ QString(), settings });
+            App::MobileCore core({ settings });
             QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr, 10000);
         }
         qunsetenv("CLOUDMUS_FAKE_AUTH");
@@ -2455,7 +2455,7 @@ private slots:
     void backendsStartAfterTheirAnnouncement()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini"), 300, 0 });
+        App::MobileCore core({ dir.filePath("core.ini"), 300, 0 });
         const QString fake = QStringLiteral("fake");
         QVERIFY(core.core().sourceManager().client(fake) == nullptr);
         QTRY_VERIFY(core.library().sourceRows().rowCount() >= 1);
@@ -2477,7 +2477,7 @@ private slots:
     {
         QFETCH(QSize, size);
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -2541,7 +2541,7 @@ private slots:
     void offlineIsShownNotComplainedAbout()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         QQmlApplicationEngine engine;
@@ -2576,7 +2576,7 @@ private slots:
     void aLowPanelPutsTheCoverBesideTheTitle()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);
@@ -2642,7 +2642,7 @@ private slots:
     {
         qputenv("CLOUDMUS_FAKE_AUTH", "1");
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         const QString fake = QStringLiteral("fake");
@@ -2782,7 +2782,7 @@ private slots:
         qputenv("CLOUDMUS_FAKE_SUBFOLDER", "1");
         const auto unset = qScopeGuard([] { qunsetenv("CLOUDMUS_FAKE_SUBFOLDER"); });
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         Ui::Backend backend(dir.filePath("core.sock"));
         Ui::Platform platform(dir.path());
@@ -2846,7 +2846,7 @@ private slots:
         qputenv("CLOUDMUS_FAKE_SUBFOLDER", "many");
         const auto unset = qScopeGuard([] { qunsetenv("CLOUDMUS_FAKE_SUBFOLDER"); });
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         Ui::Backend backend(dir.filePath("core.sock"));
         Ui::Platform platform(dir.path());
@@ -2970,7 +2970,7 @@ private slots:
     void pulseThroughAReplica()
     {
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Remote::Host host(core, dir.filePath("core.sock"));
         Ui::Backend backend(dir.filePath("core.sock"));
         QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
@@ -3015,7 +3015,7 @@ private slots:
     {
         QFETCH(QSize, size);
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
 
@@ -3180,7 +3180,7 @@ private slots:
     {
         QFETCH(QSize, size);
         QTemporaryDir dir;
-        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
         Ui::Platform platform(dir.path());
         playFake(core);

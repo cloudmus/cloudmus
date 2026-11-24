@@ -135,7 +135,7 @@ Page {
     readonly property real _coversWidth: Theme.dp(52) + Theme.dp(10) * 2
     readonly property real _listFullWidth: width * 0.5
 
-    // The list's filter. Not on the dev tracks.
+    // The list's filter.
     property bool filterOpen: false
     onFilterOpenChanged: {
         if (filterOpen) {

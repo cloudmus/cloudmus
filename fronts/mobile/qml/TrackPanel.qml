@@ -498,7 +498,7 @@ Item {
                         restoreMode: Binding.RestoreNone
                     }
                 }
-                // What a queue does: not on the dev tracks, which don't have them.
+                // What a queue does.
                 // Only their room is here; the buttons are the panel's own (below),
                 // each going between this slot and the mini player's.
                 RowLayout {

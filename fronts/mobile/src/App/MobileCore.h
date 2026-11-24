@@ -27,7 +27,6 @@ class MobileCore : public QObject {
 
 public:
     struct Paths {
-        QString media; // not used here: see src/DevTracks
         QString settingsFile;
         // See Rpc::SourceManager::setSpawnDelay() and
         // ViewModel::ActivePlaylist::setRefreshDelay(): for the phone and the

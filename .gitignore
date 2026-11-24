@@ -39,8 +39,6 @@ packaging/macos/.cache/
 /result
 /result-*
 
-# fronts/mobile/tools/fetch-dev-tracks.sh: dev tracks for the mobile MVP
-fronts/mobile/media/
 build-android/
 
 backends/local-folder/target/

@@ -28,7 +28,6 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , nowPlaying_(&core.nowPlaying())
     , playlist_(&core.activePlaylist())
     , settings_(&core.settings())
-#ifdef CLOUDMUS_MOBILE_SHARED_CORE
     , library_(&core.library())
     , mainScreen_(&core.mainScreen())
     , downloadsScreen_(&core.downloadsScreen())
@@ -38,9 +37,7 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , settingsScreen_(&core.settingsScreen())
     , sourceSettings_(&core.sourceSettingsScreen())
     , pulse_(&core.pulseScreen())
-#endif
     , tracks_(&core.tracks())
-#ifdef CLOUDMUS_MOBILE_SHARED_CORE
     , sources_(&core.library().sourceRows())
     , favorites_(&core.library().favoriteRows())
     , otherPlaylists_(&core.library().otherRows())
@@ -53,12 +50,9 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , settingsProxies_(&core.settingsScreen().proxyRows())
     , sourceConnections_(&core.sourceSettingsScreen().connectionRows())
     , sourceFields_(&core.sourceSettingsScreen().fieldRows())
-#endif
     , ready_(true)
 {
-#ifdef CLOUDMUS_MOBILE_SHARED_CORE
     core_ = &core;
-#endif
 }
 #endif
 
@@ -76,7 +70,6 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquire(settings_, Remote::Names::settings);
 
     acquireModel(tracks_, Remote::Names::tracks);
-#ifdef CLOUDMUS_MOBILE_SHARED_CORE
     acquire(library_, Remote::Names::library);
     acquireModel(sources_, Remote::Names::sources);
     acquireModel(favorites_, Remote::Names::favorites);
@@ -98,7 +91,6 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquireModel(sourceConnections_, Remote::Names::sourceConnections);
     acquireModel(sourceFields_, Remote::Names::sourceFields);
     acquire(pulse_, Remote::Names::pulse);
-#endif
 
     // The core may be slow to come up, or gone (its process killed while
     // the screen was off): ask for it again until it answers.
@@ -184,7 +176,6 @@ Backend::Level* Backend::level(int depth)
     if (auto it = levels_.find(depth); it != levels_.end())
         return &it.value();
     Level& level = levels_[depth];
-#ifdef CLOUDMUS_MOBILE_SHARED_CORE
 #ifndef Q_OS_ANDROID
     if (core_ != nullptr) {
         ViewModel::PlaylistScreen& screen = core_->playlistScreens().at(depth);
@@ -196,7 +187,6 @@ Backend::Level* Backend::level(int depth)
         level.modelsInitialized = 3;
         return &level;
     }
-#endif
 #endif
     if (!node_)
         return &level;
