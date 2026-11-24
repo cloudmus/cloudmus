@@ -16,6 +16,8 @@ Page {
     signal closeRequested()
     signal logRequested()
     signal stopRequested()
+    // Main.qml checks with the update server set here.
+    signal checkForUpdatesRequested()
 
     background: Rectangle { color: Theme.surface0 }
 
@@ -64,6 +66,70 @@ Page {
                     onClicked: exportResult.text = page.platform.exportLogs()
                 }
             }
+                }
+            }
+
+            // Trying an update with no release: one device offers an APK
+            // ("Serve updates"), the other takes it from there ("Update
+            // server": the address the first shows). docs/android.md, "Updates".
+            SettingsGroup {
+                shown: page.platform.android
+                title: qsTr("Updates")
+                SettingsCell {
+                    SettingText {
+                        title: qsTr("Update server")
+                        description: qsTr("Another device's address from “Serve updates” below, to take the update from it instead of GitHub. Empty: GitHub.")
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.spacing
+                        InputField {
+                            id: updateServerField
+                            objectName: "updateServer"
+                            text: page.backend.settings ? page.backend.settings.updateServer : ""
+                            placeholderText: "192.168.43.1:8765"
+                            inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase | Qt.ImhUrlCharactersOnly
+                            onEditingFinished: if (page.backend.settings) page.backend.settings.setUpdateServer(text)
+                        }
+                        TextButton {
+                            text: qsTr("Check")
+                            onClicked: {
+                                if (page.backend.settings)
+                                    page.backend.settings.setUpdateServer(updateServerField.text)
+                                // After the core has the address.
+                                checkLater.restart()
+                            }
+                            Timer {
+                                id: checkLater
+                                interval: 300
+                                onTriggered: page.checkForUpdatesRequested()
+                            }
+                        }
+                    }
+                }
+                SettingSwitch {
+                    objectName: "serveUpdates"
+                    title: qsTr("Serve updates")
+                    description: qsTr("Offers an APK to the devices on this network as a newer version: the one chosen, or this app's own.")
+                    checked: page.platform.updateServerStatus !== ""
+                    onToggled: (checked) => checked ? page.platform.startUpdateServer() : page.platform.stopUpdateServer()
+                }
+                SettingsCell {
+                    id: servedCell
+                    visible: page.platform.updateServerStatus !== ""
+                    readonly property var lines: page.platform.updateServerStatus.split("\n")
+                    SettingText {
+                        title: qsTr("Address for the other device")
+                        description: servedCell.lines.slice(0, -1).join("\n")
+                    }
+                    SettingText {
+                        title: qsTr("Offered")
+                        description: servedCell.lines[servedCell.lines.length - 1]
+                    }
+                    TextButton {
+                        text: qsTr("Choose APK…")
+                        onClicked: page.platform.chooseServedApk()
+                    }
                 }
             }
 

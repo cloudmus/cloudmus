@@ -9,6 +9,7 @@ const QString kAudioOutputKey = QStringLiteral("playback/audioOutput");
 const QString kOutputChunkKey = QStringLiteral("playback/outputChunkFrames");
 const QString kFadeKey = QStringLiteral("playback/fadeMs");
 const QString kFadeSettleKey = QStringLiteral("playback/fadeSettleMs");
+const QString kUpdateServerKey = QStringLiteral("developer/updateServer");
 // Off by default: the fade goes through mpv's volume, which steps once per
 // output chunk, and on a phone each step was heard as a tick of its own —
 // more clicks than the plain cut it was to soften. Kept as an experiment in
@@ -112,6 +113,18 @@ void PlatformSettings::setFadeSettleMs(int ms)
 {
     if (store(kFadeSettleKey, qMax(0, ms), fadeSettleMs()))
         emit fadeSettleMsChanged();
+}
+
+} // namespace ViewModel
+
+namespace ViewModel {
+
+QString PlatformSettings::updateServer() const { return store_.value(kUpdateServerKey).toString(); }
+
+void PlatformSettings::setUpdateServer(const QString& server)
+{
+    if (store(kUpdateServerKey, server.trimmed(), updateServer()))
+        emit updateServerChanged();
 }
 
 } // namespace ViewModel

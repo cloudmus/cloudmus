@@ -262,14 +262,22 @@ environment):
   release page. The libraries add about 0.5 MB to the APK (1.2 MB of code
   once installed), Kotlin's own the most of it.
 
-To try an update by hand: build an APK that reports an older version, serve a
-releases JSON (GitHub's format, the asset's `browser_download_url` pointing at
-a newer APK signed with the same key), and put its URL in
-`Android/data/app.cloudmus.mobile/files/update-feed.txt` (a second line: the
-version to pretend to be), then restart the app (`CoreBridge.useTestUpdateFeed`).
-For the store build, `adb install -i com.android.vending` (or `ru.vk.store`)
-sets who installed it; the stores' flows themselves only work on an install
-from them (Play's internal testing track or internal app sharing).
+To try an update with no release, from one device to another (a phone to a
+head unit, on the same Wi-Fi or the phone's hotspot): both have builds signed
+with the one key (CI's artifacts are). On the phone, Settings → Developer
+tools → **Serve updates** (`UpdateServer.java`): it offers this app's own APK,
+or one picked with **Choose APK…**, as a release one patch above its version,
+and shows its address. On the head unit, Developer tools → **Update server**:
+that address, then **Check**. A build between tags checks at start too while
+the server is set; clear the field to go back to GitHub. Android refuses an
+APK with a lower versionCode than the installed one.
+
+Without a second device, `Android/data/app.cloudmus.mobile/files/update-feed.txt`
+holds a feed's URL and, on a second line, the version to pretend to be
+(`CoreBridge.useTestUpdateFeed`; it wins over the setting). For the store
+build, `adb install -i com.android.vending` (or `ru.vk.store`) sets who
+installed it; the stores' flows themselves only work on an install from them
+(Play's internal testing track or internal app sharing).
 
 ## Android Auto
 

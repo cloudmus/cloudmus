@@ -52,6 +52,10 @@ class Platform : public QObject {
     // store build); "page" — the user, from the release page (the store
     // build from elsewhere, or not Android).
     Q_PROPERTY(QString updateChannel READ updateChannel CONSTANT)
+    // Developer tools' "Serve updates" (UpdateServer.java): empty while off;
+    // else the addresses to give the other device, a line each, and the
+    // version offered on the last line.
+    Q_PROPERTY(QString updateServerStatus READ updateServerStatus NOTIFY updateServerChanged)
     // A store's update under way (startStoreUpdate()): 0..1, -1 not known.
     Q_PROPERTY(double storeUpdateProgress READ storeUpdateProgress NOTIFY storeUpdateChanged)
 
@@ -134,6 +138,12 @@ public:
     // The store's update flow; how it goes in storeUpdateProgress and
     // storeUpdateEnded().
     Q_INVOKABLE void startStoreUpdate();
+    QString updateServerStatus() const { return updateServerStatus_; }
+    Q_INVOKABLE void startUpdateServer();
+    Q_INVOKABLE void stopUpdateServer();
+    // The APK to offer, from the system's file picker; this app's own until one is.
+    Q_INVOKABLE void chooseServedApk() const;
+    void readUpdateServer();
     // From Android's thread.
     void takeInstallOutcome(bool cancelled, int installerStatus, const QString& message);
     void takeStoreState(int state, qint64 done, qint64 total, const QString& error);
@@ -176,6 +186,7 @@ signals:
     // or what went wrong.
     void storeUpdateChecked(int versionCode, const QString& error, bool manual);
     void storeUpdateChanged();
+    void updateServerChanged();
     // The store's flow is over without the app restarting: left
     // (`cancelled`) or failed.
     void storeUpdateEnded(bool cancelled, const QString& error);
@@ -196,6 +207,7 @@ private:
     double exportFraction_ = -1;
     QString exportStatus_;
     double storeUpdateProgress_ = -1;
+    QString updateServerStatus_;
 };
 
 } // namespace Ui

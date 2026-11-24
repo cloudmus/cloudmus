@@ -133,6 +133,8 @@ public class MainActivity extends QtActivity {
         super.onActivityResult(code, result, data);
         if (code == DELETE_REQUEST)
             startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
+        if (code == UpdateServer.CHOOSE_REQUEST && result == RESULT_OK && data != null && data.getData() != null)
+            UpdateServer.chosen(this, data.getData());
     }
 
     void requestMusicPermission() {

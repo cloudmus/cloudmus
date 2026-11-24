@@ -585,6 +585,7 @@ ApplicationWindow {
             onCloseRequested: stack.close()
             onLogRequested: stack.open(logPage)
             onStopRequested: window.stopAndQuit()
+            onCheckForUpdatesRequested: window.checkForUpdates(true)
         }
     }
     Component {

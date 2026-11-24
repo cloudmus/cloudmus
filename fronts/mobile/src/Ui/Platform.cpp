@@ -547,6 +547,45 @@ void Platform::startStoreUpdate()
 #endif
 }
 
+void Platform::startUpdateServer()
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UpdateServer", "start", "(Landroid/content/Context;)V",
+        QNativeInterface::QAndroidApplication::context());
+#endif
+    readUpdateServer();
+}
+
+void Platform::stopUpdateServer()
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UpdateServer", "stop", "(Landroid/content/Context;)V",
+        QNativeInterface::QAndroidApplication::context());
+#endif
+    readUpdateServer();
+}
+
+void Platform::chooseServedApk() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UpdateServer", "choose", "(Landroid/content/Context;)V",
+        QNativeInterface::QAndroidApplication::context());
+#endif
+}
+
+void Platform::readUpdateServer()
+{
+#ifdef Q_OS_ANDROID
+    const QString status = QJniObject::callStaticMethod<jstring>("app/cloudmus/mobile/UpdateServer", "status",
+        "(Landroid/content/Context;)Ljava/lang/String;", QNativeInterface::QAndroidApplication::context())
+                               .toString();
+    if (status == updateServerStatus_)
+        return;
+    updateServerStatus_ = status;
+    emit updateServerChanged();
+#endif
+}
+
 void Platform::takeInstallOutcome(bool cancelled, int installerStatus, const QString& message)
 {
     if (cancelled) {
@@ -682,5 +721,11 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_StoreUpdates_nativeSt
             platform->takeStoreState(state, done, total, text);
         },
         Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UpdateServer_nativeChanged(JNIEnv*, jclass)
+{
+    if (Ui::Platform* platform = Ui::instance.load())
+        QMetaObject::invokeMethod(platform, &Ui::Platform::readUpdateServer, Qt::QueuedConnection);
 }
 #endif

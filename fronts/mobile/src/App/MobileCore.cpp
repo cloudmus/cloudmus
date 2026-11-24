@@ -50,12 +50,27 @@ void MobileCore::setUpUpdates(const QString& updatesDir)
     // with a feed of one's own (on Android, PlaybackService sets them from
     // update-feed.txt in the app's external files).
     const QString from = qEnvironmentVariable("CLOUDMUS_UPDATE_FROM");
-    const QUrl feed(qEnvironmentVariable("CLOUDMUS_UPDATE_FEED"));
+    const QUrl testFeed(qEnvironmentVariable("CLOUDMUS_UPDATE_FEED"));
     const QString version = from.isEmpty() ? QStringLiteral(CLOUDMUS_MOBILE_VERSION) : from;
-    if (feed.isValid() && !feed.isEmpty())
-        updates_.configure(version, feed);
-    else
-        updates_.configure(version);
+    // Developer tools' update server, if any (PlatformSettings::updateServer).
+    auto configure = [this, version, testFeed] {
+        QUrl feed = testFeed;
+        const QString server = settings_.updateServer();
+        if (feed.isEmpty() && !server.isEmpty()) {
+            feed = QUrl::fromUserInput(server.contains(QLatin1String("://")) ? server
+                                                                             : QStringLiteral("http://") + server);
+            if (!feed.path().endsWith(QLatin1String(".json")))
+                feed.setPath(QStringLiteral("/releases.json"));
+        }
+        if (feed.isValid() && !feed.isEmpty())
+            updates_.configure(version, feed);
+        else
+            updates_.configure(version);
+        // A test of an update is with builds between tags: checked at start too.
+        updateScreen_.setCheckDevBuilds(!feed.isEmpty());
+    };
+    configure();
+    connect(&settings_, &ViewModel::PlatformSettings::updateServerChanged, this, configure);
     if (updatesDir.isEmpty()) {
         updateScreen_.setInstallUnavailable(QString());
         return;

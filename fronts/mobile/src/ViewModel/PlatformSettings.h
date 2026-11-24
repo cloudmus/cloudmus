@@ -26,6 +26,10 @@ class PlatformSettings : public QObject {
     Q_PROPERTY(int outputChunkFrames READ outputChunkFrames WRITE setOutputChunkFrames NOTIFY outputChunkFramesChanged)
     Q_PROPERTY(int fadeMs READ fadeMs WRITE setFadeMs NOTIFY fadeMsChanged)
     Q_PROPERTY(int fadeSettleMs READ fadeSettleMs WRITE setFadeSettleMs NOTIFY fadeSettleMsChanged)
+    // Developer tools: where to look for an update instead of GitHub's
+    // releases — another device's "Serve updates" ("192.168.1.5:8765"), or
+    // a releases feed's URL. Empty: GitHub.
+    Q_PROPERTY(QString updateServer READ updateServer WRITE setUpdateServer NOTIFY updateServerChanged)
 
 public:
     explicit PlatformSettings(QSettings& store, QObject* parent = nullptr);
@@ -36,6 +40,7 @@ public:
     int outputChunkFrames() const;
     int fadeMs() const;
     int fadeSettleMs() const;
+    QString updateServer() const;
 
     // Called with each new autoplay value: Android mirrors it where the boot
     // receiver reads it without starting the core.
@@ -54,6 +59,7 @@ public slots:
     void setOutputChunkFrames(int frames);
     void setFadeMs(int ms);
     void setFadeSettleMs(int ms);
+    void setUpdateServer(const QString& server);
 
 signals:
     void autoplayChanged();
@@ -62,6 +68,7 @@ signals:
     void outputChunkFramesChanged();
     void fadeMsChanged();
     void fadeSettleMsChanged();
+    void updateServerChanged();
 
 private:
     int intValue(const QString& key, int fallback) const;
