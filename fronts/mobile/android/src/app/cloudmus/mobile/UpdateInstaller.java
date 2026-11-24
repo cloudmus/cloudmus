@@ -30,8 +30,11 @@ import java.io.OutputStream;
 public final class UpdateInstaller {
     private static final String TAG = "UpdateInstaller";
     private static final String PREFERENCES = "updates";
-    // An update the app started: the new version opens again.
+    // An update the app started: the new version opens again. When: one the
+    // installer never finished doesn't open the app at some later update.
     private static final String KEY_RELAUNCH = "relaunch";
+    private static final String KEY_RELAUNCH_AT = "relaunchAt";
+    private static final long RELAUNCH_WITHIN_MS = 30 * 60 * 1000;
     // The music played then: it goes on.
     private static final String KEY_RESUME = "resume";
     // The notification's texts, in the app's language: the new version
@@ -132,7 +135,8 @@ public final class UpdateInstaller {
                     out.write(buffer, 0, read);
                 session.fsync(out);
             }
-            preferences(context).edit().putBoolean(KEY_RELAUNCH, true).putBoolean(KEY_RESUME, resume).commit();
+            preferences(context).edit().putBoolean(KEY_RELAUNCH, true).putLong(KEY_RELAUNCH_AT, System.currentTimeMillis())
+                .putBoolean(KEY_RESUME, resume).commit();
             Intent status = new Intent(context, StatusReceiver.class);
             int flags = PendingIntent.FLAG_UPDATE_CURRENT
                 | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
@@ -184,8 +188,11 @@ public final class UpdateInstaller {
     // notification to tap instead.
     static void relaunchAfterUpdate(Context context) {
         SharedPreferences preferences = preferences(context);
-        if (!preferences.getBoolean(KEY_RELAUNCH, false))
+        long age = System.currentTimeMillis() - preferences.getLong(KEY_RELAUNCH_AT, 0);
+        if (!preferences.getBoolean(KEY_RELAUNCH, false) || age < 0 || age > RELAUNCH_WITHIN_MS) {
+            forgetRelaunch(context);
             return;
+        }
         boolean resume = preferences.getBoolean(KEY_RESUME, false);
         String channel = preferences.getString(KEY_CHANNEL, "Updates");
         String title = preferences.getString(KEY_TITLE, "CloudMus is updated");
@@ -246,7 +253,7 @@ public final class UpdateInstaller {
     }
 
     private static void forgetRelaunch(Context context) {
-        preferences(context).edit().remove(KEY_RELAUNCH).remove(KEY_RESUME).commit();
+        preferences(context).edit().remove(KEY_RELAUNCH).remove(KEY_RELAUNCH_AT).remove(KEY_RESUME).commit();
     }
 
     private static SharedPreferences preferences(Context context) {

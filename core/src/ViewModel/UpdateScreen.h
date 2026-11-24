@@ -78,6 +78,9 @@ public:
     explicit UpdateScreen(Update::UpdateChecker& checker, QObject* parent = nullptr);
     ~UpdateScreen() override;
 
+    // checkAutomatically() for a build between releases too: one trying an
+    // update from a feed of its own.
+    void setCheckDevBuilds(bool check) { checkDevBuilds_ = check; }
     // Where a release's file is downloaded to (Via::Here).
     void setDownloadPath(std::function<QString(const Update::Release&)> path) { downloadPath_ = std::move(path); }
 
@@ -179,6 +182,7 @@ private:
     // offerStoreVersion() waits for the feed's notes.
     std::optional<Update::Version> storeVersion_;
     bool storeManual_ = false;
+    bool checkDevBuilds_ = false;
     Step step_ = None;
     Via via_ = Here;
     Via defaultVia_ = Here;

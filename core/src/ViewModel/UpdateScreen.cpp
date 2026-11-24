@@ -111,7 +111,7 @@ void UpdateScreen::check()
 
 void UpdateScreen::checkAutomatically()
 {
-    if (checker_.isDevBuild()) {
+    if (checker_.isDevBuild() && !checkDevBuilds_) {
         qCDebug(lcUpdate) << "a build between releases: not checked at startup";
         return;
     }
@@ -274,8 +274,14 @@ void UpdateScreen::reopen()
 
 void UpdateScreen::close()
 {
-    if (step_ == Installing && via_ == Here)
-        return; // the platform has the file
+    if (step_ == Installing) {
+        // The installer has the file (and may still answer); if it never
+        // does, this is the way out. A file it left is cleared at the next
+        // start (the mobile front) or replaced by the next download.
+        installingFile_.clear();
+        setStep(None);
+        return;
+    }
     discardDownload();
     setStep(None);
 }
