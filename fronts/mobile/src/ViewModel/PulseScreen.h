@@ -19,7 +19,8 @@ class LogoSound;
 // the same way.
 class PulseScreen : public QObject {
     Q_OBJECT
-    // 0..1, smooth; 0 while nothing plays or nobody watches.
+    // 0..1, smooth; 0 while nothing plays or nobody watches, and while the
+    // logo's sound plays (its own are logoLevel and logoHit then; beat stops too).
     Q_PROPERTY(float level READ level NOTIFY levelChanged)
     Q_PROPERTY(bool watching READ watching NOTIFY watchingChanged)
     // How loud the logo's sound is, 0..1; 0 while it doesn't play.

@@ -34,6 +34,10 @@ Item {
     readonly property real _rushBoost: 5.0 // extra speed, in multiples of the drift, at a full beat
     readonly property real _rushFallMs: 400
     readonly property real _flashFallMs: 300
+    // The logo's last strike, its strongest: the handpan rings on for seconds,
+    // and the flash dies away with it.
+    readonly property real _lastStrikeFallMs: 1800
+    property real _flashFall: _flashFallMs
     readonly property real _maxOpacity: 0.055 // "barely visible"
     readonly property real _levelOpacity: 0.7 // how much loudness adds on top
     readonly property real _levelSwell: 0.12
@@ -80,11 +84,14 @@ Item {
         function onBeat(strength) {
             backdrop._rush = Math.max(backdrop._rush, strength)
             backdrop._flash = Math.max(backdrop._flash, strength)
+            backdrop._flashFall = backdrop._flashFallMs
         }
         // The logo's own sound: its strikes send the clouds harder than a beat.
         function onLogoHit(strength) {
             backdrop._rush = Math.max(backdrop._rush, strength * 1.6)
             backdrop._flash = Math.max(backdrop._flash, strength * 1.4)
+            // The strongest is the last (LogoSound's table).
+            backdrop._flashFall = strength >= 1 ? backdrop._lastStrikeFallMs : backdrop._flashFallMs
         }
     }
 
@@ -94,7 +101,7 @@ Item {
         const dtMs = dt * 1000
         _time += dt
         _rush *= Math.exp(-dtMs / _rushFallMs)
-        _flash *= Math.exp(-dtMs / _flashFallMs)
+        _flash *= Math.exp(-dtMs / _flashFall)
 
         const speed = _driftPerSecond * (1 + _rushBoost * _rush)
         for (const cloud of _clouds) {
