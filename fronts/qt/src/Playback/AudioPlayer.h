@@ -79,6 +79,9 @@ public:
     void stop();
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
+    // Turns the music down (under a sound of the app's own, the logo's) and
+    // back up, on top of the volume the user set.
+    void setDucked(bool ducked);
 
     // Soft edges: a pause, a stop, a seek or a track changed by hand first
     // takes the sound down over `fadeMs` and waits `settleMs` more for that
@@ -147,6 +150,18 @@ private:
     void onFadeTick();
     void runQueued();
     void applyLevel(double level);
+    void applyVolume();
+    int volume_ = 100;
+    bool ducked_ = false;
+    // The duck's own ramp: duckShare_ (1 = music as it is) glides to its
+    // target instead of jumping, so the music dips and returns smoothly.
+    void onDuckTick();
+    QTimer* duckTimer_ = nullptr;
+    QElapsedTimer duckClock_;
+    double duckShare_ = 1.0;
+    double duckFrom_ = 1.0;
+    double duckTarget_ = 1.0;
+    int duckSpanMs_ = 1;
     bool heard() const;
 
     int fadeMs_ = 0;

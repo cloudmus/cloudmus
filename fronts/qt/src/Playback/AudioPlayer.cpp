@@ -57,6 +57,13 @@ constexpr double kSilentDb = -96.0;
 // A step of the fade: finer than an OpenSL chunk of 256 frames, so each
 // chunk the output takes has a level of its own.
 constexpr int kFadeTickMs = 4;
+// Ducking under the logo's sound: down quickly so it doesn't fight the
+// music, up more slowly so the return isn't a jolt.
+constexpr int kDuckTickMs = 16;
+constexpr int kDuckDownMs = 300;
+constexpr int kDuckUpMs = 800;
+// The share of the music's volume left while ducked.
+constexpr double kDuckedShare = 0.2;
 }
 
 AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
@@ -149,6 +156,10 @@ AudioPlayer::AudioPlayer(QObject* parent, const QByteArray& audioOutput)
     fadeTimer_->setTimerType(Qt::PreciseTimer);
     fadeTimer_->setInterval(kFadeTickMs);
     connect(fadeTimer_, &QTimer::timeout, this, &AudioPlayer::onFadeTick);
+    duckTimer_ = new QTimer(this);
+    duckTimer_->setTimerType(Qt::PreciseTimer);
+    duckTimer_->setInterval(kDuckTickMs);
+    connect(duckTimer_, &QTimer::timeout, this, &AudioPlayer::onDuckTick);
     settleTimer_ = new QTimer(this);
     settleTimer_->setSingleShot(true);
     settleTimer_->setTimerType(Qt::PreciseTimer);
@@ -637,7 +648,39 @@ void AudioPlayer::applyLevel(double level)
 
 void AudioPlayer::setVolume(int volume0To100)
 {
-    int64_t vol = volume0To100;
+    volume_ = volume0To100;
+    applyVolume();
+}
+
+void AudioPlayer::setDucked(bool ducked)
+{
+    if (ducked_ == ducked)
+        return;
+    ducked_ = ducked;
+    duckFrom_ = duckShare_;
+    duckTarget_ = ducked ? kDuckedShare : 1.0;
+    // A ramp begun midway takes the share of the time still to cover.
+    const double whole = 1.0 - kDuckedShare;
+    const int fullMs = ducked ? kDuckDownMs : kDuckUpMs;
+    duckSpanMs_ = qMax(1, qRound(fullMs * std::abs(duckTarget_ - duckShare_) / whole));
+    duckClock_.start();
+    duckTimer_->start();
+}
+
+void AudioPlayer::onDuckTick()
+{
+    const double t = qMin(1.0, double(duckClock_.elapsed()) / duckSpanMs_);
+    // Raised cosine, as the fades: no corner at either end.
+    const double shape = 0.5 - 0.5 * std::cos(t * M_PI);
+    duckShare_ = duckFrom_ + (duckTarget_ - duckFrom_) * shape;
+    applyVolume();
+    if (t >= 1.0)
+        duckTimer_->stop();
+}
+
+void AudioPlayer::applyVolume()
+{
+    int64_t vol = qRound(volume_ * duckShare_);
     mpv_set_property(mpv_, "volume", MPV_FORMAT_INT64, &vol);
 }
 

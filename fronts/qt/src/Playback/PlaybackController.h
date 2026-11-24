@@ -165,6 +165,8 @@ public:
     void previous();
     void seek(qint64 positionMs);
     void setVolume(int volume0To100);
+    // Music turned down while the app plays a sound of its own over it.
+    void setDucked(bool ducked);
     // See AudioPlayer::setEdges() and setOutput().
     void setEdges(int fadeMs, int settleMs);
     void setOutput(const QByteArray& output, int openslesFramesPerEnqueue);

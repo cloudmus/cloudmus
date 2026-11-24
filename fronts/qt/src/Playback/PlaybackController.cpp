@@ -1362,6 +1362,8 @@ void PlaybackController::seek(qint64 positionMs)
 
 void PlaybackController::setVolume(int volume0To100) { audioPlayer_->setVolume(volume0To100); }
 
+void PlaybackController::setDucked(bool ducked) { audioPlayer_->setDucked(ducked); }
+
 void PlaybackController::setEdges(int fadeMs, int settleMs) { audioPlayer_->setEdges(fadeMs, settleMs); }
 
 void PlaybackController::setOutput(const QByteArray& output, int openslesFramesPerEnqueue)
