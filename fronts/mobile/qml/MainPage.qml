@@ -55,7 +55,21 @@ Page {
         platform.requestNotificationPermission()
     }
 
+    // A radio has nothing to shuffle: its new tracks are asked for here.
+    readonly property bool canRestartRadio: nowPlaying !== null && nowPlaying.radio === true
+        && playlist !== null
+    readonly property bool restartingRadio: playlist !== null && playlist.startingRadio === true
+
     component ListMenu: DropMenu {
+        DropMenuItem {
+            objectName: "restartRadioEntry"
+            iconName: "refresh"
+            available: page.canRestartRadio
+            // Asked for already: not again until the new tracks are here.
+            enabled: !page.restartingRadio
+            text: qsTr("Reload wave")
+            onTriggered: page.playlist.restartRadio()
+        }
         DropMenuItem {
             objectName: "savePlaylistEntry"
             iconName: "file_download"

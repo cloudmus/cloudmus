@@ -431,6 +431,10 @@
   <context>
     <name>MainPage</name>
     <message>
+      <source>Reload wave</source>
+      <translation>Recargar la ola</translation>
+    </message>
+    <message>
       <source>Filter by title, artist or album</source>
       <translation>Filtrar por título, artista o álbum</translation>
     </message>

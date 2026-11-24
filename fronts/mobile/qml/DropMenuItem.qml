@@ -29,7 +29,7 @@ MenuItem {
     // All of its label in view: what the menu's width goes by.
     readonly property real naturalWidth: leftPadding + implicitContentWidth + rightPadding
     height: available ? Theme.touch : 0
-    opacity: _shown
+    opacity: _shown * (enabled ? 1 : 0.4)
     transform: Translate { y: (item._rising ? 1 : -1) * Theme.dp(8) * (1 - item._shown) }
 
     SequentialAnimation {

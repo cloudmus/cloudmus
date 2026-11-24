@@ -597,18 +597,13 @@ Item {
     }
 
     component ShuffleButton: IconButton {
-        // A radio has nothing to shuffle: new tracks instead.
+        // A radio has nothing to shuffle (its new tracks are asked for in the
+        // list's menu): the slot stays empty.
         readonly property bool radio: panel.nowPlaying !== null && panel.nowPlaying.radio === true
-        readonly property bool canClick: panel.nowPlaying !== null && (!radio || panel.playlist !== null)
-        iconName: radio ? "refresh" : "shuffle"
-        color: !radio && panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
-        // The new station is being asked for.
-        busy: radio && panel.playlist !== null && panel.playlist.startingRadio === true
-        onClicked: {
-            if (busy)
-                return
-            radio ? panel.playlist.restartRadio() : panel.nowPlaying.toggleShuffle()
-        }
+        readonly property bool canClick: panel.nowPlaying !== null && !radio
+        iconName: "shuffle"
+        color: panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
+        onClicked: panel.nowPlaying.toggleShuffle()
     }
     component RepeatButton: IconButton {
         iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
@@ -649,7 +644,7 @@ Item {
         x: panel._modeX(shuffleSlot, 0)
         y: panel._modeY(shuffleSlot)
         opacity: panel._modesOpacity
-        visible: panel._hasModes && opacity > 0
+        visible: panel._hasModes && !radio && opacity > 0
         enabled: canClick
     }
     RepeatButton {

@@ -433,6 +433,10 @@
   <context>
     <name>MainPage</name>
     <message>
+      <source>Reload wave</source>
+      <translation>Перазагрузіць хвалю</translation>
+    </message>
+    <message>
       <source>Filter by title, artist or album</source>
       <translation>Фільтр па назве, выканаўцы або альбоме</translation>
     </message>
