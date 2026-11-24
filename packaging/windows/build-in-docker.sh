@@ -29,7 +29,7 @@ qt_win="$(winepath -w "${qt_dir}")"
 mpv_win="$(winepath -w /opt/mpv)"
 ninja_win="$(winepath -w /opt/windows-ninja/ninja.exe)"
 mkdir -p "${build_dir}"
-xvfb-run -a wine "${cmake_exe}" -S "${repo_win}\\fronts\\qt" -B "${build_win}" \
+xvfb-run -a wine "${cmake_exe}" -S "${repo_win}\\fronts\\desktop" -B "${build_win}" \
     -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
     "-DCMAKE_C_FLAGS=-g1 -ffile-prefix-map=Z:/workspace=/workspace" \
     "-DCMAKE_CXX_FLAGS=-g1 -ffile-prefix-map=Z:/workspace=/workspace" \
