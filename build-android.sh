@@ -10,6 +10,10 @@
 # between them), signed with a dev key, or with
 # the one in CLOUDMUS_ANDROID_KEYSTORE (with CLOUDMUS_ANDROID_KEY_ALIAS and
 # CLOUDMUS_ANDROID_KEYSTORE_PASSWORD), as CI does.
+#
+# CLOUDMUS_ANDROID_DISTRIBUTION=store builds for Google Play and RuStore
+# (fronts/mobile/CMakeLists.txt): updated by the store, no installing of its
+# own; the APK is then CloudMus-<version>-<abi>-store.apk.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 root=$PWD
@@ -44,6 +48,13 @@ if [ -z "$version" ]; then
     commit="$(git describe --always --dirty=.dirty 2>/dev/null || true)"
     version="0.1.0${commit:+\+g${commit}}"
 fi
+
+distribution=${CLOUDMUS_ANDROID_DISTRIBUTION:-github}
+case $distribution in
+    github) suffix="" ;;
+    store) suffix="-store" ;;
+    *) echo "CLOUDMUS_ANDROID_DISTRIBUTION is github or store" >&2; exit 1 ;;
+esac
 
 abis=("$@")
 [ ${#abis[@]} -gt 0 ] || abis=(arm64-v8a)
@@ -122,7 +133,7 @@ for abi in "${abis[@]}"; do
         x86_64) kit=android_x86_64; rust_target=x86_64-linux-android ;;
         *) echo "unknown ABI $abi" >&2; exit 1 ;;
     esac
-    build=$work/$abi
+    build=$work/$abi$suffix
     case "$(uname -s)" in
         Linux) ndk_host=linux-x86_64 ;;
         Darwin) ndk_host=darwin-x86_64 ;;
@@ -143,11 +154,11 @@ for abi in "${abis[@]}"; do
         -DCMAKE_BUILD_TYPE=Release \
         -DQT_HOST_PATH="$QT_ROOT/gcc_64" \
         -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
-        -DQT_ANDROID_SIGN_APK=ON \
+        -DQT_ANDROID_SIGN_APK=ON -DCLOUDMUS_ANDROID_DISTRIBUTION="$distribution" \
         -DCLOUDMUS_MPV_ANDROID_DIR="$mpv_dir" -DCLOUDMUS_LOCAL_ANDROID_BINARY="$native_backend" "${python_args[@]}"
     cmake --build "$build" --target apk
     apk=$(find "$build" -name '*.apk' -path '*release*' | head -1)
     [ -n "$apk" ] || { echo "no APK built for $abi" >&2; exit 1; }
-    cp "$apk" "dist/CloudMus-$version-$abi.apk"
-    echo "dist/CloudMus-$version-$abi.apk"
+    cp "$apk" "dist/CloudMus-$version-$abi$suffix.apk"
+    echo "dist/CloudMus-$version-$abi$suffix.apk"
 done

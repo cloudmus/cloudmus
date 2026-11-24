@@ -38,12 +38,14 @@ The DMGs are signed ad hoc, not with a Developer ID: the first start of a
 downloaded copy needs System Settings → Privacy & Security → Open Anyway
 (the release notes may say so). Updates installed by the app itself don't.
 
-The APK (`CloudMus-<v>-arm64-v8a.apk`) has no updater: it's installed by hand,
-over the old one. Every build, of a release or not, is signed with the one key
+The APK (`CloudMus-<v>-arm64-v8a.apk`) updates itself from the GitHub release,
+as the desktop builds do (`docs/android.md`, "Updates"). Every build, of a
+release or not, is signed with the one key
 from the secrets `CLOUDMUS_ANDROID_KEYSTORE_BASE64`, `CLOUDMUS_ANDROID_KEY_ALIAS`
 and `CLOUDMUS_ANDROID_KEYSTORE_PASSWORD`, and fails without them: Android won't
 update an app from an APK signed with another key, so losing this one means
-everyone reinstalls and signs in again. Keep a copy of it outside GitHub.
+everyone reinstalls and signs in again — and the app's own updates stop
+working. Keep a copy of it outside GitHub.
 The APK has no crash reports or usage statistics yet.
 
 ## Changelog

@@ -59,6 +59,10 @@
       <source>AI coding agent by Anthropic</source>
       <translation>Agente di programmazione basato su IA, di Anthropic</translation>
     </message>
+    <message>
+      <source>Check for Updates</source>
+      <translation>Controlla aggiornamenti</translation>
+    </message>
   </context>
   <context>
     <name>App::PlaylistEditing</name>
@@ -1071,6 +1075,147 @@
       <source>Written to the log</source>
       <translation>Scritto nel registro</translation>
     </message>
+    <message>
+      <source>Android refused the new version: it doesn't match the installed one (signed with another key?). Install it from the release page.</source>
+      <translation>Android ha rifiutato la nuova versione: non corrisponde a quella installata (firmata con un’altra chiave?). Installala dalla pagina della release.</translation>
+    </message>
+    <message>
+      <source>Not enough space on the device to install the update.</source>
+      <translation>Spazio insufficiente sul dispositivo per installare l’aggiornamento.</translation>
+    </message>
+    <message>
+      <source>Installing was blocked on this device.</source>
+      <translation>L’installazione è stata bloccata su questo dispositivo.</translation>
+    </message>
+    <message>
+      <source>The downloaded file isn't a valid app package.</source>
+      <translation>Il file scaricato non è un pacchetto di app valido.</translation>
+    </message>
+    <message>
+      <source>Android couldn't install the update.</source>
+      <translation>Android non è riuscito a installare l’aggiornamento.</translation>
+    </message>
+    <message>
+      <source>The store couldn't update the app.</source>
+      <translation>Lo store non è riuscito ad aggiornare l’app.</translation>
+    </message>
+  </context>
+  <context>
+    <name>Update::UpdateChecker</name>
+    <message>
+      <source>The server answered with HTTP %1</source>
+      <translation>Il server ha risposto con HTTP %1</translation>
+    </message>
+    <message>
+      <source>Unexpected answer from GitHub</source>
+      <translation>Risposta inattesa da GitHub</translation>
+    </message>
+    <message>
+      <source>Unknown version of this build: %1</source>
+      <translation>Versione sconosciuta di questa build: %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>Update::UpdateDownloader</name>
+    <message>
+      <source>Downloaded %1 bytes of %2</source>
+      <translation>Scaricati %1 byte su %2</translation>
+    </message>
+    <message>
+      <source>The server answered with HTTP %1</source>
+      <translation>Il server ha risposto con HTTP %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>UpdatePage</name>
+    <message>
+      <source>Updates</source>
+      <translation>Aggiornamenti</translation>
+    </message>
+    <message>
+      <source>CloudMus is updated to %1</source>
+      <translation>CloudMus è aggiornato alla %1</translation>
+    </message>
+    <message>
+      <source>Tap to open it</source>
+      <translation>Tocca per aprirlo</translation>
+    </message>
+    <message>
+      <source>CloudMus Update</source>
+      <translation>Aggiornamento di CloudMus</translation>
+    </message>
+    <message>
+      <source>Downloading CloudMus %1</source>
+      <translation>Download di CloudMus %1</translation>
+    </message>
+    <message>
+      <source>Allow CloudMus to install the update</source>
+      <translation>Consenti a CloudMus di installare l’aggiornamento</translation>
+    </message>
+    <message>
+      <source>Installing CloudMus %1</source>
+      <translation>Installazione di CloudMus %1</translation>
+    </message>
+    <message>
+      <source>The update didn't work out</source>
+      <translation>L’aggiornamento non è riuscito</translation>
+    </message>
+    <message>
+      <source>A new version of CloudMus is available</source>
+      <translation>È disponibile una nuova versione di CloudMus</translation>
+    </message>
+    <message>
+      <source>Version &lt;b&gt;%1&lt;/b&gt; is out — you have &lt;b&gt;%2&lt;/b&gt;.</source>
+      <translation>È uscita la versione &lt;b&gt;%1&lt;/b&gt;: tu hai la &lt;b&gt;%2&lt;/b&gt;.</translation>
+    </message>
+    <message>
+      <source>Android asks once to let CloudMus install apps. Turn on “Allow from this source”, then come back: the update goes on by itself.</source>
+      <translation>Android chiede una volta di consentire a CloudMus di installare app. Attiva «Consenti da questa fonte», poi torna qui: l’aggiornamento prosegue da solo.</translation>
+    </message>
+    <message>
+      <source>The store downloads the update, then restarts CloudMus in the new version.</source>
+      <translation>Lo store scarica l’aggiornamento, poi riavvia CloudMus nella nuova versione.</translation>
+    </message>
+    <message>
+      <source>Confirm the update in Android's window. CloudMus closes and opens again in the new version.</source>
+      <translation>Conferma l’aggiornamento nella finestra di Android. CloudMus si chiude e si riapre nella nuova versione.</translation>
+    </message>
+    <message>
+      <source>%1
+
+You can try again later or download the new version yourself.</source>
+      <translation>%1
+
+Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
+    </message>
+    <message>
+      <source>Skip This Version</source>
+      <translation>Salta questa versione</translation>
+    </message>
+    <message>
+      <source>Open Release Page</source>
+      <translation>Apri la pagina della versione</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Annulla</translation>
+    </message>
+    <message>
+      <source>Close</source>
+      <translation>Chiudi</translation>
+    </message>
+    <message>
+      <source>Open Settings</source>
+      <translation>Apri impostazioni</translation>
+    </message>
+    <message>
+      <source>Try Again</source>
+      <translation>Riprova</translation>
+    </message>
+    <message>
+      <source>Install</source>
+      <translation>Installa</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ActivePlaylist</name>
@@ -1383,6 +1528,59 @@
     <message>
       <source>%1 kbps</source>
       <translation>%1 kbps</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::UpdateScreen</name>
+    <message>
+      <source>Version %1 is the latest one.</source>
+      <translation>La versione %1 è l’ultima.</translation>
+    </message>
+    <message>
+      <source> It's built on %1, released on %2.</source>
+      <translation> È stata compilata il %1 e rilasciata il %2.</translation>
+    </message>
+    <message>
+      <source> Released on %1.</source>
+      <translation> Rilasciata il %1.</translation>
+    </message>
+    <message>
+      <source>CloudMus is up to date</source>
+      <translation>CloudMus è aggiornato</translation>
+    </message>
+    <message>
+      <source>Couldn't check for updates</source>
+      <translation>Impossibile controllare gli aggiornamenti</translation>
+    </message>
+    <message>
+      <source>%1 of %2</source>
+      <translation>%1 di %2</translation>
+    </message>
+    <message>
+      <source>No description.</source>
+      <translation>Nessuna descrizione.</translation>
+    </message>
+    <message>
+      <source>This build can't install updates by itself</source>
+      <translation>Questa build non può installare gli aggiornamenti da sola</translation>
+    </message>
+    <message>
+      <source>Connecting…</source>
+      <translation>Connessione…</translation>
+    </message>
+    <message numerus="yes">
+      <source>about %n s left</source>
+      <translation>
+        <numerusform>circa %n s rimanenti</numerusform>
+        <numerusform>circa %n s rimanenti</numerusform>
+      </translation>
+    </message>
+    <message numerus="yes">
+      <source>about %n min left</source>
+      <translation>
+        <numerusform>circa %n min rimanenti</numerusform>
+        <numerusform>circa %n min rimanenti</numerusform>
+      </translation>
     </message>
   </context>
 </TS>

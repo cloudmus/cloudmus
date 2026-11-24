@@ -32,6 +32,8 @@ Page {
     signal settingsRequested()
     signal libraryRequested()
     signal downloadsRequested()
+    // The update pointed at beside the bar's other icons (UpdatePage).
+    signal updateRequested()
     signal trackMenuRequested()
 
     readonly property QtObject nowPlaying: backend.nowPlaying
@@ -436,6 +438,15 @@ Page {
                         // Always: the text would take the whole bar on a head unit.
                         iconOnly: true
                         opacity: Math.max(0, 1 - page.screenProgress * 2)
+                    }
+                    // A new version is out: its page.
+                    IconButton {
+                        objectName: "updateAvailable"
+                        visible: page.backend.updateScreen !== null && page.backend.updateScreen.available === true
+                        iconName: "upgrade"
+                        color: Theme.accent
+                        opacity: Math.max(0, 1 - page.screenProgress * 2)
+                        onClicked: page.updateRequested()
                     }
                     // Settings says what it's about in full.
                     IconButton {

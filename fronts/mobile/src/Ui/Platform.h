@@ -46,6 +46,14 @@ class Platform : public QObject {
     Q_PROPERTY(bool exportingApps READ exportingApps NOTIFY exportProgressChanged)
     Q_PROPERTY(double exportFraction READ exportFraction NOTIFY exportProgressChanged)
     Q_PROPERTY(QString exportStatus READ exportStatus NOTIFY exportProgressChanged)
+    // How this install of the app is updated (ViewModel::UpdateScreen's Via):
+    // "app" — it downloads and installs the APK itself (the GitHub build);
+    // "play" / "rustore" — through that store, the one it came from (the
+    // store build); "page" — the user, from the release page (the store
+    // build from elsewhere, or not Android).
+    Q_PROPERTY(QString updateChannel READ updateChannel CONSTANT)
+    // A store's update under way (startStoreUpdate()): 0..1, -1 not known.
+    Q_PROPERTY(double storeUpdateProgress READ storeUpdateProgress NOTIFY storeUpdateChanged)
 
 public:
     explicit Platform(QString logDirectory, QObject* parent = nullptr);
@@ -108,6 +116,27 @@ public:
     bool exportingApps() const { return exportThread_ != nullptr; }
     double exportFraction() const { return exportFraction_; }
     QString exportStatus() const { return exportStatus_; }
+    QString updateChannel() const;
+    double storeUpdateProgress() const { return storeUpdateProgress_; }
+    // Android lets this app install apps ("Install unknown apps"); asked
+    // again each time: the user changes it in Android's settings.
+    Q_INVOKABLE bool canInstallPackages() const;
+    // That setting's screen.
+    Q_INVOKABLE void requestInstallPermission() const;
+    // The downloaded APK to Android's package installer; the outcome, unless
+    // the app is replaced, in updateInstallFinished(). `playing`: the music
+    // goes on in the new version. The texts are the notification's that
+    // says it's updated (Android 10+, which doesn't let it open by itself).
+    Q_INVOKABLE void installUpdate(const QString& path, bool playing, const QString& noticeChannel,
+        const QString& noticeTitle, const QString& noticeText) const;
+    // The store's own check, its answer in storeUpdateChecked().
+    Q_INVOKABLE void checkStoreUpdate(bool manual) const;
+    // The store's update flow; how it goes in storeUpdateProgress and
+    // storeUpdateEnded().
+    Q_INVOKABLE void startStoreUpdate();
+    // From Android's thread.
+    void takeInstallOutcome(bool cancelled, int installerStatus, const QString& message);
+    void takeStoreState(int state, qint64 done, qint64 total, const QString& error);
     // Whether Python and the backends run on this device, into the log, the
     // outcome in pythonProbeFinished().
     Q_INVOKABLE void runPythonProbe();
@@ -140,6 +169,16 @@ signals:
     void audioOpened();
     // The downloads notification was tapped: on to the Downloads page.
     void downloadsOpened();
+    // installUpdate() didn't replace the app: the user turned the system's
+    // question down (`cancelled`), or `error` says why it failed.
+    void updateInstallFinished(bool cancelled, const QString& error);
+    // checkStoreUpdate()'s answer: the store's versionCode (0: nothing newer),
+    // or what went wrong.
+    void storeUpdateChecked(int versionCode, const QString& error, bool manual);
+    void storeUpdateChanged();
+    // The store's flow is over without the app restarting: left
+    // (`cancelled`) or failed.
+    void storeUpdateEnded(bool cancelled, const QString& error);
 
 private:
     void pollExportProgress();
@@ -156,6 +195,7 @@ private:
     QTimer* exportPoll_ = nullptr;
     double exportFraction_ = -1;
     QString exportStatus_;
+    double storeUpdateProgress_ = -1;
 };
 
 } // namespace Ui

@@ -199,6 +199,7 @@ public class MainActivity extends QtActivity {
         super.onResume();
         startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
         UiBridge.startService(this);
+        UpdateInstaller.clearUpdatedNotice(this);
     }
 
     @Override

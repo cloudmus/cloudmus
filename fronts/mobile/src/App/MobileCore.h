@@ -16,6 +16,8 @@
 #include "SourceSettings.h"
 #include "SourceSettingsScreen.h"
 #include "TrackScreen.h"
+#include "UpdateChecker.h"
+#include "UpdateScreen.h"
 
 namespace App {
 
@@ -36,6 +38,9 @@ public:
         // The platform's media library (Rpc::SourceManager::setHostMedia),
         // if it has one.
         Rpc::HostMedia* hostMedia = nullptr;
+        // Where an update of the app is downloaded to; none: this build
+        // can't install one by itself (the release page instead).
+        QString updatesDir;
     };
 
     explicit MobileCore(const Paths& paths, QObject* parent = nullptr);
@@ -56,12 +61,14 @@ public:
     ViewModel::SettingsScreen& settingsScreen() { return settingsScreen_; }
     ViewModel::SourceSettingsScreen& sourceSettingsScreen() { return sourceSettingsScreen_; }
     ViewModel::PulseScreen& pulseScreen() { return pulseScreen_; }
+    ViewModel::UpdateScreen& updateScreen() { return updateScreen_; }
 
 private:
     // Developer tools' audio output and soft edges (PlatformSettings), kept
     // applied to the player.
     void applyPlaybackExperiments();
     void leaveUnstartedWhatAskedForSignIn();
+    void setUpUpdates(const QString& updatesDir);
 
     QSettings settingsStore_;
     Core core_;
@@ -82,6 +89,8 @@ private:
     ViewModel::AudioPulse imitatedPulse_;
 #endif
     ViewModel::PulseScreen pulseScreen_;
+    Update::UpdateChecker updates_;
+    ViewModel::UpdateScreen updateScreen_;
 };
 
 } // namespace App

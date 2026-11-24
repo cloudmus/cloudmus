@@ -229,6 +229,48 @@ plays immediately after insertion in the current queue. Playback continues
 with the rest of that queue. A provider can give CloudMus either a temporary
 read grant or one that persists across restarts.
 
+## Updates
+
+The app updates itself as the desktop does: the core (`Update::UpdateChecker`,
+`ViewModel::UpdateScreen`, shared with the desktop) asks GitHub's releases a
+while after start (not for a build between tags), and an update found is
+pointed at by an icon on the main page; About → **Check for Updates** asks at
+once and opens the Update page (`UpdatePage.qml`) with the notes of every
+release since. How it's installed depends on the build
+(`CLOUDMUS_ANDROID_DISTRIBUTION`, `build-android.sh` takes it from the
+environment):
+
+- **github** (the APK of the GitHub release, the default): the core downloads
+  the release's APK into `files/updates/` (left there only until the next
+  start). The first time Android asks the user to let CloudMus install apps
+  (`REQUEST_INSTALL_PACKAGES`; the page leads to Android's setting and goes
+  on by itself on return). `UpdateInstaller.java` hands the APK to Android's
+  `PackageInstaller`; Android shows its question (from the second update on,
+  on Android 12+, it may not ask). Android stops both processes; the new
+  version gets `MY_PACKAGE_REPLACED` (`BootReceiver`) and, for an update the
+  app started, plays on if the music was playing and opens its screen.
+  Android 10+ doesn't let it open the screen from the background: a
+  notification "CloudMus is updated" to tap instead. A key other than the
+  installed app's is refused by Android: the page says so.
+- **store** (Google Play, RuStore): no `REQUEST_INSTALL_PACKAGES`, which Play
+  doesn't allow for this. Who installed the app (`UpdateInstaller.installer()`)
+  picks the store: its in-app update library (`updates-store/StoreUpdates.java`:
+  Play's `app-update`, RuStore's `appupdate`) says whether it has a newer
+  version and downloads it, then restarts the app in it; the notes are
+  GitHub's, up to the store's version (the versionCode tells it, see
+  `Update::versionFromCode()`). From anywhere else the store build offers the
+  release page. The libraries add about 0.5 MB to the APK (1.2 MB of code
+  once installed), Kotlin's own the most of it.
+
+To try an update by hand: build an APK that reports an older version, serve a
+releases JSON (GitHub's format, the asset's `browser_download_url` pointing at
+a newer APK signed with the same key), and put its URL in
+`Android/data/app.cloudmus.mobile/files/update-feed.txt` (a second line: the
+version to pretend to be), then restart the app (`CoreBridge.useTestUpdateFeed`).
+For the store build, `adb install -i com.android.vending` (or `ru.vk.store`)
+sets who installed it; the stores' flows themselves only work on an install
+from them (Play's internal testing track or internal app sharing).
+
 ## Android Auto
 
 The phone's Android Auto draws the car's screen itself, from templates; the

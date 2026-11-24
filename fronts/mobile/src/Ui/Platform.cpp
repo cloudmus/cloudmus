@@ -464,6 +464,141 @@ void Platform::takeOpenRequests()
 #endif
 }
 
+QString Platform::updateChannel() const
+{
+#if defined(Q_OS_ANDROID) && defined(CLOUDMUS_STORE_BUILD)
+    static const QString store = QJniObject::callStaticMethod<jstring>("app/cloudmus/mobile/UpdateInstaller",
+        "installer", "(Landroid/content/Context;)Ljava/lang/String;", QNativeInterface::QAndroidApplication::context())
+                                     .toString();
+    return store.isEmpty() ? QStringLiteral("page") : store;
+#elif defined(Q_OS_ANDROID)
+    return QStringLiteral("app");
+#else
+    return QStringLiteral("page");
+#endif
+}
+
+bool Platform::canInstallPackages() const
+{
+#ifdef Q_OS_ANDROID
+    return !QJniObject::callStaticMethod<jstring>("app/cloudmus/mobile/UpdateInstaller", "canInstall",
+        "(Landroid/content/Context;)Ljava/lang/String;", QNativeInterface::QAndroidApplication::context())
+                .toString()
+                .isEmpty();
+#else
+    return false;
+#endif
+}
+
+void Platform::requestInstallPermission() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UpdateInstaller", "requestPermission",
+        "(Landroid/content/Context;)V", QNativeInterface::QAndroidApplication::context());
+#endif
+}
+
+void Platform::installUpdate(const QString& path, bool playing, const QString& noticeChannel,
+    const QString& noticeTitle, const QString& noticeText) const
+{
+#ifdef Q_OS_ANDROID
+    qCInfo(lcPlatform).noquote() << "installing the update" << path;
+    QJniEnvironment env;
+    jclass stringClass = env->FindClass("java/lang/String");
+    jobjectArray notice = env->NewObjectArray(3, stringClass, nullptr);
+    const QStringList texts { noticeChannel, noticeTitle, noticeText };
+    for (int i = 0; i < texts.size(); ++i)
+        env->SetObjectArrayElement(notice, jsize(i), QJniObject::fromString(texts.at(i)).object<jstring>());
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UpdateInstaller", "install",
+        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)V",
+        QNativeInterface::QAndroidApplication::context(), QJniObject::fromString(path).object<jstring>(),
+        QJniObject::fromString(playing ? QStringLiteral("yes") : QString()).object<jstring>(), notice);
+    env->DeleteLocalRef(notice);
+    env->DeleteLocalRef(stringClass);
+#else
+    Q_UNUSED(path);
+    Q_UNUSED(playing);
+    Q_UNUSED(noticeChannel);
+    Q_UNUSED(noticeTitle);
+    Q_UNUSED(noticeText);
+#endif
+}
+
+void Platform::checkStoreUpdate(bool manual) const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/StoreUpdates", "check",
+        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)V",
+        QNativeInterface::QAndroidApplication::context(), QJniObject::fromString(updateChannel()).object<jstring>(),
+        QJniObject::fromString(manual ? QStringLiteral("yes") : QString()).object<jstring>());
+#else
+    Q_UNUSED(manual);
+#endif
+}
+
+void Platform::startStoreUpdate()
+{
+    storeUpdateProgress_ = -1;
+    emit storeUpdateChanged();
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/StoreUpdates", "start",
+        "(Landroid/content/Context;Ljava/lang/String;)V", QNativeInterface::QAndroidApplication::context(),
+        QJniObject::fromString(updateChannel()).object<jstring>());
+#endif
+}
+
+void Platform::takeInstallOutcome(bool cancelled, int installerStatus, const QString& message)
+{
+    if (cancelled) {
+        emit updateInstallFinished(true, QString());
+        return;
+    }
+    // PackageInstaller's STATUS_FAILURE_*.
+    QString error;
+    switch (installerStatus) {
+        case 5: // CONFLICT
+        case 7: // INCOMPATIBLE
+            // Most often a key other than the installed app's.
+            error = tr("Android refused the new version: it doesn't match the installed one (signed with another "
+                       "key?). Install it from the release page.");
+            break;
+        case 6: // STORAGE
+            error = tr("Not enough space on the device to install the update.");
+            break;
+        case 2: // BLOCKED
+            error = tr("Installing was blocked on this device.");
+            break;
+        case 4: // INVALID
+            error = tr("The downloaded file isn't a valid app package.");
+            break;
+        default:
+            error = message.isEmpty() ? tr("Android couldn't install the update.") : message;
+    }
+    if (!message.isEmpty() && !error.contains(message))
+        error += QStringLiteral(" (%1)").arg(message);
+    emit updateInstallFinished(false, error);
+}
+
+void Platform::takeStoreState(int state, qint64 done, qint64 total, const QString& error)
+{
+    // StoreUpdates.STATE_*.
+    switch (state) {
+        case 0:
+            storeUpdateProgress_ = total > 0 ? double(done) / double(total) : -1;
+            emit storeUpdateChanged();
+            break;
+        case 1:
+            storeUpdateProgress_ = 1;
+            emit storeUpdateChanged();
+            break;
+        case 2:
+            emit storeUpdateEnded(false, error.isEmpty() ? tr("The store couldn't update the app.") : error);
+            break;
+        default:
+            emit storeUpdateEnded(true, QString());
+    }
+}
+
 void Platform::startService()
 {
 #ifdef Q_OS_ANDROID
@@ -492,5 +627,60 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UiBridge_nativeDownlo
 {
     if (Ui::Platform* platform = Ui::instance.load())
         QMetaObject::invokeMethod(platform, &Ui::Platform::takeOpenRequests, Qt::QueuedConnection);
+}
+
+namespace {
+QString fromJava(JNIEnv* env, jstring text)
+{
+    if (!text)
+        return QString();
+    const char* chars = env->GetStringUTFChars(text, nullptr);
+    const QString result = QString::fromUtf8(chars);
+    env->ReleaseStringUTFChars(text, chars);
+    return result;
+}
+} // namespace
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_UpdateInstaller_nativeInstallFinishedImpl(
+    JNIEnv* env, jclass, jint status, jint installerStatus, jstring message)
+{
+    Ui::Platform* platform = Ui::instance.load();
+    if (!platform)
+        return;
+    // UpdateInstaller.STATUS_CANCELLED is 0.
+    QMetaObject::invokeMethod(
+        platform,
+        [platform, cancelled = status == 0, installerStatus = int(installerStatus), text = fromJava(env, message)] {
+            platform->takeInstallOutcome(cancelled, installerStatus, text);
+        },
+        Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_StoreUpdates_nativeChecked(
+    JNIEnv* env, jclass, jint versionCode, jstring error, jboolean manual)
+{
+    Ui::Platform* platform = Ui::instance.load();
+    if (!platform)
+        return;
+    QMetaObject::invokeMethod(
+        platform,
+        [platform, code = int(versionCode), text = fromJava(env, error), asked = bool(manual)] {
+            emit platform->storeUpdateChecked(code, text, asked);
+        },
+        Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_StoreUpdates_nativeState(
+    JNIEnv* env, jclass, jint state, jlong done, jlong total, jstring error)
+{
+    Ui::Platform* platform = Ui::instance.load();
+    if (!platform)
+        return;
+    QMetaObject::invokeMethod(
+        platform,
+        [platform, state = int(state), done = qint64(done), total = qint64(total), text = fromJava(env, error)] {
+            platform->takeStoreState(state, done, total, text);
+        },
+        Qt::QueuedConnection);
 }
 #endif

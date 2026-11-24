@@ -37,6 +37,7 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , settingsScreen_(&core.settingsScreen())
     , sourceSettings_(&core.sourceSettingsScreen())
     , pulse_(&core.pulseScreen())
+    , updateScreen_(&core.updateScreen())
     , tracks_(&core.tracks())
     , sources_(&core.library().sourceRows())
     , favorites_(&core.library().favoriteRows())
@@ -91,6 +92,7 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquireModel(sourceConnections_, Remote::Names::sourceConnections);
     acquireModel(sourceFields_, Remote::Names::sourceFields);
     acquire(pulse_, Remote::Names::pulse);
+    acquire(updateScreen_, Remote::Names::updateScreen);
 
     // The core may be slow to come up, or gone (its process killed while
     // the screen was off): ask for it again until it answers.
@@ -140,6 +142,7 @@ Backend::~Backend()
         delete sourceConnections_.data();
         delete sourceFields_.data();
         delete pulse_.data();
+        delete updateScreen_.data();
     }
 }
 

@@ -59,6 +59,10 @@
       <source>AI coding agent by Anthropic</source>
       <translation>ИИ-агент для программирования от Anthropic</translation>
     </message>
+    <message>
+      <source>Check for Updates</source>
+      <translation>Проверка обновлений</translation>
+    </message>
   </context>
   <context>
     <name>App::PlaylistEditing</name>
@@ -1076,6 +1080,147 @@
       <source>Written to the log</source>
       <translation>Записано в журнал</translation>
     </message>
+    <message>
+      <source>Android refused the new version: it doesn't match the installed one (signed with another key?). Install it from the release page.</source>
+      <translation>Android отклонил новую версию: она не совпадает с установленной (подписана другим ключом?). Установите её со страницы релиза.</translation>
+    </message>
+    <message>
+      <source>Not enough space on the device to install the update.</source>
+      <translation>На устройстве не хватает места для установки обновления.</translation>
+    </message>
+    <message>
+      <source>Installing was blocked on this device.</source>
+      <translation>Установка заблокирована на этом устройстве.</translation>
+    </message>
+    <message>
+      <source>The downloaded file isn't a valid app package.</source>
+      <translation>Скачанный файл не является корректным пакетом приложения.</translation>
+    </message>
+    <message>
+      <source>Android couldn't install the update.</source>
+      <translation>Android не смог установить обновление.</translation>
+    </message>
+    <message>
+      <source>The store couldn't update the app.</source>
+      <translation>Магазину не удалось обновить приложение.</translation>
+    </message>
+  </context>
+  <context>
+    <name>Update::UpdateChecker</name>
+    <message>
+      <source>The server answered with HTTP %1</source>
+      <translation>Сервер ответил HTTP %1</translation>
+    </message>
+    <message>
+      <source>Unexpected answer from GitHub</source>
+      <translation>Неожиданный ответ от GitHub</translation>
+    </message>
+    <message>
+      <source>Unknown version of this build: %1</source>
+      <translation>Неизвестная версия этой сборки: %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>Update::UpdateDownloader</name>
+    <message>
+      <source>Downloaded %1 bytes of %2</source>
+      <translation>Загружено %1 из %2 байт</translation>
+    </message>
+    <message>
+      <source>The server answered with HTTP %1</source>
+      <translation>Сервер ответил HTTP %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>UpdatePage</name>
+    <message>
+      <source>Updates</source>
+      <translation>Обновления</translation>
+    </message>
+    <message>
+      <source>CloudMus is updated to %1</source>
+      <translation>CloudMus обновлён до %1</translation>
+    </message>
+    <message>
+      <source>Tap to open it</source>
+      <translation>Нажмите, чтобы открыть</translation>
+    </message>
+    <message>
+      <source>CloudMus Update</source>
+      <translation>Обновление CloudMus</translation>
+    </message>
+    <message>
+      <source>Downloading CloudMus %1</source>
+      <translation>Загрузка CloudMus %1</translation>
+    </message>
+    <message>
+      <source>Allow CloudMus to install the update</source>
+      <translation>Разрешите CloudMus установить обновление</translation>
+    </message>
+    <message>
+      <source>Installing CloudMus %1</source>
+      <translation>Установка CloudMus %1</translation>
+    </message>
+    <message>
+      <source>The update didn't work out</source>
+      <translation>Обновление не удалось</translation>
+    </message>
+    <message>
+      <source>A new version of CloudMus is available</source>
+      <translation>Доступна новая версия CloudMus</translation>
+    </message>
+    <message>
+      <source>Version &lt;b&gt;%1&lt;/b&gt; is out — you have &lt;b&gt;%2&lt;/b&gt;.</source>
+      <translation>Вышла версия &lt;b&gt;%1&lt;/b&gt;, у вас &lt;b&gt;%2&lt;/b&gt;.</translation>
+    </message>
+    <message>
+      <source>Android asks once to let CloudMus install apps. Turn on “Allow from this source”, then come back: the update goes on by itself.</source>
+      <translation>Android один раз просит разрешить CloudMus устанавливать приложения. Включите «Разрешить установку из этого источника» и вернитесь: обновление продолжится само.</translation>
+    </message>
+    <message>
+      <source>The store downloads the update, then restarts CloudMus in the new version.</source>
+      <translation>Магазин скачивает обновление, затем перезапустит CloudMus в новой версии.</translation>
+    </message>
+    <message>
+      <source>Confirm the update in Android's window. CloudMus closes and opens again in the new version.</source>
+      <translation>Подтвердите обновление в окне Android. CloudMus закроется и откроется снова уже в новой версии.</translation>
+    </message>
+    <message>
+      <source>%1
+
+You can try again later or download the new version yourself.</source>
+      <translation>%1
+
+Можно повторить позже или скачать новую версию самостоятельно.</translation>
+    </message>
+    <message>
+      <source>Skip This Version</source>
+      <translation>Пропустить эту версию</translation>
+    </message>
+    <message>
+      <source>Open Release Page</source>
+      <translation>Открыть страницу релиза</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Отмена</translation>
+    </message>
+    <message>
+      <source>Close</source>
+      <translation>Закрыть</translation>
+    </message>
+    <message>
+      <source>Open Settings</source>
+      <translation>Открыть настройки</translation>
+    </message>
+    <message>
+      <source>Try Again</source>
+      <translation>Повторить</translation>
+    </message>
+    <message>
+      <source>Install</source>
+      <translation>Установить</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ActivePlaylist</name>
@@ -1389,6 +1534,61 @@
     <message>
       <source>%1 kbps</source>
       <translation>%1 кбит/с</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::UpdateScreen</name>
+    <message>
+      <source>Version %1 is the latest one.</source>
+      <translation>Версия %1 — последняя.</translation>
+    </message>
+    <message>
+      <source> It's built on %1, released on %2.</source>
+      <translation> Собрана %1, выпущена %2.</translation>
+    </message>
+    <message>
+      <source> Released on %1.</source>
+      <translation> Выпущена %1.</translation>
+    </message>
+    <message>
+      <source>CloudMus is up to date</source>
+      <translation>У вас актуальная версия CloudMus</translation>
+    </message>
+    <message>
+      <source>Couldn't check for updates</source>
+      <translation>Не удалось проверить обновления</translation>
+    </message>
+    <message>
+      <source>%1 of %2</source>
+      <translation>%1 из %2</translation>
+    </message>
+    <message>
+      <source>No description.</source>
+      <translation>Нет описания.</translation>
+    </message>
+    <message>
+      <source>This build can't install updates by itself</source>
+      <translation>Эта сборка не может установить обновление сама</translation>
+    </message>
+    <message>
+      <source>Connecting…</source>
+      <translation>Подключение…</translation>
+    </message>
+    <message numerus="yes">
+      <source>about %n s left</source>
+      <translation>
+        <numerusform>осталось около %n с</numerusform>
+        <numerusform>осталось около %n с</numerusform>
+        <numerusform>осталось около %n с</numerusform>
+      </translation>
+    </message>
+    <message numerus="yes">
+      <source>about %n min left</source>
+      <translation>
+        <numerusform>осталось около %n мин</numerusform>
+        <numerusform>осталось около %n мин</numerusform>
+        <numerusform>осталось около %n мин</numerusform>
+      </translation>
     </message>
   </context>
 </TS>

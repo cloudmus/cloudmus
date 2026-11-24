@@ -12,6 +12,7 @@ buildscript {
 repositories {
     google()
     mavenCentral()
+    // %%CLOUDMUS_STORE_REPOSITORIES%%
 }
 
 apply plugin: 'com.android.application'
@@ -21,6 +22,7 @@ dependencies {
     implementation "androidx.core:core:1.13.1"
     implementation "androidx.media3:media3-session:1.4.1"
     implementation "androidx.media3:media3-common:1.4.1"
+    // %%CLOUDMUS_STORE_DEPENDENCIES%%
 }
 
 android {
@@ -48,7 +50,9 @@ android {
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
-            java.srcDirs = [qtAndroidDir + '/src', 'src', 'java']
+            // updates-github or updates-store: StoreUpdates, real or not
+            // (fronts/mobile/CMakeLists.txt, CLOUDMUS_ANDROID_DISTRIBUTION).
+            java.srcDirs = [qtAndroidDir + '/src', 'src', 'java', 'updates-github']
             aidl.srcDirs = [qtAndroidDir + '/src', 'src', 'aidl']
             res.srcDirs = [qtAndroidDir + '/res', 'res']
             resources.srcDirs = ['resources']

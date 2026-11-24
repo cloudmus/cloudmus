@@ -81,6 +81,28 @@ public final class CoreBridge {
     private CoreBridge() {
     }
 
+    // To try an update: update-feed.txt in the app's external files
+    // (Android/data/app.cloudmus.mobile/files, which adb can write) holds a
+    // feed's URL (GitHub's releases JSON), and optionally on a second line the
+    // version to pretend to be. App::MobileCore reads them from the
+    // environment, as the desktop's --update-feed and --update-from.
+    private static void useTestUpdateFeed(Context context) {
+        File dir = context.getExternalFilesDir(null);
+        File file = dir != null ? new File(dir, "update-feed.txt") : null;
+        if (file == null || !file.isFile())
+            return;
+        try {
+            java.util.List<String> lines = java.nio.file.Files.readAllLines(file.toPath());
+            if (!lines.isEmpty() && !lines.get(0).trim().isEmpty())
+                android.system.Os.setenv("CLOUDMUS_UPDATE_FEED", lines.get(0).trim(), true);
+            if (lines.size() > 1 && !lines.get(1).trim().isEmpty())
+                android.system.Os.setenv("CLOUDMUS_UPDATE_FROM", lines.get(1).trim(), true);
+            CmLog.i("CoreBridge", "update feed for trying: " + lines);
+        } catch (Exception error) {
+            CmLog.e("CoreBridge", "read " + file, error);
+        }
+    }
+
     static native void nativeMusicChanged();
     static native void nativeOpenAudio(String uri, String title, String artist, String album, String cover, long duration,
                                        boolean persistent);
@@ -210,6 +232,7 @@ public final class CoreBridge {
         CmLog.mark("core: library loaded");
         Context application = context.getApplicationContext();
         DownloadNotice.clear(application);
+        useTestUpdateFeed(application);
         new Thread(() -> {
             File nativeBackends = prepareNativeBackends(application);
             String libraryDir = application.getApplicationInfo().nativeLibraryDir;

@@ -174,6 +174,8 @@ target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
     cloudmus-common cloudmus-mobile-i18n cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
 target_compile_definitions(cloudmus-mobile-ui PRIVATE CLOUDMUS_MOBILE_VERSION="${CLOUDMUS_APK_VERSION}")
+# The core checks for updates against it (App::MobileCore).
+target_compile_definitions(cloudmus-mobile-core PRIVATE CLOUDMUS_MOBILE_VERSION="${CLOUDMUS_APK_VERSION}")
 if(NOT ANDROID)
     # The desktop runs the core in the app; Android in the service.
     target_link_libraries(cloudmus-mobile-ui PUBLIC cloudmus-mobile-core)
@@ -250,6 +252,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/Theme.qml
         qml/Toast.qml
         qml/ToastStack.qml
+        qml/UpdatePage.qml
     SOURCES
         src/Ui/LogModel.cpp
         src/Ui/LogModel.h
@@ -264,7 +267,7 @@ qt_add_shaders(cloudmus-mobile-ui "shaders"
 set(_icons smartphone folder album arrow_back check chevron_right close cloud_off content_copy delete expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_horiz more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     cloudmus person radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
-    visibility visibility_off warning logout volume_down volume_up)
+    visibility visibility_off warning logout volume_down volume_up upgrade)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
     set(_file ${CORE_RES}/icons/symbols/${_icon}.svg)
@@ -319,6 +322,31 @@ qt_add_executable(cloudmus-mobile src/Ui/main.cpp)
 target_link_libraries(cloudmus-mobile PRIVATE cloudmus-mobile-ui cloudmus-mobile-uiplugin)
 
 # --- Android: the playback service's library and the package.
+
+# How the app gets its updates: "github" — the APK of the GitHub release,
+# downloaded and installed by the app itself (REQUEST_INSTALL_PACKAGES);
+# "store" — for Google Play and RuStore, which don't allow that: the store the
+# app came from updates it (their in-app update libraries), and no permission.
+set(CLOUDMUS_ANDROID_DISTRIBUTION "github" CACHE STRING "How the APK is updated: github or store")
+set_property(CACHE CLOUDMUS_ANDROID_DISTRIBUTION PROPERTY STRINGS github store)
+if(NOT CLOUDMUS_ANDROID_DISTRIBUTION MATCHES "^(github|store)$")
+    message(FATAL_ERROR "CLOUDMUS_ANDROID_DISTRIBUTION must be github or store")
+endif()
+if(CLOUDMUS_ANDROID_DISTRIBUTION STREQUAL "store")
+    target_compile_definitions(cloudmus-mobile-core PUBLIC CLOUDMUS_STORE_BUILD)
+    target_compile_definitions(cloudmus-mobile-ui PUBLIC CLOUDMUS_STORE_BUILD)
+endif()
+
+function(cloudmus_write_if_changed path content)
+    if(EXISTS "${path}")
+        file(READ "${path}" _old)
+        if(_old STREQUAL content)
+            return()
+        endif()
+    endif()
+    file(WRITE "${path}" "${content}")
+endfunction()
+
 if(ANDROID)
     add_library(cloudmus-mobile-service SHARED
         src/Android/ServiceMain.cpp
@@ -338,9 +366,37 @@ if(ANDROID)
     set(_package ${CMAKE_CURRENT_BINARY_DIR}/android-package)
     file(GLOB_RECURSE _package_files CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/android
         ${CMAKE_CURRENT_SOURCE_DIR}/android/*)
+    list(REMOVE_ITEM _package_files AndroidManifest.xml build.gradle)
     foreach(_file IN LISTS _package_files)
         configure_file(android/${_file} ${_package}/${_file} COPYONLY)
     endforeach()
+    # The manifest and the Gradle script, with what the distribution adds
+    # (see CLOUDMUS_ANDROID_DISTRIBUTION): written only when that changes, so
+    # Gradle isn't run again for nothing.
+    if(CLOUDMUS_ANDROID_DISTRIBUTION STREQUAL "store")
+        set(_install_permission "")
+        set(_store_repositories
+            "maven { url \"https://nexus-external.rustore.ru/repository/maven-rustore-exposed\" }")
+        set(_store_dependencies "implementation \"com.google.android.play:app-update:2.1.0\"
+    implementation \"ru.rustore.sdk:appupdate:10.5.2\"")
+        set(_updates_dir "updates-store")
+    else()
+        set(_install_permission
+            "<uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />")
+        set(_store_repositories "")
+        set(_store_dependencies "")
+        set(_updates_dir "updates-github")
+    endif()
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/android/AndroidManifest.xml ${CMAKE_CURRENT_SOURCE_DIR}/android/build.gradle)
+    file(READ android/AndroidManifest.xml _text)
+    string(REPLACE "<!-- %%CLOUDMUS_INSTALL_PERMISSION%% -->" "${_install_permission}" _text "${_text}")
+    cloudmus_write_if_changed(${_package}/AndroidManifest.xml "${_text}")
+    file(READ android/build.gradle _text)
+    string(REPLACE "// %%CLOUDMUS_STORE_REPOSITORIES%%" "${_store_repositories}" _text "${_text}")
+    string(REPLACE "// %%CLOUDMUS_STORE_DEPENDENCIES%%" "${_store_dependencies}" _text "${_text}")
+    string(REPLACE "'updates-github'" "'${_updates_dir}'" _text "${_text}")
+    cloudmus_write_if_changed(${_package}/build.gradle "${_text}")
     set(CLOUDMUS_LOCAL_ANDROID_BINARY "" CACHE FILEPATH "Rust backend executable for this Android ABI")
     if(CLOUDMUS_LOCAL_ANDROID_BINARY)
         add_custom_target(cloudmus-local-package

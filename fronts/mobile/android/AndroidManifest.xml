@@ -17,6 +17,9 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Installing an update the app downloaded (the GitHub build only:
+         fronts/mobile/CMakeLists.txt, CLOUDMUS_ANDROID_DISTRIBUTION). -->
+    <!-- %%CLOUDMUS_INSTALL_PERMISSION%% -->
 
     <!-- Android Auto's answer to "on a car's screen?" (CarProjection). -->
     <queries>
@@ -117,6 +120,11 @@
         <receiver
             android:name="app.cloudmus.mobile.DownloadNotice$CancelReceiver"
             android:process=":playback"
+            android:exported="false" />
+
+        <!-- The package installer's answers about an update (UpdateInstaller). -->
+        <receiver
+            android:name="app.cloudmus.mobile.UpdateInstaller$StatusReceiver"
             android:exported="false" />
 
         <receiver android:name="app.cloudmus.mobile.BootReceiver" android:exported="true">

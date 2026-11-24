@@ -614,5 +614,133 @@
   "es": "Guardar lista",
   "fr": "Enregistrer la playlist",
   "it": "Salva playlist"
+ },
+ "Updates": {
+  "ru": "Обновления",
+  "be": "Абнаўленні",
+  "de": "Updates",
+  "es": "Actualizaciones",
+  "fr": "Mises à jour",
+  "it": "Aggiornamenti"
+ },
+ "CloudMus is updated to %1": {
+  "ru": "CloudMus обновлён до %1",
+  "be": "CloudMus абноўлены да %1",
+  "de": "CloudMus wurde auf %1 aktualisiert",
+  "es": "CloudMus se actualizó a %1",
+  "fr": "CloudMus est mis à jour vers %1",
+  "it": "CloudMus è aggiornato alla %1"
+ },
+ "Tap to open it": {
+  "ru": "Нажмите, чтобы открыть",
+  "be": "Націсніце, каб адкрыць",
+  "de": "Zum Öffnen tippen",
+  "es": "Toca para abrirlo",
+  "fr": "Touchez pour l’ouvrir",
+  "it": "Tocca per aprirlo"
+ },
+ "Allow CloudMus to install the update": {
+  "ru": "Разрешите CloudMus установить обновление",
+  "be": "Дазвольце CloudMus усталяваць абнаўленне",
+  "de": "Erlaube CloudMus, das Update zu installieren",
+  "es": "Permite que CloudMus instale la actualización",
+  "fr": "Autorisez CloudMus à installer la mise à jour",
+  "it": "Consenti a CloudMus di installare l’aggiornamento"
+ },
+ "Android asks once to let CloudMus install apps. Turn on “Allow from this source”, then come back: the update goes on by itself.": {
+  "ru": "Android один раз просит разрешить CloudMus устанавливать приложения. Включите «Разрешить установку из этого источника» и вернитесь: обновление продолжится само.",
+  "be": "Android адзін раз просіць дазволіць CloudMus усталёўваць праграмы. Уключыце «Дазволіць з гэтай крыніцы» і вярніцеся: абнаўленне працягнецца само.",
+  "de": "Android fragt einmal, ob CloudMus Apps installieren darf. Aktiviere „Dieser Quelle vertrauen“ und kehre zurück: Das Update geht von selbst weiter.",
+  "es": "Android pide una vez que permitas a CloudMus instalar aplicaciones. Activa «Permitir de esta fuente» y vuelve: la actualización continuará sola.",
+  "fr": "Android demande une fois d’autoriser CloudMus à installer des applis. Activez « Autoriser cette source », puis revenez : la mise à jour continue d’elle-même.",
+  "it": "Android chiede una volta di consentire a CloudMus di installare app. Attiva «Consenti da questa fonte», poi torna qui: l’aggiornamento prosegue da solo."
+ },
+ "The store downloads the update, then restarts CloudMus in the new version.": {
+  "ru": "Магазин скачивает обновление, затем перезапустит CloudMus в новой версии.",
+  "be": "Крама спампоўвае абнаўленне, потым перазапусціць CloudMus у новай версіі.",
+  "de": "Der Store lädt das Update herunter und startet CloudMus dann in der neuen Version neu.",
+  "es": "La tienda descarga la actualización y luego reinicia CloudMus en la nueva versión.",
+  "fr": "La boutique télécharge la mise à jour, puis redémarre CloudMus dans la nouvelle version.",
+  "it": "Lo store scarica l’aggiornamento, poi riavvia CloudMus nella nuova versione."
+ },
+ "Confirm the update in Android's window. CloudMus closes and opens again in the new version.": {
+  "ru": "Подтвердите обновление в окне Android. CloudMus закроется и откроется снова уже в новой версии.",
+  "be": "Пацвердзіце абнаўленне ў акне Android. CloudMus закрыецца і адкрыецца зноў ужо ў новай версіі.",
+  "de": "Bestätige das Update im Android-Fenster. CloudMus wird geschlossen und in der neuen Version wieder geöffnet.",
+  "es": "Confirma la actualización en la ventana de Android. CloudMus se cerrará y se abrirá de nuevo en la nueva versión.",
+  "fr": "Confirmez la mise à jour dans la fenêtre d’Android. CloudMus se ferme et se rouvre dans la nouvelle version.",
+  "it": "Conferma l’aggiornamento nella finestra di Android. CloudMus si chiude e si riapre nella nuova versione."
+ },
+ "Open Settings": {
+  "ru": "Открыть настройки",
+  "be": "Адкрыць налады",
+  "de": "Einstellungen öffnen",
+  "es": "Abrir ajustes",
+  "fr": "Ouvrir les réglages",
+  "it": "Apri impostazioni"
+ },
+ "Try Again": {
+  "ru": "Повторить",
+  "be": "Паўтарыць",
+  "de": "Erneut versuchen",
+  "es": "Reintentar",
+  "fr": "Réessayer",
+  "it": "Riprova"
+ },
+ "Check for Updates": {
+  "ru": "Проверить обновления",
+  "be": "Праверыць абнаўленні",
+  "de": "Nach Updates suchen",
+  "es": "Buscar actualizaciones",
+  "fr": "Rechercher des mises à jour",
+  "it": "Cerca aggiornamenti"
+ },
+ "Android refused the new version: it doesn't match the installed one (signed with another key?). Install it from the release page.": {
+  "ru": "Android отклонил новую версию: она не совпадает с установленной (подписана другим ключом?). Установите её со страницы релиза.",
+  "be": "Android адхіліў новую версію: яна не супадае з усталяванай (падпісана іншым ключом?). Усталюйце яе са старонкі рэлізу.",
+  "de": "Android hat die neue Version abgelehnt: Sie passt nicht zur installierten (mit einem anderen Schlüssel signiert?). Installiere sie über die Release-Seite.",
+  "es": "Android rechazó la nueva versión: no coincide con la instalada (¿firmada con otra clave?). Instálala desde la página de la versión.",
+  "fr": "Android a refusé la nouvelle version : elle ne correspond pas à celle installée (signée avec une autre clé ?). Installez-la depuis la page de la version.",
+  "it": "Android ha rifiutato la nuova versione: non corrisponde a quella installata (firmata con un’altra chiave?). Installala dalla pagina della release."
+ },
+ "Not enough space on the device to install the update.": {
+  "ru": "На устройстве не хватает места для установки обновления.",
+  "be": "На прыладзе не хапае месца для ўсталявання абнаўлення.",
+  "de": "Nicht genug Speicherplatz auf dem Gerät, um das Update zu installieren.",
+  "es": "No hay espacio suficiente en el dispositivo para instalar la actualización.",
+  "fr": "Pas assez d’espace sur l’appareil pour installer la mise à jour.",
+  "it": "Spazio insufficiente sul dispositivo per installare l’aggiornamento."
+ },
+ "Installing was blocked on this device.": {
+  "ru": "Установка заблокирована на этом устройстве.",
+  "be": "Усталяванне заблакіравана на гэтай прыладзе.",
+  "de": "Die Installation wurde auf diesem Gerät blockiert.",
+  "es": "La instalación está bloqueada en este dispositivo.",
+  "fr": "L’installation a été bloquée sur cet appareil.",
+  "it": "L’installazione è stata bloccata su questo dispositivo."
+ },
+ "The downloaded file isn't a valid app package.": {
+  "ru": "Скачанный файл не является корректным пакетом приложения.",
+  "be": "Спампаваны файл не з’яўляецца карэктным пакетам праграмы.",
+  "de": "Die heruntergeladene Datei ist kein gültiges App-Paket.",
+  "es": "El archivo descargado no es un paquete de aplicación válido.",
+  "fr": "Le fichier téléchargé n’est pas un paquet d’application valide.",
+  "it": "Il file scaricato non è un pacchetto di app valido."
+ },
+ "Android couldn't install the update.": {
+  "ru": "Android не смог установить обновление.",
+  "be": "Android не змог усталяваць абнаўленне.",
+  "de": "Android konnte das Update nicht installieren.",
+  "es": "Android no pudo instalar la actualización.",
+  "fr": "Android n’a pas pu installer la mise à jour.",
+  "it": "Android non è riuscito a installare l’aggiornamento."
+ },
+ "The store couldn't update the app.": {
+  "ru": "Магазину не удалось обновить приложение.",
+  "be": "Краме не ўдалося абнавіць праграму.",
+  "de": "Der Store konnte die App nicht aktualisieren.",
+  "es": "La tienda no pudo actualizar la aplicación.",
+  "fr": "La boutique n’a pas pu mettre à jour l’application.",
+  "it": "Lo store non è riuscito ad aggiornare l’app."
  }
 }

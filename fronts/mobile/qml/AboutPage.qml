@@ -13,6 +13,11 @@ Page {
     property QtObject backend
     property QtObject platform
     signal closeRequested()
+    // Main.qml asks the store or GitHub; a newer version opens its page, the
+    // outcome otherwise shows here.
+    signal checkForUpdatesRequested()
+
+    readonly property QtObject updates: backend ? backend.updateScreen : null
 
     readonly property QtObject pulse: backend ? backend.pulse : null
     // 0: Authors, 1: Contributors, 2: Technologies, 3: License.
@@ -101,7 +106,11 @@ Page {
     }
     onWatchingChanged: _hold(watching)
     Component.onCompleted: _hold(watching)
-    Component.onDestruction: _hold(false)
+    Component.onDestruction: {
+        _hold(false)
+        if (updates)
+            updates.clearCheck()
+    }
 
     background: Rectangle { color: Theme.surface0 }
 
@@ -207,6 +216,23 @@ Page {
                     page._link("https://t.me/cloudmus_app", qsTr("Telegram chat")),
                 ].join(" · ")
                 onLinkActivated: (link) => Qt.openUrlExternally(link)
+            }
+
+            TextButton {
+                objectName: "checkForUpdates"
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Check for Updates")
+                busy: page.updates !== null && page.updates.checking === true
+                enabled: page.updates !== null
+                onClicked: page.checkForUpdatesRequested()
+            }
+            BodyText {
+                objectName: "updateCheckOutcome"
+                visible: page.updates !== null && page.updates.checkHeading !== ""
+                textFormat: Text.StyledText
+                horizontalAlignment: Text.AlignHCenter
+                color: Theme.inkSecondary
+                text: page.updates ? "<b>" + page.updates.checkHeading + "</b><br>" + page.updates.checkText : ""
             }
 
             // On one line, scrolled sideways where the screen is too narrow for

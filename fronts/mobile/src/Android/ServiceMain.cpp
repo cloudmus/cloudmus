@@ -449,7 +449,12 @@ void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nat
     // saved lists are refreshed, behind the music that has started by then.
     AndroidHostMedia hostMedia(filesDir + QStringLiteral("/android-music.json"));
     hostMediaInstance = &hostMedia;
-    App::MobileCore core({ filesDir + QStringLiteral("/core.ini"), 1000, 5000, &hostMedia });
+#ifdef CLOUDMUS_STORE_BUILD
+    const QString updatesDir; // the store updates the app
+#else
+    const QString updatesDir = filesDir + QStringLiteral("/updates");
+#endif
+    App::MobileCore core({ filesDir + QStringLiteral("/core.ini"), 1000, 5000, &hostMedia, updatesDir });
     coreInstance = &core;
     core.core().downloads().setPublisher(QStringLiteral("Music/CloudMus"), publishTrack, remuxOpus, isTrackSaved);
     core.core().playback().setContentOpener(openContent);

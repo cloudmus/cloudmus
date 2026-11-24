@@ -59,6 +59,10 @@
       <source>AI coding agent by Anthropic</source>
       <translation>ШІ-агент для праграмавання ад Anthropic</translation>
     </message>
+    <message>
+      <source>Check for Updates</source>
+      <translation>Праверка абнаўленняў</translation>
+    </message>
   </context>
   <context>
     <name>App::PlaylistEditing</name>
@@ -1076,6 +1080,147 @@
       <source>Written to the log</source>
       <translation>Запісана ў журнал</translation>
     </message>
+    <message>
+      <source>Android refused the new version: it doesn't match the installed one (signed with another key?). Install it from the release page.</source>
+      <translation>Android адхіліў новую версію: яна не супадае з усталяванай (падпісана іншым ключом?). Усталюйце яе са старонкі рэлізу.</translation>
+    </message>
+    <message>
+      <source>Not enough space on the device to install the update.</source>
+      <translation>На прыладзе не хапае месца для ўсталявання абнаўлення.</translation>
+    </message>
+    <message>
+      <source>Installing was blocked on this device.</source>
+      <translation>Усталяванне заблакіравана на гэтай прыладзе.</translation>
+    </message>
+    <message>
+      <source>The downloaded file isn't a valid app package.</source>
+      <translation>Спампаваны файл не з’яўляецца карэктным пакетам праграмы.</translation>
+    </message>
+    <message>
+      <source>Android couldn't install the update.</source>
+      <translation>Android не змог усталяваць абнаўленне.</translation>
+    </message>
+    <message>
+      <source>The store couldn't update the app.</source>
+      <translation>Краме не ўдалося абнавіць праграму.</translation>
+    </message>
+  </context>
+  <context>
+    <name>Update::UpdateChecker</name>
+    <message>
+      <source>The server answered with HTTP %1</source>
+      <translation>Сервер адказаў HTTP %1</translation>
+    </message>
+    <message>
+      <source>Unexpected answer from GitHub</source>
+      <translation>Нечаканы адказ ад GitHub</translation>
+    </message>
+    <message>
+      <source>Unknown version of this build: %1</source>
+      <translation>Невядомая версія гэтай зборкі: %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>Update::UpdateDownloader</name>
+    <message>
+      <source>Downloaded %1 bytes of %2</source>
+      <translation>Спампавана %1 з %2 байт</translation>
+    </message>
+    <message>
+      <source>The server answered with HTTP %1</source>
+      <translation>Сервер адказаў HTTP %1</translation>
+    </message>
+  </context>
+  <context>
+    <name>UpdatePage</name>
+    <message>
+      <source>Updates</source>
+      <translation>Абнаўленні</translation>
+    </message>
+    <message>
+      <source>CloudMus is updated to %1</source>
+      <translation>CloudMus абноўлены да %1</translation>
+    </message>
+    <message>
+      <source>Tap to open it</source>
+      <translation>Націсніце, каб адкрыць</translation>
+    </message>
+    <message>
+      <source>CloudMus Update</source>
+      <translation>Абнаўленне CloudMus</translation>
+    </message>
+    <message>
+      <source>Downloading CloudMus %1</source>
+      <translation>Спампоўка CloudMus %1</translation>
+    </message>
+    <message>
+      <source>Allow CloudMus to install the update</source>
+      <translation>Дазвольце CloudMus усталяваць абнаўленне</translation>
+    </message>
+    <message>
+      <source>Installing CloudMus %1</source>
+      <translation>Усталёўка CloudMus %1</translation>
+    </message>
+    <message>
+      <source>The update didn't work out</source>
+      <translation>Абнаўленне не атрымалася</translation>
+    </message>
+    <message>
+      <source>A new version of CloudMus is available</source>
+      <translation>Даступная новая версія CloudMus</translation>
+    </message>
+    <message>
+      <source>Version &lt;b&gt;%1&lt;/b&gt; is out — you have &lt;b&gt;%2&lt;/b&gt;.</source>
+      <translation>Выйшла версія &lt;b&gt;%1&lt;/b&gt;, у вас &lt;b&gt;%2&lt;/b&gt;.</translation>
+    </message>
+    <message>
+      <source>Android asks once to let CloudMus install apps. Turn on “Allow from this source”, then come back: the update goes on by itself.</source>
+      <translation>Android адзін раз просіць дазволіць CloudMus усталёўваць праграмы. Уключыце «Дазволіць з гэтай крыніцы» і вярніцеся: абнаўленне працягнецца само.</translation>
+    </message>
+    <message>
+      <source>The store downloads the update, then restarts CloudMus in the new version.</source>
+      <translation>Крама спампоўвае абнаўленне, потым перазапусціць CloudMus у новай версіі.</translation>
+    </message>
+    <message>
+      <source>Confirm the update in Android's window. CloudMus closes and opens again in the new version.</source>
+      <translation>Пацвердзіце абнаўленне ў акне Android. CloudMus закрыецца і адкрыецца зноў ужо ў новай версіі.</translation>
+    </message>
+    <message>
+      <source>%1
+
+You can try again later or download the new version yourself.</source>
+      <translation>%1
+
+Можна паўтарыць пазней або спампаваць новую версію самастойна.</translation>
+    </message>
+    <message>
+      <source>Skip This Version</source>
+      <translation>Прапусціць гэтую версію</translation>
+    </message>
+    <message>
+      <source>Open Release Page</source>
+      <translation>Адкрыць старонку выпуску</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Скасаваць</translation>
+    </message>
+    <message>
+      <source>Close</source>
+      <translation>Закрыць</translation>
+    </message>
+    <message>
+      <source>Open Settings</source>
+      <translation>Адкрыць налады</translation>
+    </message>
+    <message>
+      <source>Try Again</source>
+      <translation>Паўтарыць</translation>
+    </message>
+    <message>
+      <source>Install</source>
+      <translation>Усталяваць</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ActivePlaylist</name>
@@ -1389,6 +1534,61 @@
     <message>
       <source>%1 kbps</source>
       <translation>%1 кбіт/с</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::UpdateScreen</name>
+    <message>
+      <source>Version %1 is the latest one.</source>
+      <translation>Версія %1 — апошняя.</translation>
+    </message>
+    <message>
+      <source> It's built on %1, released on %2.</source>
+      <translation> Сабрана %1, выпушчана %2.</translation>
+    </message>
+    <message>
+      <source> Released on %1.</source>
+      <translation> Выпушчана %1.</translation>
+    </message>
+    <message>
+      <source>CloudMus is up to date</source>
+      <translation>У вас актуальная версія CloudMus</translation>
+    </message>
+    <message>
+      <source>Couldn't check for updates</source>
+      <translation>Не атрымалася праверыць абнаўленні</translation>
+    </message>
+    <message>
+      <source>%1 of %2</source>
+      <translation>%1 з %2</translation>
+    </message>
+    <message>
+      <source>No description.</source>
+      <translation>Няма апісання.</translation>
+    </message>
+    <message>
+      <source>This build can't install updates by itself</source>
+      <translation>Гэтая зборка не можа ўсталяваць абнаўленне сама</translation>
+    </message>
+    <message>
+      <source>Connecting…</source>
+      <translation>Падключэнне…</translation>
+    </message>
+    <message numerus="yes">
+      <source>about %n s left</source>
+      <translation>
+        <numerusform>засталося каля %n с</numerusform>
+        <numerusform>засталося каля %n с</numerusform>
+        <numerusform>засталося каля %n с</numerusform>
+      </translation>
+    </message>
+    <message numerus="yes">
+      <source>about %n min left</source>
+      <translation>
+        <numerusform>засталося каля %n хв</numerusform>
+        <numerusform>засталося каля %n хв</numerusform>
+        <numerusform>засталося каля %n хв</numerusform>
+      </translation>
     </message>
   </context>
 </TS>

@@ -63,6 +63,8 @@ class Backend : public QObject {
     // What the music is doing (ViewModel::PulseScreen): `level`, `beat`. A
     // view that moves with it holds it while shown (holdPulse()).
     Q_PROPERTY(QObject* pulse READ pulse NOTIFY readyChanged)
+    // An update of the app (ViewModel::UpdateScreen).
+    Q_PROPERTY(QObject* updateScreen READ updateScreen NOTIFY readyChanged)
 
 public:
 #ifndef Q_OS_ANDROID
@@ -113,6 +115,7 @@ public:
     QAbstractItemModel* sourceConnections() const { return ready_ ? sourceConnections_.data() : nullptr; }
     QAbstractItemModel* sourceFields() const { return ready_ ? sourceFields_.data() : nullptr; }
     QObject* pulse() const { return ready_ ? pulse_.data() : nullptr; }
+    QObject* updateScreen() const { return ready_ ? updateScreen_.data() : nullptr; }
     // A view that shows the pulse holds it while shown, and lets it go: the
     // core analyzes the music only while any view holds it. Counted here, so
     // views come and go as they like; the core is told again when it's back.
@@ -159,6 +162,7 @@ private:
     QPointer<QObject> settingsScreen_;
     QPointer<QObject> sourceSettings_;
     QPointer<QObject> pulse_;
+    QPointer<QObject> updateScreen_;
     int pulseHolders_ = 0;
     QPointer<QAbstractItemModel> tracks_;
     QPointer<QAbstractItemModel> sources_;

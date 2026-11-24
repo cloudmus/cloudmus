@@ -1,5 +1,8 @@
 #include "MobileCore.h"
 
+#include <QDir>
+#include <QUrl>
+
 #include "PlaybackController.h"
 #include "ProxyRouting.h"
 
@@ -26,6 +29,8 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
 #else
     , pulseScreen_(core_.audioPulse(), core_.logoSound())
 #endif
+    , updates_(core_.settings())
+    , updateScreen_(updates_)
 {
     core_.messages().setOfflineShownElsewhere(true); // mainScreen_.offline()
     core_.activePlaylist().setRefreshDelay(paths.refreshDelayMs);
@@ -36,6 +41,31 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
     Net::bypassProxyForLoopback();
     core_.sourceManager().setHostMedia(paths.hostMedia);
     core_.sourceManager().startAll();
+    setUpUpdates(paths.updatesDir);
+}
+
+void MobileCore::setUpUpdates(const QString& updatesDir)
+{
+    // As the desktop's --update-from and --update-feed: to try an update
+    // with a feed of one's own (on Android, PlaybackService sets them from
+    // update-feed.txt in the app's external files).
+    const QString from = qEnvironmentVariable("CLOUDMUS_UPDATE_FROM");
+    const QUrl feed(qEnvironmentVariable("CLOUDMUS_UPDATE_FEED"));
+    const QString version = from.isEmpty() ? QStringLiteral(CLOUDMUS_MOBILE_VERSION) : from;
+    if (feed.isValid() && !feed.isEmpty())
+        updates_.configure(version, feed);
+    else
+        updates_.configure(version);
+    if (updatesDir.isEmpty()) {
+        updateScreen_.setInstallUnavailable(QString());
+        return;
+    }
+    // What's left there is an update installed since, or one given up on.
+    QDir dir(updatesDir);
+    dir.removeRecursively();
+    dir.mkpath(QStringLiteral("."));
+    updateScreen_.setDownloadPath(
+        [updatesDir](const Update::Release& release) { return updatesDir + QLatin1Char('/') + release.assetName; });
 }
 
 void MobileCore::applyPlaybackExperiments()

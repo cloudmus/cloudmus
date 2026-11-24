@@ -239,6 +239,7 @@ ApplicationWindow {
             onNowPlayingDragEnded: (velocity, fromOpen) => nowPlayingSheet.settleAfterDrag(velocity, fromOpen)
             onSettingsRequested: stack.open(settingsPage)
             onDownloadsRequested: window.openDownloads()
+            onUpdateRequested: window.openUpdate()
             onLibraryRequested: {
                 if (window.backend.library)
                     window.backend.library.selectActiveSource()
@@ -451,6 +452,94 @@ ApplicationWindow {
             }
         }
     }
+    // Updates of the app (ViewModel::UpdateScreen): checked a while after the
+    // core is up — with the store the app came from, if any (Platform's
+    // updateChannel). One found is pointed at on the main page; asked for (the
+    // About page), or downloaded and waiting to be installed, its page opens.
+    readonly property QtObject updates: backend.ready ? backend.updateScreen : null
+    property bool _updatesScheduled: false
+    function _scheduleUpdateCheck() {
+        if (_updatesScheduled || updates === null)
+            return
+        _updatesScheduled = true
+        updateCheckTimer.start()
+    }
+    onUpdatesChanged: _scheduleUpdateCheck()
+    Timer {
+        id: updateCheckTimer
+        interval: 20000
+        onTriggered: window.checkForUpdates(false)
+    }
+    function checkForUpdates(manual) {
+        if (updates === null)
+            return
+        const channel = platform.updateChannel
+        if (channel === "play" || channel === "rustore")
+            platform.checkStoreUpdate(manual)
+        else if (manual)
+            updates.check()
+        else
+            updates.checkAutomatically()
+    }
+    function openUpdate() {
+        if (updates === null)
+            return
+        updates.reopen()
+        trackSheet.close()
+        nowPlayingSheet.close()
+        if (stack.currentItem && stack.currentItem.objectName === "updatePage")
+            return
+        stack.open(updatePage)
+    }
+    Connections {
+        target: window.updates
+        ignoreUnknownSignals: true
+        function onOffered(manual) {
+            if (manual)
+                window.openUpdate()
+        }
+        // Downloaded while its page was left: back to it, to install.
+        function onStepChanged() {
+            if (window.updates.step === 3)
+                window.openUpdate()
+        }
+    }
+    Connections {
+        target: window.platform
+        ignoreUnknownSignals: true
+        function onStoreUpdateChecked(versionCode, error, manual) {
+            if (window.updates === null)
+                return
+            if (versionCode > 0)
+                window.updates.offerStoreVersion(versionCode, manual)
+            else
+                window.updates.reportStoreCheck(error, manual)
+        }
+        function onUpdateInstallFinished(cancelled, error) {
+            if (window.updates === null)
+                return
+            if (cancelled)
+                window.updates.installCancelled()
+            else
+                window.updates.installFailed(error)
+        }
+        function onStoreUpdateEnded(cancelled, error) {
+            if (window.updates === null)
+                return
+            if (cancelled)
+                window.updates.installCancelled()
+            else
+                window.updates.installFailed(error)
+        }
+    }
+    Component {
+        id: updatePage
+        UpdatePage {
+            objectName: "updatePage"
+            onCloseRequested: stack.close()
+        }
+    }
+
     Component {
         id: downloadsPage
         DownloadsPage {
@@ -503,6 +592,7 @@ ApplicationWindow {
         AboutPage {
             objectName: "aboutPage"
             onCloseRequested: stack.close()
+            onCheckForUpdatesRequested: window.checkForUpdates(true)
         }
     }
     Component {

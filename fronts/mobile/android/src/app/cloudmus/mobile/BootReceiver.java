@@ -6,9 +6,10 @@ import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 
-// What starts the player with the system: the boot broadcasts (an update of
-// the app is only logged). Everything it gets is logged — head units differ
-// in what they send when the car starts, and the log is how to find out.
+// What starts the player with the system: the boot broadcasts. An update of
+// the app opens it again only if the app itself installed it (UpdateInstaller).
+// Everything it gets is logged — head units differ in what they send when the
+// car starts, and the log is how to find out.
 public final class BootReceiver extends BroadcastReceiver {
     private static final String TAG = "BootReceiver";
 
@@ -17,9 +18,11 @@ public final class BootReceiver extends BroadcastReceiver {
         String action = intent.getAction();
         CmLog.mark("receiver: " + action);
         CmLog.i(TAG, "received " + intent + describe(intent.getExtras()));
-        // Only logged: an update shouldn't start the music.
-        if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(action))
+        // An update from elsewhere (adb, a store) doesn't start the music.
+        if (Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+            UpdateInstaller.relaunchAfterUpdate(context);
             return;
+        }
         boolean autoplay = CoreBridge.autoplayEnabled(context);
         CmLog.i(TAG, "autoplay is " + (autoplay ? "on" : "off"));
         if (!autoplay)
