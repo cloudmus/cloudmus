@@ -1200,6 +1200,10 @@ Do you agree to use downloads only this way?</source>
         <translation> MB</translation>
     </message>
     <message>
+        <source>When less than this is left free, old tracks and covers are removed first; then tracks play without being downloaded, and nothing new is saved.</source>
+        <translation>Cuando queda menos espacio libre, primero se eliminan las pistas y portadas antiguas; después las pistas se reproducen sin descargarse y no se guarda nada nuevo.</translation>
+    </message>
+    <message>
         <source>Clear</source>
         <translation>Vaciar</translation>
     </message>
@@ -1216,8 +1220,16 @@ Do you agree to use downloads only this way?</source>
         <translation>Espacio en disco para pistas:</translation>
     </message>
     <message>
+        <source>Keep free on the disk:</source>
+        <translation>Dejar libre en el disco:</translation>
+    </message>
+    <message>
         <source>%1 used</source>
         <translation>%1 en uso</translation>
+    </message>
+    <message>
+        <source>%1 free now</source>
+        <translation>%1 libres ahora</translation>
     </message>
 </context>
 <context>
@@ -1866,6 +1878,10 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
 <context>
     <name>ViewModel::Preload</name>
     <message>
+        <source>Only %1 MB left on the disk, less than the %2 MB kept free: old tracks are removed, new ones play without being downloaded, and nothing is saved.</source>
+        <translation>Solo quedan %1 MB en el disco, menos de los %2 MB que se dejan libres: se eliminan las pistas antiguas, las nuevas se reproducen sin descargarse y no se guarda nada.</translation>
+    </message>
+    <message>
         <source>Downloaded ahead: %1 of %2</source>
         <translation>Descargadas por adelantado: %1 de %2</translation>
     </message>
@@ -1888,14 +1904,6 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
     <message>
         <source>%1 — waiting</source>
         <translation>%1 — en espera</translation>
-    </message>
-    <message>
-        <source>Only %1 MB left on the disk: tracks aren&apos;t downloaded ahead, and old ones are removed.</source>
-        <translation>Solo quedan %1 MB en el disco: las pistas no se descargan por adelantado y las antiguas se eliminan.</translation>
-    </message>
-    <message>
-        <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
-        <translation>Solo quedan %1 MB en el disco: la descarga se ha detenido, solo se pueden reproducir las pistas ya descargadas.</translation>
     </message>
 </context>
 <context>

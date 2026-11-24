@@ -20,18 +20,19 @@ namespace Playback {
 // There is no index file: the directory is the index, a file's
 // modification time is when it was last played.
 //
-// It also watches the disk (see DiskSpace.h), whoever is filling it: tracks not
-// pinned go first, whatever the limit, until there's room again.
+// It also watches the disk (see DiskSpace.h), whoever is filling it: as the
+// free space nears the reserve, tracks not pinned go first, whatever the
+// limit — the cache shrinks rather than stops.
 class TrackCache : public QObject {
     Q_OBJECT
 
 public:
     enum class Space {
         Fine,
-        // Nothing is downloaded ahead; what's cached and not pinned goes.
+        // Under the reserve with nothing left to give but what's pinned: no
+        // new track is downloaded, the playing one plays straight from its
+        // source (see Preloader::mayDownload()).
         Low,
-        // Nothing is downloaded at all, the playing track included.
-        Critical,
     };
     Q_ENUM(Space)
 
@@ -60,9 +61,14 @@ public:
 
     Space space() const { return space_; }
     qint64 freeBytes() const;
+    // What the last look at the disk found, for showing: no new look, and
+    // freeBytesChanged() once it has moved enough to tell. -1: unknown.
+    qint64 lastFreeBytes() const { return lastFree_; }
     // A look at the disk now, unless there was one a moment ago: for what's
     // writing to it. Bytes come fast enough for a timer to be too late.
     void writing();
+    // A look at the disk now: the reserve changed, say.
+    void checkSpace();
     // For a test: where freeBytes() comes from.
     void setFreeSpaceProvider(std::function<qint64()> provider);
 
@@ -70,6 +76,7 @@ signals:
     // Something was added or removed.
     void changed();
     void spaceChanged();
+    void freeBytesChanged();
 
 private:
     struct Entry {
@@ -80,7 +87,6 @@ private:
     QString filePath(const QString& key) const;
     void trim();
     bool removeFile(const QString& key);
-    void checkSpace();
     bool wantsRoom() const;
 
     QString directory_;
@@ -89,6 +95,7 @@ private:
     qint64 totalBytes_ = 0;
     qint64 maxBytes_ = qint64(1024) * 1024 * 1024;
     Space space_ = Space::Fine;
+    qint64 lastFree_ = -1;
     std::function<qint64()> freeSpaceProvider_;
     QTimer spaceTimer_;
     QElapsedTimer lastSpaceCheck_;

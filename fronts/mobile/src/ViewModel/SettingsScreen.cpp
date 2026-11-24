@@ -38,9 +38,11 @@ SettingsScreen::SettingsScreen(App::Core& core, SourceSettings& sourceSettings, 
         emit playlistTracksChanged();
         emit radioTracksChanged();
         emit cacheMaxMbChanged();
+        emit reserveMbChanged();
         emit cacheUsedTextChanged();
     });
     connect(&preload, &Preload::cacheUsedChanged, this, &SettingsScreen::cacheUsedTextChanged);
+    connect(&preload, &Preload::diskFreeChanged, this, &SettingsScreen::diskFreeTextChanged);
 
     Rpc::SourceManager& manager = core_.sourceManager();
     connect(&manager, &Rpc::SourceManager::sourceStarting, this, [this]() { rebuildSources(); });
@@ -55,6 +57,7 @@ SettingsScreen::SettingsScreen(App::Core& core, SourceSettings& sourceSettings, 
     // rebuild; these are the ones on the Settings page.
     connect(&core_.translator(), &I18n::Translator::languageChanged, this, [this]() {
         emit cacheUsedTextChanged();
+        emit diskFreeTextChanged();
         rebuildSources();
     });
     rebuildSources();
@@ -66,6 +69,14 @@ int SettingsScreen::playlistTracks() const { return core_.preload().playlistTrac
 int SettingsScreen::radioTracks() const { return core_.preload().radioTracks(); }
 
 int SettingsScreen::cacheMaxMb() const { return core_.preload().cacheMaxMb(); }
+
+int SettingsScreen::reserveMb() const { return core_.preload().reserveMb(); }
+
+QString SettingsScreen::diskFreeText() const
+{
+    const qint64 free = core_.preload().diskFreeBytes();
+    return free < 0 ? QString() : QLocale().formattedDataSize(free);
+}
 
 QString SettingsScreen::cacheUsedText() const
 {
@@ -82,6 +93,8 @@ void SettingsScreen::setPlaylistTracks(int tracks) { core_.preload().setPlaylist
 void SettingsScreen::setRadioTracks(int tracks) { core_.preload().setRadioTracks(tracks); }
 
 void SettingsScreen::setCacheMaxMb(int megabytes) { core_.preload().setCacheMaxMb(megabytes); }
+
+void SettingsScreen::setReserveMb(int megabytes) { core_.preload().setReserveMb(megabytes); }
 
 void SettingsScreen::clearCache() { core_.preload().clearCache(); }
 

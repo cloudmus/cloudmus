@@ -7,11 +7,11 @@
 
 #include <memory>
 
+#include "DiskSpace.h"
 #include "FakeUpstream.h"
 #include "Preloader.h"
 #include "ProxyRouting.h"
 #include "StreamDownload.h"
-#include "DiskSpace.h"
 #include "TrackCache.h"
 
 namespace Tests {
@@ -106,54 +106,72 @@ private slots:
         dir_.reset();
     }
 
-    // Little room: only the playing track comes down. None: not even that,
-    // and it isn't failed, it goes on when there's room again.
-    void aFullDiskHoldsDownloadsBack()
+    // Under the reserve nothing new comes down, the playing track included:
+    // it plays from its source, with no download for the player to wait on.
+    // Nothing failed either: it goes on when there's room again.
+    void underTheReserveNothingNewIsDownloaded()
     {
-        namespace Disk = Playback::DiskSpace;
-        using State = Playback::Preloader::State;
         const QString src = QStringLiteral("src");
-        qint64 free = Disk::kCriticalBytes + 1;
+        const qint64 reserve = Playback::DiskSpace::reserveBytes();
+        qint64 free = reserve - 1;
         cache_->setFreeSpaceProvider([&]() { return free; });
         QCOMPARE(cache_->space(), Playback::TrackCache::Space::Low);
 
         preloader_->setWindow({ playing(QStringLiteral("a")), upcoming(QStringLiteral("b")) });
-        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("a")), State::Ready);
         QTest::qWait(100);
-        QCOMPARE(preloader_->stateOf(src, QStringLiteral("b")), State::Waiting);
+        QCOMPARE(stateOf(QStringLiteral("a")), State::Waiting);
+        QCOMPARE(stateOf(QStringLiteral("b")), State::Waiting);
+        QVERIFY(preloader_->download(src, QStringLiteral("a")) == nullptr);
+        QVERIFY(!QFileInfo::exists(cache_->partPath(Playback::TrackCache::keyFor(src, QStringLiteral("a")))));
         QVERIFY(!resolveCalls_.contains(QStringLiteral("b")));
 
-        free = Disk::kCriticalBytes - 1;
+        free = reserve * 2;
         cache_->setFreeSpaceProvider([&]() { return free; });
-        preloader_->setWindow({ playing(QStringLiteral("c")) });
-        QTest::qWait(100);
-        QCOMPARE(preloader_->stateOf(src, QStringLiteral("c")), State::Waiting);
-        QVERIFY(!QFileInfo::exists(cache_->partPath(Playback::TrackCache::keyFor(src, QStringLiteral("c")))));
-
-        free = Disk::kLowBytes * 2;
-        cache_->setFreeSpaceProvider([&]() { return free; });
-        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("c")), State::Ready);
+        QTRY_COMPARE(stateOf(QStringLiteral("a")), State::Ready);
+        QTRY_COMPARE(stateOf(QStringLiteral("b")), State::Ready);
     }
 
-    // One under way stops, whatever it is, when the disk runs out.
-    void aDownloadUnderWayStopsWhenTheDiskRunsOut()
+    // The playing track's download under way goes on: the player may be
+    // reading it, and holding it back would stall the track for good.
+    void thePlayingTracksDownloadGoesOnUnderTheReserve()
     {
-        namespace Disk = Playback::DiskSpace;
-        using State = Playback::Preloader::State;
-        const QString src = QStringLiteral("src");
         upstream_->held.insert(QStringLiteral("/a"));
-        qint64 free = Disk::kLowBytes * 2;
+        const qint64 reserve = Playback::DiskSpace::reserveBytes();
+        qint64 free = reserve * 2;
         cache_->setFreeSpaceProvider([&]() { return free; });
         preloader_->setWindow({ playing(QStringLiteral("a")) });
-        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("a")), State::Downloading);
+        QTRY_COMPARE(stateOf(QStringLiteral("a")), State::Downloading);
 
-        free = Disk::kCriticalBytes - 1;
+        free = reserve - 1;
         cache_->setFreeSpaceProvider([&]() { return free; });
-        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("a")), State::Waiting);
+        QTest::qWait(100);
+        QCOMPARE(stateOf(QStringLiteral("a")), State::Downloading);
+        upstream_->release(QStringLiteral("/a"));
+        QTRY_COMPARE(stateOf(QStringLiteral("a")), State::Ready);
+    }
+
+    // One ahead stops when the disk runs short — and when it comes up to
+    // play, it goes on from where it stopped, or the player reading from it
+    // would wait forever.
+    void oneAheadStopsAndGoesOnOnceItPlays()
+    {
+        upstream_->held.insert(QStringLiteral("/b"));
+        const qint64 reserve = Playback::DiskSpace::reserveBytes();
+        qint64 free = reserve * 2;
+        cache_->setFreeSpaceProvider([&]() { return free; });
+        preloader_->setWindow({ playing(QStringLiteral("a")), upcoming(QStringLiteral("b")) });
+        QTRY_COMPARE(stateOf(QStringLiteral("a")), State::Ready);
+        QTRY_COMPARE(stateOf(QStringLiteral("b")), State::Downloading);
+
+        free = reserve - 1;
+        cache_->setFreeSpaceProvider([&]() { return free; });
+        QTRY_COMPARE(stateOf(QStringLiteral("b")), State::Waiting);
+        QVERIFY(preloader_->download(QStringLiteral("src"), QStringLiteral("b")) != nullptr);
+
         upstream_->held.clear();
-        free = Disk::kLowBytes * 2;
-        cache_->setFreeSpaceProvider([&]() { return free; });
-        QTRY_COMPARE(preloader_->stateOf(src, QStringLiteral("a")), State::Ready);
+        preloader_->setWindow({ playing(QStringLiteral("b")) });
+        QTRY_COMPARE(stateOf(QStringLiteral("b")), State::Ready);
+        QCOMPARE(cached(QStringLiteral("b")), upstream_->bodies.value(QStringLiteral("/b")));
     }
 
     // The point of it all: nothing takes the link from the track the

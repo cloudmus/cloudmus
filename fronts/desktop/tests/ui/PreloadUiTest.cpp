@@ -4,6 +4,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include "DiskSpace.h"
 #include "PlaybackController.h"
 #include "Preload.h"
 #include "PreloadCells.h"
@@ -49,6 +50,8 @@ private slots:
 
     void cleanup()
     {
+        // Global, and the page sets it.
+        Playback::DiskSpace::setReserveBytes(qint64(Playback::DiskSpace::kDefaultReserveMb) * 1024 * 1024);
         host_.reset();
         preload_.reset();
         playback_.reset();
@@ -117,16 +120,18 @@ private slots:
         QVERIFY(!page.isDirty()); // not built yet: nothing to be dirty about
         page.createWidget(host_.get());
         const QList<QSpinBox*> spins = host_->findChildren<QSpinBox*>();
-        QCOMPARE(spins.size(), 3);
+        QCOMPARE(spins.size(), 4);
         QCOMPARE(spins.at(0)->value(), 3);
         QCOMPARE(spins.at(1)->value(), 2);
         QCOMPARE(spins.at(2)->value(), 1024);
+        QCOMPARE(spins.at(3)->value(), preload_->reserveMb());
         QCOMPARE(spins.at(0)->maximum(), ViewModel::Preload::kMaxTracks);
         QVERIFY(!page.isDirty());
 
         spins.at(0)->setValue(8);
         spins.at(1)->setValue(0);
         spins.at(2)->setValue(256);
+        spins.at(3)->setValue(512);
         QVERIFY(page.isDirty());
         QCOMPARE(preload_->playlistTracks(), 3); // not before Apply
         QVERIFY(await(page.apply()));
@@ -135,6 +140,8 @@ private slots:
         QCOMPARE(preload_->radioTracks(), 0);
         QCOMPARE(preload_->cacheMaxMb(), 256);
         QCOMPARE(settings_->preloadPlaylistTracks(), 8);
+        QCOMPARE(preload_->reserveMb(), 512);
+        QCOMPARE(settings_->diskReserveMb(), 512);
         // The bar follows the applied limit: nothing cached, nothing filled.
         const QList<QProgressBar*> bars = host_->findChildren<QProgressBar*>();
         QCOMPARE(bars.size(), 1);

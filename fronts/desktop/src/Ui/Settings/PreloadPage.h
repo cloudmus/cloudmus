@@ -12,8 +12,8 @@ class Preload;
 
 namespace Ui::Settings {
 
-// How far ahead tracks are downloaded, and how much disk they may take —
-// all of it ViewModel::Preload's; the page only shows and forwards.
+// How far ahead tracks are downloaded, how much disk they may take, and how
+// much of it is kept free — all of it ViewModel::Preload's; the page only shows and forwards.
 class PreloadPage : public Page {
     Q_OBJECT
 
@@ -23,7 +23,7 @@ public:
     QString id() const override { return QStringLiteral("preload"); }
     QString title() const override;
     QString iconName() const override { return QStringLiteral("playlist_play"); }
-    int estimatedHeight() const override { return 205; }
+    int estimatedHeight() const override { return 270; }
 
     QWidget* createWidget(QWidget* parent) override;
     bool isDirty() const override;
@@ -31,6 +31,7 @@ public:
 
 private:
     void updateUsed();
+    void updateFree();
 
     // The share of the cache past which its bar turns red, as on mobile.
     static constexpr double kNearlyFull = 0.9;
@@ -39,6 +40,8 @@ private:
     QSpinBox* playlistSpin_ = nullptr;
     QSpinBox* radioSpin_ = nullptr;
     QSpinBox* cacheSpin_ = nullptr;
+    QSpinBox* reserveSpin_ = nullptr;
+    QLabel* freeLabel_ = nullptr;
     QLabel* usedLabel_ = nullptr;
     QProgressBar* usedBar_ = nullptr;
 };

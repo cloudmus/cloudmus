@@ -27,6 +27,9 @@ constexpr int kWritingCheckMs = 1000;
 // How much over a line it takes to be past it: a warning shouldn't come and go
 // with every track, and what's freed shouldn't be taken again at once.
 constexpr qint64 kSpaceMarginBytes = qint64(100) * 1024 * 1024;
+// Less than this isn't worth telling a view of the free space about: a
+// download moves it every second.
+constexpr qint64 kFreeReportBytes = qint64(10) * 1024 * 1024;
 
 } // namespace
 
@@ -74,7 +77,7 @@ bool TrackCache::wantsRoom() const
 {
     const qint64 free = freeBytes();
     // Not knowing is no reason to delete anything.
-    return free >= 0 && free < DiskSpace::kLowBytes + kSpaceMarginBytes;
+    return free >= 0 && free < DiskSpace::reserveBytes() + kSpaceMarginBytes;
 }
 
 void TrackCache::checkSpace()
@@ -87,14 +90,15 @@ void TrackCache::checkSpace()
             emit changed();
     }
     const qint64 free = freeBytes();
+    if ((free < 0) != (lastFree_ < 0) || qAbs(free - lastFree_) >= kFreeReportBytes) {
+        lastFree_ = free;
+        emit freeBytesChanged();
+    }
+    const qint64 reserve = DiskSpace::reserveBytes();
     Space now = Space::Fine;
-    if (!DiskSpace::freeIsEnough(free, DiskSpace::kCriticalBytes))
-        now = Space::Critical;
-    else if (space_ == Space::Critical && !DiskSpace::freeIsEnough(free, DiskSpace::kCriticalBytes + kSpaceMarginBytes))
-        now = Space::Critical;
-    else if (!DiskSpace::freeIsEnough(free, DiskSpace::kLowBytes))
+    if (!DiskSpace::freeIsEnough(free, reserve))
         now = Space::Low;
-    else if (space_ != Space::Fine && !DiskSpace::freeIsEnough(free, DiskSpace::kLowBytes + kSpaceMarginBytes))
+    else if (space_ == Space::Low && !DiskSpace::freeIsEnough(free, reserve + kSpaceMarginBytes))
         now = Space::Low;
     if (now == space_)
         return;

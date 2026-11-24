@@ -191,16 +191,18 @@ void Preloader::scheduleLater()
 
 bool Preloader::mayDownload(const QString& key) const
 {
-    switch (cache_.space()) {
-        case TrackCache::Space::Fine:
-            return true;
-        case TrackCache::Space::Low:
-            // What's listened to, and what was asked for by name.
-            return (!order_.isEmpty() && order_.first() == key) || demanded_.contains(key);
-        case TrackCache::Space::Critical:
-            break;
-    }
-    return false;
+    if (cache_.space() == TrackCache::Space::Fine)
+        return true;
+    // What was asked for by name: the save checks for room before each track
+    // (ViewModel::Downloads), and one it's waiting for mustn't hang.
+    if (demanded_.contains(key))
+        return true;
+    // The playing track, only if it's being downloaded already: the player may
+    // be reading it from that download (PlaybackController::startCurrentAudio()),
+    // and one held back there would never start. One not begun plays straight
+    // from its source instead, nothing written.
+    const auto it = entries_.constFind(key);
+    return !order_.isEmpty() && order_.first() == key && it != entries_.constEnd() && it->download != nullptr;
 }
 
 void Preloader::schedule()
@@ -342,6 +344,13 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
         scheduleLater();
         return;
     }
+    // The disk may have filled up while the URL was being asked for. Kept for
+    // later, but not a byte written, and no download for the player to wait on.
+    if (entry.download == nullptr && !mayDownload(key)) {
+        entry.item.stream = stream;
+        setState(key, State::Waiting);
+        return;
+    }
     const std::optional<QNetworkProxy> route = routeProvider_ ? routeProvider_(entry.item.sourceId) : std::nullopt;
     if (entry.download == nullptr) {
         entry.download = new StreamDownload(*network_, cache_.partPath(key), this);
@@ -358,7 +367,6 @@ void Preloader::begin(const QString& key, const StreamDescriptor& stream)
     const int wanted = connectionsProvider_ ? connectionsProvider_(entry.item.sourceId) : 0;
     entry.download->setConnections(
         qBound(1, wanted > 0 ? wanted : stream.maxConnections.value_or(1), Config::Settings::kMaxDownloadConnections));
-    // The disk may have filled up while the URL was being asked for.
     if (!mayDownload(key)) {
         setState(key, State::Waiting);
         return;

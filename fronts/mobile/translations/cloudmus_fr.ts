@@ -748,6 +748,18 @@
       <translation>Mo</translation>
     </message>
     <message>
+      <source>Keep free on the disk</source>
+      <translation>Laisser libre sur le disque</translation>
+    </message>
+    <message>
+      <source>When less than this is left free, old tracks and covers are removed first; then tracks play without being downloaded, and nothing new is saved.</source>
+      <translation>Quand il reste moins d'espace libre, les anciens titres et pochettes sont supprimés d'abord ; ensuite les titres sont lus sans être téléchargés, et rien de nouveau n'est enregistré.</translation>
+    </message>
+    <message>
+      <source>%1 free now</source>
+      <translation>%1 libres actuellement</translation>
+    </message>
+    <message>
       <source>%1 used</source>
       <translation>%1 utilisés</translation>
     </message>
@@ -1266,12 +1278,8 @@
   <context>
     <name>ViewModel::Preload</name>
     <message>
-      <source>Only %1 MB left on the disk: tracks aren't downloaded ahead, and old ones are removed.</source>
-      <translation>Il ne reste que %1 Mo sur le disque : les titres ne sont plus téléchargés à l'avance et les anciens sont supprimés.</translation>
-    </message>
-    <message>
-      <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
-      <translation>Il ne reste que %1 Mo sur le disque : le téléchargement est arrêté, seuls les titres déjà téléchargés peuvent être lus.</translation>
+      <source>Only %1 MB left on the disk, less than the %2 MB kept free: old tracks are removed, new ones play without being downloaded, and nothing is saved.</source>
+      <translation>Il ne reste que %1 Mo sur le disque, moins que les %2 Mo laissés libres : les anciens titres sont supprimés, les nouveaux sont lus sans être téléchargés, et rien n'est enregistré.</translation>
     </message>
     <message>
       <source>Downloaded ahead: %1 of %2</source>

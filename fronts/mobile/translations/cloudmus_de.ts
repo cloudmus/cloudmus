@@ -748,6 +748,18 @@
       <translation>MB</translation>
     </message>
     <message>
+      <source>Keep free on the disk</source>
+      <translation>Auf dem Datenträger frei lassen</translation>
+    </message>
+    <message>
+      <source>When less than this is left free, old tracks and covers are removed first; then tracks play without being downloaded, and nothing new is saved.</source>
+      <translation>Bleibt weniger frei, werden zuerst alte Titel und Cover entfernt; danach werden Titel ohne Herunterladen abgespielt, und nichts Neues wird gespeichert.</translation>
+    </message>
+    <message>
+      <source>%1 free now</source>
+      <translation>%1 jetzt frei</translation>
+    </message>
+    <message>
       <source>%1 used</source>
       <translation>%1 belegt</translation>
     </message>
@@ -1266,12 +1278,8 @@
   <context>
     <name>ViewModel::Preload</name>
     <message>
-      <source>Only %1 MB left on the disk: tracks aren't downloaded ahead, and old ones are removed.</source>
-      <translation>Nur noch %1 MB auf dem Datenträger frei: Titel werden nicht im Voraus geladen, alte werden entfernt.</translation>
-    </message>
-    <message>
-      <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
-      <translation>Nur noch %1 MB auf dem Datenträger frei: Das Laden wurde gestoppt, nur bereits geladene Titel können abgespielt werden.</translation>
+      <source>Only %1 MB left on the disk, less than the %2 MB kept free: old tracks are removed, new ones play without being downloaded, and nothing is saved.</source>
+      <translation>Nur noch %1 MB auf dem Datenträger frei, weniger als die %2 MB, die frei bleiben: Alte Titel werden entfernt, neue ohne Herunterladen abgespielt, und nichts wird gespeichert.</translation>
     </message>
     <message>
       <source>Downloaded ahead: %1 of %2</source>

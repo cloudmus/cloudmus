@@ -80,7 +80,8 @@ signals:
     void pixmapReady(QString url);
 
 private:
-    void trimFiles();
+    // Down to `maxBytes`, the newest kept.
+    void trimFiles(qint64 maxBytes);
     // The file a file:// URL names, if it's there; else empty.
     static QString localPath(const QString& url);
     // Reads a local cover on a worker, scaled down as it's decoded, for the

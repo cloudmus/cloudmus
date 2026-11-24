@@ -23,6 +23,10 @@ class SettingsScreen : public QObject {
     Q_PROPERTY(int playlistTracks READ playlistTracks NOTIFY playlistTracksChanged)
     Q_PROPERTY(int radioTracks READ radioTracks NOTIFY radioTracksChanged)
     Q_PROPERTY(int cacheMaxMb READ cacheMaxMb NOTIFY cacheMaxMbChanged)
+    // How much of the disk is kept free (ViewModel::Preload::reserveMb()).
+    Q_PROPERTY(int reserveMb READ reserveMb NOTIFY reserveMbChanged)
+    // Free on the disk now, ready to show; empty if it can't be told.
+    Q_PROPERTY(QString diskFreeText READ diskFreeText NOTIFY diskFreeTextChanged)
     Q_PROPERTY(double cacheUsedFraction READ cacheUsedFraction NOTIFY cacheUsedTextChanged)
     Q_PROPERTY(QString cacheUsedText READ cacheUsedText NOTIFY cacheUsedTextChanged)
     Q_PROPERTY(bool analytics READ analytics NOTIFY analyticsChanged)
@@ -46,6 +50,8 @@ public:
     int playlistTracks() const;
     int radioTracks() const;
     int cacheMaxMb() const;
+    int reserveMb() const;
+    QString diskFreeText() const;
     QString cacheUsedText() const;
     // Of the disk space set aside for tracks, 0..1.
     double cacheUsedFraction() const;
@@ -60,6 +66,7 @@ public slots:
     void setPlaylistTracks(int tracks);
     void setRadioTracks(int tracks);
     void setCacheMaxMb(int megabytes);
+    void setReserveMb(int megabytes);
     void clearCache();
     void setAnalytics(bool on);
     // `code` empty: follow the system.
@@ -78,6 +85,8 @@ signals:
     void playlistTracksChanged();
     void radioTracksChanged();
     void cacheMaxMbChanged();
+    void reserveMbChanged();
+    void diskFreeTextChanged();
     void cacheUsedTextChanged();
     void analyticsChanged();
     void languageChanged();

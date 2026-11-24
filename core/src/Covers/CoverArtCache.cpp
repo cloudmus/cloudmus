@@ -32,6 +32,10 @@ constexpr int kSourceCacheBytes = 24 * 1024 * 1024;
 // Each is a picture of a track or playlist, kept for the other process and for
 // browsers to read; only the mobile front asks for any.
 constexpr qint64 kFilesMaxBytes = qint64(200) * 1024 * 1024;
+// What they're cut down to with the disk under its reserve: still a screenful
+// and then some, for they're a cache like any other — they give way, they
+// don't stop (without them the mobile front shows no covers at all).
+constexpr qint64 kFilesLowBytes = qint64(16) * 1024 * 1024;
 constexpr int kFilesTrimDelayMs = 30000;
 // The largest side of a cover's file.
 constexpr int kFileSide = 1024;
@@ -82,21 +86,22 @@ CoverArtCache::CoverArtCache(QObject* parent)
     diskCache->setCacheDirectory(
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/covers"));
     network_.setCache(diskCache);
-    filesDir_ = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/cover-files");
+    filesDir_
+        = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/cloudmus/cover-files");
     memoryCache_.setMaxCost(64);
     sourceCache_.setMaxCost(kSourceCacheBytes);
     // Later: a long listing, at a start that has more pressing things to do.
-    QTimer::singleShot(kFilesTrimDelayMs, this, [this]() { trimFiles(); });
+    QTimer::singleShot(kFilesTrimDelayMs, this, [this]() { trimFiles(kFilesMaxBytes); });
 }
 
-void CoverArtCache::trimFiles()
+void CoverArtCache::trimFiles(qint64 maxBytes)
 {
     // They come back by themselves when wanted, and nothing else bounds them.
     QFileInfoList files = QDir(filesDir_).entryInfoList(QDir::Files, QDir::Time);
     qint64 total = 0;
     for (const QFileInfo& file : files) {
         total += file.size();
-        if (total > kFilesMaxBytes)
+        if (total > maxBytes)
             QFile::remove(file.filePath());
     }
 }
@@ -137,7 +142,7 @@ QString CoverArtCache::writeFile(const QString& url, const QImage& image)
 {
     const QString file = filePath(url);
     if (!Playback::DiskSpace::hasRoom(filesDir_))
-        return { };
+        trimFiles(kFilesLowBytes);
     QDir().mkpath(filesDir_);
     // A local file's own picture can be thousands of pixels wide: more than
     // any screen shows a cover at, and slow for the other process to load.

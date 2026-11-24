@@ -275,6 +275,10 @@ public:
     void setPreloadRadioTracks(int tracks);
     int preloadCacheMaxMb() const;
     void setPreloadCacheMaxMb(int megabytes);
+    // How much of the disk is kept free, in megabytes (Playback::DiskSpace):
+    // caches give way before it, downloads stop at it.
+    int diskReserveMb() const;
+    void setDiskReserveMb(int megabytes);
 
     // The update the user declined (Update::UpdateChecker): not offered
     // again at startup — a newer one is.

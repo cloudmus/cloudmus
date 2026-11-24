@@ -1205,6 +1205,10 @@ Do you agree to use downloads only this way?</source>
         <translation> МБ</translation>
     </message>
     <message>
+        <source>When less than this is left free, old tracks and covers are removed first; then tracks play without being downloaded, and nothing new is saved.</source>
+        <translation>Когда свободного места остаётся меньше, сначала удаляются старые треки и обложки; затем треки играют без загрузки, и ничего нового не сохраняется.</translation>
+    </message>
+    <message>
         <source>Clear</source>
         <translation>Очистить</translation>
     </message>
@@ -1221,8 +1225,16 @@ Do you agree to use downloads only this way?</source>
         <translation>Место на диске под треки:</translation>
     </message>
     <message>
+        <source>Keep free on the disk:</source>
+        <translation>Оставлять свободным на диске:</translation>
+    </message>
+    <message>
         <source>%1 used</source>
         <translation>Занято: %1</translation>
+    </message>
+    <message>
+        <source>%1 free now</source>
+        <translation>Сейчас свободно: %1</translation>
     </message>
 </context>
 <context>
@@ -1874,6 +1886,10 @@ You can try again later or download the new version yourself.</source>
 <context>
     <name>ViewModel::Preload</name>
     <message>
+        <source>Only %1 MB left on the disk, less than the %2 MB kept free: old tracks are removed, new ones play without being downloaded, and nothing is saved.</source>
+        <translation>На диске осталось всего %1 МБ, меньше оставляемых свободными %2 МБ: старые треки удаляются, новые играют без загрузки, ничего не сохраняется.</translation>
+    </message>
+    <message>
         <source>Downloaded ahead: %1 of %2</source>
         <translation>Скачано вперёд: %1 из %2</translation>
     </message>
@@ -1896,14 +1912,6 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>%1 — waiting</source>
         <translation>%1 — ждёт</translation>
-    </message>
-    <message>
-        <source>Only %1 MB left on the disk: tracks aren&apos;t downloaded ahead, and old ones are removed.</source>
-        <translation>На диске осталось всего %1 МБ: треки не загружаются заранее, старые удаляются.</translation>
-    </message>
-    <message>
-        <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
-        <translation>На диске осталось всего %1 МБ: загрузка остановлена, играть могут только уже загруженные треки.</translation>
     </message>
 </context>
 <context>

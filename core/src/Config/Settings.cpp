@@ -10,6 +10,8 @@
 #include <limits>
 #include <utility>
 
+#include "DiskSpace.h"
+
 namespace Config {
 
 namespace {
@@ -404,6 +406,17 @@ int Settings::preloadCacheMaxMb() const
 void Settings::setPreloadCacheMaxMb(int megabytes)
 {
     settings_.setValue(QStringLiteral("preload/cacheMaxMb"), qMax(0, megabytes));
+}
+
+int Settings::diskReserveMb() const
+{
+    return qMax(
+        0, settings_.value(QStringLiteral("storage/reserveMb"), Playback::DiskSpace::kDefaultReserveMb).toInt());
+}
+
+void Settings::setDiskReserveMb(int megabytes)
+{
+    settings_.setValue(QStringLiteral("storage/reserveMb"), qMax(0, megabytes));
 }
 
 bool Settings::analyticsEnabled() const { return settings_.value(QStringLiteral("analytics/enabled"), true).toBool(); }

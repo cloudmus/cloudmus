@@ -1,10 +1,12 @@
 #include <QAbstractItemModel>
 #include <QElapsedTimer>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTest>
 
 #include "AuthStates.h"
 #include "CoverArtCache.h"
+#include "DiskSpace.h"
 #include "FakeBackend.h"
 #include "FakeUpstream.h"
 #include "Messages.h"
@@ -189,6 +191,50 @@ private slots:
         QCOMPARE(preload_->total(), 1);
         preload_->setPlaylistTracks(2);
         QTRY_COMPARE(preload_->readyCount(), 2);
+    }
+
+    // The disk space kept free: saved, applied to everything that writes at
+    // once, and the warning names it.
+    void theReserveIsASettingForEverything()
+    {
+        namespace Disk = Playback::DiskSpace;
+        const auto restore
+            = qScopeGuard([]() { Disk::setReserveBytes(qint64(Disk::kDefaultReserveMb) * 1024 * 1024); });
+        QCOMPARE(preload_->reserveMb(), Disk::kDefaultReserveMb);
+        qint64 free = qint64(2000) * 1024 * 1024;
+        QSignalSpy freeChanged(preload_.get(), &Preload::diskFreeChanged);
+        playback_->trackCache().setFreeSpaceProvider([&]() { return free; });
+        QVERIFY(preload_->spaceWarning().isEmpty());
+        // What's free is shown as last looked at, and told when it moves enough.
+        QCOMPARE(preload_->diskFreeBytes(), free);
+        QCOMPARE(freeChanged.size(), 1);
+        free += 1024 * 1024;
+        playback_->trackCache().checkSpace();
+        QCOMPARE(freeChanged.size(), 1);
+        free = qint64(1900) * 1024 * 1024;
+        playback_->trackCache().checkSpace();
+        QCOMPARE(freeChanged.size(), 2);
+        QCOMPARE(preload_->diskFreeBytes(), free);
+
+        QSignalSpy changed(preload_.get(), &Preload::settingsChanged);
+        QSignalSpy warning(preload_.get(), &Preload::spaceWarningChanged);
+        preload_->setReserveMb(4096);
+        QCOMPARE(changed.size(), 1);
+        QCOMPARE(settings_.diskReserveMb(), 4096);
+        QCOMPARE(Disk::reserveBytes(), qint64(4096) * 1024 * 1024);
+        QCOMPARE(playback_->trackCache().space(), Playback::TrackCache::Space::Low);
+        QCOMPARE(warning.size(), 1);
+        QVERIFY(preload_->spaceWarning().contains(QStringLiteral("4096")));
+
+        preload_->setReserveMb(512);
+        QCOMPARE(playback_->trackCache().space(), Playback::TrackCache::Space::Fine);
+        QVERIFY(preload_->spaceWarning().isEmpty());
+
+        // What the next run starts with.
+        Disk::setReserveBytes(0);
+        Preload again(*playback_, settings_);
+        QCOMPARE(again.reserveMb(), 512);
+        QCOMPARE(Disk::reserveBytes(), qint64(512) * 1024 * 1024);
     }
 
     void clearingTheCacheKeepsWhatIsAboutToPlay()

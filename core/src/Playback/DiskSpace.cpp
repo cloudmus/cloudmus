@@ -3,6 +3,8 @@
 #include <QFile>
 #include <QFileInfo>
 
+#include <atomic>
+
 #ifdef Q_OS_UNIX
 #include <sys/statvfs.h>
 #else
@@ -10,6 +12,17 @@
 #endif
 
 namespace Playback::DiskSpace {
+
+namespace {
+
+// Read from wherever something is about to be written, threads included.
+std::atomic<qint64> reserve { qint64(kDefaultReserveMb) * 1024 * 1024 };
+
+} // namespace
+
+qint64 reserveBytes() { return reserve.load(std::memory_order_relaxed); }
+
+void setReserveBytes(qint64 bytes) { reserve.store(qMax(qint64(0), bytes), std::memory_order_relaxed); }
 
 qint64 freeBytes(const QString& path)
 {
@@ -35,7 +48,7 @@ qint64 freeBytes(const QString& path)
 bool hasRoom(const QString& path, qint64 bytes)
 {
     const qint64 free = freeBytes(path);
-    return freeIsEnough(free, kLowBytes) && (free < 0 || free - bytes >= kLowBytes);
+    return free < 0 || free - bytes >= reserveBytes();
 }
 
 } // namespace Playback::DiskSpace

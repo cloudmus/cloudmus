@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "DiskSpace.h"
 #include "PlaybackController.h"
 #include "Preloader.h"
 #include "Settings.h"
@@ -118,11 +119,14 @@ Preload::Preload(Playback::PlaybackController& playback, Config::Settings& setti
 {
     playback_.setPreloadDepth(settings_.preloadPlaylistTracks(), settings_.preloadRadioTracks());
     playback_.trackCache().setMaxBytes(settings_.preloadCacheMaxMb() * kMegabyte);
+    Playback::DiskSpace::setReserveBytes(qint64(settings_.diskReserveMb()) * kMegabyte);
+    playback_.trackCache().checkSpace();
 
     connect(&playback_.preloader(), &Playback::Preloader::progressChanged, this, &Preload::refresh);
     connect(&playback_.preloader(), &Playback::Preloader::trackStateChanged, this, &Preload::trackChanged);
     connect(&playback_.trackCache(), &Playback::TrackCache::changed, this, &Preload::cacheUsedChanged);
     connect(&playback_.trackCache(), &Playback::TrackCache::spaceChanged, this, &Preload::spaceWarningChanged);
+    connect(&playback_.trackCache(), &Playback::TrackCache::freeBytesChanged, this, &Preload::diskFreeChanged);
     refresh();
 }
 
@@ -162,6 +166,26 @@ void Preload::setCacheMaxMb(int megabytes)
     emit settingsChanged();
 }
 
+int Preload::reserveMb() const { return int(Playback::DiskSpace::reserveBytes() / kMegabyte); }
+
+void Preload::setReserveMb(int megabytes)
+{
+    megabytes = qBound(0, megabytes, kMaxReserveMb);
+    if (megabytes == reserveMb())
+        return;
+    settings_.setDiskReserveMb(megabytes);
+    Playback::TrackCache& cache = playback_.trackCache();
+    const auto before = cache.space();
+    Playback::DiskSpace::setReserveBytes(qint64(megabytes) * kMegabyte);
+    cache.checkSpace();
+    emit settingsChanged();
+    // The text names the reserve; a change of state has told already.
+    if (cache.space() == before && !spaceWarning().isEmpty())
+        emit spaceWarningChanged();
+}
+
+qint64 Preload::diskFreeBytes() const { return playback_.trackCache().lastFreeBytes(); }
+
 qint64 Preload::cacheUsedBytes() const { return playback_.trackCache().totalBytes(); }
 
 double Preload::cacheUsedFraction() const
@@ -176,16 +200,13 @@ void Preload::clearCache() { playback_.trackCache().clear(); }
 QString Preload::spaceWarning() const
 {
     const Playback::TrackCache& cache = playback_.trackCache();
+    if (cache.space() == Playback::TrackCache::Space::Fine)
+        return { };
     const qint64 free = qMax(qint64(0), cache.freeBytes()) / kMegabyte;
-    switch (cache.space()) {
-        case Playback::TrackCache::Space::Fine:
-            return { };
-        case Playback::TrackCache::Space::Low:
-            return tr("Only %1 MB left on the disk: tracks aren't downloaded ahead, and old ones are removed.").arg(free);
-        case Playback::TrackCache::Space::Critical:
-            break;
-    }
-    return tr("Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.").arg(free);
+    return tr("Only %1 MB left on the disk, less than the %2 MB kept free: old tracks are removed, new ones play "
+              "without being downloaded, and nothing is saved.")
+        .arg(free)
+        .arg(reserveMb());
 }
 
 QAbstractItemModel* Preload::upcoming() const { return model_; }

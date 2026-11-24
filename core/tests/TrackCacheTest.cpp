@@ -2,6 +2,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -57,14 +58,14 @@ private slots:
     void aFillingDiskTakesTheCacheAndSaysSo()
     {
         using Space = Playback::TrackCache::Space;
-        namespace Disk = Playback::DiskSpace;
+        const qint64 reserve = Playback::DiskSpace::reserveBytes();
         QTemporaryDir dir;
         QVERIFY(makeFile(dir.filePath(QStringLiteral("oldest")), 1000, 900));
         QVERIFY(makeFile(dir.filePath(QStringLiteral("old")), 1000, 300));
         QVERIFY(makeFile(dir.filePath(QStringLiteral("pinned")), 1000, 1200));
         Playback::TrackCache cache(dir.path());
         cache.setPinned({ QStringLiteral("pinned") });
-        qint64 free = Disk::kLowBytes * 2;
+        qint64 free = reserve * 2;
         Playback::TrackCache* cacheAt = &cache;
         // Each file gone gives its share back, a lot of it for the test's sake.
         qint64 freedPerFile = 0;
@@ -76,7 +77,7 @@ private slots:
 
         // Short by less than a file: the oldest is enough, the warning stays off.
         freedPerFile = 1024 * 1024 * 1024;
-        free = Disk::kLowBytes - 1024 * 1024;
+        free = reserve - 1024 * 1024;
         cache.setFreeSpaceProvider([&]() { return free + (total - cacheAt->totalBytes()) / 1000 * freedPerFile; });
         QCOMPARE(cache.space(), Space::Fine);
         QVERIFY(!cache.contains(QStringLiteral("oldest")));
@@ -85,27 +86,43 @@ private slots:
 
         // Nothing left to free but what's pinned: never that, and it's told.
         freedPerFile = 0;
-        free = Disk::kLowBytes - 1;
+        free = reserve - 1;
         cache.setFreeSpaceProvider([&]() { return free; });
         QVERIFY(!cache.contains(QStringLiteral("old")));
         QVERIFY(cache.contains(QStringLiteral("pinned")));
         QCOMPARE(cache.space(), Space::Low);
         QCOMPARE(space.size(), 1);
-        free = Disk::kCriticalBytes - 1;
-        cache.setFreeSpaceProvider([&]() { return free; });
-        QCOMPARE(cache.space(), Space::Critical);
-        QCOMPARE(space.size(), 2);
 
         // Back only with a margin: a line crossed to and fro warns once.
-        free = Disk::kCriticalBytes + 1;
-        cache.setFreeSpaceProvider([&]() { return free; });
-        QCOMPARE(cache.space(), Space::Critical);
-        free = Disk::kLowBytes + 1;
+        free = reserve + 1;
         cache.setFreeSpaceProvider([&]() { return free; });
         QCOMPARE(cache.space(), Space::Low);
-        free = Disk::kLowBytes * 2;
+        free = reserve * 2;
         cache.setFreeSpaceProvider([&]() { return free; });
         QCOMPARE(cache.space(), Space::Fine);
+        QCOMPARE(space.size(), 2);
+    }
+
+    // The reserve is the user's: a smaller one gives the cache its room back
+    // at once, a larger one takes it.
+    void theReserveIsTheSettings()
+    {
+        using Space = Playback::TrackCache::Space;
+        const auto restore = qScopeGuard(
+            [reserve = Playback::DiskSpace::reserveBytes()]() { Playback::DiskSpace::setReserveBytes(reserve); });
+        QTemporaryDir dir;
+        QVERIFY(makeFile(dir.filePath(QStringLiteral("a")), 1000));
+        Playback::DiskSpace::setReserveBytes(qint64(100) * 1024 * 1024);
+        Playback::TrackCache cache(dir.path());
+        const qint64 free = qint64(500) * 1024 * 1024;
+        cache.setFreeSpaceProvider([&]() { return free; });
+        QCOMPARE(cache.space(), Space::Fine);
+        QVERIFY(cache.contains(QStringLiteral("a")));
+
+        Playback::DiskSpace::setReserveBytes(qint64(1000) * 1024 * 1024);
+        cache.checkSpace();
+        QCOMPARE(cache.space(), Space::Low);
+        QVERIFY(!cache.contains(QStringLiteral("a")));
     }
 
     // Not knowing frees nothing.

@@ -28,6 +28,8 @@ class Preload : public QObject {
     Q_PROPERTY(int playlistTracks READ playlistTracks WRITE setPlaylistTracks NOTIFY settingsChanged)
     Q_PROPERTY(int radioTracks READ radioTracks WRITE setRadioTracks NOTIFY settingsChanged)
     Q_PROPERTY(int cacheMaxMb READ cacheMaxMb WRITE setCacheMaxMb NOTIFY settingsChanged)
+    Q_PROPERTY(int reserveMb READ reserveMb WRITE setReserveMb NOTIFY settingsChanged)
+    Q_PROPERTY(qint64 diskFreeBytes READ diskFreeBytes NOTIFY diskFreeChanged)
     Q_PROPERTY(qint64 cacheUsedBytes READ cacheUsedBytes NOTIFY cacheUsedChanged)
     Q_PROPERTY(QAbstractItemModel* upcoming READ upcoming CONSTANT)
     Q_PROPERTY(int total READ total NOTIFY progressChanged)
@@ -83,6 +85,13 @@ public:
     void setRadioTracks(int tracks);
     int cacheMaxMb() const;
     void setCacheMaxMb(int megabytes);
+    // The disk space kept free (Playback::DiskSpace), for everything that
+    // writes: the caches shrink before it, downloads stop at it.
+    static constexpr int kMaxReserveMb = 64 * 1024;
+    int reserveMb() const;
+    void setReserveMb(int megabytes);
+    // Free on the disk the tracks go to, as last looked at; -1 if unknown.
+    qint64 diskFreeBytes() const;
 
     qint64 cacheUsedBytes() const;
     // Of the disk space set aside for tracks, 0..1; 0 with none set aside.
@@ -118,6 +127,7 @@ signals:
     void settingsChanged();
     void cacheUsedChanged();
     void spaceWarningChanged();
+    void diskFreeChanged();
     // upcoming() or the totals changed.
     void progressChanged();
     // stateFor()/fractionFor() changed for this track.

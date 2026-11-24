@@ -1200,6 +1200,10 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation> Mo</translation>
     </message>
     <message>
+        <source>When less than this is left free, old tracks and covers are removed first; then tracks play without being downloaded, and nothing new is saved.</source>
+        <translation>Quand il reste moins d&apos;espace libre, les anciens titres et pochettes sont supprimés d&apos;abord ; ensuite les titres sont lus sans être téléchargés, et rien de nouveau n&apos;est enregistré.</translation>
+    </message>
+    <message>
         <source>Clear</source>
         <translation>Vider</translation>
     </message>
@@ -1216,8 +1220,16 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
         <translation>Espace disque pour les titres :</translation>
     </message>
     <message>
+        <source>Keep free on the disk:</source>
+        <translation>Laisser libre sur le disque :</translation>
+    </message>
+    <message>
         <source>%1 used</source>
         <translation>%1 utilisés</translation>
+    </message>
+    <message>
+        <source>%1 free now</source>
+        <translation>%1 libres actuellement</translation>
     </message>
 </context>
 <context>
@@ -1866,6 +1878,10 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
 <context>
     <name>ViewModel::Preload</name>
     <message>
+        <source>Only %1 MB left on the disk, less than the %2 MB kept free: old tracks are removed, new ones play without being downloaded, and nothing is saved.</source>
+        <translation>Il ne reste que %1 Mo sur le disque, moins que les %2 Mo laissés libres : les anciens titres sont supprimés, les nouveaux sont lus sans être téléchargés, et rien n&apos;est enregistré.</translation>
+    </message>
+    <message>
         <source>Downloaded ahead: %1 of %2</source>
         <translation>Téléchargés à l’avance : %1 sur %2</translation>
     </message>
@@ -1888,14 +1904,6 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
         <source>%1 — waiting</source>
         <translation>%1 — en attente</translation>
-    </message>
-    <message>
-        <source>Only %1 MB left on the disk: tracks aren&apos;t downloaded ahead, and old ones are removed.</source>
-        <translation>Il ne reste que %1 Mo sur le disque : les titres ne sont plus téléchargés à l&apos;avance et les anciens sont supprimés.</translation>
-    </message>
-    <message>
-        <source>Only %1 MB left on the disk: downloading has stopped, only downloaded tracks can play.</source>
-        <translation>Il ne reste que %1 Mo sur le disque : le téléchargement est arrêté, seuls les titres déjà téléchargés peuvent être lus.</translation>
     </message>
 </context>
 <context>

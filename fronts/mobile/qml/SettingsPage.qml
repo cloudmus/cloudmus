@@ -173,6 +173,23 @@ Page {
                         }
                     }
                 }
+                SettingStepper {
+                    objectName: "diskReserve"
+                    title: qsTr("Keep free on the disk")
+                    description: qsTr("When less than this is left free, old tracks and covers are removed first; then tracks play without being downloaded, and nothing new is saved.")
+                    value: page.screen ? page.screen.reserveMb : 0
+                    to: 65536
+                    step: 256
+                    suffix: " " + qsTr("MB")
+                    onMoved: (value) => page.screen.setReserveMb(value)
+                }
+                SettingsCell {
+                    visible: page.screen !== null && page.screen.diskFreeText !== ""
+                    SettingText {
+                        objectName: "diskFree"
+                        title: qsTr("%1 free now").arg(page.screen ? page.screen.diskFreeText : "")
+                    }
+                }
             }
 
             SettingsGroup {
