@@ -1911,6 +1911,10 @@ You can try again later or download the new version yourself.</source>
         <translation>Не удалось проверить обновления</translation>
     </message>
     <message>
+        <source>%1 from %2</source>
+        <translation>%1 от %2</translation>
+    </message>
+    <message>
         <source>%1 of %2</source>
         <translation>%1 из %2</translation>
     </message>

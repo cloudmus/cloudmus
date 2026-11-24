@@ -1905,6 +1905,10 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
         <translation>Impossibile controllare gli aggiornamenti</translation>
     </message>
     <message>
+        <source>%1 from %2</source>
+        <translation>%1 del %2</translation>
+    </message>
+    <message>
         <source>%1 of %2</source>
         <translation>%1 di %2</translation>
     </message>

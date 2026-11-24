@@ -1216,6 +1216,10 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
       <source>Install</source>
       <translation>Installa</translation>
     </message>
+    <message>
+      <source>CloudMus %1 is downloaded</source>
+      <translation>CloudMus %1 è scaricato</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ActivePlaylist</name>
@@ -1581,6 +1585,10 @@ Puoi riprovare più tardi o scaricare tu stesso la nuova versione.</translation>
         <numerusform>circa %n min rimanenti</numerusform>
         <numerusform>circa %n min rimanenti</numerusform>
       </translation>
+    </message>
+    <message>
+      <source>%1 from %2</source>
+      <translation>%1 del %2</translation>
     </message>
   </context>
 </TS>

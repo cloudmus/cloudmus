@@ -1905,6 +1905,10 @@ Puedes volver a intentarlo más tarde o descargar tú mismo la nueva versión.</
         <translation>No se pudo buscar actualizaciones</translation>
     </message>
     <message>
+        <source>%1 from %2</source>
+        <translation>%1 del %2</translation>
+    </message>
+    <message>
         <source>%1 of %2</source>
         <translation>%1 de %2</translation>
     </message>

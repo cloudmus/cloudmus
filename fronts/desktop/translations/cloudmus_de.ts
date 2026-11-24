@@ -1905,6 +1905,10 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
         <translation>Die Suche nach Updates ist fehlgeschlagen</translation>
     </message>
     <message>
+        <source>%1 from %2</source>
+        <translation>%1 vom %2</translation>
+    </message>
+    <message>
         <source>%1 of %2</source>
         <translation>%1 von %2</translation>
     </message>

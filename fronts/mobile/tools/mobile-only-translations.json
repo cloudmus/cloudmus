@@ -742,5 +742,21 @@
   "es": "La tienda no pudo actualizar la aplicación.",
   "fr": "La boutique n’a pas pu mettre à jour l’application.",
   "it": "Lo store non è riuscito ad aggiornare l’app."
+ },
+ "CloudMus %1 is downloaded": {
+  "ru": "CloudMus %1 скачан",
+  "be": "CloudMus %1 спампаваны",
+  "de": "CloudMus %1 ist heruntergeladen",
+  "es": "CloudMus %1 está descargado",
+  "fr": "CloudMus %1 est téléchargé",
+  "it": "CloudMus %1 è scaricato"
+ },
+ "%1 from %2": {
+  "ru": "%1 от %2",
+  "be": "%1 ад %2",
+  "de": "%1 vom %2",
+  "es": "%1 del %2",
+  "fr": "%1 du %2",
+  "it": "%1 del %2"
  }
 }

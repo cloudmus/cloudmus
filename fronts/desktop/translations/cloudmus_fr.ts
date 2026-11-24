@@ -1905,6 +1905,10 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
         <translation>Impossible de rechercher des mises à jour</translation>
     </message>
     <message>
+        <source>%1 from %2</source>
+        <translation>%1 du %2</translation>
+    </message>
+    <message>
         <source>%1 of %2</source>
         <translation>%1 sur %2</translation>
     </message>

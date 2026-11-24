@@ -22,39 +22,40 @@ namespace ViewModel {
 // (Update::Installer on the desktop, Android's package installer or a
 // store's update flow on Android).
 //
-// Plain types only: the mobile front reaches it through a Qt Remote Objects
-// replica (fronts/mobile/src/Remote/Host.cpp).
+// Plain types only, and a notify signal of its own for each property: the
+// mobile front reaches it through a Qt Remote Objects replica
+// (fronts/mobile/src/Remote/Host.cpp), which carries no other.
 class UpdateScreen : public QObject {
     Q_OBJECT
     // Step: what the view shows.
     Q_PROPERTY(int step READ step NOTIFY stepChanged)
     // How this run gets the update (Via).
-    Q_PROPERTY(int via READ via NOTIFY offerChanged)
+    Q_PROPERTY(int via READ via NOTIFY viaChanged)
     // The newest version, its release page, the running version ("0.6.0 of
     // 12 September 2026"), and every release's notes since, newest first, as
     // Markdown.
-    Q_PROPERTY(QString version READ version NOTIFY offerChanged)
-    Q_PROPERTY(QString releasePage READ releasePage NOTIFY offerChanged)
-    Q_PROPERTY(QString currentVersionText READ currentVersionText NOTIFY offerChanged)
-    Q_PROPERTY(QString notes READ notes NOTIFY offerChanged)
+    Q_PROPERTY(QString version READ version NOTIFY versionChanged)
+    Q_PROPERTY(QString releasePage READ releasePage NOTIFY releasePageChanged)
+    Q_PROPERTY(QString currentVersionText READ currentVersionText NOTIFY currentVersionTextChanged)
+    Q_PROPERTY(QString notes READ notes NOTIFY notesChanged)
     // Why this run can't install by itself (Via::ReleasePage), for the user.
-    Q_PROPERTY(QString unavailableReason READ unavailableReason NOTIFY offerChanged)
+    Q_PROPERTY(QString unavailableReason READ unavailableReason NOTIFY unavailableReasonChanged)
     // An update is known and not skipped, offered or not: a view may point
     // at it (reopen()).
-    Q_PROPERTY(bool available READ available NOTIFY offerChanged)
+    Q_PROPERTY(bool available READ available NOTIFY availableChanged)
     // The download: 0..1, or -1 until the size is known; "3 MB of 40 MB ·
     // about 20 s left".
     Q_PROPERTY(double progress READ progress NOTIFY progressChanged)
-    Q_PROPERTY(QString progressText READ progressText NOTIFY progressChanged)
+    Q_PROPERTY(QString progressText READ progressText NOTIFY progressTextChanged)
     // Step::Ready: the file for the platform to install.
-    Q_PROPERTY(QString downloadedFile READ downloadedFile NOTIFY stepChanged)
+    Q_PROPERTY(QString downloadedFile READ downloadedFile NOTIFY downloadedFileChanged)
     // Step::Failed: what went wrong.
-    Q_PROPERTY(QString error READ error NOTIFY stepChanged)
+    Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     // A check asked for by hand is under way; its outcome when nothing is
     // offered (up to date, or the check failed): a heading and rich text.
     Q_PROPERTY(bool checking READ checking NOTIFY checkingChanged)
-    Q_PROPERTY(QString checkHeading READ checkHeading NOTIFY checkingChanged)
-    Q_PROPERTY(QString checkText READ checkText NOTIFY checkingChanged)
+    Q_PROPERTY(QString checkHeading READ checkHeading NOTIFY checkHeadingChanged)
+    Q_PROPERTY(QString checkText READ checkText NOTIFY checkTextChanged)
 
 public:
     enum Step {
@@ -138,9 +139,20 @@ public slots:
 
 signals:
     void stepChanged();
-    void offerChanged();
+    void viaChanged();
+    void versionChanged();
+    void releasePageChanged();
+    void currentVersionTextChanged();
+    void notesChanged();
+    void unavailableReasonChanged();
+    void availableChanged();
     void progressChanged();
+    void progressTextChanged();
+    void downloadedFileChanged();
+    void errorChanged();
     void checkingChanged();
+    void checkHeadingChanged();
+    void checkTextChanged();
     // An update for the view to show: found at startup or asked for.
     void offered(bool manual);
     // A step taken, for statistics: "install", "install_launched",
@@ -151,6 +163,11 @@ private:
     void takeUpdate(const Update::PendingUpdate& update, bool manual);
     void takeCheckOutcome(const QString& heading, const QString& text, bool manual);
     void setStep(Step step);
+    // Each property of a group its own signal (see the class' comment).
+    void emitOfferChanged();
+    void emitStepChanged();
+    void emitProgressChanged();
+    void emitCheckingChanged();
     void showProgress(qint64 received, qint64 total, int secondsLeft);
     void fail(const QString& error);
     void discardDownload();

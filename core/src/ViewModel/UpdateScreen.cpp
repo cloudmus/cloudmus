@@ -88,7 +88,8 @@ QString UpdateScreen::releasePage() const { return update_ ? update_->latest().p
 QString UpdateScreen::currentVersionText() const
 {
     const QDate date = update_ ? update_->currentPublished : QDate();
-    return date.isValid() ? tr("%1 of %2").arg(checker_.currentVersion(), releaseDate(date))
+    // Not "%1 of %2", the download's: a date takes other words in a translation.
+    return date.isValid() ? tr("%1 from %2").arg(checker_.currentVersion(), releaseDate(date))
                           : checker_.currentVersion();
 }
 
@@ -104,7 +105,7 @@ void UpdateScreen::check()
         return; // the answer is on screen already
     clearCheck();
     checking_ = true;
-    emit checkingChanged();
+    emitCheckingChanged();
     checker_.check(true);
 }
 
@@ -123,7 +124,7 @@ void UpdateScreen::setInstallUnavailable(const QString& reason)
     unavailableReason_ = reason;
     if (update_ && via_ == Here) {
         via_ = ReleasePage;
-        emit offerChanged();
+        emitOfferChanged();
     }
 }
 
@@ -140,7 +141,7 @@ void UpdateScreen::offerStoreVersion(int versionCode, bool manual)
     storeManual_ = manual;
     if (manual) {
         checking_ = true;
-        emit checkingChanged();
+        emitCheckingChanged();
     }
     // For the notes: manual, so a skipped version is still reported here.
     checker_.check(true);
@@ -169,7 +170,7 @@ void UpdateScreen::takeUpdate(const Update::PendingUpdate& update, bool manual)
     }
     if (checking_) {
         checking_ = false;
-        emit checkingChanged();
+        emitCheckingChanged();
     }
     // A download under way or done stays: it's this offer's, or one the
     // user is already looking at.
@@ -190,7 +191,7 @@ void UpdateScreen::takeUpdate(const Update::PendingUpdate& update, bool manual)
         notes_ += QStringLiteral("\n\n");
     }
     error_.clear();
-    emit offerChanged();
+    emitOfferChanged();
     setStep(Offer);
     emit offered(manual);
 }
@@ -204,7 +205,7 @@ void UpdateScreen::takeCheckOutcome(const QString& heading, const QString& text,
     checking_ = false;
     checkHeading_ = heading;
     checkText_ = text;
-    emit checkingChanged();
+    emitCheckingChanged();
 }
 
 void UpdateScreen::clearCheck()
@@ -214,7 +215,7 @@ void UpdateScreen::clearCheck()
     checking_ = false;
     checkHeading_.clear();
     checkText_.clear();
-    emit checkingChanged();
+    emitCheckingChanged();
 }
 
 void UpdateScreen::install()
@@ -247,7 +248,7 @@ void UpdateScreen::install()
     }
     progress_ = -1;
     progressText_ = tr("Connecting…");
-    emit progressChanged();
+    emitProgressChanged();
     error_.clear();
     setStep(Downloading);
     downloader_->start(latest.assetUrl, latest.assetSize, downloadPath_(latest));
@@ -262,7 +263,7 @@ void UpdateScreen::skip()
     close();
     // Not pointed at any more (available).
     update_.reset();
-    emit offerChanged();
+    emitOfferChanged();
 }
 
 void UpdateScreen::reopen()
@@ -318,7 +319,39 @@ void UpdateScreen::setStep(Step step)
     if (step == step_)
         return;
     step_ = step;
+    emitStepChanged();
+}
+
+void UpdateScreen::emitOfferChanged()
+{
+    emit viaChanged();
+    emit versionChanged();
+    emit releasePageChanged();
+    emit currentVersionTextChanged();
+    emit notesChanged();
+    emit unavailableReasonChanged();
+    emit availableChanged();
+}
+
+void UpdateScreen::emitStepChanged()
+{
+    // The step last: a replica has the file and the error by then.
+    emit downloadedFileChanged();
+    emit errorChanged();
     emit stepChanged();
+}
+
+void UpdateScreen::emitProgressChanged()
+{
+    emit progressChanged();
+    emit progressTextChanged();
+}
+
+void UpdateScreen::emitCheckingChanged()
+{
+    emit checkingChanged();
+    emit checkHeadingChanged();
+    emit checkTextChanged();
 }
 
 void UpdateScreen::showProgress(qint64 received, qint64 total, int secondsLeft)
@@ -341,7 +374,7 @@ void UpdateScreen::showProgress(qint64 received, qint64 total, int secondsLeft)
             + (secondsLeft < 60 ? tr("about %n s left", nullptr, secondsShown)
                                 : tr("about %n min left", nullptr, minutesShown));
     }
-    emit progressChanged();
+    emitProgressChanged();
 }
 
 void UpdateScreen::fail(const QString& error)
@@ -349,7 +382,7 @@ void UpdateScreen::fail(const QString& error)
     emit stepTaken(QStringLiteral("failed"));
     error_ = error;
     if (step_ == Failed)
-        emit stepChanged(); // the new error
+        emitStepChanged(); // the new error
     setStep(Failed);
 }
 

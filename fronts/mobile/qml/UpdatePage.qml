@@ -34,12 +34,24 @@ Page {
     onStepChanged: _installIfReady()
     Component.onCompleted: _installIfReady()
 
+    // The file handed to Android's installer: once. The core's step, a
+    // replica's, follows a moment later.
+    property string _handedOver: ""
+    // Ready again: Android's question was turned down.
+    readonly property bool _turnedDown: step === stepReady && allowed && screen !== null
+        && screen.downloadedFile !== "" && screen.downloadedFile === _handedOver
+    Connections {
+        target: page.screen
+        ignoreUnknownSignals: true
+        function onDownloadedFileChanged() { page._installIfReady() }
+    }
     function _installIfReady() {
-        if (step !== stepReady || !platform)
+        if (step !== stepReady || !platform || !screen.downloadedFile || screen.downloadedFile === _handedOver)
             return
         allowed = platform.canInstallPackages()
         if (!allowed)
             return
+        _handedOver = screen.downloadedFile
         const playing = backend.nowPlaying !== null && backend.nowPlaying.playing === true
         platform.installUpdate(screen.downloadedFile, playing, qsTr("Updates"),
             qsTr("CloudMus is updated to %1"), qsTr("Tap to open it"))
@@ -89,6 +101,7 @@ Page {
             font.weight: Font.Bold
             text: page.step === page.stepDownloading ? qsTr("Downloading CloudMus %1").arg(page.version)
                 : page.step === page.stepReady && !page.allowed ? qsTr("Allow CloudMus to install the update")
+                : page.step === page.stepReady && page._turnedDown ? qsTr("CloudMus %1 is downloaded").arg(page.version)
                 : page.step === page.stepReady || page.step === page.stepInstalling
                     ? qsTr("Installing CloudMus %1").arg(page.version)
                 : page.step === page.stepFailed ? qsTr("The update didn't work out")
@@ -103,7 +116,7 @@ Page {
             text: !page.screen ? ""
                 : page.step === page.stepOffer
                     ? qsTr("Version <b>%1</b> is out — you have <b>%2</b>.")
-                          .arg(page.version, page.screen.currentVersionText)
+                          .arg(page.version).arg(page.screen.currentVersionText || "")
                 : page.step === page.stepReady && !page.allowed
                     ? qsTr("Android asks once to let CloudMus install apps. Turn on “Allow from this source”, then come back: the update goes on by itself.")
                 : page.step === page.stepInstalling && page.viaStore
@@ -163,7 +176,7 @@ Page {
             spacing: Theme.dp(8)
             visible: page.step === page.stepDownloading
                 || (page.step === page.stepInstalling && page.viaStore)
-                || (page.step === page.stepReady && page.allowed)
+                || (page.step === page.stepReady && page.allowed && !page._turnedDown)
             readonly property real fraction: page.step === page.stepDownloading
                 ? (page.screen ? page.screen.progress : -1)
                 : page.viaStore && page.platform ? page.platform.storeUpdateProgress : -1
@@ -248,11 +261,19 @@ Page {
             }
             TextButton {
                 objectName: "updateInstall"
-                visible: page.step === page.stepOffer || page.step === page.stepFailed
+                readonly property bool _again: page._turnedDown
+                visible: page.step === page.stepOffer || page.step === page.stepFailed || _again
                 text: page.viaPage ? qsTr("Open Release Page")
-                    : page.step === page.stepFailed ? qsTr("Try Again") : qsTr("Install")
+                    : page.step === page.stepOffer ? qsTr("Install") : qsTr("Try Again")
                 tint: Theme.accent
-                onClicked: page.install()
+                onClicked: {
+                    if (_again) {
+                        page._handedOver = ""
+                        page._installIfReady()
+                    } else {
+                        page.install()
+                    }
+                }
             }
         }
     }

@@ -1221,6 +1221,10 @@ You can try again later or download the new version yourself.</source>
       <source>Install</source>
       <translation>Усталяваць</translation>
     </message>
+    <message>
+      <source>CloudMus %1 is downloaded</source>
+      <translation>CloudMus %1 спампаваны</translation>
+    </message>
   </context>
   <context>
     <name>ViewModel::ActivePlaylist</name>
@@ -1589,6 +1593,10 @@ You can try again later or download the new version yourself.</source>
         <numerusform>засталося каля %n хв</numerusform>
         <numerusform>засталося каля %n хв</numerusform>
       </translation>
+    </message>
+    <message>
+      <source>%1 from %2</source>
+      <translation>%1 ад %2</translation>
     </message>
   </context>
 </TS>
