@@ -236,10 +236,8 @@ Item {
                 neighbors: page.backend.mainScreen
                 swipeSurface: surface
                 preloadFractions: page.backend.mainScreen ? page.backend.mainScreen.preloadFractions : []
-                // In the header, as are the modes under the seek bar: the title
-                // has the width.
+                // In the header; shuffle and repeat are right of the title.
                 showMenu: false
-                modesUnderSeek: true
                 // Larger than on a head unit: the title and the artist have the width.
                 titleSizeAbove: Theme.dp(24)
                 artistSizeAbove: Theme.dp(18)

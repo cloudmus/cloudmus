@@ -66,9 +66,6 @@ Item {
     // right of it. Set, the buttons go there as `modesElsewhere` comes to 1
     // rather than fade away; unset (null), they fade.
     property var modesAway: null
-    // Shuffle and repeat between the seek bar's times, not beside the title: a
-    // phone's portrait has no width to spare for the title.
-    property bool modesUnderSeek: false
     // As large as there's room for, leaving the rest the width it needs.
     readonly property real _besideSide: Math.max(Theme.dp(120),
         Math.min(height * sideCoverHeightShare, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
@@ -506,7 +503,7 @@ Item {
                 // each going between this slot and the mini player's.
                 RowLayout {
                     id: modesSlots
-                    parent: panel.modesUnderSeek ? seekBar.center : titleRow
+                    parent: titleRow
                     visible: panel.modesElsewhere < 1 && panel._hasModes
                     spacing: 0
                     Item {
