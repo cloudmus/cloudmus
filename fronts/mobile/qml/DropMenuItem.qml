@@ -49,6 +49,8 @@ MenuItem {
         }
         Text {
             Layout.fillWidth: true
+            // As much room right of the label as left of the icon.
+            Layout.rightMargin: Theme.dp(8)
             text: item.text
             color: Theme.ink
             font.family: Theme.fontFamily
