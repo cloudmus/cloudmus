@@ -335,22 +335,17 @@ Popup {
             }
         }
         }
-        // Across a head unit's: nothing else moves that way.
-        DragHandler {
-            enabled: sheet.wide
-            target: null
-            yAxis.enabled: false
-            property real velocity: 0
-            property double movedAt: 0
-            onActiveTranslationChanged: {
-                if (!active || activeTranslation.x === 0)
-                    return
-                velocity = centroid.velocity.x
-                movedAt = Date.now()
+        // Across a head unit's, back to the edge: the sheet goes with the finger.
+        // Up and down is the list's: one or the other per touch, see AxisSwipe.
+        AxisSwipe {
+            objectName: "sheetSwipe"
+            allowed: sheet.wide
+            view: scroller
+            onMoved: (distance) => {
                 slideBack.stop()
-                sheet.slide = Math.max(0, Math.min(1, activeTranslation.x / sheet.width))
+                sheet.slide = Math.max(0, Math.min(1, distance / sheet.width))
             }
-            onActiveChanged: if (!active) sheet._letGo(Date.now() - movedAt < 100 ? velocity : 0)
+            onReleased: (velocity) => sheet._letGo(velocity)
         }
 
         contentWidth: width
