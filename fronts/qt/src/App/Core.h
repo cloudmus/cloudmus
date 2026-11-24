@@ -8,6 +8,7 @@
 #include "Analytics.h"
 #include "AudioFileProbe.h"
 #include "AudioPulse.h"
+#include "LogoSound.h"
 #include "AuthStates.h"
 #include "ConnectionStatus.h"
 #include "CoverArtCache.h"
@@ -52,6 +53,7 @@ public:
     Rpc::SourceManager& sourceManager() { return sourceManager_; }
     Playback::PlaybackController& playback() { return playback_; }
     ViewModel::AudioPulse& audioPulse() { return audioPulse_; }
+    ViewModel::LogoSound& logoSound() { return logoSound_; }
     Rpc::AuthStates& authStates() { return authStates_; }
     History::PlaybackHistory& playbackHistory() { return playbackHistory_; }
     Library::TrackStates& trackStates() { return trackStates_; }
@@ -99,6 +101,7 @@ private:
     Playback::PlaybackController playback_;
     ViewModel::Preload preload_;
     ViewModel::AudioPulse audioPulse_;
+    ViewModel::LogoSound logoSound_;
     Rpc::AuthStates authStates_;
     History::PlaybackHistory playbackHistory_;
     Library::TrackStates trackStates_;

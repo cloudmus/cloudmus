@@ -10,6 +10,7 @@
 #include "AudioPulse.h"
 #include "BeatDetector.h"
 #include "LevelFeed.h"
+#include "LogoSound.h"
 
 namespace Tests {
 
@@ -282,6 +283,48 @@ private slots:
         for (int i = 0; i < 100; ++i) // stopped: no more readings
             pulse.poll(16);
         QVERIFY(pulse.level() < 0.01f);
+    }
+
+    // --- LogoSound
+
+    // The logo's strikes come as the speakers get to them, not as it's
+    // tapped; the strongest last; then the level dies away and it's over.
+    void logoSoundStrikesInTimeWithTheSpeakers()
+    {
+        int plays = 0;
+        double speakers = -1;
+        ViewModel::LogoSound sound({ [&plays]() { ++plays; }, [&speakers]() { return speakers; } });
+        QSignalSpy hits(&sound, &ViewModel::LogoSound::hit);
+        QSignalSpy playing(&sound, &ViewModel::LogoSound::playingChanged);
+        sound.play();
+        QCOMPARE(plays, 1);
+        QVERIFY(sound.playing());
+        sound.step(-1); // not sounding yet: nothing
+        QCOMPARE(hits.count(), 0);
+
+        // Through it a frame at a time, as heard.
+        QVector<double> heardAt;
+        connect(&sound, &ViewModel::LogoSound::hit, this, [&heardAt, &speakers](float) { heardAt.append(speakers); });
+        float loudest = 0;
+        for (speakers = 0; speakers < 6 && sound.playing(); speakers += 0.016) {
+            sound.step(speakers);
+            loudest = std::max(loudest, sound.level());
+        }
+        QCOMPARE(hits.count(), 5);
+        QVERIFY(heardAt.first() > 0.2 && heardAt.first() < 0.3);
+        QVERIFY(heardAt.last() > 1.45 && heardAt.last() < 1.55);
+        QCOMPARE(hits.last().first().toFloat(), 1.0f); // the last, the strongest
+        QVERIFY(loudest > 0.9f);
+        QVERIFY(!sound.playing()); // over by its end
+        QCOMPARE(sound.level(), 0.0f);
+        QCOMPARE(playing.count(), 2);
+
+        // Played again: from the start.
+        hits.clear();
+        sound.play();
+        sound.step(0.3);
+        QCOMPARE(hits.count(), 1);
+        sound.stop();
     }
 
     void keepsItsLevelBetweenFrames()

@@ -96,6 +96,7 @@ add_library(cloudmus-core STATIC
     ${CLOUDMUS_QT_DIR}/src/Playback/PlaybackController.cpp
     ${CLOUDMUS_QT_DIR}/src/Playback/BeatDetector.cpp
     ${CLOUDMUS_QT_DIR}/src/Playback/LevelFeed.cpp
+    ${CLOUDMUS_QT_DIR}/src/Playback/CuePlayer.cpp
 
     ${CLOUDMUS_QT_DIR}/src/Config/Paths.cpp
     ${CLOUDMUS_QT_DIR}/src/Config/Settings.cpp
@@ -124,6 +125,7 @@ add_library(cloudmus-core STATIC
 
 
     ${CLOUDMUS_QT_DIR}/src/ViewModel/AudioPulse.cpp
+    ${CLOUDMUS_QT_DIR}/src/ViewModel/LogoSound.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/ConnectionStatus.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/Messages.cpp
     ${CLOUDMUS_QT_DIR}/src/ViewModel/NowPlaying.cpp
@@ -169,6 +171,13 @@ target_compile_options(cloudmus-core PUBLIC
 target_compile_definitions(cloudmus-core PRIVATE
     CLOUDMUS_DEV_REPO_ROOT="${CLOUDMUS_REPO_ROOT}"
 )
+
+# The logo's sound (Playback::CuePlayer, Cue::Logo): in the core, as the
+# mobile front plays it from its playback service, which has no other resources.
+set_source_files_properties(${CLOUDMUS_QT_DIR}/resources/sounds/cloudmus-logo.mp3
+    PROPERTIES QT_RESOURCE_ALIAS cloudmus-logo.mp3)
+qt_add_resources(cloudmus-core "logoSound" PREFIX "/sounds"
+    FILES ${CLOUDMUS_QT_DIR}/resources/sounds/cloudmus-logo.mp3)
 
 target_include_directories(cloudmus-core PUBLIC
     ${GENERATED_DIR}

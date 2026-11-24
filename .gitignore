@@ -4,6 +4,8 @@ __pycache__/
 *.egg-info/
 downloads/
 *.mp3
+# The app's own sound logo, not music.
+!fronts/qt/resources/sounds/cloudmus-logo.mp3
 build/
 build-asan/
 build-appimage/

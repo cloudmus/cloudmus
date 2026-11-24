@@ -29,6 +29,8 @@ QString resourceName(Cue cue)
             return QStringLiteral("undislike.oga");
         case Cue::Download:
             return QStringLiteral("download.oga");
+        case Cue::Logo:
+            return QStringLiteral("cloudmus-logo.mp3");
     }
     return { };
 }
@@ -48,11 +50,21 @@ CuePlayer::~CuePlayer()
 void CuePlayer::play(Cue cue)
 {
     const QString path = filePath(cue);
-    if (path.isEmpty() || !ensureMpv())
+    if (path.isEmpty() || !ensureMpv()) {
+        emit finished();
         return;
+    }
     const QByteArray pathUtf8 = path.toUtf8();
     const char* args[] = { "loadfile", pathUtf8.constData(), "replace", nullptr };
     mpv_command_async(mpv_, 0, args);
+}
+
+double CuePlayer::position() const
+{
+    double pts = -1;
+    if (mpv_ == nullptr || mpv_get_property(mpv_, "audio-pts", MPV_FORMAT_DOUBLE, &pts) < 0)
+        return -1;
+    return pts;
 }
 
 bool CuePlayer::ensureMpv()
@@ -73,6 +85,8 @@ bool CuePlayer::ensureMpv()
     // no pipewire in the AppImage there either.
 #ifdef Q_OS_WIN
     const char* output = "wasapi";
+#elif defined(Q_OS_ANDROID)
+    const char* output = "opensles,audiotrack";
 #elif defined(Q_OS_MACOS)
     const char* output = "coreaudio";
 #else
@@ -81,7 +95,7 @@ bool CuePlayer::ensureMpv()
     mpv_set_option_string(mpv_, "vid", "no");
     mpv_set_option_string(mpv_, "ao", output);
     mpv_set_option_string(mpv_, "audio-client-name", "CloudMus");
-    // Nothing here needs mpv's events, but unread ones pile up in its queue.
+    // Only the end of a cue matters here, but unread events pile up in its queue.
     mpv_set_wakeup_callback(
         mpv_,
         [](void* ctx) {
@@ -109,6 +123,9 @@ void CuePlayer::drainEvents()
             const auto* end = static_cast<const mpv_event_end_file*>(event->data);
             if (end->reason == MPV_END_FILE_REASON_ERROR)
                 qCWarning(lcCuePlayer) << "can't play a cue:" << mpv_error_string(end->error);
+            // Cut off by the next one: that one goes on.
+            if (end->reason != MPV_END_FILE_REASON_STOP)
+                emit finished();
         }
     }
 }

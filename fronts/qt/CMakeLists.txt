@@ -89,8 +89,6 @@ add_library(cloudmus-desktop-core STATIC
     src/App/SingleInstance.cpp
     src/App/StarPrompt.cpp
 
-    src/Playback/CuePlayer.cpp
-
     src/Hotkeys/Actions.cpp
     src/Hotkeys/Registry.cpp
     src/Hotkeys/Dispatcher.cpp
