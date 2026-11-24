@@ -1536,32 +1536,8 @@ Do you agree to use downloads only this way?</source>
 <context>
     <name>Ui::UpdateDialog</name>
     <message>
-        <source>No description.</source>
-        <translation>Няма апісання.</translation>
-    </message>
-    <message numerus="yes">
-        <source>about %n s left</source>
-        <translation>
-            <numerusform>засталося каля %n с</numerusform>
-            <numerusform>засталося каля %n с</numerusform>
-            <numerusform>засталося каля %n с</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <source>about %n min left</source>
-        <translation>
-            <numerusform>засталося каля %n хв</numerusform>
-            <numerusform>засталося каля %n хв</numerusform>
-            <numerusform>засталося каля %n хв</numerusform>
-        </translation>
-    </message>
-    <message>
         <source>CloudMus Update</source>
         <translation>Абнаўленне CloudMus</translation>
-    </message>
-    <message>
-        <source>%1 of %2</source>
-        <translation>%1 з %2</translation>
     </message>
     <message>
         <source>A new version of CloudMus is available</source>
@@ -1586,10 +1562,6 @@ Do you agree to use downloads only this way?</source>
     <message>
         <source>Downloading CloudMus %1</source>
         <translation>Спампоўка CloudMus %1</translation>
-    </message>
-    <message>
-        <source>Connecting…</source>
-        <translation>Падключэнне…</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -1623,28 +1595,8 @@ You can try again later or download the new version yourself.</source>
 <context>
     <name>Ui::UpdateFlow</name>
     <message>
-        <source>Version %1 is the latest one.</source>
-        <translation>Версія %1 — апошняя.</translation>
-    </message>
-    <message>
-        <source> It&apos;s built on %1, released on %2.</source>
-        <translation> Сабрана %1, выпушчана %2.</translation>
-    </message>
-    <message>
-        <source> Released on %1.</source>
-        <translation> Выпушчана %1.</translation>
-    </message>
-    <message>
         <source>Check for Updates</source>
         <translation>Праверка абнаўленняў</translation>
-    </message>
-    <message>
-        <source>CloudMus is up to date</source>
-        <translation>У вас актуальная версія CloudMus</translation>
-    </message>
-    <message>
-        <source>Couldn&apos;t check for updates</source>
-        <translation>Не атрымалася праверыць абнаўленні</translation>
     </message>
 </context>
 <context>
@@ -1934,6 +1886,61 @@ You can try again later or download the new version yourself.</source>
     <message>
         <source>timed out loading playlists</source>
         <translation>скончыўся час чакання загрузкі плэйлістаў</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::UpdateScreen</name>
+    <message>
+        <source>Version %1 is the latest one.</source>
+        <translation>Версія %1 — апошняя.</translation>
+    </message>
+    <message>
+        <source> It&apos;s built on %1, released on %2.</source>
+        <translation> Сабрана %1, выпушчана %2.</translation>
+    </message>
+    <message>
+        <source> Released on %1.</source>
+        <translation> Выпушчана %1.</translation>
+    </message>
+    <message>
+        <source>CloudMus is up to date</source>
+        <translation>У вас актуальная версія CloudMus</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t check for updates</source>
+        <translation>Не атрымалася праверыць абнаўленні</translation>
+    </message>
+    <message>
+        <source>%1 of %2</source>
+        <translation>%1 з %2</translation>
+    </message>
+    <message>
+        <source>No description.</source>
+        <translation>Няма апісання.</translation>
+    </message>
+    <message>
+        <source>This build can&apos;t install updates by itself</source>
+        <translation>Гэтая зборка не можа ўсталяваць абнаўленне сама</translation>
+    </message>
+    <message>
+        <source>Connecting…</source>
+        <translation>Падключэнне…</translation>
+    </message>
+    <message numerus="yes">
+        <source>about %n s left</source>
+        <translation>
+            <numerusform>засталося каля %n с</numerusform>
+            <numerusform>засталося каля %n с</numerusform>
+            <numerusform>засталося каля %n с</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>about %n min left</source>
+        <translation>
+            <numerusform>засталося каля %n хв</numerusform>
+            <numerusform>засталося каля %n хв</numerusform>
+            <numerusform>засталося каля %n хв</numerusform>
+        </translation>
     </message>
 </context>
 </TS>

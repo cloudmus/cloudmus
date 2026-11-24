@@ -4,7 +4,6 @@
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDialogButtonBox>
-#include <QFile>
 #include <QFrame>
 #include <QLabel>
 #include <QLocale>
@@ -25,8 +24,7 @@
 #include "Spacing.h"
 #include "Tokens.h"
 #include "Typography.h"
-#include "UpdateChecker.h"
-#include "UpdateDownloader.h"
+#include "UpdateScreen.h"
 
 namespace Ui {
 
@@ -34,46 +32,11 @@ namespace {
 
 Q_LOGGING_CATEGORY(lcUpdate, "cloudmus.update")
 
-// "3 October 2026" — QLocale::LongFormat would add the weekday.
-QString releaseDate(const QDate& date) { return QLocale().toString(date, QStringLiteral("d MMMM yyyy")); }
-
-// Every release's notes since the running version, newest first, each
-// under its own version.
-QString joinedNotes(const Update::PendingUpdate& update)
-{
-    QString markdown;
-    for (const Update::Release& release : update.releases) {
-        markdown += QStringLiteral("**%1**").arg(release.name);
-        if (release.published.isValid())
-            markdown += QStringLiteral(" · %1").arg(releaseDate(release.published));
-        markdown += QStringLiteral("\n\n");
-        markdown += release.notes.isEmpty() ? QCoreApplication::translate("Ui::UpdateDialog", "No description.")
-                                            : release.notes;
-        markdown += QStringLiteral("\n\n");
-    }
-    return markdown;
-}
-
-QString timeLeft(int seconds)
-{
-    if (seconds < 0)
-        return QString();
-    // The counts computed outside translate(): lupdate (Qt 6.9) loops
-    // forever on qMax(a, b) among its arguments, and drops the text for
-    // (a + b) / c.
-    const int secondsLeft = qMax(seconds, 1);
-    const int minutesLeft = (seconds + 59) / 60;
-    if (seconds < 60)
-        return QCoreApplication::translate("Ui::UpdateDialog", "about %n s left", nullptr, secondsLeft);
-    return QCoreApplication::translate("Ui::UpdateDialog", "about %n min left", nullptr, minutesLeft);
-}
-
 } // namespace
 
-UpdateDialog::UpdateDialog(Update::UpdateChecker& checker, Update::PendingUpdate update, QWidget* parent)
+UpdateDialog::UpdateDialog(ViewModel::UpdateScreen& screen, QWidget* parent)
     : QDialog(parent)
-    , checker_(checker)
-    , update_(std::move(update))
+    , screen_(screen)
 {
     setWindowTitle(tr("CloudMus Update"));
     setProperty("themed", true); // see StyleSheet.cpp's dialogsBlock() for why
@@ -137,42 +100,57 @@ UpdateDialog::UpdateDialog(Update::UpdateChecker& checker, Update::PendingUpdate
     root->addSpacing(Theme::Spacing::space3);
     root->addWidget(buttons_);
 
-    showOffer();
+    connect(&screen_, &ViewModel::UpdateScreen::stepChanged, this, &UpdateDialog::showStep);
+    connect(&screen_, &ViewModel::UpdateScreen::progressChanged, this, &UpdateDialog::showProgress);
+    showStep();
 }
 
 void UpdateDialog::reject()
 {
-    if (downloader_ != nullptr && downloader_->isRunning())
-        downloader_->cancel();
-    if (!downloadedPath_.isEmpty()) {
-        QFile::remove(downloadedPath_);
-        downloadedPath_.clear();
-    }
+    screen_.close();
     QDialog::reject();
 }
 
-QString UpdateDialog::currentVersionText() const
+void UpdateDialog::showStep()
 {
-    const QDate date = update_.currentPublished;
-    return date.isValid() ? tr("%1 of %2").arg(checker_.currentVersion(), releaseDate(date))
-                          : checker_.currentVersion();
+    const int step = screen_.step();
+    if (step == shownStep_ && step != ViewModel::UpdateScreen::Failed)
+        return;
+    shownStep_ = step;
+    switch (step) {
+        case ViewModel::UpdateScreen::Offer:
+            showOffer();
+            break;
+        case ViewModel::UpdateScreen::Downloading:
+            showDownload();
+            break;
+        case ViewModel::UpdateScreen::Ready:
+            // No second question: Install was already the answer.
+            install();
+            break;
+        case ViewModel::UpdateScreen::Failed:
+            showFailure(screen_.error());
+            break;
+        default:
+            break;
+    }
 }
 
 void UpdateDialog::showOffer()
 {
-    const Update::Release& latest = update_.latest();
-    const QString reason = Update::Installer::unavailableReason();
+    const Update::PendingUpdate& update = *screen_.pendingUpdate();
+    const QString reason = screen_.unavailableReason();
     setStep(Step::Offer, tr("A new version of CloudMus is available"),
         tr("Version <b>%1</b> is out — you have <b>%2</b>.")
-            .arg(latest.name.toHtmlEscaped(), currentVersionText().toHtmlEscaped()));
-    QString markdown = joinedNotes(update_);
+            .arg(screen_.version().toHtmlEscaped(), screen_.currentVersionText().toHtmlEscaped()));
+    QString markdown = screen_.notes();
     if (!reason.isEmpty())
         markdown.prepend(QStringLiteral("**%1**\n\n").arg(reason));
     notes_->setMarkdown(markdown);
     // Air above each release but the first: the Markdown import gives a
     // version line the same small gap as any paragraph.
     QStringList versionLines;
-    for (const Update::Release& release : update_.releases)
+    for (const Update::Release& release : update.releases)
         versionLines.append(release.name);
     QTextBlockFormat gap;
     gap.setTopMargin(Theme::Spacing::space5);
@@ -200,12 +178,12 @@ void UpdateDialog::showOffer()
 
     QPushButton* skip = addButton(tr("Skip This Version"), "secondary");
     connect(skip, &QPushButton::clicked, this, [this]() {
-        checker_.skip(update_.latest().name);
-        reject();
+        screen_.skip();
+        QDialog::reject();
     });
-    if (reason.isEmpty()) {
+    if (screen_.via() == ViewModel::UpdateScreen::Here) {
         QPushButton* install = addButton(tr("Install"), "primary");
-        connect(install, &QPushButton::clicked, this, &UpdateDialog::startDownload);
+        connect(install, &QPushButton::clicked, &screen_, &ViewModel::UpdateScreen::install);
         install->setDefault(true);
     } else {
         QPushButton* open = addButton(tr("Open Release Page"), "primary");
@@ -214,50 +192,28 @@ void UpdateDialog::showOffer()
     }
 }
 
-void UpdateDialog::startDownload()
+void UpdateDialog::showDownload()
 {
-    emit stepTaken(QStringLiteral("install"));
-    const Update::Release& latest = update_.latest();
-    setStep(Step::Downloading, tr("Downloading CloudMus %1").arg(latest.name), QString());
-    progressBar_->setRange(0, 0); // until the size is known
-    progressLabel_->setText(tr("Connecting…"));
+    setStep(Step::Downloading, tr("Downloading CloudMus %1").arg(screen_.version()), QString());
     QPushButton* cancel = addButton(tr("Cancel"), "secondary");
     connect(cancel, &QPushButton::clicked, this, &UpdateDialog::reject);
-
-    if (downloader_ == nullptr) {
-        downloader_ = new Update::UpdateDownloader(*checker_.network(), this);
-        connect(downloader_, &Update::UpdateDownloader::progress, this, &UpdateDialog::showProgress);
-        connect(downloader_, &Update::UpdateDownloader::finished, this, [this](const QString& filePath) {
-            // No second question: Install was already the answer.
-            downloadedPath_ = filePath;
-            install();
-        });
-        connect(downloader_, &Update::UpdateDownloader::failed, this, &UpdateDialog::showFailure);
-    }
-    downloader_->start(latest.assetUrl, latest.assetSize, Update::Installer::downloadPath(latest));
+    showProgress();
 }
 
-void UpdateDialog::showProgress(qint64 received, qint64 total, int secondsLeft)
+void UpdateDialog::showProgress()
 {
-    const QLocale locale;
-    QString text;
-    if (total > 0) {
-        // Per mille: a bar's range is an int, and a file may not fit one.
-        progressBar_->setRange(0, 1000);
-        progressBar_->setValue(int(received * 1000 / total));
-        text = tr("%1 of %2").arg(locale.formattedDataSize(received), locale.formattedDataSize(total));
+    const double progress = screen_.progress();
+    if (progress < 0) {
+        progressBar_->setRange(0, 0); // until the size is known
     } else {
-        text = locale.formattedDataSize(received);
+        progressBar_->setRange(0, 1000);
+        progressBar_->setValue(int(progress * 1000));
     }
-    const QString left = timeLeft(secondsLeft);
-    if (!left.isEmpty())
-        text += QStringLiteral(" · ") + left;
-    progressLabel_->setText(text);
+    progressLabel_->setText(screen_.progressText());
 }
 
 void UpdateDialog::showFailure(const QString& error)
 {
-    emit stepTaken(QStringLiteral("failed"));
     setStep(Step::Failed, tr("The update didn't work out"), QString());
     notes_->setPlainText(tr("%1\n\nYou can try again later or download the new version yourself.").arg(error));
     QPushButton* open = addButton(tr("Open Release Page"), "secondary");
@@ -271,21 +227,17 @@ void UpdateDialog::install()
 {
     // Putting it in place can take a few seconds (on macOS the app is
     // copied out of the DMG).
-    setStep(Step::Downloading, tr("Installing CloudMus %1").arg(update_.latest().name), QString());
+    setStep(Step::Downloading, tr("Installing CloudMus %1").arg(screen_.version()), QString());
     progressBar_->setRange(0, 0);
     progressLabel_->clear();
     QString error;
-    const QString path = downloadedPath_;
-    qCDebug(lcUpdate).noquote() << "installing" << update_.latest().name << "from" << path;
-    // From here on the file belongs to the installer, whatever happens.
-    downloadedPath_.clear();
-    if (!Update::Installer::launch(path, update_.latest(), &error)) {
-        qCWarning(lcUpdate).noquote() << "couldn't install" << path << ":" << error;
-        QFile::remove(path);
-        showFailure(error);
+    const QString path = screen_.downloadedFile();
+    qCDebug(lcUpdate).noquote() << "installing" << screen_.version() << "from" << path;
+    if (!Update::Installer::launch(path, screen_.pendingUpdate()->latest(), &error)) {
+        screen_.installFailed(error);
         return;
     }
-    emit stepTaken(QStringLiteral("install_launched"));
+    screen_.installStarted();
     emit quitRequested();
     accept();
 }
@@ -295,8 +247,8 @@ void UpdateDialog::openReleasePage()
     // The dialog stays open: the desktop's portal opens the page for this
     // window asynchronously, and closing (deleting) it right away can
     // cancel the request before the browser has been asked.
-    emit stepTaken(QStringLiteral("release_page"));
-    const QUrl url = update_.latest().pageUrl;
+    screen_.releasePageOpened();
+    const QUrl url(screen_.releasePage());
     if (!QDesktopServices::openUrl(url)) {
         qWarning() << "Update: couldn't open" << url;
         showFailure(tr("Couldn't open %1 in a browser").arg(url.toString()));

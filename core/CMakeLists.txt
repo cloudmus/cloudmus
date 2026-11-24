@@ -1,8 +1,8 @@
 # cloudmus-core: everything below the view — backends, playback, state,
 # settings, view models — with no Qt Widgets (see core/AGENTS.md). Shared
 # by the desktop front and the mobile one (fronts/mobile), which add this
-# directory; so what only the desktop needs (hotkeys, updates, crash reports)
-# is in cloudmus-desktop-core instead, and paths are absolute.
+# directory; so what only the desktop needs (hotkeys, installing updates,
+# crash reports) is in cloudmus-desktop-core instead, and paths are absolute.
 #
 # Expects from the including project: C++20, AUTOMOC, the Qt6 Core, Gui and
 # Network targets, and a cloudmus-mpv target.
@@ -145,10 +145,15 @@ add_library(cloudmus-core STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/Downloads.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/Preload.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/TrackListModel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel/UpdateScreen.cpp
 
 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Timing/Debounce.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Timing/Throttle.cpp
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Update/ReleaseFeed.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Update/UpdateChecker.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Update/UpdateDownloader.cpp
 
     ${GENERATED_DIR}/RpcMethods.cpp
 )
@@ -195,6 +200,7 @@ target_include_directories(cloudmus-core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/App
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ViewModel
     ${CMAKE_CURRENT_SOURCE_DIR}/src/Timing
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/Update
 )
 
 target_link_libraries(cloudmus-core PUBLIC
@@ -289,6 +295,7 @@ if(BUILD_TESTING AND NOT ANDROID)
             tests/TrackFileTest.cpp
             tests/TrackListUpdateTest.cpp
             tests/TrackStatesTest.cpp
+            tests/UpdateScreenTest.cpp
         )
         target_link_libraries(cloudmus-core-tests PRIVATE cloudmus-core-test-support)
         # The test files' own directory: TrackFileTest finds data/ by it.

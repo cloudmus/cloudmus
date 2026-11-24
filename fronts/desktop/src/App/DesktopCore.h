@@ -7,6 +7,7 @@
 #include "Registry.h"
 #include "StarPrompt.h"
 #include "UpdateChecker.h"
+#include "UpdateScreen.h"
 
 namespace App {
 
@@ -22,6 +23,7 @@ public:
     Hotkeys::Registry& hotkeys() { return hotkeys_; }
     Hotkeys::Dispatcher& hotkeyDispatcher() { return hotkeyDispatcher_; }
     Update::UpdateChecker& updates() { return updates_; }
+    ViewModel::UpdateScreen& updateScreen() { return updateScreen_; }
     StarPrompt& starPrompt() { return starPrompt_; }
 
 private:
@@ -30,6 +32,7 @@ private:
     Hotkeys::Dispatcher hotkeyDispatcher_;
     Playback::CuePlayer cuePlayer_;
     Update::UpdateChecker updates_;
+    ViewModel::UpdateScreen updateScreen_;
     StarPrompt starPrompt_;
 };
 

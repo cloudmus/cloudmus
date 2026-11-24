@@ -36,6 +36,7 @@ QObject* makeTrackCacheTest();
 QObject* makeTrackFileTest();
 QObject* makeTrackListUpdateTest();
 QObject* makeTrackStatesTest();
+QObject* makeUpdateScreenTest();
 }
 
 int main(int argc, char** argv)
@@ -78,7 +79,8 @@ int main(int argc, char** argv)
              Tests::makeTrackCacheTest,
              Tests::makeTrackFileTest,
              Tests::makeTrackListUpdateTest,
-             Tests::makeTrackStatesTest }) {
+             Tests::makeTrackStatesTest,
+             Tests::makeUpdateScreenTest }) {
         std::unique_ptr<QObject> test(make());
         failures += QTest::qExec(test.get(), argc, argv);
     }

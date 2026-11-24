@@ -83,7 +83,8 @@ set(CLOUDMUS_BUILD_CORE_TESTS ON)
 add_subdirectory(../../core core)
 
 # --- cloudmus-desktop-core: what the core has only on the desktop — hotkeys,
-# updates, crash reports. No Qt Widgets either.
+# installing updates (finding and downloading them is the core's), crash
+# reports. No Qt Widgets either.
 add_library(cloudmus-desktop-core STATIC
     src/App/DesktopCore.cpp
     src/ViewModel/Browse.cpp
@@ -96,10 +97,6 @@ add_library(cloudmus-desktop-core STATIC
 
     src/Diagnostics/CrashReporter.cpp
     src/Diagnostics/CrashShortcut.cpp
-
-    src/Update/ReleaseFeed.cpp
-    src/Update/UpdateChecker.cpp
-    src/Update/UpdateDownloader.cpp
 )
 if(WIN32)
     target_sources(cloudmus-desktop-core PRIVATE src/Diagnostics/CrashReporterWin.cpp src/Update/InstallerWin.cpp)

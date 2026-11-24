@@ -1,14 +1,13 @@
 #include "UpdateFlow.h"
 
 #include <QEvent>
-#include <QLocale>
 #include <QTimer>
 
 #include "Analytics.h"
 #include "InfoDialog.h"
 #include "MainWindow.h"
-#include "UpdateChecker.h"
 #include "UpdateDialog.h"
+#include "UpdateScreen.h"
 #include "WindowHost.h"
 
 namespace Ui {
@@ -18,9 +17,9 @@ constexpr int kStartupCheckDelayMs = 5000;
 } // namespace
 
 UpdateFlow::UpdateFlow(
-    Update::UpdateChecker& checker, WindowHost& windowHost, App::Analytics& analytics, QObject* parent)
+    ViewModel::UpdateScreen& screen, WindowHost& windowHost, App::Analytics& analytics, QObject* parent)
     : QObject(parent)
-    , checker_(checker)
+    , screen_(screen)
     , windowHost_(windowHost)
     , analytics_(analytics)
 {
@@ -31,36 +30,27 @@ UpdateFlow::UpdateFlow(
             dialog_->activateWindow();
             return;
         }
-        checker_.check(true);
+        screen_.check();
     });
-    connect(&checker_, &Update::UpdateChecker::updateAvailable, this, &UpdateFlow::offer);
-    connect(&checker_, &Update::UpdateChecker::upToDate, this, [this](const std::optional<Update::Release>& own) {
-        // Rich text (InfoDialog's label detects it): the versions in bold.
-        const auto bold = [](const QString& text) { return QStringLiteral("<b>%1</b>").arg(text.toHtmlEscaped()); };
-        QString text = tr("Version %1 is the latest one.").arg(bold(checker_.currentVersion()));
-        if (own && own->published.isValid()) {
-            const QString date = QLocale().toString(own->published, QStringLiteral("d MMMM yyyy"));
-            // A build between releases has no date of its own.
-            text += checker_.isDevBuild() ? tr(" It's built on %1, released on %2.").arg(bold(own->name), date)
-                                          : tr(" Released on %1.").arg(date);
-        }
-        InfoDialog(tr("Check for Updates"), tr("CloudMus is up to date"), text, QString(), windowHost_.window()).exec();
-    });
-    connect(&checker_, &Update::UpdateChecker::checkFailed, this, [this](const QString& error, bool manual) {
-        if (!manual)
+    connect(&screen_, &ViewModel::UpdateScreen::offered, this, &UpdateFlow::offer);
+    connect(&screen_, &ViewModel::UpdateScreen::checkingChanged, this, [this]() {
+        if (screen_.checking() || screen_.checkHeading().isEmpty())
             return;
-        InfoDialog(tr("Check for Updates"), tr("Couldn't check for updates"), error, QString(), windowHost_.window())
-            .exec();
+        // Rich text (InfoDialog's label detects it): the versions in bold.
+        const QString heading = screen_.checkHeading();
+        const QString text = screen_.checkText();
+        screen_.clearCheck();
+        InfoDialog(tr("Check for Updates"), heading, text, QString(), windowHost_.window()).exec();
     });
+    connect(&screen_, &ViewModel::UpdateScreen::stepTaken, this,
+        [this](const QString& step) { analytics_.recordUpdate(step); });
     connect(&windowHost_, &WindowHost::windowCreated, this, &UpdateFlow::watchWindow);
     watchWindow();
 }
 
 void UpdateFlow::checkAtStartup()
 {
-    if (checker_.isDevBuild())
-        return;
-    QTimer::singleShot(kStartupCheckDelayMs, this, [this]() { checker_.check(false); });
+    QTimer::singleShot(kStartupCheckDelayMs, this, [this]() { screen_.checkAutomatically(); });
 }
 
 bool UpdateFlow::eventFilter(QObject* watched, QEvent* event)
@@ -70,33 +60,32 @@ bool UpdateFlow::eventFilter(QObject* watched, QEvent* event)
         QTimer::singleShot(0, this, [this]() {
             if (!deferred_)
                 return;
-            const Update::PendingUpdate update = *deferred_;
-            deferred_.reset();
-            showDialog(update);
+            deferred_ = false;
+            if (screen_.step() == ViewModel::UpdateScreen::Offer)
+                showDialog();
         });
     }
     return QObject::eventFilter(watched, event);
 }
 
-void UpdateFlow::offer(const Update::PendingUpdate& update, bool manual)
+void UpdateFlow::offer(bool manual)
 {
     if (dialog_)
         return;
     analytics_.recordUpdate(QStringLiteral("offered"), manual);
     if (!manual && !windowHost_.window()->isVisible()) {
-        deferred_ = update;
+        deferred_ = true;
         return;
     }
-    showDialog(update);
+    showDialog();
 }
 
-void UpdateFlow::showDialog(const Update::PendingUpdate& update)
+void UpdateFlow::showDialog()
 {
     if (dialog_)
         return;
-    dialog_ = new UpdateDialog(checker_, update, windowHost_.window());
+    dialog_ = new UpdateDialog(screen_, windowHost_.window());
     connect(dialog_, &UpdateDialog::quitRequested, &windowHost_, &WindowHost::quit, Qt::QueuedConnection);
-    connect(dialog_, &UpdateDialog::stepTaken, this, [this](const QString& step) { analytics_.recordUpdate(step); });
     dialog_->show();
 }
 

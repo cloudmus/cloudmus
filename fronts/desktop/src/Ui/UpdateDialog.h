@@ -2,39 +2,34 @@
 
 #include <QDialog>
 
-#include "ReleaseFeed.h"
-
 class QDialogButtonBox;
 class QLabel;
 class QProgressBar;
 class QPushButton;
 class QTextBrowser;
 
-namespace Update {
-class UpdateChecker;
-class UpdateDownloader;
+namespace ViewModel {
+class UpdateScreen;
 }
 
 namespace Ui {
 
 // The whole of installing an update, one step after another in the same
-// window: what's new (Install / Skip This Version), the download
-// (Cancel), and the install starts as soon as it's done. Closing the window at any step backs out, and a download it
-// leaves unfinished is deleted.
+// window, as ViewModel::UpdateScreen takes them: what's new (Install / Skip
+// This Version), the download (Cancel), and the install starts as soon as
+// it's done (Update::Installer). Closing the window at any step backs out,
+// and a download it leaves unfinished is deleted.
 class UpdateDialog : public QDialog {
     Q_OBJECT
 
 public:
-    UpdateDialog(Update::UpdateChecker& checker, Update::PendingUpdate update, QWidget* parent = nullptr);
+    UpdateDialog(ViewModel::UpdateScreen& screen, QWidget* parent = nullptr);
 
     void reject() override;
 
 signals:
     // The installer (or the new AppImage) is waiting for the app to exit.
     void quitRequested();
-    // A step taken, for statistics: "install" (the user chose to),
-    // "install_launched", "failed", "release_page".
-    void stepTaken(const QString& step);
 
 private:
     enum class Step {
@@ -43,21 +38,19 @@ private:
         Failed,
     };
 
-    // "0.1.0 of 12 September 2026", or just the version if its date is unknown.
-    QString currentVersionText() const;
+    // What the screen's step is now.
+    void showStep();
     void showOffer();
-    void startDownload();
-    void showProgress(qint64 received, qint64 total, int secondsLeft);
+    void showDownload();
+    void showProgress();
     void showFailure(const QString& error);
     void install();
     void openReleasePage();
     void setStep(Step step, const QString& heading, const QString& text);
     QPushButton* addButton(const QString& text, const char* variant);
 
-    Update::UpdateChecker& checker_;
-    Update::PendingUpdate update_;
-    Update::UpdateDownloader* downloader_ = nullptr;
-    QString downloadedPath_;
+    ViewModel::UpdateScreen& screen_;
+    int shownStep_ = -1;
 
     QLabel* heading_ = nullptr;
     QLabel* text_ = nullptr;

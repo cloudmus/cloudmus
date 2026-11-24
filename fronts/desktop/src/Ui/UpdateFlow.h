@@ -3,15 +3,11 @@
 #include <QObject>
 #include <QPointer>
 
-#include <optional>
-
-#include "ReleaseFeed.h"
-
 namespace App {
 class Analytics;
 }
-namespace Update {
-class UpdateChecker;
+namespace ViewModel {
+class UpdateScreen;
 }
 
 namespace Ui {
@@ -19,7 +15,7 @@ namespace Ui {
 class UpdateDialog;
 class WindowHost;
 
-// Turns Update::UpdateChecker's answers into dialogs: an update found
+// Turns ViewModel::UpdateScreen's answers into dialogs: an update found
 // opens Ui::UpdateDialog, and a manual check also says when there's
 // nothing new or the check failed. An update found while the window is
 // hidden in the tray waits for the window to show, rather than popping up
@@ -29,25 +25,26 @@ class UpdateFlow : public QObject {
 
 public:
     UpdateFlow(
-        Update::UpdateChecker& checker, WindowHost& windowHost, App::Analytics& analytics, QObject* parent = nullptr);
+        ViewModel::UpdateScreen& screen, WindowHost& windowHost, App::Analytics& analytics, QObject* parent = nullptr);
 
     // A while after startup, so as not to compete with it — and not for a
-    // dev build at all (see UpdateChecker::isDevBuild()).
+    // dev build at all (see Update::UpdateChecker::isDevBuild()).
     void checkAtStartup();
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    void offer(const Update::PendingUpdate& update, bool manual);
-    void showDialog(const Update::PendingUpdate& update);
+    void offer(bool manual);
+    void showDialog();
     void watchWindow();
 
-    Update::UpdateChecker& checker_;
+    ViewModel::UpdateScreen& screen_;
     WindowHost& windowHost_;
     App::Analytics& analytics_;
     QPointer<UpdateDialog> dialog_;
-    std::optional<Update::PendingUpdate> deferred_;
+    // Found while the window was hidden: shown with it.
+    bool deferred_ = false;
 };
 
 } // namespace Ui

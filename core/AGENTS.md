@@ -29,7 +29,9 @@ it, and neither's sources may be reached into from here.
   live in `fronts/desktop`'s `cloudmus-ui`.
 - The mobile front builds the core on Qt 6.7: keep it to 6.7 APIs.
 - What only one front needs goes into that front (the desktop's hotkeys,
-  updates and crash reports: `cloudmus-desktop-core`), not here.
+  installing an update and crash reports: `cloudmus-desktop-core`), not here.
+  Finding and downloading an update is shared: `Update::` and
+  `ViewModel::UpdateScreen`; each platform installs it its own way.
 - Platform differences stay in `#ifdef Q_OS_*` blocks, as in `Playback/AudioPlayer`.
 - Coalescing or rate-limiting events: `Timing::Debounce` / `Timing::Throttle`
   (`src/Timing/`), not a hand-rolled single-shot `QTimer` with a "pending"

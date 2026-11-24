@@ -524,7 +524,7 @@ int main(int argc, char** argv)
         });
 #endif
 
-    Ui::UpdateFlow updateFlow(core.updates(), windowHost, core.analytics());
+    Ui::UpdateFlow updateFlow(core.updateScreen(), windowHost, core.analytics());
     // --star-prompt: show the GitHub star prompt right away, to try it,
     // without counting days or remembering it was shown.
     Ui::StarPromptFlow starPromptFlow(

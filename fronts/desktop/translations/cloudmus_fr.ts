@@ -1531,30 +1531,8 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
 <context>
     <name>Ui::UpdateDialog</name>
     <message>
-        <source>No description.</source>
-        <translation>Pas de description.</translation>
-    </message>
-    <message numerus="yes">
-        <source>about %n s left</source>
-        <translation>
-            <numerusform>environ %n s restantes</numerusform>
-            <numerusform>environ %n s restantes</numerusform>
-        </translation>
-    </message>
-    <message numerus="yes">
-        <source>about %n min left</source>
-        <translation>
-            <numerusform>environ %n min restantes</numerusform>
-            <numerusform>environ %n min restantes</numerusform>
-        </translation>
-    </message>
-    <message>
         <source>CloudMus Update</source>
         <translation>Mise à jour de CloudMus</translation>
-    </message>
-    <message>
-        <source>%1 of %2</source>
-        <translation>%1 sur %2</translation>
     </message>
     <message>
         <source>A new version of CloudMus is available</source>
@@ -1579,10 +1557,6 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
     <message>
         <source>Downloading CloudMus %1</source>
         <translation>Téléchargement de CloudMus %1</translation>
-    </message>
-    <message>
-        <source>Connecting…</source>
-        <translation>Connexion…</translation>
     </message>
     <message>
         <source>Cancel</source>
@@ -1616,28 +1590,8 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
 <context>
     <name>Ui::UpdateFlow</name>
     <message>
-        <source>Version %1 is the latest one.</source>
-        <translation>La version %1 est la plus récente.</translation>
-    </message>
-    <message>
-        <source> It&apos;s built on %1, released on %2.</source>
-        <translation> Elle a été compilée le %1 et publiée le %2.</translation>
-    </message>
-    <message>
-        <source> Released on %1.</source>
-        <translation> Publiée le %1.</translation>
-    </message>
-    <message>
         <source>Check for Updates</source>
         <translation>Rechercher des mises à jour</translation>
-    </message>
-    <message>
-        <source>CloudMus is up to date</source>
-        <translation>CloudMus est à jour</translation>
-    </message>
-    <message>
-        <source>Couldn&apos;t check for updates</source>
-        <translation>Impossible de rechercher des mises à jour</translation>
     </message>
 </context>
 <context>
@@ -1926,6 +1880,59 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
         <source>timed out loading playlists</source>
         <translation>délai dépassé lors du chargement des listes de lecture</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::UpdateScreen</name>
+    <message>
+        <source>Version %1 is the latest one.</source>
+        <translation>La version %1 est la plus récente.</translation>
+    </message>
+    <message>
+        <source> It&apos;s built on %1, released on %2.</source>
+        <translation> Elle a été compilée le %1 et publiée le %2.</translation>
+    </message>
+    <message>
+        <source> Released on %1.</source>
+        <translation> Publiée le %1.</translation>
+    </message>
+    <message>
+        <source>CloudMus is up to date</source>
+        <translation>CloudMus est à jour</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t check for updates</source>
+        <translation>Impossible de rechercher des mises à jour</translation>
+    </message>
+    <message>
+        <source>%1 of %2</source>
+        <translation>%1 sur %2</translation>
+    </message>
+    <message>
+        <source>No description.</source>
+        <translation>Pas de description.</translation>
+    </message>
+    <message>
+        <source>This build can&apos;t install updates by itself</source>
+        <translation>Cette version ne peut pas installer les mises à jour elle-même</translation>
+    </message>
+    <message>
+        <source>Connecting…</source>
+        <translation>Connexion…</translation>
+    </message>
+    <message numerus="yes">
+        <source>about %n s left</source>
+        <translation>
+            <numerusform>environ %n s restantes</numerusform>
+            <numerusform>environ %n s restantes</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>about %n min left</source>
+        <translation>
+            <numerusform>environ %n min restantes</numerusform>
+            <numerusform>environ %n min restantes</numerusform>
+        </translation>
     </message>
 </context>
 </TS>
