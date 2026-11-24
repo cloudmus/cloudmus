@@ -13,14 +13,10 @@ Page {
     property QtObject backend
     property QtObject platform
     signal closeRequested()
-    // Main.qml asks the store or GitHub; a newer version opens its page, the
-    // outcome otherwise is a toast.
-    signal checkForUpdatesRequested()
     // The version tapped five times in a row: Developer tools are shown in
     // Settings (Main.qml's uiSettings.developerTools).
     signal developerToolsRequested()
 
-    readonly property QtObject updates: backend ? backend.updateScreen : null
 
     readonly property QtObject pulse: backend ? backend.pulse : null
     // 0: Authors, 1: Contributors, 2: Technologies, 3: License.
@@ -213,16 +209,6 @@ Page {
                                 interval: 1500
                                 onTriggered: copyButton.copied = false
                             }
-                        }
-                        // Check for updates: a spinner while it's under way.
-                        IconButton {
-                            objectName: "checkForUpdates"
-                            size: Theme.dp(36)
-                            iconName: "refresh"
-                            color: Theme.inkSecondary
-                            enabled: page.updates !== null
-                            busy: page.updates !== null && page.updates.checking === true
-                            onClicked: page.checkForUpdatesRequested()
                         }
                     }
                 }

@@ -506,6 +506,14 @@
       <source>Settings</source>
       <translation>Impostazioni</translation>
     </message>
+    <message>
+      <source>Check for updates</source>
+      <translation>Cerca aggiornamenti</translation>
+    </message>
+    <message>
+      <source>About CloudMus</source>
+      <translation>Informazioni su CloudMus</translation>
+    </message>
   </context>
   <context>
     <name>NowPlayingPage</name>

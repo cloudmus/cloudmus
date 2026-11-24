@@ -508,6 +508,14 @@
       <source>Settings</source>
       <translation>Настройки</translation>
     </message>
+    <message>
+      <source>Check for updates</source>
+      <translation>Проверить обновления</translation>
+    </message>
+    <message>
+      <source>About CloudMus</source>
+      <translation>О CloudMus</translation>
+    </message>
   </context>
   <context>
     <name>NowPlayingPage</name>

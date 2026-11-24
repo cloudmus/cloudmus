@@ -243,6 +243,8 @@ ApplicationWindow {
             onSettingsRequested: stack.open(settingsPage)
             onDownloadsRequested: window.openDownloads()
             onUpdateRequested: window.openUpdate()
+            onCheckForUpdatesRequested: window.checkForUpdates(true)
+            onAboutRequested: stack.open(aboutPage)
             onLibraryRequested: {
                 if (window.backend.library)
                     window.backend.library.selectActiveSource()
@@ -611,7 +613,6 @@ ApplicationWindow {
         AboutPage {
             objectName: "aboutPage"
             onCloseRequested: stack.close()
-            onCheckForUpdatesRequested: window.checkForUpdates(true)
             onDeveloperToolsRequested: {
                 appToast.show(uiSettings.developerTools ? qsTr("Developer tools are already on: Settings → App")
                                                         : qsTr("Developer tools are on: Settings → App"),

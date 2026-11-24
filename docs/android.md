@@ -236,8 +236,8 @@ read grant or one that persists across restarts.
 The app updates itself as the desktop does: the core (`Update::UpdateChecker`,
 `ViewModel::UpdateScreen`, shared with the desktop) asks GitHub's releases a
 while after start (not for a build between tags), and an update found is
-pointed at by an icon on the main page. About's ↻ beside the version asks at
-once: a newer version opens the Update page (`UpdatePage.qml`) with the notes
+pointed at by an icon on the main page. **Check for updates** in the main
+page's menu (⋮, beside **About CloudMus**) asks at once: a newer version opens the Update page (`UpdatePage.qml`) with the notes
 of every release since; otherwise a toast says it's the latest (green) or that
 the check failed (red). How it's installed depends on the build
 (`CLOUDMUS_ANDROID_DISTRIBUTION`, `build-android.sh` takes it from the

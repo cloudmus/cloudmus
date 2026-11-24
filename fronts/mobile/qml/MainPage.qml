@@ -32,6 +32,9 @@ Page {
     signal settingsRequested()
     signal libraryRequested()
     signal downloadsRequested()
+    // The menu's: check for an update now (Main.qml), the About page.
+    signal checkForUpdatesRequested()
+    signal aboutRequested()
     // The update pointed at beside the bar's other icons (UpdatePage).
     signal updateRequested()
     signal trackMenuRequested()
@@ -91,6 +94,21 @@ Page {
             iconName: "tune"
             text: qsTr("Settings")
             onTriggered: page.settingsRequested()
+        }
+        // What it finds is a toast or the Update page (Main.qml).
+        DropMenuItem {
+            objectName: "checkForUpdatesEntry"
+            iconName: "upgrade"
+            available: page.backend.updateScreen !== null
+            enabled: page.backend.updateScreen !== null && page.backend.updateScreen.checking !== true
+            text: qsTr("Check for updates")
+            onTriggered: page.checkForUpdatesRequested()
+        }
+        DropMenuItem {
+            objectName: "aboutEntry"
+            iconName: "cloudmus"
+            text: qsTr("About CloudMus")
+            onTriggered: page.aboutRequested()
         }
     }
     readonly property bool wide: width > height * 1.1

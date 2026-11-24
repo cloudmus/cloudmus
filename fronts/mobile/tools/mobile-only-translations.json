@@ -766,5 +766,13 @@
   "es": "Developer tools ya están activadas: Ajustes → Aplicación",
   "fr": "Developer tools déjà activés : Réglages → Application",
   "it": "Developer tools già attivi: Impostazioni → App"
+ },
+ "Check for updates": {
+  "ru": "Проверить обновления",
+  "be": "Праверыць абнаўленні",
+  "de": "Nach Updates suchen",
+  "es": "Buscar actualizaciones",
+  "fr": "Rechercher des mises à jour",
+  "it": "Cerca aggiornamenti"
  }
 }
