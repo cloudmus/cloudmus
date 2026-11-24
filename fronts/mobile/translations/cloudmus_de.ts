@@ -1008,6 +1008,18 @@
       <source>Couldn't load playlists</source>
       <translation>Playlists konnten nicht geladen werden</translation>
     </message>
+    <message>
+      <source>Playlists</source>
+      <translation>Playlists</translation>
+    </message>
+    <message>
+      <source>1 track</source>
+      <translation>1 Titel</translation>
+    </message>
+    <message>
+      <source>%1 tracks</source>
+      <translation>%1 Titel</translation>
+    </message>
   </context>
   <context>
     <name>Ui::Platform</name>

@@ -148,6 +148,8 @@ private:
     bool playlistsLoading_ = false;
     bool playlistsFailed_ = false;
     void showPlaylists();
+    // A cover as a file: URL for an Image, or empty while it downloads.
+    QString localCoverUrl(const QString& cover) const;
 };
 
 } // namespace ViewModel

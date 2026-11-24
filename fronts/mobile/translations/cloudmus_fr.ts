@@ -1008,6 +1008,18 @@
       <source>Couldn't load playlists</source>
       <translation>Impossible de charger les listes de lecture</translation>
     </message>
+    <message>
+      <source>Playlists</source>
+      <translation>Listes de lecture</translation>
+    </message>
+    <message>
+      <source>1 track</source>
+      <translation>1 piste</translation>
+    </message>
+    <message>
+      <source>%1 tracks</source>
+      <translation>%1 pistes</translation>
+    </message>
   </context>
   <context>
     <name>Ui::Platform</name>

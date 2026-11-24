@@ -15,7 +15,7 @@ TrackScreen::TrackScreen(App::Core& core, MainScreen& mainScreen, PlaylistScreen
     , core_(core)
     , mainScreen_(mainScreen)
     , playlistScreens_(playlists)
-    , playlistRows_({ "playlistId", "title", "contains", "changing" })
+    , playlistRows_({ "playlistId", "title", "trackCount", "coverUrl", "coverIcon", "contains", "changing" })
 {
     connect(&core.trackStates(), &Library::TrackStates::changed, this,
         [this](const QString& sourceId, const QString& trackId) {
@@ -23,7 +23,11 @@ TrackScreen::TrackScreen(App::Core& core, MainScreen& mainScreen, PlaylistScreen
                 announceState();
         });
     connect(&core.trackStates(), &Library::TrackStates::bulkChanged, this, &TrackScreen::announceState);
-    connect(&core.coverArtCache(), &Covers::CoverArtCache::pixmapReady, this, &TrackScreen::coverUrlChanged);
+    connect(&core.coverArtCache(), &Covers::CoverArtCache::pixmapReady, this, [this] {
+        emit coverUrlChanged();
+        // A playlist's cover, come in after the list.
+        showPlaylists();
+    });
 }
 
 QString TrackScreen::artist() const
@@ -36,8 +40,12 @@ QString TrackScreen::artist() const
 
 QString TrackScreen::coverUrl() const
 {
-    const QString cover
-        = track_.coverUrl.value_or(track_.album ? track_.album->coverUrl.value_or(QString()) : QString());
+    return localCoverUrl(
+        track_.coverUrl.value_or(track_.album ? track_.album->coverUrl.value_or(QString()) : QString()));
+}
+
+QString TrackScreen::localCoverUrl(const QString& cover) const
+{
     const QString file = core_.coverArtCache().localFile(cover);
     return file.isEmpty() ? QString() : QUrl::fromLocalFile(file).toString();
 }
@@ -202,6 +210,9 @@ void TrackScreen::showPlaylists()
         rows.append({
             { QStringLiteral("playlistId"), playlist.id },
             { QStringLiteral("title"), playlist.title },
+            { QStringLiteral("trackCount"), playlist.trackCount },
+            { QStringLiteral("coverUrl"), localCoverUrl(playlist.coverUrl.value_or(QString())) },
+            { QStringLiteral("coverIcon"), playlist.coverIcon.value_or(QString()) },
             { QStringLiteral("contains"), containing_.contains(playlist.id) },
             { QStringLiteral("changing"), changing_.contains(playlist.id) },
         });

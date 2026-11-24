@@ -19,6 +19,13 @@ Popup {
     readonly property bool wide: parent && parent.width > parent.height * 1.1
     // The list of playlists, in place of the actions.
     property bool choosingPlaylist: false
+    // How far it has gone over to the playlists, 0 to 1: the actions go off
+    // to the left as the playlists come from the right, and back.
+    property real _depth: choosingPlaylist ? 1 : 0
+    Behavior on _depth {
+        enabled: sheet.opened
+        NumberAnimation { duration: Theme.durationPage; easing.type: Easing.OutCubic }
+    }
 
     parent: Overlay.overlay
     modal: true
@@ -32,6 +39,13 @@ Popup {
     width: wide ? Math.min(parent.width * 0.5, Theme.dp(460)) : parent.width
     height: wide ? parent.height
                  : Math.min(parent.height * 0.86, content.implicitHeight + Theme.padding * 2 + _gripRoom + Theme.insetBottom)
+    // Over to the playlists, as they load, or as a fact comes in: it grows or
+    // shrinks to it, its bottom where it was. Not while it comes up: it'd come
+    // up from nothing.
+    Behavior on height {
+        enabled: sheet.opened && !sheet.wide
+        NumberAnimation { duration: Theme.durationPage; easing.type: Easing.OutCubic }
+    }
     // Slid out by this share of its size. Not x and y themselves: an animation
     // would replace their bindings, and the sheet's height comes in later.
     property real slide: 1
@@ -496,132 +510,205 @@ Popup {
                 }
             }
 
-            // What can be done with it.
-            ColumnLayout {
+            // What can be done with it, or the playlists in its place: one page or
+            // the other, as tall as the one being gone to.
+            Item {
+                id: pages
                 Layout.fillWidth: true
-                visible: !sheet.choosingPlaylist
-                spacing: 0
-                Action {
-                    visible: sheet.track && sheet.track.canPlay === true
-                    iconName: "play_arrow"
-                    text: qsTr("Play")
-                    onClicked: sheet.track.play()
-                }
-                Action {
-                    iconName: "playlist_play"
-                    text: qsTr("Play next")
-                    onClicked: sheet.track.playNext()
-                }
-                Action {
-                    iconName: "playlist_add"
-                    text: qsTr("Add to queue")
-                    onClicked: sheet.track.addToQueue()
-                }
-                Action {
-                    visible: sheet.track && sheet.track.canEditPlaylists === true
-                    iconName: "playlist_add"
-                    text: qsTr("Playlists…")
-                    // The playlists come in the actions' place.
-                    keepsSheetOpen: true
-                    onClicked: {
-                        sheet.choosingPlaylist = true
-                        sheet.track.loadPlaylists()
-                    }
-                }
-                Action {
-                    visible: sheet.track && sheet.track.canLike === true
-                    iconName: sheet.track && sheet.track.liked ? "favorite" : "favorite_border"
-                    tint: sheet.track && sheet.track.liked ? Theme.accent : Theme.ink
-                    text: sheet.track && sheet.track.liked ? qsTr("Unlike") : qsTr("Like")
-                    onClicked: sheet.track.toggleLiked()
-                }
-                Action {
-                    visible: sheet.track && sheet.track.canDislike === true
-                    iconName: sheet.track && sheet.track.disliked ? "heart_off" : "heart_off_outline"
-                    tint: sheet.track && sheet.track.disliked ? Theme.accent : Theme.ink
-                    text: sheet.track && sheet.track.disliked ? qsTr("Remove dislike") : qsTr("Dislike")
-                    onClicked: sheet.track.toggleDisliked()
-                }
-                Action {
-                    visible: sheet.track && sheet.track.canStartRadio === true
-                    iconName: "radio"
-                    text: qsTr("Start radio from this track")
-                    onClicked: sheet.track.startRadio(qsTr("Radio: %1").arg(sheet.track.title))
-                }
-                Action {
-                    visible: sheet.track && sheet.track.webUrl !== ""
-                    iconName: "open_in_new"
-                    text: qsTr("Open track page")
-                    onClicked: Qt.openUrlExternally(sheet.track.webUrl)
-                }
-                Action {
-                    visible: sheet.track && sheet.track.canDownload === true
-                    iconName: "file_download"
-                    text: qsTr("Save to downloads")
-                    onClicked: {
-                        sheet.track.download()
-                        if (sheet.platform)
-                            sheet.platform.requestNotificationPermission()
-                    }
-                }
-                Action {
-                    objectName: "deleteTrack"
-                    visible: sheet.track && sheet.track.canDelete === true
-                    iconName: "delete"
-                    tint: Theme.danger
-                    text: qsTr("Delete from the device")
-                    onClicked: deleteConfirm.ask(qsTr("Delete \"%1\"?").arg(sheet.track.title), "", qsTr("Delete"))
-                }
-            }
+                Layout.preferredHeight: (sheet.choosingPlaylist ? playlistPage : actionPage).implicitHeight
+                // How far a page moves as it goes: the way it goes, not across.
+                readonly property real shift: Theme.dp(48)
 
-            // The user's own playlists, which hold it or not.
-            ColumnLayout {
-                Layout.fillWidth: true
-                visible: sheet.choosingPlaylist
-                spacing: 0
-                IconButton {
-                    iconName: "arrow_back"
-                    onClicked: sheet.choosingPlaylist = false
-                }
-                Spinner {
-                    Layout.alignment: Qt.AlignHCenter
-                    running: sheet.track && sheet.track.playlistsLoading === true
-                }
-                BodyText {
-                    visible: sheet.track && sheet.track.playlistsFailed === true
-                    text: qsTr("Couldn't load playlists")
-                }
-                Repeater {
-                    model: sheet.backend ? sheet.backend.trackPlaylists : null
-                    delegate: CheckDelegate {
-                        id: choice
-                        required property var playlistId
-                        required property var title
-                        required property var contains
-                        required property var changing
-                        Layout.fillWidth: true
-                        text: choice.title || ""
-                        checked: choice.contains === true
-                        enabled: choice.changing !== true
-                        onClicked: sheet.track.setInPlaylist(choice.playlistId, checked)
-                        background: Rectangle {
-                            radius: Theme.radius
-                            color: choice.down && choiceRipple.flat ? Theme.surface300 : "transparent"
-                            Ripple {
-                                id: choiceRipple
-                                pressed: choice.pressed
-                                pressX: choice.pressX
-                                pressY: choice.pressY
-                                radius: parent.radius
-                            }
+                ColumnLayout {
+                    id: actionPage
+                    width: parent.width
+                    spacing: 0
+                    // Out over the first half, in over the second.
+                    opacity: Math.max(0, 1 - sheet._depth * 2)
+                    x: -sheet._depth * pages.shift
+                    visible: opacity > 0
+                    enabled: !sheet.choosingPlaylist
+                    Action {
+                        visible: sheet.track && sheet.track.canPlay === true
+                        iconName: "play_arrow"
+                        text: qsTr("Play")
+                        onClicked: sheet.track.play()
+                    }
+                    Action {
+                        iconName: "playlist_play"
+                        text: qsTr("Play next")
+                        onClicked: sheet.track.playNext()
+                    }
+                    Action {
+                        iconName: "playlist_add"
+                        text: qsTr("Add to queue")
+                        onClicked: sheet.track.addToQueue()
+                    }
+                    Action {
+                        visible: sheet.track && sheet.track.canEditPlaylists === true
+                        iconName: "playlist_add"
+                        text: qsTr("Playlists…")
+                        // The playlists come in the actions' place.
+                        keepsSheetOpen: true
+                        onClicked: {
+                            sheet.choosingPlaylist = true
+                            sheet.track.loadPlaylists()
                         }
-                        contentItem: Text {
-                            text: choice.text
+                    }
+                    Action {
+                        visible: sheet.track && sheet.track.canLike === true
+                        iconName: sheet.track && sheet.track.liked ? "favorite" : "favorite_border"
+                        tint: sheet.track && sheet.track.liked ? Theme.accent : Theme.ink
+                        text: sheet.track && sheet.track.liked ? qsTr("Unlike") : qsTr("Like")
+                        onClicked: sheet.track.toggleLiked()
+                    }
+                    Action {
+                        visible: sheet.track && sheet.track.canDislike === true
+                        iconName: sheet.track && sheet.track.disliked ? "heart_off" : "heart_off_outline"
+                        tint: sheet.track && sheet.track.disliked ? Theme.accent : Theme.ink
+                        text: sheet.track && sheet.track.disliked ? qsTr("Remove dislike") : qsTr("Dislike")
+                        onClicked: sheet.track.toggleDisliked()
+                    }
+                    Action {
+                        visible: sheet.track && sheet.track.canStartRadio === true
+                        iconName: "radio"
+                        text: qsTr("Start radio from this track")
+                        onClicked: sheet.track.startRadio(qsTr("Radio: %1").arg(sheet.track.title))
+                    }
+                    Action {
+                        visible: sheet.track && sheet.track.webUrl !== ""
+                        iconName: "open_in_new"
+                        text: qsTr("Open track page")
+                        onClicked: Qt.openUrlExternally(sheet.track.webUrl)
+                    }
+                    Action {
+                        visible: sheet.track && sheet.track.canDownload === true
+                        iconName: "file_download"
+                        text: qsTr("Save to downloads")
+                        onClicked: {
+                            sheet.track.download()
+                            if (sheet.platform)
+                                sheet.platform.requestNotificationPermission()
+                        }
+                    }
+                    Action {
+                        objectName: "deleteTrack"
+                        visible: sheet.track && sheet.track.canDelete === true
+                        iconName: "delete"
+                        tint: Theme.danger
+                        text: qsTr("Delete from the device")
+                        onClicked: deleteConfirm.ask(qsTr("Delete \"%1\"?").arg(sheet.track.title), "", qsTr("Delete"))
+                    }
+                }
+
+                // The user's own playlists, which hold it or not.
+                ColumnLayout {
+                    id: playlistPage
+                    width: parent.width
+                    spacing: 0
+                    opacity: Math.max(0, sheet._depth * 2 - 1)
+                    x: (1 - sheet._depth) * pages.shift
+                    visible: opacity > 0
+                    enabled: sheet.choosingPlaylist
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.bottomMargin: Theme.dp(4)
+                        spacing: Theme.dp(4)
+                        IconButton {
+                            iconName: "arrow_back"
+                            onClicked: sheet.choosingPlaylist = false
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: qsTr("Playlists")
                             color: Theme.ink
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
+                            font.weight: Font.DemiBold
                             elide: Text.ElideRight
-                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                    Spinner {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.topMargin: Theme.dp(8)
+                        Layout.bottomMargin: Theme.dp(8)
+                        running: sheet.track && sheet.track.playlistsLoading === true
+                    }
+                    BodyText {
+                        visible: sheet.track && sheet.track.playlistsFailed === true
+                        text: qsTr("Couldn't load playlists")
+                    }
+                    Repeater {
+                        model: sheet.backend ? sheet.backend.trackPlaylists : null
+                        delegate: ItemDelegate {
+                            id: choice
+                            required property var playlistId
+                            required property var title
+                            required property var trackCount
+                            required property var coverUrl
+                            required property var coverIcon
+                            required property var contains
+                            required property var changing
+                            readonly property bool busy: choice.changing === true
+                            Layout.fillWidth: true
+                            implicitHeight: Theme.dp(60)
+                            topPadding: 0
+                            bottomPadding: 0
+                            leftPadding: Theme.dp(8)
+                            rightPadding: Theme.dp(12)
+                            // Not disabled while it changes: that would grey it out.
+                            onClicked: if (!busy) sheet.track.setInPlaylist(choice.playlistId, choice.contains !== true)
+                            background: Rectangle {
+                                radius: Theme.radius
+                                color: choice.down && choiceRipple.flat ? Theme.surface300 : "transparent"
+                                Ripple {
+                                    id: choiceRipple
+                                    pressed: choice.pressed
+                                    pressX: choice.pressX
+                                    pressY: choice.pressY
+                                    radius: parent.radius
+                                }
+                            }
+                            contentItem: RowLayout {
+                                spacing: Theme.dp(12)
+                                Cover {
+                                    Layout.preferredWidth: Theme.dp(44)
+                                    Layout.preferredHeight: Theme.dp(44)
+                                    radius: Theme.dp(8)
+                                    source: choice.coverUrl || ""
+                                    icon: choice.coverIcon || ""
+                                    seed: choice.title || ""
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: Theme.dp(2)
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: choice.title || ""
+                                        color: choice.contains === true ? Theme.accent : Theme.ink
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontBody
+                                        font.weight: Font.DemiBold
+                                        elide: Text.ElideRight
+                                        Behavior on color { ColorAnimation { duration: Theme.durationFast } }
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        visible: choice.trackCount > 0
+                                        text: choice.trackCount === 1 ? qsTr("1 track") : qsTr("%1 tracks").arg(choice.trackCount)
+                                        color: Theme.inkSecondary
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSmall
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                CheckMark {
+                                    checked: choice.contains === true
+                                    down: choice.down
+                                    busy: choice.busy
+                                }
+                            }
                         }
                     }
                 }

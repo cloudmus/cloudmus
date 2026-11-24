@@ -1013,6 +1013,18 @@
       <source>Couldn't load playlists</source>
       <translation>Не атрымалася загрузіць плэйлісты</translation>
     </message>
+    <message>
+      <source>Playlists</source>
+      <translation>Плэйлісты</translation>
+    </message>
+    <message>
+      <source>1 track</source>
+      <translation>1 трэк</translation>
+    </message>
+    <message>
+      <source>%1 tracks</source>
+      <translation>Трэкаў: %1</translation>
+    </message>
   </context>
   <context>
     <name>Ui::Platform</name>

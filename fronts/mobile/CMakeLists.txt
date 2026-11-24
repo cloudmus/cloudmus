@@ -194,6 +194,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/ConfirmDialog.qml
         qml/DropMenu.qml
         qml/DropMenuItem.qml
+        qml/CheckMark.qml
         qml/Chip.qml
         qml/Cover.qml
         qml/CrossfadeImage.qml
