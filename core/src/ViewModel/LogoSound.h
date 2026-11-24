@@ -37,8 +37,11 @@ public:
     explicit LogoSound(Player player, QObject* parent = nullptr);
     ~LogoSound() override;
 
-    // From the start, again if it's playing.
+    // From the start, again if it's playing. Over music, only once that has
+    // stepped back (the duck, on playingChanged): the two don't run together.
     void play();
+    // Whether music plays, for the wait above. Unset: never waited for.
+    void setMusicPlaying(std::function<bool()> musicPlaying) { musicPlaying_ = std::move(musicPlaying); }
     bool playing() const { return playing_; }
     // 0..1, how loud it is now; 0 while it doesn't play.
     float level() const { return level_; }
@@ -57,10 +60,13 @@ signals:
 
 private:
     void setLevel(float level);
+    void sound();
 
     std::unique_ptr<Playback::CuePlayer> cues_;
     Player player_;
     QTimer timer_;
+    QTimer leadIn_;
+    std::function<bool()> musicPlaying_;
     QElapsedTimer sincePlay_;
     int nextHit_ = 0;
     float level_ = 0;

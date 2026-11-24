@@ -34,6 +34,10 @@ constexpr float kLevels[] = { 0.36f, 0.33f, 0.23f, 0.37f, 0.26f, 0.69f, 0.47f, 0
 constexpr double kLevelStep = 0.1;
 
 constexpr int kStepMs = 16;
+// Over music: the music's duck takes 300 ms (AudioPlayer), and the output's
+// buffer holds some of it at full volume yet. Started with it, the logo ran
+// into the fading track; after this the track is down and has settled.
+constexpr int kLeadInMs = 800;
 // Never sounding (no output, a broken file): give up on it after this.
 constexpr int kNeverSoundedMs = 3000;
 
@@ -61,6 +65,9 @@ LogoSound::LogoSound(QObject* parent)
     timer_.setInterval(kStepMs);
     timer_.setTimerType(Qt::PreciseTimer);
     connect(&timer_, &QTimer::timeout, this, [this]() { step(player_.position()); });
+    leadIn_.setSingleShot(true);
+    leadIn_.setInterval(kLeadInMs);
+    connect(&leadIn_, &QTimer::timeout, this, &LogoSound::sound);
 }
 
 LogoSound::LogoSound(Player player, QObject* parent)
@@ -69,18 +76,34 @@ LogoSound::LogoSound(Player player, QObject* parent)
 {
     timer_.setInterval(kStepMs);
     connect(&timer_, &QTimer::timeout, this, [this]() { step(player_.position()); });
+    leadIn_.setSingleShot(true);
+    leadIn_.setInterval(kLeadInMs);
+    connect(&leadIn_, &QTimer::timeout, this, &LogoSound::sound);
 }
 
 LogoSound::~LogoSound() = default;
 
 void LogoSound::play()
 {
-    nextHit_ = 0;
-    sincePlay_.start();
+    // Music already stepped back for a sound still playing isn't waited for again.
+    const bool wait = !playing_ && musicPlaying_ && musicPlaying_();
+    timer_.stop();
+    setLevel(0);
     if (!playing_) {
         playing_ = true;
         emit playingChanged(true);
     }
+    if (wait)
+        leadIn_.start();
+    else
+        sound();
+}
+
+void LogoSound::sound()
+{
+    leadIn_.stop();
+    nextHit_ = 0;
+    sincePlay_.start();
     player_.play();
     timer_.start();
 }
@@ -105,6 +128,7 @@ void LogoSound::step(double position)
 
 void LogoSound::stop()
 {
+    leadIn_.stop();
     timer_.stop();
     setLevel(0);
     if (playing_) {

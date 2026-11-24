@@ -327,6 +327,36 @@ private slots:
         sound.stop();
     }
 
+    void logoSoundWaitsForTheMusicToStepBack()
+    {
+        int plays = 0;
+        bool music = true;
+        ViewModel::LogoSound sound({ [&plays]() { ++plays; }, []() { return -1.0; } });
+        sound.setMusicPlaying([&music]() { return music; });
+        QSignalSpy playing(&sound, &ViewModel::LogoSound::playingChanged);
+
+        // Over music: the duck at once, the sound once that's done.
+        sound.play();
+        QCOMPARE(playing.count(), 1);
+        QVERIFY(sound.playing());
+        QCOMPARE(plays, 0);
+        QTRY_COMPARE_WITH_TIMEOUT(plays, 1, 2000);
+        sound.stop();
+
+        // With nothing playing: at once.
+        music = false;
+        sound.play();
+        QCOMPARE(plays, 2);
+        sound.stop();
+
+        // Stopped while waiting: never sounds.
+        music = true;
+        sound.play();
+        sound.stop();
+        QTest::qWait(1000);
+        QCOMPARE(plays, 2);
+    }
+
     void keepsItsLevelBetweenFrames()
     {
         // Ticks (16 ms) come more often than frames (23 ms): a tick with

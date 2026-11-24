@@ -64,6 +64,7 @@ Core::Core(QObject* parent)
     // played" with it.
     // The music steps back while the logo's sound plays over it.
     connect(&logoSound_, &ViewModel::LogoSound::playingChanged, &playback_, &Playback::PlaybackController::setDucked);
+    logoSound_.setMusicPlaying([this]() { return playback_.isPlaying(); });
     connect(&playback_, &Playback::PlaybackController::trackChanged, this,
         [this](const Track& track, const QString& sourceId) {
             playbackHistory_.record(sourceId, track);
