@@ -61,6 +61,9 @@ class Backend : public QObject {
     Q_PROPERTY(QObject* sourceSettings READ sourceSettings NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* sourceConnections READ sourceConnections NOTIFY readyChanged)
     Q_PROPERTY(QAbstractItemModel* sourceFields READ sourceFields NOTIFY readyChanged)
+    // What the music is doing (ViewModel::PulseScreen): `level`, `beat`. A
+    // view that moves with it holds it while shown (holdPulse()).
+    Q_PROPERTY(QObject* pulse READ pulse NOTIFY readyChanged)
 
 public:
 #ifndef Q_OS_ANDROID
@@ -110,6 +113,12 @@ public:
     QObject* sourceSettings() const { return ready_ ? sourceSettings_.data() : nullptr; }
     QAbstractItemModel* sourceConnections() const { return ready_ ? sourceConnections_.data() : nullptr; }
     QAbstractItemModel* sourceFields() const { return ready_ ? sourceFields_.data() : nullptr; }
+    QObject* pulse() const { return ready_ ? pulse_.data() : nullptr; }
+    // A view that shows the pulse holds it while shown, and lets it go: the
+    // core analyzes the music only while any view holds it. Counted here, so
+    // views come and go as they like; the core is told again when it's back.
+    Q_INVOKABLE void holdPulse();
+    Q_INVOKABLE void releasePulse();
 
 signals:
     void readyChanged();
@@ -131,6 +140,7 @@ private:
     void acquire(QPointer<QObject>& slot, const QString& name);
     void acquireModel(QPointer<QAbstractItemModel>& slot, const QString& name);
     void updateReady();
+    void tellPulseWatching();
 
     std::unique_ptr<QRemoteObjectNode> node_;
     QPointer<QObject> nowPlaying_;
@@ -149,6 +159,8 @@ private:
     QPointer<QObject> trackScreen_;
     QPointer<QObject> settingsScreen_;
     QPointer<QObject> sourceSettings_;
+    QPointer<QObject> pulse_;
+    int pulseHolders_ = 0;
     QPointer<QAbstractItemModel> tracks_;
     QPointer<QAbstractItemModel> sources_;
     QPointer<QAbstractItemModel> favorites_;

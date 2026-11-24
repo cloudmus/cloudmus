@@ -2,6 +2,65 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="be_BY" sourcelanguage="en">
   <context>
+    <name>AboutPage</name>
+    <message>
+      <source>About CloudMus</source>
+      <translation>Пра CloudMus</translation>
+    </message>
+    <message>
+      <source>Version %1</source>
+      <translation>Версія %1</translation>
+    </message>
+    <message>
+      <source>Enjoy listening to your clouds</source>
+      <translation>Слухайце свае аблокі з задавальненнем</translation>
+    </message>
+    <message>
+      <source>Telegram chat</source>
+      <translation>Telegram-чат</translation>
+    </message>
+    <message>
+      <source>Authors</source>
+      <translation>Аўтары</translation>
+    </message>
+    <message>
+      <source>License</source>
+      <translation>Ліцэнзія</translation>
+    </message>
+    <message>
+      <source>Contributors</source>
+      <translation>Удзельнікі</translation>
+    </message>
+    <message>
+      <source>AI coding agent by OpenAI</source>
+      <translation>ШІ-агент для праграмавання ад OpenAI</translation>
+    </message>
+    <message>
+      <source>Technologies</source>
+      <translation>Тэхналогіі</translation>
+    </message>
+    <message>
+      <source>The interface, on the desktop and on phones</source>
+      <translation>Інтэрфейс на камп’ютары і на тэлефонах</translation>
+    </message>
+    <message>
+      <source>Plays the music</source>
+      <translation>Грае музыку</translation>
+    </message>
+    <message>
+      <source>The app itself</source>
+      <translation>Сама праграма</translation>
+    </message>
+    <message>
+      <source>The music services' backends</source>
+      <translation>Бэкенды музычных сэрвісаў</translation>
+    </message>
+    <message>
+      <source>AI coding agent by Anthropic</source>
+      <translation>ШІ-агент для праграмавання ад Anthropic</translation>
+    </message>
+  </context>
+  <context>
     <name>App::PlaylistEditing</name>
     <message>
       <source>Added to "%1"</source>

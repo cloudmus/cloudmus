@@ -3,6 +3,7 @@
 #include <QAccessible>
 #include <QClipboard>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFutureWatcher>
 #include <QGuiApplication>
 #include <QLoggingCategory>
@@ -25,6 +26,7 @@
 #include <QJniObject>
 #endif
 
+#include "People.h"
 #include "Log.h"
 
 namespace Ui {
@@ -110,6 +112,38 @@ bool Platform::android() const
     return false;
 #endif
 }
+
+QString Platform::version() const { return QStringLiteral(CLOUDMUS_MOBILE_VERSION); }
+
+QString Platform::licenseText() const
+{
+    QFile file(QStringLiteral(":/about/LICENSE"));
+    if (!file.open(QIODevice::ReadOnly))
+        return { };
+    // LICENSE is hard-wrapped at 80 columns: each paragraph's lines rejoined,
+    // it reflows to the screen instead of reading ragged (as on the desktop).
+    QStringList paragraphs = QString::fromUtf8(file.readAll()).split(QStringLiteral("\n\n"));
+    for (QString& paragraph : paragraphs)
+        paragraph = paragraph.simplified();
+    paragraphs.removeAll(QString());
+    return paragraphs.join(QLatin1Char('\n'));
+}
+
+namespace {
+QVariantList toVariants(const QList<About::Person>& people)
+{
+    QVariantList list;
+    for (const About::Person& person : people) {
+        list.append(QVariantMap { { QStringLiteral("name"), person.name }, { QStringLiteral("email"), person.email },
+            { QStringLiteral("url"), person.url }, { QStringLiteral("shownUrl"), About::shownUrl(person.url) } });
+    }
+    return list;
+}
+} // namespace
+
+QVariantList Platform::authors() const { return toVariants(About::authors()); }
+
+QVariantList Platform::contributors() const { return toVariants(About::contributors()); }
 
 void Platform::exitNow(int code)
 {

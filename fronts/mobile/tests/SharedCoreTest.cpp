@@ -30,11 +30,14 @@
 #include "Backend.h"
 #include "CoverImageProvider.h"
 #include "FakeBackend.h"
+#include "ImitatedMusic.h"
 #include "Host.h"
 #include "Localizer.h"
+#include "LogoSound.h"
 #include "LogModel.h"
 #include "MobileCore.h"
 #include "Platform.h"
+#include "PulseScreen.h"
 #include "QrImageProvider.h"
 #include "TestSupport.h"
 
@@ -2900,6 +2903,269 @@ private slots:
         QMetaObject::invokeMethod(backend.playlistScreen(), "playRow", Q_ARG(int, 1));
         QTRY_VERIFY(core.nowPlaying().hasTrack());
         QTRY_COMPARE(core.nowPlaying().track().id, QStringLiteral("t2"));
+    }
+
+    // The pulse the views move with: the music is analyzed while any view
+    // watches, saying so twice holds it once, and the level comes through.
+    void pulseRunsWhileWatched()
+    {
+        QVector<bool> switches;
+        double nextPts = 0;
+        ViewModel::AudioPulse pulse({ [&switches](bool on) { switches.append(on); },
+            [&nextPts]() {
+                const QVector<Playback::LevelReading> due { { nextPts, -8, -30 } };
+                nextPts += 0.023;
+                return due;
+            } });
+        ViewModel::LogoSound logo({ []() { }, []() { return -1.0; } });
+        ViewModel::PulseScreen screen(pulse, logo);
+        QSignalSpy levels(&screen, &ViewModel::PulseScreen::levelChanged);
+        screen.setWatching(true);
+        screen.setWatching(true);
+        QVERIFY(pulse.isActive());
+        QTRY_VERIFY(screen.level() > 0.5f);
+        // Every frame of analysis, but not as many to the views.
+        QTest::qWait(500);
+        QVERIFY2(levels.count() <= 20, qPrintable(QString::number(levels.count())));
+        screen.setWatching(false);
+        QVERIFY(!pulse.isActive());
+        QCOMPARE(screen.level(), 0.0f);
+        QCOMPARE(switches, (QVector<bool> { true, false }));
+    }
+
+    // Music made up where it can't be analyzed (Android): beats at a tempo the
+    // detector finds, from playing only, and a level that's there.
+    void imitatedMusicBeats()
+    {
+        // Paused: nothing to hear.
+        bool playing = false;
+        ViewModel::ImitatedMusic paused([&playing]() { return playing; }, 42);
+        ViewModel::AudioPulse pulse(paused.source());
+        pulse.acquire();
+        QTest::qWait(100);
+        pulse.poll(100);
+        QCOMPARE(pulse.level(), 0.0f);
+        pulse.release();
+
+        // 20 s of it, stepped by hand.
+        ViewModel::ImitatedMusic music([]() { return true; }, 42);
+        Playback::BeatDetector detector;
+        int beats = 0;
+        float highest = 0;
+        for (double t = 0; t < 20; t += 0.016) {
+            for (const Playback::LevelReading& reading : music.advance(0.016)) {
+                const auto result = detector.feed(reading);
+                highest = std::max(highest, result.level);
+                if (result.beat)
+                    ++beats;
+            }
+        }
+        // 96..132 BPM over 20 s, a break aside: some 25..45 beats.
+        QVERIFY2(beats >= 20 && beats <= 50, qPrintable(QString::number(beats)));
+        QVERIFY(highest > 0.5f);
+    }
+
+    // In another process: the views' holds come to the core as one, and its
+    // beats come back.
+    void pulseThroughAReplica()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Remote::Host host(core, dir.filePath("core.sock"));
+        Ui::Backend backend(dir.filePath("core.sock"));
+        QTRY_VERIFY_WITH_TIMEOUT(backend.ready(), 5000);
+
+        backend.holdPulse();
+        backend.holdPulse();
+        QTRY_VERIFY(core.pulseScreen().watching());
+        QVERIFY(core.core().audioPulse().isActive());
+        QTRY_COMPARE(backend.pulse()->property("watching").toBool(), true);
+
+        Receiver beat;
+        QVERIFY(QObject::connect(backend.pulse(), SIGNAL(beat(float)), &beat, SLOT(run())));
+        QSignalSpy beats(&beat, &Receiver::ran);
+        emit core.pulseScreen().beat(0.8f);
+        QTRY_COMPARE(beats.count(), 1);
+        // The logo's sound's strikes come the same way. (Not played here: it
+        // would sound on the machine running the tests.)
+        Receiver strike;
+        QVERIFY(QObject::connect(backend.pulse(), SIGNAL(logoHit(float)), &strike, SLOT(run())));
+        QSignalSpy strikes(&strike, &Receiver::ran);
+        emit core.core().logoSound().hit(1.0f);
+        QTRY_COMPARE(strikes.count(), 1);
+
+        backend.releasePulse();
+        QTest::qWait(200);
+        QVERIFY(core.pulseScreen().watching()); // another view holds it
+        backend.releasePulse();
+        QTRY_VERIFY(!core.pulseScreen().watching());
+        QVERIFY(!core.core().audioPulse().isActive());
+    }
+
+    void aboutPageFromTheLibrary_data()
+    {
+        QTest::addColumn<QSize>("size");
+        QTest::newRow("phone") << QSize(420, 860);
+        QTest::newRow("headunit") << QSize(1920, 1080);
+    }
+
+    // The Library's column leads to About: the version, the license, the
+    // clouds flying, and the music watched only while the page is up.
+    void aboutPageFromTheLibrary()
+    {
+        QFETCH(QSize, size);
+        QTemporaryDir dir;
+        App::MobileCore core({ QString(), dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        QCOMPARE(engine.rootObjects().size(), 1);
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(size);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* stack = window->findChild<QQuickItem*>("stack");
+        QVERIFY(stack);
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        auto shot = [&](const char* name) {
+            QTest::qWait(700);
+            if (!shots.isEmpty()) {
+                QDir().mkpath(shots);
+                window->grabWindow().save(QStringLiteral("%1/%2-%3.png").arg(shots, QTest::currentDataTag(), name));
+            }
+        };
+
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "libraryRequested"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        QTRY_VERIFY(!stack->property("busy").toBool());
+        auto* aboutButton = window->findChild<QQuickItem*>("aboutButton");
+        QVERIFY(aboutButton && aboutButton->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(aboutButton, "clicked"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 3);
+        QTRY_VERIFY(!stack->property("busy").toBool());
+        auto* page = window->findChild<QQuickItem*>("aboutPage");
+        QVERIFY(page);
+        QTRY_VERIFY(core.pulseScreen().watching());
+
+        auto* version = page->findChild<QQuickItem*>("aboutVersion");
+        QVERIFY(version);
+        QVERIFY(!platform.version().isEmpty());
+        QVERIFY(version->property("text").toString().contains(platform.version()));
+        // The clouds fly.
+        auto* backdrop = page->findChild<QQuickItem*>("cloudsBackdrop");
+        QVERIFY(backdrop);
+        const qreal before = backdrop->property("_time").toReal();
+        QTRY_VERIFY(backdrop->property("_time").toReal() > before + 0.1);
+        shot("about");
+
+        auto* authors = page->findChild<QQuickItem*>("authors");
+        auto* license = page->findChild<QQuickItem*>("license");
+        QVERIFY(authors && license);
+        QVERIFY(authors->isVisible() && !license->isVisible());
+        // The tabs are a Repeater's: in the item tree, not the object tree.
+        const auto tabNamed = [page](const char* name) {
+            QQuickItem* found = nullptr;
+            forEachItem(page, [&found, name](QQuickItem* item) {
+                if (item->objectName() == QLatin1String(name))
+                    found = item;
+            });
+            return found;
+        };
+        // Who helped, each with a way to reach them.
+        auto* contributors = page->findChild<QQuickItem*>("contributors");
+        QVERIFY(contributors && !contributors->isVisible());
+        QVERIFY(tabNamed("contributorsTab"));
+        QVERIFY(QMetaObject::invokeMethod(tabNamed("contributorsTab"), "clicked"));
+        // The one picked slides in as the one left slides out: both are there
+        // for a moment, the one left alone at the end.
+        QTRY_VERIFY(contributors->isVisible());
+        QVERIFY(authors->isVisible());
+        QTRY_VERIFY(contributors->isVisible() && !authors->isVisible());
+        QTRY_COMPARE(contributors->opacity(), 1.0);
+        // A card each: the name, the email, the page.
+        const auto cardTexts = [](QQuickItem* people) {
+            QString all;
+            int cards = 0;
+            forEachItem(people, [&all, &cards](QQuickItem* item) {
+                if (item->objectName() == QLatin1String("personName"))
+                    ++cards;
+                if (item->objectName().startsWith(QLatin1String("person")))
+                    all += item->property("text").toString() + QLatin1Char('\n');
+            });
+            return std::make_pair(cards, all);
+        };
+        const auto [contributorCards, people] = cardTexts(contributors);
+        QCOMPARE(contributorCards, 2);
+        for (const char* part : { "Sergey Kostyuchenko", "mailto:derfenix@gmail.com", "github.com/derfenix",
+                 "Vitaly Zdanevich", "https://github.com/vitaly-zdanevich" })
+            QVERIFY2(people.contains(QLatin1String(part)), part);
+        const auto [authorCards, authorsText] = cardTexts(authors);
+        QCOMPARE(authorCards, 1);
+        QVERIFY(authorsText.contains(QLatin1String("Vladislav Navrocky")));
+        QVERIFY(authorsText.contains(QLatin1String("https://github.com/navrocky")));
+        shot("about-contributors");
+
+        // What it's made with, each by its logo, and the AI agents waving.
+        auto* technologies = page->findChild<QQuickItem*>("technologies");
+        QVERIFY(technologies && !technologies->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(tabNamed("technologiesTab"), "clicked"));
+        QTRY_VERIFY(technologies->isVisible() && !contributors->isVisible());
+        QList<QQuickItem*> mascots;
+        int logos = 0;
+        forEachItem(technologies, [&mascots, &logos](QQuickItem* item) {
+            if (item->objectName() == QLatin1String("agentMascot") && item->isVisible())
+                mascots.append(item);
+            if (item->objectName() == QLatin1String("technologyLogo") && item->isVisible()) {
+                ++logos;
+                QTRY_COMPARE(item->property("status").toInt(), 1); // Image.Ready
+            }
+        });
+        QCOMPARE(logos, 5);
+        QCOMPARE(mascots.size(), 2);
+        for (QQuickItem* mascot : mascots) {
+            QVERIFY(mascot->property("running").toBool());
+            QVERIFY(mascot->width() > 0 && mascot->height() > 0);
+        }
+        const int frame = mascots.first()->property("currentFrame").toInt();
+        QTRY_VERIFY(mascots.first()->property("currentFrame").toInt() != frame);
+        // The tabs on one line, scrolled to the one picked where they don't fit.
+        auto* tabs = page->findChild<QQuickItem*>("aboutTabs");
+        QVERIFY(tabs);
+        const QQuickItem* picked = tabNamed("technologiesTab");
+        QCOMPARE(picked->y(), tabNamed("authorsTab")->y());
+        QTRY_VERIFY(picked->mapToItem(tabs, QPointF(0, 0)).x() >= 0
+            && picked->mapToItem(tabs, QPointF(picked->width(), 0)).x() <= tabs->width());
+        shot("about-technologies");
+
+        QVERIFY(tabNamed("licenseTab"));
+        QVERIFY(QMetaObject::invokeMethod(tabNamed("licenseTab"), "clicked"));
+        QTRY_VERIFY(license->isVisible() && !authors->isVisible());
+        // Reflowed: a paragraph is one line.
+        QVERIFY(
+            platform.licenseText().contains(QStringLiteral("Permission is hereby granted, free of charge, to any")));
+        int paragraphs = 0;
+        forEachItem(license, [&paragraphs](QQuickItem* item) {
+            if (item->inherits("QQuickText"))
+                ++paragraphs;
+        });
+        QVERIFY(paragraphs > 2); // a paragraph each
+        // Within the screen's width.
+        auto* content = page->findChild<QQuickItem*>("aboutContent");
+        QVERIFY(content);
+        QVERIFY(content->width() <= page->width());
+        shot("about-license");
+
+        QVERIFY(QMetaObject::invokeMethod(stack, "close"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        QTRY_VERIFY(!core.pulseScreen().watching());
     }
 
     void pagesOpen_data()

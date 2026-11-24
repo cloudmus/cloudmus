@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 
 class QThread;
 class QTimer;
@@ -9,7 +10,8 @@ class QTimer;
 namespace Ui {
 
 // What the views need from the platform: where the log is, sending it out,
-// the device's description for the Developer tools page.
+// the device's description for the Developer tools page, the app's version
+// and license for the About page.
 class Platform : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString logDirectory READ logDirectory CONSTANT)
@@ -18,6 +20,14 @@ class Platform : public QObject {
     Q_PROPERTY(QString publicLogDirectory READ publicLogDirectory CONSTANT)
     Q_PROPERTY(QString deviceInfo READ deviceInfo CONSTANT)
     Q_PROPERTY(bool android READ android CONSTANT)
+    // The app's version, from the release tags: "0.6.4", "0.6.4-163-geaef2c2".
+    Q_PROPERTY(QString version READ version CONSTANT)
+    // LICENSE, a paragraph to a line, for the About page.
+    Q_PROPERTY(QString licenseText READ licenseText CONSTANT)
+    // Who makes it (About::authors()) and who helped (About::contributors()):
+    // each a map of name, email, url and shownUrl.
+    Q_PROPERTY(QVariantList authors READ authors CONSTANT)
+    Q_PROPERTY(QVariantList contributors READ contributors CONSTANT)
     // What the system's bars cover of the window, in pixels.
     Q_PROPERTY(int insetTop READ insetTop NOTIFY insetsChanged)
     Q_PROPERTY(int insetLeft READ insetLeft NOTIFY insetsChanged)
@@ -40,6 +50,10 @@ public:
     QString publicLogDirectory() const;
     QString deviceInfo() const;
     bool android() const;
+    QString version() const;
+    QString licenseText() const;
+    QVariantList authors() const;
+    QVariantList contributors() const;
     int insetTop() const { return insetTop_; }
     int insetLeft() const { return insetLeft_; }
     int insetRight() const { return insetRight_; }

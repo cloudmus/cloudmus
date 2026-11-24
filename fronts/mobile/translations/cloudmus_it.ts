@@ -2,6 +2,65 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="it_IT" sourcelanguage="en">
   <context>
+    <name>AboutPage</name>
+    <message>
+      <source>About CloudMus</source>
+      <translation>Informazioni su CloudMus</translation>
+    </message>
+    <message>
+      <source>Version %1</source>
+      <translation>Versione %1</translation>
+    </message>
+    <message>
+      <source>Enjoy listening to your clouds</source>
+      <translation>Ascolta le tue nuvole con piacere</translation>
+    </message>
+    <message>
+      <source>Telegram chat</source>
+      <translation>Chat Telegram</translation>
+    </message>
+    <message>
+      <source>Authors</source>
+      <translation>Autori</translation>
+    </message>
+    <message>
+      <source>License</source>
+      <translation>Licenza</translation>
+    </message>
+    <message>
+      <source>Contributors</source>
+      <translation>Collaboratori</translation>
+    </message>
+    <message>
+      <source>AI coding agent by OpenAI</source>
+      <translation>Agente di programmazione basato su IA, di OpenAI</translation>
+    </message>
+    <message>
+      <source>Technologies</source>
+      <translation>Tecnologie</translation>
+    </message>
+    <message>
+      <source>The interface, on the desktop and on phones</source>
+      <translation>L’interfaccia, sul desktop e sui telefoni</translation>
+    </message>
+    <message>
+      <source>Plays the music</source>
+      <translation>Riproduce la musica</translation>
+    </message>
+    <message>
+      <source>The app itself</source>
+      <translation>L’app stessa</translation>
+    </message>
+    <message>
+      <source>The music services' backends</source>
+      <translation>I backend dei servizi musicali</translation>
+    </message>
+    <message>
+      <source>AI coding agent by Anthropic</source>
+      <translation>Agente di programmazione basato su IA, di Anthropic</translation>
+    </message>
+  </context>
+  <context>
     <name>App::PlaylistEditing</name>
     <message>
       <source>Added to "%1"</source>

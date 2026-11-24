@@ -17,6 +17,7 @@ Page {
     signal sourceSettingsRequested()
     signal playlistRequested()
     signal downloadsRequested()
+    signal aboutRequested()
 
     readonly property QtObject library: backend.library
     readonly property bool wide: width > height * 1.1
@@ -170,6 +171,11 @@ Page {
                         objectName: "librarySettings"
                         iconName: "tune"
                         onClicked: page.settingsRequested()
+                    }
+                    IconButton {
+                        objectName: "aboutButton"
+                        iconName: "info"
+                        onClicked: page.aboutRequested()
                     }
                 }
             }

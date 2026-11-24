@@ -61,6 +61,7 @@ Host::Host(App::MobileCore& core, const QString& socketPath, QObject* parent)
     host_.enableRemoting(&sourceSettings, Names::sourceSettings);
     offerRows(sourceSettings.connectionRows(), Names::sourceConnections);
     offerRows(sourceSettings.fieldRows(), Names::sourceFields);
+    host_.enableRemoting(&core.pulseScreen(), Names::pulse);
 #endif
     qCInfo(lcRemote) << "core offered on" << socketPath;
 }

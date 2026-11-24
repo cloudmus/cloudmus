@@ -37,6 +37,7 @@ Backend::Backend(App::MobileCore& core, QObject* parent)
     , trackScreen_(&core.trackScreen())
     , settingsScreen_(&core.settingsScreen())
     , sourceSettings_(&core.sourceSettingsScreen())
+    , pulse_(&core.pulseScreen())
 #endif
     , tracks_(&core.tracks())
 #ifdef CLOUDMUS_MOBILE_SHARED_CORE
@@ -96,6 +97,7 @@ Backend::Backend(const QString& socketPath, QObject* parent)
     acquire(sourceSettings_, Remote::Names::sourceSettings);
     acquireModel(sourceConnections_, Remote::Names::sourceConnections);
     acquireModel(sourceFields_, Remote::Names::sourceFields);
+    acquire(pulse_, Remote::Names::pulse);
 #endif
 
     // The core may be slow to come up, or gone (its process killed while
@@ -145,6 +147,7 @@ Backend::~Backend()
         delete sourceSettings_.data();
         delete sourceConnections_.data();
         delete sourceFields_.data();
+        delete pulse_.data();
     }
 }
 
@@ -274,6 +277,25 @@ QAbstractItemModel* Backend::openEntriesAt(int depth)
 
 void Backend::prepareLevel(int depth) { level(depth); }
 
+void Backend::holdPulse()
+{
+    if (pulseHolders_++ == 0)
+        tellPulseWatching();
+}
+
+void Backend::releasePulse()
+{
+    if (pulseHolders_ == 0 || --pulseHolders_ > 0)
+        return;
+    tellPulseWatching();
+}
+
+void Backend::tellPulseWatching()
+{
+    if (QObject* screen = pulse())
+        QMetaObject::invokeMethod(screen, "setWatching", Q_ARG(bool, pulseHolders_ > 0));
+}
+
 void Backend::updateReady()
 {
     bool ready = modelsInitialized_ >= modelsAcquired_;
@@ -289,6 +311,8 @@ void Backend::updateReady()
         else
             qCInfo(lcBackend) << "the core is back";
         everReady_ = true;
+        // A core that's new (its process restarted) knows nothing of the views.
+        tellPulseWatching();
     } else {
         qCWarning(lcBackend) << "lost the core";
         restartTimer_.start();

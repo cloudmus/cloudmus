@@ -264,6 +264,7 @@ ApplicationWindow {
             }
             onPlaylistRequested: stack.open(playlistPage)
             onDownloadsRequested: window.openDownloads()
+            onAboutRequested: stack.open(aboutPage)
         }
     }
     Component {
@@ -498,6 +499,13 @@ ApplicationWindow {
             onCloseRequested: stack.close()
             onLogRequested: stack.open(logPage)
             onStopRequested: window.stopAndQuit()
+        }
+    }
+    Component {
+        id: aboutPage
+        AboutPage {
+            objectName: "aboutPage"
+            onCloseRequested: stack.close()
         }
     }
     Component {

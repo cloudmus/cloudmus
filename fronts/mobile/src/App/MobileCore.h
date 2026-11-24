@@ -5,11 +5,13 @@
 
 #include "Core.h"
 #include "DownloadsScreen.h"
+#include "ImitatedMusic.h"
 #include "LibraryScreen.h"
 #include "MainScreen.h"
 #include "MediaTree.h"
 #include "PlatformSettings.h"
 #include "PlaylistScreens.h"
+#include "PulseScreen.h"
 #include "SettingsScreen.h"
 #include "SourceSettings.h"
 #include "SourceSettingsScreen.h"
@@ -54,6 +56,7 @@ public:
     ViewModel::MediaTree& mediaTree() { return mediaTree_; }
     ViewModel::SettingsScreen& settingsScreen() { return settingsScreen_; }
     ViewModel::SourceSettingsScreen& sourceSettingsScreen() { return sourceSettingsScreen_; }
+    ViewModel::PulseScreen& pulseScreen() { return pulseScreen_; }
 
 private:
     // Developer tools' audio output and soft edges (PlatformSettings), kept
@@ -73,6 +76,13 @@ private:
     ViewModel::SourceSettings sourceSettings_;
     ViewModel::SettingsScreen settingsScreen_;
     ViewModel::SourceSettingsScreen sourceSettingsScreen_;
+#ifdef Q_OS_ANDROID
+    // Android's libmpv can't analyze the music (docs/android.md, "a libmpv of
+    // our own"): the views move with music made up meanwhile.
+    ViewModel::ImitatedMusic imitatedMusic_;
+    ViewModel::AudioPulse imitatedPulse_;
+#endif
+    ViewModel::PulseScreen pulseScreen_;
 };
 
 } // namespace App

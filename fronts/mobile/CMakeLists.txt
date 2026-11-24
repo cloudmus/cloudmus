@@ -106,6 +106,8 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
         src/ViewModel/LibraryScreen.h
         src/ViewModel/DownloadsScreen.cpp
         src/ViewModel/DownloadsScreen.h
+        src/ViewModel/ImitatedMusic.cpp
+        src/ViewModel/ImitatedMusic.h
         src/ViewModel/MainScreen.cpp
         src/ViewModel/MainScreen.h
         src/ViewModel/MediaTree.cpp
@@ -116,6 +118,8 @@ if(CLOUDMUS_MOBILE_SHARED_CORE)
         src/ViewModel/PlaylistScreen.h
         src/ViewModel/PlaylistScreens.cpp
         src/ViewModel/PlaylistScreens.h
+        src/ViewModel/PulseScreen.cpp
+        src/ViewModel/PulseScreen.h
         src/ViewModel/TrackScreen.cpp
         src/ViewModel/TrackScreen.h
         src/ViewModel/RowsModel.cpp
@@ -161,6 +165,30 @@ FetchContent_Declare(qrcodegen
     DOWNLOAD_EXTRACT_TIMESTAMP ON)
 FetchContent_MakeAvailable(qrcodegen)
 
+# The version, from the release tags, as the desktop's is (fronts/qt/cmake/Version.cmake):
+# "0.6.4" on one, "0.6.4-163-geaef2c2" after it. The About page shows it; the
+# APK is named by it. The APK's code only has to grow, or Android won't take
+# the update: x.y.z, then the commits since (a thousand is more than there are
+# between two releases).
+find_package(Git QUIET)
+set(CLOUDMUS_APK_VERSION ${PROJECT_VERSION})
+set(CLOUDMUS_APK_VERSION_CODE 1)
+if(GIT_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "[0-9]*"
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE _described
+        OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(_described MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-([0-9]+)-g)?")
+        set(CLOUDMUS_APK_VERSION ${_described})
+        set(_commits 0)
+        if(CMAKE_MATCH_5)
+            set(_commits ${CMAKE_MATCH_5})
+        endif()
+        math(EXPR CLOUDMUS_APK_VERSION_CODE
+            "${CMAKE_MATCH_1} * 10000000 + ${CMAKE_MATCH_2} * 100000 + ${CMAKE_MATCH_3} * 1000 + ${_commits}")
+    endif()
+endif()
+message(STATUS "Version ${CLOUDMUS_APK_VERSION}, APK code ${CLOUDMUS_APK_VERSION_CODE}")
+
 # --- The views: QML and what it binds to. A library of their own so the
 # tests drive the same pages the app shows.
 qt_add_library(cloudmus-mobile-ui STATIC
@@ -180,9 +208,10 @@ qt_add_library(cloudmus-mobile-ui STATIC
     ${qrcodegen_SOURCE_DIR}/cpp/qrcodegen.cpp
 )
 target_include_directories(cloudmus-mobile-ui PRIVATE ${qrcodegen_SOURCE_DIR}/cpp)
-target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote ${QT_FRONT_SRC}/Covers)
+target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote ${QT_FRONT_SRC}/About ${QT_FRONT_SRC}/Covers)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
     cloudmus-mobile-i18n cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)
+target_compile_definitions(cloudmus-mobile-ui PRIVATE CLOUDMUS_MOBILE_VERSION="${CLOUDMUS_APK_VERSION}")
 if(CLOUDMUS_MOBILE_SHARED_CORE)
     target_compile_definitions(cloudmus-mobile-ui PUBLIC CLOUDMUS_MOBILE_SHARED_CORE)
 endif()
@@ -196,11 +225,13 @@ qt_add_qml_module(cloudmus-mobile-ui
     URI Cloudmus.Mobile
     VERSION 1.0
     QML_FILES
+        qml/AboutPage.qml
         qml/AppSlider.qml
         qml/AppSwitch.qml
         qml/AuraBackground.qml
         qml/BodyText.qml
         qml/CapabilityTags.qml
+        qml/CloudsBackdrop.qml
         qml/ConfirmDialog.qml
         qml/DropMenu.qml
         qml/DropMenuItem.qml
@@ -220,6 +251,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/OfflineBadge.qml
         qml/PlaylistPage.qml
         qml/PreloadCells.qml
+        qml/PulsingLogo.qml
         qml/ProgressRing.qml
         qml/Ripple.qml
         qml/ProxyPage.qml
@@ -237,6 +269,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/TrackTitleBlock.qml
         qml/NowPlayingPage.qml
         qml/PageBar.qml
+        qml/PersonCard.qml
         qml/LibraryPage.qml
         qml/MainPage.qml
         qml/TrackPanel.qml
@@ -267,7 +300,7 @@ qt_add_shaders(cloudmus-mobile-ui "shaders"
 
 set(_icons smartphone folder album arrow_back check chevron_right close cloud_off content_copy delete expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
-    radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
+    info person radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
     visibility visibility_off warning logout)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
@@ -276,7 +309,21 @@ foreach(_icon IN LISTS _icons)
     list(APPEND _icon_files ${_file})
 endforeach()
 set_source_files_properties(${QT_FRONT_RES}/icons/logo.svg PROPERTIES QT_RESOURCE_ALIAS logo.svg)
-qt_add_resources(cloudmus-mobile-ui "icons" PREFIX "/icons" FILES ${_icon_files} ${QT_FRONT_RES}/icons/logo.svg)
+set_source_files_properties(${QT_FRONT_RES}/icons/cloud.svg PROPERTIES QT_RESOURCE_ALIAS cloud.svg)
+qt_add_resources(cloudmus-mobile-ui "icons" PREFIX "/icons"
+    FILES ${_icon_files} ${QT_FRONT_RES}/icons/logo.svg ${QT_FRONT_RES}/icons/cloud.svg)
+# The About page's license text, people (Ui::Platform), technologies'
+# logos and waving AI agents, as the desktop has them.
+set(_about_files ../../LICENSE ${QT_FRONT_RES}/people.json
+    ${QT_FRONT_RES}/agents/clawd-waving.png ${QT_FRONT_RES}/agents/codex-waving.png)
+foreach(_logo qt mpv cpp rust python)
+    list(APPEND _about_files ${QT_FRONT_RES}/technologies/${_logo}.svg)
+endforeach()
+foreach(_file IN LISTS _about_files)
+    get_filename_component(_name ${_file} NAME)
+    set_source_files_properties(${_file} PROPERTIES QT_RESOURCE_ALIAS ${_name})
+endforeach()
+qt_add_resources(cloudmus-mobile-ui "about" PREFIX "/about" FILES ${_about_files})
 set(_fonts)
 foreach(_weight Regular Medium SemiBold Bold)
     set(_file ${QT_FRONT_RES}/fonts/Manrope-${_weight}.ttf)
@@ -374,29 +421,6 @@ if(ANDROID)
             configure_file(${CLOUDMUS_PYTHON_ANDROID_DIR}/${_file} ${_package}/assets/${_file} COPYONLY)
         endforeach()
     endif()
-
-    # From the release tags, as the desktop's version is (fronts/qt/cmake/Version.cmake):
-    # "0.6.4" on one, "0.6.4-163-geaef2c2" after it. The code only has to grow,
-    # or Android won't take the update: x.y.z, then the commits since (a thousand
-    # is more than there are between two releases).
-    find_package(Git QUIET)
-    set(CLOUDMUS_APK_VERSION ${PROJECT_VERSION})
-    set(CLOUDMUS_APK_VERSION_CODE 1)
-    if(GIT_FOUND)
-        execute_process(COMMAND ${GIT_EXECUTABLE} describe --tags --match "[0-9]*"
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE _described
-            OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-        if(_described MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-([0-9]+)-g)?")
-            set(CLOUDMUS_APK_VERSION ${_described})
-            set(_commits 0)
-            if(CMAKE_MATCH_5)
-                set(_commits ${CMAKE_MATCH_5})
-            endif()
-            math(EXPR CLOUDMUS_APK_VERSION_CODE
-                "${CMAKE_MATCH_1} * 10000000 + ${CMAKE_MATCH_2} * 100000 + ${CMAKE_MATCH_3} * 1000 + ${_commits}")
-        endif()
-    endif()
-    message(STATUS "APK version ${CLOUDMUS_APK_VERSION}, code ${CLOUDMUS_APK_VERSION_CODE}")
 
     add_dependencies(cloudmus-mobile cloudmus-mobile-service)
     set_target_properties(cloudmus-mobile PROPERTIES

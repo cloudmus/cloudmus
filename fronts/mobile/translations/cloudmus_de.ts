@@ -2,6 +2,65 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="de_DE" sourcelanguage="en">
   <context>
+    <name>AboutPage</name>
+    <message>
+      <source>About CloudMus</source>
+      <translation>Über CloudMus</translation>
+    </message>
+    <message>
+      <source>Version %1</source>
+      <translation>Version %1</translation>
+    </message>
+    <message>
+      <source>Enjoy listening to your clouds</source>
+      <translation>Genieße es, deinen Wolken zu lauschen</translation>
+    </message>
+    <message>
+      <source>Telegram chat</source>
+      <translation>Telegram-Chat</translation>
+    </message>
+    <message>
+      <source>Authors</source>
+      <translation>Autoren</translation>
+    </message>
+    <message>
+      <source>License</source>
+      <translation>Lizenz</translation>
+    </message>
+    <message>
+      <source>Contributors</source>
+      <translation>Mitwirkende</translation>
+    </message>
+    <message>
+      <source>AI coding agent by OpenAI</source>
+      <translation>KI-Programmieragent von OpenAI</translation>
+    </message>
+    <message>
+      <source>Technologies</source>
+      <translation>Technologien</translation>
+    </message>
+    <message>
+      <source>The interface, on the desktop and on phones</source>
+      <translation>Die Oberfläche, am Desktop und auf Smartphones</translation>
+    </message>
+    <message>
+      <source>Plays the music</source>
+      <translation>Spielt die Musik ab</translation>
+    </message>
+    <message>
+      <source>The app itself</source>
+      <translation>Die App selbst</translation>
+    </message>
+    <message>
+      <source>The music services' backends</source>
+      <translation>Die Backends der Musikdienste</translation>
+    </message>
+    <message>
+      <source>AI coding agent by Anthropic</source>
+      <translation>KI-Programmieragent von Anthropic</translation>
+    </message>
+  </context>
+  <context>
     <name>App::PlaylistEditing</name>
     <message>
       <source>Added to "%1"</source>

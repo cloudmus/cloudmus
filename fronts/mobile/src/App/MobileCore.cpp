@@ -19,6 +19,13 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
     , sourceSettings_(core_.sourceManager(), core_.settings())
     , settingsScreen_(core_, sourceSettings_)
     , sourceSettingsScreen_(core_, sourceSettings_)
+#ifdef Q_OS_ANDROID
+    , imitatedMusic_([this]() { return core_.playback().isPlaying(); })
+    , imitatedPulse_(imitatedMusic_.source())
+    , pulseScreen_(imitatedPulse_, core_.logoSound())
+#else
+    , pulseScreen_(core_.audioPulse(), core_.logoSound())
+#endif
 {
     core_.messages().setOfflineShownElsewhere(true); // mainScreen_.offline()
     core_.activePlaylist().setRefreshDelay(paths.refreshDelayMs);

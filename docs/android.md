@@ -336,7 +336,16 @@ in `fronts/mobile/CMakeLists.txt`). Two small patches, either one is enough:
   Android's ramp (a few ms) before `pause()`/`flush()`. That fixes it at the
   source, without `setEdges()`.
 
-A full `libavfilter` in the same build would bring the level analyzer back.
+The same build needs a full `libavfilter`, at least `asplit`, `anull`, `pan`,
+`lowpass`, `join`, `asetnsamples`, `astats`, `ametadata` and `anullsink`, to
+bring the level analyzer back (`AudioPlayer::setLevelsEnabled()`). The AAR's
+`libavfilter.so` is ~125 KB with none of them, and `af add` fails ("couldn't
+add the level analyzer" in the log). Until then the music the views move with
+(`ViewModel::PulseScreen`: the About page's logo and clouds, later
+visualizations) is made up on Android by `ViewModel::ImitatedMusic`, a kick at
+a tempo of its own while something plays. With the analyzer working, drop the
+imitation in `App::MobileCore` (the `Q_OS_ANDROID` block) and the pulse
+follows the real music, as on the desktop.
 
 ## Emulator
 
