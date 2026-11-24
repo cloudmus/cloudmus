@@ -10,6 +10,7 @@
 #include <cmath>
 
 #include "AudioPulse.h"
+#include "LogoSound.h"
 #include "Icons.h"
 #include "Tokens.h"
 
@@ -33,6 +34,9 @@ constexpr qreal kBeatOpacity = 1.0;
 constexpr qreal kLeanShare = 0.04; // of the widget's size, at the edge
 constexpr qreal kLeanFollowMs = 250;
 constexpr int kSpritePixels = 384;
+// A strike of the logo's sound, as a beat of this strength.
+constexpr qreal kStrikeRush = 1.6;
+constexpr qreal kStrikeFlash = 1.4;
 // The logo's gradient, lit: its glow behind the logo.
 const QColor kGlowColor(0xff, 0x9a, 0x5c);
 
@@ -40,9 +44,10 @@ qreal rand01() { return QRandomGenerator::global()->generateDouble(); }
 
 } // namespace
 
-CloudsBackdrop::CloudsBackdrop(ViewModel::AudioPulse& pulse, QWidget* origin, QWidget* parent)
+CloudsBackdrop::CloudsBackdrop(ViewModel::AudioPulse& pulse, ViewModel::LogoSound& sound, QWidget* origin, QWidget* parent)
     : QWidget(parent)
     , pulse_(pulse)
+    , sound_(sound)
     , origin_(origin)
 {
     setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -61,6 +66,11 @@ CloudsBackdrop::CloudsBackdrop(ViewModel::AudioPulse& pulse, QWidget* origin, QW
     connect(&pulse_, &ViewModel::AudioPulse::beat, this, [this](float strength) {
         rush_ = std::max(rush_, qreal(strength));
         flash_ = std::max(flash_, qreal(strength));
+    });
+    // The logo's own sound: its strikes send the clouds harder than a beat.
+    connect(&sound_, &ViewModel::LogoSound::hit, this, [this](float strength) {
+        rush_ = std::max(rush_, qreal(strength) * kStrikeRush);
+        flash_ = std::max(flash_, qreal(strength) * kStrikeFlash);
     });
 }
 
@@ -151,7 +161,7 @@ void CloudsBackdrop::paintEvent(QPaintEvent*)
     painter.setRenderHint(QPainter::Antialiasing);
 
     const QPointF vanish = vanishingPoint();
-    const qreal level = pulse_.level();
+    const qreal level = std::max(pulse_.level(), sound_.level());
 
     // The glow behind the logo: breathes while it's quiet, follows the
     // loudness, flashes on a hit.

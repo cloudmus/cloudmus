@@ -43,6 +43,7 @@ class CoverArtCache;
 
 namespace ViewModel {
 class ConnectionStatus;
+class LogoSound;
 class SidebarModel;
 }
 
@@ -217,6 +218,7 @@ private:
     App::Analytics& analytics_;
     Playback::PlaybackController& playback_;
     ViewModel::AudioPulse& audioPulse_;
+    ViewModel::LogoSound& logoSound_;
     Config::Settings& settings_;
     I18n::Translator& translator_;
     App::SourceSession& sourceSession_;

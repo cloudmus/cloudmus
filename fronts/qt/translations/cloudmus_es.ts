@@ -428,6 +428,10 @@
         <translation>Acerca de CloudMus</translation>
     </message>
     <message>
+        <source>Play the CloudMus sound</source>
+        <translation>Reproducir el sonido de CloudMus</translation>
+    </message>
+    <message>
         <source>Version %1</source>
         <translation>Versión %1</translation>
     </message>
@@ -444,8 +448,28 @@
         <translation>Chat de Telegram</translation>
     </message>
     <message>
-        <source>AI pair programmer by Anthropic</source>
-        <translation>Programador en pareja con IA, de Anthropic</translation>
+        <source>AI coding agent by Anthropic</source>
+        <translation>Agente de programación con IA, de Anthropic</translation>
+    </message>
+    <message>
+        <source>The interface, on the desktop and on phones</source>
+        <translation>La interfaz, en el escritorio y en los móviles</translation>
+    </message>
+    <message>
+        <source>Plays the music</source>
+        <translation>Reproduce la música</translation>
+    </message>
+    <message>
+        <source>The app itself</source>
+        <translation>La propia aplicación</translation>
+    </message>
+    <message>
+        <source>The music services&apos; backends</source>
+        <translation>Los backends de los servicios de música</translation>
+    </message>
+    <message>
+        <source>AI coding agent by OpenAI</source>
+        <translation>Agente de programación con IA, de OpenAI</translation>
     </message>
     <message>
         <source>Authors</source>
@@ -454,6 +478,14 @@
     <message>
         <source>License</source>
         <translation>Licencia</translation>
+    </message>
+    <message>
+        <source>Contributors</source>
+        <translation>Colaboradores</translation>
+    </message>
+    <message>
+        <source>Technologies</source>
+        <translation>Tecnologías</translation>
     </message>
 </context>
 <context>

@@ -365,7 +365,8 @@ QDialog[themed="true"] QCheckBox::indicator:checked:disabled {
 // (surface100, like the main window's sidebar) and the scrolling column of
 // settings on the content tone (surface0, like the track list) — the same
 // split as the main window. Scoped by objectName for the same reason as
-// #sidebarView/#trackListView.
+// #sidebarView/#trackListView. The About dialog's person cards
+// (#personCard) are raised a tone, as a settings card is outlined.
 QString settingsBlock(const Palette& p)
 {
     return QStringLiteral(R"(QListView#settingsSidebar {
@@ -377,9 +378,10 @@ QString settingsBlock(const Palette& p)
     selection-color: %3;
 }
 QScrollArea#settingsPages { background: %5; border: none; }
-QFrame#settingsSubCard { border: 1px solid %6; border-radius: %7px; })")
+QFrame#settingsSubCard { border: 1px solid %6; border-radius: %7px; }
+QFrame#personCard { background: %8; border: 1px solid %6; border-radius: %7px; })")
         .arg(hex(p.surface100), css(selectedFill(p.surface100)), hex(p.accent), QString::number(Spacing::space2),
-            hex(p.surface0), hex(p.border), QString::number(Radius::md));
+            hex(p.surface0), hex(p.border), QString::number(Radius::md), hex(p.surface200));
 }
 
 // Drop-down lists and number fields in themed dialogs, in the same

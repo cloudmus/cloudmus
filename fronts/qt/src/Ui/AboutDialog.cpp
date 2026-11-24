@@ -4,11 +4,15 @@
 #include <QClipboard>
 #include <QDialogButtonBox>
 #include <QFile>
+#include <QFrame>
+#include <QGridLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QPainter>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QTextBlockFormat>
 #include <QTextCursor>
@@ -20,11 +24,14 @@
 
 #include "AudioPulse.h"
 #include "CloudsBackdrop.h"
+#include "People.h"
 #include "DialogButtons.h"
 #include "Icons.h"
 #include "OverlayScrollBar.h"
 #include "PulsingLogo.h"
 #include "SmoothScroller.h"
+#include "SpriteAnimation.h"
+#include "StackTransition.h"
 #include "Spacing.h"
 #include "TabOrder.h"
 #include "Tokens.h"
@@ -39,6 +46,9 @@ constexpr int kLogoSide = 72;
 // The width the dialog opens at; its height is whatever the layout needs
 // at that width. Resizable from the window frame.
 constexpr int kDialogWidth = 760;
+// How long the window takes to the height of the tab picked: as long as the
+// page takes to slide in (StackTransition), so they end together.
+constexpr int kHeightMs = 260;
 
 QLabel* makeLabel(const QString& text, Theme::TextStyle style, QWidget* parent, const QString& objectName = QString())
 {
@@ -56,19 +66,75 @@ QString link(const QString& href, const QString& text)
         .arg(href, Theme::palette().accent.name(), text.toHtmlEscaped());
 }
 
+// A card for each one: the person icon, then their name, email and page, a line
+// each; two to a row.
+QWidget* peoplePage(const QList<About::Person>& people, QWidget* parent)
+{
+    auto* page = new QWidget(parent);
+    auto* grid = new QGridLayout(page);
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setSpacing(Theme::Spacing::space3);
+    constexpr int kColumns = 2;
+    for (int i = 0; i < people.size(); ++i) {
+        const About::Person& person = people[i];
+        auto* card = new QFrame(page);
+        card->setObjectName(QStringLiteral("personCard")); // see StyleSheet.cpp's settingsBlock()
+        auto* row = new QHBoxLayout(card);
+        row->setContentsMargins(Theme::Spacing::space3, Theme::Spacing::space3, Theme::Spacing::space4,
+            Theme::Spacing::space3);
+        row->setSpacing(Theme::Spacing::space3);
+
+        auto* icon = new QLabel(card);
+        icon->setAlignment(Qt::AlignTop);
+        Theme::followTheme(icon, [icon]() {
+            icon->setPixmap(Theme::icon(QStringLiteral("person"), Theme::IconColor::Accent, 32).pixmap(32, 32));
+        });
+        row->addWidget(icon);
+
+        auto* lines = new QVBoxLayout;
+        lines->setSpacing(Theme::Spacing::space1);
+        lines->addWidget(makeLabel(person.name.toHtmlEscaped(), Theme::TextStyle::Title, card));
+        const auto addLink = [card, lines](const QString& href, const QString& text) {
+            auto* label = makeLabel(link(href, text), Theme::TextStyle::BodySecondary, card);
+            label->setTextFormat(Qt::RichText);
+            label->setOpenExternalLinks(true);
+            label->setWordWrap(false); // one short line — its minimum is then its real size
+            lines->addWidget(label);
+        };
+        if (!person.email.isEmpty())
+            addLink(QStringLiteral("mailto:") + person.email, person.email);
+        if (!person.url.isEmpty())
+            addLink(person.url, About::shownUrl(person.url));
+        row->addLayout(lines, 1);
+
+        grid->addWidget(card, i / kColumns, i % kColumns, Qt::AlignTop);
+    }
+    for (int column = 0; column < kColumns; ++column)
+        grid->setColumnStretch(column, 1);
+    grid->setRowStretch(int((people.size() + kColumns - 1) / kColumns), 1);
+    return page;
+}
+
 } // namespace
 
-AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
+AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, ViewModel::LogoSound& sound, QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("About CloudMus"));
     setProperty("themed", true); // see StyleSheet.cpp's dialogsBlock() for why
+    heightAnimation_.setEasingCurve(QEasingCurve::OutCubic);
+    heightAnimation_.setDuration(kHeightMs);
+    connect(&heightAnimation_, &QVariantAnimation::valueChanged, this,
+        [this](const QVariant& height) { resize(width(), height.toInt()); });
+    connect(&heightAnimation_, &QVariantAnimation::finished, this, [this]() { updateMinimumHeight(); });
     // Modal however it's opened (not only via exec()): the rest of the app
     // stays blocked while it's up.
     setWindowModality(Qt::ApplicationModal);
 
     // --- header: logo, name, version (copyable)
-    auto* logoLabel = new PulsingLogo(pulse, kLogoSide, this);
+    auto* logoLabel = new PulsingLogo(pulse, sound, kLogoSide, this);
+    logoLabel->setObjectName(QStringLiteral("aboutLogo"));
+    logoLabel->setToolTip(tr("Play the CloudMus sound"));
 
     QFont titleFont = Theme::font(Theme::TextStyle::Display);
     titleFont.setPixelSize(32);
@@ -137,16 +203,89 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
     projectLabel->setAlignment(Qt::AlignCenter);
     projectLabel->setWordWrap(false); // one short line — its minimum is then its real size
 
-    // --- Authors / License tabs
-    auto* authorsLabel = makeLabel(
-        QStringLiteral("Vladislav Navrocky · %1<br>Claude · %2")
-            .arg(link(QStringLiteral("mailto:navrocky.vlad@gmail.com"), QStringLiteral("navrocky.vlad@gmail.com")),
-                tr("AI pair programmer by Anthropic")),
-        Theme::TextStyle::Body, this);
-    authorsLabel->setTextFormat(Qt::RichText);
-    authorsLabel->setOpenExternalLinks(true);
-    authorsLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-    authorsLabel->setWordWrap(false); // short lines — its minimum is then its real size
+    // --- Authors / Contributors / Technologies / License tabs
+    QWidget* authorsPage = peoplePage(About::authors(), this);
+    authorsPage->setObjectName(QStringLiteral("authorsPage"));
+    QWidget* contributorsPage = peoplePage(About::contributors(), this);
+    contributorsPage->setObjectName(QStringLiteral("contributorsPage"));
+
+    // The AI agents that wrote code for it, and what it's made with, each by
+    // its logo (resources/technologies/); the agents' mascots, the ones they
+    // have in their own apps (resources/agents/make_sprites.py), wave.
+    auto* technologiesPage = new QWidget(this);
+    auto* technologiesGrid = new QGridLayout(technologiesPage);
+    technologiesGrid->setContentsMargins(0, 0, 0, 0);
+    technologiesGrid->setHorizontalSpacing(Theme::Spacing::space4);
+    technologiesGrid->setVerticalSpacing(Theme::Spacing::space2);
+    struct Technology {
+        QString logo; // an SVG, or a strip of frames
+        bool tinted = false; // drawn in the text's color (a black logo, for the dark theme)
+        int frames = 0; // a strip's
+        int frameMs = 0;
+        bool pixelArt = false;
+        QString name;
+        QString url;
+        QString what;
+    };
+    const Technology technologies[] = {
+        { .logo = QStringLiteral(":/about/clawd-waving.png"), .frames = 9, .frameMs = 220, .pixelArt = true,
+            .name = QStringLiteral("Claude"), .url = QStringLiteral("https://claude.com/product/claude-code"),
+            .what = tr("AI coding agent by Anthropic") },
+        { .logo = QStringLiteral(":/about/codex-waving.png"), .frames = 10, .frameMs = 140,
+            .name = QStringLiteral("Codex"), .url = QStringLiteral("https://openai.com/codex"),
+            .what = tr("AI coding agent by OpenAI") },
+        { .logo = QStringLiteral(":/about/qt.svg"), .name = QStringLiteral("Qt"),
+            .url = QStringLiteral("https://www.qt.io"), .what = tr("The interface, on the desktop and on phones") },
+        { .logo = QStringLiteral(":/about/mpv.svg"), .name = QStringLiteral("mpv"),
+            .url = QStringLiteral("https://mpv.io"), .what = tr("Plays the music") },
+        { .logo = QStringLiteral(":/about/cpp.svg"), .name = QStringLiteral("C++"),
+            .url = QStringLiteral("https://isocpp.org"), .what = tr("The app itself") },
+        { .logo = QStringLiteral(":/about/rust.svg"), .tinted = true, .name = QStringLiteral("Rust"),
+            .url = QStringLiteral("https://www.rust-lang.org"),
+            .what = tr("The music services' backends") },
+        { .logo = QStringLiteral(":/about/python.svg"), .name = QStringLiteral("Python"),
+            .url = QStringLiteral("https://www.python.org"), .what = tr("The music services' backends") },
+    };
+    // A picture's size, as the logo's is: what each is scaled to, kept to its
+    // proportions.
+    constexpr int kTechnologySide = 40;
+    const QSize logoSize(kTechnologySide, kTechnologySide);
+    for (int i = 0; i < int(std::size(technologies)); ++i) {
+        const Technology& technology = technologies[i];
+        QWidget* logo = nullptr;
+        if (technology.frames > 0) {
+            logo = new SpriteAnimation(technology.logo, technology.frames, technology.frameMs, logoSize,
+                technology.pixelArt, technologiesPage);
+            logo->setObjectName(QStringLiteral("agentMascot"));
+        } else {
+            auto* image = new QLabel(technologiesPage);
+            image->setObjectName(QStringLiteral("technologyLogo"));
+            image->setAlignment(Qt::AlignCenter);
+            image->setFixedSize(logoSize); // a picture's size, see above
+            const auto draw = [image, technology, logoSize]() {
+                QPixmap pixmap = QIcon(technology.logo).pixmap(logoSize, image->devicePixelRatioF());
+                if (technology.tinted) {
+                    QPainter painter(&pixmap);
+                    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+                    painter.fillRect(pixmap.rect(), Theme::palette().ink);
+                }
+                image->setPixmap(pixmap);
+            };
+            Theme::followTheme(image, draw);
+            draw();
+            logo = image;
+        }
+        auto* text = makeLabel(QStringLiteral("%1 · %2").arg(link(technology.url, technology.name),
+                                   technology.what.toHtmlEscaped()),
+            Theme::TextStyle::Body, technologiesPage);
+        text->setTextFormat(Qt::RichText);
+        text->setOpenExternalLinks(true);
+        text->setWordWrap(false); // short lines — its minimum is then its real size
+        technologiesGrid->addWidget(logo, i, 0);
+        technologiesGrid->addWidget(text, i, 1);
+    }
+    technologiesGrid->setColumnStretch(1, 1);
+    technologiesGrid->setRowStretch(int(std::size(technologies)), 1);
 
     // QTextEdit, not QPlainTextEdit: the latter's layout ignores the block
     // margins used below to space paragraphs.
@@ -175,30 +314,41 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
     OverlayScrollBar::attach(licenseText);
 
     auto* pages = new QStackedWidget(this);
-    pages->addWidget(authorsLabel);
+    pages->addWidget(authorsPage);
+    pages->addWidget(contributorsPage);
+    pages->addWidget(technologiesPage);
     pages->addWidget(licenseText);
     // Only the CURRENT page counts for the stack's size (it would otherwise
     // reserve room for its tallest page): hidden pages get an Ignored size
     // policy. The dialog then opens as tall as the short authors list
     // needs, and fits itself to whichever tab gets selected.
+    // The tab picked slides in from its side as the one left slides out.
+    transition_ = new StackTransition(pages);
     const auto showPage = [this, pages](int index) {
+        // The page picked may need more than the window has: not for the layout
+        // to settle by growing it at once (the minimum is what it'd go by), but
+        // for animateHeightTo() to take it there.
+        if (isVisible())
+            setMinimumHeight(1);
         for (int i = 0; i < pages->count(); ++i) {
             pages->widget(i)->setSizePolicy(
                 QSizePolicy::Preferred, i == index ? QSizePolicy::Preferred : QSizePolicy::Ignored);
         }
-        pages->setCurrentIndex(index);
-        if (layout() == nullptr || !isVisible())
-            return; // the initial size is set at the end of the constructor
-        layout()->activate();
-        updateMinimumHeight();
-        resize(width(), heightForWidth(width()));
+        transition_->switchTo(index, [this]() {
+            if (layout() == nullptr || !isVisible())
+                return -1; // the initial size is set at the end of the constructor
+            layout()->activate();
+            const int target = heightForWidth(width());
+            animateHeightTo(target);
+            return target;
+        });
     };
     showPage(0);
 
     auto* tabRow = new QHBoxLayout;
     tabRow->setSpacing(Theme::Spacing::space4);
     auto* tabs = new QButtonGroup(this);
-    const QStringList tabTitles { tr("Authors"), tr("License") };
+    const QStringList tabTitles { tr("Authors"), tr("Contributors"), tr("Technologies"), tr("License") };
     for (int i = 0; i < tabTitles.size(); ++i) {
         auto* tab = new QPushButton(tabTitles[i], this);
         tab->setProperty("variant", "tab"); // see StyleSheet.cpp's textButtonsBlock()
@@ -234,7 +384,7 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, QWidget* parent)
 
     // Behind everything else, over the whole dialog; the clouds fly out of
     // the logo.
-    backdrop_ = new CloudsBackdrop(pulse, logoLabel, this);
+    backdrop_ = new CloudsBackdrop(pulse, sound, logoLabel, this);
     backdrop_->lower();
     backdrop_->setGeometry(rect());
 
@@ -261,8 +411,36 @@ void AboutDialog::resizeEvent(QResizeEvent* event)
     QDialog::resizeEvent(event);
     if (backdrop_ != nullptr)
         backdrop_->setGeometry(rect());
-    // A narrower window wraps the description onto more lines.
-    updateMinimumHeight();
+    // The layout has just put the stack in its place: the pages' snapshots
+    // moving over it go with it.
+    if (transition_ != nullptr)
+        transition_->syncCanvas();
+    // A narrower window wraps the description onto more lines. Not while it
+    // moves to another height: the minimum is for where it's heading, and
+    // would pull it there at once.
+    if (heightAnimation_.state() != QAbstractAnimation::Running)
+        updateMinimumHeight();
+}
+
+void AboutDialog::animateHeightTo(int height)
+{
+    {
+        // Set up quietly: stopping one that's going says it's finished, and
+        // new values on one that has run its course make it say it's at the
+        // new end, at once — the window would jump there.
+        const QSignalBlocker quiet(heightAnimation_);
+        heightAnimation_.stop();
+        heightAnimation_.setStartValue(this->height());
+        heightAnimation_.setEndValue(height);
+    }
+    if (height == this->height()) {
+        updateMinimumHeight();
+        return;
+    }
+    // Any height is allowed on the way (1, not 0: an explicit minimum keeps the
+    // layout from setting its own).
+    setMinimumHeight(1);
+    heightAnimation_.start();
 }
 
 void AboutDialog::updateMinimumHeight()

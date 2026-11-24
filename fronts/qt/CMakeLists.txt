@@ -218,7 +218,10 @@ add_library(cloudmus-ui STATIC
     src/Ui/MainWindow.cpp
     src/Ui/WindowHost.cpp
     src/Ui/DownloadsPanel.cpp
+    src/About/People.h
     src/Ui/AboutDialog.cpp
+    src/Ui/SpriteAnimation.cpp
+    src/Ui/StackTransition.cpp
     src/Ui/CloudsBackdrop.cpp
     src/Ui/PulsingLogo.cpp
     src/Ui/InfoDialog.cpp
@@ -288,6 +291,7 @@ add_dependencies(cloudmus-ui cloudmus_version)
 
 target_include_directories(cloudmus-ui PUBLIC
     ${VERSION_DIR}
+    src/About
     src/Ui
     src/Theme
     src/Integration
@@ -620,6 +624,8 @@ add_executable(cloudmus-qt-ui-tests
     tests/FakeBackend.cpp
     # Real glyphs, so a test can check what color an icon is tinted.
     resources/icons.qrc
+    # The About dialog's license and contributors.
+    resources/about.qrc
 )
 target_include_directories(cloudmus-qt-ui-tests PRIVATE tests)
 target_link_libraries(cloudmus-qt-ui-tests PRIVATE cloudmus-ui Qt6::Test)

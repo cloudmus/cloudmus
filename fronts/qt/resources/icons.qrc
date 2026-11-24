@@ -8,6 +8,7 @@
     </qresource>
     <qresource prefix="/icons/symbols">
         <file alias="play_arrow.svg">icons/symbols/play_arrow.svg</file>
+        <file alias="person.svg">icons/symbols/person.svg</file>
         <file alias="pause.svg">icons/symbols/pause.svg</file>
         <file alias="stop.svg">icons/symbols/stop.svg</file>
         <file alias="delete.svg">icons/symbols/delete.svg</file>

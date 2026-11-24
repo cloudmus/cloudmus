@@ -9,6 +9,7 @@
 
 namespace ViewModel {
 class AudioPulse;
+class LogoSound;
 }
 
 namespace Ui {
@@ -23,7 +24,7 @@ class CloudsBackdrop : public QWidget {
 public:
     // `origin`: the widget the clouds fly out of (its center is the
     // vanishing point and where the glow sits). A sibling of this one.
-    CloudsBackdrop(ViewModel::AudioPulse& pulse, QWidget* origin, QWidget* parent);
+    CloudsBackdrop(ViewModel::AudioPulse& pulse, ViewModel::LogoSound& sound, QWidget* origin, QWidget* parent);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -43,6 +44,7 @@ private:
     QPointF vanishingPoint() const;
 
     ViewModel::AudioPulse& pulse_;
+    ViewModel::LogoSound& sound_;
     QPointer<QWidget> origin_;
     QPixmap sprite_;
     QVector<Cloud> clouds_;

@@ -1,5 +1,13 @@
 <RCC>
     <qresource prefix="/about">
         <file alias="LICENSE">../../../LICENSE</file>
+        <file alias="people.json">people.json</file>
+        <file alias="clawd-waving.png">agents/clawd-waving.png</file>
+        <file alias="codex-waving.png">agents/codex-waving.png</file>
+        <file alias="qt.svg">technologies/qt.svg</file>
+        <file alias="mpv.svg">technologies/mpv.svg</file>
+        <file alias="cpp.svg">technologies/cpp.svg</file>
+        <file alias="rust.svg">technologies/rust.svg</file>
+        <file alias="python.svg">technologies/python.svg</file>
     </qresource>
 </RCC>

@@ -91,6 +91,14 @@ public:
         target_->update();
     }
 
+    // For the changes from now on (a direction that depends on the change);
+    // layers already animating go on as they started.
+    void setEffects(TransitionEffect enter, TransitionEffect exit)
+    {
+        enter_ = std::move(enter);
+        exit_ = std::move(exit);
+    }
+
     // Called once nothing is animating any more: the current layer (if
     // any) is at rest and no leaving layers remain.
     void setOnSettled(std::function<void()> onSettled) { onSettled_ = std::move(onSettled); }

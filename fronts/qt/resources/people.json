@@ -1,0 +1,21 @@
+{
+    "authors": [
+        {
+            "name": "Vladislav Navrocky",
+            "email": "navrocky.vlad@gmail.com",
+            "url": "https://github.com/navrocky"
+        }
+    ],
+    "contributors": [
+        {
+            "name": "Sergey Kostyuchenko",
+            "email": "derfenix@gmail.com",
+            "url": "https://github.com/derfenix"
+        },
+        {
+            "name": "Vitaly Zdanevich",
+            "email": "zdanevich.vitaly@ya.ru",
+            "url": "https://github.com/vitaly-zdanevich"
+        }
+    ]
+}

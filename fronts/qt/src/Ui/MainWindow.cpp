@@ -128,6 +128,7 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     , analytics_(core.analytics())
     , playback_(core.playback())
     , audioPulse_(core.audioPulse())
+    , logoSound_(core.logoSound())
     , settings_(core.settings())
     , translator_(core.translator())
     , sourceSession_(core.sourceSession())
@@ -1337,7 +1338,7 @@ Rpc::Task<void> MainWindow::setTrackInPlaylistAsync(
     }
 }
 
-void MainWindow::showAboutDialog() { Ui::AboutDialog(audioPulse_, this).exec(); }
+void MainWindow::showAboutDialog() { Ui::AboutDialog(audioPulse_, logoSound_, this).exec(); }
 
 void MainWindow::showSettingsDialog(const QString& openAt)
 {
