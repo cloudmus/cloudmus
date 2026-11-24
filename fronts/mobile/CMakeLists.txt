@@ -247,6 +247,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/TextCursor.qml
         qml/Theme.qml
         qml/Toast.qml
+        qml/ToastStack.qml
     SOURCES
         src/Ui/LogModel.cpp
         src/Ui/LogModel.h

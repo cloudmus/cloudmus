@@ -169,5 +169,5 @@ Page {
                 toast.show(page.screen.proxyCheckText, !page.screen.proxyCheckOk, undefined, page.screen.proxyCheckOk)
         }
     }
-    Toast { id: toast; platform: page.platform }
+    ToastStack { id: toast; anchors.fill: parent; platform: page.platform }
 }

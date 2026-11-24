@@ -364,8 +364,9 @@ ApplicationWindow {
         platform: window.platform
     }
     // What the app has to tell the user, over everything.
-    Toast {
+    ToastStack {
         id: appToast
+        anchors.fill: parent
         objectName: "appToast"
         parent: Overlay.overlay
         platform: window.platform

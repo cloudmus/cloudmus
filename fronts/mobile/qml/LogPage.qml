@@ -205,5 +205,5 @@ Page {
         }
     }
 
-    Toast { id: toast }
+    ToastStack { id: toast; anchors.fill: parent }
 }

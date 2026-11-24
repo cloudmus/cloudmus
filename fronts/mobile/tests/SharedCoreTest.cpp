@@ -3544,13 +3544,44 @@ private slots:
         QTRY_COMPARE(stack->property("depth").toInt(), 2);
         // A message over the Library.
         core.core().messages().error(QStringLiteral("Something went wrong"));
-        QTRY_COMPARE(window->findChild<QObject*>("appToast")->property("isError").toBool(), true);
+        QObject* toasts = window->findChild<QObject*>("appToast");
+        QTRY_COMPARE(toasts->property("count").toInt(), 1);
+        // The cards are a list's delegates: reached by the item tree, not by QObject parents.
+        std::function<void(QQuickItem*, QList<QObject*>&)> collectCards = [&](QQuickItem* item, QList<QObject*>& out) {
+            if (item->objectName() == QLatin1String("toastCard"))
+                out.append(item);
+            for (QQuickItem* child : item->childItems())
+                collectCards(child, out);
+        };
+        const auto cards = [&] {
+            QList<QObject*> out;
+            collectCards(qobject_cast<QQuickItem*>(toasts), out);
+            return out;
+        };
+        QTRY_COMPARE(cards().size(), 1);
+        QObject* first = cards().first();
+        QCOMPARE(first->property("isError").toBool(), true);
         shot("message");
-        // A message with a technical line behind it: closable, and unfolding keeps it up.
-        QObject* toast = window->findChild<QObject*>("appToast");
+        // A message with a technical line behind it: stacks with the first one,
+        // closable, and unfolding keeps it up.
         core.core().messages().error(QStringLiteral("YouTube Music: no network connection"),
             QStringLiteral("HTTPSConnectionPool(host='music.youtube.com'): Max retries exceeded"));
-        QTRY_COMPARE(toast->property("details").toString().isEmpty(), false);
+        QTRY_COMPARE(toasts->property("count").toInt(), 2);
+        QObject* toast = nullptr;
+        QTRY_VERIFY((toast = [&] {
+            for (QObject* card : cards()) {
+                if (!card->property("details").toString().isEmpty())
+                    return card;
+            }
+            return static_cast<QObject*>(nullptr);
+        }()) != nullptr);
+        // The new one at the bottom, the first pushed up above it, both fully in.
+        QQuickItem* older = qobject_cast<QQuickItem*>(first)->parentItem();
+        QQuickItem* newer = qobject_cast<QQuickItem*>(toast)->parentItem();
+        QTRY_COMPARE(newer->opacity(), 1.0);
+        const qreal gap = toasts->property("spacing").toReal();
+        QTRY_VERIFY(qAbs(older->y() + older->height() + gap - newer->y()) < 0.5);
+        shot("messages");
         QObject* chevron = toast->findChild<QObject*>("toastChevron");
         QObject* close = toast->findChild<QObject*>("toastClose");
         QVERIFY(chevron != nullptr && close != nullptr);
@@ -3558,11 +3589,11 @@ private slots:
         QMetaObject::invokeMethod(chevron, "clicked");
         QCOMPARE(toast->property("expanded").toBool(), true);
         QVERIFY(toast->property("shownText").toString().contains(QStringLiteral("Max retries")));
+        // The first one runs out; the unfolded one stays.
         QTest::qWait(4500);
-        QCOMPARE(toast->property("opacity").toDouble(), 1.0);
+        QTRY_COMPARE(toasts->property("count").toInt(), 1);
         QMetaObject::invokeMethod(close, "clicked");
-        QTRY_COMPARE(toast->property("opacity").toDouble(), 0.0);
-        QCOMPARE(toast->property("expanded").toBool(), false);
+        QTRY_COMPARE(toasts->property("count").toInt(), 0);
     }
 };
 
