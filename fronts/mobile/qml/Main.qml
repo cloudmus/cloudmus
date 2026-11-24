@@ -36,6 +36,9 @@ ApplicationWindow {
         property bool dynamicBlur: true
         // A phone's mini player over every page, not just the main one.
         property bool miniPlayerEverywhere: true
+        // Developer tools in Settings: off until the version on the About
+        // page is tapped five times; their own page turns them off again.
+        property bool developerTools: false
     }
 
     Binding {
@@ -494,6 +497,17 @@ ApplicationWindow {
     Connections {
         target: window.updates
         ignoreUnknownSignals: true
+        // A check asked for found nothing new, or failed: a toast says so.
+        function onCheckingChanged() {
+            const updates = window.updates
+            if (updates.checking || updates.checkHeading === "")
+                return
+            // The versions are in bold in checkText: a toast shows plain text.
+            const detail = updates.checkText.replace(/<[^>]*>/g, "")
+                .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
+            appToast.show(updates.checkHeading, updates.checkFailed === true, detail, updates.checkFailed !== true)
+            updates.clearCheck()
+        }
         function onOffered(manual) {
             if (manual)
                 window.openUpdate()
@@ -586,6 +600,10 @@ ApplicationWindow {
             onLogRequested: stack.open(logPage)
             onStopRequested: window.stopAndQuit()
             onCheckForUpdatesRequested: window.checkForUpdates(true)
+            onHideRequested: {
+                uiSettings.developerTools = false
+                stack.close()
+            }
         }
     }
     Component {
@@ -594,6 +612,12 @@ ApplicationWindow {
             objectName: "aboutPage"
             onCloseRequested: stack.close()
             onCheckForUpdatesRequested: window.checkForUpdates(true)
+            onDeveloperToolsRequested: {
+                appToast.show(uiSettings.developerTools ? qsTr("Developer tools are already on: Settings → App")
+                                                        : qsTr("Developer tools are on: Settings → App"),
+                              false, undefined, true)
+                uiSettings.developerTools = true
+            }
         }
     }
     Component {

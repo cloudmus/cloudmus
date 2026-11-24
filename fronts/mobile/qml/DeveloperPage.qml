@@ -18,6 +18,8 @@ Page {
     signal stopRequested()
     // Main.qml checks with the update server set here.
     signal checkForUpdatesRequested()
+    // Hidden from Settings again (until the version is tapped five times).
+    signal hideRequested()
 
     background: Rectangle { color: Theme.surface0 }
 
@@ -38,6 +40,16 @@ Page {
             y: Theme.padding
             width: parent.width
             spacing: Theme.settingsGroupGap
+
+            SettingsGroup {
+                SettingSwitch {
+                    objectName: "developerToolsShown"
+                    title: qsTr("Developer tools")
+                    description: qsTr("Turned off, they're hidden from Settings until the version on the About page is tapped five times.")
+                    checked: true
+                    onToggled: (checked) => { if (!checked) page.hideRequested() }
+                }
+            }
 
             SettingsGroup {
                 title: qsTr("Device")
@@ -74,7 +86,7 @@ Page {
             // server": the address the first shows). docs/android.md, "Updates".
             SettingsGroup {
                 shown: page.platform.android
-                title: qsTr("Updates")
+                title: qsTr("Trying updates")
                 SettingsCell {
                     SettingText {
                         title: qsTr("Update server")
@@ -92,7 +104,7 @@ Page {
                             onEditingFinished: if (page.backend.settings) page.backend.settings.setUpdateServer(text)
                         }
                         TextButton {
-                            text: qsTr("Check")
+                            text: qsTr("Check now")
                             onClicked: {
                                 if (page.backend.settings)
                                     page.backend.settings.setUpdateServer(updateServerField.text)

@@ -56,6 +56,8 @@ class UpdateScreen : public QObject {
     Q_PROPERTY(bool checking READ checking NOTIFY checkingChanged)
     Q_PROPERTY(QString checkHeading READ checkHeading NOTIFY checkHeadingChanged)
     Q_PROPERTY(QString checkText READ checkText NOTIFY checkTextChanged)
+    // That outcome is a failure, not "up to date".
+    Q_PROPERTY(bool checkFailed READ checkFailed NOTIFY checkFailedChanged)
 
 public:
     enum Step {
@@ -99,6 +101,7 @@ public:
     bool checking() const { return checking_; }
     QString checkHeading() const { return checkHeading_; }
     QString checkText() const { return checkText_; }
+    bool checkFailed() const { return checkFailed_; }
     // The offer itself (desktop: the dialog lays the notes out by release).
     const std::optional<Update::PendingUpdate>& pendingUpdate() const { return update_; }
 
@@ -156,6 +159,7 @@ signals:
     void checkingChanged();
     void checkHeadingChanged();
     void checkTextChanged();
+    void checkFailedChanged();
     // An update for the view to show: found at startup or asked for.
     void offered(bool manual);
     // A step taken, for statistics: "install", "install_launched",
@@ -164,7 +168,7 @@ signals:
 
 private:
     void takeUpdate(const Update::PendingUpdate& update, bool manual);
-    void takeCheckOutcome(const QString& heading, const QString& text, bool manual);
+    void takeCheckOutcome(const QString& heading, const QString& text, bool manual, bool failed);
     void setStep(Step step);
     // Each property of a group its own signal (see the class' comment).
     void emitOfferChanged();
@@ -197,6 +201,7 @@ private:
     bool checking_ = false;
     QString checkHeading_;
     QString checkText_;
+    bool checkFailed_ = false;
 };
 
 } // namespace ViewModel

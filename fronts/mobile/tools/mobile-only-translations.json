@@ -687,14 +687,6 @@
   "fr": "Réessayer",
   "it": "Riprova"
  },
- "Check for Updates": {
-  "ru": "Проверить обновления",
-  "be": "Праверыць абнаўленні",
-  "de": "Nach Updates suchen",
-  "es": "Buscar actualizaciones",
-  "fr": "Rechercher des mises à jour",
-  "it": "Cerca aggiornamenti"
- },
  "Android refused the new version: it doesn't match the installed one (signed with another key?). Install it from the release page.": {
   "ru": "Android отклонил новую версию: она не совпадает с установленной (подписана другим ключом?). Установите её со страницы релиза.",
   "be": "Android адхіліў новую версію: яна не супадае з усталяванай (падпісана іншым ключом?). Усталюйце яе са старонкі рэлізу.",
@@ -758,5 +750,21 @@
   "es": "%1 del %2",
   "fr": "%1 du %2",
   "it": "%1 del %2"
+ },
+ "Developer tools are on: Settings → App": {
+  "ru": "Developer tools включены: Настройки → Приложение",
+  "be": "Developer tools уключаны: Налады → Праграма",
+  "de": "Developer tools sind an: Einstellungen → App",
+  "es": "Developer tools activadas: Ajustes → Aplicación",
+  "fr": "Developer tools activés : Réglages → Application",
+  "it": "Developer tools attivi: Impostazioni → App"
+ },
+ "Developer tools are already on: Settings → App": {
+  "ru": "Developer tools уже включены: Настройки → Приложение",
+  "be": "Developer tools ужо ўключаны: Налады → Праграма",
+  "de": "Developer tools sind schon an: Einstellungen → App",
+  "es": "Developer tools ya están activadas: Ajustes → Aplicación",
+  "fr": "Developer tools déjà activés : Réglages → Application",
+  "it": "Developer tools già attivi: Impostazioni → App"
  }
 }

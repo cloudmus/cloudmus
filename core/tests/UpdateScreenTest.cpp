@@ -146,6 +146,7 @@ private slots:
         QTRY_VERIFY(!f.screen.checking());
         QVERIFY(!f.screen.checkHeading().isEmpty());
         QVERIFY(f.screen.checkText().contains(QStringLiteral("0.7.0")));
+        QVERIFY(!f.screen.checkFailed());
         QCOMPARE(f.screen.step(), int(UpdateScreen::None));
     }
 

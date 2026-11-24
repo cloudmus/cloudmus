@@ -62,7 +62,7 @@ UpdateScreen::UpdateScreen(Update::UpdateChecker& checker, QObject* parent)
             text += checker_.isDevBuild() ? tr(" It's built on %1, released on %2.").arg(bold(own->name), date)
                                           : tr(" Released on %1.").arg(date);
         }
-        takeCheckOutcome(tr("CloudMus is up to date"), text, true);
+        takeCheckOutcome(tr("CloudMus is up to date"), text, true, false);
     });
     connect(&checker_, &Update::UpdateChecker::checkFailed, this, [this](const QString& error, bool manual) {
         if (storeVersion_) {
@@ -75,7 +75,7 @@ UpdateScreen::UpdateScreen(Update::UpdateChecker& checker, QObject* parent)
             takeUpdate(store, storeManual_);
             return;
         }
-        takeCheckOutcome(tr("Couldn't check for updates"), error.toHtmlEscaped(), manual);
+        takeCheckOutcome(tr("Couldn't check for updates"), error.toHtmlEscaped(), manual, true);
     });
 }
 
@@ -151,11 +151,11 @@ void UpdateScreen::reportStoreCheck(const QString& error, bool manual)
 {
     if (!error.isEmpty()) {
         qCWarning(lcUpdate).noquote() << "the store's check failed:" << error;
-        takeCheckOutcome(tr("Couldn't check for updates"), error.toHtmlEscaped(), manual);
+        takeCheckOutcome(tr("Couldn't check for updates"), error.toHtmlEscaped(), manual, true);
         return;
     }
-    takeCheckOutcome(
-        tr("CloudMus is up to date"), tr("Version %1 is the latest one.").arg(bold(checker_.currentVersion())), manual);
+    takeCheckOutcome(tr("CloudMus is up to date"),
+        tr("Version %1 is the latest one.").arg(bold(checker_.currentVersion())), manual, false);
 }
 
 void UpdateScreen::takeUpdate(const Update::PendingUpdate& update, bool manual)
@@ -196,7 +196,7 @@ void UpdateScreen::takeUpdate(const Update::PendingUpdate& update, bool manual)
     emit offered(manual);
 }
 
-void UpdateScreen::takeCheckOutcome(const QString& heading, const QString& text, bool manual)
+void UpdateScreen::takeCheckOutcome(const QString& heading, const QString& text, bool manual, bool failed)
 {
     storeVersion_.reset();
     storeManual_ = false;
@@ -205,6 +205,7 @@ void UpdateScreen::takeCheckOutcome(const QString& heading, const QString& text,
     checking_ = false;
     checkHeading_ = heading;
     checkText_ = text;
+    checkFailed_ = failed;
     emitCheckingChanged();
 }
 
@@ -215,6 +216,7 @@ void UpdateScreen::clearCheck()
     checking_ = false;
     checkHeading_.clear();
     checkText_.clear();
+    checkFailed_ = false;
     emitCheckingChanged();
 }
 
@@ -355,9 +357,11 @@ void UpdateScreen::emitProgressChanged()
 
 void UpdateScreen::emitCheckingChanged()
 {
-    emit checkingChanged();
+    // `checking` last: a replica has the outcome when it sees the check over.
     emit checkHeadingChanged();
     emit checkTextChanged();
+    emit checkFailedChanged();
+    emit checkingChanged();
 }
 
 void UpdateScreen::showProgress(qint64 received, qint64 total, int secondsLeft)

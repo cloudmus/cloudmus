@@ -14,8 +14,11 @@ Page {
     property QtObject platform
     signal closeRequested()
     // Main.qml asks the store or GitHub; a newer version opens its page, the
-    // outcome otherwise shows here.
+    // outcome otherwise is a toast.
     signal checkForUpdatesRequested()
+    // The version tapped five times in a row: Developer tools are shown in
+    // Settings (Main.qml's uiSettings.developerTools).
+    signal developerToolsRequested()
 
     readonly property QtObject updates: backend ? backend.updateScreen : null
 
@@ -106,11 +109,7 @@ Page {
     }
     onWatchingChanged: _hold(watching)
     Component.onCompleted: _hold(watching)
-    Component.onDestruction: {
-        _hold(false)
-        if (updates)
-            updates.clearCheck()
-    }
+    Component.onDestruction: _hold(false)
 
     background: Rectangle { color: Theme.surface0 }
 
@@ -172,11 +171,29 @@ Page {
                     RowLayout {
                         spacing: Theme.dp(4)
                         Text {
+                            id: versionText
                             objectName: "aboutVersion"
                             text: qsTr("Version %1").arg(page.platform ? page.platform.version : "")
                             color: Theme.inkSecondary
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontBody
+                            // Five quick taps, each within a moment of the last.
+                            property int taps: 0
+                            TapHandler {
+                                onTapped: {
+                                    versionText.taps += 1
+                                    tapsReset.restart()
+                                    if (versionText.taps >= 5) {
+                                        versionText.taps = 0
+                                        page.developerToolsRequested()
+                                    }
+                                }
+                            }
+                            Timer {
+                                id: tapsReset
+                                interval: 700
+                                onTriggered: versionText.taps = 0
+                            }
                         }
                         IconButton {
                             id: copyButton
@@ -197,6 +214,16 @@ Page {
                                 onTriggered: copyButton.copied = false
                             }
                         }
+                        // Check for updates: a spinner while it's under way.
+                        IconButton {
+                            objectName: "checkForUpdates"
+                            size: Theme.dp(36)
+                            iconName: "refresh"
+                            color: Theme.inkSecondary
+                            enabled: page.updates !== null
+                            busy: page.updates !== null && page.updates.checking === true
+                            onClicked: page.checkForUpdatesRequested()
+                        }
                     }
                 }
             }
@@ -216,23 +243,6 @@ Page {
                     page._link("https://t.me/cloudmus_app", qsTr("Telegram chat")),
                 ].join(" · ")
                 onLinkActivated: (link) => Qt.openUrlExternally(link)
-            }
-
-            TextButton {
-                objectName: "checkForUpdates"
-                Layout.alignment: Qt.AlignHCenter
-                text: qsTr("Check for Updates")
-                busy: page.updates !== null && page.updates.checking === true
-                enabled: page.updates !== null
-                onClicked: page.checkForUpdatesRequested()
-            }
-            BodyText {
-                objectName: "updateCheckOutcome"
-                visible: page.updates !== null && page.updates.checkHeading !== ""
-                textFormat: Text.StyledText
-                horizontalAlignment: Text.AlignHCenter
-                color: Theme.inkSecondary
-                text: page.updates ? "<b>" + page.updates.checkHeading + "</b><br>" + page.updates.checkText : ""
             }
 
             // On one line, scrolled sideways where the screen is too narrow for

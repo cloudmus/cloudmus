@@ -59,10 +59,6 @@
       <source>AI coding agent by Anthropic</source>
       <translation>Agente di programmazione basato su IA, di Anthropic</translation>
     </message>
-    <message>
-      <source>Check for Updates</source>
-      <translation>Controlla aggiornamenti</translation>
-    </message>
   </context>
   <context>
     <name>App::PlaylistEditing</name>
@@ -315,6 +311,46 @@
       <source>Check music storage</source>
       <translation>Controlla l’archiviazione della musica</translation>
     </message>
+    <message>
+      <source>Turned off, they're hidden from Settings until the version on the About page is tapped five times.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Update server</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Another device's address from “Serve updates” below, to take the update from it instead of GitHub. Empty: GitHub.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Serve updates</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Offers an APK to the devices on this network as a newer version: the one chosen, or this app's own.</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Address for the other device</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Offered</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Choose APK…</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Trying updates</source>
+      <translation type="unfinished" />
+    </message>
+    <message>
+      <source>Check now</source>
+      <translation type="unfinished" />
+    </message>
   </context>
   <context>
     <name>DownloadsPage</name>
@@ -430,6 +466,14 @@
     <message>
       <source>Starting…</source>
       <translation>Avvio…</translation>
+    </message>
+    <message>
+      <source>Developer tools are already on: Settings → App</source>
+      <translation>Developer tools già attivi: Impostazioni → App</translation>
+    </message>
+    <message>
+      <source>Developer tools are on: Settings → App</source>
+      <translation>Developer tools attivi: Impostazioni → App</translation>
     </message>
   </context>
   <context>

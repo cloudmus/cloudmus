@@ -160,7 +160,9 @@ adb logcat -s CloudmusStart             # startup milestones
   button brings up the player's screen. On such a unit that button goes first,
   in the row Media Center shows without unfolding; like, dislike and close
   are a row up.
-- Settings → Developer tools holds what's for working on the app: the device,
+- Settings → App → Developer tools holds what's for working on the app. It's
+  hidden until the version on the About page is tapped five times in a row
+  (a toast says it's on); its own first switch hides it again. The device,
   the Log page (it filters by level, process, text, and "this boot"), scrolling
   and drawing experiments, and for a head unit **Export system apps** (the
   launcher's and media apps' APKs with their compiled code, into a zip, to
@@ -234,9 +236,10 @@ read grant or one that persists across restarts.
 The app updates itself as the desktop does: the core (`Update::UpdateChecker`,
 `ViewModel::UpdateScreen`, shared with the desktop) asks GitHub's releases a
 while after start (not for a build between tags), and an update found is
-pointed at by an icon on the main page; About → **Check for Updates** asks at
-once and opens the Update page (`UpdatePage.qml`) with the notes of every
-release since. How it's installed depends on the build
+pointed at by an icon on the main page. About's ↻ beside the version asks at
+once: a newer version opens the Update page (`UpdatePage.qml`) with the notes
+of every release since; otherwise a toast says it's the latest (green) or that
+the check failed (red). How it's installed depends on the build
 (`CLOUDMUS_ANDROID_DISTRIBUTION`, `build-android.sh` takes it from the
 environment):
 
@@ -268,7 +271,7 @@ with the one key (CI's artifacts are). On the phone, Settings → Developer
 tools → **Serve updates** (`UpdateServer.java`): it offers this app's own APK,
 or one picked with **Choose APK…**, as a release one patch above its version,
 and shows its address. On the head unit, Developer tools → **Update server**:
-that address, then **Check**. A build between tags checks at start too while
+that address, then **Check now**. A build between tags checks at start too while
 the server is set; clear the field to go back to GitHub. Android refuses an
 APK with a lower versionCode than the installed one.
 

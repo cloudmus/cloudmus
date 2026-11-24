@@ -341,7 +341,10 @@ Page {
                 }
             }
 
+            // Developer tools: shown once the About page's version was tapped
+            // five times (Main.qml's uiSettings.developerTools).
             SettingsGroup {
+                shown: page.ui !== null && page.ui.developerTools === true
                 title: qsTr("App")
                 SettingsRow {
                     text: qsTr("Developer tools")
