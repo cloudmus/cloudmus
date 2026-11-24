@@ -20,12 +20,28 @@ ComboBox {
     font.family: Theme.fontFamily
     font.pixelSize: Theme.fontBody
 
+    // Where the finger went down, for the ripple: a ComboBox has no pressX.
+    PointHandler {
+        id: touch
+        acceptedButtons: Qt.AllButtons
+    }
+    property point _pressAt: Qt.point(width / 2, height / 2)
+    onPressedChanged: if (pressed && touch.active) _pressAt = touch.point.position
+
     background: Rectangle {
         radius: Theme.dp(10)
-        color: control.down && !control.popup.visible ? Theme.surface400 : Theme.surface300
+        color: control.down && fieldRipple.flat ? Theme.surface400 : Theme.surface300
         border.width: control.popup.visible ? Theme.dp(2) : 0
         border.color: Theme.accent
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
+        // The touch feedback of the buttons, from where the finger is.
+        Ripple {
+            id: fieldRipple
+            pressed: control.pressed
+            pressX: control._pressAt.x
+            pressY: control._pressAt.y
+            radius: parent.radius
+        }
     }
 
     contentItem: Text {
