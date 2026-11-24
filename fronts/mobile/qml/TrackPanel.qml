@@ -697,14 +697,13 @@ Item {
                         Layout.preferredHeight: Theme.touch
                     }
                 }
-                IconButton {
-                    objectName: "trackMenuButton"
-                    opacity: panel._fullOnly
-                    visible: panel.showMenu && panel.nowPlaying && panel.nowPlaying.hasTrack === true
-                    enabled: panel._fullOnly > 0
-                    iconName: "more_vert"
-                    color: panel.inkColor
-                    onClicked: panel.menuRequested()
+                // The track's menu: its room only, like the modes'; it goes
+                // where they go, to their right.
+                Item {
+                    id: menuSlot
+                    visible: panel._hasMenu
+                    Layout.preferredWidth: Theme.touch * (panel.modesAway ? 1 - panel.modesElsewhere : 1)
+                    Layout.preferredHeight: Theme.touch
                 }
             }
         }
@@ -802,6 +801,7 @@ Item {
         // without these the buttons stayed over the title.
         titleHolder.x; titleHolder.y; seekBar.x; seekBar.y
         modesSlots.x; modesSlots.y; modesSlots.parent.x; modesSlots.parent.y
+        menuSlot.x; menuSlot.y; menuSlot.width
         slot.x; slot.y; slot.width; slot.height
         return slot.mapToItem(panel, 0, 0)
     }
@@ -833,6 +833,20 @@ Item {
         y: panel._modeY(repeatSlot)
         opacity: panel._modesOpacity
         visible: panel._hasModes && opacity > 0
+    }
+    // Not in the mini player: it fades as the panel folds, where it is.
+    readonly property bool _hasMenu: showMenu && nowPlaying !== null && nowPlaying.hasTrack === true
+    IconButton {
+        objectName: "trackMenuButton"
+        readonly property point _at: panel._slotPoint(menuSlot)
+        x: _at.x + (panel.modesAway ? (panel.modesAway.x + Theme.touch * 2 - _at.x) * panel.modesElsewhere : 0)
+        y: _at.y + (panel.modesAway ? (panel.modesAway.y - _at.y) * panel.modesElsewhere : 0)
+        opacity: panel._fullOnly
+        visible: panel._hasMenu && opacity > 0
+        enabled: panel._fullOnly > 0
+        iconName: "more_horiz"
+        color: panel.inkColor
+        onClicked: panel.menuRequested()
     }
 
     // Kept at the size it has here and scaled down for the mini player: at a

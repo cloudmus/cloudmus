@@ -2611,6 +2611,14 @@ private slots:
         QVERIFY(shuffle && shuffle->isVisible());
         QVERIFY(!scene(shuffle).intersects(scene(bar)));
         QVERIFY(qAbs(scene(shuffle).center().y() - scene(bar).center().y()) <= 1);
+        // The track's menu went up with them, to their right.
+        auto* menu = window->findChild<QQuickItem*>("trackMenuButton");
+        auto* repeat = window->findChild<QQuickItem*>("repeatButton");
+        QVERIFY(menu && menu->isVisible() && repeat);
+        QVERIFY(!scene(menu).intersects(scene(bar)));
+        QVERIFY(!scene(menu).intersects(scene(title)));
+        QVERIFY(qAbs(scene(menu).center().y() - scene(bar).center().y()) <= 1);
+        QVERIFY(scene(menu).left() >= scene(repeat).right() - 1);
         QVERIFY(scene(title).width() >= 120);
         // The count went up to the list's title.
         QVERIFY(window->findChild<QQuickItem*>("playlistCount")->isVisible());

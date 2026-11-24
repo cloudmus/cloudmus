@@ -202,7 +202,7 @@ Item {
                         objectName: "nowPlayingMenu"
                         opacity: page.backend.trackScreen !== null && page.nowPlaying && page.nowPlaying.hasTrack === true ? 1 : 0
                         enabled: opacity > 0
-                        iconName: "more_vert"
+                        iconName: "more_horiz"
                         color: "#FFFFFF"
                         onClicked: {
                             page.backend.trackScreen.showPlaying()

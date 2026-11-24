@@ -194,7 +194,7 @@ ItemDelegate {
             }
             IconButton {
                 visible: row.showMenu
-                iconName: "more_vert"
+                iconName: "more_horiz"
                 color: Theme.inkSecondary
                 onClicked: row.menuRequested()
             }

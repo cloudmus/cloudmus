@@ -128,6 +128,9 @@ Page {
     // The bar folds first and the panel rises into the room it leaves.
     readonly property real _barFolded: _part(0, 0.6)
     readonly property real _panelRisen: _part(0.4, 1)
+    // Shuffle, repeat and the track's menu, up in the source's row while the
+    // list is open: the title below keeps its width.
+    readonly property real _awayButtons: Theme.touch * (trackPanel.showMenu ? 3 : 2)
 
     readonly property real _heroMargin: Theme.dp(12)
     readonly property real _railWidth: Theme.touchLarge + _heroMargin * 2
@@ -310,7 +313,7 @@ Page {
                 // In the row with the source's button, at its right end, until
                 // that folds away; then they go over to the title's row.
                 modesElsewhere: 1 - page._barFolded
-                modesAway: Qt.point(hero.width - page._heroMargin - Theme.touch * 2 - x,
+                modesAway: Qt.point(hero.width - page._heroMargin - page._awayButtons - x,
                                     page._heroMargin + (sourceBar.height - Theme.touch) / 2 - y)
                 sideCoverShare: 1
                 // With air around it; smaller on the track's screen, for the
@@ -343,7 +346,7 @@ Page {
                 objectName: "sourceBar"
                 x: page._heroMargin
                 y: page._heroMargin
-                fullWidth: hero.width - page._heroMargin * 2 - Theme.touch * 2 - Theme.dp(8)
+                fullWidth: hero.width - page._heroMargin * 2 - page._awayButtons - Theme.dp(8)
                 folded: page._barFolded
                 library: page.library
                 onClicked: page.libraryRequested()
