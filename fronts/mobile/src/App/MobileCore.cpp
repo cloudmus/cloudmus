@@ -6,6 +6,9 @@
 
 #include "PlaybackController.h"
 #include "ProxyRouting.h"
+#include "SidebarModel.h"
+#include "SourceManager.h"
+#include "Sources.h"
 
 namespace App {
 
@@ -148,6 +151,7 @@ void MobileCore::leaveUnstartedWhatAskedForSignIn()
         // on the first one. Once it's up and has its code again.
         if (!state.prompt.isEmpty() && resumingSignIn_.removeAll(sourceId) > 0)
             library_.selectSource(sourceId);
+        updateSignInNotice();
         QStringList list = settingsStore_.value(key).toStringList();
         const bool wanted = state.hasProblem && state.errorMessage.isEmpty();
         if (wanted == list.contains(sourceId))
@@ -158,6 +162,35 @@ void MobileCore::leaveUnstartedWhatAskedForSignIn()
             list.removeAll(sourceId);
         settingsStore_.setValue(key, list);
     });
+}
+
+MobileCore::SignInNotice MobileCore::signInNotice() const { return signInNotice_; }
+
+void MobileCore::updateSignInNotice()
+{
+    SignInNotice notice;
+    const Rpc::AuthStates& states = core_.authStates();
+    const ViewModel::SidebarModel& model = core_.sources().model();
+    QStringList waiting;
+    for (int row = 0; row < model.rowCount(); ++row) {
+        const QModelIndex index = model.index(row, 0);
+        if (index.data(ViewModel::SidebarModel::KindRole).toInt() != int(ViewModel::SidebarModel::Kind::SourceHeader))
+            continue;
+        const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
+        if (!states.state(sourceId).prompt.value(QStringLiteral("code")).toString().isEmpty())
+            waiting.append(sourceId);
+    }
+    if (!waiting.isEmpty()) {
+        const QString sourceId = waiting.first();
+        notice.title = tr("Signing in to %1").arg(model.sourceName(sourceId));
+        notice.text = tr("Waiting for the code %1 to be confirmed")
+                          .arg(states.state(sourceId).prompt.value(QStringLiteral("code")).toString());
+        notice.channelName = tr("Sign-in");
+    }
+    if (notice == signInNotice_)
+        return;
+    signInNotice_ = notice;
+    emit signInNoticeChanged();
 }
 
 } // namespace App

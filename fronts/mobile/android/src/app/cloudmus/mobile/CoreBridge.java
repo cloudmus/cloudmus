@@ -427,6 +427,15 @@ public final class CoreBridge {
             DownloadNotice.show(context, shown, ongoing, failed, title, text, permille, cancelLabel, channelName);
     }
 
+    // From the core, on its thread: a code being confirmed in a browser
+    // (MobileCore::SignInNotice); an empty title once there's none.
+    @SuppressWarnings("unused")
+    static void onSignIn(String title, String text, String channelName) {
+        Context context = CmLog.context();
+        if (context != null)
+            SignInService.update(context, title, text, channelName);
+    }
+
     // From the core: a view stopped the player (NowPlaying::stop()).
     @SuppressWarnings("unused")
     static void onStopped() {

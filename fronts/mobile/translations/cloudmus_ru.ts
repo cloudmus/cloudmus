@@ -61,6 +61,21 @@
     </message>
   </context>
   <context>
+    <name>App::MobileCore</name>
+    <message>
+      <source>Signing in to %1</source>
+      <translation>Вход в %1</translation>
+    </message>
+    <message>
+      <source>Waiting for the code %1 to be confirmed</source>
+      <translation>Ждём подтверждения кода %1</translation>
+    </message>
+    <message>
+      <source>Sign-in</source>
+      <translation>Вход</translation>
+    </message>
+  </context>
+  <context>
     <name>App::PlaylistEditing</name>
     <message>
       <source>Added to "%1"</source>

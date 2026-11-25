@@ -64,17 +64,33 @@ public:
     ViewModel::PulseScreen& pulseScreen() { return pulseScreen_; }
     ViewModel::UpdateScreen& updateScreen() { return updateScreen_; }
 
+    // A sign-in waiting for its code to be confirmed elsewhere, in a browser,
+    // for the platform to keep the process alive meanwhile (Android's
+    // SignInService): an empty title when there is none.
+    struct SignInNotice {
+        QString title;
+        QString text;
+        QString channelName;
+        bool operator==(const SignInNotice&) const = default;
+    };
+    SignInNotice signInNotice() const;
+
+signals:
+    void signInNoticeChanged();
+
 private:
     // Developer tools' audio output and soft edges (PlatformSettings), kept
     // applied to the player.
     void applyPlaybackExperiments();
     void leaveUnstartedWhatAskedForSignIn();
+    void updateSignInNotice();
     void setUpUpdates(const QString& updatesDir);
 
     QSettings settingsStore_;
     // Sources that were signing in when the app was unloaded, to be shown
     // again when they come back up (leaveUnstartedWhatAskedForSignIn()).
     QStringList resumingSignIn_;
+    SignInNotice signInNotice_;
     Core core_;
     ViewModel::PlatformSettings settings_;
     ViewModel::LibraryScreen library_;

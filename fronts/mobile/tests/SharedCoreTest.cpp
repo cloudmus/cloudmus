@@ -2490,15 +2490,28 @@ private slots:
         {
             App::MobileCore core({ settings });
             QVERIFY(!core.core().sourceManager().isDeferred(fake));
-            QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr, 10000);
+            QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
+                    && core.core().sourceManager().client(fake)->available(),
+                10000);
             // Its code again: the Library is on it.
             core.core().authStates().setPrompt(fake,
                 { { QStringLiteral("flow"), QStringLiteral("deviceCode") }, { QStringLiteral("code"), QStringLiteral("AB") },
                     { QStringLiteral("url"), QStringLiteral("https://ya.ru/device") },
                     { QStringLiteral("expiresInSec"), 200 } });
             QTRY_COMPARE(core.library().currentSourceId(), fake);
+            // Kept alive while it waits (Android's SignInService), until it's over.
+            QVERIFY2(core.signInNotice().title.contains(QStringLiteral("Fake Source")), qPrintable(core.signInNotice().title));
+            QVERIFY(core.signInNotice().text.contains(QStringLiteral("AB")));
+            QSignalSpy over(&core, &App::MobileCore::signInNoticeChanged);
+            core.core().authStates().setAuthenticated(fake);
+            QCOMPARE(over.count(), 1);
+            QVERIFY(core.signInNotice().title.isEmpty());
         }
-        QSettings(settings, QSettings::IniFormat).setValue(pendingKey, QDateTime::currentDateTimeUtc().addSecs(-1));
+        {
+            QSettings store(settings, QSettings::IniFormat);
+            store.setValue(QStringLiteral("unstartedSources"), QStringList { fake });
+            store.setValue(pendingKey, QDateTime::currentDateTimeUtc().addSecs(-1));
+        }
         {
             App::MobileCore core({ settings });
             QVERIFY(core.core().sourceManager().isDeferred(fake));

@@ -87,6 +87,7 @@ jmethodID onStoppedMethod = nullptr;
 jmethodID onBrowseResultMethod = nullptr;
 jmethodID onLibraryChangedMethod = nullptr;
 jmethodID onDownloadsMethod = nullptr;
+jmethodID onSignInMethod = nullptr;
 
 std::mutex mutex;
 QObject* receiver = nullptr; // lives in the core thread, once it's up
@@ -514,6 +515,19 @@ void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nat
     auto* downloadsLater = new Timing::Throttle(1000, [&core] { reportDownloads(core); }, &core);
     QObject::connect(&core.core().downloads(), &ViewModel::Downloads::changed, downloadsLater,
         [downloadsLater] { downloadsLater->trigger(); });
+    // A code being confirmed in a browser: the process is kept while it is
+    // (SignInService), or a phone short of memory unloads it meanwhile.
+    auto signIn = [&core] {
+        const App::MobileCore::SignInNotice notice = core.signInNotice();
+        JNIEnv* env = Android::Jni::env();
+        const jstring texts[]
+            = { toJava(env, notice.title), toJava(env, notice.text), toJava(env, notice.channelName) };
+        env->CallStaticVoidMethod(bridgeClass, onSignInMethod, texts[0], texts[1], texts[2]);
+        Android::Jni::checkException(env, "CoreBridge.onSignIn");
+        for (const jstring text : texts)
+            env->DeleteLocalRef(text);
+    };
+    QObject::connect(&core, &App::MobileCore::signInNoticeChanged, &core, signIn);
     core.settings().onAutoplayChanged = [](bool enabled) {
         JNIEnv* env = Android::Jni::env();
         env->CallStaticVoidMethod(bridgeClass, onAutoplayMethod, jboolean(enabled));
@@ -605,6 +619,8 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     onLibraryChangedMethod = env->GetStaticMethodID(bridgeClass, "onLibraryChanged", "()V");
     onDownloadsMethod = env->GetStaticMethodID(
         bridgeClass, "onDownloads", "(ZZZLjava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V");
+    onSignInMethod = env->GetStaticMethodID(
+        bridgeClass, "onSignIn", "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
     return JNI_VERSION_1_6;
 }
 
