@@ -125,9 +125,10 @@ void MobileCore::leaveUnstartedWhatAskedForSignIn()
     QStringList unstarted = settingsStore_.value(key).toStringList();
     settingsStore_.beginGroup(pendingGroup);
     for (const QString& sourceId : settingsStore_.childKeys()) {
-        if (settingsStore_.value(sourceId).toDateTime() > now)
+        if (settingsStore_.value(sourceId).toDateTime() > now) {
             unstarted.removeAll(sourceId);
-        else
+            resumingSignIn_.append(sourceId);
+        } else
             settingsStore_.remove(sourceId);
     }
     settingsStore_.endGroup();
@@ -143,6 +144,10 @@ void MobileCore::leaveUnstartedWhatAskedForSignIn()
             settingsStore_.setValue(pendingKey, QDateTime::currentDateTimeUtc().addSecs(expiresInSec));
         else
             settingsStore_.remove(pendingKey);
+        // Back where it was left: the Library on the source signing in, not
+        // on the first one. Once it's up and has its code again.
+        if (!state.prompt.isEmpty() && resumingSignIn_.removeAll(sourceId) > 0)
+            library_.selectSource(sourceId);
         QStringList list = settingsStore_.value(key).toStringList();
         const bool wanted = state.hasProblem && state.errorMessage.isEmpty();
         if (wanted == list.contains(sourceId))

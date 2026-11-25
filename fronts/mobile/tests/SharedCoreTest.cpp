@@ -2491,6 +2491,12 @@ private slots:
             App::MobileCore core({ settings });
             QVERIFY(!core.core().sourceManager().isDeferred(fake));
             QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr, 10000);
+            // Its code again: the Library is on it.
+            core.core().authStates().setPrompt(fake,
+                { { QStringLiteral("flow"), QStringLiteral("deviceCode") }, { QStringLiteral("code"), QStringLiteral("AB") },
+                    { QStringLiteral("url"), QStringLiteral("https://ya.ru/device") },
+                    { QStringLiteral("expiresInSec"), 200 } });
+            QTRY_COMPARE(core.library().currentSourceId(), fake);
         }
         QSettings(settings, QSettings::IniFormat).setValue(pendingKey, QDateTime::currentDateTimeUtc().addSecs(-1));
         {

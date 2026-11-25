@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QSettings>
+#include <QStringList>
 
 #include "Core.h"
 #include "DownloadsScreen.h"
@@ -71,6 +72,9 @@ private:
     void setUpUpdates(const QString& updatesDir);
 
     QSettings settingsStore_;
+    // Sources that were signing in when the app was unloaded, to be shown
+    // again when they come back up (leaveUnstartedWhatAskedForSignIn()).
+    QStringList resumingSignIn_;
     Core core_;
     ViewModel::PlatformSettings settings_;
     ViewModel::LibraryScreen library_;
