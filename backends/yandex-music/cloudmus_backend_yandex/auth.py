@@ -9,9 +9,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
+import time
 from typing import Any, Awaitable, Callable
 
 from yandex_music import Client
+from yandex_music.exceptions import DeviceAuthError
 
 from rpc_common.generated.methods import emit_auth_status_changed
 from rpc_common.generated.models import StatusChangedParams
@@ -30,6 +32,22 @@ from . import config
 logger = logging.getLogger(__name__)
 
 NotifyFn = Callable[[str, dict[str, Any]], Awaitable[None]]
+
+
+# A code with less left than this isn't worth showing: no time to type it.
+_MIN_LEFT_SEC = 30
+
+
+def _saved_pending() -> dict | None:
+    """The device code a previous run was waiting on, while it's still good
+    for long enough to be worth showing again."""
+    pending = config.get_pending_auth()
+    try:
+        if pending is not None and float(pending["expiresAt"]) - time.time() > _MIN_LEFT_SEC:
+            return pending
+    except (KeyError, TypeError, ValueError):
+        pass
+    return None
 
 
 class DeviceAuthSession:
@@ -63,48 +81,77 @@ class DeviceAuthSession:
             self.status = "unauthenticated"
 
     async def _run(self, notify: NotifyFn) -> None:
-        loop = asyncio.get_event_loop()
+        # Not Client().device_auth(): that keeps the device code in a local
+        # variable, so a backend killed while the user confirms the code in
+        # a browser (Android unloads the whole app on a phone short of
+        # memory) lost it, and the next start could only ask for a new one —
+        # the confirmed code was then of no use. Its two steps, with the code
+        # saved in between, let the next start go on polling the same one.
+        loop = asyncio.get_running_loop()
+        cancel_event = self._cancel_event
 
-        def on_code(code) -> None:
+        def run_blocking() -> str | None:
+            device_client = Client()
+            pending = _saved_pending()
+            if pending is None:
+                code = device_client.request_device_code()
+                pending = {
+                    "deviceCode": code.device_code,
+                    "userCode": code.user_code,
+                    "url": code.verification_url,
+                    "interval": code.interval,
+                    "expiresAt": time.time() + code.expires_in,
+                }
+                config.set_pending_auth(pending)
             asyncio.run_coroutine_threadsafe(
                 notify(
                     "auth/prompt",
                     {
                         "flow": "deviceCode",
-                        "url": code.verification_url,
-                        "code": code.user_code,
-                        "expiresInSec": code.expires_in,
+                        "url": pending["url"],
+                        "code": pending["userCode"],
+                        "expiresInSec": max(0, int(pending["expiresAt"] - time.time())),
                     },
                 ),
                 loop,
             )
-
-        def run_blocking() -> str:
-            device_client = Client()
-            token = device_client.device_auth(
-                on_code=on_code, should_cancel=self._cancel_event.is_set
-            )
-            return token.access_token
+            # Polled at once: a resumed code has likely been confirmed already.
+            while not cancel_event.is_set():
+                token = device_client.poll_device_token(pending["deviceCode"])
+                if token is not None:
+                    return token.access_token
+                if time.time() >= pending["expiresAt"]:
+                    raise DeviceAuthError("the code expired before it was confirmed")
+                cancel_event.wait(max(1, pending["interval"]))
+            return None
 
         try:
             access_token = await asyncio.to_thread(run_blocking)
         except Exception as e:
             logger.debug("device auth failed: %s", e)
+            # Yandex turned the code down (expired, denied): it's of no more
+            # use. Anything else — no network, say — leaves it for the next
+            # try, which may well find it confirmed.
+            if isinstance(e, DeviceAuthError):
+                config.clear_pending_auth()
             self.status = "error"
             self.error_message = str(e)
             await emit_auth_status_changed(notify, StatusChangedParams(status="error", message=str(e)))
             return
 
-        if self._cancel_event.is_set():
+        if access_token is None or self._cancel_event.is_set():
+            config.clear_pending_auth()
             self.status = "unauthenticated"
             return
 
         config.set_token(access_token)
+        config.clear_pending_auth()
         client_module.reset_client()
         self.status = "authenticated"
         await emit_auth_status_changed(notify, StatusChangedParams(status="authenticated"))
 
     def logout(self) -> None:
+        self._cancel_event.set()
         config.clear_token()
         client_module.reset_client()
         self.status = "unauthenticated"
