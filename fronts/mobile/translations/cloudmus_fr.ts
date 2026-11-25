@@ -487,14 +487,6 @@
       <translation>Filtrer par titre, artiste ou album</translation>
     </message>
     <message>
-      <source>Nothing is playing</source>
-      <translation>Aucune lecture en cours</translation>
-    </message>
-    <message>
-      <source>Open the Library</source>
-      <translation>Ouvrir la bibliothèque</translation>
-    </message>
-    <message>
       <source>Save playlist</source>
       <translation>Enregistrer la playlist</translation>
     </message>
@@ -514,6 +506,10 @@
       <source>About CloudMus</source>
       <translation>À propos de CloudMus</translation>
     </message>
+    <message>
+      <source>Introduction</source>
+      <translation>Présentation</translation>
+    </message>
   </context>
   <context>
     <name>NowPlayingPage</name>
@@ -527,6 +523,65 @@
     <message>
       <source>No connection</source>
       <translation>Pas de réseau</translation>
+    </message>
+  </context>
+  <context>
+    <name>OnboardingPage</name>
+    <message>
+      <source>Welcome to CloudMus</source>
+      <translation>Bienvenue dans CloudMus</translation>
+    </message>
+    <message>
+      <source>All your music in one player</source>
+      <translation>Toute votre musique dans un seul lecteur</translation>
+    </message>
+    <message>
+      <source>Every source in one place</source>
+      <translation>Toutes les sources au même endroit</translation>
+    </message>
+    <message>
+      <source>Music services and the files on your phone</source>
+      <translation>Les services de musique et les fichiers de votre téléphone</translation>
+    </message>
+    <message>
+      <source>Endless waves</source>
+      <translation>Des vagues sans fin</translation>
+    </message>
+    <message>
+      <source>Music picked for you that never runs out</source>
+      <translation>De la musique choisie pour vous, sans fin</translation>
+    </message>
+    <message>
+      <source>Offline too</source>
+      <translation>Même hors ligne</translation>
+    </message>
+    <message>
+      <source>Save playlists and listen without the internet</source>
+      <translation>Enregistrez des playlists et écoutez sans internet</translation>
+    </message>
+    <message>
+      <source>Getting started</source>
+      <translation>Pour commencer</translation>
+    </message>
+    <message>
+      <source>Open the Library, pick a source and sign in</source>
+      <translation>Ouvrez la bibliothèque, choisissez une source et connectez-vous</translation>
+    </message>
+    <message>
+      <source>Not now</source>
+      <translation>Pas maintenant</translation>
+    </message>
+    <message>
+      <source>Skip</source>
+      <translation>Passer</translation>
+    </message>
+    <message>
+      <source>Open the Library</source>
+      <translation>Ouvrir la bibliothèque</translation>
+    </message>
+    <message>
+      <source>Next</source>
+      <translation>Suivant</translation>
     </message>
   </context>
   <context>
@@ -1657,6 +1712,17 @@ Vous pouvez réessayer plus tard ou télécharger vous-même la nouvelle version
     <message>
       <source>%1 from %2</source>
       <translation>%1 du %2</translation>
+    </message>
+  </context>
+  <context>
+    <name>WelcomePanel</name>
+    <message>
+      <source>Pick your music in the Library</source>
+      <translation>Choisissez votre musique dans la bibliothèque</translation>
+    </message>
+    <message>
+      <source>Open the Library</source>
+      <translation>Ouvrir la bibliothèque</translation>
     </message>
   </context>
 </TS>

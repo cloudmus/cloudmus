@@ -489,14 +489,6 @@
       <translation>Фильтр по названию, исполнителю или альбому</translation>
     </message>
     <message>
-      <source>Nothing is playing</source>
-      <translation>Ничего не играет</translation>
-    </message>
-    <message>
-      <source>Open the Library</source>
-      <translation>Открыть библиотеку</translation>
-    </message>
-    <message>
       <source>Save playlist</source>
       <translation>Сохранить плейлист</translation>
     </message>
@@ -516,6 +508,10 @@
       <source>About CloudMus</source>
       <translation>О CloudMus</translation>
     </message>
+    <message>
+      <source>Introduction</source>
+      <translation>Знакомство</translation>
+    </message>
   </context>
   <context>
     <name>NowPlayingPage</name>
@@ -529,6 +525,65 @@
     <message>
       <source>No connection</source>
       <translation>Нет сети</translation>
+    </message>
+  </context>
+  <context>
+    <name>OnboardingPage</name>
+    <message>
+      <source>Welcome to CloudMus</source>
+      <translation>Добро пожаловать в CloudMus</translation>
+    </message>
+    <message>
+      <source>All your music in one player</source>
+      <translation>Вся ваша музыка в одном плеере</translation>
+    </message>
+    <message>
+      <source>Every source in one place</source>
+      <translation>Все источники в одном месте</translation>
+    </message>
+    <message>
+      <source>Music services and the files on your phone</source>
+      <translation>Музыкальные сервисы и файлы на телефоне</translation>
+    </message>
+    <message>
+      <source>Endless waves</source>
+      <translation>Бесконечные волны</translation>
+    </message>
+    <message>
+      <source>Music picked for you that never runs out</source>
+      <translation>Музыка, подобранная для вас, которая не кончается</translation>
+    </message>
+    <message>
+      <source>Offline too</source>
+      <translation>И без сети</translation>
+    </message>
+    <message>
+      <source>Save playlists and listen without the internet</source>
+      <translation>Сохраняйте плейлисты и слушайте без интернета</translation>
+    </message>
+    <message>
+      <source>Getting started</source>
+      <translation>С чего начать</translation>
+    </message>
+    <message>
+      <source>Open the Library, pick a source and sign in</source>
+      <translation>Откройте библиотеку, выберите источник и войдите</translation>
+    </message>
+    <message>
+      <source>Not now</source>
+      <translation>Не сейчас</translation>
+    </message>
+    <message>
+      <source>Skip</source>
+      <translation>Пропустить</translation>
+    </message>
+    <message>
+      <source>Open the Library</source>
+      <translation>Открыть библиотеку</translation>
+    </message>
+    <message>
+      <source>Next</source>
+      <translation>Следующий</translation>
     </message>
   </context>
   <context>
@@ -1665,6 +1720,17 @@ You can try again later or download the new version yourself.</source>
     <message>
       <source>%1 from %2</source>
       <translation>%1 от %2</translation>
+    </message>
+  </context>
+  <context>
+    <name>WelcomePanel</name>
+    <message>
+      <source>Pick your music in the Library</source>
+      <translation>Выберите музыку в библиотеке</translation>
+    </message>
+    <message>
+      <source>Open the Library</source>
+      <translation>Открыть библиотеку</translation>
     </message>
   </context>
 </TS>

@@ -39,6 +39,8 @@ ApplicationWindow {
         // Developer tools in Settings: off until the version on the About
         // page is tapped five times; their own page turns them off again.
         property bool developerTools: false
+        // The first launch's slides (OnboardingPage) have been through.
+        property bool onboardingSeen: false
     }
 
     Binding {
@@ -116,7 +118,7 @@ ApplicationWindow {
     // bar's color. The icons turn light only where the picture is all of the bar's
     // width; on a head unit's main page it's just the track's side, and they stay
     // as the theme has them (black in the light theme: the lesser evil).
-    readonly property bool statusOverAura: nowPlayingSheet.progress > 0.5
+    readonly property bool statusOverAura: onboardingOpen || nowPlayingSheet.progress > 0.5
         || (stack.currentItem !== null && stack.currentItem.auraUnderStatusBar === true
             && stack.currentItem.auraSpansStatusBar === true)
     onStatusOverAuraChanged: platform.setStatusBarOverAura(statusOverAura)
@@ -166,7 +168,9 @@ ApplicationWindow {
         }
 
         function goBack() {
-            if (trackSheet.visible)
+            if (onboarding.item)
+                onboarding.item.close()
+            else if (trackSheet.visible)
                 trackSheet.close()
             else if (nowPlayingSheet.shown)
                 nowPlayingSheet.close()
@@ -174,7 +178,7 @@ ApplicationWindow {
                 close()
         }
         Keys.onBackPressed: (event) => {
-            event.accepted = depth > 1 || nowPlayingSheet.shown || trackSheet.visible
+            event.accepted = window.onboardingOpen || depth > 1 || nowPlayingSheet.shown || trackSheet.visible
             goBack()
         }
         Keys.onEscapePressed: goBack()
@@ -245,14 +249,16 @@ ApplicationWindow {
             onUpdateRequested: window.openUpdate()
             onCheckForUpdatesRequested: window.checkForUpdates(true)
             onAboutRequested: stack.open(aboutPage)
-            onLibraryRequested: {
-                if (window.backend.library)
-                    window.backend.library.selectActiveSource()
-                stack.open(libraryPage)
-            }
+            onIntroRequested: window.onboardingOpen = true
+            onLibraryRequested: window.openLibrary()
             onTrackMenuRequested: trackSheet.open()
             Component.onCompleted: window.mainPageItem = this
         }
+    }
+    function openLibrary() {
+        if (window.backend.library)
+            window.backend.library.selectActiveSource()
+        stack.open(libraryPage)
     }
     Component {
         id: libraryPage
@@ -626,6 +632,32 @@ ApplicationWindow {
         LogPage {
             objectName: "log"
             onCloseRequested: stack.close()
+        }
+    }
+
+    // The first launch's slides, once the start screen has gone; or asked for
+    // again from the main page's menu. Over the pages and the player.
+    property bool onboardingOpen: false
+    readonly property bool _onboardingDue: !uiSettings.onboardingSeen && backend.ready && startSplash.contentShown
+    on_OnboardingDueChanged: if (_onboardingDue) onboardingOpen = true
+    Loader {
+        id: onboarding
+        anchors.fill: parent
+        z: 500
+        active: window.onboardingOpen
+        sourceComponent: OnboardingPage {
+            objectName: "onboarding"
+            backend: window.backend
+            onLibraryRequested: {
+                trackSheet.close()
+                nowPlayingSheet.close()
+                stack.pop(null)
+                window.openLibrary()
+            }
+            onFinished: {
+                uiSettings.onboardingSeen = true
+                window.onboardingOpen = false
+            }
         }
     }
 

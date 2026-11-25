@@ -806,5 +806,125 @@
   "es": "Este archivo no está en el almacenamiento del dispositivo: elige uno que lo esté.",
   "fr": "Ce fichier n’est pas dans le stockage de l’appareil : choisissez-en un qui l’est.",
   "it": "Questo file non è nella memoria del dispositivo: scegline uno che lo sia."
+ },
+ "Welcome to CloudMus": {
+  "ru": "Добро пожаловать в CloudMus",
+  "be": "Вітаем у CloudMus",
+  "de": "Willkommen bei CloudMus",
+  "es": "Te damos la bienvenida a CloudMus",
+  "fr": "Bienvenue dans CloudMus",
+  "it": "Benvenuto in CloudMus"
+ },
+ "All your music in one player": {
+  "ru": "Вся ваша музыка в одном плеере",
+  "be": "Уся ваша музыка ў адным плэеры",
+  "de": "All deine Musik in einem Player",
+  "es": "Toda tu música en un solo reproductor",
+  "fr": "Toute votre musique dans un seul lecteur",
+  "it": "Tutta la tua musica in un solo lettore"
+ },
+ "Every source in one place": {
+  "ru": "Все источники в одном месте",
+  "be": "Усе крыніцы ў адным месцы",
+  "de": "Alle Quellen an einem Ort",
+  "es": "Todas las fuentes en un solo lugar",
+  "fr": "Toutes les sources au même endroit",
+  "it": "Tutte le fonti in un solo posto"
+ },
+ "Music services and the files on your phone": {
+  "ru": "Музыкальные сервисы и файлы на телефоне",
+  "be": "Музычныя сэрвісы і файлы на тэлефоне",
+  "de": "Musikdienste und die Dateien auf deinem Handy",
+  "es": "Servicios de música y los archivos de tu teléfono",
+  "fr": "Les services de musique et les fichiers de votre téléphone",
+  "it": "Servizi musicali e i file del tuo telefono"
+ },
+ "Endless waves": {
+  "ru": "Бесконечные волны",
+  "be": "Бясконцыя хвалі",
+  "de": "Endlose Wellen",
+  "es": "Olas sin fin",
+  "fr": "Des vagues sans fin",
+  "it": "Onde senza fine"
+ },
+ "Music picked for you that never runs out": {
+  "ru": "Музыка, подобранная для вас, которая не кончается",
+  "be": "Музыка, падабраная для вас, якая не сканчаецца",
+  "de": "Für dich ausgewählte Musik, die nie ausgeht",
+  "es": "Música elegida para ti que nunca se acaba",
+  "fr": "De la musique choisie pour vous, sans fin",
+  "it": "Musica scelta per te che non finisce mai"
+ },
+ "Offline too": {
+  "ru": "И без сети",
+  "be": "І без сеткі",
+  "de": "Auch offline",
+  "es": "También sin conexión",
+  "fr": "Même hors ligne",
+  "it": "Anche offline"
+ },
+ "Save playlists and listen without the internet": {
+  "ru": "Сохраняйте плейлисты и слушайте без интернета",
+  "be": "Захоўвайце плэйлісты і слухайце без інтэрнэту",
+  "de": "Speichere Playlists und höre ohne Internet",
+  "es": "Guarda listas y escúchalas sin internet",
+  "fr": "Enregistrez des playlists et écoutez sans internet",
+  "it": "Salva le playlist e ascolta senza internet"
+ },
+ "Getting started": {
+  "ru": "С чего начать",
+  "be": "З чаго пачаць",
+  "de": "Los geht’s",
+  "es": "Primeros pasos",
+  "fr": "Pour commencer",
+  "it": "Per iniziare"
+ },
+ "Open the Library, pick a source and sign in": {
+  "ru": "Откройте библиотеку, выберите источник и войдите",
+  "be": "Адкрыйце бібліятэку, выберыце крыніцу і ўвайдзіце",
+  "de": "Öffne die Bibliothek, wähle eine Quelle und melde dich an",
+  "es": "Abre la biblioteca, elige una fuente e inicia sesión",
+  "fr": "Ouvrez la bibliothèque, choisissez une source et connectez-vous",
+  "it": "Apri la libreria, scegli una fonte e accedi"
+ },
+ "Skip": {
+  "ru": "Пропустить",
+  "be": "Прапусціць",
+  "de": "Überspringen",
+  "es": "Omitir",
+  "fr": "Passer",
+  "it": "Salta"
+ },
+ "Not now": {
+  "ru": "Не сейчас",
+  "be": "Не цяпер",
+  "de": "Nicht jetzt",
+  "es": "Ahora no",
+  "fr": "Pas maintenant",
+  "it": "Non ora"
+ },
+ "Next": {
+  "ru": "Далее",
+  "be": "Далей",
+  "de": "Weiter",
+  "es": "Siguiente",
+  "fr": "Suivant",
+  "it": "Avanti"
+ },
+ "Introduction": {
+  "ru": "Знакомство",
+  "be": "Знаёмства",
+  "de": "Einführung",
+  "es": "Introducción",
+  "fr": "Présentation",
+  "it": "Introduzione"
+ },
+ "Pick your music in the Library": {
+  "ru": "Выберите музыку в библиотеке",
+  "be": "Выберыце музыку ў бібліятэцы",
+  "de": "Wähle deine Musik in der Bibliothek",
+  "es": "Elige tu música en la biblioteca",
+  "fr": "Choisissez votre musique dans la bibliothèque",
+  "it": "Scegli la tua musica nella libreria"
  }
 }

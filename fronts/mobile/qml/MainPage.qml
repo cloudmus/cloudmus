@@ -35,6 +35,7 @@ Page {
     // The menu's: check for an update now (Main.qml), the About page.
     signal checkForUpdatesRequested()
     signal aboutRequested()
+    signal introRequested()
     // The update pointed at beside the bar's other icons (UpdatePage).
     signal updateRequested()
     signal trackMenuRequested()
@@ -103,6 +104,13 @@ Page {
             enabled: page.backend.updateScreen !== null && page.backend.updateScreen.checking !== true
             text: qsTr("Check for updates")
             onTriggered: page.checkForUpdatesRequested()
+        }
+        // The first launch's slides (OnboardingPage), again.
+        DropMenuItem {
+            objectName: "introEntry"
+            iconName: "info"
+            text: qsTr("Introduction")
+            onTriggered: page.introRequested()
         }
         DropMenuItem {
             objectName: "aboutEntry"
@@ -580,23 +588,13 @@ Page {
                     }
 
                     // Nothing active yet: the way to the Library.
-                    Column {
+                    WelcomePanel {
+                        objectName: "welcomePanel"
                         parent: list
-                        anchors.centerIn: parent
+                        anchors.fill: parent
                         visible: list.count === 0 && page.library !== null && page.screenProgress < 0.5
-                        spacing: Theme.padding
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: qsTr("Nothing is playing")
-                            color: Theme.inkSecondary
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontBody
-                        }
-                        TextButton {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: qsTr("Open the Library")
-                            onClicked: page.libraryRequested()
-                        }
+                        backend: page.backend
+                        onLibraryRequested: page.libraryRequested()
                     }
                 }
             }

@@ -143,6 +143,9 @@ private slots:
         QVERIFY(settingsDir_.isValid());
         QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, settingsDir_.path());
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsDir_.path());
+        // The first launch's slides would be over every page; their own test
+        // starts without this.
+        QSettings().setValue(QStringLiteral("ui/onboardingSeen"), true);
         Tests::installFakeBackendManifest();
     }
 
@@ -3031,6 +3034,137 @@ private slots:
         backend.releasePulse();
         QTRY_VERIFY(!core.pulseScreen().watching());
         QVERIFY(!core.core().audioPulse().isActive());
+    }
+
+    void onboardingOnTheFirstLaunch_data()
+    {
+        QTest::addColumn<QSize>("size");
+        QTest::newRow("phone") << QSize(420, 860);
+        QTest::newRow("headunit") << QSize(1920, 1080);
+    }
+
+    // The first launch shows the slides once the start screen has gone; their
+    // last one leads to the Library, and they don't come back.
+    void onboardingOnTheFirstLaunch()
+    {
+        QFETCH(QSize, size);
+        QSettings().remove(QStringLiteral("ui/onboardingSeen"));
+        const auto restore = qScopeGuard([] { QSettings().setValue(QStringLiteral("ui/onboardingSeen"), true); });
+        QTemporaryDir dir;
+        App::MobileCore core({ dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        QCOMPARE(engine.rootObjects().size(), 1);
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(size);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
+        auto* stack = window->findChild<QQuickItem*>("stack");
+        QVERIFY(stack);
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        auto shot = [&](const QString& name) {
+            QTest::qWait(900);
+            if (!shots.isEmpty()) {
+                QDir().mkpath(shots);
+                window->grabWindow().save(QStringLiteral("%1/%2-%3.png").arg(shots, QTest::currentDataTag(), name));
+            }
+        };
+
+        QTRY_VERIFY(window->findChild<QQuickItem*>("onboarding") != nullptr);
+        auto* onboarding = window->findChild<QQuickItem*>("onboarding");
+        QTRY_COMPARE(onboarding->opacity(), 1.0);
+        auto* slides = findItem(onboarding, QStringLiteral("onboardingSlides"));
+        auto* next = findItem(onboarding, QStringLiteral("onboardingNext"));
+        QVERIFY(slides && next);
+        const int count = slides->property("count").toInt();
+        QCOMPARE(count, 5);
+        for (int i = 0; i < count; ++i) {
+            QTRY_COMPARE(slides->property("currentIndex").toInt(), i);
+            QTRY_VERIFY(!slides->property("moving").toBool());
+            // Every word within the screen.
+            forEachItem(onboarding, [&](QQuickItem* item) {
+                if (item->objectName() != QLatin1String("onboardingTitle") || !item->isVisible())
+                    return;
+                const QRectF rect = item->mapRectToScene(item->boundingRect());
+                if (rect.right() < 0 || rect.left() > window->width())
+                    return; // another slide's
+                QVERIFY2(rect.left() >= 0 && rect.right() <= window->width() + 0.5, qPrintable(QString::number(i)));
+                QVERIFY(rect.bottom() <= window->height());
+            });
+            shot(QStringLiteral("onboarding-%1").arg(i));
+            if (i < count - 1)
+                QVERIFY(QMetaObject::invokeMethod(next, "clicked"));
+        }
+
+        // The last slide's button: the Library, under the slides as they go.
+        QVERIFY(QMetaObject::invokeMethod(next, "clicked"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 2);
+        QTRY_VERIFY(window->findChild<QQuickItem*>("onboarding") == nullptr);
+        // Settings writes it out a moment later.
+        QTRY_VERIFY(QSettings().value(QStringLiteral("ui/onboardingSeen")).toBool());
+
+        QVERIFY(QMetaObject::invokeMethod(stack, "close"));
+        QTRY_COMPARE(stack->property("depth").toInt(), 1);
+        QTRY_VERIFY(!stack->property("busy").toBool());
+
+        // Asked for again from the menu: Skip closes them.
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "introRequested"));
+        QTRY_VERIFY(window->findChild<QQuickItem*>("onboarding") != nullptr);
+        onboarding = window->findChild<QQuickItem*>("onboarding");
+        auto* skip = findItem(onboarding, QStringLiteral("onboardingSkip"));
+        QVERIFY(skip);
+        QVERIFY(QMetaObject::invokeMethod(skip, "clicked"));
+        QTRY_VERIFY(window->findChild<QQuickItem*>("onboarding") == nullptr);
+        QCOMPARE(stack->property("depth").toInt(), 1);
+    }
+
+    // The main page with nothing to play: the clouds fly, the music is watched
+    // while it's seen, and its button leads to the Library.
+    void welcomePanelLeadsToTheLibrary()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        QTRY_VERIFY(backend.ready());
+
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import Cloudmus.Mobile
+            WelcomePanel { width: 420; height: 700 }
+        )",
+            QUrl());
+        std::unique_ptr<QObject> object(
+            component.createWithInitialProperties({ { "backend", QVariant::fromValue<QObject*>(&backend) } }));
+        QVERIFY2(object, qPrintable(component.errorString()));
+        auto* panel = qobject_cast<QQuickItem*>(object.get());
+        QVERIFY(panel);
+        QTRY_VERIFY(core.pulseScreen().watching());
+        auto* backdrop = panel->findChild<QQuickItem*>("welcomeClouds");
+        QVERIFY(backdrop);
+        const qreal before = backdrop->property("_time").toReal();
+        QTRY_VERIFY(backdrop->property("_time").toReal() > before + 0.1);
+
+        QSignalSpy library(panel, SIGNAL(libraryRequested()));
+        auto* button = panel->findChild<QQuickItem*>("welcomeLibraryButton");
+        QVERIFY(button);
+        QVERIFY(QMetaObject::invokeMethod(button, "clicked"));
+        QCOMPARE(library.count(), 1);
+
+        // Out of sight, nothing watched.
+        panel->setVisible(false);
+        QTRY_VERIFY(!core.pulseScreen().watching());
     }
 
     void aboutPageFromTheLibrary_data()

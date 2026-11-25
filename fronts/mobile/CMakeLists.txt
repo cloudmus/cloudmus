@@ -253,7 +253,9 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/Theme.qml
         qml/Toast.qml
         qml/ToastStack.qml
+        qml/OnboardingPage.qml
         qml/UpdatePage.qml
+        qml/WelcomePanel.qml
     SOURCES
         src/Ui/LogModel.cpp
         src/Ui/LogModel.h
@@ -268,7 +270,7 @@ qt_add_shaders(cloudmus-mobile-ui "shaders"
 set(_icons smartphone folder album arrow_back check chevron_right close cloud_off content_copy delete expand_less expand_more favorite favorite_border file_download heart_off
     heart_off_outline history more_horiz more_vert music_note open_in_new pause play_arrow playlist_add playlist_play
     cloudmus person radio refresh repeat repeat_one search shuffle skip_next skip_previous star star_border tune
-    visibility visibility_off warning logout volume_down volume_up upgrade)
+    visibility visibility_off warning logout volume_down volume_up upgrade info)
 set(_icon_files)
 foreach(_icon IN LISTS _icons)
     set(_file ${CORE_RES}/icons/symbols/${_icon}.svg)
