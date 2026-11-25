@@ -112,11 +112,17 @@ Page {
                             Layout.fillWidth: false
                             Layout.preferredWidth: Math.min(Theme.dp(220), page.width * 0.5)
                             // Auto, then every language in its own name.
-                            model: page.localizer
+                            readonly property var choices: page.localizer
                                 ? [{ name: qsTr("Auto"), code: "" }].concat(page.localizer.languages) : []
+                            model: choices
                             textRole: "name"
                             valueRole: "code"
-                            currentIndex: page.localizer ? Math.max(0, indexOfValue(page.localizer.setting)) : 0
+                            // Looked up in the list itself, not with indexOfValue(): that
+                            // doesn't depend on the model, so the binding wouldn't rerun
+                            // once the list arrives or comes back retranslated, and the
+                            // field would stay at Auto.
+                            currentIndex: page.localizer
+                                ? Math.max(0, choices.findIndex(entry => entry.code === page.localizer.setting)) : 0
                             onActivated: page.localizer.setSetting(currentValue)
                         }
                     }
