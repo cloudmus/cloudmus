@@ -152,16 +152,16 @@ public final class PlaybackService extends MediaLibraryService {
             // seconds, whether or not playback comes up in time.
             startForeground(NOTIFICATION_ID, placeholderNotification());
             autoplayed = true;
-            CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+            CoreBridge.command(CoreBridge.CMD_AUTOPLAY, 0);
         } else if (ACTION_START.equals(action) && !autoplayed) {
             // The app opened, for the first time since this process started (by
             // a car's media hub just looking, or a button, it doesn't count): the
-            // music goes on if that's the setting. Only then: opening the app again
-            // doesn't undo a pause.
+            // music goes on if that's the setting and it was playing when the last
+            // run ended. Only then: opening the app again doesn't undo a pause.
             autoplayed = true;
             if (CoreBridge.autoplayEnabled(this)) {
                 CmLog.i(TAG, "autoplay: the app opened");
-                CoreBridge.command(CoreBridge.CMD_PLAY, 0);
+                CoreBridge.command(CoreBridge.CMD_AUTOPLAY, 0);
             }
         }
         return super.onStartCommand(intent, flags, startId);

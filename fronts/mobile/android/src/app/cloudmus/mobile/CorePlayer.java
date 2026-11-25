@@ -415,7 +415,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             // head unit gives the steering-wheel buttons to whoever holds
             // it, and having let go on pause, "play" never came back to us.
             // Stop and release let it go; another player taking it pauses us.
-            CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
+            CoreBridge.command(CoreBridge.CMD_PAUSE, CoreBridge.PAUSE_USER);
         }
         updateNoisyReceiver();
         return Futures.immediateVoidFuture();
@@ -447,7 +447,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     @NonNull
     @Override
     protected ListenableFuture<?> handleStop() {
-        CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
+        CoreBridge.command(CoreBridge.CMD_PAUSE, CoreBridge.PAUSE_USER);
         abandonFocus();
         updateNoisyReceiver();
         return Futures.immediateVoidFuture();
@@ -733,7 +733,8 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     // Headphones unplugged or a Bluetooth headset gone: Android has a player
     // pause then, for the music not to go on out loud through the speaker.
     // Media3 does it only for its own ExoPlayer. Taken as the user's pause:
-    // it calls off playing on after a lost focus too.
+    // it calls off playing on after a lost focus too. Not for autoplay,
+    // though: a car turning off may look the same, and the next start plays on.
     private final BroadcastReceiver noisyReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -752,7 +753,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         cancelResume("audio output went");
         resumeHandler().removeCallbacks(pauseAfterHold);
         playing = false;
-        CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
+        CoreBridge.command(CoreBridge.CMD_PAUSE, CoreBridge.PAUSE_SYSTEM);
         refresh();
     }
 
@@ -789,7 +790,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                 hasFocus = false;
                 clearTransientLoss();
                 logActivePlayers();
-                CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
+                CoreBridge.command(CoreBridge.CMD_PAUSE, CoreBridge.PAUSE_SYSTEM);
                 if (playing)
                     armResume();
                 refresh();
@@ -801,7 +802,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
                     transientLostAt = android.os.SystemClock.elapsedRealtime();
                     callDuringLoss = false;
                     pollCall();
-                    CoreBridge.command(CoreBridge.CMD_PAUSE, 0);
+                    CoreBridge.command(CoreBridge.CMD_PAUSE, CoreBridge.PAUSE_SYSTEM);
                     refresh();
                 }
                 break;

@@ -23,7 +23,7 @@ public final class CoreBridge {
     public static final String PREF_RESUME_AFTER_LOSS = "resumeAfterLossSec";
 
     public static final int CMD_PLAY = 1;
-    public static final int CMD_PAUSE = 2;
+    public static final int CMD_PAUSE = 2; // argument: PAUSE_USER or PAUSE_SYSTEM
     public static final int CMD_NEXT = 3;
     public static final int CMD_PREVIOUS = 4;
     public static final int CMD_SEEK = 5;
@@ -33,6 +33,13 @@ public final class CoreBridge {
     public static final int CMD_SET_REPEAT = 9; // argument: one of REPEAT_*
     public static final int CMD_CYCLE_REPEAT = 10;
     public static final int CMD_CANCEL_DOWNLOADS = 11;
+    // Plays on only if the music was playing when the last run ended.
+    public static final int CMD_AUTOPLAY = 12;
+
+    // A pause the user asked for counts against autoplay; one the system
+    // made (focus lost, output gone, the car turning off) doesn't.
+    public static final int PAUSE_USER = 0;
+    public static final int PAUSE_SYSTEM = 1;
 
     // Keep in step with Playback::RepeatMode.
     public static final int REPEAT_OFF = 0;

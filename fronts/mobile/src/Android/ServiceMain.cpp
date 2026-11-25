@@ -45,7 +45,7 @@ namespace {
 
 enum Command {
     Play = 1,
-    Pause,
+    Pause, // argument: kSystemPause, or 0 for the user's own
     Next,
     Previous,
     Seek,
@@ -54,8 +54,16 @@ enum Command {
     SetShuffle, // argument: 0 or 1
     SetRepeat, // argument: a Playback::RepeatMode
     CycleRepeat,
-    CancelDownloads
+    CancelDownloads,
+    // The app or the system started: play on if the music was playing when
+    // the last run ended, stay paused if the user had paused it.
+    Autoplay
 };
+
+// A pause the user didn't ask for: another app took the audio, the output
+// went, the service closed. The car turning off comes as one of those, and
+// the next start should play on as if the power had just been cut.
+constexpr jlong kSystemPause = 1;
 
 jclass bridgeClass = nullptr;
 jclass storageClass = nullptr;
@@ -682,9 +690,14 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeComm
             case Play:
                 now.play();
                 break;
-            case Pause:
-                now.pause();
+            case Pause: {
+                Config::Settings& settings = coreInstance->core().settings();
+                const bool wasPlaying = settings.wasPlaying();
+                now.pause(); // clears wasPlaying (ActivePlaylist, on halted())
+                if (argument == kSystemPause && wasPlaying)
+                    settings.setWasPlaying(true);
                 break;
+            }
             case Next:
                 now.next();
                 break;
@@ -712,6 +725,12 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeComm
                 break;
             case CancelDownloads:
                 coreInstance->core().downloads().cancelAll();
+                break;
+            case Autoplay:
+                if (coreInstance->core().settings().wasPlaying())
+                    now.play();
+                else
+                    qInfo() << "autoplay: paused when last left, staying paused";
                 break;
             default:
                 break;

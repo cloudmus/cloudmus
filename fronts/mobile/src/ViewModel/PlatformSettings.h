@@ -11,6 +11,8 @@ namespace ViewModel {
 // that's where they are acted on — autoplay is read at boot, before any UI.
 class PlatformSettings : public QObject {
     Q_OBJECT
+    // Play on when the system or the app starts, if the music was playing
+    // when the last run ended (not if the user paused it). Off by default.
     Q_PROPERTY(bool autoplay READ autoplay WRITE setAutoplay NOTIFY autoplayChanged)
     // Another sound (the phone over Bluetooth, a prompt) took the audio for
     // good and paused us: resume once it's over, if it was over within this
