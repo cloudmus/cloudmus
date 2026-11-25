@@ -1,5 +1,6 @@
 #include "MobileCore.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QUrl>
 
@@ -114,13 +115,34 @@ void MobileCore::leaveUnstartedWhatAskedForSignIn()
     // waits until it's opened in the Library (ViewModel::LibraryScreen). Only
     // for asking: an error is no sign of a source that's not in use.
     const QString key = QStringLiteral("unstartedSources");
-    const QStringList unstarted = settingsStore_.value(key).toStringList();
+    // Until when the code a source showed is good. Following the link to
+    // confirm it opens a browser, and a phone short of memory unloads the
+    // whole app meanwhile: coming back, the source starts at once to go on
+    // with that code (the backend keeps it), so it signs in by itself
+    // instead of waiting to be opened and asking for a new one.
+    const QString pendingGroup = QStringLiteral("signInPendingUntil");
+    const QDateTime now = QDateTime::currentDateTimeUtc();
+    QStringList unstarted = settingsStore_.value(key).toStringList();
+    settingsStore_.beginGroup(pendingGroup);
+    for (const QString& sourceId : settingsStore_.childKeys()) {
+        if (settingsStore_.value(sourceId).toDateTime() > now)
+            unstarted.removeAll(sourceId);
+        else
+            settingsStore_.remove(sourceId);
+    }
+    settingsStore_.endGroup();
     core_.sourceManager().setDeferredIds(unstarted);
     Rpc::AuthStates& states = core_.authStates();
     for (const QString& sourceId : unstarted)
         states.setSignedOut(sourceId); // it's what the Library shows for it
-    connect(&states, &Rpc::AuthStates::changed, this, [this, key, &states](const QString& sourceId) {
+    connect(&states, &Rpc::AuthStates::changed, this, [this, key, pendingGroup, &states](const QString& sourceId) {
         const Rpc::AuthStates::State state = states.state(sourceId);
+        const QString pendingKey = pendingGroup + QLatin1Char('/') + sourceId;
+        const int expiresInSec = state.prompt.value(QStringLiteral("expiresInSec")).toInt();
+        if (expiresInSec > 0)
+            settingsStore_.setValue(pendingKey, QDateTime::currentDateTimeUtc().addSecs(expiresInSec));
+        else
+            settingsStore_.remove(pendingKey);
         QStringList list = settingsStore_.value(key).toStringList();
         const bool wanted = state.hasProblem && state.errorMessage.isEmpty();
         if (wanted == list.contains(sourceId))

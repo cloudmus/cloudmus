@@ -10,6 +10,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QSGRendererInterface>
+#include <QDateTime>
 #include <QSettings>
 #include <QPointingDevice>
 #include <QSignalSpy>
@@ -2467,6 +2468,35 @@ private slots:
         {
             App::MobileCore core({ settings });
             QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr, 10000);
+        }
+        qunsetenv("CLOUDMUS_FAKE_AUTH");
+    }
+
+    // The app was unloaded while the code a source showed was being confirmed
+    // in a browser: while that code is good, the source starts at once to go
+    // on with it. Once it's expired, the source waits as before.
+    void aSourceSigningInStartsWhileItsCodeIsGood()
+    {
+        qputenv("CLOUDMUS_FAKE_AUTH", "1");
+        QTemporaryDir dir;
+        const QString fake = QStringLiteral("fake");
+        const QString settings = dir.filePath("core.ini");
+        const QString pendingKey = QStringLiteral("signInPendingUntil/") + fake;
+        {
+            QSettings store(settings, QSettings::IniFormat);
+            store.setValue(QStringLiteral("unstartedSources"), QStringList { fake });
+            store.setValue(pendingKey, QDateTime::currentDateTimeUtc().addSecs(300));
+        }
+        {
+            App::MobileCore core({ settings });
+            QVERIFY(!core.core().sourceManager().isDeferred(fake));
+            QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr, 10000);
+        }
+        QSettings(settings, QSettings::IniFormat).setValue(pendingKey, QDateTime::currentDateTimeUtc().addSecs(-1));
+        {
+            App::MobileCore core({ settings });
+            QVERIFY(core.core().sourceManager().isDeferred(fake));
+            QTRY_VERIFY(!QSettings(settings, QSettings::IniFormat).contains(pendingKey));
         }
         qunsetenv("CLOUDMUS_FAKE_AUTH");
     }
