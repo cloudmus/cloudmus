@@ -142,8 +142,13 @@ public class MainActivity extends QtActivity {
     void requestMusicPermission() {
         runOnUiThread(() -> {
             String permission = MusicStorage.readPermission();
-            if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED)
-                requestPermissions(new String[] {permission}, 2);
+            if (checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED)
+                return;
+            // GWM's request page can't grant storage: Android's own app
+            // screen can (GwmAppSettings).
+            if (GwmAppSettings.present(this) && GwmAppSettings.openAppPermissions(this))
+                return;
+            requestPermissions(new String[] {permission}, 2);
         });
     }
 

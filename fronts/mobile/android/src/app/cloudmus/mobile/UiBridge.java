@@ -130,6 +130,8 @@ public final class UiBridge {
         if (context instanceof MainActivity) {
             MainActivity activity = (MainActivity) context;
             activity.runOnUiThread(() -> {
+                if (GwmAppSettings.present(activity) && GwmAppSettings.openAppPermissions(activity))
+                    return;
                 try {
                     activity.startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         android.net.Uri.fromParts("package", context.getPackageName(), null)));
