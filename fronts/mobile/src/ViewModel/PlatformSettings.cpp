@@ -26,7 +26,7 @@ PlatformSettings::PlatformSettings(QSettings& store, QObject* parent)
 {
 }
 
-bool PlatformSettings::autoplay() const { return store_.value(kAutoplayKey, true).toBool(); }
+bool PlatformSettings::autoplay() const { return store_.value(kAutoplayKey, false).toBool(); }
 
 void PlatformSettings::setAutoplay(bool autoplay)
 {

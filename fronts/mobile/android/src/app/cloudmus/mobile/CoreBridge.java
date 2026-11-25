@@ -179,7 +179,7 @@ public final class CoreBridge {
     }
 
     public static boolean autoplayEnabled(Context context) {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PREF_AUTOPLAY, true);
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(PREF_AUTOPLAY, false);
     }
 
     // See ViewModel::Settings::resumeAfterLossSec; 0: off.
