@@ -26,8 +26,16 @@ MenuItem {
     }
 
     visible: available
-    // All of its label in view: what the menu's width goes by.
-    readonly property real naturalWidth: leftPadding + implicitContentWidth + rightPadding
+    // All of its label in view: what the menu's width goes by. Added up from
+    // the label's own width, not the row's: a RowLayout works its implicit
+    // width out only once it's laid out on screen, so a menu opening for the
+    // first time took the row as narrower than it is and cut its labels.
+    readonly property real naturalWidth: leftPadding + _iconMargin + (iconName ? _iconSize : 0) + _spacing
+        + Math.ceil(label.implicitWidth) + _labelMargin + rightPadding
+    readonly property real _iconSize: Theme.dp(22)
+    readonly property real _iconMargin: Theme.dp(8)
+    readonly property real _labelMargin: Theme.dp(8)
+    readonly property real _spacing: Theme.dp(14)
     height: available ? Theme.touch : 0
     opacity: _shown * (enabled ? 1 : 0.4)
     transform: Translate { y: (item._rising ? 1 : -1) * Theme.dp(8) * (1 - item._shown) }
@@ -39,18 +47,24 @@ MenuItem {
     }
 
     contentItem: RowLayout {
-        spacing: Theme.dp(14)
+        spacing: item._spacing
         IconImage {
-            Layout.leftMargin: Theme.dp(8)
+            Layout.leftMargin: item._iconMargin
+            // Set, not taken from the picture: at a fractional screen density
+            // that comes out a hair over, the layout rounds it up, and the
+            // label is left a point short.
+            Layout.preferredWidth: item._iconSize
+            Layout.preferredHeight: item._iconSize
             source: item.iconName ? "qrc:/icons/" + item.iconName + ".svg" : ""
-            sourceSize.width: Theme.dp(22)
-            sourceSize.height: Theme.dp(22)
+            sourceSize.width: item._iconSize
+            sourceSize.height: item._iconSize
             color: Theme.ink
         }
         Text {
+            id: label
             Layout.fillWidth: true
             // As much room right of the label as left of the icon.
-            Layout.rightMargin: Theme.dp(8)
+            Layout.rightMargin: item._labelMargin
             text: item.text
             color: Theme.ink
             font.family: Theme.fontFamily

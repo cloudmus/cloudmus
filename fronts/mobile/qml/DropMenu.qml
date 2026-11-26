@@ -63,7 +63,7 @@ Menu {
                 widest = Math.max(widest, entry.naturalWidth !== undefined ? entry.naturalWidth : entry.implicitWidth)
         }
         const room = parent ? parent.width - Theme.insetLeft - Theme.insetRight - _edge * 2 : Theme.dp(360)
-        width = Math.round(Math.max(Theme.dp(200), Math.min(widest + leftPadding + rightPadding, Theme.dp(360), room)))
+        width = Math.ceil(Math.max(Theme.dp(200), Math.min(widest + leftPadding + rightPadding, Theme.dp(360), room)))
     }
     padding: Theme.dp(4)
     // A tap beside it only closes it, not lands on what's under it.

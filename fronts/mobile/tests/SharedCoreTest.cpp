@@ -1068,6 +1068,21 @@ private slots:
                 QTRY_VERIFY(menu->property("opened").toBool());
                 QVERIFY2(menu->property("x").toReal() >= 60, qPrintable(menu->property("x").toString()));
                 QVERIFY(menu->property("x").toReal() + menu->property("width").toReal() <= 1280);
+                // As wide as its labels from its first opening: none cut short.
+                int labels = 0;
+                for (int i = 0; i < menu->property("count").toInt(); ++i) {
+                    QQuickItem* entry = nullptr;
+                    QVERIFY(QMetaObject::invokeMethod(menu, "itemAt", Q_RETURN_ARG(QQuickItem*, entry), Q_ARG(int, i)));
+                    if (!entry || !entry->isVisible())
+                        continue;
+                    forEachItem(entry, [&](QQuickItem* item) {
+                        if (!item->property("truncated").isValid())
+                            return;
+                        ++labels;
+                        QVERIFY2(!item->property("truncated").toBool(), qPrintable(item->property("text").toString()));
+                    });
+                }
+                QVERIFY(labels > 0);
                 QVERIFY(QMetaObject::invokeMethod(menu, "close"));
                 QTRY_VERIFY(!menu->property("visible").toBool());
                 QVERIFY(theme->setProperty("insetLeft", 0));
