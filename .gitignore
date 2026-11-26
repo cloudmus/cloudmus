@@ -42,3 +42,6 @@ packaging/macos/.cache/
 build-android/
 
 backends/local-folder/target/
+
+# A local build of the desktop front
+fronts/desktop/build-space/
