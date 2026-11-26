@@ -596,7 +596,7 @@
     </message>
     <message>
       <source>Next</source>
-      <translation>Successivo</translation>
+      <translation>Avanti</translation>
     </message>
   </context>
   <context>

@@ -598,7 +598,7 @@
     </message>
     <message>
       <source>Next</source>
-      <translation>Наступны</translation>
+      <translation>Далей</translation>
     </message>
   </context>
   <context>

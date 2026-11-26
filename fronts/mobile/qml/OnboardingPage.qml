@@ -16,7 +16,13 @@ Item {
     signal libraryRequested()
 
     readonly property bool wide: width > height * 1.1
-    readonly property int current: list.currentIndex
+    // Wide (a phone on its side, a head unit): the picture in the left half,
+    // the words in the right one with the dots and the button under them.
+    readonly property real _margin: Theme.padding * 1.5
+    readonly property real _rightX: Math.round(width * 0.5)
+    readonly property real _rightWidth: width - _rightX - Theme.insetRight - _margin
+    // The slide in view, or being gone to.
+    property int current: 0
     readonly property bool onLast: current === slides.length - 1
 
     // Each slide's art, its words, and the background's seed: a different one
@@ -38,7 +44,7 @@ Item {
         if (onLast)
             openLibrary()
         else
-            list.incrementCurrentIndex()
+            goTo(current + 1)
     }
     // The Library is opened under the slides, which then fade off it.
     function openLibrary() {
@@ -52,8 +58,10 @@ Item {
             leaving.start()
     }
 
-    opacity: 0
-    Component.onCompleted: entering.start()
+    // Off when it comes under the fading start screen.
+    property bool fadeIn: true
+    opacity: fadeIn ? 0 : 1
+    Component.onCompleted: if (fadeIn) entering.start()
     NumberAnimation {
         id: entering
         target: page
@@ -589,90 +597,155 @@ Item {
 
     readonly property var _arts: ({ logo: logoArt, sources: sourcesArt, wave: waveArt, offline: offlineArt, start: startArt })
 
-    ListView {
+    // Over to slide `index`, gliding: the list's own flick, made for long
+    // lists, threw a whole screen past in a blink.
+    function goTo(index) {
+        current = Math.max(0, Math.min(slides.length - 1, index))
+        const to = current * list.width
+        const share = Math.min(1, Math.abs(to - list.contentX) / Math.max(1, list.width))
+        settling.to = to
+        settling.duration = Math.round(320 + 380 * share)
+        settling.restart()
+    }
+    NumberAnimation {
+        id: settling
+        objectName: "onboardingSettling"
+        target: list
+        property: "contentX"
+        easing.type: Easing.OutCubic
+    }
+
+    // The slides side by side, slide i at i × the width, the view `contentX`
+    // along: no list of their own, whose origin moves as a turned screen lays
+    // them out anew.
+    Item {
         id: list
         objectName: "onboardingSlides"
         anchors.fill: parent
-        orientation: ListView.Horizontal
-        snapMode: ListView.SnapOneItem
-        highlightRangeMode: ListView.StrictlyEnforceRange
-        preferredHighlightBegin: 0
-        preferredHighlightEnd: width
-        highlightMoveDuration: Theme.durationPage * 1.5
-        boundsBehavior: Flickable.StopAtBounds
-        maximumFlickVelocity: Theme.flickMaxVelocity
-        flickDeceleration: Theme.flickDeceleration
-        cacheBuffer: width * 2
-        model: page.slides
+        property real contentX: 0
+        readonly property int count: page.slides.length
+        // A screen turned: the slide in view stays.
+        onWidthChanged: if (!swipe.active) { settling.stop(); contentX = page.current * width }
 
-        delegate: Item {
-            id: slide
-            required property var modelData
-            required property int index
-            width: list.width
-            height: list.height
-            // Off the middle, -1 .. 1: the picture lags behind the words.
-            readonly property real offset: Math.max(-1, Math.min(1, (x - list.contentX) / Math.max(1, width)))
-
-            // Clear of the status bar and Skip above, the dots and the button below.
-            Item {
-                id: area
-                x: Theme.insetLeft + Theme.padding * 1.5
-                y: Theme.insetTop + Theme.touch + Theme.spacing
-                width: slide.width - x - Theme.insetRight - Theme.padding * 1.5
-                height: slide.height - y - Theme.insetBottom - Theme.touchLarge - Theme.dp(64)
-            }
-
-            readonly property real artSide: page.wide
-                ? Math.min(area.height * 0.9, area.width * 0.45)
-                : Math.min(area.width * 0.86, area.height * 0.56, Theme.dp(360))
-
-            Loader {
-                objectName: "onboardingArt_" + slide.modelData.art
-                width: slide.artSide
-                height: slide.artSide
-                // Further off than its slide: the neighbors' never peek in.
-                x: (page.wide ? area.x + (area.width * 0.5 - width) / 2 : area.x + (area.width - width) / 2)
-                   + slide.offset * slide.width * 0.35
-                y: page.wide ? area.y + (area.height - height) / 2
-                             : area.y + (area.height * 0.62 - height) / 2
-                opacity: Math.max(0, 1 - Math.abs(slide.offset) * 1.4)
-                scale: 1 - Math.abs(slide.offset) * 0.15
-                sourceComponent: page._arts[slide.modelData.art]
-                onLoaded: {
-                    item.side = Qt.binding(() => slide.artSide)
-                    item.running = Qt.binding(() => slide.index === page.current && page.visible
-                                                     && Qt.application.state === Qt.ApplicationActive)
+        // The slides follow the finger; let go, on to the next one if it went
+        // a third of the way or was thrown, else back.
+        property real _dragFrom: 0
+        DragHandler {
+            id: swipe
+            target: null
+            yAxis.enabled: false
+            onActiveChanged: {
+                if (active) {
+                    settling.stop()
+                    list._dragFrom = list.contentX
+                    return
                 }
+                const position = list.contentX / Math.max(1, list.width)
+                const velocity = centroid.velocity.x
+                let index = Math.round(position)
+                if (Math.abs(velocity) > Theme.dp(350))
+                    index = velocity < 0 ? Math.ceil(position) : Math.floor(position)
+                else if (position - page.current > 0.33)
+                    index = page.current + 1
+                else if (page.current - position > 0.33)
+                    index = page.current - 1
+                page.goTo(index)
             }
+            onTranslationChanged: {
+                if (!active)
+                    return
+                const last = (page.slides.length - 1) * list.width
+                let x = list._dragFrom - translation.x
+                // Past either end it gives, but only a little.
+                if (x < 0)
+                    x *= 0.3
+                else if (x > last)
+                    x = last + (x - last) * 0.3
+                list.contentX = x
+            }
+        }
 
-            Column {
-                id: words
-                spacing: Theme.dp(10)
-                width: page.wide ? area.width * 0.48 : Math.min(area.width, Theme.dp(420))
-                x: page.wide ? area.x + area.width * 0.52 : area.x + (area.width - width) / 2
-                y: page.wide ? area.y + (area.height - height) / 2 : area.y + area.height * 0.64
-                opacity: Math.max(0, 1 - Math.abs(slide.offset) * 1.5)
-                ShadowText {
-                    objectName: "onboardingTitle"
-                    width: parent.width
-                    text: slide.modelData.title
-                    horizontalAlignment: page.wide ? Text.AlignLeft : Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    color: "#FFFFFF"
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.dp(28)
-                    font.weight: Font.Bold
+        Repeater {
+            model: page.slides
+            delegate: Item {
+                id: slide
+                required property var modelData
+                required property int index
+                width: list.width
+                height: list.height
+                x: index * list.width - list.contentX
+                // Off the middle, -1 .. 1: the picture lags behind the words.
+                readonly property real offset: Math.max(-1, Math.min(1, x / Math.max(1, width)))
+                // Only what's in view, or coming into it.
+                visible: x > -width && x < width
+
+                // Clear of the status bar and Skip above, the dots and the button
+                // below; wide, the picture's half has the whole height.
+                Item {
+                    id: area
+                    x: Theme.insetLeft + page._margin
+                    y: page.wide ? Theme.insetTop + page._margin : Theme.insetTop + Theme.touch + Theme.spacing
+                    width: page.wide ? page._rightX - x - page._margin : slide.width - x - Theme.insetRight - page._margin
+                    height: page.wide ? slide.height - y - Theme.insetBottom - page._margin
+                                      : controls.y - Theme.dp(24) - y
                 }
-                ShadowText {
-                    width: parent.width
-                    text: slide.modelData.text
-                    horizontalAlignment: page.wide ? Text.AlignLeft : Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    color: Qt.rgba(1, 1, 1, 0.9)
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontTitle
-                    lineHeight: 1.15
+                // Wide: the words' room, over the dots.
+                readonly property real wordsTop: Theme.insetTop + Theme.touch + Theme.spacing
+                readonly property real wordsBottom: controls.y - Theme.dp(28)
+
+                readonly property real artSide: page.wide
+                    ? Math.min(area.height * 0.86, area.width * 0.9, Theme.dp(420))
+                    : Math.min(area.width * 0.86, area.height * 0.56, Theme.dp(360))
+
+                Loader {
+                    objectName: "onboardingArt_" + slide.modelData.art
+                    width: slide.artSide
+                    height: slide.artSide
+                    // Further off than its slide: the neighbors' never peek in.
+                    x: area.x + (area.width - width) / 2 + slide.offset * slide.width * 0.35
+                    y: page.wide ? area.y + (area.height - height) / 2
+                                 : area.y + (area.height * 0.62 - height) / 2
+                    opacity: Math.max(0, 1 - Math.abs(slide.offset) * 1.4)
+                    scale: 1 - Math.abs(slide.offset) * 0.15
+                    sourceComponent: page._arts[slide.modelData.art]
+                    onLoaded: {
+                        item.side = Qt.binding(() => slide.artSide)
+                        item.running = Qt.binding(() => slide.index === page.current && page.visible
+                                                         && Qt.application.state === Qt.ApplicationActive)
+                    }
+                }
+
+                Column {
+                    id: words
+                    spacing: Theme.dp(10)
+                    width: page.wide ? Math.min(page._rightWidth, Theme.dp(460)) : Math.min(area.width, Theme.dp(420))
+                    x: page.wide ? page._rightX : area.x + (area.width - width) / 2
+                    // Wide, it sits low, just over the dots, whatever its length.
+                    y: page.wide ? Math.max(slide.wordsTop, slide.wordsBottom - height
+                                            - Math.max(0, (slide.wordsBottom - slide.wordsTop - height) * 0.35))
+                                 : area.y + area.height * 0.64
+                    opacity: Math.max(0, 1 - Math.abs(slide.offset) * 1.5)
+                    ShadowText {
+                        objectName: "onboardingTitle"
+                        width: parent.width
+                        text: slide.modelData.title
+                        horizontalAlignment: page.wide ? Text.AlignLeft : Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        color: "#FFFFFF"
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.dp(28)
+                        font.weight: Font.Bold
+                    }
+                    ShadowText {
+                        width: parent.width
+                        text: slide.modelData.text
+                        horizontalAlignment: page.wide ? Text.AlignLeft : Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        color: Qt.rgba(1, 1, 1, 0.9)
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontTitle
+                        lineHeight: 1.15
+                    }
                 }
             }
         }
@@ -710,16 +783,17 @@ Item {
     }
 
     Column {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: Theme.insetBottom + Theme.padding * 1.5
-        width: Math.min(parent.width - Theme.insetLeft - Theme.insetRight - Theme.padding * 3, Theme.dp(380))
-        spacing: Theme.dp(22)
+        id: controls
+        x: page.wide ? page._rightX : (parent.width - width) / 2
+        y: parent.height - height - Theme.insetBottom - page._margin
+        width: page.wide ? Math.min(page._rightWidth, Theme.dp(360))
+                         : Math.min(parent.width - Theme.insetLeft - Theme.insetRight - page._margin * 2, Theme.dp(380))
+        spacing: page.wide ? Theme.dp(18) : Theme.dp(22)
 
         // Where we are: the slide in view a longer dash.
         Row {
             objectName: "onboardingDots"
-            anchors.horizontalCenter: parent.horizontalCenter
+            x: page.wide ? 0 : (parent.width - width) / 2
             spacing: Theme.dp(8)
             Repeater {
                 model: page.slides.length
@@ -731,7 +805,7 @@ Item {
                     radius: height / 2
                     color: Qt.rgba(1, 1, 1, shown ? 1 : 0.45)
                     Behavior on width { NumberAnimation { duration: Theme.durationPage; easing.type: Easing.OutCubic } }
-                    TapHandler { onTapped: list.currentIndex = index }
+                    TapHandler { onTapped: page.goTo(index) }
                 }
             }
         }

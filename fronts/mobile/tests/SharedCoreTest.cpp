@@ -3089,6 +3089,7 @@ private slots:
     {
         QTest::addColumn<QSize>("size");
         QTest::newRow("phone") << QSize(420, 860);
+        QTest::newRow("sideways") << QSize(915, 412);
         QTest::newRow("headunit") << QSize(1920, 1080);
     }
 
@@ -3138,8 +3139,11 @@ private slots:
         const int count = slides->property("count").toInt();
         QCOMPARE(count, 5);
         for (int i = 0; i < count; ++i) {
-            QTRY_COMPARE(slides->property("currentIndex").toInt(), i);
-            QTRY_VERIFY(!slides->property("moving").toBool());
+            QTRY_COMPARE(onboarding->property("current").toInt(), i);
+            auto* settling = onboarding->findChild<QObject*>("onboardingSettling");
+            QVERIFY(settling);
+            QTRY_VERIFY(!settling->property("running").toBool());
+            QCOMPARE(slides->property("contentX").toReal(), i * slides->width());
             // Every word within the screen.
             forEachItem(onboarding, [&](QQuickItem* item) {
                 if (item->objectName() != QLatin1String("onboardingTitle") || !item->isVisible())
@@ -3154,6 +3158,62 @@ private slots:
             if (i < count - 1)
                 QVERIFY(QMetaObject::invokeMethod(next, "clicked"));
         }
+
+        // A finger's swipe: the slides follow it, smoothly, and go one slide on.
+        {
+            std::unique_ptr<QPointingDevice> finger(QTest::createTouchDevice());
+            const int y = window->height() / 2;
+            // From x by dx, in steps; the view's positions on the way.
+            const auto swipe = [&](int x, int dx) {
+                QList<qreal> path;
+                QTest::touchEvent(window, finger.get()).press(0, QPoint(x, y), window);
+                for (int i = 1; i <= 12; ++i) {
+                    QTest::qWait(16);
+                    QTest::touchEvent(window, finger.get()).move(0, QPoint(x + dx * i / 12, y), window);
+                    path.append(slides->property("contentX").toReal());
+                }
+                QTest::touchEvent(window, finger.get()).release(0, QPoint(x + dx, y), window);
+                return path;
+            };
+            const auto settled = [&](int index) {
+                QTRY_COMPARE(onboarding->property("current").toInt(), index);
+                auto* settling = onboarding->findChild<QObject*>("onboardingSettling");
+                QTRY_VERIFY(!settling->property("running").toBool());
+                QCOMPARE(slides->property("contentX").toReal(), index * slides->width());
+            };
+            const int width = window->width();
+            // Back from the last one: one slide back, the view only ever going back.
+            QList<qreal> path = swipe(width / 5, width / 2);
+            settled(count - 2);
+            for (int i = 1; i < path.size(); ++i)
+                QVERIFY2(path[i] <= path[i - 1], qPrintable(QStringLiteral("%1 then %2").arg(path[i - 1]).arg(path[i])));
+            QVERIFY(path.last() < (count - 1) * slides->width());
+            // Pulled past the first: it gives, only that way, and comes back.
+            QVERIFY(QMetaObject::invokeMethod(onboarding, "goTo", Q_ARG(QVariant, 0)));
+            settled(0);
+            path = swipe(width / 5, width / 2);
+            settled(0);
+            for (int i = 1; i < path.size(); ++i)
+                QVERIFY2(path[i] <= path[i - 1], qPrintable(QStringLiteral("%1 then %2").arg(path[i - 1]).arg(path[i])));
+            QVERIFY(path.last() < 0);
+            // And on, to the last again.
+            QVERIFY(QMetaObject::invokeMethod(onboarding, "goTo", Q_ARG(QVariant, count - 1)));
+            settled(count - 1);
+        }
+
+        // The screen turned: the slide in view stays in view, and going back
+        // goes one slide back.
+        window->resize(size.transposed());
+        QTRY_COMPARE(slides->width(), qreal(size.height()));
+        QTRY_COMPARE(slides->property("contentX").toReal(), (count - 1) * slides->width());
+        QVERIFY(QMetaObject::invokeMethod(onboarding, "goTo", Q_ARG(QVariant, count - 2)));
+        QTRY_COMPARE(slides->property("contentX").toReal(), (count - 2) * slides->width());
+        window->resize(size);
+        QTRY_COMPARE(slides->width(), qreal(size.width()));
+        QTRY_COMPARE(slides->property("contentX").toReal(), (count - 2) * slides->width());
+        QVERIFY(QMetaObject::invokeMethod(onboarding, "goTo", Q_ARG(QVariant, count - 1)));
+        QTRY_COMPARE(onboarding->property("current").toInt(), count - 1);
+        QTRY_COMPARE(slides->property("contentX").toReal(), (count - 1) * slides->width());
 
         // The last slide's button: the Library, under the slides as they go.
         QVERIFY(QMetaObject::invokeMethod(next, "clicked"));

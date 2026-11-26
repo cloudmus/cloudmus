@@ -237,7 +237,7 @@ ApplicationWindow {
         MainPage {
             objectName: "playlist"
             backend: window.backend
-            gesturesEnabled: !trackSheet.visible
+            gesturesEnabled: !trackSheet.visible && !window.onboardingOpen
             platform: window.platform
             nowPlayingProgress: nowPlayingSheet.progress
             onNowPlayingRequested: nowPlayingSheet.open()
@@ -635,11 +635,14 @@ ApplicationWindow {
         }
     }
 
-    // The first launch's slides, once the start screen has gone; or asked for
-    // again from the main page's menu. Over the pages and the player.
+    // The first launch's slides, as the start screen starts to fade: they're
+    // there at once, under it, with no fade of their own for the pages to show
+    // through. Or asked for again from the main page's menu. Over the pages
+    // and the player, whose swipes are off meanwhile.
     property bool onboardingOpen: false
+    property bool _onboardingAtLaunch: false
     readonly property bool _onboardingDue: !uiSettings.onboardingSeen && backend.ready && startSplash.contentShown
-    on_OnboardingDueChanged: if (_onboardingDue) onboardingOpen = true
+    on_OnboardingDueChanged: if (_onboardingDue) { _onboardingAtLaunch = true; onboardingOpen = true }
     Loader {
         id: onboarding
         anchors.fill: parent
@@ -648,6 +651,7 @@ ApplicationWindow {
         sourceComponent: OnboardingPage {
             objectName: "onboarding"
             backend: window.backend
+            fadeIn: !window._onboardingAtLaunch
             onLibraryRequested: {
                 trackSheet.close()
                 nowPlayingSheet.close()
@@ -656,6 +660,7 @@ ApplicationWindow {
             }
             onFinished: {
                 uiSettings.onboardingSeen = true
+                window._onboardingAtLaunch = false
                 window.onboardingOpen = false
             }
         }
