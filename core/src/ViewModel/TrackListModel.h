@@ -64,6 +64,24 @@ inline QString playlistCoverIcon(const Playlist& playlist)
     return QStringLiteral("playlist");
 }
 
+// The icon symbol (core/resources/icons/symbols/<name>.svg) that draws a
+// playlistCoverIcon() name; empty for a name this front doesn't know, which
+// the protocol says to ignore. The mobile front's Cover.qml has the same table.
+inline QString coverIconSymbol(const QString& coverIcon)
+{
+    static const QHash<QString, QString> symbols {
+        { QStringLiteral("wave"), QStringLiteral("radio") },
+        { QStringLiteral("saved"), QStringLiteral("file_download") },
+        { QStringLiteral("device"), QStringLiteral("smartphone") },
+        { QStringLiteral("folder"), QStringLiteral("folder") },
+        { QStringLiteral("album"), QStringLiteral("album") },
+        { QStringLiteral("playlist"), QStringLiteral("playlist_play") },
+        { QStringLiteral("liked"), QStringLiteral("favorite") },
+        { QStringLiteral("history"), QStringLiteral("history") },
+    };
+    return symbols.value(coverIcon);
+}
+
 // Tracks as rows, for any view of them: a QTableView-free list on the desktop
 // (one instance per MainWindow, repointed at a new source/track set whenever
 // the sidebar selection changes), QML on mobile. roleNames() lists the roles

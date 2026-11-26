@@ -172,6 +172,8 @@ private slots:
         QCOMPARE(ViewModel::playlistCoverIcon(playlist), QStringLiteral("wave"));
         playlist.coverIcon = QStringLiteral("album");
         QCOMPARE(ViewModel::playlistCoverIcon(playlist), QStringLiteral("album"));
+        QCOMPARE(ViewModel::coverIconSymbol(QStringLiteral("liked")), QStringLiteral("favorite"));
+        QVERIFY(ViewModel::coverIconSymbol(QStringLiteral("unknown")).isEmpty());
     }
 };
 

@@ -205,9 +205,8 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     menu->addSeparator();
     auto* quitAction = menu->addAction(tr("Quit"), this, &MainWindow::quitForReal);
     Theme::followTheme(menu, [=]() {
-        const auto glyph = [](const char* name) {
-            return Theme::icon(QString::fromLatin1(name), Theme::IconColor::Ink, 16);
-        };
+        const auto glyph
+            = [](const char* name) { return Theme::icon(QString::fromLatin1(name), Theme::IconColor::Ink, 16); };
         settingsAction->setIcon(glyph("tune"));
         updatesAction->setIcon(glyph("refresh"));
         aboutAction->setIcon(glyph("cloudmus"));
@@ -716,10 +715,12 @@ void MainWindow::showBrowsePage()
             if (context.isRadio()) {
                 sheet_->showRadio(radioPromo(context.playlist));
             } else if (context.isHistory) {
-                sheet_->showTracks(tr("History"), QString(), QString(), QStringLiteral("history"), /*canPlayAll=*/true);
+                sheet_->showTracks(tr("History"), QString(), QString(), QStringLiteral("history"),
+                    ViewModel::coverIconSymbol(QStringLiteral("history")), /*canPlayAll=*/true);
             } else {
                 sheet_->showTracks(context.playlist.title, playlistSubtitle(context.playlist.trackCount),
-                    context.playlist.coverUrl.value_or(QString()), context.playlist.title, /*canPlayAll=*/true);
+                    context.playlist.coverUrl.value_or(QString()), context.playlist.title,
+                    ViewModel::coverIconSymbol(ViewModel::playlistCoverIcon(context.playlist)), /*canPlayAll=*/true);
             }
             sheet_->setBusy(browse_.isLoading());
             sheet_->setDownloadAvailable(!context.isHistory && canDownloadPlaylist(context.sourceId, context.playlist));
@@ -741,7 +742,8 @@ void MainWindow::showBrowseRows()
         rows.append({ row.sourceId, row.track, row.playedAt });
     sheet_->trackModel()->setMixedSourceTracks(rows);
     // Until the tracks are in, the count the playlist itself reports.
-    sheet_->setSubtitle(playlistSubtitle(browse_.isLoading() ? browse_.context().playlist.trackCount : int(rows.size())));
+    sheet_->setSubtitle(
+        playlistSubtitle(browse_.isLoading() ? browse_.context().playlist.trackCount : int(rows.size())));
 }
 
 // The open playlist's tracks, `count` of them, and how much its files take.

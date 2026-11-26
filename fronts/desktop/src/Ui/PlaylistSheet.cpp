@@ -37,8 +37,8 @@
 
 namespace Ui {
 
-using ViewModel::TrackListModel;
 using ViewModel::trackCountText;
+using ViewModel::TrackListModel;
 
 namespace {
 
@@ -168,7 +168,6 @@ private:
     QString iconPath_;
     QString logoPath_;
 };
-
 
 PlaylistSheet::PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent)
     : QWidget(parent)
@@ -334,12 +333,13 @@ void PlaylistSheet::setHeader(const QString& title, const QString& subtitle, con
     headerInfo_->show();
 }
 
-void PlaylistSheet::showTracks(
-    const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed, bool canPlayAll)
+void PlaylistSheet::showTracks(const QString& title, const QString& subtitle, const QString& coverUrl,
+    const QString& coverSeed, const QString& coverIcon, bool canPlayAll)
 {
     radioHero_->hide();
     pages_->show();
-    setHeader(title, subtitle, coverUrl, coverSeed);
+    setHeader(title, subtitle, coverUrl, coverSeed,
+        coverIcon.isEmpty() ? QString() : QStringLiteral(":/icons/symbols/%1.svg").arg(coverIcon));
     playAllButton_->setVisible(canPlayAll);
     downloadAllButton_->hide(); // setDownloadAvailable() says, for a playlist that can be saved
     filterEdit_->clear();

@@ -46,10 +46,11 @@ public:
     PlaylistSheet(Covers::CoverArtCache* coverCache, QWidget* parent);
 
     // Track list page (a playlist, Liked, History). `coverUrl` may be
-    // empty, in which case a cover is generated from `coverSeed`.
+    // empty, in which case a cover is generated from `coverSeed`, with the
+    // `coverIcon` symbol (ViewModel::coverIconSymbol()) over it, if given.
     // `canPlayAll` shows the header's Play button. Clears the filter.
     void showTracks(const QString& title, const QString& subtitle, const QString& coverUrl, const QString& coverSeed,
-        bool canPlayAll);
+        const QString& coverIcon, bool canPlayAll);
     // A continuous radio station: nothing to list, so the whole sheet is a
     // HeroPanel promoting it — gradient background, big cover, title,
     // description and Play (which emits playAllClicked()) — as the main

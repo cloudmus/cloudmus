@@ -15,7 +15,7 @@ Rectangle {
     property string seed
     // With no cover: the glyph for it (Playlist.coverIcon, or the one
     // ViewModel::playlistCoverIcon() picks for its kind), drawn over the
-    // generated art.
+    // generated art. The names: as ViewModel::coverIconSymbol().
     property string icon
     // The glyph (an icon's file name) when the source names none: a track's
     // note, say.

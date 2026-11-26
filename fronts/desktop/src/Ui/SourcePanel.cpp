@@ -38,8 +38,8 @@
 
 namespace Ui {
 
-using ViewModel::TrackListModel;
 using ViewModel::playlistCountText;
+using ViewModel::TrackListModel;
 
 namespace {
 constexpr int kIconSize = 32;
@@ -208,12 +208,23 @@ protected:
             clip.addRoundedRect(thumb, Theme::Radius::sm, Theme::Radius::sm);
             painter.setClipPath(clip);
             QPixmap cover;
-            if (p.coverUrl.has_value() && !p.coverUrl->isEmpty())
+            const bool hasCover = p.coverUrl.has_value() && !p.coverUrl->isEmpty();
+            if (hasCover)
                 cover = coverCache_->pixmap(*p.coverUrl, thumb.size());
             if (cover.isNull())
                 cover = generatedCover(p.title);
             painter.drawPixmap(thumb, cover);
             painter.restore();
+            // The playlist's glyph over its generated cover, as on its page
+            // (PlaylistSheet): a bare aura looked like a cover still loading.
+            const QString symbol = hasCover ? QString() : ViewModel::coverIconSymbol(ViewModel::playlistCoverIcon(p));
+            if (!symbol.isEmpty()) {
+                const int side = kPlaylistThumb / 2;
+                Theme::iconFromFile(
+                    QStringLiteral(":/icons/symbols/%1.svg").arg(symbol), QColor(255, 255, 255, 235), side)
+                    .paint(&painter,
+                        QRect(thumb.center().x() - side / 2 + 1, thumb.center().y() - side / 2 + 1, side, side));
+            }
 
             const bool favorite = isFavorite && isFavorite(p);
             if (favorite || i == hovered_) {

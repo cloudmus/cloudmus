@@ -41,6 +41,9 @@
         <file alias="heart_off.svg">../../../core/resources/icons/symbols/heart_off.svg</file>
         <file alias="heart_off_outline.svg">../../../core/resources/icons/symbols/heart_off_outline.svg</file>
         <file alias="playlist_play.svg">../../../core/resources/icons/symbols/playlist_play.svg</file>
+        <file alias="album.svg">../../../core/resources/icons/symbols/album.svg</file>
+        <file alias="folder.svg">../../../core/resources/icons/symbols/folder.svg</file>
+        <file alias="smartphone.svg">../../../core/resources/icons/symbols/smartphone.svg</file>
         <file alias="playlist_add.svg">../../../core/resources/icons/symbols/playlist_add.svg</file>
         <file alias="radio.svg">../../../core/resources/icons/symbols/radio.svg</file>
         <file alias="file_download.svg">../../../core/resources/icons/symbols/file_download.svg</file>
