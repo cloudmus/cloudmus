@@ -1,8 +1,8 @@
 #pragma once
 
 #include <QAbstractListModel>
-#include <QHash>
 #include <QDateTime>
+#include <QHash>
 #include <QLocale>
 #include <QString>
 #include <QVector>
@@ -47,6 +47,21 @@ inline QString playlistCountText(const Playlist& playlist)
     const QString size = playlistSizeText(playlist);
     const QString count = trackCountText(playlist.trackCount);
     return size.isEmpty() ? count : count + QStringLiteral(" · ") + size;
+}
+
+// The glyph over a playlist's generated cover: the one its source names
+// (Playlist.coverIcon), else one for its kind — a plain aura alone looked like
+// a cover that hadn't loaded. Names beyond the protocol's (`playlist`,
+// `liked`, `history`) are the fronts' own; `wave` is reused for a station.
+inline QString playlistCoverIcon(const Playlist& playlist)
+{
+    if (playlist.coverIcon && !playlist.coverIcon->isEmpty())
+        return *playlist.coverIcon;
+    if (playlist.kind == QLatin1String("liked"))
+        return QStringLiteral("liked");
+    if (playlist.kind == QLatin1String("radioStation"))
+        return QStringLiteral("wave");
+    return QStringLiteral("playlist");
 }
 
 // Tracks as rows, for any view of them: a QTableView-free list on the desktop

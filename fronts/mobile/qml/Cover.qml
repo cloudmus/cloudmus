@@ -13,14 +13,16 @@ Rectangle {
     property string source
     // With no cover: generated art from this, as on the desktop, if set.
     property string seed
-    // With no cover: the glyph a source names for it (Playlist.coverIcon),
-    // drawn over the generated art.
+    // With no cover: the glyph for it (Playlist.coverIcon, or the one
+    // ViewModel::playlistCoverIcon() picks for its kind), drawn over the
+    // generated art.
     property string icon
     // The glyph (an icon's file name) when the source names none: a track's
     // note, say.
     property string fallbackIcon
     readonly property string _glyph: ({
-        wave: "radio", saved: "file_download", device: "smartphone", folder: "folder", album: "album"
+        wave: "radio", saved: "file_download", device: "smartphone", folder: "folder", album: "album",
+        playlist: "playlist_play", liked: "favorite", history: "history"
     })[icon] || fallbackIcon
     // An accent line around it, for the one that's active.
     property bool outlined: false

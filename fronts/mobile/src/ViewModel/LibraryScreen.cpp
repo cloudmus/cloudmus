@@ -211,7 +211,7 @@ QVariantHash LibraryScreen::playlistRow(const Playlist& playlist)
         { QStringLiteral("sizeText"), ViewModel::playlistSizeText(playlist) },
         { QStringLiteral("kind"), playlist.kind },
         { QStringLiteral("coverUrl"), fileUrl(covers_.localFile(playlist.coverUrl.value_or(QString()))) },
-        { QStringLiteral("coverIcon"), playlist.coverIcon.value_or(QString()) },
+        { QStringLiteral("coverIcon"), ViewModel::playlistCoverIcon(playlist) },
         { QStringLiteral("isActive"), active.sourceId == currentSourceId_ && active.playlist.id == playlist.id },
         { QStringLiteral("isStarting"), startingPlaylistId_ == playlist.id },
         { QStringLiteral("isFavorite"), sources_.isFavorite(currentSourceId_, playlist.id) },

@@ -56,7 +56,8 @@ QString PlaylistScreen::coverUrl() const
 
 QString PlaylistScreen::coverIcon() const
 {
-    return open_.context().playlist.coverIcon.value_or(QString());
+    const PlaylistContext& context = open_.context();
+    return context.isHistory ? QStringLiteral("history") : ViewModel::playlistCoverIcon(context.playlist);
 }
 
 bool PlaylistScreen::isFavorite() const
@@ -241,7 +242,7 @@ void PlaylistScreen::rebuildFolders()
                 { QStringLiteral("title"), playlist.title },
                 { QStringLiteral("trackCount"), playlist.trackCount },
                 { QStringLiteral("sizeText"), ViewModel::playlistSizeText(playlist) },
-                { QStringLiteral("coverIcon"), playlist.coverIcon.value_or(QString()) },
+                { QStringLiteral("coverIcon"), ViewModel::playlistCoverIcon(playlist) },
                 { QStringLiteral("coverUrl"), cover.isEmpty() ? QString() : QUrl::fromLocalFile(cover).toString() },
             });
         }

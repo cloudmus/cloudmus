@@ -157,6 +157,22 @@ private slots:
         QCOMPARE(changed.first().at(0).toModelIndex().row(), 1);
         QCOMPARE(model_.allTracks().at(1).title, QStringLiteral("B!"));
     }
+
+    // A playlist with no picture always gets a glyph: the source's, else its kind's.
+    void playlistCoverIconFallsBackToKind()
+    {
+        Playlist playlist;
+        playlist.kind = QStringLiteral("playlist");
+        QCOMPARE(ViewModel::playlistCoverIcon(playlist), QStringLiteral("playlist"));
+        playlist.kind = QStringLiteral("liked");
+        QCOMPARE(ViewModel::playlistCoverIcon(playlist), QStringLiteral("liked"));
+        playlist.kind = QStringLiteral("radioStation");
+        QCOMPARE(ViewModel::playlistCoverIcon(playlist), QStringLiteral("wave"));
+        playlist.coverIcon = QString();
+        QCOMPARE(ViewModel::playlistCoverIcon(playlist), QStringLiteral("wave"));
+        playlist.coverIcon = QStringLiteral("album");
+        QCOMPARE(ViewModel::playlistCoverIcon(playlist), QStringLiteral("album"));
+    }
 };
 
 QObject* makeTrackListUpdateTest() { return new TrackListUpdateTest; }

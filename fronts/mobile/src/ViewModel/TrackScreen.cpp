@@ -7,6 +7,7 @@
 #include "Core.h"
 #include "MainScreen.h"
 #include "PlaylistScreens.h"
+#include "TrackListModel.h"
 
 namespace ViewModel {
 
@@ -212,7 +213,7 @@ void TrackScreen::showPlaylists()
             { QStringLiteral("title"), playlist.title },
             { QStringLiteral("trackCount"), playlist.trackCount },
             { QStringLiteral("coverUrl"), localCoverUrl(playlist.coverUrl.value_or(QString())) },
-            { QStringLiteral("coverIcon"), playlist.coverIcon.value_or(QString()) },
+            { QStringLiteral("coverIcon"), ViewModel::playlistCoverIcon(playlist) },
             { QStringLiteral("contains"), containing_.contains(playlist.id) },
             { QStringLiteral("changing"), changing_.contains(playlist.id) },
         });
