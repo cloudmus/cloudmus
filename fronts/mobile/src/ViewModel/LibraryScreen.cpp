@@ -9,6 +9,8 @@
 #include "AuthStates.h"
 #include "CoverArtCache.h"
 #include "NowPlaying.h"
+#include "RpcMethods.h"
+#include "SourceManager.h"
 #include "SourcePage.h"
 #include "Sources.h"
 #include "TrackListModel.h"
@@ -21,19 +23,22 @@ QString fileUrl(const QString& path) { return path.isEmpty() ? QString() : QUrl:
 
 // `path`: the folders it's in (Playlist.parentId), for one shown away from
 // them — a favorite. `sizeText`: how much its files take, "" when unknown.
+// `offerQuestion`: asked before it's opened (Playlist.offer), "" when nothing
+// is; `offerAccept`/`offerDecline` its two answers' labels.
 const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "sizeText", "kind", "coverUrl", "coverIcon",
-    "isActive", "isStarting", "isFavorite", "path" };
+    "isActive", "isStarting", "isFavorite", "path", "offerQuestion", "offerAccept", "offerDecline" };
 
 } // namespace
 
 LibraryScreen::LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, NowPlaying& nowPlaying, Rpc::AuthStates& authStates,
-    SourcePage& sourcePage, Covers::CoverArtCache& covers, QObject* parent)
+    SourcePage& sourcePage, Rpc::SourceManager& sourceManager, Covers::CoverArtCache& covers, QObject* parent)
     : QObject(parent)
     , sources_(sources)
     , activePlaylist_(activePlaylist)
     , nowPlaying_(nowPlaying)
     , authStates_(authStates)
     , sourcePage_(sourcePage)
+    , sourceManager_(sourceManager)
     , covers_(covers)
     , sourceRows_({ "sourceId", "name", "iconUrl", "needsSignIn", "isLoading", "hasError", "isCurrent" })
     , favoriteRows_(kPlaylistRoles)
@@ -145,6 +150,31 @@ Rpc::Task<void> LibraryScreen::start(QString sourceId, Playlist playlist)
 
 void LibraryScreen::toggleFavorite(const QString& playlistId) { sources_.toggleFavorite(currentSourceId_, playlistId); }
 
+void LibraryScreen::answerOffer(const QString& playlistId, bool accept)
+{
+    const QList<Playlist> playlists = sources_.playlists(currentSourceId_);
+    const auto it = std::find_if(
+        playlists.cbegin(), playlists.cend(), [&](const Playlist& playlist) { return playlist.id == playlistId; });
+    if (it == playlists.cend() || !it->offer)
+        return;
+    applyOffer(currentSourceId_, accept ? it->offer->accept.values : it->offer->decline.values).detach();
+}
+
+Rpc::Task<void> LibraryScreen::applyOffer(QString sourceId, QMap<QString, QJsonValue> values)
+{
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr)
+        co_return;
+    try {
+        co_await Rpc::settingsUpdate(*client, UpdateParams { values });
+    } catch (const std::exception& e) {
+        qWarning("library: %s didn't take the answer: %s", qPrintable(sourceId), e.what());
+        co_return;
+    }
+    // Lists anew, and asks the platform for what it now wants (media/wanted).
+    sourceManager_.notifySettingsChanged(sourceId);
+}
+
 void LibraryScreen::refresh()
 {
     if (!currentSourceId_.isEmpty())
@@ -181,6 +211,9 @@ QVariantHash LibraryScreen::playlistRow(const Playlist& playlist)
         { QStringLiteral("isFavorite"), sources_.isFavorite(currentSourceId_, playlist.id) },
         { QStringLiteral("path"),
             sources_.model().parentTitles(currentSourceId_, playlist.id).join(QStringLiteral(" / ")) },
+        { QStringLiteral("offerQuestion"), playlist.offer ? playlist.offer->question : QString() },
+        { QStringLiteral("offerAccept"), playlist.offer ? playlist.offer->accept.label : QString() },
+        { QStringLiteral("offerDecline"), playlist.offer ? playlist.offer->decline.label : QString() },
     };
 }
 

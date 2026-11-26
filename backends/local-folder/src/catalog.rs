@@ -42,6 +42,8 @@ struct Library {
 const MUSIC_FOLDER: u8 = 0;
 const SAVED: u8 = 1;
 const DEVICE: u8 = 2;
+// The host's music besides the app's own (add_host).
+const HOST_DEVICE_ID: &str = "@android/device-media";
 
 fn relative_id(path: &Path) -> Option<String> {
     path.components()
@@ -203,7 +205,7 @@ impl Library {
     // made; the rest of the device's music under Device music, by its folders.
     fn add_host(&mut self, data: &Value, tr: impl Fn(&str) -> String) {
         const SAVED_ID: &str = "@android/saved-media";
-        const DEVICE_ID: &str = "@android/device-media";
+        const DEVICE_ID: &str = HOST_DEVICE_ID;
         let mut saved = Vec::new();
         if let Some(roots) = data["folders"].as_array() {
             for root in roots {
@@ -516,10 +518,35 @@ fn cover_room(dir: &Path, bytes: u64) -> bool {
     stats.f_bavail.saturating_mul(stats.f_frsize) >= (1 << 30) + bytes
 }
 
+// Device music, before the user has said whether they want it: the question
+// the front asks when the Wave or Device music is opened (Playlist.offer).
+// Either answer is kept, and the setting stays in the source's settings.
+fn device_offer(tr: &impl Fn(&str) -> String) -> Value {
+    json!({
+        "question": tr("Show all the music on this device, or only what you keep in CloudMus?"),
+        "accept": {"label": tr("All of it"), "values": {"deviceMusic": true}},
+        "decline": {"label": tr("Only mine"), "values": {"deviceMusic": false}}
+    })
+}
+
 pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
     let library = Library::new(&tr);
-    // The wave first, when there's music to make it of.
-    let wave = (!library.playlists.is_empty()).then(|| crate::wave::playlist(&tr));
+    let undecided = config::host_library().is_some() && config::device_music_choice().is_none();
+    // The wave first, when there's music to make it of, or may be.
+    let wave = (undecided || !library.playlists.is_empty()).then(|| {
+        let mut wave = crate::wave::playlist(&tr);
+        if undecided {
+            wave["offer"] = device_offer(&tr);
+        }
+        wave
+    });
+    // Then Device music, there to be asked for.
+    let device = (undecided && !library.playlists.contains_key(HOST_DEVICE_ID)).then(|| {
+        json!({
+            "id": HOST_DEVICE_ID, "title": tr("Device music"), "trackCount": 0, "kind": "playlist",
+            "featured": true, "coverIcon": "device", "offer": device_offer(&tr)
+        })
+    });
     // A folder with folders inside is shown as one; with only tracks, as an
     // album (Playlist.coverIcon), unless its group names its own.
     let parents: HashSet<&str> = library
@@ -529,6 +556,7 @@ pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
         .collect();
     let lists: Vec<_> = wave
         .into_iter()
+        .chain(device)
         .chain(library.lists().map(|(id, list)| {
             let mut playlist = json!({
                 "id": id, "title": list.title, "trackCount": list.tracks.len(), "kind": "playlist"
@@ -542,6 +570,10 @@ pub fn playlists(tr: impl Fn(&str) -> String) -> Value {
             playlist["coverIcon"] = json!(icon);
             if list.deletable {
                 playlist["deletable"] = json!(true);
+            }
+            // Where it was while it asked (device_offer), at the top.
+            if id == HOST_DEVICE_ID {
+                playlist["featured"] = json!(true);
             }
             let size: u64 = list.tracks.iter().map(Track::size).sum();
             if size > 0 {

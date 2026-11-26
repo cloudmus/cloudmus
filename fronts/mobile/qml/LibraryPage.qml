@@ -101,6 +101,29 @@ Page {
         onTriggered: if (page._awaitingSource) page._comeIn()
     }
 
+    // A playlist tapped: one that asks first (Playlist.offer) asks; the answer
+    // changes the list, and nothing opens. Otherwise a station plays, a
+    // playlist opens to see its tracks (`open`: a station's page too).
+    function pick(row, open) {
+        if (row.offerQuestion !== "") {
+            offerDialog.playlistId = row.playlistId
+            offerDialog.cancelText = row.offerDecline
+            offerDialog.ask(row.title, row.offerQuestion, row.offerAccept)
+        } else if (row.kind === "radioStation" && !open) {
+            library.playPlaylist(row.playlistId)
+        } else {
+            openPlaylist(row.playlistId)
+        }
+    }
+    ConfirmDialog {
+        id: offerDialog
+        objectName: "offerDialog"
+        property string playlistId
+        danger: false
+        onAccepted: page.library.answerOffer(playlistId, true)
+        onDeclined: page.library.answerOffer(playlistId, false)
+    }
+
     function openPlaylist(playlistId) {
         backend.playlistScreen.openPlaylist(library.currentSourceId, playlistId)
         playlistRequested()
@@ -504,15 +527,17 @@ Page {
                             required property var isActive
                             required property var isStarting
                             required property var path
+                            required property var offerQuestion
+                            required property var offerAccept
+                            required property var offerDecline
                             width: tiles.cellWidth
                             height: tiles.cellHeight
                             focusPolicy: Qt.NoFocus
                             // A station has no tracks to look at: it plays. A playlist
                             // opens, to see its tracks.
-                            onClicked: tile.kind === "radioStation" ? page.library.playPlaylist(tile.playlistId)
-                                                                    : page.openPlaylist(tile.playlistId)
+                            onClicked: page.pick(tile, false)
                             // Its page, a station's too: its star there takes it out of the favorites.
-                            onPressAndHold: page.openPlaylist(tile.playlistId)
+                            onPressAndHold: page.pick(tile, true)
                             contentItem: ColumnLayout {
                                 spacing: Theme.dp(4)
                                 Cover {
@@ -589,6 +614,9 @@ Page {
                             required property var coverUrl
                             required property var coverIcon
                             required property var isActive
+                            required property var offerQuestion
+                            required property var offerAccept
+                            required property var offerDecline
                             required property var isStarting
                             width: ListView.view.width
                             height: Theme.rowHeight
@@ -596,9 +624,8 @@ Page {
                             // row: the content overflowed downwards, off the highlight's middle.
                             topPadding: 0
                             bottomPadding: 0
-                            onClicked: other.kind === "radioStation" ? page.library.playPlaylist(other.playlistId)
-                                                                     : page.openPlaylist(other.playlistId)
-                            onPressAndHold: page.openPlaylist(other.playlistId)
+                            onClicked: page.pick(other, false)
+                            onPressAndHold: page.pick(other, true)
                             background: Rectangle {
                                 radius: Theme.radius
                                 color: other.down && otherRipple.flat ? Theme.surface200 : "transparent"

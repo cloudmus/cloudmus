@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QJsonValue>
+#include <QMap>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -13,6 +15,7 @@ class CoverArtCache;
 }
 namespace Rpc {
 class AuthStates;
+class SourceManager;
 }
 
 namespace ViewModel {
@@ -51,7 +54,8 @@ class LibraryScreen : public QObject {
 
 public:
     LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, NowPlaying& nowPlaying, Rpc::AuthStates& authStates,
-        SourcePage& sourcePage, Covers::CoverArtCache& covers, QObject* parent = nullptr);
+        SourcePage& sourcePage, Rpc::SourceManager& sourceManager, Covers::CoverArtCache& covers,
+        QObject* parent = nullptr);
 
     RowsModel& sourceRows() { return sourceRows_; }
     RowsModel& favoriteRows() { return favoriteRows_; }
@@ -83,6 +87,10 @@ public slots:
     // The active one isn't started over: it only plays on if paused.
     void playPlaylist(const QString& playlistId);
     void toggleFavorite(const QString& playlistId);
+    // The current source's playlist asked a question before it's opened
+    // (Playlist.offer, a row's offerQuestion): the user's answer, which sets
+    // the source's settings it names. Nothing is opened: the list changes.
+    void answerOffer(const QString& playlistId, bool accept);
     void refresh();
     void signIn();
     void signOut();
@@ -109,12 +117,14 @@ private:
     void rebuild();
     QVariantHash playlistRow(const Playlist& playlist);
     Rpc::Task<void> start(QString sourceId, Playlist playlist);
+    Rpc::Task<void> applyOffer(QString sourceId, QMap<QString, QJsonValue> values);
 
     Sources& sources_;
     ActivePlaylist& activePlaylist_;
     NowPlaying& nowPlaying_;
     Rpc::AuthStates& authStates_;
     SourcePage& sourcePage_;
+    Rpc::SourceManager& sourceManager_;
     Covers::CoverArtCache& covers_;
     RowsModel sourceRows_;
     RowsModel favoriteRows_;

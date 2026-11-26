@@ -16,4 +16,5 @@ properties:
   parentId: {type: string}          # optional (1.21+); listed inside that playlist, as a folder inside a folder
   coverIcon: {type: string}         # optional (1.25+); a glyph drawn over a generated cover: wave | saved | device | folder | album
   sizeBytes: {type: integer, format: int64}  # optional (1.24+); how much its tracks' files take, in bytes
+  offer: {$ref: "playlist_offer.yaml"}  # optional (1.26+); a question asked before it's opened, the answer setting the source's settings
 additionalProperties: false

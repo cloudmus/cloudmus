@@ -307,7 +307,12 @@ for a track that's only on a service.
   "deletable": true,               // optional (1.22+): catalog.deletePlaylist deletes it and its tracks (§7.11)
   "parentId": "2",                 // optional (1.21+): listed inside that playlist
   "sizeBytes": 356515840,          // optional (1.24+): how much its tracks' files take
-  "coverIcon": "saved"             // optional (1.25+): a glyph over the generated cover
+  "coverIcon": "saved",            // optional (1.25+): a glyph over the generated cover
+  "offer": {                       // optional (1.26+): a question asked before it's opened
+    "question": "Show all the music on this device, or only what you keep in CloudMus?",
+    "accept": {"label": "All of it", "values": {"deviceMusic": true}},
+    "decline": {"label": "Only mine", "values": {"deviceMusic": false}}
+  }
 }
 ```
 `kind: "radioStation"` playlists (e.g. My Wave) have no fixed track
@@ -349,6 +354,19 @@ downloaded), `device` (the music kept on the device), `folder` (a folder
 with folders inside), `album` (a folder of tracks only). A front draws the glyph
 from its own set and ignores a name it doesn't know; `coverUrl`, when
 present, wins.
+
+`offer` (1.26+) is for a playlist that only has something in it once the
+user has made a choice the source can't make for them — Local Folder's Device
+music and Wave, before the user has said whether to show the music other apps
+put on the device. When the user opens or plays such a playlist, a front asks
+`question` with two answers, `accept.label` and `decline.label`, and sends
+`settings.update` (§7.7) with the picked answer's `values`; it opens nothing,
+and lists the source's playlists anew. Closing the question without an
+answer changes nothing. The source drops `offer` once it has the answer,
+and may drop the playlist with it. The values are the source's own settings,
+so the user can change them later where the source's settings are. A front
+that can't ask — a car's media browser — leaves such a playlist out; one that
+doesn't know `offer` opens it as any other.
 
 ### PlaybackState
 ```jsonc

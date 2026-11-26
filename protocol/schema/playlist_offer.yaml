@@ -1,0 +1,12 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: playlist_offer.yaml
+title: PlaylistOffer
+# A question the front asks when the user opens the playlist (1.26+): the
+# answer sets some of the source's settings (docs/protocol.md §6).
+type: object
+required: [question, accept, decline]
+properties:
+  question: {type: string}
+  accept: {$ref: "offer_choice.yaml"}
+  decline: {$ref: "offer_choice.yaml"}
+additionalProperties: false

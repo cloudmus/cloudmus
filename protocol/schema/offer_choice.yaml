@@ -1,0 +1,11 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: offer_choice.yaml
+title: OfferChoice
+# One answer to a PlaylistOffer: its button's label, and what settings.update
+# is sent with when it's picked.
+type: object
+required: [label, values]
+properties:
+  label: {type: string}
+  values: {type: object, additionalProperties: {}}
+additionalProperties: false

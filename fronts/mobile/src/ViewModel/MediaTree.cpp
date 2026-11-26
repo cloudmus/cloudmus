@@ -104,14 +104,17 @@ QList<MediaTree::Item> MediaTree::playlistsOf(const QString& sourceId)
             covers_.localFile(playlist.coverUrl.value_or(QString())), false };
     };
     QList<Item> items;
-    // In the user's order.
+    // In the user's order. Not one that asks first (Playlist.offer): a car's
+    // list has no way to ask, and it's answered on the phone.
     for (const QString& id : sources_.model().favoritesFor(sourceId)) {
         const auto it = std::find_if(
             playlists.cbegin(), playlists.cend(), [&](const Playlist& playlist) { return playlist.id == id; });
-        if (it != playlists.cend())
+        if (it != playlists.cend() && !it->offer)
             items.append(toItem(*it));
     }
     for (const Playlist& playlist : playlists) {
+        if (playlist.offer)
+            continue;
         // The top level only, as the Library: a folder's subfolders would
         // make a car's list endless.
         const bool inside = playlist.parentId

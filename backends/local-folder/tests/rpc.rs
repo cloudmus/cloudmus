@@ -277,7 +277,8 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
         ]
     }).to_string().as_bytes());
     let mut backend = Backend::start(temp.path(), None, Some(&index));
-    // Only what the app saved, until device music is switched on.
+    // Only what the app saved, until device music is switched on; Device
+    // music is there to be asked for, as the Wave is.
     let result = backend.call("catalog.listPlaylists", json!({}));
     let lists = result["playlists"].as_array().unwrap();
     let summary: Vec<_> = lists
@@ -288,13 +289,21 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
         summary,
         [
             ("__wave__", None),
+            ("@android/device-media", None),
             ("@android/saved-media", None),
             ("@android/saved-media/Artist", Some("@android/saved-media")),
             ("@android/saved-media/Artist/Album", Some("@android/saved-media/Artist"))
         ]
     );
-    assert_eq!(lists[3]["title"], "Album");
-    assert_eq!(lists[3]["sizeBytes"], 4096);
+    assert_eq!(lists[4]["title"], "Album");
+    assert_eq!(lists[4]["sizeBytes"], 4096);
+    for list in &lists[..2] {
+        assert_eq!(list["offer"]["accept"]["values"], json!({"deviceMusic": true}));
+        assert_eq!(list["offer"]["decline"]["values"], json!({"deviceMusic": false}));
+        assert!(!list["offer"]["question"].as_str().unwrap().is_empty());
+    }
+    assert_eq!(lists[1]["trackCount"], 0);
+    assert!(lists[2..].iter().all(|list| list.get("offer").is_none()));
     let fields = backend.call("settings.describe", json!({}))["fields"].clone();
     assert!(fields.as_array().unwrap().iter().any(|field| field["key"] == "deviceMusic"));
     backend.call("settings.update", json!({"values": {"deviceMusic": true}}));
@@ -316,6 +325,20 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
             "@android/device-media"
         ]
     );
+    let device = result["playlists"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|list| list["id"] == "@android/device-media")
+        .unwrap()
+        .clone();
+    assert_eq!(device["featured"], true);
+    // Answered: nothing asks any more.
+    assert!(result["playlists"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|list| list.get("offer").is_none()));
     let result = backend.call(
         "catalog.listTracks",
         json!({"playlistId":"@android/device-media"}),
@@ -362,6 +385,55 @@ fn android_includes_managed_roots_and_media_as_distinct_inputs() {
         assert_eq!(result["stream"]["codec"], track["codec"]);
         assert_eq!(result["stream"]["bitrateKbps"], track["bitrateKbps"]);
     }
+}
+
+// "Only mine": Device music goes, the Wave stays for what the app keeps,
+// and neither asks again, after a restart too.
+#[test]
+fn only_my_music_is_an_answer_that_is_kept() {
+    let temp = tempfile::tempdir().unwrap();
+    let library = temp.path().join("Shared");
+    write_file(&library, "offline.mp3", b"");
+    let index = write_file(temp.path(), "library.json", json!({
+        "scope": "own",
+        "folders": [{"id": "internal", "path": library}],
+        "items": []
+    }).to_string().as_bytes());
+    let ids = |backend: &mut Backend| -> Vec<(String, bool)> {
+        backend.call("catalog.listPlaylists", json!({}))["playlists"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|list| (list["id"].as_str().unwrap().to_owned(), list.get("offer").is_some()))
+            .collect()
+    };
+    let mut backend = Backend::start(temp.path(), None, Some(&index));
+    assert_eq!(ids(&mut backend)[..2], [("__wave__".into(), true), ("@android/device-media".into(), true)]);
+    backend.call("settings.update", json!({"values": {"deviceMusic": false}}));
+    assert_eq!(backend.notification()["params"]["scope"], "own");
+    let after = ids(&mut backend);
+    assert_eq!(after[0], ("__wave__".into(), false));
+    assert!(after.iter().all(|(id, offer)| id != "@android/device-media" && !offer));
+    drop(backend);
+
+    let mut backend = Backend::start(temp.path(), None, Some(&index));
+    assert_eq!(ids(&mut backend), after);
+    let fields = backend.call("settings.describe", json!({}))["fields"].clone();
+    let field = fields.as_array().unwrap().iter().find(|field| field["key"] == "deviceMusic").unwrap().clone();
+    assert_eq!(field["value"], false);
+}
+
+// Without a host library (a desktop) nothing is offered.
+#[test]
+fn a_desktop_is_offered_nothing() {
+    let temp = tempfile::tempdir().unwrap();
+    let music = temp.path().join("Music");
+    write_file(&music, "song.mp3", b"");
+    let mut backend = Backend::start(temp.path(), Some(&music), None);
+    let result = backend.call("catalog.listPlaylists", json!({}));
+    let lists = result["playlists"].as_array().unwrap();
+    assert!(!lists.is_empty());
+    assert!(lists.iter().all(|list| list.get("offer").is_none() && list["id"] != "@android/device-media"));
 }
 
 #[test]

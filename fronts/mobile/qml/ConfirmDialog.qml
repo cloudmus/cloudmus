@@ -4,7 +4,9 @@ import QtQuick.Layouts
 
 // A question before something that can't be undone, such as deleting:
 // a heading, a line on what happens if it needs one, Cancel and the action. ask() opens it;
-// `accepted` comes on the action, only.
+// `accepted` comes on the action, only. With `cancelText` it's a choice
+// between two answers instead: the other one is `declined`; closed any other
+// way (Back, a tap beside it), neither.
 Popup {
     id: dialog
 
@@ -12,7 +14,9 @@ Popup {
     property string text
     property string actionText
     property bool danger: true
+    property string cancelText: ""
     signal accepted()
+    signal declined()
 
     function ask(heading, text, actionText) {
         dialog.heading = heading
@@ -81,8 +85,12 @@ Popup {
             spacing: Theme.spacing
             TextButton {
                 objectName: "confirmCancel"
-                text: qsTr("Cancel")
-                onClicked: dialog.close()
+                text: dialog.cancelText !== "" ? dialog.cancelText : qsTr("Cancel")
+                onClicked: {
+                    dialog.close()
+                    if (dialog.cancelText !== "")
+                        dialog.declined()
+                }
             }
             TextButton {
                 objectName: "confirmAction"

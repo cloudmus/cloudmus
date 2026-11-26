@@ -5,6 +5,16 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 1.26 — a question before a playlist opens
+
+- **Additive, backward-compatible**: optional `Playlist.offer` (§6): a
+  question a front asks when the user opens the playlist, whose two answers
+  each name the `settings.update` values they set. Local Folder offers it on
+  Android for the Wave and Device music until the user has said whether to
+  show all the device's music or only their own; Device music is listed
+  before that, empty, to be asked for. The setting stays in the source's
+  settings, and `false` is now kept as an answer rather than dropped.
+
 ## 1.25 — an icon on a generated cover
 
 - **Additive, backward-compatible**: optional `Playlist.coverIcon` (§6): a

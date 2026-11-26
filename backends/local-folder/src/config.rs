@@ -125,10 +125,15 @@ pub fn set_host_library(path: PathBuf) {
 /// Whether to show everything in the host's library, not only what the app
 /// saved: the scope media/wanted asks for.
 pub fn device_music() -> bool {
+    device_music_choice().unwrap_or(false)
+}
+
+/// The user's answer on Device music; None until they've given one, while
+/// the Wave and Device music ask for it (Playlist.offer).
+pub fn device_music_choice() -> Option<bool> {
     load(&config_file())
         .ok()
         .and_then(|config| config.get("settings")?.get("deviceMusic")?.as_bool())
-        .unwrap_or(false)
 }
 
 pub fn music_root() -> Option<PathBuf> {
@@ -230,14 +235,9 @@ pub fn update(
             settings.insert("musicDir".into(), value.clone());
         }
     }
-    match values.get("deviceMusic") {
-        Some(Value::Bool(true)) => {
-            settings.insert("deviceMusic".into(), Value::Bool(true));
-        }
-        Some(_) => {
-            settings.remove("deviceMusic");
-        }
-        None => {}
+    // Off is kept too: it's an answer, and the question isn't asked again.
+    if let Some(value @ Value::Bool(_)) = values.get("deviceMusic") {
+        settings.insert("deviceMusic".into(), value.clone());
     }
     config.insert("settings".into(), Value::Object(settings));
     let write = || -> io::Result<()> {
