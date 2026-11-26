@@ -118,6 +118,9 @@ private:
     QVariantHash playlistRow(const Playlist& playlist);
     Rpc::Task<void> start(QString sourceId, Playlist playlist);
     Rpc::Task<void> applyOffer(QString sourceId, QMap<QString, QJsonValue> values);
+    // A source that shows the device's own music (the hostMedia capability):
+    // first in the list, and what the Library opens on at first.
+    bool keepsDeviceMusic(const QString& sourceId) const;
 
     Sources& sources_;
     ActivePlaylist& activePlaylist_;
@@ -131,6 +134,9 @@ private:
     RowsModel otherRows_;
     QString currentSourceId_;
     QString startingPlaylistId_;
+    // A source was picked in the Library: it stays, as sources come and go.
+    // Until then the Library follows what plays, else the first.
+    bool picked_ = false;
 };
 
 } // namespace ViewModel

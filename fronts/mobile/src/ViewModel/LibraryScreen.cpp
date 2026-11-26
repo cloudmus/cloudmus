@@ -102,6 +102,7 @@ void LibraryScreen::selectSource(const QString& sourceId)
     // Picked: its turn to run, if it was left unstarted. It may be the one
     // shown already, picked for having no other to show.
     sourcePage_.wake(sourceId);
+    picked_ = true;
     if (sourceId == currentSourceId_)
         return;
     currentSourceId_ = sourceId;
@@ -175,6 +176,11 @@ Rpc::Task<void> LibraryScreen::applyOffer(QString sourceId, QMap<QString, QJsonV
     sourceManager_.notifySettingsChanged(sourceId);
 }
 
+bool LibraryScreen::keepsDeviceMusic(const QString& sourceId) const
+{
+    return sourcePage_.capabilities(sourceId).value(QStringLiteral("hostMedia")).toBool();
+}
+
 void LibraryScreen::refresh()
 {
     if (!currentSourceId_.isEmpty())
@@ -220,24 +226,29 @@ QVariantHash LibraryScreen::playlistRow(const Playlist& playlist)
 void LibraryScreen::rebuild()
 {
     const SidebarModel& model = sources_.model();
-    QStringList sourceIds;
+    // By name, as the model has them; the device's own music first: it plays
+    // with no account.
+    QList<QModelIndex> sourceIndexes;
     for (int row = 0; row < model.rowCount(); ++row) {
         const QModelIndex index = model.index(row, 0);
         if (index.data(SidebarModel::KindRole).toInt() == int(SidebarModel::Kind::SourceHeader))
-            sourceIds.append(index.data(SidebarModel::SourceIdRole).toString());
+            sourceIndexes.append(index);
     }
+    std::stable_partition(sourceIndexes.begin(), sourceIndexes.end(), [this](const QModelIndex& index) {
+        return keepsDeviceMusic(index.data(SidebarModel::SourceIdRole).toString());
+    });
+    QStringList sourceIds;
+    for (const QModelIndex& index : std::as_const(sourceIndexes))
+        sourceIds.append(index.data(SidebarModel::SourceIdRole).toString());
 
-    // The source picked, else the active playlist's, else the first.
-    if (!sourceIds.contains(currentSourceId_)) {
-        const QString active = activePlaylist_.context().sourceId;
+    // The source picked, else the active playlist's, else the first — which,
+    // until one is picked, may change as the sources come up.
+    const QString active = activePlaylist_.context().sourceId;
+    if (!sourceIds.contains(currentSourceId_) || (!picked_ && active.isEmpty()))
         currentSourceId_ = sourceIds.contains(active) ? active : sourceIds.value(0);
-    }
 
     QList<QVariantHash> sourceRows;
-    for (int row = 0; row < model.rowCount(); ++row) {
-        const QModelIndex index = model.index(row, 0);
-        if (index.data(SidebarModel::KindRole).toInt() != int(SidebarModel::Kind::SourceHeader))
-            continue;
+    for (const QModelIndex& index : std::as_const(sourceIndexes)) {
         const QString sourceId = index.data(SidebarModel::SourceIdRole).toString();
         sourceRows.append({
             { QStringLiteral("sourceId"), sourceId },
