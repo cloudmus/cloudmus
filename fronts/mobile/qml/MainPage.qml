@@ -459,16 +459,23 @@ Page {
                             font.pixelSize: Theme.fontBody
                         }
                     }
+                    // These three narrow away with their fading, as the filter and
+                    // the menu do: at full width in the covers' column they'd push
+                    // the screen's arrow out past the clip and take its taps.
                     OfflineBadge {
                         backend: page.backend
                         // Always: the text would take the whole bar on a head unit.
                         iconOnly: true
+                        visible: screen !== null && screen.offline === true && opacity > 0
+                        Layout.maximumWidth: implicitWidth * Math.max(0, 1 - page.screenProgress * 2)
                         opacity: Math.max(0, 1 - page.screenProgress * 2)
                     }
                     // A new version is out: its page.
                     IconButton {
                         objectName: "updateAvailable"
                         visible: page.backend.updateScreen !== null && page.backend.updateScreen.available === true
+                            && opacity > 0
+                        Layout.maximumWidth: implicitWidth * Math.max(0, 1 - page.screenProgress * 2)
                         iconName: "upgrade"
                         color: Theme.accent
                         opacity: Math.max(0, 1 - page.screenProgress * 2)
@@ -478,6 +485,8 @@ Page {
                     IconButton {
                         objectName: "spaceWarning"
                         visible: page.backend.mainScreen !== null && page.backend.mainScreen.spaceWarning !== ""
+                            && opacity > 0
+                        Layout.maximumWidth: implicitWidth * Math.max(0, 1 - page.screenProgress * 2)
                         iconName: "warning"
                         color: Theme.danger
                         opacity: Math.max(0, 1 - page.screenProgress * 2)

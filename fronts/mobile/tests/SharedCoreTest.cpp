@@ -1133,6 +1133,9 @@ private slots:
     void openedAudioShowsItsTrack()
     {
         QSettings().remove(QStringLiteral("ui/screenExpanded"));
+        // After the engine has gone: its Settings write the turned screen back
+        // as they go, and the tests after this one would start on it.
+        const auto unturn = qScopeGuard([] { QSettings().remove(QStringLiteral("ui/screenExpanded")); });
         QTemporaryDir dir;
         App::MobileCore core({ dir.filePath("core.ini") });
         Ui::Backend backend(core);
@@ -1177,7 +1180,6 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(&platform, "audioOpened"));
         QTRY_COMPARE(stack->property("depth").toInt(), 1);
         QTRY_COMPARE(page->property("screenProgress").toReal(), 1.0);
-        QSettings().remove(QStringLiteral("ui/screenExpanded"));
     }
 
     // A source can take seconds to start the next track. Until then the cover
@@ -2655,6 +2657,51 @@ private slots:
 
         core.core().connectivity().reportReached(QStringLiteral("fake"));
         QTRY_VERIFY(!badge->isVisible());
+    }
+
+    // On the track's screen the bar has only the covers' width: what fades out
+    // there (the offline badge, the update's and space's buttons) must narrow
+    // away too, or it pushes the arrow back out past the edge and takes its taps.
+    void theScreensArrowStaysWithTheBarsIcons()
+    {
+        QTemporaryDir dir;
+        App::MobileCore core({ dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        playFake(core);
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(1280, 720);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
+
+        core.core().connectivity().reportOffline(QStringLiteral("fake"));
+        core.core().messages().offline(QStringLiteral("no network"));
+        auto* badge = window->findChild<QQuickItem*>("offlineBadge");
+        auto* toggle = window->findChild<QQuickItem*>("screenModeToggle");
+        auto* panel = window->findChild<QQuickItem*>("trackPanel");
+        QVERIFY(badge && toggle && panel);
+        QTRY_VERIFY(badge->isVisible());
+
+        QVERIFY(QMetaObject::invokeMethod(toggle, "clicked"));
+        QTRY_COMPARE(panel->property("progress").toReal(), 1.0);
+        const QRectF arrow = toggle->mapRectToScene(QRectF(0, 0, toggle->width(), toggle->height()));
+        QVERIFY2(arrow.right() <= window->width() + 0.5,
+                 qPrintable(QStringLiteral("arrow at %1..%2 of %3").arg(arrow.left()).arg(arrow.right())
+                            .arg(window->width())));
+        QVERIFY(!badge->isVisible());
+
+        // A tap where it's drawn turns the screen back.
+        QTest::mouseClick(window, Qt::LeftButton, {}, arrow.center().toPoint());
+        QTRY_COMPARE(panel->property("progress").toReal(), 0.0);
     }
 
     // A phone on its side has no height for a cover above the title: it goes
