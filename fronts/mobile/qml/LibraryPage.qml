@@ -394,110 +394,37 @@ Page {
                     spacing: Theme.padding
 
                     // Signing in, when the source asks for it.
-                    Rectangle {
+                    SignInCard {
                         Layout.fillWidth: true
                         visible: page.library && page.library.authNeeded === true
-                        implicitHeight: authColumn.implicitHeight + Theme.padding * 2
+                        url: page.library && page.library.authUrl ? page.library.authUrl : ""
+                        code: page.library && page.library.authCode ? page.library.authCode : ""
+                        error: page.library && page.library.authError ? page.library.authError : ""
+                        platform: page.platform
+                        wide: page.wide
+                        onSignInRequested: page.library.signIn()
+                    }
+
+                    // Not signed in yet: what there'll be to use.
+                    Rectangle {
+                        Layout.fillWidth: true
+                        visible: page.library && page.library.authNeeded === true && capabilityTags.count > 0
+                        implicitHeight: capabilityColumn.implicitHeight + Theme.padding * 2
                         radius: Theme.radius
                         color: Theme.surface200
-                        GridLayout {
-                            id: authColumn
+                        ColumnLayout {
+                            id: capabilityColumn
                             anchors.fill: parent
                             anchors.margins: Theme.padding
-                            columns: page.wide ? 2 : 1
-                            columnSpacing: Theme.padding
-                            rowSpacing: Theme.padding
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                Layout.alignment: Qt.AlignTop
-                                spacing: Theme.dp(8)
-                                BodyText {
-                                    text: qsTr("Sign in to see the playlists")
-                                    font.weight: Font.DemiBold
-                                }
-                                // Not signed in yet: what there'll be to use.
-                                SectionHeading {
-                                    visible: capabilityTags.count > 0
-                                    text: qsTr("Capabilities")
-                                }
-                                CapabilityTags {
-                                    id: capabilityTags
-                                    objectName: "capabilities"
-                                    Layout.fillWidth: true
-                                    model: page.library ? page.library.capabilities : []
-                                }
-                                BodyText {
-                                    visible: text !== ""
-                                    text: page.library && page.library.authError ? page.library.authError : ""
-                                    color: Theme.danger
-                                }
-                                BodyText {
-                                    objectName: "authLink"
-                                    visible: text !== ""
-                                    textFormat: Text.StyledText
-                                    linkColor: Theme.accent
-                                    text: page.library && page.library.authUrl
-                                          ? qsTr("Open %1 on any device and enter this code:")
-                                                .arg("<a href=\"" + page.library.authUrl + "\">" + page.library.authUrl + "</a>")
-                                          : ""
-                                    onLinkActivated: (link) => Qt.openUrlExternally(link)
-                                }
-                                RowLayout {
-                                    visible: authCode.text !== ""
-                                    spacing: Theme.dp(8)
-                                    Text {
-                                        id: authCode
-                                        objectName: "authCode"
-                                        text: page.library && page.library.authCode ? page.library.authCode : ""
-                                        color: Theme.accent
-                                        font.family: Theme.monoFamily
-                                        font.pixelSize: Theme.fontHeadline
-                                        font.weight: Font.Bold
-                                        TapHandler { onTapped: copyCode.clicked() }
-                                    }
-                                    IconButton {
-                                        id: copyCode
-                                        objectName: "copyAuthCode"
-                                        iconName: "content_copy"
-                                        onClicked: {
-                                            page.platform.copyText(authCode.text)
-                                            copied.visible = true
-                                            copiedTimeout.restart()
-                                        }
-                                    }
-                                    Text {
-                                        id: copied
-                                        visible: false
-                                        text: qsTr("Copied")
-                                        color: Theme.inkSecondary
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSmall
-                                        Timer {
-                                            id: copiedTimeout
-                                            interval: 2000
-                                            onTriggered: copied.visible = false
-                                        }
-                                    }
-                                }
-                                // While a code is shown the source is waiting for
-                                // it: asking again would only change the code.
-                                TextButton {
-                                    visible: authCode.text === ""
-                                    text: qsTr("Sign in")
-                                    onClicked: page.library.signIn()
-                                }
+                            spacing: Theme.dp(12)
+                            SectionHeading {
+                                text: qsTr("Capabilities")
                             }
-                            Image {
-                                objectName: "authQr"
-                                readonly property string url: page.library && page.library.authUrl
-                                                              ? page.library.authUrl : ""
-                                visible: url !== ""
-                                Layout.preferredWidth: Theme.dp(120)
-                                Layout.preferredHeight: Theme.dp(120)
-                                Layout.alignment: page.wide ? Qt.AlignTop : Qt.AlignHCenter
-                                sourceSize: Qt.size(width, height)
-                                source: url !== "" ? "image://qr/" + encodeURIComponent(url) : ""
-                                smooth: false
+                            CapabilityTags {
+                                id: capabilityTags
+                                objectName: "capabilities"
+                                Layout.fillWidth: true
+                                model: page.library ? page.library.capabilities : []
                             }
                         }
                     }

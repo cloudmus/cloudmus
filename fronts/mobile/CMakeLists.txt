@@ -194,6 +194,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/BodyText.qml
         qml/CapabilityTags.qml
         qml/QrCode.qml
+        qml/SignInCard.qml
         qml/CloudsBackdrop.qml
         qml/ConfirmDialog.qml
         qml/DropMenu.qml

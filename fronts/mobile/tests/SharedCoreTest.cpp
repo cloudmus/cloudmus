@@ -462,7 +462,7 @@ private slots:
         QCOMPARE(core.core().settings().language(), QStringLiteral("ru"));
         QCOMPARE(core.core().translator().language(), QStringLiteral("ru"));
         // A text the desktop has too reads the same.
-        QCOMPARE(QCoreApplication::translate("LibraryPage", "Sign in"), QStringLiteral("Войти"));
+        QCOMPARE(QCoreApplication::translate("SignInCard", "Sign in"), QStringLiteral("Войти"));
 
         // The system's language is what Auto means, as the views see it.
         core.settingsScreen().setSystemLanguages({ QStringLiteral("de-DE") });
@@ -2831,6 +2831,25 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("copyAuthCode"), "clicked"));
         QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("abc123"));
 
+        // A tap takes the QR code over the whole screen, and another back.
+        auto* qr = window->findChild<QQuickItem*>("authQr");
+        auto* full = qr->findChild<QObject*>("qrFullScreen");
+        QVERIFY(full);
+        const QPoint onQr = qr->mapToScene(QPointF(qr->width() / 2, qr->height() / 2)).toPoint();
+        QTest::mouseClick(window, Qt::LeftButton, { }, onQr);
+        QTRY_VERIFY(full->property("opened").toBool());
+        auto* large = full->findChild<QQuickItem*>("qrFullScreenImage");
+        QVERIFY(large);
+        QTRY_COMPARE(large->width(), window->width() - 32.0);
+        QVERIFY(large->width() > qr->width());
+        if (!shots.isEmpty())
+            window->grabWindow().save(shots + QStringLiteral("/phone-signin-qr.png"));
+        QTest::mouseClick(window, Qt::LeftButton, { }, QPoint(10, 10));
+        QTRY_VERIFY(!full->property("visible").toBool());
+        // Open again: signing in takes it away.
+        QTest::mouseClick(window, Qt::LeftButton, { }, onQr);
+        QTRY_VERIFY(full->property("opened").toBool());
+
         // Signing out is an entry of the menu in the title, there once signed in.
         auto* signOut = window->findChild<QQuickItem*>("signOut");
         QVERIFY(signOut);
@@ -2840,6 +2859,7 @@ private slots:
         core.core().authStates().setAuthenticated(fake);
         QTRY_VERIFY(signOut->property("available").toBool());
         QVERIFY(!window->findChild<QQuickItem*>("capabilities")->isVisible());
+        QTRY_VERIFY(!full->property("visible").toBool());
         // The menu: a tap beside it closes it and lands nowhere else.
         auto* menu = window->findChild<QObject*>("sourceMenu");
         QVERIFY(menu);

@@ -393,22 +393,6 @@
   <context>
     <name>LibraryPage</name>
     <message>
-      <source>Sign in to see the playlists</source>
-      <translation>Inicia sesión para ver las listas de reproducción</translation>
-    </message>
-    <message>
-      <source>Open %1 on any device and enter this code:</source>
-      <translation>Abre %1 en cualquier dispositivo e introduce este código:</translation>
-    </message>
-    <message>
-      <source>Copied</source>
-      <translation>Copiado</translation>
-    </message>
-    <message>
-      <source>Sign in</source>
-      <translation>Iniciar sesión</translation>
-    </message>
-    <message>
       <source>Favorites</source>
       <translation>Favoritos</translation>
     </message>
@@ -992,6 +976,25 @@
     <message>
       <source>What's being saved, and what has been</source>
       <translation>Lo que se está guardando y lo ya guardado</translation>
+    </message>
+  </context>
+  <context>
+    <name>SignInCard</name>
+    <message>
+      <source>Sign in to see the playlists</source>
+      <translation>Inicia sesión para ver las listas de reproducción</translation>
+    </message>
+    <message>
+      <source>Open %1 on any device and enter this code:</source>
+      <translation>Abre %1 en cualquier dispositivo e introduce este código:</translation>
+    </message>
+    <message>
+      <source>Copied</source>
+      <translation>Copiado</translation>
+    </message>
+    <message>
+      <source>Sign in</source>
+      <translation>Iniciar sesión</translation>
     </message>
   </context>
   <context>

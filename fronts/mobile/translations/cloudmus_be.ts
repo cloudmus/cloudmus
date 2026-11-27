@@ -395,22 +395,6 @@
   <context>
     <name>LibraryPage</name>
     <message>
-      <source>Sign in to see the playlists</source>
-      <translation>Увайдзіце, каб убачыць плэйлісты</translation>
-    </message>
-    <message>
-      <source>Open %1 on any device and enter this code:</source>
-      <translation>Адкрыйце %1 на любой прыладзе і ўвядзіце гэты код:</translation>
-    </message>
-    <message>
-      <source>Copied</source>
-      <translation>Скапіравана</translation>
-    </message>
-    <message>
-      <source>Sign in</source>
-      <translation>Увайсці</translation>
-    </message>
-    <message>
       <source>Favorites</source>
       <translation>Абранае</translation>
     </message>
@@ -997,6 +981,25 @@
     <message>
       <source>What's being saved, and what has been</source>
       <translation>Што захоўваецца і што ўжо захавана</translation>
+    </message>
+  </context>
+  <context>
+    <name>SignInCard</name>
+    <message>
+      <source>Sign in to see the playlists</source>
+      <translation>Увайдзіце, каб убачыць плэйлісты</translation>
+    </message>
+    <message>
+      <source>Open %1 on any device and enter this code:</source>
+      <translation>Адкрыйце %1 на любой прыладзе і ўвядзіце гэты код:</translation>
+    </message>
+    <message>
+      <source>Copied</source>
+      <translation>Скапіравана</translation>
+    </message>
+    <message>
+      <source>Sign in</source>
+      <translation>Увайсці</translation>
     </message>
   </context>
   <context>
