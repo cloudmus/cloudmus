@@ -2,8 +2,8 @@
 
 Music player: **fronts** (UI) and **backends** (one process per music
 service) talking JSON-RPC 2.0 over stdin/stdout, framed as NDJSON.
-Details: `docs/development.md`. Before touching `core/` or `fronts/desktop/`, read
-`core/AGENTS.md` and `fronts/desktop/AGENTS.md`.
+Details: `docs/development.md`. Before touching `core/`, `fronts/desktop/` or
+`fronts/mobile/`, read its `AGENTS.md`.
 
 ## Questions and changes
 

@@ -140,6 +140,72 @@ private slots:
             image.save(shots + QStringLiteral("/qr.png"));
     }
 
+    // A panel opens and folds over a moment, taking its layout's spacing with it.
+    void panelsComeAndGoSmoothly()
+    {
+        QQmlEngine engine;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Layouts
+            import Cloudmus.Mobile
+            Window {
+                width: 300
+                height: 600
+                visible: true
+                property alias column: column
+                property alias panel: panel
+                property alias row: row
+                property real extra: 0
+                ColumnLayout {
+                    id: column
+                    width: parent.width
+                    spacing: 16
+                    Panel {
+                        id: panel
+                        shown: false
+                        Item { implicitHeight: 100 + extra }
+                    }
+                    Item { implicitHeight: 10 }
+                    SettingsRow { id: row; text: "Row" }
+                }
+            }
+        )",
+            { });
+        const std::unique_ptr<QObject> object(component.create());
+        QVERIFY2(object, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(object.get());
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        auto* column = object->property("column").value<QQuickItem*>();
+        auto* panel = object->property("panel").value<QQuickItem*>();
+        auto* row = object->property("row").value<QQuickItem*>();
+        QTest::qWait(300);
+        QVERIFY(!panel->isVisible());
+        const qreal without = column->implicitHeight();
+
+        // Coming in: part of the way first, then all of it.
+        panel->setProperty("shown", true);
+        const qreal full = panel->property("padding").toReal() * 2 + 100;
+        QTRY_VERIFY(panel->height() > 0 && panel->height() < full);
+        // To the very end: the layout's rounded height gets there sooner.
+        QTRY_COMPARE(panel->implicitHeight(), full);
+        QTRY_COMPARE(column->implicitHeight(), without + full + 16);
+
+        // Growing.
+        object->setProperty("extra", 80);
+        QTRY_VERIFY(panel->height() > full && panel->height() < full + 80);
+        QTRY_COMPARE(panel->height(), full + 80);
+
+        // Going, as a row does.
+        const qreal rowHeight = row->height();
+        row->setProperty("shown", false);
+        QTRY_VERIFY(row->height() > 0 && row->height() < rowHeight);
+        QTRY_VERIFY(!row->isVisible());
+        panel->setProperty("shown", false);
+        QTRY_VERIFY(!panel->isVisible());
+        QTRY_COMPARE(column->implicitHeight(), 10.0);
+    }
+
     void initTestCase()
     {
         QVERIFY(settingsDir_.isValid());
@@ -2858,7 +2924,7 @@ private slots:
         QVERIFY(window->findChild<QQuickItem*>("capabilities")->isVisible());
         core.core().authStates().setAuthenticated(fake);
         QTRY_VERIFY(signOut->property("available").toBool());
-        QVERIFY(!window->findChild<QQuickItem*>("capabilities")->isVisible());
+        QTRY_VERIFY(!window->findChild<QQuickItem*>("capabilities")->isVisible());
         QTRY_VERIFY(!full->property("visible").toBool());
         // The menu: a tap beside it closes it and lands nowhere else.
         auto* menu = window->findChild<QObject*>("sourceMenu");

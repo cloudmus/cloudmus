@@ -3,20 +3,22 @@ import QtQuick.Layouts
 
 // A group of settings: its title in the accent color, and its cells close
 // together, as one block with large corners on the outside.
-ColumnLayout {
+Panel {
     id: group
 
     property string title
     // A word on the group as a whole, under its title.
     property string description
-    // Only the caller knows if a group has anything to show: a hidden group's
-    // cells all read as hidden too, so they can't be asked.
-    property bool shown: true
+    // `shown` (Panel) is the caller's to say: a hidden group's cells all read
+    // as hidden too, so they can't be asked.
     default property alias cells: column.data
 
-    Layout.fillWidth: true
-    visible: shown
+    color: "transparent"
+    radius: 0
+    padding: 0
     spacing: Theme.dp(8)
+    // Its cells move, and it follows them.
+    smoothResize: false
 
     function arrange() {
         const cells = []

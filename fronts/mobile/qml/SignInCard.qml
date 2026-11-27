@@ -5,7 +5,7 @@ import QtQuick.Layouts
 // asking for one, then where to enter it, the code itself, and the address as
 // a QR code (a head unit may have no browser, and typing an address into a
 // phone in a car is no fun).
-Rectangle {
+Panel {
     id: card
 
     // The page to open and the code to enter there; empty until asked for.
@@ -17,14 +17,11 @@ Rectangle {
     property bool wide: false
     signal signInRequested()
 
-    implicitHeight: grid.implicitHeight + Theme.padding * 2
-    radius: Theme.radius
-    color: Theme.surface200
-
     GridLayout {
         id: grid
-        anchors.fill: parent
-        anchors.margins: Theme.padding
+        Layout.fillWidth: true
+        // The panel's width, whatever's in it would like.
+        Layout.minimumWidth: 0
         columns: card.wide && card.url !== "" ? 2 : 1
         columnSpacing: Theme.padding * 2
         rowSpacing: Theme.padding
@@ -101,7 +98,7 @@ Rectangle {
         }
         QrCode {
             objectName: "authQr"
-            readonly property real side: Math.min(grid.width, Theme.dp(card.wide ? 240 : 300))
+            readonly property real side: Math.min(card.width - card.padding * 2, Theme.dp(card.wide ? 240 : 300))
             visible: card.url !== ""
             text: card.url
             platform: card.platform

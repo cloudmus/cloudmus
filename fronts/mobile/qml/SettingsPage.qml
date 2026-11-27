@@ -47,7 +47,7 @@ Page {
 
             SettingsCell {
                 objectName: "spaceWarning"
-                visible: warningText.text !== ""
+                shown: warningText.text !== ""
                 Text {
                     id: warningText
                     Layout.fillWidth: true
@@ -95,14 +95,14 @@ Page {
                 // A head unit has the track on its main screen, and no mini player.
                 SettingSwitch {
                     objectName: "miniPlayerEverywhere"
-                    visible: page.width <= page.height * 1.1
+                    shown: page.width <= page.height * 1.1
                     title: qsTr("Mini player on every screen")
                     checked: page.ui.miniPlayerEverywhere
                     onToggled: (checked) => page.ui.miniPlayerEverywhere = checked
                 }
                 // A list: there will be more languages.
                 SettingsCell {
-                    visible: page.localizer !== null
+                    shown: page.localizer !== null
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: Theme.padding
@@ -183,7 +183,7 @@ Page {
                 }
                 SettingsRow {
                     objectName: "downloadsRow"
-                    visible: page.saving !== null && page.saving.enabled === true
+                    shown: page.saving !== null && page.saving.enabled === true
                     text: qsTr("Downloads")
                     subtitle: page.saving !== null && page.saving.summary !== "" ? page.saving.summary
                         : qsTr("What's being saved, and what has been")
@@ -191,7 +191,7 @@ Page {
                 }
                 // As the desktop's Downloads settings.
                 SettingsCell {
-                    visible: page.saving !== null && page.saving.enabled === true
+                    shown: page.saving !== null && page.saving.enabled === true
                     SettingText {
                         title: qsTr("Subfolders")
                         description: page.saving ? qsTr("Tracks are saved to %1/").arg(
@@ -226,7 +226,7 @@ Page {
                 title: qsTr("Music storage")
                 // A source's Device music is on, and Android hasn't let it in yet.
                 SettingsRow {
-                    visible: page.screen !== null && page.screen.mediaPermissionNeeded === true
+                    shown: page.screen !== null && page.screen.mediaPermissionNeeded === true
                     text: qsTr("Allow reading the device's music")
                     onClicked: page.platform.requestMusicPermission()
                 }
@@ -302,7 +302,7 @@ Page {
                     onMoved: (value) => page.screen.setReserveMb(value)
                 }
                 SettingsCell {
-                    visible: page.screen !== null && page.screen.diskFreeText !== ""
+                    shown: page.screen !== null && page.screen.diskFreeText !== ""
                     SettingText {
                         objectName: "diskFree"
                         title: qsTr("%1 free now").arg(page.screen ? page.screen.diskFreeText : "")

@@ -248,7 +248,9 @@ Page {
                 objectName: "selectionBar"
                 anchors.fill: parent
                 anchors.topMargin: -Theme.insetTop
-                visible: page.selecting
+                visible: opacity > 0
+                opacity: page.selecting ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.durationFast } }
                 color: Theme.surface200
                 RowLayout {
                     anchors.fill: parent

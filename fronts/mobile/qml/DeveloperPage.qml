@@ -128,7 +128,7 @@ Page {
                 }
                 SettingsCell {
                     id: servedCell
-                    visible: page.platform.updateServerStatus !== ""
+                    shown: page.platform.updateServerStatus !== ""
                     readonly property var lines: page.platform.updateServerStatus.split("\n")
                     SettingText {
                         title: qsTr("Address for the other device")
@@ -178,9 +178,11 @@ Page {
                     }
                 }
             }
-            ColumnLayout {
-                visible: page.platform.exportingApps
-                Layout.fillWidth: true
+            Panel {
+                shown: page.platform.exportingApps
+                color: "transparent"
+                radius: 0
+                padding: 0
                 spacing: Theme.dp(6)
                 ProgressBar {
                     id: exportBar
@@ -233,11 +235,16 @@ Page {
                 target: page.platform
                 function onSystemAppsExported(result) { exportResult.text = result }
             }
-            BodyText {
-                id: exportResult
-                visible: text.length > 0
-                color: Theme.inkSecondary
-                font.pixelSize: Theme.fontSmall
+            Panel {
+                shown: exportResult.text.length > 0
+                color: "transparent"
+                radius: 0
+                padding: 0
+                BodyText {
+                    id: exportResult
+                    color: Theme.inkSecondary
+                    font.pixelSize: Theme.fontSmall
+                }
             }
                 }
             }
@@ -251,7 +258,7 @@ Page {
                 title: qsTr("Playback")
                 description: qsTr("An experiment against the click of a pause or a track changed by hand: fade out first, then wait for the silence to reach the speakers. Off by default: mpv's volume changes in steps, and each step can be heard.")
                 SettingsCell {
-                    visible: page.platform.android
+                    shown: page.platform.android
                     SettingText { title: qsTr("Audio output") }
                     Flow {
                         Layout.fillWidth: true
@@ -268,7 +275,7 @@ Page {
                     }
                 }
                 SettingStepper {
-                    visible: page.platform.android && !!playback.settings && playback.settings.audioOutput === "opensles"
+                    shown: page.platform.android && !!playback.settings && playback.settings.audioOutput === "opensles"
                     title: qsTr("OpenSL chunk")
                     description: qsTr("Frames handed to the output at a time; 480 is 10 ms at 48 kHz. Smaller makes the fade smoother; too small and a slow device crackles.")
                     value: playback.settings ? playback.settings.outputChunkFrames : 0

@@ -12,12 +12,20 @@ AbstractButton {
     property bool chevron: true
     property bool roundTop: true
     property bool roundBottom: true
+    // Instead of `visible`: the row comes and goes with an animation.
+    property bool shown: true
 
     Layout.fillWidth: true
-    implicitHeight: Math.max(Theme.touchLarge, content.implicitHeight + Theme.padding * 1.5)
     leftPadding: Theme.padding
     rightPadding: Theme.padding
     focusPolicy: Qt.NoFocus
+
+    PanelMotion {
+        id: motion
+        item: row
+        shown: row.shown
+        naturalHeight: Math.max(Theme.touchLarge, content.implicitHeight + Theme.padding * 1.5)
+    }
 
     background: Rectangle {
         color: row.down && ripple.flat ? Theme.surface300 : Theme.surface200
@@ -25,6 +33,9 @@ AbstractButton {
         topRightRadius: topLeftRadius
         bottomLeftRadius: row.roundBottom ? Theme.settingsCellRadius : Theme.settingsCellInnerRadius
         bottomRightRadius: bottomLeftRadius
+        // A neighbor came or went.
+        Behavior on topLeftRadius { enabled: motion.live; NumberAnimation { duration: Theme.durationFast } }
+        Behavior on bottomLeftRadius { enabled: motion.live; NumberAnimation { duration: Theme.durationFast } }
         Behavior on color { ColorAnimation { duration: Theme.durationFast } }
         Ripple {
             id: ripple

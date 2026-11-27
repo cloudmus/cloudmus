@@ -395,8 +395,9 @@ Page {
 
                     // Signing in, when the source asks for it.
                     SignInCard {
-                        Layout.fillWidth: true
-                        visible: page.library && page.library.authNeeded === true
+                        shown: !!page.library && page.library.authNeeded === true
+                        // Not as the page goes over to another source.
+                        animated: page._pendingSourceId === ""
                         url: page.library && page.library.authUrl ? page.library.authUrl : ""
                         code: page.library && page.library.authCode ? page.library.authCode : ""
                         error: page.library && page.library.authError ? page.library.authError : ""
@@ -406,26 +407,18 @@ Page {
                     }
 
                     // Not signed in yet: what there'll be to use.
-                    Rectangle {
-                        Layout.fillWidth: true
-                        visible: page.library && page.library.authNeeded === true && capabilityTags.count > 0
-                        implicitHeight: capabilityColumn.implicitHeight + Theme.padding * 2
-                        radius: Theme.radius
-                        color: Theme.surface200
-                        ColumnLayout {
-                            id: capabilityColumn
-                            anchors.fill: parent
-                            anchors.margins: Theme.padding
-                            spacing: Theme.dp(12)
-                            SectionHeading {
-                                text: qsTr("Capabilities")
-                            }
-                            CapabilityTags {
-                                id: capabilityTags
-                                objectName: "capabilities"
-                                Layout.fillWidth: true
-                                model: page.library ? page.library.capabilities : []
-                            }
+                    Panel {
+                        shown: !!page.library && page.library.authNeeded === true && capabilityTags.count > 0
+                        animated: page._pendingSourceId === ""
+                        spacing: Theme.dp(12)
+                        SectionHeading {
+                            text: qsTr("Capabilities")
+                        }
+                        CapabilityTags {
+                            id: capabilityTags
+                            objectName: "capabilities"
+                            Layout.fillWidth: true
+                            model: page.library ? page.library.capabilities : []
                         }
                     }
 

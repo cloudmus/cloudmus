@@ -130,16 +130,12 @@ Page {
         }
 
         // Why it can't install by itself.
-        Rectangle {
-            Layout.fillWidth: true
-            visible: page.step === page.stepOffer && page.screen !== null && page.screen.unavailableReason !== ""
-            implicitHeight: reason.implicitHeight + Theme.dp(20)
+        Panel {
+            shown: page.step === page.stepOffer && page.screen !== null && page.screen.unavailableReason !== ""
+            padding: Theme.dp(10)
             radius: Theme.dp(8)
             color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
             BodyText {
-                id: reason
-                anchors.fill: parent
-                anchors.margins: Theme.dp(10)
                 font.weight: Font.DemiBold
                 text: page.screen ? page.screen.unavailableReason : ""
             }
@@ -170,11 +166,14 @@ Page {
         }
 
         // The download, or the store's.
-        ColumnLayout {
-            Layout.fillWidth: true
+        Panel {
+            id: progress
             Layout.topMargin: Theme.padding
+            color: "transparent"
+            radius: 0
+            padding: 0
             spacing: Theme.dp(8)
-            visible: page.step === page.stepDownloading
+            shown: page.step === page.stepDownloading
                 || (page.step === page.stepInstalling && page.viaStore)
                 || (page.step === page.stepReady && page.allowed && !page._turnedDown)
             readonly property real fraction: page.step === page.stepDownloading
@@ -184,7 +183,7 @@ Page {
             Rectangle {
                 id: track
                 objectName: "updateProgress"
-                readonly property real fraction: parent.fraction
+                readonly property real fraction: progress.fraction
                 Layout.fillWidth: true
                 implicitHeight: Theme.dp(6)
                 radius: height / 2
