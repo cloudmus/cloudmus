@@ -550,6 +550,18 @@ void AudioPlayer::setOutput(const QByteArray& output, int openslesFramesPerEnque
     mpv_command_async(mpv_, 0, args);
 }
 
+#ifdef Q_OS_ANDROID
+void AudioPlayer::setAudioSession(int sessionId)
+{
+    qCInfo(lcAudioPlayer) << "audio session" << sessionId;
+    const QByteArray id = QByteArray::number(qMax(0, sessionId));
+    if (mpv_set_property_string(mpv_, "audiotrack-session-id", id.constData()) < 0)
+        qCWarning(lcAudioPlayer) << "mpv has no audiotrack-session-id: equalizers won't find the music";
+    const char* args[] = { "ao-reload", nullptr };
+    mpv_command_async(mpv_, 0, args);
+}
+#endif
+
 void AudioPlayer::command(QList<QByteArray> args)
 {
     auto run = [this, args = std::move(args)] {

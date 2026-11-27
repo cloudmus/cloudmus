@@ -441,7 +441,7 @@ void setUpPython(const QString& pythonHome, const QString& libraryDir)
     set("CLOUDMUS_BACKENDS_PYTHON", libraryDir + QStringLiteral("/libcmpython.so"));
 }
 
-void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nativeBackendDir)
+void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nativeBackendDir, int audioSession)
 {
     static int argc = 1;
     static char name[] = "cloudmus-core";
@@ -465,6 +465,9 @@ void runCore(QString filesDir, QString cacheDir, QString libraryDir, QString nat
 #endif
     App::MobileCore core({ filesDir + QStringLiteral("/core.ini"), 1000, 5000, &hostMedia, updatesDir });
     coreInstance = &core;
+    // Before anything plays: the equalizers are told of this one (CorePlayer).
+    if (audioSession > 0)
+        core.core().playback().setAudioSession(audioSession);
     core.core().downloads().setPublisher(QStringLiteral("Music/CloudMus"), publishTrack, remuxOpus, isTrackSaved);
     core.core().playback().setContentOpener(openContent);
     // Without it no stream or cover loads, and nothing else says why.
@@ -624,9 +627,9 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void*)
     return JNI_VERSION_1_6;
 }
 
-extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeStart(
-    JNIEnv* env, jclass, jobject application, jstring filesDir, jstring cacheDir, jstring libraryDir,
-    jstring nativeBackendDir)
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeStart(JNIEnv* env, jclass,
+    jobject application, jstring filesDir, jstring cacheDir, jstring libraryDir, jstring nativeBackendDir,
+    jint audioSession)
 {
     // FFmpeg's content protocol uses this reference for the lifetime of the process.
     static const bool contextRegistered = [env, application] {
@@ -639,7 +642,7 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeStar
     if (!contextRegistered)
         qWarning() << "could not initialize the Android context for FFmpeg";
     coreThread = std::thread(runCore, toQString(env, filesDir), toQString(env, cacheDir), toQString(env, libraryDir),
-        toQString(env, nativeBackendDir));
+        toQString(env, nativeBackendDir), int(audioSession));
 }
 
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativePythonReady(

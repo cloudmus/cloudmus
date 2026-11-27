@@ -170,6 +170,10 @@ public:
     // See AudioPlayer::setEdges() and setOutput().
     void setEdges(int fadeMs, int settleMs);
     void setOutput(const QByteArray& output, int openslesFramesPerEnqueue);
+#ifdef Q_OS_ANDROID
+    // See AudioPlayer::setAudioSession().
+    void setAudioSession(int sessionId);
+#endif
 
     // Play modes, kept as the user set them; a radio overrides what it
     // can't do (its queue grows as it plays, so there's no whole list to

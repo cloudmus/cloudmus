@@ -7,6 +7,7 @@ import android.content.IntentFilter;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.media.audiofx.AudioEffect;
 import android.os.Build;
 import android.os.Looper;
 
@@ -286,6 +287,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
             cancelResume("playing again");
             focusRetries = 0;
             requestFocus();
+            openEffectSession();
         }
     }
 
@@ -404,6 +406,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         playing = playWhenReady;
         if (playWhenReady) {
             requestFocus();
+            openEffectSession();
             // A browser's pick comes with a "play" right after: that would
             // bring back the old track until the new playlist has started.
             boolean starting = android.os.SystemClock.elapsedRealtime() < startingMediaUntil;
@@ -449,6 +452,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
     protected ListenableFuture<?> handleStop() {
         CoreBridge.command(CoreBridge.CMD_PAUSE, CoreBridge.PAUSE_USER);
         abandonFocus();
+        closeEffectSession();
         updateNoisyReceiver();
         return Futures.immediateVoidFuture();
     }
@@ -461,6 +465,7 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         cancelResume("released");
         updateNoisyReceiver();
         abandonFocus();
+        closeEffectSession();
         return Futures.immediateVoidFuture();
     }
 
@@ -728,6 +733,36 @@ final class CorePlayer extends SimpleBasePlayer implements CoreBridge.Listener {
         resumeHandler().removeCallbacks(pauseAfterHold);
         playing = false;
         refresh();
+    }
+
+    // Equalizers (Poweramp Equalizer, Wavelet, the system's own sound
+    // effects) learn of a player's audio session from these broadcasts, and
+    // keep their effects on it from open to close: through a pause too.
+    // Media3 sends them only for its own ExoPlayer.
+    private int openedEffectSession;
+
+    private void openEffectSession() {
+        int session = CoreBridge.audioSession(context);
+        if (released || session == 0 || openedEffectSession == session)
+            return;
+        openedEffectSession = session;
+        sendEffectSession(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION, session);
+        CmLog.i(TAG, "effect session " + session + " opened");
+    }
+
+    private void closeEffectSession() {
+        if (openedEffectSession == 0)
+            return;
+        sendEffectSession(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION, openedEffectSession);
+        CmLog.i(TAG, "effect session " + openedEffectSession + " closed");
+        openedEffectSession = 0;
+    }
+
+    private void sendEffectSession(String action, int session) {
+        context.sendBroadcast(new Intent(action)
+            .putExtra(AudioEffect.EXTRA_AUDIO_SESSION, session)
+            .putExtra(AudioEffect.EXTRA_PACKAGE_NAME, context.getPackageName())
+            .putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC));
     }
 
     // Headphones unplugged or a Bluetooth headset gone: Android has a player

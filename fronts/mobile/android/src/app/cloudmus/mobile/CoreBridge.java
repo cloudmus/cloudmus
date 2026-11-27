@@ -2,6 +2,7 @@ package app.cloudmus.mobile;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.media.AudioManager;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -115,7 +116,7 @@ public final class CoreBridge {
                                        boolean persistent);
 
     private static native void nativeStart(Context application, String filesDir, String cacheDir, String libraryDir,
-                                           String nativeBackendDir);
+                                           String nativeBackendDir, int audioSession);
     private static native void nativePythonReady(String pythonHome, String libraryDir);
 
     public static native void nativeCommand(int command, long argument);
@@ -218,6 +219,21 @@ public final class CoreBridge {
         stopHandler = handler;
     }
 
+    private static int audioSession;
+
+    // The audio session the music plays in, one for the process's life: given
+    // to the core's output and told to the equalizers. 0: Android gave none.
+    static synchronized int audioSession(Context context) {
+        if (audioSession == 0) {
+            int id = context.getSystemService(AudioManager.class).generateAudioSessionId();
+            if (id > 0)
+                audioSession = id;
+            else
+                CmLog.w(TAG, "no audio session id: " + id);
+        }
+        return audioSession;
+    }
+
     // Loads the core and starts it on a thread of its own. Idempotent. The
     // service can't wait here: Python's first unpacking takes many seconds.
     // Commands that come earlier wait in the core's library.
@@ -244,7 +260,7 @@ public final class CoreBridge {
             File nativeBackends = prepareNativeBackends(application);
             String libraryDir = application.getApplicationInfo().nativeLibraryDir;
             nativeStart(application, application.getFilesDir().getPath(), application.getCacheDir().getPath(),
-                libraryDir, nativeBackends == null ? "" : nativeBackends.getPath());
+                libraryDir, nativeBackends == null ? "" : nativeBackends.getPath(), audioSession(application));
             try {
                 File python = PythonRuntime.prepare(application);
                 nativePythonReady(python.getPath(), libraryDir);

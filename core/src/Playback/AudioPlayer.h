@@ -96,6 +96,14 @@ public:
     // it hands over at a time (0: mpv's default, the whole 250 ms buffer).
     // Reopens the output.
     void setOutput(const QByteArray& output, int openslesFramesPerEnqueue);
+#ifdef Q_OS_ANDROID
+    // The Android audio session the output plays in (AudioManager's
+    // generateAudioSessionId()). Equalizers such as Poweramp's attach their
+    // effects to a session they're told about; left to itself, mpv's
+    // AudioTrack gets one of its own nobody knows. AudioTrack only: OpenSL ES
+    // has no sessions. Reopens the output.
+    void setAudioSession(int sessionId);
+#endif
 
     // Loudness readings of what plays (before the volume control), for
     // views that move with the music. Off by default: they cost a stream of

@@ -1371,6 +1371,10 @@ void PlaybackController::setOutput(const QByteArray& output, int openslesFramesP
     audioPlayer_->setOutput(output, openslesFramesPerEnqueue);
 }
 
+#ifdef Q_OS_ANDROID
+void PlaybackController::setAudioSession(int sessionId) { audioPlayer_->setAudioSession(sessionId); }
+#endif
+
 void PlaybackController::setLevelsEnabled(bool enabled) { audioPlayer_->setLevelsEnabled(enabled); }
 
 QVector<LevelReading> PlaybackController::takeLevels()

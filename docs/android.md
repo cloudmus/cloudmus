@@ -173,6 +173,19 @@ adb logcat -s CloudmusStart             # startup milestones
   starts (many sleep rather than reboot, so `BOOT_COMPLETED` may not come):
   the log lists every broadcast the receiver gets.
 
+## System equalizers
+
+Poweramp Equalizer, Wavelet and the system's own sound effects find a player
+by its audio session. The player process takes one session id for its life
+(`CoreBridge.audioSession()`), gives it to mpv (`audiotrack-session-id`) and
+announces it with Android's `OPEN_AUDIO_EFFECT_CONTROL_SESSION` broadcast when
+playback first starts, and `CLOSE_…` when the player stops (`CorePlayer`).
+Only the AudioTrack output (the default) has sessions: with OpenSL ES, chosen
+in Developer tools, an equalizer doesn't affect the music.
+
+To check, filter the log for `audio session` and `effect session`, and see
+the track's session in `adb shell dumpsys media.audio_flinger`.
+
 ## Local music and saving
 
 The Local Folder source shows tracks saved by CloudMus. In the source settings
