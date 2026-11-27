@@ -147,7 +147,7 @@ SELF_PLAYBACK_CAPABILITIES = {
     "browse": {"playlists": False, "likedTracks": False, "radio": False, "search": False},
     "feedback": {"like": False, "dislike": False, "skip": False},
     "download": False,
-    "auth": {"required": False, "flow": "none"},
+    "auth": {"required": False},
 }
 
 
@@ -159,7 +159,7 @@ def self_playback_fixture() -> ScriptedBackend:
 
     def handle_initialize(params: dict[str, Any]) -> dict[str, Any]:
         return {
-            "protocolVersion": "1.0",
+            "protocolVersion": "2.0",
             "source": {"id": "fixture-self-playback", "name": "Fixture", "version": "0.0.0"},
             "capabilities": SELF_PLAYBACK_CAPABILITIES,
         }

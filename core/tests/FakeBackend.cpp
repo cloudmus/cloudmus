@@ -46,7 +46,8 @@ void replyOffline(const QJsonValue& id)
     send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
         { QStringLiteral("error"),
             QJsonObject { { QStringLiteral("code"), 1200 }, { QStringLiteral("message"), QStringLiteral("no network") },
-                { QStringLiteral("data"), QJsonObject { { QStringLiteral("reason"), QStringLiteral("offline") } } } } } });
+                { QStringLiteral("data"),
+                    QJsonObject { { QStringLiteral("reason"), QStringLiteral("offline") } } } } } });
 }
 
 void replyError(const QJsonValue& id, int code, const QString& message)
@@ -75,7 +76,8 @@ QJsonObject settingsDescription(const QJsonObject& values)
         { QStringLiteral("fields"),
             QJsonArray {
                 QJsonObject { { QStringLiteral("key"), QStringLiteral("quality") },
-                    { QStringLiteral("label"), QStringLiteral("Quality") }, { QStringLiteral("type"), QStringLiteral("enum") },
+                    { QStringLiteral("label"), QStringLiteral("Quality") },
+                    { QStringLiteral("type"), QStringLiteral("enum") },
                     { QStringLiteral("default"), QStringLiteral("high") },
                     { QStringLiteral("value"), value("quality", QStringLiteral("high")) },
                     { QStringLiteral("options"),
@@ -84,22 +86,28 @@ QJsonObject settingsDescription(const QJsonObject& values)
                             QJsonObject { { QStringLiteral("value"), QStringLiteral("low") },
                                 { QStringLiteral("label"), QStringLiteral("Low") } } } } },
                 QJsonObject { { QStringLiteral("key"), QStringLiteral("count") },
-                    { QStringLiteral("group"), QStringLiteral("more") }, { QStringLiteral("label"), QStringLiteral("Count") },
+                    { QStringLiteral("group"), QStringLiteral("more") },
+                    { QStringLiteral("label"), QStringLiteral("Count") },
                     { QStringLiteral("type"), QStringLiteral("integer") }, { QStringLiteral("default"), 3 },
-                    { QStringLiteral("value"), value("count", 3) }, { QStringLiteral("min"), 1 }, { QStringLiteral("max"), 9 } },
+                    { QStringLiteral("value"), value("count", 3) }, { QStringLiteral("min"), 1 },
+                    { QStringLiteral("max"), 9 } },
                 QJsonObject { { QStringLiteral("key"), QStringLiteral("flag") },
-                    { QStringLiteral("group"), QStringLiteral("more") }, { QStringLiteral("label"), QStringLiteral("Flag") },
+                    { QStringLiteral("group"), QStringLiteral("more") },
+                    { QStringLiteral("label"), QStringLiteral("Flag") },
                     { QStringLiteral("description"), QStringLiteral("Takes a restart") },
                     { QStringLiteral("type"), QStringLiteral("boolean") }, { QStringLiteral("default"), false },
                     { QStringLiteral("value"), value("flag", false) }, { QStringLiteral("restartRequired"), true } },
                 QJsonObject { { QStringLiteral("key"), QStringLiteral("name") },
-                    { QStringLiteral("group"), QStringLiteral("more") }, { QStringLiteral("label"), QStringLiteral("Name") },
+                    { QStringLiteral("group"), QStringLiteral("more") },
+                    { QStringLiteral("label"), QStringLiteral("Name") },
                     { QStringLiteral("type"), QStringLiteral("string") }, { QStringLiteral("default"), QString() },
                     { QStringLiteral("value"), value("name", QString()) } },
                 QJsonObject { { QStringLiteral("key"), QStringLiteral("token") },
-                    { QStringLiteral("group"), QStringLiteral("more") }, { QStringLiteral("label"), QStringLiteral("Token") },
+                    { QStringLiteral("group"), QStringLiteral("more") },
+                    { QStringLiteral("label"), QStringLiteral("Token") },
                     { QStringLiteral("type"), QStringLiteral("secret") }, { QStringLiteral("default"), QString() },
-                    { QStringLiteral("value"), QJsonValue::Null }, { QStringLiteral("isSet"), values.contains(QStringLiteral("token")) } },
+                    { QStringLiteral("value"), QJsonValue::Null },
+                    { QStringLiteral("isSet"), values.contains(QStringLiteral("token")) } },
             } },
     };
 }
@@ -127,13 +135,11 @@ QJsonObject capabilities()
         { QStringLiteral("localization"),
             QJsonObject { { QStringLiteral("locales"),
                 QJsonArray { QStringLiteral("en"), QStringLiteral("de"), QStringLiteral("ru") } } } },
-        { QStringLiteral("auth"),
-            QJsonObject { { QStringLiteral("required"), false }, { QStringLiteral("flow"), QStringLiteral("none") } } },
+        { QStringLiteral("auth"), QJsonObject { { QStringLiteral("required"), false } } },
     };
     // Switched by a test: a source to sign in to.
     if (qEnvironmentVariable("CLOUDMUS_FAKE_AUTH") == QStringLiteral("1")) {
-        caps.insert(QStringLiteral("auth"),
-            QJsonObject { { QStringLiteral("required"), true }, { QStringLiteral("flow"), QStringLiteral("deviceCode") } });
+        caps.insert(QStringLiteral("auth"), QJsonObject { { QStringLiteral("required"), true } });
     }
     // Switched by a test: a source with settings of its own.
     if (qEnvironmentVariable("CLOUDMUS_FAKE_SETTINGS") == QStringLiteral("1"))
@@ -162,7 +168,7 @@ void installFakeBackendManifest()
         { QStringLiteral("id"), QStringLiteral("fake") },
         { QStringLiteral("name"), QStringLiteral("Fake Source") },
         { QStringLiteral("argv"), QJsonArray::fromStringList(fakeBackendArgv()) },
-        { QStringLiteral("protocolVersion"), QStringLiteral("1.6") },
+        { QStringLiteral("protocolVersion"), QStringLiteral("2.0") },
     };
     QFile file(dir.filePath(QStringLiteral("fake.json")));
     file.open(QIODevice::WriteOnly);
@@ -223,7 +229,8 @@ int runFakeBackend()
             if (values.value(QStringLiteral("name")).toString() == QStringLiteral("bad")) {
                 send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
                     { QStringLiteral("error"),
-                        QJsonObject { { QStringLiteral("code"), -32602 }, { QStringLiteral("message"), QStringLiteral("invalid") },
+                        QJsonObject { { QStringLiteral("code"), -32602 },
+                            { QStringLiteral("message"), QStringLiteral("invalid") },
                             { QStringLiteral("data"),
                                 QJsonObject { { QStringLiteral("key"), QStringLiteral("name") },
                                     { QStringLiteral("message"), QStringLiteral("Not that name") } } } } } });
@@ -241,7 +248,7 @@ int runFakeBackend()
                          .value(QStringLiteral("locale"))
                          .toString(QStringLiteral("en"));
             reply(id,
-                { { QStringLiteral("protocolVersion"), QStringLiteral("1.6") },
+                { { QStringLiteral("protocolVersion"), QStringLiteral("2.0") },
                     { QStringLiteral("source"),
                         QJsonObject { { QStringLiteral("id"), QStringLiteral("fake") },
                             { QStringLiteral("name"), QStringLiteral("Fake Source") },
@@ -274,9 +281,9 @@ int runFakeBackend()
             if (qEnvironmentVariableIsSet("CLOUDMUS_FAKE_SUBFOLDER")) {
                 const int count = qEnvironmentVariable("CLOUDMUS_FAKE_SUBFOLDER") == QStringLiteral("many") ? 300 : 1;
                 for (int i = 0; i < count; ++i)
-                    playlists.append(QJsonObject {
-                        { QStringLiteral("id"), QStringLiteral("p%1").arg(i + 3) },
-                        { QStringLiteral("title"), i == 0 ? QStringLiteral("Inside") : QStringLiteral("Folder %1").arg(i) },
+                    playlists.append(QJsonObject { { QStringLiteral("id"), QStringLiteral("p%1").arg(i + 3) },
+                        { QStringLiteral("title"),
+                            i == 0 ? QStringLiteral("Inside") : QStringLiteral("Folder %1").arg(i) },
                         { QStringLiteral("trackCount"), 2 }, { QStringLiteral("kind"), QStringLiteral("playlist") },
                         { QStringLiteral("parentId"), QStringLiteral("p1") } });
             }

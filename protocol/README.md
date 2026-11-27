@@ -84,9 +84,9 @@ Python output (`backends/py-rpc-common/rpc_common/generated/`):
 `models.py` (dataclasses, `to_dict()`/`from_dict()`), `methods.py` (a
 `BackendMethods` typed reference `Protocol` — not required to subclass — and
 `emit_*` notification helpers, used by backends for the notifications whose
-wire shape is fully captured by their schema; one exception exists today —
-`auth/prompt`'s payload varies per `auth.flow` and isn't modeled as a
-`oneOf`, so it's still sent by hand in `cloudmus_backend_yandex/auth.py`).
+wire shape is fully captured by their schema). Where a payload's fields
+depend on a discriminator (`schema/auth_method.yaml`'s `kind`), it's modeled
+as one object with those fields optional: there is no `oneOf`.
 
 C++ output (`core/generated/`): `Models.h` (structs with `fromJson`/
 `toJson`) and `RpcMethods.h` (typed call-wrapper declarations per method,

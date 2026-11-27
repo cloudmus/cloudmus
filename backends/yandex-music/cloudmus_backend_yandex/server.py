@@ -28,7 +28,7 @@ CAPABILITIES = {
     # in the quality set for streaming (docs/protocol.md §7.5).
     "download": False,
     "downloadFromStream": True,
-    "auth": {"required": True, "flow": "deviceCode"},
+    "auth": {"required": True},
 }
 
 
@@ -102,7 +102,7 @@ def build_server() -> BackendServer:
 
     @server.method("auth.submit")
     def handle_auth_submit(params: dict, request_id: int) -> dict:
-        # deviceCode flow never uses auth.submit; nothing to do.
+        # The `code` method submits nothing; nothing to do.
         return {}
 
     # --- catalog ---

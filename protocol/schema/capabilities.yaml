@@ -76,9 +76,8 @@ properties:
     additionalProperties: false
   auth:
     type: object
-    required: [required, flow]
+    required: [required]
     properties:
       required: {type: boolean}
-      flow: {type: string, enum: [none, deviceCode, usernamePassword, oauthRedirect]}
     additionalProperties: false
 additionalProperties: false

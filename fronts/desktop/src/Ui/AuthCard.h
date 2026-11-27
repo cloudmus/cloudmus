@@ -4,6 +4,8 @@
 #include <QJsonObject>
 #include <QWidget>
 
+#include "AuthStates.h"
+
 class QHBoxLayout;
 class QLabel;
 class QLineEdit;
@@ -17,10 +19,9 @@ namespace Ui {
 class CopyButton;
 class QrCodeView;
 
-// A source's sign-in card: renders an auth/prompt (deviceCode's URL and
-// code, the URL as a QR code too, usernamePassword's fields, oauthRedirect's
-// browser hand-off — discriminated by params["flow"], see Rpc::RpcClient::onAuthPromptRaw's
-// doc comment for why this is raw JSON rather than a generated struct), an
+// A source's sign-in card: renders an auth/prompt (the first of its methods
+// the desktop can carry out: `code` with its URL — as a QR code too — and
+// code, or `form`'s fields; it has no built-in browser for `browser`), an
 // error with Retry, or a plain "sign in" invitation. Holds no source
 // identity: whoever shows it knows which source its signals are about.
 // Used by SourcePanel and by the source's Settings page.
@@ -39,7 +40,7 @@ public:
     // Neither look has padding of its own: it lines up with what's around it.
     explicit AuthCard(Look look, QWidget* parent = nullptr);
 
-    void showPrompt(const QJsonObject& params);
+    void showPrompt(const Rpc::AuthStates::State& state);
     // A plain error message plus a Retry button.
     void showError(const QString& message);
     // Not signed in, nothing gone wrong: a "Sign in" button.
@@ -57,7 +58,7 @@ signals:
 
 private:
     void clearFormFields();
-    // Hides every flow-specific widget whatever the previous show*() call
+    // Hides every method-specific widget whatever the previous show*() call
     // left visible.
     void reset();
 
@@ -66,20 +67,16 @@ private:
     CopyButton* copyCodeButton_ = nullptr;
     QrCodeView* qrCode_ = nullptr;
     QHBoxLayout* formLayout_ = nullptr;
-    // Fields whose auth/prompt descriptor sets multiline:true (e.g. a
+    // Fields marked multiline (e.g. a
     // pasted-headers blob) — too long/unwieldy for the single-line fields'
     // QLineEdit-in-formLayout_ row, so they get a full-width QPlainTextEdit
-    // of their own here instead. See showPrompt()'s usernamePassword branch.
+    // of their own here instead. See showPrompt()'s form branch.
     QVBoxLayout* multilineFieldsLayout_ = nullptr;
     QPushButton* submitButton_ = nullptr;
-    QPushButton* openBrowserButton_ = nullptr;
     QPushButton* retryButton_ = nullptr;
     QProgressBar* busyIndicator_ = nullptr;
     QHash<QString, QLineEdit*> fieldEdits_;
     QHash<QString, QPlainTextEdit*> multilineFieldEdits_;
-    // oauthRedirect's URL, kept so the manual "Open Browser" button can
-    // re-open it if the automatic open-on-prompt was missed/blocked.
-    QString pendingOAuthUrl_;
 };
 
 } // namespace Ui

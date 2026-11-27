@@ -6,6 +6,8 @@
 #include <QString>
 #include <QStringList>
 
+#include "Coro.h"
+
 namespace App {
 class SourceSession;
 }
@@ -13,7 +15,7 @@ class SourceSession;
 namespace ViewModel {
 
 // A source's page, as far as signing in goes: asking it again (Retry /
-// Sign in) and sending the user's answer to a username/password prompt —
+// Sign in) and sending what came of its sign-in form or browser —
 // each busy while in flight, so the page can't be clicked twice. What the
 // page shows otherwise comes straight from Rpc::AuthStates,
 // ViewModel::Sources and the source's capabilities.
@@ -25,7 +27,10 @@ public:
 
     bool isBusy(const QString& sourceId) const { return busy_.contains(sourceId); }
     void signIn(const QString& sourceId);
+    // A sign-in form's values, by field name.
     void submit(const QString& sourceId, const QJsonObject& fields);
+    // What a built-in browser ended up with (auth.submit's `browser`).
+    void submitBrowser(const QString& sourceId, const QJsonObject& result);
     // See App::SourceSession::wake().
     bool wake(const QString& sourceId);
     bool canSignOut(const QString& sourceId) const;
@@ -42,6 +47,8 @@ signals:
 
 private:
     void setBusy(const QString& sourceId, bool busy);
+    // Busy until `submission` answers, telling why if it was turned down.
+    void follow(const QString& sourceId, Rpc::Task<QString> submission);
 
     App::SourceSession& sourceSession_;
     QSet<QString> busy_;

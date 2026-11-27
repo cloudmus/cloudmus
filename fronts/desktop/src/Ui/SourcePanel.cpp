@@ -521,9 +521,9 @@ void SourcePanel::showAuthCard()
     refreshPlaylistsSection();
 }
 
-void SourcePanel::showPrompt(const QJsonObject& params)
+void SourcePanel::showPrompt(const Rpc::AuthStates::State& state)
 {
-    authCard_->showPrompt(params);
+    authCard_->showPrompt(state);
     showAuthCard();
 }
 

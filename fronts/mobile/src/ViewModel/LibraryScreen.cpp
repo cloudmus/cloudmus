@@ -25,13 +25,14 @@ QString fileUrl(const QString& path) { return path.isEmpty() ? QString() : QUrl:
 // them — a favorite. `sizeText`: how much its files take, "" when unknown.
 // `offerQuestion`: asked before it's opened (Playlist.offer), "" when nothing
 // is; `offerAccept`/`offerDecline` its two answers' labels.
-const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "sizeText", "kind", "coverUrl", "coverIcon",
-    "isActive", "isStarting", "isFavorite", "path", "offerQuestion", "offerAccept", "offerDecline" };
+const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "sizeText", "kind", "coverUrl",
+    "coverIcon", "isActive", "isStarting", "isFavorite", "path", "offerQuestion", "offerAccept", "offerDecline" };
 
 } // namespace
 
-LibraryScreen::LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, NowPlaying& nowPlaying, Rpc::AuthStates& authStates,
-    SourcePage& sourcePage, Rpc::SourceManager& sourceManager, Covers::CoverArtCache& covers, QObject* parent)
+LibraryScreen::LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, NowPlaying& nowPlaying,
+    Rpc::AuthStates& authStates, SourcePage& sourcePage, Rpc::SourceManager& sourceManager,
+    Covers::CoverArtCache& covers, QObject* parent)
     : QObject(parent)
     , sources_(sources)
     , activePlaylist_(activePlaylist)
@@ -81,14 +82,21 @@ QString LibraryScreen::currentSourceLogo() const { return fileUrl(sources_.logoP
 
 bool LibraryScreen::authNeeded() const { return authStates_.state(currentSourceId_).hasProblem; }
 
+std::optional<AuthMethod> LibraryScreen::authMethod(const QString& kind) const
+{
+    return authStates_.state(currentSourceId_).method({ kind });
+}
+
 QString LibraryScreen::authUrl() const
 {
-    return authStates_.state(currentSourceId_).prompt.value(QStringLiteral("url")).toString();
+    const std::optional<AuthMethod> code = authMethod(QStringLiteral("code"));
+    return code ? *code->url : QString();
 }
 
 QString LibraryScreen::authCode() const
 {
-    return authStates_.state(currentSourceId_).prompt.value(QStringLiteral("code")).toString();
+    const std::optional<AuthMethod> code = authMethod(QStringLiteral("code"));
+    return code ? *code->code : QString();
 }
 
 QString LibraryScreen::authError() const { return authStates_.state(currentSourceId_).errorMessage; }

@@ -9,7 +9,7 @@ from ytmusicapi import LikeStatus
 
 from rpc_common import errors
 from rpc_common.generated.methods import emit_track_stream_ready
-from rpc_common.generated.models import StreamReadyParams
+from rpc_common.generated.models import StreamReadyParams, SubmitParams
 from rpc_common.server import BackendError, BackendServer
 
 from .i18n import tr, translator
@@ -42,14 +42,7 @@ CAPABILITIES = {
     # (docs/protocol.md §7.5).
     "download": False,
     "downloadFromStream": True,
-    # usernamePassword, not deviceCode: device-code OAuth login itself still
-    # works, but every data call made with the resulting token currently
-    # 400s due to a confirmed upstream break (see auth.py's module
-    # docstring, sigma67/ytmusicapi#676) — repurposed here to collect
-    # pasted browser request-headers instead of a username/password pair.
-    # Flip back to "deviceCode" (and instantiate DeviceOAuthSession below
-    # instead) once that's fixed upstream.
-    "auth": {"required": True, "flow": "usernamePassword"},
+    "auth": {"required": True},
 }
 
 
@@ -105,7 +98,7 @@ def build_server() -> BackendServer:
 
     @server.method("auth.submit")
     async def handle_auth_submit(params: dict, request_id: int) -> dict:
-        await auth_session.submit(params["fields"], server.notify)
+        await auth_session.submit(SubmitParams.from_dict(params), server.notify)
         return {}
 
     def with_account(handler):

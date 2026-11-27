@@ -43,10 +43,12 @@ public:
     // Asks the source to sign in unless it already is (auth.getStatus, then
     // auth.start) — its prompt and result then come in as notifications.
     Rpc::Task<void> signIn(QString sourceId);
-    // The user's answer to a usernamePassword prompt (auth.submit). An
-    // empty result on success, else what went wrong (also posted as an
-    // error message).
-    Rpc::Task<QString> submitSignIn(QString sourceId, QJsonObject fields);
+    // What came of a prompt's `form` or `browser` method (auth.submit): the
+    // form's values by field name, or what the built-in browser ended up
+    // with. An empty result on success, else what went wrong (also posted as
+    // an error message).
+    Rpc::Task<QString> submitForm(QString sourceId, QJsonObject fields);
+    Rpc::Task<QString> submitBrowser(QString sourceId, AuthBrowserResult result);
     // A source left unstarted until it's needed comes up, and signs in as any
     // source does. False if it was running already.
     bool wake(const QString& sourceId);
@@ -54,7 +56,7 @@ public:
     bool canSignOut(const QString& sourceId) const;
     // What the running source declared; empty while it isn't running.
     QJsonObject capabilities(const QString& sourceId) const;
-    // auth.logout. The same outcome as submitSignIn().
+    // auth.logout. The same outcome as submitForm().
     Rpc::Task<QString> signOut(QString sourceId);
 
 signals:
@@ -71,6 +73,7 @@ signals:
 private:
     void wire(Rpc::RpcClient* client);
     Rpc::Task<void> signIn(Rpc::RpcClient* client);
+    Rpc::Task<QString> submit(QString sourceId, SubmitParams params);
 
     Rpc::SourceManager& sourceManager_;
     Playback::PlaybackController& playback_;

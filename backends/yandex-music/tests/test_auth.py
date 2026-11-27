@@ -10,6 +10,7 @@ import pytest
 from yandex_music.exceptions import DeviceAuthError, NetworkError
 
 from cloudmus_backend_yandex import auth, config
+from rpc_common.generated.models import PromptParams
 
 
 class FakeClient:
@@ -66,7 +67,14 @@ def run_session(polls: list) -> tuple[auth.DeviceAuthSession, list]:
 
 
 def prompts(sent: list) -> list[dict]:
-    return [params for method, params in sent if method == "auth/prompt"]
+    """The `code` method of each auth/prompt sent."""
+    found = []
+    for method, params in sent:
+        if method == "auth/prompt":
+            [offered] = PromptParams.from_dict(params).methods
+            assert offered.kind == "code"
+            found.append(offered.to_dict())
+    return found
 
 
 def test_signed_in_clears_the_pending_code():

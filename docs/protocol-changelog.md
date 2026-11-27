@@ -5,6 +5,21 @@ Tracks changes to the CloudMus front/backend JSON-RPC protocol
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
 
+## 2.0 — ways to sign in
+
+- **Breaking**: `capabilities.auth.flow` is gone; `auth` is just
+  `{"required": bool}`. `auth/prompt` is now `{"methods": [AuthMethod, ...]}`
+  (§10), the source's preferred method first, and a front takes the first it
+  can carry out. `code` replaces `deviceCode`, `form` replaces
+  `usernamePassword` (fields may carry a `label`), and `message` moved onto
+  each method.
+- **Breaking**: `auth.submit` takes `{"form": {...}}` or
+  `{"browser": {...}}` instead of `{"fields": {...}}`.
+- New method `browser` (§10.2): sign in in a front's built-in browser, which
+  returns the cookies and the final address. It replaces the reserved,
+  never used `oauthRedirect`. YouTube Music offers it first, so signing in
+  on a phone no longer means copying request headers by hand.
+
 ## 1.26 — a question before a playlist opens
 
 - **Additive, backward-compatible**: optional `Playlist.offer` (§6): a

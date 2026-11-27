@@ -1,0 +1,43 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: auth_method.yaml
+title: AuthMethod
+# One way to sign in, offered in auth/prompt (docs/protocol.md §10). A front
+# takes the first one it can carry out, so `kind` stays an open string: a
+# front skips what it doesn't know. Which other fields are set follows from
+# `kind`:
+#   code    — url, code, expiresInSec: enter the code at url, on any device.
+#   browser — url, cookieUrls, freshSession, doneCookies and/or
+#             doneUrlPrefix: sign in in a built-in browser; the front returns
+#             what the browser ended up with.
+#   form    — fields: a form the front draws from the list.
+type: object
+required: [kind]
+properties:
+  kind: {type: string}
+  # What the user has to do, in the source's own words, in a minimal HTML
+  # subset.
+  message: {type: string}
+  url: {type: string}
+  code: {type: string}
+  expiresInSec: {type: integer}
+  # browser: signed in once cookieUrls[0] has all of these cookies…
+  doneCookies: {type: array, items: {type: string}}
+  # …or once the browser is about to open an address starting with this.
+  doneUrlPrefix: {type: string}
+  # browser: the addresses whose cookies the source wants back.
+  cookieUrls: {type: array, items: {type: string}}
+  # browser: start with no cookies, so the session is the source's own.
+  freshSession: {type: boolean}
+  fields:
+    type: array
+    items:
+      x-name: AuthField
+      type: object
+      required: [name, secret]
+      properties:
+        name: {type: string}
+        label: {type: string}
+        secret: {type: boolean}
+        multiline: {type: boolean}
+      additionalProperties: false
+additionalProperties: false

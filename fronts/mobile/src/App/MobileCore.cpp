@@ -61,8 +61,8 @@ void MobileCore::setUpUpdates(const QString& updatesDir)
         QUrl feed = testFeed;
         const QString server = settings_.updateServer();
         if (feed.isEmpty() && !server.isEmpty()) {
-            feed = QUrl::fromUserInput(server.contains(QLatin1String("://")) ? server
-                                                                             : QStringLiteral("http://") + server);
+            feed = QUrl::fromUserInput(
+                server.contains(QLatin1String("://")) ? server : QStringLiteral("http://") + server);
             if (!feed.path().endsWith(QLatin1String(".json")))
                 feed.setPath(QStringLiteral("/releases.json"));
         }
@@ -142,14 +142,15 @@ void MobileCore::leaveUnstartedWhatAskedForSignIn()
     connect(&states, &Rpc::AuthStates::changed, this, [this, key, pendingGroup, &states](const QString& sourceId) {
         const Rpc::AuthStates::State state = states.state(sourceId);
         const QString pendingKey = pendingGroup + QLatin1Char('/') + sourceId;
-        const int expiresInSec = state.prompt.value(QStringLiteral("expiresInSec")).toInt();
+        const std::optional<AuthMethod> code = state.method({ QStringLiteral("code") });
+        const int expiresInSec = code ? code->expiresInSec.value_or(0) : 0;
         if (expiresInSec > 0)
             settingsStore_.setValue(pendingKey, QDateTime::currentDateTimeUtc().addSecs(expiresInSec));
         else
             settingsStore_.remove(pendingKey);
         // Back where it was left: the Library on the source signing in, not
         // on the first one. Once it's up and has its code again.
-        if (!state.prompt.isEmpty() && resumingSignIn_.removeAll(sourceId) > 0)
+        if (!state.methods.isEmpty() && resumingSignIn_.removeAll(sourceId) > 0)
             library_.selectSource(sourceId);
         updateSignInNotice();
         QStringList list = settingsStore_.value(key).toStringList();
@@ -177,14 +178,14 @@ void MobileCore::updateSignInNotice()
         if (index.data(ViewModel::SidebarModel::KindRole).toInt() != int(ViewModel::SidebarModel::Kind::SourceHeader))
             continue;
         const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
-        if (!states.state(sourceId).prompt.value(QStringLiteral("code")).toString().isEmpty())
+        if (states.state(sourceId).method({ QStringLiteral("code") }))
             waiting.append(sourceId);
     }
     if (!waiting.isEmpty()) {
         const QString sourceId = waiting.first();
         notice.title = tr("Signing in to %1").arg(model.sourceName(sourceId));
         notice.text = tr("Waiting for the code %1 to be confirmed")
-                          .arg(states.state(sourceId).prompt.value(QStringLiteral("code")).toString());
+                          .arg(*states.state(sourceId).method({ QStringLiteral("code") })->code);
         notice.channelName = tr("Sign-in");
     }
     if (notice == signInNotice_)

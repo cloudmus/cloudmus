@@ -56,10 +56,7 @@ private slots:
         QCOMPARE(errors.count(), 0);
     }
 
-    void aSourceWithNoSignInHasNothingToSignOutOf()
-    {
-        QVERIFY(!session_->canSignOut(QStringLiteral("fake")));
-    }
+    void aSourceWithNoSignInHasNothingToSignOutOf() { QVERIFY(!session_->canSignOut(QStringLiteral("fake"))); }
 
     void signingOutLeavesTheSourceAskingToSignIn()
     {
@@ -78,7 +75,7 @@ private slots:
     {
         QSignalSpy errors(&messages_, &ViewModel::Messages::posted);
         const QString error = await(
-            session_->submitSignIn(QStringLiteral("fake"), { { QStringLiteral("password"), QStringLiteral("nope") } }));
+            session_->submitForm(QStringLiteral("fake"), { { QStringLiteral("password"), QStringLiteral("nope") } }));
         QCOMPARE(error, QStringLiteral("wrong password"));
         QCOMPARE(errors.count(), 1);
         QCOMPARE(errors.first().at(1).toString(), QStringLiteral("Fake Source: wrong password"));

@@ -1,4 +1,5 @@
-"""Device Auth Flow, driven by auth.start (docs/protocol.md §10.1).
+"""Device Auth Flow, driven by auth.start (docs/protocol.md §10.1: the `code`
+method).
 
 Ported from the original ym_player/auth.py: the on_code callback used to
 print the URL/code straight to the console; now it emits an auth/prompt
@@ -15,16 +16,8 @@ from typing import Any, Awaitable, Callable
 from yandex_music import Client
 from yandex_music.exceptions import DeviceAuthError
 
-from rpc_common.generated.methods import emit_auth_status_changed
-from rpc_common.generated.models import StatusChangedParams
-
-# Note: auth/prompt is deliberately NOT sent via the generated emit_auth_prompt
-# helper here — protocol/methods.yaml models auth/prompt's params loosely
-# ({flow} only, no oneOf over the three concrete flow shapes, see the comment
-# there), since its actual payload varies per auth.flow (deviceCode carries
-# url/code/expiresInSec; usernamePassword carries fields; oauthRedirect
-# carries url). Routing this deviceCode-specific notification through the
-# generated PromptParams type would silently drop everything but `flow`.
+from rpc_common.generated.methods import emit_auth_prompt, emit_auth_status_changed
+from rpc_common.generated.models import AuthMethod, PromptParams, StatusChangedParams
 
 from . import client as client_module
 from . import config
@@ -103,18 +96,13 @@ class DeviceAuthSession:
                     "expiresAt": time.time() + code.expires_in,
                 }
                 config.set_pending_auth(pending)
-            asyncio.run_coroutine_threadsafe(
-                notify(
-                    "auth/prompt",
-                    {
-                        "flow": "deviceCode",
-                        "url": pending["url"],
-                        "code": pending["userCode"],
-                        "expiresInSec": max(0, int(pending["expiresAt"] - time.time())),
-                    },
-                ),
-                loop,
+            method = AuthMethod(
+                kind="code",
+                url=pending["url"],
+                code=pending["userCode"],
+                expiresInSec=max(0, int(pending["expiresAt"] - time.time())),
             )
+            asyncio.run_coroutine_threadsafe(emit_auth_prompt(notify, PromptParams(methods=[method])), loop)
             # Polled at once: a resumed code has likely been confirmed already.
             while not cancel_event.is_set():
                 token = device_client.poll_device_token(pending["deviceCode"])

@@ -105,11 +105,13 @@ private slots:
     }
 
 private:
-    static QJsonObject prompt()
+    static Rpc::AuthStates::State prompt()
     {
-        return { { QStringLiteral("flow"), QStringLiteral("deviceCode") },
-            { QStringLiteral("url"), QStringLiteral("https://ya.ru/device") },
-            { QStringLiteral("code"), QStringLiteral("abc123") } };
+        AuthMethod code;
+        code.kind = QStringLiteral("code");
+        code.url = QStringLiteral("https://ya.ru/device");
+        code.code = QStringLiteral("abc123");
+        return { true, { code }, { } };
     }
 
     Ui::QrCodeView* view() const { return card_->findChild<Ui::QrCodeView*>(); }

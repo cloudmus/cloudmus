@@ -50,10 +50,10 @@ backend is treated as gone.
 
 ## Components
 
-| Backend | Service | Auth flow | Playlists / likes | Radio | Download |
+| Backend | Service | Sign-in methods | Playlists / likes | Radio | Download |
 |---|---|---|---|---|---|
-| `backends/yandex-music` | Yandex Music | `deviceCode` (OAuth) | yes | My Wave, stations | yes |
-| `backends/youtube-music` | YouTube Music | `usernamePassword` (browser headers, see its [README](../backends/youtube-music/README.md)) | yes | mixes, from a track | yes |
+| `backends/yandex-music` | Yandex Music | `code` (OAuth device flow) | yes | My Wave, stations | yes |
+| `backends/youtube-music` | YouTube Music | `browser`, `form` (pasted request headers, see its [README](../backends/youtube-music/README.md)) | yes | mixes, from a track | yes |
 | `backends/local-folder` | A local music folder (subfolders → playlists) | none | playlists | Wave of all of it | — |
 
 `backends/py-rpc-common` is the shared Python NDJSON/JSON-RPC transport and

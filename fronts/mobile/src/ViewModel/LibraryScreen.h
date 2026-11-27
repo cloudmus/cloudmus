@@ -6,6 +6,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <optional>
+
 #include "Coro.h"
 #include "Models.h"
 #include "RowsModel.h"
@@ -115,6 +117,8 @@ signals:
 
 private:
     void rebuild();
+    // The source picked's sign-in method of `kind`, if it offers one.
+    std::optional<AuthMethod> authMethod(const QString& kind) const;
     QVariantHash playlistRow(const Playlist& playlist);
     Rpc::Task<void> start(QString sourceId, Playlist playlist);
     Rpc::Task<void> applyOffer(QString sourceId, QMap<QString, QJsonValue> values);

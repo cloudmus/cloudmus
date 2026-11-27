@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.26"
+protocolVersion: "2.0"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -463,13 +463,24 @@ methods:
     timeoutMs: 5000
 
   auth.submit:
+    # Exactly one of the two, after the method used (docs/protocol.md §10).
     params:
       type: object
-      required: [fields]
+      required: []
       properties:
-        fields: {type: object, additionalProperties: {type: string}}
+        form: {type: object, additionalProperties: {type: string}}
+        browser:
+          x-name: AuthBrowserResult
+          type: object
+          required: [finalUrl, userAgent, cookies]
+          properties:
+            finalUrl: {type: string}
+            userAgent: {type: string}
+            # cookieUrls entry -> its Cookie header value.
+            cookies: {type: object, additionalProperties: {type: string}}
     result: {type: object, properties: {}, required: []}
-    timeoutMs: 5000
+    # A source may ask its service about what it's given before answering.
+    timeoutMs: 30000
 
   auth.cancel:
     params: {type: object, properties: {}, required: []}
@@ -543,15 +554,13 @@ notifications:
         scope: {type: string, enum: [own, all]}
 
   auth/prompt:
-    # Flow-specific shape (deviceCode | usernamePassword | oauthRedirect, see
-    # docs/protocol.md §10) — deliberately left as a loose object rather than
-    # a strict oneOf, since the `flow` field is a runtime discriminator a
-    # generator would otherwise need union-type support for no real benefit
-    # at this protocol's size (3 shapes, one front only ever branches on
-    # `flow` at runtime anyway).
-    # `message` (1.5+, optional, any flow): instructions for the user, in a
-    # minimal HTML subset (docs/protocol.md §10).
-    params: {type: object, required: [flow], properties: {flow: {type: string}, message: {type: string}}}
+    # The ways to sign in, the source's preferred one first; a later prompt
+    # replaces the earlier one (docs/protocol.md §10).
+    params:
+      type: object
+      required: [methods]
+      properties:
+        methods: {type: array, items: {$ref: "schema/auth_method.yaml"}}
 
   auth/statusChanged:
     params:

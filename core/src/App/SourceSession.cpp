@@ -56,8 +56,8 @@ void SourceSession::wire(Rpc::RpcClient* client)
     client->notifications.onDownloadProgress
         = [this, client](const DownloadProgressParams& p) { emit downloadProgress(client->sourceId(), p); };
     // Into authStates_, whose changed() repaints every view of it.
-    client->onAuthPromptRaw
-        = [this, client](const QJsonObject& params) { authStates_.setPrompt(client->sourceId(), params); };
+    client->notifications.onAuthPrompt
+        = [this, client](const PromptParams& p) { authStates_.setPrompt(client->sourceId(), p.methods); };
     client->notifications.onAuthStatusChanged = [this, client](const StatusChangedParams& status) {
         if (status.status == QStringLiteral("authenticated")) {
             authStates_.setAuthenticated(client->sourceId());
@@ -111,15 +111,29 @@ Rpc::Task<void> SourceSession::signIn(Rpc::RpcClient* client)
     }
 }
 
-Rpc::Task<QString> SourceSession::submitSignIn(QString sourceId, QJsonObject fields)
+Rpc::Task<QString> SourceSession::submitForm(QString sourceId, QJsonObject fields)
+{
+    QMap<QString, QString> form;
+    for (auto it = fields.constBegin(); it != fields.constEnd(); ++it)
+        form.insert(it.key(), it.value().toString());
+    SubmitParams params;
+    params.form = form;
+    return submit(std::move(sourceId), std::move(params));
+}
+
+Rpc::Task<QString> SourceSession::submitBrowser(QString sourceId, AuthBrowserResult result)
+{
+    SubmitParams params;
+    params.browser = std::move(result);
+    return submit(std::move(sourceId), std::move(params));
+}
+
+Rpc::Task<QString> SourceSession::submit(QString sourceId, SubmitParams params)
 {
     Rpc::RpcClient* client = sourceManager_.client(sourceId);
     if (client == nullptr)
         co_return QString();
     try {
-        SubmitParams params;
-        for (auto it = fields.constBegin(); it != fields.constEnd(); ++it)
-            params.fields.insert(it.key(), it.value().toString());
         co_await Rpc::authSubmit(*client, params);
     } catch (const std::exception& e) {
         const QString message = QString::fromStdString(e.what());

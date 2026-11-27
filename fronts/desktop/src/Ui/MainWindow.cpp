@@ -786,8 +786,8 @@ void MainWindow::showSourcePage(const QString& sourceId)
 void MainWindow::refreshAuthSection(const QString& sourceId, const Rpc::AuthStates::State& state)
 {
     Q_UNUSED(sourceId);
-    if (!state.prompt.isEmpty()) {
-        sourcePanel_->showPrompt(state.prompt);
+    if (!state.methods.isEmpty()) {
+        sourcePanel_->showPrompt(state);
     } else if (!state.errorMessage.isEmpty()) {
         sourcePanel_->showError(state.errorMessage);
     } else if (state.hasProblem) {

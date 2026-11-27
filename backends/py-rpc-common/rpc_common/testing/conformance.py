@@ -158,7 +158,7 @@ async def run_conformance(argv: list[str]) -> list[str]:
             jsonrpc.make_request(
                 init_id,
                 "initialize",
-                {"protocolVersion": "1.1", "front": {"name": "conformance-suite", "version": "0.0.0"}},
+                {"protocolVersion": "2.0", "front": {"name": "conformance-suite", "version": "0.0.0"}},
             )
         )
         response = await _response_to(reader, init_id)

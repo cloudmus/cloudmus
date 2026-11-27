@@ -261,8 +261,8 @@ void SourcePage::refresh()
         return;
 
     const Rpc::AuthStates::State state = authStates_.state(manifest_.id);
-    if (!state.prompt.isEmpty()) {
-        authCard_->showPrompt(state.prompt);
+    if (!state.methods.isEmpty()) {
+        authCard_->showPrompt(state);
         authCard_->show();
         showStatus(tr("Signing in…"), cancelButton_);
     } else if (!state.errorMessage.isEmpty()) {
@@ -305,7 +305,7 @@ Rpc::Task<void> SourcePage::refreshAuthStatusAsync()
     if (!alive)
         co_return;
     const Rpc::AuthStates::State state = authStates_.state(manifest_.id);
-    if (!state.prompt.isEmpty() || !state.errorMessage.isEmpty())
+    if (!state.methods.isEmpty() || !state.errorMessage.isEmpty())
         co_return;
 
     if (status == QStringLiteral("authenticated")) {
@@ -353,8 +353,10 @@ Rpc::Task<void> SourcePage::submitAsync(QJsonObject fields)
     authCard_->setBusy(true);
     try {
         SubmitParams params;
+        QMap<QString, QString> form;
         for (auto it = fields.constBegin(); it != fields.constEnd(); ++it)
-            params.fields.insert(it.key(), it.value().toString());
+            form.insert(it.key(), it.value().toString());
+        params.form = form;
         // Success arrives as auth/statusChanged, like any other sign-in.
         co_await Rpc::authSubmit(*client, params);
     } catch (const std::exception& e) {

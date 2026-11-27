@@ -1,10 +1,15 @@
 #pragma once
 
 #include <QHash>
-#include <QJsonObject>
+#include <QList>
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QStringList>
+
+#include <optional>
+
+#include "Models.h"
 
 namespace Rpc {
 
@@ -20,15 +25,20 @@ class AuthStates : public QObject {
 public:
     struct State {
         bool hasProblem = false; // capabilities.auth.required && not authenticated
-        QJsonObject prompt; // last auth/prompt payload; empty if none yet
+        QList<AuthMethod> methods; // the last auth/prompt's; empty if none yet
         QString errorMessage; // last auth/statusChanged error message; empty if none
+
+        // The first of `methods` (the source's preferred one first) that is
+        // of one of `kinds` — what the front can carry out — and says all
+        // that kind needs (docs/protocol.md §10).
+        std::optional<AuthMethod> method(const QStringList& kinds) const;
     };
 
     using QObject::QObject;
 
     State state(const QString& sourceId) const { return states_.value(sourceId); }
 
-    void setPrompt(const QString& sourceId, const QJsonObject& prompt);
+    void setPrompt(const QString& sourceId, const QList<AuthMethod>& methods);
     void setAuthenticated(const QString& sourceId);
     void setError(const QString& sourceId, const QString& message);
     // After a successful auth.logout: not signed in, nothing to act on

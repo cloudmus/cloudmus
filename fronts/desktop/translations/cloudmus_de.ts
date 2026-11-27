@@ -499,10 +499,6 @@
         <translation>Absenden</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Browser öffnen</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Erneut versuchen</translation>
     </message>
@@ -521,10 +517,6 @@
     <message>
         <source>Paste here</source>
         <translation>Hier einfügen</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Im Browser fortfahren</translation>
     </message>
     <message>
         <source>Sign-in required</source>

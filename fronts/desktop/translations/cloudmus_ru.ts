@@ -501,10 +501,6 @@
         <translation>Отправить</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Открыть браузер</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Повторить</translation>
     </message>
@@ -523,10 +519,6 @@
     <message>
         <source>Paste here</source>
         <translation>Вставьте сюда</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Продолжите в браузере</translation>
     </message>
     <message>
         <source>Sign-in required</source>

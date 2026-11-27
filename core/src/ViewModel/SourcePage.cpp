@@ -22,14 +22,32 @@ void SourcePage::signIn(const QString& sourceId)
 
 void SourcePage::submit(const QString& sourceId, const QJsonObject& fields)
 {
-    [](SourcePage* self, QString sourceId, QJsonObject fields) -> Rpc::Task<void> {
-        self->setBusy(sourceId, true);
-        const QString error = co_await self->sourceSession_.submitSignIn(sourceId, fields);
+    setBusy(sourceId, true);
+    follow(sourceId, sourceSession_.submitForm(sourceId, fields));
+}
+
+void SourcePage::submitBrowser(const QString& sourceId, const QJsonObject& result)
+{
+    AuthBrowserResult parsed;
+    try {
+        parsed = AuthBrowserResult::fromJson(result);
+    } catch (const std::exception& e) {
+        emit submitFailed(sourceId, QString::fromStdString(e.what()));
+        return;
+    }
+    setBusy(sourceId, true);
+    follow(sourceId, sourceSession_.submitBrowser(sourceId, parsed));
+}
+
+void SourcePage::follow(const QString& sourceId, Rpc::Task<QString> submission)
+{
+    [](SourcePage* self, QString sourceId, Rpc::Task<QString> submission) -> Rpc::Task<void> {
+        const QString error = co_await std::move(submission);
         if (!error.isEmpty())
             emit self->submitFailed(sourceId, error);
         self->setBusy(sourceId, false);
-    }(this, sourceId, fields)
-                                                                      .detach();
+    }(this, sourceId, std::move(submission))
+                                                                                 .detach();
 }
 
 bool SourcePage::wake(const QString& sourceId) { return sourceSession_.wake(sourceId); }
@@ -39,9 +57,8 @@ QJsonObject SourcePage::capabilities(const QString& sourceId) const { return sou
 QStringList SourcePage::capabilityIds(const QString& sourceId) const
 {
     const QJsonObject caps = capabilities(sourceId);
-    const auto flag = [](const QJsonObject& object, const char* key) {
-        return object.value(QLatin1String(key)).toBool();
-    };
+    const auto flag
+        = [](const QJsonObject& object, const char* key) { return object.value(QLatin1String(key)).toBool(); };
     const auto nested = [&](const char* group) { return caps.value(QLatin1String(group)).toObject(); };
     const QJsonObject browse = nested("browse");
     const QJsonObject feedback = nested("feedback");

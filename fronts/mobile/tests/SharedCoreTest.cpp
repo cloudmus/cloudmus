@@ -92,6 +92,16 @@ QQuickItem* findItem(QQuickItem* root, const QString& name)
 
 // The start screen gone from over the pages (StartSplash.qml): they're
 // drawn, at their own size, once the core is up and it has faded.
+AuthMethod codeMethod(const QString& code, std::optional<int> expiresInSec = std::nullopt)
+{
+    AuthMethod method;
+    method.kind = QStringLiteral("code");
+    method.url = QStringLiteral("https://ya.ru/device");
+    method.code = code;
+    method.expiresInSec = expiresInSec;
+    return method;
+}
+
 bool startScreenGone(QQuickWindow* window)
 {
     auto* splash = window->findChild<QQuickItem*>(QStringLiteral("startSplash"));
@@ -2587,10 +2597,7 @@ private slots:
                     && core.core().sourceManager().client(fake)->available(),
                 10000);
             // Its code again: the Library is on it.
-            core.core().authStates().setPrompt(fake,
-                { { QStringLiteral("flow"), QStringLiteral("deviceCode") }, { QStringLiteral("code"), QStringLiteral("AB") },
-                    { QStringLiteral("url"), QStringLiteral("https://ya.ru/device") },
-                    { QStringLiteral("expiresInSec"), 200 } });
+            core.core().authStates().setPrompt(fake, { codeMethod(QStringLiteral("AB"), 200) });
             QTRY_COMPARE(core.library().currentSourceId(), fake);
             // Kept alive while it waits (Android's SignInService), until it's over.
             QVERIFY2(core.signInNotice().title.contains(QStringLiteral("Fake Source")), qPrintable(core.signInNotice().title));
@@ -2887,9 +2894,7 @@ private slots:
         QVERIFY(startScreenGone(window));
 
         core.library().selectSource(fake);
-        core.core().authStates().setPrompt(fake,
-            { { QStringLiteral("flow"), QStringLiteral("deviceCode") }, { QStringLiteral("url"), QStringLiteral("https://ya.ru/device") },
-                { QStringLiteral("code"), QStringLiteral("abc123") } });
+        core.core().authStates().setPrompt(fake, { codeMethod(QStringLiteral("abc123")) });
         QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "libraryRequested"));
         QTest::qWait(600);
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");

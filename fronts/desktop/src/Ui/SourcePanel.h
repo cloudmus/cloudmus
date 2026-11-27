@@ -7,6 +7,7 @@
 
 #include <functional>
 
+#include "AuthStates.h"
 #include "Models.h"
 
 class QLabel;
@@ -59,11 +60,8 @@ public:
     void setFavoriteCheck(std::function<bool(const QString& sourceId, const QString& playlistId)> check);
     void favoritesChanged();
 
-    // Renders the source's last-known prompt (deviceCode/usernamePassword/
-    // oauthRedirect, discriminated by params["flow"] — see
-    // Rpc::RpcClient::onAuthPromptRaw's doc comment for why this is raw
-    // JSON rather than a generated struct).
-    void showPrompt(const QJsonObject& params);
+    // Renders the source's last auth/prompt (see AuthCard::showPrompt()).
+    void showPrompt(const Rpc::AuthStates::State& state);
     // Renders a plain error message plus a Retry button.
     void showError(const QString& message);
     // Signed out on purpose: a "Sign in" button, no error.

@@ -124,7 +124,7 @@ exists — see §10).
 **Params:**
 ```json
 {
-  "protocolVersion": "1.1",
+  "protocolVersion": "2.0",
   "front": {"name": "cloudmus-tui", "version": "0.1.0"},
   "locale": "ru"
 }
@@ -138,7 +138,7 @@ English. A source that doesn't know the field ignores it.
 **Result:**
 ```json
 {
-  "protocolVersion": "1.2",
+  "protocolVersion": "2.0",
   "source": {
     "id": "yandex-music",
     "name": "Yandex Music",
@@ -158,7 +158,7 @@ If the front's `protocolVersion` major component doesn't match what the
 source supports, the source returns an error (code `1000`-range is for auth;
 use a dedicated value `1` in the standard JSON-RPC "Invalid params" style, or
 more precisely: reply with a normal error object, code `-32602` "Invalid
-params", `data: {"reason": "protocolVersion mismatch", "supported": "1.2"}`).
+params", `data: {"reason": "protocolVersion mismatch", "supported": "2.0"}`).
 The front then refuses to use that source at all — **v1 does no subset
 negotiation.**
 
@@ -219,7 +219,7 @@ defaults, since the front does not assume any implicit capability.
   },
   "feedback": { "like": true, "dislike": true, "skip": true },
   "download": true,
-  "auth": { "required": true, "flow": "deviceCode" }
+  "auth": { "required": true }
 }
 ```
 
@@ -245,8 +245,7 @@ defaults, since the front does not assume any implicit capability.
 | `connectionCheck` | bool | Optional (1.19+). `connection.check` (§7.9) is supported, and the source sends `connection/changed` (§8) when it notices its service go away or come back. |
 | `hostMedia` | bool | Optional (1.20+). The source shows the media library the front's platform keeps (Android's MediaStore): it takes `media.setLibrary` and sends `media/wanted` (§7.10). A front without such a library ignores it. |
 | `localization` | object | Optional (1.11+). `{"locales": [string, ...]}`: the source can answer user-facing strings in these languages (BCP-47, English implied) and supports `localization.setLanguage` (§7.8). |
-| `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
-| `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
+| `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. How to sign in is said in `auth/prompt` (§10). |
 
 `network` is the one capability that is assumed when absent, so sources
 that predate it keep their Connection setting.
@@ -848,7 +847,7 @@ either method; a deletion can't be undone.
 | `download/progress` | `{"downloadId": string, "receivedBytes": number, "totalBytes"?: number}` | Sources with `downloadControl` (1.7+), while a named download transfers (§7.5) |
 | `connection/changed` | `{"state": "online" \| "offline", "detail"?: string}` | Sources with `connectionCheck` (1.19+), when they notice their service go away or come back (§7.9) |
 | `media/wanted` | `{"scope": "own" \| "all"}` | Sources with `hostMedia` (1.20+), after `initialize` and when it changes (§7.10) |
-| `auth/prompt` | flow-specific, see §10 | Sources with `auth.required: true`, mid-flow |
+| `auth/prompt` | `{"methods": [AuthMethod, ...]}`, see §10 | Sources with `auth.required: true`, while signing in |
 | `auth/statusChanged` | `{"status": "authenticated"} \| {"status": "error", "message": string}` | Any source, on auth state transitions |
 | `error` | `{"code": number, "message": string, "data"?: object}` | Any source, for non-fatal issues worth surfacing in the UI (e.g. "track unavailable, skipping") |
 
@@ -916,79 +915,126 @@ treated as before: the front may retry once or twice, then stops.
 
 ---
 
-## 10. Auth flows
+## 10. Signing in
 
-Driven entirely by `capabilities.auth.flow`. Methods:
+A source says **which ways** it can be signed in to; the front takes the
+first one it is able to carry out and returns the raw outcome, which the
+source makes sense of. A front needs no knowledge of any particular source.
 
 - `auth.getStatus` (request) → `{"status": "unauthenticated"|"pending"|"authenticated"|"error", "detail"?: string}`
-- `auth.start` (request, `{}`) → `{}` ack; source begins the flow asynchronously
-- `auth.submit` (request, `{"fields": {"username": "...", "password": "..."}}`) → `{}` ack; only used by `usernamePassword` flows
+- `auth.start` (request, `{}`) → `{}` ack; the source begins signing in
+- `auth.submit` (request) → `{}` ack; hands the source the outcome of a
+  `browser` or `form` method (§10.2, §10.3)
 - `auth.cancel` (request, `{}`) → `{}` ack
 - `auth.logout` (request, `{}`) → `{}` ack; clears the source's stored session
 
 The front calls `auth.getStatus` right after `initialize` when
 `auth.required` is true. If not authenticated, it calls `auth.start` and
-waits for `auth/prompt` / `auth/statusChanged` notifications.
+waits for `auth/prompt` / `auth/statusChanged` notifications. Either way of
+submitting is answered by `auth/statusChanged`:
+`{"status": "authenticated"}` or `{"status": "error", "message": "..."}`.
 
-Any `auth/prompt` may carry an optional `"message"` (1.5+): what the user
-has to do, in the source's own words — a front can't know that a
-`usernamePassword` field expects, say, headers copied from a browser. It
-may use a minimal HTML subset: `<a href="https://...">`, `<b>`, `<i>`,
-`<code>`, `<br>`. A front renders those (links open in the user's browser)
-and shows anything else as plain text; one that ignores `message` falls back
-to its own generic wording.
+`auth/prompt` carries `methods`, the source's preferred one first:
 
 ```json
-{"flow": "usernamePassword",
- "message": "Open <a href=\"https://music.youtube.com\">music.youtube.com</a> signed in, then paste its <b>Request Headers</b> below.",
- "fields": [{"name": "headers", "secret": false, "multiline": true}]}
+{"methods": [
+  {"kind": "browser", "url": "https://...", "cookieUrls": ["https://music.example.com"],
+   "doneCookies": ["session"], "freshSession": true},
+  {"kind": "form", "message": "Paste the <b>request headers</b> below.",
+   "fields": [{"name": "headers", "secret": false, "multiline": true}]}
+]}
 ```
 
-### 10.1 `deviceCode` flow (e.g. Yandex OAuth device flow)
+A later `auth/prompt` replaces the earlier one (a new code, say). A front
+skips a method whose `kind` it doesn't know or can't carry out — one with no
+built-in browser skips `browser` — so a source that must work with every
+front lists a `code` or `form` method too.
+
+Any method may carry an optional `message`: what the user has to do, in the
+source's own words — a front can't know that a form's field expects, say,
+headers copied from a browser. It may use a minimal HTML subset:
+`<a href="https://...">`, `<b>`, `<i>`, `<code>`, `<br>`. A front renders
+those (links open in the user's browser) and shows anything else as plain
+text; without a `message` it uses its own generic wording.
+
+### 10.1 `code`: enter a code on a web page
+
+For a device flow (OAuth's device authorization, e.g. Yandex's).
+
+| Field | Type | Meaning |
+|---|---|---|
+| `url` | string | The page where the code is entered, on any device. |
+| `code` | string | The code to enter. |
+| `expiresInSec` | integer | How long the code stays good. |
+
 ```
 --> auth.start {}
 <-- {} (ack)
-<-- auth/prompt {"flow":"deviceCode","url":"https://oauth.yandex.ru/...","code":"ABCD-1234","expiresInSec":600}
+<-- auth/prompt {"methods":[{"kind":"code","url":"https://oauth.yandex.ru/...","code":"ABCD-1234","expiresInSec":600}]}
       (front displays url + code to the user; user completes this out-of-band, in any browser)
 <-- auth/statusChanged {"status":"authenticated"}
 ```
 
-### 10.2 `usernamePassword` flow
+Nothing is submitted: the source notices by itself.
+
+### 10.2 `browser`: sign in in a built-in browser
+
+The front opens `url` in a browser of its own, waits for the sign-in to
+finish, and returns what the browser ended up with. This covers both a
+service whose session is a set of cookies and an OAuth redirect.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `url` | string | Where to start. `https`. |
+| `cookieUrls` | string[] | Addresses whose cookies the source wants back; at least one. |
+| `doneCookies` | string[] | Optional. Signed in once a page has finished loading and `cookieUrls[0]` has all of these cookies. |
+| `doneUrlPrefix` | string | Optional. Signed in once the browser is about to open an address starting with this; the address is not loaded, so it may be one nothing serves. |
+| `freshSession` | bool | Optional. Start with no cookies, so the source gets a session of its own rather than one the browser goes on using. |
+
+At least one of `doneCookies` and `doneUrlPrefix` is present; with both,
+whichever happens first. The front then submits:
+
+```json
+{"browser": {
+  "finalUrl": "https://music.example.com/",
+  "userAgent": "Mozilla/5.0 ...",
+  "cookies": {"https://music.example.com": "session=...; other=..."}
+}}
+```
+
+`cookies` maps each of `cookieUrls` to the `Cookie` header the browser would
+send there (`""` when it has none). The front doesn't read or keep them.
+
+The browser may be on another device than the source: the mobile front can
+have a phone carry out a head unit's `browser` method and send the outcome
+back (`docs/android.md`). A source can't tell, and needn't.
+
+### 10.3 `form`: fields to fill in
+
+The front draws a generic form from `fields` and submits their values.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `fields[].name` | string | The key the value is submitted under. |
+| `fields[].label` | string | Optional. Shown with the input; `name` is a key, not a caption. |
+| `fields[].secret` | bool | Mask the input. |
+| `fields[].multiline` | bool | Optional. The value is long pasted text (a browser's raw request headers, say): a multi-line box suits it. A single-line input still carries it. |
+
 ```
 --> auth.start {}
 <-- {} (ack)
-<-- auth/prompt {"flow":"usernamePassword","fields":[
-      {"name":"username","secret":false},{"name":"password","secret":true}]}
-      (front renders a generic small form from this field list — no source-specific UI needed)
---> auth.submit {"fields":{"username":"...","password":"..."}}
+<-- auth/prompt {"methods":[{"kind":"form","fields":[
+      {"name":"username","secret":false},{"name":"password","secret":true}]}]}
+--> auth.submit {"form":{"username":"...","password":"..."}}
 <-- {} (ack)
 <-- auth/statusChanged {"status":"authenticated"}         // or {"status":"error","message":"..."}
 ```
 
-A field descriptor may also carry an optional `"multiline": true` (default
-`false`) alongside `name`/`secret`, hinting that its value is expected to be
-long pasted text (e.g. a browser's raw request headers) rather than a short
-single-line value — a front should render such a field as a multi-line text
-box instead of a single-line input. Same "generic form, no source-specific
-UI" principle applies: a front that ignores this hint still works correctly
-(a single-line input round-trips the value fine, just awkward to read/edit),
-it's a rendering hint only. `cloudmus_backend_ytmusic`'s browser-header
-paste (see that backend's `auth.py`) is the first real user of this.
-
-### 10.3 `oauthRedirect` flow
-```
---> auth.start {}
-<-- {} (ack)
-<-- auth/prompt {"flow":"oauthRedirect","url":"https://..."}
-      (front just opens this URL in a browser; the SOURCE owns any local-loopback
-       redirect listener needed to catch the callback — not the front)
-<-- auth/statusChanged {"status":"authenticated"}
-```
-No concrete source uses this flow yet in v1; the shape above is reserved.
+`auth.submit` carries exactly one of `form` and `browser`.
 
 Credentials/tokens are stored inside each source's own private config
-directory. The front never sees them and never needs source-specific
-knowledge to drive any of the three flows above.
+directory. The front only passes along what the user typed or the built-in
+browser ended up with, and never stores it.
 
 ---
 
@@ -1057,22 +1103,21 @@ something bumps MAJOR. Changes are tracked in `docs/protocol-changelog.md`.
 - `catalog.resolveUrl` (resolving a pasted service URL/ID directly) is not
   part of the protocol; if a source wants this, it's exposed only through
   that source's own standalone debug CLI, outside RPC.
-- `auth.flow: "oauthRedirect"` has a defined message shape (§10.3) but no
-  source implements it yet — treat as provisional until a real
-  implementation exercises it.
+- `auth/prompt`'s `doneUrlPrefix` (§10.2) is not used by any source yet —
+  treat as provisional until a real implementation exercises it.
 
 ---
 
 ## Appendix: full example session (NDJSON)
 
 ```ndjson
-{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1.1","front":{"name":"cloudmus-tui","version":"0.1.0"}}}
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"1.1","source":{"id":"yandex-music","name":"Yandex Music","version":"0.1.0"},"capabilities":{"playback":{"providesStream":true,"selfPlayback":false,"controls":{"pause":false,"seek":false,"volume":false}},"browse":{"playlists":true,"likedTracks":true,"radio":true,"search":false},"feedback":{"like":true,"dislike":true,"skip":true},"download":true,"auth":{"required":true,"flow":"deviceCode"}}}}
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2.0","front":{"name":"cloudmus-tui","version":"0.1.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2.0","source":{"id":"yandex-music","name":"Yandex Music","version":"0.1.0"},"capabilities":{"playback":{"providesStream":true,"selfPlayback":false,"controls":{"pause":false,"seek":false,"volume":false}},"browse":{"playlists":true,"likedTracks":true,"radio":true,"search":false},"feedback":{"like":true,"dislike":true,"skip":true},"download":true,"auth":{"required":true}}}}
 {"jsonrpc":"2.0","id":2,"method":"auth.getStatus","params":{}}
 {"jsonrpc":"2.0","id":2,"result":{"status":"unauthenticated"}}
 {"jsonrpc":"2.0","id":3,"method":"auth.start","params":{}}
 {"jsonrpc":"2.0","id":3,"result":{}}
-{"jsonrpc":"2.0","method":"auth/prompt","params":{"flow":"deviceCode","url":"https://oauth.yandex.ru/device","code":"WXYZ-9876","expiresInSec":600}}
+{"jsonrpc":"2.0","method":"auth/prompt","params":{"methods":[{"kind":"code","url":"https://oauth.yandex.ru/device","code":"WXYZ-9876","expiresInSec":600}]}}
 {"jsonrpc":"2.0","method":"auth/statusChanged","params":{"status":"authenticated"}}
 {"jsonrpc":"2.0","id":4,"method":"catalog.listPlaylists","params":{}}
 {"jsonrpc":"2.0","id":4,"result":{"playlists":[{"id":"3","title":"Favorites","trackCount":42,"kind":"playlist"}]}}

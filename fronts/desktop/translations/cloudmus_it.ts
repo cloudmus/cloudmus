@@ -499,10 +499,6 @@
         <translation>Invia</translation>
     </message>
     <message>
-        <source>Open Browser</source>
-        <translation>Apri il browser</translation>
-    </message>
-    <message>
         <source>Retry</source>
         <translation>Riprova</translation>
     </message>
@@ -521,10 +517,6 @@
     <message>
         <source>Paste here</source>
         <translation>Incolla qui</translation>
-    </message>
-    <message>
-        <source>Continue in your browser</source>
-        <translation>Continua nel browser</translation>
     </message>
     <message>
         <source>Sign-in required</source>

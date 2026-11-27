@@ -131,7 +131,7 @@ Task<void> RpcClient::start(QProcessEnvironment environment, QString locale)
     transport_.start(manifest_.argv, environment);
 
     QJsonObject params {
-        { QStringLiteral("protocolVersion"), QStringLiteral("1.26") },
+        { QStringLiteral("protocolVersion"), QStringLiteral("2.0") },
         { QStringLiteral("front"),
             QJsonObject { { QStringLiteral("name"), QStringLiteral("cloudmus-qt") },
                 { QStringLiteral("version"), QStringLiteral("0.1.0") } } },
@@ -281,8 +281,8 @@ void RpcClient::dispatchNotification(const QString& method, const QJsonObject& p
         if (notifications.onMediaWanted)
             notifications.onMediaWanted(MediaWantedParams::fromJson(params));
     } else if (method == QStringLiteral("auth/prompt")) {
-        if (onAuthPromptRaw)
-            onAuthPromptRaw(params); // see the member's doc comment for why this bypasses `notifications`
+        if (notifications.onAuthPrompt)
+            notifications.onAuthPrompt(PromptParams::fromJson(params));
     } else if (method == QStringLiteral("auth/statusChanged")) {
         if (notifications.onAuthStatusChanged)
             notifications.onAuthStatusChanged(StatusChangedParams::fromJson(params));

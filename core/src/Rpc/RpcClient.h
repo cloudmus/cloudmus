@@ -31,7 +31,10 @@ public:
     }
     const RpcError& error() const { return error_; }
     // The source can't reach its service (docs/protocol.md §9.1).
-    bool isOffline() const { return error_.data.value(QStringLiteral("reason")).toString() == QStringLiteral("offline"); }
+    bool isOffline() const
+    {
+        return error_.data.value(QStringLiteral("reason")).toString() == QStringLiteral("offline");
+    }
 
 private:
     RpcError error_;
@@ -137,14 +140,6 @@ public:
     // Filled in by whoever owns this client (SourceManager/PlaybackController)
     // to receive typed notification pushes.
     NotificationDispatch notifications;
-
-    // auth/prompt's payload varies per capabilities.auth.flow (deviceCode
-    // carries url/code/expiresInSec; usernamePassword carries fields;
-    // oauthRedirect carries url) and protocol/methods.yaml deliberately
-    // doesn't model it as a oneOf (see the comment there) — so it's
-    // dispatched here as raw JSON instead of through `notifications`,
-    // mirroring the same call in cloudmus_backend_yandex/auth.py.
-    std::function<void(const QJsonObject&)> onAuthPromptRaw;
 
 signals:
     void becameUnavailable();
