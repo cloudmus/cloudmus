@@ -120,7 +120,7 @@ class SharedCoreTest : public QObject {
     QTemporaryDir settingsDir_;
 
 private slots:
-    void qrCodeIsRoundDotsOnWhite()
+    void qrCodeIsRoundedOnWhite()
     {
         Ui::QrImageProvider provider;
         QSize size;
