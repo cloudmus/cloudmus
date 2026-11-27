@@ -17,10 +17,12 @@
 #include <QStyleHints>
 #include <QStandardPaths>
 #include <QTemporaryDir>
+#include <QThread>
 #include <QScopeGuard>
 #include <QTest>
 
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <functional>
 #include <memory>
@@ -104,6 +106,20 @@ void forEachItem(QQuickItem* root, const std::function<void(QQuickItem*)>& visit
 }
 
 } // namespace
+
+// The QR provider, counting what it draws and noting where.
+class CountingQrProvider : public Ui::QrImageProvider {
+public:
+    QImage requestImage(const QString& id, QSize* size, const QSize& requestedSize) override
+    {
+        ++draws;
+        if (QThread::currentThread() == QCoreApplication::instance()->thread())
+            ++drawsOnUiThread;
+        return Ui::QrImageProvider::requestImage(id, size, requestedSize);
+    }
+    static inline std::atomic_int draws = 0;
+    static inline std::atomic_int drawsOnUiThread = 0;
+};
 
 // A slot for a signal of a replica, which has no member function to point at.
 class Receiver : public QObject {
@@ -2856,7 +2872,9 @@ private slots:
         QQmlApplicationEngine engine;
         engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
         engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
-        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        CountingQrProvider::draws = 0;
+        CountingQrProvider::drawsOnUiThread = 0;
+        engine.addImageProvider(QStringLiteral("qr"), new CountingQrProvider);
         engine.setInitialProperties({
             { "backend", QVariant::fromValue<QObject*>(&backend) },
             { "platform", QVariant::fromValue<QObject*>(&platform) },
@@ -2905,6 +2923,9 @@ private slots:
             window->grabWindow().save(shots + QStringLiteral("/phone-signin-qr.png"));
         QTest::mouseClick(window, Qt::LeftButton, { }, QPoint(10, 10));
         QTRY_VERIFY(!full->property("visible").toBool());
+        // Drawn once for the page and the screen, never holding the UI up.
+        QCOMPARE(CountingQrProvider::draws.load(), 1);
+        QCOMPARE(CountingQrProvider::drawsOnUiThread.load(), 0);
         // Open again: signing in takes it away.
         QTest::mouseClick(window, Qt::LeftButton, { }, onQr);
         QTRY_VERIFY(full->property("opened").toBool());

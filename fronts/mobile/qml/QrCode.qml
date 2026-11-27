@@ -14,6 +14,11 @@ AbstractButton {
 
     readonly property string _source: text !== "" ? "image://qr/" + encodeURIComponent(text) : ""
     readonly property real _side: Math.min(width, height)
+    // One picture for the page and the whole screen, so it's drawn once: at the
+    // largest it's shown at, whatever the layout does meanwhile. Qt multiplies
+    // sourceSize by the screen's density itself.
+    readonly property int _drawnSide: Math.min(Screen.width, Screen.height)
+    readonly property string _drawn: _drawnSide > 0 ? _source : ""
 
     implicitWidth: Theme.dp(240)
     implicitHeight: Theme.dp(240)
@@ -38,13 +43,19 @@ AbstractButton {
             anchors.centerIn: parent
             width: control._side
             height: control._side
+            // Coming in as it's drawn.
+            property real _ready: status === Image.Ready ? 1 : 0
+            Behavior on _ready { NumberAnimation { duration: Theme.durationFast } }
             // The one on the screen is this one, moved.
-            opacity: full.visible ? 0 : 1
+            opacity: full.visible ? 0 : _ready
             scale: control.down ? 0.97 : 1
             Behavior on scale { NumberAnimation { duration: Theme.durationFast } }
-            source: control._source
-            sourceSize: Qt.size(Math.round(width * Screen.devicePixelRatio),
-                                Math.round(height * Screen.devicePixelRatio))
+            source: control._drawn
+            sourceSize: Qt.size(control._drawnSide, control._drawnSide)
+            // Off the UI thread: drawing it takes long enough to be felt.
+            asynchronous: true
+            // Smooth at its smaller size on the page too.
+            mipmap: true
 
             // That a tap makes it larger.
             Rectangle {
@@ -133,10 +144,12 @@ AbstractButton {
                 y: full.from.y + (toY - full.from.y) * full.progress
                 width: full.from.width + (full._target - full.from.width) * full.progress
                 height: width
-                source: full.visible ? control._source : ""
-                // Drawn once, for the size it ends at.
-                sourceSize: Qt.size(Math.round(full._target * Screen.devicePixelRatio),
-                                    Math.round(full._target * Screen.devicePixelRatio))
+                // The page's own picture (the same source and size): there
+                // already as the code is tapped.
+                source: control._drawn
+                sourceSize: Qt.size(control._drawnSide, control._drawnSide)
+                asynchronous: true
+                mipmap: true
             }
             MouseArea {
                 anchors.fill: parent

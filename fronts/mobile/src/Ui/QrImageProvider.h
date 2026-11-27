@@ -4,9 +4,10 @@
 
 namespace Ui {
 
-// `image://qr/<percent-encoded text>`: the text as a QR code (Qr::picture),
-// sharp at the size asked for. Views don't use it directly:
-// QrCode.qml is the code as shown.
+// `image://qr/<percent-encoded text>`: the text as a QR code (Qr::picture, as
+// the desktop's), sharp at the size asked for. Views don't use it directly:
+// QrCode.qml is the code as shown, and it loads asynchronously: this runs off
+// the UI thread, and keeps no state.
 class QrImageProvider : public QQuickImageProvider {
 public:
     QrImageProvider();

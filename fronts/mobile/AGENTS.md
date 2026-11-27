@@ -3,6 +3,14 @@
 On top of the root `AGENTS.md`; before touching `core/`, read `core/AGENTS.md`.
 Building, testing and running on a device: `docs/android.md`.
 
+## Pictures
+
+- A picture drawn by an image provider is loaded with `asynchronous: true`:
+  drawn on the UI thread it holds every frame meanwhile.
+- `sourceSize` is in the screen's logical pixels, Qt multiplies it by the
+  density itself; and keep it off the layout's changing sizes, or the picture is
+  drawn anew at each of them.
+
 ## Animation
 
 Nothing on a page jumps: a panel — a card, a settings cell, a block of
