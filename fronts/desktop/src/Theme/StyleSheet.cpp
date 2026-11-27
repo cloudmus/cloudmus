@@ -193,30 +193,25 @@ QString panelsBlock(const Palette& p)
     //
     // "border: 0px solid transparent", not "border: none" — see
     // buttonsBlock()'s comment on why not "none".
-    return QStringLiteral(R"(#sourceAuthCard {
+    return QStringLiteral(R"(#toastLabel {
     background: %1;
-    border: 1px solid %2;
-    border-radius: %3px;
-}
-#toastLabel {
-    background: %4;
-    color: %5;
+    color: %2;
     border: 0px solid transparent;
-    border-radius: %6px;
-    padding: %7px %8px;
+    border-radius: %3px;
+    padding: %4px %5px;
 }
-QMenu { color: %5; }
+QMenu { color: %2; }
 /* The color above reaches every item, the ones that can't be chosen too. A
    color alone leaves the painting to Theme::CloudMusStyle. */
-QMenu::item:disabled { color: %10; }
-QMenu QCheckBox, QMenu QRadioButton { color: %5; spacing: %7px; }
-QMenu QCheckBox:disabled, QMenu QRadioButton:disabled { color: %10; }
-#transportSeparator { color: %2; }
-#secondaryLabel { color: %9; }
-#sectionLabel { color: %10; })")
-        .arg(hex(p.surface200), hex(p.border), QString::number(Radius::md), hex(p.surface400), hex(p.ink),
-            QString::number(Radius::sm), QString::number(Spacing::space2), QString::number(Spacing::space3))
-        .arg(hex(p.inkSecondary), hex(p.inkTertiary));
+QMenu::item:disabled { color: %8; }
+QMenu QCheckBox, QMenu QRadioButton { color: %2; spacing: %4px; }
+QMenu QCheckBox:disabled, QMenu QRadioButton:disabled { color: %8; }
+#transportSeparator { color: %6; }
+#secondaryLabel { color: %7; }
+#sectionLabel { color: %8; })")
+        .arg(hex(p.surface400), hex(p.ink), QString::number(Radius::sm), QString::number(Spacing::space2),
+            QString::number(Spacing::space3))
+        .arg(hex(p.border), hex(p.inkSecondary), hex(p.inkTertiary));
 }
 
 // Scoped to [themed="true"] (the busyIndicator_ instances and the cache
@@ -312,8 +307,7 @@ QString trackListBlock(const Palette& p)
 // dialog's own window background: a utility window like Settings/About
 // reads closer to the app's chrome than to main content (surface0).
 // Fields/checkbox sit one tone up at surface200, the same "raised
-// control" treatment #sourceAuthCard and the secondary button variant
-// already use.
+// control" treatment the secondary button variant already uses.
 QString dialogsBlock(const Palette& p)
 {
     const QString checkIcon = iconAssetPath(QStringLiteral("check"), IconColor::OnAccent, 12);

@@ -17,7 +17,7 @@ private slots:
     {
         window_ = std::make_unique<QWidget>();
         auto* layout = new QVBoxLayout(window_.get());
-        card_ = new Ui::AuthCard(Ui::AuthCard::Look::Card, window_.get());
+        card_ = new Ui::AuthCard(Ui::AuthCard::Look::Standalone, window_.get());
         layout->addWidget(card_);
         layout->addStretch(1);
         window_->resize(700, 600);

@@ -356,7 +356,7 @@ SourcePanel::SourcePanel(Covers::CoverArtCache* coverCache, QWidget* parent)
     ScrollEdgeFade::attach(scroll, [] { return Theme::palette().surface0; });
     OverlayScrollBar::attach(scroll);
 
-    authCard_ = new AuthCard(AuthCard::Look::Card, column);
+    authCard_ = new AuthCard(AuthCard::Look::Standalone, column);
     authCard_->setMaximumWidth(kCardMaxWidth);
     connect(authCard_, &AuthCard::submitRequested, this,
         [this](const QJsonObject& fields) { emit submitRequested(currentSourceId_, fields); });

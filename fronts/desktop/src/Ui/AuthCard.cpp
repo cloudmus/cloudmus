@@ -28,7 +28,7 @@
 namespace Ui {
 
 namespace {
-constexpr int kCardIconSize = 32;
+constexpr int kStandaloneIconSize = 32;
 constexpr int kEmbeddedIconSize = 20;
 constexpr int kMultilineFieldMinHeight = 140;
 } // namespace
@@ -36,13 +36,8 @@ constexpr int kMultilineFieldMinHeight = 140;
 AuthCard::AuthCard(Look look, QWidget* parent)
     : QWidget(parent)
 {
-    // Look::Card is styled by Theme::StyleSheet's global #sourceAuthCard
-    // rule (surface-200/border/radius-md, regenerated on every theme
-    // change); Embedded simply doesn't match it.
     const bool embedded = look == Look::Embedded;
-    if (!embedded)
-        setObjectName(QStringLiteral("sourceAuthCard"));
-    const int iconSize = embedded ? kEmbeddedIconSize : kCardIconSize;
+    const int iconSize = embedded ? kEmbeddedIconSize : kStandaloneIconSize;
 
     auto* iconLabel = new QLabel(this);
     Theme::followTheme(iconLabel, [iconLabel, iconSize]() {
@@ -130,8 +125,7 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     qrCode_->hide();
 
     auto* cardLayout = new QVBoxLayout(this);
-    const int padding = embedded ? 0 : Theme::Spacing::space6;
-    cardLayout->setContentsMargins(padding, padding, padding, padding);
+    cardLayout->setContentsMargins(0, 0, 0, 0);
     cardLayout->setSpacing(embedded ? Theme::Spacing::space2 : 10);
     cardLayout->addLayout(headerRow);
     cardLayout->addWidget(codeLabel_);

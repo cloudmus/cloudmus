@@ -17,8 +17,8 @@ namespace Ui {
 class QrCodeView;
 
 // A source's sign-in card: renders an auth/prompt (deviceCode's URL and
-// code, the URL as a QR code too, usernamePassword's fields, oauthRedirect's browser hand-off —
-// discriminated by params["flow"], see Rpc::RpcClient::onAuthPromptRaw's
+// code, the URL as a QR code too, usernamePassword's fields, oauthRedirect's
+// browser hand-off — discriminated by params["flow"], see Rpc::RpcClient::onAuthPromptRaw's
 // doc comment for why this is raw JSON rather than a generated struct), an
 // error with Retry, or a plain "sign in" invitation. Holds no source
 // identity: whoever shows it knows which source its signals are about.
@@ -28,14 +28,14 @@ class AuthCard : public QWidget {
 
 public:
     enum class Look {
-        // A raised card of its own (surface-200, border, generous padding),
-        // standing alone on a page — SourcePanel.
-        Card,
-        // No chrome or padding of its own, for a place that already frames
-        // it — the source's card in the Settings dialog.
+        // Standing on a page of its own, with a larger icon — SourcePanel.
+        Standalone,
+        // Inside a frame that's already there — the source's card in the
+        // Settings dialog.
         Embedded,
     };
 
+    // Neither look has padding of its own: it lines up with what's around it.
     explicit AuthCard(Look look, QWidget* parent = nullptr);
 
     void showPrompt(const QJsonObject& params);

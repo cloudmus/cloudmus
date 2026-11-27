@@ -466,7 +466,7 @@ void HeroPanel::paintEvent(QPaintEvent* event)
     Covers::paintMeshAuraVignette(painter, rect());
 
     // 2x Radius::md, not the bare token: this cover is large enough that
-    // md's own 8px (right for #sourceAuthCard and other panels at their
+    // md's own 8px (right for other panels at their
     // usual size) read as barely-rounded here — doubled rather than
     // reused, since this is now specific to how big this particular cover
     // renders, not the shared panel radius itself.
