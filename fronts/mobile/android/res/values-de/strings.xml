@@ -14,4 +14,6 @@
     <string name="phone_unfinished">Die Anmeldung wurde nicht abgeschlossen.</string>
     <string name="phone_page_open">In CloudMus öffnen</string>
     <string name="phone_page_about">Meldet das andere Gerät bei %1$s an. CloudMus muss auf diesem Telefon installiert sein.</string>
+    <string name="phone_page_download">CloudMus herunterladen</string>
+    <string name="phone_page_install">Kein CloudMus auf diesem Telefon? Lade es vom anderen Gerät herunter, installiere es, kehre dann zu dieser Seite zurück und öffne es.</string>
 </resources>

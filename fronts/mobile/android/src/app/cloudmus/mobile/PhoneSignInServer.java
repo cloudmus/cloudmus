@@ -6,17 +6,15 @@ import android.os.Looper;
 import android.text.TextUtils;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import org.json.JSONObject;
@@ -28,6 +26,8 @@ import org.json.JSONObject;
 //   GET  /sign-in          a page for the phone's browser, which a camera
 //                          opens, with a link into CloudMus there
 //   GET  /sign-in/offer    {sourceName, method}, sealed (PhoneSignInLink)
+//   GET  /CloudMus.apk     this app's own APK, for a phone without CloudMus:
+//                          the page offers it, and no internet is needed
 //   POST /sign-in/result   what the phone's browser ended up with, sealed
 //
 // The key is in the QR code alone — in the address's fragment, which a
@@ -38,6 +38,7 @@ public final class PhoneSignInServer {
     private static final long LIFETIME_MS = 10 * 60 * 1000;
     private static final int MAX_HEAD = 16 * 1024;
     private static final int MAX_BODY = 256 * 1024;
+    private static final String APK_PATH = "/CloudMus.apk";
     static final String OFFER = "offer";
     static final String RESULT = "result";
 
@@ -53,6 +54,8 @@ public final class PhoneSignInServer {
         String hosts;
         byte[] sealed;
         String page;
+        // This app's installed APK, offered by the page.
+        File apk;
         Runnable expiry;
     }
 
@@ -60,10 +63,12 @@ public final class PhoneSignInServer {
 
     private static native void nativeExpired();
 
-    // The page's address with the key, for the QR code; "" with no network.
+    // The page's addresses with the key, one a line, the likeliest to reach
+    // first (LocalAddresses), for the QR code: which network the phone is on
+    // isn't known, so the user may switch to the next. "" with no network.
     public static synchronized String start(Context context, String request, String method, String title) {
         stop();
-        List<String> addresses = addresses();
+        List<LocalAddresses.Address> addresses = LocalAddresses.find(context);
         if (addresses.isEmpty()) {
             CmLog.w(TAG, "no network to offer the sign-in on");
             return "";
@@ -74,20 +79,25 @@ public final class PhoneSignInServer {
             offer.request = request;
             offer.key = PhoneSignInLink.newKey();
             List<String> hosts = new ArrayList<>();
-            for (String address : addresses)
-                hosts.add(address + ":" + offer.socket.getLocalPort());
+            for (LocalAddresses.Address address : addresses)
+                hosts.add(address.host + ":" + offer.socket.getLocalPort());
             offer.hosts = TextUtils.join(",", hosts);
             JSONObject body = new JSONObject().put("sourceName", title).put("method", new JSONObject(method));
             offer.sealed = PhoneSignInLink.seal(offer.key, OFFER, body.toString());
             offer.page = page(context, title, offer.hosts);
+            offer.apk = new File(context.getApplicationInfo().sourceDir);
             offer.expiry = () -> expire(offer);
             new Handler(Looper.getMainLooper()).postDelayed(offer.expiry, LIFETIME_MS);
             current = offer;
             Thread thread = new Thread(() -> accept(offer), "phone-sign-in");
             thread.setDaemon(true);
             thread.start();
-            CmLog.i(TAG, "offering " + title + " on " + offer.hosts);
-            return "http://" + hosts.get(0) + "/sign-in#" + offer.key;
+            CmLog.i(TAG, "offering " + title + " on port " + offer.socket.getLocalPort() + ": "
+                    + TextUtils.join(", ", addresses));
+            List<String> links = new ArrayList<>();
+            for (String host : hosts)
+                links.add("http://" + host + "/sign-in#" + offer.key);
+            return TextUtils.join("\n", links);
         } catch (Exception error) {
             CmLog.e(TAG, "offer", error);
             return "";
@@ -117,30 +127,6 @@ public final class PhoneSignInServer {
         } catch (UnsatisfiedLinkError noViews) {
             // nothing to tell
         }
-    }
-
-    // IPv4 addresses a phone may reach: Wi-Fi's first (a phone's hotspot),
-    // then the rest — a head unit has interfaces of its own insides too.
-    private static List<String> addresses() {
-        List<String> wireless = new ArrayList<>();
-        List<String> others = new ArrayList<>();
-        try {
-            for (NetworkInterface face : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-                if (!face.isUp() || face.isLoopback())
-                    continue;
-                String name = face.getName();
-                for (InetAddress address : Collections.list(face.getInetAddresses())) {
-                    if (!(address instanceof Inet4Address) || !address.isSiteLocalAddress())
-                        continue;
-                    boolean wifi = name.startsWith("wlan") || name.startsWith("ap") || name.startsWith("swlan");
-                    (wifi ? wireless : others).add(address.getHostAddress());
-                }
-            }
-        } catch (Exception error) {
-            CmLog.e(TAG, "addresses", error);
-        }
-        wireless.addAll(others);
-        return wireless;
     }
 
     private static void accept(Offer offer) {
@@ -173,6 +159,8 @@ public final class PhoneSignInServer {
             CmLog.i(TAG, socket.getInetAddress().getHostAddress() + " " + request[0] + " " + request[1]);
             if ("GET".equals(request[0]) && "/sign-in".equals(request[1])) {
                 respond(out, "200 OK", "text/html; charset=utf-8", offer.page.getBytes(StandardCharsets.UTF_8));
+            } else if ("GET".equals(request[0]) && APK_PATH.equals(request[1])) {
+                sendApk(offer, out);
             } else if ("GET".equals(request[0]) && "/sign-in/offer".equals(request[1])) {
                 respond(out, "200 OK", "application/octet-stream", offer.sealed);
             } else if ("POST".equals(request[0]) && "/sign-in/result".equals(request[1]) && length > 0
@@ -210,16 +198,37 @@ public final class PhoneSignInServer {
         }
     }
 
+    private static void sendApk(Offer offer, OutputStream out) throws IOException {
+        String head = "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.android.package-archive\r\nContent-Length: "
+                + offer.apk.length() + "\r\nContent-Disposition: attachment; filename=\"CloudMus.apk\""
+                + "\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+        out.write(head.getBytes(StandardCharsets.ISO_8859_1));
+        try (InputStream in = new FileInputStream(offer.apk)) {
+            byte[] buffer = new byte[64 * 1024];
+            int got;
+            while ((got = in.read(buffer)) >= 0)
+                out.write(buffer, 0, got);
+        }
+        out.flush();
+    }
+
     // The key stays in the browser: its script puts the fragment into the link.
+    // A phone without CloudMus gets it here too, from this device.
     private static String page(Context context, String title, String hosts) {
         String open = TextUtils.htmlEncode(context.getString(R.string.phone_page_open));
         String about = TextUtils.htmlEncode(context.getString(R.string.phone_page_about, title));
+        String download = TextUtils.htmlEncode(context.getString(R.string.phone_page_download));
+        String install = TextUtils.htmlEncode(context.getString(R.string.phone_page_install));
         return "<!doctype html><html><head><meta charset=\"utf-8\">"
                 + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>CloudMus</title>"
                 + "<style>body{font:18px sans-serif;margin:32px 20px;text-align:center}"
                 + "a{display:block;margin:32px auto;max-width:320px;padding:16px;border-radius:32px;"
-                + "background:#C23D16;color:#fff;text-decoration:none;font-weight:600}</style></head><body>"
+                + "background:#C23D16;color:#fff;text-decoration:none;font-weight:600}"
+                + "a.second{background:none;color:#C23D16;border:2px solid #C23D16;margin-bottom:12px}"
+                + "small{display:block;max-width:320px;margin:0 auto;opacity:.7}</style></head><body>"
                 + "<h1>CloudMus</h1><p>" + about + "</p><a id=\"open\" href=\"#\">" + open + "</a>"
+                + "<a class=\"second\" href=\"" + APK_PATH + "\" download=\"CloudMus.apk\">" + download + "</a>"
+                + "<small>" + install + "</small>"
                 + "<script>document.getElementById('open').href='cloudmus://sign-in?hosts=" + hosts
                 + "&key='+encodeURIComponent(location.hash.slice(1));</script></body></html>";
     }

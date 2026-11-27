@@ -14,4 +14,6 @@
     <string name="phone_unfinished">No se completó el inicio de sesión.</string>
     <string name="phone_page_open">Abrir en CloudMus</string>
     <string name="phone_page_about">Inicia sesión en %1$s para el otro dispositivo. CloudMus debe estar instalado en este teléfono.</string>
+    <string name="phone_page_download">Descargar CloudMus</string>
+    <string name="phone_page_install">¿No tienes CloudMus en este teléfono? Descárgalo del otro dispositivo, instálalo, vuelve a esta página y ábrelo.</string>
 </resources>

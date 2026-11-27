@@ -14,4 +14,6 @@
     <string name="phone_unfinished">L\'accesso non è stato completato.</string>
     <string name="phone_page_open">Apri in CloudMus</string>
     <string name="phone_page_about">Fa accedere l\'altro dispositivo a %1$s. CloudMus deve essere installato su questo telefono.</string>
+    <string name="phone_page_download">Scarica CloudMus</string>
+    <string name="phone_page_install">CloudMus non è su questo telefono? Scaricalo dall\'altro dispositivo, installalo, poi torna a questa pagina e aprilo.</string>
 </resources>

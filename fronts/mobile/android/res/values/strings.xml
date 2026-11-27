@@ -22,4 +22,6 @@
     <string name="phone_unfinished">The sign-in wasn\'t finished.</string>
     <string name="phone_page_open">Open in CloudMus</string>
     <string name="phone_page_about">Signs the other device in to %1$s. CloudMus has to be installed on this phone.</string>
+    <string name="phone_page_download">Download CloudMus</string>
+    <string name="phone_page_install">No CloudMus on this phone? Download it from the other device, install it, then come back to this page and open it.</string>
 </resources>

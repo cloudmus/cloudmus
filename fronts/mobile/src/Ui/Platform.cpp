@@ -145,14 +145,15 @@ bool Platform::signInBrowserOutdated() const
 
 bool Platform::canSignInByPhone() const { return android(); }
 
-QString Platform::startPhoneSignIn(const QString& request, const QString& method, const QString& title) const
+QStringList Platform::startPhoneSignIn(const QString& request, const QString& method, const QString& title) const
 {
 #ifdef Q_OS_ANDROID
     return QJniObject::callStaticObjectMethod("app/cloudmus/mobile/PhoneSignInServer", "start",
         "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
         QNativeInterface::QAndroidApplication::context().object(), QJniObject::fromString(request).object<jstring>(),
         QJniObject::fromString(method).object<jstring>(), QJniObject::fromString(title).object<jstring>())
-        .toString();
+        .toString()
+        .split(QLatin1Char('\n'), Qt::SkipEmptyParts);
 #else
     Q_UNUSED(request)
     Q_UNUSED(method)

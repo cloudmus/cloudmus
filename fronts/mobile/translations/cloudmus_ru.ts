@@ -1014,8 +1014,8 @@
       <translation>В браузере</translation>
     </message>
     <message>
-      <source>With a phone</source>
-      <translation>С телефона</translation>
+      <source>With an Android phone</source>
+      <translation>С Android-телефона</translation>
     </message>
     <message>
       <source>With a code</source>
@@ -1034,8 +1034,8 @@
       <translation>Браузер этого устройства устарел: страница входа может его не пустить.</translation>
     </message>
     <message>
-      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network: this one on the phone&apos;s hotspot, say.</source>
-      <translation>Отсканируйте код камерой телефона и войдите на телефоне. Оба устройства должны быть в одной сети: например, это — на точке доступа телефона.</translation>
+      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network.</source>
+      <translation>Отсканируйте код камерой телефона и войдите на телефоне. Оба устройства должны быть в одной сети.</translation>
     </message>
     <message>
       <source>To sign in with a phone, connect this device to the phone&apos;s network — its hotspot, say — and show the code.</source>
@@ -1044,6 +1044,22 @@
     <message>
       <source>Show the QR code</source>
       <translation>Показать QR-код</translation>
+    </message>
+    <message>
+      <source>Only an Android phone with CloudMus installed will do: an iPhone can&apos;t sign in for this device.</source>
+      <translation>Подойдёт только Android-телефон с установленным CloudMus: с iPhone войти за это устройство нельзя.</translation>
+    </message>
+    <message>
+      <source>Address in the code: %1 (network %2 of %3). If the phone can&apos;t open it, try another network.</source>
+      <translation>Адрес в коде: %1 (сеть %2 из %3). Если телефон не открывает его, попробуйте другую сеть.</translation>
+    </message>
+    <message>
+      <source>Address in the code: %1</source>
+      <translation>Адрес в коде: %1</translation>
+    </message>
+    <message>
+      <source>Another network</source>
+      <translation>Другая сеть</translation>
     </message>
   </context>
   <context>

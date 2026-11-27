@@ -1009,8 +1009,8 @@
       <translation>En el navegador</translation>
     </message>
     <message>
-      <source>With a phone</source>
-      <translation>Con el teléfono</translation>
+      <source>With an Android phone</source>
+      <translation>Con un teléfono Android</translation>
     </message>
     <message>
       <source>With a code</source>
@@ -1029,8 +1029,8 @@
       <translation>El navegador de este dispositivo es antiguo: la página de inicio de sesión puede rechazarlo.</translation>
     </message>
     <message>
-      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network: this one on the phone&apos;s hotspot, say.</source>
-      <translation>Escanea el código con la cámara del teléfono e inicia sesión en él. Ambos dispositivos deben estar en la misma red: este, por ejemplo, en el punto de acceso del teléfono.</translation>
+      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network.</source>
+      <translation>Escanea el código con la cámara del teléfono e inicia sesión en él. Ambos dispositivos deben estar en la misma red.</translation>
     </message>
     <message>
       <source>To sign in with a phone, connect this device to the phone&apos;s network — its hotspot, say — and show the code.</source>
@@ -1039,6 +1039,22 @@
     <message>
       <source>Show the QR code</source>
       <translation>Mostrar el código QR</translation>
+    </message>
+    <message>
+      <source>Only an Android phone with CloudMus installed will do: an iPhone can&apos;t sign in for this device.</source>
+      <translation>Solo sirve un teléfono Android con CloudMus instalado: un iPhone no puede iniciar sesión por este dispositivo.</translation>
+    </message>
+    <message>
+      <source>Address in the code: %1 (network %2 of %3). If the phone can&apos;t open it, try another network.</source>
+      <translation>Dirección en el código: %1 (red %2 de %3). Si el teléfono no puede abrirla, prueba otra red.</translation>
+    </message>
+    <message>
+      <source>Address in the code: %1</source>
+      <translation>Dirección en el código: %1</translation>
+    </message>
+    <message>
+      <source>Another network</source>
+      <translation>Otra red</translation>
     </message>
   </context>
   <context>

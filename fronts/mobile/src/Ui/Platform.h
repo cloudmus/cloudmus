@@ -80,12 +80,13 @@ public:
     bool signInBrowserOutdated() const;
     bool canSignInByPhone() const;
     // Offers a source's `browser` method to a phone on the same network
-    // (PhoneSignInServer): the address for the phone to open — to be shown as
-    // a QR code — or empty with no network to offer it on. What the phone's
+    // (PhoneSignInServer): the addresses for the phone to open, one per
+    // network of this device's, the likeliest first — to be shown as a QR
+    // code, one at a time — or none with no network to offer it on. What the phone's
     // browser ends up with comes in signedInWithBrowser(), as for
     // signInWithBrowser(). Until stopPhoneSignIn(), or
     // phoneSignInEnded() once it's expired.
-    Q_INVOKABLE QString startPhoneSignIn(const QString& request, const QString& method, const QString& title) const;
+    Q_INVOKABLE QStringList startPhoneSignIn(const QString& request, const QString& method, const QString& title) const;
     Q_INVOKABLE void stopPhoneSignIn() const;
     // Opens a source's `browser` sign-in method (`method`, as JSON) in the
     // built-in browser (SignInWebActivity); what it ends up with comes in

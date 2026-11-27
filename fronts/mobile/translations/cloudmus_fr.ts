@@ -1009,8 +1009,8 @@
       <translation>Dans le navigateur</translation>
     </message>
     <message>
-      <source>With a phone</source>
-      <translation>Avec le téléphone</translation>
+      <source>With an Android phone</source>
+      <translation>Avec un téléphone Android</translation>
     </message>
     <message>
       <source>With a code</source>
@@ -1029,8 +1029,8 @@
       <translation>Le navigateur de cet appareil est ancien : la page de connexion peut le refuser.</translation>
     </message>
     <message>
-      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network: this one on the phone&apos;s hotspot, say.</source>
-      <translation>Scannez le code avec l’appareil photo de votre téléphone et connectez-vous sur le téléphone. Les deux appareils doivent être sur le même réseau : celui-ci sur le partage de connexion du téléphone, par exemple.</translation>
+      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network.</source>
+      <translation>Scannez le code avec l’appareil photo de votre téléphone et connectez-vous sur le téléphone. Les deux appareils doivent être sur le même réseau.</translation>
     </message>
     <message>
       <source>To sign in with a phone, connect this device to the phone&apos;s network — its hotspot, say — and show the code.</source>
@@ -1039,6 +1039,22 @@
     <message>
       <source>Show the QR code</source>
       <translation>Afficher le code QR</translation>
+    </message>
+    <message>
+      <source>Only an Android phone with CloudMus installed will do: an iPhone can&apos;t sign in for this device.</source>
+      <translation>Seul un téléphone Android avec CloudMus installé convient : un iPhone ne peut pas se connecter pour cet appareil.</translation>
+    </message>
+    <message>
+      <source>Address in the code: %1 (network %2 of %3). If the phone can&apos;t open it, try another network.</source>
+      <translation>Adresse dans le code : %1 (réseau %2 sur %3). Si le téléphone ne peut pas l’ouvrir, essayez un autre réseau.</translation>
+    </message>
+    <message>
+      <source>Address in the code: %1</source>
+      <translation>Adresse dans le code : %1</translation>
+    </message>
+    <message>
+      <source>Another network</source>
+      <translation>Autre réseau</translation>
     </message>
   </context>
   <context>

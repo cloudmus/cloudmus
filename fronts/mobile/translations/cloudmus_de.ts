@@ -1009,8 +1009,8 @@
       <translation>Im Browser</translation>
     </message>
     <message>
-      <source>With a phone</source>
-      <translation>Mit dem Telefon</translation>
+      <source>With an Android phone</source>
+      <translation>Mit einem Android-Telefon</translation>
     </message>
     <message>
       <source>With a code</source>
@@ -1029,8 +1029,8 @@
       <translation>Der Browser dieses Geräts ist alt: Die Anmeldeseite weist ihn möglicherweise ab.</translation>
     </message>
     <message>
-      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network: this one on the phone&apos;s hotspot, say.</source>
-      <translation>Scanne den Code mit der Kamera deines Telefons und melde dich dort an. Beide Geräte müssen im selben Netzwerk sein: dieses zum Beispiel am Hotspot des Telefons.</translation>
+      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network.</source>
+      <translation>Scanne den Code mit der Kamera deines Telefons und melde dich dort an. Beide Geräte müssen im selben Netzwerk sein.</translation>
     </message>
     <message>
       <source>To sign in with a phone, connect this device to the phone&apos;s network — its hotspot, say — and show the code.</source>
@@ -1039,6 +1039,22 @@
     <message>
       <source>Show the QR code</source>
       <translation>QR-Code anzeigen</translation>
+    </message>
+    <message>
+      <source>Only an Android phone with CloudMus installed will do: an iPhone can&apos;t sign in for this device.</source>
+      <translation>Nur ein Android-Telefon mit installiertem CloudMus ist geeignet: Ein iPhone kann sich nicht für dieses Gerät anmelden.</translation>
+    </message>
+    <message>
+      <source>Address in the code: %1 (network %2 of %3). If the phone can&apos;t open it, try another network.</source>
+      <translation>Adresse im Code: %1 (Netzwerk %2 von %3). Wenn das Telefon sie nicht öffnen kann, versuchen Sie ein anderes Netzwerk.</translation>
+    </message>
+    <message>
+      <source>Address in the code: %1</source>
+      <translation>Adresse im Code: %1</translation>
+    </message>
+    <message>
+      <source>Another network</source>
+      <translation>Anderes Netzwerk</translation>
     </message>
   </context>
   <context>

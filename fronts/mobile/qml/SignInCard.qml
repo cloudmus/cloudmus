@@ -68,15 +68,24 @@ Panel {
                                         : _options.length > 0 ? _options[0] : ""
     readonly property var _names: ({
         "browser": qsTr("In the browser"),
-        "phone": qsTr("With a phone"),
+        "phone": qsTr("With an Android phone"),
         "code": qsTr("With a code"),
         "form": qsTr("Manually")
     })
     // The fields as drawn: only another list makes new inputs, which would
     // drop what's typed.
     property var _shownFields: []
-    // What the phone opens, shown as a QR code; "" while not offered.
-    property string _phoneLink
+    // What the phone may open, one per network of this device's, the
+    // likeliest first; none while not offered. Which network the phone is on
+    // isn't known: the QR code shows one, and the user can move to the next.
+    property var _phoneLinks: []
+    property int _phoneIndex: 0
+    readonly property string _phoneLink: _phoneLinks.length > 0 ? _phoneLinks[_phoneIndex % _phoneLinks.length] : ""
+    // The address in the QR code, for the user to tell the networks apart.
+    readonly property string _phoneAddress: {
+        const match = /^http:\/\/([^/]+)\//.exec(_phoneLink)
+        return match ? match[1] : ""
+    }
     property bool _phoneOffered: false
     readonly property bool _offerPhone: _selected === "phone" && visible && !busy
 
@@ -95,14 +104,15 @@ Panel {
         if (_phoneOffered)
             platform.stopPhoneSignIn()
         _phoneOffered = false
-        _phoneLink = ""
+        _phoneLinks = []
+        _phoneIndex = 0
     }
     function _startPhone() {
         _stopPhone()
         if (!_offerPhone)
             return
-        _phoneLink = platform.startPhoneSignIn(sourceId, browser, sourceName)
-        _phoneOffered = _phoneLink !== ""
+        _phoneLinks = platform.startPhoneSignIn(sourceId, browser, sourceName)
+        _phoneOffered = _phoneLinks.length > 0
     }
 
     onFieldsChanged: _takeFields()
@@ -126,7 +136,8 @@ Panel {
         ignoreUnknownSignals: true
         function onPhoneSignInEnded() {
             card._phoneOffered = false
-            card._phoneLink = ""
+            card._phoneLinks = []
+            card._phoneIndex = 0
         }
     }
 
@@ -192,8 +203,31 @@ Panel {
                 objectName: "authPhoneHint"
                 visible: card._selected === "phone" && !card.busy
                 text: card._phoneLink !== ""
-                      ? qsTr("Scan the code with your phone's camera and sign in on the phone. Both devices have to be on one network: this one on the phone's hotspot, say.")
+                      ? qsTr("Scan the code with your phone's camera and sign in on the phone. Both devices have to be on one network.")
                       : qsTr("To sign in with a phone, connect this device to the phone's network — its hotspot, say — and show the code.")
+            }
+            BodyText {
+                objectName: "authPhoneAndroidOnly"
+                visible: card._selected === "phone" && !card.busy
+                text: qsTr("Only an Android phone with CloudMus installed will do: an iPhone can't sign in for this device.")
+                color: Theme.inkSecondary
+            }
+            BodyText {
+                objectName: "authPhoneAddress"
+                visible: card._selected === "phone" && card._phoneLink !== "" && !card.busy
+                text: card._phoneLinks.length > 1
+                      ? qsTr("Address in the code: %1 (network %2 of %3). If the phone can't open it, try another network.")
+                            .arg(card._phoneAddress).arg(card._phoneIndex + 1).arg(card._phoneLinks.length)
+                      : qsTr("Address in the code: %1").arg(card._phoneAddress)
+                color: Theme.inkSecondary
+                font.pixelSize: Theme.fontSmall
+            }
+            TextButton {
+                objectName: "authPhoneNextNetwork"
+                visible: card._selected === "phone" && card._phoneLinks.length > 1 && !card.busy
+                Layout.fillWidth: true
+                text: qsTr("Another network")
+                onClicked: card._phoneIndex = (card._phoneIndex + 1) % card._phoneLinks.length
             }
             TextButton {
                 objectName: "authShowPhoneCode"

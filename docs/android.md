@@ -187,11 +187,20 @@ phone comes ahead of a browser that's missing or older than Chromium 100.
   `ProxyTunnel.java`, a local CONNECT proxy in front of the HTTP or SOCKS5
   one, which needs a WebView that takes a proxy (`PROXY_OVERRIDE`); one that
   doesn't isn't offered for a source with a proxy.
-- **With a phone** (`PhoneSignInServer.java` → `PhoneSignInActivity.java`): for
+- **With an Android phone** (`PhoneSignInServer.java` → `PhoneSignInActivity.java`): for
   a head unit, whose WebView may be years old (a GWM unit's is Chromium 66,
   with no store to update it). While the QR code is on the screen, the device
   serves the method on the local network; the phone's camera opens the page it
-  leads to, whose button opens CloudMus there (`cloudmus://sign-in`). The
+  leads to, whose button opens CloudMus there (`cloudmus://sign-in`); a phone
+  without CloudMus downloads it from that page, the head unit's own APK
+  (`/CloudMus.apk`), with no internet needed. A head
+  unit has a dozen interfaces, most of them its own insides, and which one the
+  phone is on isn't known: the QR code holds one address, the likeliest first
+  (`LocalAddresses.java`: a Wi-Fi it's a client of, then its own hotspot, then
+  the rest), shown under it with **Another network** to move to the next. The
+  link into CloudMus holds them all; the phone tries them at once, each over
+  its own network on that subnet (not mobile data, which Android prefers to a
+  Wi-Fi with no internet). The
   phone asks the user, signs in with a fresh browser session and sends the
   outcome back; the head unit submits it to its own source. The session is the
   head unit's alone. The key is in the QR code (the address's fragment) and
@@ -199,6 +208,8 @@ phone comes ahead of a browser that's missing or older than Chromium 100.
   result is taken, and the offer ends after 10 minutes. The phone talks only
   to addresses on a local network, since anyone can make such a link. Both
   need CloudMus, and one network (the head unit on the phone's hotspot, say).
+  So it takes an Android phone, which the card says: an iPhone's Safari can't
+  hand a session over, and there's no CloudMus for iOS.
 - **With a code** and **Manually**: the `code` and `form` methods.
 
 ## System equalizers

@@ -14,4 +14,6 @@
     <string name="phone_unfinished">La connexion n\'a pas été terminée.</string>
     <string name="phone_page_open">Ouvrir dans CloudMus</string>
     <string name="phone_page_about">Connecte l\'autre appareil à %1$s. CloudMus doit être installé sur ce téléphone.</string>
+    <string name="phone_page_download">Télécharger CloudMus</string>
+    <string name="phone_page_install">Pas de CloudMus sur ce téléphone ? Téléchargez-le depuis l’autre appareil, installez-le, puis revenez sur cette page et ouvrez-le.</string>
 </resources>

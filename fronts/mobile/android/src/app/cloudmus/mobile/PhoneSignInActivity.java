@@ -2,6 +2,7 @@ package app.cloudmus.mobile;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.net.Network;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -20,6 +21,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,8 +47,10 @@ public final class PhoneSignInActivity extends Activity {
     private Button primary;
     private Button secondary;
     private String key;
-    // The address that answered.
+    // The address that answered, and the network it answered on (null: the
+    // system's choice).
     private String host;
+    private Network network;
     private JSONObject method;
     private String sourceName;
 
@@ -77,39 +82,65 @@ public final class PhoneSignInActivity extends Activity {
         new Thread(() -> fetch(hosts.split(","), forKey), "phone-sign-in-fetch").start();
     }
 
+    // All at once: the link holds every address the other device has, most of
+    // them out of reach from here, and each could take a timeout. The first
+    // to answer is the one.
     private void fetch(String[] hosts, String forKey) {
+        AtomicBoolean answered = new AtomicBoolean();
+        AtomicInteger left = new AtomicInteger(hosts.length);
         for (String candidate : hosts) {
-            byte[] sealed;
-            try {
-                sealed = exchange(candidate, "GET", "/sign-in/offer", null);
-            } catch (Exception unreachable) {
-                CmLog.i(TAG, candidate + ": " + unreachable.getMessage());
-                continue;
-            }
-            try {
-                JSONObject offer = new JSONObject(PhoneSignInLink.open(forKey, PhoneSignInServer.OFFER, sealed));
-                JSONObject offered = offer.getJSONObject("method");
-                String name = offer.getString("sourceName");
-                runOnUiThread(() -> {
-                    if (forKey.equals(key))
-                        ask(candidate, name, offered);
-                });
-            } catch (Exception stale) {
-                CmLog.w(TAG, "the offer: " + stale.getMessage());
-                runOnUiThread(() -> done(R.string.phone_expired));
-            }
-            return;
+            new Thread(() -> {
+                Network via = null;
+                byte[] sealed = null;
+                try {
+                    via = networkFor(candidate);
+                    sealed = exchange(candidate, via, "GET", "/sign-in/offer", null);
+                } catch (Exception unreachable) {
+                    CmLog.i(TAG, candidate + ": " + unreachable.getMessage());
+                }
+                if (sealed == null) {
+                    if (left.decrementAndGet() == 0 && !answered.get())
+                        runOnUiThread(() -> {
+                            if (forKey.equals(key))
+                                done(R.string.phone_unreachable);
+                        });
+                    return;
+                }
+                if (answered.getAndSet(true))
+                    return;
+                CmLog.i(TAG, candidate + " answered" + (via != null ? " on network " + via : ""));
+                try {
+                    JSONObject offer = new JSONObject(PhoneSignInLink.open(forKey, PhoneSignInServer.OFFER, sealed));
+                    JSONObject offered = offer.getJSONObject("method");
+                    String name = offer.getString("sourceName");
+                    Network on = via;
+                    runOnUiThread(() -> {
+                        if (forKey.equals(key))
+                            ask(candidate, on, name, offered);
+                    });
+                } catch (Exception stale) {
+                    CmLog.w(TAG, "the offer: " + stale.getMessage());
+                    runOnUiThread(() -> done(R.string.phone_expired));
+                }
+            }, "phone-sign-in-fetch").start();
         }
-        runOnUiThread(() -> done(R.string.phone_unreachable));
     }
 
-    private void ask(String from, String name, JSONObject offered) {
+    // The phone's network the address is on, when it has one with that
+    // subnet: a Wi-Fi with no internet isn't where the system sends anything
+    // while there's mobile data.
+    private Network networkFor(String host) throws IOException {
+        return LocalAddresses.networkFor(getApplicationContext(), address(host).getAddress());
+    }
+
+    private void ask(String from, Network on, String name, JSONObject offered) {
         String site = Uri.parse(offered.optString("url")).getHost();
         if (site == null) {
             done(R.string.phone_expired);
             return;
         }
         host = from;
+        network = on;
         sourceName = name;
         method = offered;
         text.setText(getString(R.string.phone_confirm, from.split(":")[0], name, site));
@@ -154,10 +185,11 @@ public final class PhoneSignInActivity extends Activity {
         }
         busy(R.string.phone_sending);
         String to = host;
+        Network via = network;
         String with = key;
         new Thread(() -> {
             try {
-                exchange(to, "POST", "/sign-in/result",
+                exchange(to, via, "POST", "/sign-in/result",
                         PhoneSignInLink.seal(with, PhoneSignInServer.RESULT, result));
                 runOnUiThread(() -> done(R.string.phone_sent));
             } catch (Exception error) {
@@ -167,10 +199,8 @@ public final class PhoneSignInActivity extends Activity {
         }, "phone-sign-in-send").start();
     }
 
-    // One request over a plain socket: Android keeps HttpURLConnection from
-    // unencrypted addresses, and what's sent here is sealed already. Only to
-    // an address on a local network.
-    private static byte[] exchange(String host, String verb, String path, byte[] body) throws IOException {
+    // "a.b.c.d:port", on a local network only: anyone can make such a link.
+    private static InetSocketAddress address(String host) throws IOException {
         int colon = host.lastIndexOf(':');
         if (colon < 0 || !host.substring(0, colon).matches("[0-9.]{7,15}"))
             throw new IOException("not an address");
@@ -182,7 +212,16 @@ public final class PhoneSignInActivity extends Activity {
         }
         if (address.getAddress() == null || !address.getAddress().isSiteLocalAddress())
             throw new IOException("not on a local network");
-        try (Socket socket = new Socket()) {
+        return address;
+    }
+
+    // One request over a plain socket: Android keeps HttpURLConnection from
+    // unencrypted addresses, and what's sent here is sealed already. Only to
+    // an address on a local network; over `via` when given.
+    private static byte[] exchange(String host, Network via, String verb, String path, byte[] body)
+            throws IOException {
+        InetSocketAddress address = address(host);
+        try (Socket socket = via != null ? via.getSocketFactory().createSocket() : new Socket()) {
             socket.connect(address, TIMEOUT_MS);
             socket.setSoTimeout(TIMEOUT_MS * 2);
             OutputStream out = socket.getOutputStream();
