@@ -235,6 +235,7 @@ add_library(cloudmus-ui STATIC
     src/Ui/GeneratedCoverArt.cpp
     src/Ui/SourcePanel.cpp
     src/Ui/AuthCard.cpp
+    src/Ui/QrCodeView.cpp
     src/Ui/MiniHtml.cpp
     src/Ui/ToastNotifier.cpp
     src/Ui/SmoothScroller.cpp
@@ -588,6 +589,7 @@ add_executable(cloudmus-qt-ui-tests
     tests/ui/ThemedToolTipTest.cpp
     tests/ui/AutostartTest.cpp
     tests/ui/ToastNotifierTest.cpp
+    tests/ui/QrCodeViewTest.cpp
     # Real glyphs, so a test can check what color an icon is tinted.
     resources/icons.qrc
     # The About dialog's license and contributors.

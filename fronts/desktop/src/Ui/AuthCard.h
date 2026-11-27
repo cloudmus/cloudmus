@@ -14,8 +14,10 @@ class QVBoxLayout;
 
 namespace Ui {
 
+class QrCodeView;
+
 // A source's sign-in card: renders an auth/prompt (deviceCode's URL and
-// code, usernamePassword's fields, oauthRedirect's browser hand-off —
+// code, the URL as a QR code too, usernamePassword's fields, oauthRedirect's browser hand-off —
 // discriminated by params["flow"], see Rpc::RpcClient::onAuthPromptRaw's
 // doc comment for why this is raw JSON rather than a generated struct), an
 // error with Retry, or a plain "sign in" invitation. Holds no source
@@ -64,6 +66,7 @@ private:
     QLabel* messageLabel_ = nullptr;
     QLabel* codeLabel_ = nullptr;
     QPushButton* copyCodeButton_ = nullptr;
+    QrCodeView* qrCode_ = nullptr;
     QHBoxLayout* formLayout_ = nullptr;
     // Fields whose auth/prompt descriptor sets multiline:true (e.g. a
     // pasted-headers blob) — too long/unwieldy for the single-line fields'

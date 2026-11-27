@@ -18,6 +18,7 @@
 #include "MiniHtml.h"
 #include "OverlayScrollBar.h"
 #include "PasswordReveal.h"
+#include "QrCodeView.h"
 #include "SmoothScroller.h"
 #include "Spacing.h"
 #include "TabOrder.h"
@@ -124,6 +125,10 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     buttonRow->addWidget(busyIndicator_);
     buttonRow->addStretch(1);
 
+    // For opening the address on a phone rather than typing it.
+    qrCode_ = new QrCodeView(this);
+    qrCode_->hide();
+
     auto* cardLayout = new QVBoxLayout(this);
     const int padding = embedded ? 0 : Theme::Spacing::space6;
     cardLayout->setContentsMargins(padding, padding, padding, padding);
@@ -132,6 +137,7 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     cardLayout->addWidget(codeLabel_);
     cardLayout->addLayout(multilineFieldsLayout_);
     cardLayout->addLayout(buttonRow);
+    cardLayout->addWidget(qrCode_, 0, Qt::AlignLeft);
 }
 
 void AuthCard::clearFormFields()
@@ -155,6 +161,7 @@ void AuthCard::reset()
     codeLabel_->hide();
     codeLabel_->clear();
     copyCodeButton_->hide();
+    qrCode_->hide();
     submitButton_->hide();
     openBrowserButton_->hide();
     retryButton_->hide();
@@ -178,6 +185,8 @@ void AuthCard::showPrompt(const QJsonObject& params)
         codeLabel_->setText(code);
         codeLabel_->show();
         copyCodeButton_->show();
+        qrCode_->setContent(url);
+        qrCode_->setVisible(!url.isEmpty());
     } else if (flow == QStringLiteral("usernamePassword")) {
         const QJsonArray fields = params.value(QStringLiteral("fields")).toArray();
         bool hasMultilineField = false;

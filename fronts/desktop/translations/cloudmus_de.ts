@@ -890,6 +890,13 @@
     </message>
 </context>
 <context>
+    <name>Ui::QrCodeView</name>
+    <message>
+        <source>QR code</source>
+        <translation>QR-Code</translation>
+    </message>
+</context>
+<context>
     <name>Ui::Rows</name>
     <message>
         <source>%1 — %2</source>
