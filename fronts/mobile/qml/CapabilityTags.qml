@@ -33,10 +33,13 @@ Flow {
         model: tags.model
         Rectangle {
             required property string modelData
-            implicitWidth: label.implicitWidth + Theme.dp(20)
-            implicitHeight: label.implicitHeight + Theme.dp(10)
+            implicitWidth: label.implicitWidth + Theme.dp(24)
+            implicitHeight: label.implicitHeight + Theme.dp(12)
             radius: height / 2
-            color: Theme.surface200
+            // Outlined as the desktop's, and a step off the card they're on.
+            color: Theme.surface300
+            border.width: Theme.dp(1)
+            border.color: Theme.borderStrong
             Text {
                 id: label
                 anchors.centerIn: parent
