@@ -35,6 +35,7 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
 #endif
     , updates_(core_.settings())
     , updateScreen_(updates_)
+    , signInHelper_(updates_)
 {
     core_.messages().setOfflineShownElsewhere(true); // mainScreen_.offline()
     core_.activePlaylist().setRefreshDelay(paths.refreshDelayMs);
@@ -85,6 +86,7 @@ void MobileCore::setUpUpdates(const QString& updatesDir)
     dir.mkpath(QStringLiteral("."));
     updateScreen_.setDownloadPath(
         [updatesDir](const Update::Release& release) { return updatesDir + QLatin1Char('/') + release.assetName; });
+    signInHelper_.setDirectory(updatesDir);
 }
 
 void MobileCore::applyPlaybackExperiments()

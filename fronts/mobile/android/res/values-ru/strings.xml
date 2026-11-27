@@ -16,4 +16,7 @@
     <string name="phone_page_about">Вход в %1$s для другого устройства. На этом телефоне должен быть установлен CloudMus.</string>
     <string name="phone_page_download">Скачать CloudMus</string>
     <string name="phone_page_install">На этом телефоне нет CloudMus? Скачайте его с другого устройства, установите, вернитесь на эту страницу и откройте.</string>
+    <string name="sign_in_waiting">Вход в %1$s</string>
+    <string name="sign_in_waiting_text">Завершите вход в CloudMus Sign-in</string>
+    <string name="sign_in_channel">Вход</string>
 </resources>

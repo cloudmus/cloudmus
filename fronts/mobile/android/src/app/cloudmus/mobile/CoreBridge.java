@@ -131,6 +131,9 @@ public final class CoreBridge {
 
     private static native void nativePlayQueueItem(int index, String id);
 
+    // What CloudMus Sign-in ended up with, for the source (SignInHelperActivity).
+    static native void nativeBrowserSignedIn(String sourceId, String result);
+
     // One entry of what a media browser lists (ViewModel::MediaTree).
     public static final class BrowseItem {
         public final String id;

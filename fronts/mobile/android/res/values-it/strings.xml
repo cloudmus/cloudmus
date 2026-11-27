@@ -16,4 +16,7 @@
     <string name="phone_page_about">Fa accedere l\'altro dispositivo a %1$s. CloudMus deve essere installato su questo telefono.</string>
     <string name="phone_page_download">Scarica CloudMus</string>
     <string name="phone_page_install">CloudMus non è su questo telefono? Scaricalo dall\'altro dispositivo, installalo, poi torna a questa pagina e aprilo.</string>
+    <string name="sign_in_waiting">Accesso a %1$s</string>
+    <string name="sign_in_waiting_text">Completa l’accesso in CloudMus Sign-in</string>
+    <string name="sign_in_channel">Accesso</string>
 </resources>

@@ -16,4 +16,7 @@
     <string name="phone_page_about">Connecte l\'autre appareil à %1$s. CloudMus doit être installé sur ce téléphone.</string>
     <string name="phone_page_download">Télécharger CloudMus</string>
     <string name="phone_page_install">Pas de CloudMus sur ce téléphone ? Téléchargez-le depuis l’autre appareil, installez-le, puis revenez sur cette page et ouvrez-le.</string>
+    <string name="sign_in_waiting">Connexion à %1$s</string>
+    <string name="sign_in_waiting_text">Terminez la connexion dans CloudMus Sign-in</string>
+    <string name="sign_in_channel">Connexion</string>
 </resources>

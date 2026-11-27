@@ -95,6 +95,10 @@ rustup target add aarch64-linux-android x86_64-linux-android
 ./build-android.sh x86_64             # for the emulator
 ```
 
+Beside each APK it builds `dist/CloudMus-<version>-<abi>-signin.apk`,
+CloudMus Sign-in (see Signing in), which also needs `platforms/android-37.2`;
+`CLOUDMUS_ANDROID_HELPER=0` leaves it out.
+
 The script downloads the prebuilt libmpv (`dev.jdtech.mpv:libmpv` AAR,
 mpv 0.39) and signs with a dev key, unless given another (see the script). CI
 builds and publishes the arm64 APK with the other platforms (`docs/releasing.md`). Your head unit's ABI:
@@ -177,8 +181,9 @@ adb logcat -s CloudmusStart             # startup milestones
 
 The Library's sign-in card (`qml/SignInCard.qml`) offers every way this device
 can carry out of those the source lists (`docs/protocol.md` §10), with the one
-best for the device marked and chosen: the source's order, except that a
-phone comes ahead of a browser that's missing or older than Chromium 100.
+best for the device marked and chosen: the source's order, except that where
+the built-in browser is missing or older than Chromium 100, ahead of it comes
+CloudMus Sign-in if it's installed, else a phone.
 
 - **In the browser** (`SignInWebActivity.java`): the `browser` method in a
   WebView, in the UI process. It knows no service: the method says where to
@@ -210,7 +215,47 @@ phone comes ahead of a browser that's missing or older than Chromium 100.
   need CloudMus, and one network (the head unit on the phone's hotspot, say).
   So it takes an Android phone, which the card says: an iPhone's Safari can't
   hand a session over, and there's no CloudMus for iOS.
+- **On this device** (`SignInHelperActivity.java` → CloudMus Sign-in): the
+  `browser` method in a helper app with an engine of its own, below.
 - **With a code** and **Manually**: the `code` and `form` methods.
+
+### CloudMus Sign-in
+
+`fronts/mobile/signin-helper/` is a separate app (`app.cloudmus.signin`) with
+GeckoView, Firefox's engine, for signing in on a device whose WebView can't
+and can't be updated, with no phone needed. It is separate because GeckoView
+weighs about 97 MB per ABI (200 MB installed), more than CloudMus itself, and
+needs a newer Gradle plugin and SDK (platform 37.2) than Qt 6.7's build takes.
+It has no launcher icon: CloudMus starts it for a result with the method,
+and it answers as `SignInWebActivity` does. Cookies come from a built-in
+WebExtension (`src/main/assets/extension/`), which also routes it through the
+source's proxy.
+
+While the helper is on the screen CloudMus is in the background, where Android
+stops the player's service within a minute, and the core with it. So
+`SignInHelperActivity` runs in the core's process, keeps it in the foreground
+(`SignInService`, with a notification) and gives the answer to the core itself,
+not through the views.
+
+Both apps are signed with one key and check each other's signature: the helper
+answers no one else, and CloudMus hands the sign-in to no other build. So a
+CloudMus signed otherwise (a store's own signing key) can't use the helper of a
+GitHub release.
+
+The card offers it where the built-in browser is missing or old, and wherever
+it's installed. It gets onto a device in one of two ways:
+
+- **By hand**: `CloudMus-<version>-<abi>-signin.apk` of the same release (or
+  the same `build-android.sh` run) as CloudMus, installed as any APK. Needs no
+  internet on the device, nor CloudMus's right to install apps.
+- **Download and install** on the card (the GitHub build only):
+  `ViewModel::SignInHelperDownload` takes the newest release in the update
+  feed — GitHub, or the Developer tools' update server — that has that file,
+  and `SignInHelper.java` hands it to Android's installer. The `-signin.apk`
+  ending keeps the app's own update from taking it for itself.
+
+To try the card on a device with a new WebView, make an empty file
+`Android/data/app.cloudmus.mobile/files/old-webview`.
 
 ## System equalizers
 
@@ -322,7 +367,8 @@ head unit, on the same Wi-Fi or the phone's hotspot): both have builds signed
 with the one key (CI's artifacts are). On the phone, Settings → Developer
 tools → **Serve updates** (`UpdateServer.java`): it offers this app's own APK,
 or one picked with **Choose APK…**, as a release one patch above its version,
-and shows its address. On the head unit, Developer tools → **Update server**:
+and shows its address. CloudMus Sign-in goes in the same release if it's
+installed on the phone or its APK was picked with **Choose APK…**. On the head unit, Developer tools → **Update server**:
 that address, then **Check now**. A build between tags checks at start too while
 the server is set; clear the field to go back to GitHub. Android refuses an
 APK with a lower versionCode than the installed one.

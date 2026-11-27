@@ -16,4 +16,7 @@
     <string name="phone_page_about">Meldet das andere Gerät bei %1$s an. CloudMus muss auf diesem Telefon installiert sein.</string>
     <string name="phone_page_download">CloudMus herunterladen</string>
     <string name="phone_page_install">Kein CloudMus auf diesem Telefon? Lade es vom anderen Gerät herunter, installiere es, kehre dann zu dieser Seite zurück und öffne es.</string>
+    <string name="sign_in_waiting">Anmeldung bei %1$s</string>
+    <string name="sign_in_waiting_text">Schließe die Anmeldung in CloudMus Sign-in ab</string>
+    <string name="sign_in_channel">Anmeldung</string>
 </resources>

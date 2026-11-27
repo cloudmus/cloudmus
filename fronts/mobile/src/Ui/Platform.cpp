@@ -41,10 +41,9 @@ Q_LOGGING_CATEGORY(lcPlatform, "cloudmus.ui.platform")
 // The one there is, for what Android calls with nothing to go by.
 std::atomic<Platform*> instance { nullptr };
 
-QString bridgeString(const char* method)
+QString bridgeString(const char* method, const char* bridge = "app/cloudmus/mobile/UiBridge")
 {
-    return QJniObject::callStaticMethod<jstring>(
-        "app/cloudmus/mobile/UiBridge", method, QNativeInterface::QAndroidApplication::context())
+    return QJniObject::callStaticMethod<jstring>(bridge, method, QNativeInterface::QAndroidApplication::context())
         .toString();
 }
 #endif
@@ -63,6 +62,11 @@ Platform::Platform(QString logDirectory, QObject* parent)
     readVolume();
     // After the window has loaded, to see it.
     QTimer::singleShot(0, this, &Platform::takeOpenRequests);
+    refreshSignInHelper();
+    connect(qGuiApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state == Qt::ApplicationActive)
+            refreshSignInHelper();
+    });
 #endif
 }
 
@@ -166,6 +170,55 @@ void Platform::stopPhoneSignIn() const
 {
 #ifdef Q_OS_ANDROID
     QJniObject::callStaticMethod<void>("app/cloudmus/mobile/PhoneSignInServer", "stop");
+#endif
+}
+
+void Platform::refreshSignInHelper()
+{
+#ifdef Q_OS_ANDROID
+    const QString state = bridgeString("state", "app/cloudmus/mobile/SignInHelper");
+    if (state == signInHelper_)
+        return;
+    qCInfo(lcPlatform).noquote() << "the sign-in helper:" << (state.isEmpty() ? QStringLiteral("absent") : state);
+    signInHelper_ = state;
+    emit signInHelperChanged();
+#endif
+}
+
+bool Platform::canInstallSignInHelper() const
+{
+#ifdef Q_OS_ANDROID
+    return !QJniObject::callStaticMethod<jstring>("app/cloudmus/mobile/SignInHelper", "installable",
+        "(Landroid/content/Context;)Ljava/lang/String;", QNativeInterface::QAndroidApplication::context())
+                .toString()
+                .isEmpty();
+#else
+    return false;
+#endif
+}
+
+void Platform::installSignInHelper(const QString& path) const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/SignInHelper", "install",
+        "(Landroid/content/Context;Ljava/lang/String;)V", QNativeInterface::QAndroidApplication::context(),
+        QJniObject::fromString(path).object<jstring>());
+#else
+    Q_UNUSED(path)
+#endif
+}
+
+void Platform::signInWithHelper(const QString& request, const QString& method, const QString& title) const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "signInWithHelper",
+        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+        QNativeInterface::QAndroidApplication::context().object(), QJniObject::fromString(request).object<jstring>(),
+        QJniObject::fromString(method).object<jstring>(), QJniObject::fromString(title).object<jstring>());
+#else
+    Q_UNUSED(request)
+    Q_UNUSED(method)
+    Q_UNUSED(title)
 #endif
 }
 
@@ -767,6 +820,21 @@ QString fromJava(JNIEnv* env, jstring text)
     return result;
 }
 } // namespace
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_SignInHelper_nativeInstallFinished(
+    JNIEnv* env, jclass, jstring error)
+{
+    Ui::Platform* platform = Ui::instance.load();
+    if (!platform)
+        return;
+    QMetaObject::invokeMethod(
+        platform,
+        [platform, error = fromJava(env, error)] {
+            platform->refreshSignInHelper();
+            emit platform->signInHelperInstallFinished(error);
+        },
+        Qt::QueuedConnection);
+}
 
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_PhoneSignInServer_nativeSignedIn(
     JNIEnv* env, jclass, jstring request, jstring result)

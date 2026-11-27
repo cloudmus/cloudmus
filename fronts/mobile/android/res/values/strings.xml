@@ -24,4 +24,7 @@
     <string name="phone_page_about">Signs the other device in to %1$s. CloudMus has to be installed on this phone.</string>
     <string name="phone_page_download">Download CloudMus</string>
     <string name="phone_page_install">No CloudMus on this phone? Download it from the other device, install it, then come back to this page and open it.</string>
+    <string name="sign_in_waiting">Signing in to %1$s</string>
+    <string name="sign_in_waiting_text">Finish signing in in CloudMus Sign-in</string>
+    <string name="sign_in_channel">Sign-in</string>
 </resources>

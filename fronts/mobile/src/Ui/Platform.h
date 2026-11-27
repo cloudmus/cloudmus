@@ -27,6 +27,9 @@ class Platform : public QObject {
     Q_PROPERTY(bool signInBrowserTakesProxy READ signInBrowserTakesProxy CONSTANT)
     // ...and is old enough that sign-in pages are likely to turn it away.
     Q_PROPERTY(bool signInBrowserOutdated READ signInBrowserOutdated CONSTANT)
+    // CloudMus Sign-in (signInHelper()).
+    Q_PROPERTY(QString signInHelper READ signInHelper NOTIFY signInHelperChanged)
+    Q_PROPERTY(bool canInstallSignInHelper READ canInstallSignInHelper CONSTANT)
     // This device can have a phone sign in for it (startPhoneSignIn()).
     Q_PROPERTY(bool canSignInByPhone READ canSignInByPhone CONSTANT)
     // The app's version, from the release tags: "0.6.4", "0.6.4-163-geaef2c2".
@@ -93,6 +96,19 @@ public:
     // signedInWithBrowser(), with `request` passed back. `title` is shown
     // over it.
     Q_INVOKABLE void signInWithBrowser(const QString& request, const QString& method, const QString& title) const;
+    // CloudMus Sign-in, a helper app with a modern browser, for a device whose
+    // own is too old (SignInHelper): "installed", "foreign" (a build signed
+    // with another key) or "". Looked at again by refreshSignInHelper(), and
+    // whenever the app comes to the front: the user may install it by hand.
+    QString signInHelper() const { return signInHelper_; }
+    // This build may install it itself.
+    bool canInstallSignInHelper() const;
+    Q_INVOKABLE void refreshSignInHelper();
+    // The downloaded APK, to Android's installer (after
+    // requestInstallPermission()); signInHelperInstallFinished() after.
+    Q_INVOKABLE void installSignInHelper(const QString& path) const;
+    // As signInWithBrowser(), in the helper.
+    Q_INVOKABLE void signInWithHelper(const QString& request, const QString& method, const QString& title) const;
     QString version() const;
     QString licenseText() const;
     QVariantList authors() const;
@@ -209,6 +225,10 @@ signals:
     // signInWithBrowser()'s answer: auth.submit's `browser` as JSON, or
     // empty if the user left.
     void signedInWithBrowser(const QString& request, const QString& result);
+    void signInHelperChanged();
+    // installSignInHelper() is over: `error` empty if installed, or turned
+    // down by the user.
+    void signInHelperInstallFinished(const QString& error);
     // startPhoneSignIn()'s offer expired unused.
     void phoneSignInEnded();
     // Another app had audio opened here ("Open with CloudMus"): on to the
@@ -235,6 +255,7 @@ private:
     void pollExportProgress();
 
     QString logDirectory_;
+    QString signInHelper_;
     int insetTop_ = 0;
     int insetLeft_ = 0;
     int insetRight_ = 0;

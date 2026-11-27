@@ -1,0 +1,87 @@
+plugins {
+    id "com.android.application" version "9.5.3"
+}
+
+// Pinned: a new GeckoView may raise its minimum Android (26 here; the main
+// app's too) or its compile SDK.
+def geckoviewVersion = "161.0.20261118180411"
+// One APK per ABI: GeckoView alone is ~90 MB for one.
+def abi = project.findProperty("abi") ?: "arm64-v8a"
+// As the main app's (build-android.sh passes it): `git describe`.
+def version = project.findProperty("version.name") ?: "0.1.0"
+// The main app's versionCode scheme (fronts/mobile/CMakeLists.txt): Android
+// won't install an older one over a newer.
+def code = {
+    def match = version =~ /^(\d+)\.(\d+)\.(\d+)(?:-(\d+)-g)?/
+    if (!match.find())
+        return 1
+    def commits = Math.min((match.group(4) ?: "0") as int, 999)
+    Math.max(1, (match.group(1) as int) * 10000000 + (match.group(2) as int) * 100000
+            + (match.group(3) as int) * 1000 + commits)
+}()
+
+// CloudMus's launcher icon, taken from its resources.
+def icons = layout.buildDirectory.dir("cloudmus-icons").get().asFile
+delete icons
+copy {
+    from "../android/res"
+    include "mipmap-*/ic_launcher*", "drawable/ic_launcher_background.xml"
+    into icons
+}
+
+android {
+    namespace "app.cloudmus.signin"
+    compileSdk 37
+    compileSdkMinor 2
+
+    defaultConfig {
+        applicationId "app.cloudmus.signin"
+        minSdk 26
+        targetSdk 35
+        versionCode code
+        versionName version
+        ndk { abiFilters abi }
+    }
+
+    sourceSets {
+        main {
+            res.directories.add(icons.absolutePath)
+        }
+    }
+
+    // Compressed native libraries, extracted at install: half the download
+    // (GeckoView's libxul is 155 MB as is), for a head unit that fetches it.
+    packaging {
+        jniLibs { useLegacyPackaging = true }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // The main app's key, always: each of the two checks the other's
+    // signature. build-android.sh sets these as for the main app.
+    def keystore = System.getenv("QT_ANDROID_KEYSTORE_PATH")
+    signingConfigs {
+        if (keystore) {
+            cloudmus {
+                storeFile file(keystore)
+                storePassword System.getenv("QT_ANDROID_KEYSTORE_STORE_PASS")
+                keyAlias System.getenv("QT_ANDROID_KEYSTORE_ALIAS")
+                keyPassword System.getenv("QT_ANDROID_KEYSTORE_KEY_PASS")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig keystore ? signingConfigs.cloudmus : signingConfigs.debug
+        }
+    }
+}
+
+dependencies {
+    implementation "org.mozilla.geckoview:geckoview-${abi}:${geckoviewVersion}"
+}

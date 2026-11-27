@@ -817,6 +817,20 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativePlay
     });
 }
 
+// A sign-in carried out in CloudMus Sign-in (SignInHelperActivity, in this
+// process): to its source.
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeBrowserSignedIn(
+    JNIEnv* env, jclass, jstring sourceId, jstring result)
+{
+    post([sourceId = toQString(env, sourceId), result = toQString(env, result)] {
+        if (!coreInstance) {
+            qWarning() << "a sign-in to" << sourceId << "with no core to take it";
+            return;
+        }
+        coreInstance->library().submitBrowserSignIn(sourceId, result);
+    });
+}
+
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeStop(JNIEnv*, jclass)
 {
     post([] { QCoreApplication::quit(); });

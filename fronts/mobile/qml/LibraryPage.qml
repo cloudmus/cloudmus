@@ -409,8 +409,11 @@ Page {
                         busy: !!page.library && page.library.authBusy === true
                         error: page.library && page.library.authError ? page.library.authError : ""
                         platform: page.platform
+                        helper: page.backend ? page.backend.signInHelper : null
                         wide: page.wide
                         onSignInRequested: page.library.signIn()
+                        onHelperRequested: page.platform.signInWithHelper(
+                            page.library.currentSourceId, browser, page.library.currentSourceName)
                         onBrowserRequested: page.platform.signInWithBrowser(
                             page.library.currentSourceId, browser, page.library.currentSourceName)
                         sourceName: page.library && page.library.currentSourceName ? page.library.currentSourceName : ""

@@ -1056,6 +1056,50 @@
       <source>Another network</source>
       <translation>Anderes Netzwerk</translation>
     </message>
+    <message>
+      <source>On this device</source>
+      <translation>Auf diesem Gerät</translation>
+    </message>
+    <message>
+      <source>Signs in on this device, in CloudMus Sign-in&apos;s browser.</source>
+      <translation>Anmeldung auf diesem Gerät, im Browser von CloudMus Sign-in.</translation>
+    </message>
+    <message>
+      <source>The CloudMus Sign-in installed here is signed with another key than this CloudMus. Remove it, then install the one from the same release.</source>
+      <translation>Das hier installierte CloudMus Sign-in ist mit einem anderen Schlüssel signiert als dieses CloudMus. Entferne es und installiere das aus demselben Release.</translation>
+    </message>
+    <message>
+      <source>This takes CloudMus Sign-in, a separate app with a modern browser (about 100 MB).</source>
+      <translation>Dafür braucht es CloudMus Sign-in, eine eigene App mit modernem Browser (etwa 100 MB).</translation>
+    </message>
+    <message>
+      <source>Download and install</source>
+      <translation>Herunterladen und installieren</translation>
+    </message>
+    <message>
+      <source>Downloading… %1%</source>
+      <translation>Wird heruntergeladen… %1 %</translation>
+    </message>
+    <message>
+      <source>Downloading…</source>
+      <translation>Wird heruntergeladen…</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Abbrechen</translation>
+    </message>
+    <message>
+      <source>Allow CloudMus to install apps</source>
+      <translation>CloudMus das Installieren von Apps erlauben</translation>
+    </message>
+    <message>
+      <source>Install</source>
+      <translation>Installieren</translation>
+    </message>
+    <message>
+      <source>You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.</source>
+      <translation>Du kannst es auch selbst installieren: die Datei %1 aus demselben Release wie dieses CloudMus, unter %2.</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>
@@ -1801,6 +1845,13 @@ Sie können es später erneut versuchen oder die neue Version selbst herunterlad
     <message>
       <source>Open the Library</source>
       <translation>Bibliothek öffnen</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::SignInHelperDownload</name>
+    <message>
+      <source>No release here has CloudMus Sign-in for this device.</source>
+      <translation>Kein Release hier enthält CloudMus Sign-in für dieses Gerät.</translation>
     </message>
   </context>
 </TS>

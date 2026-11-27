@@ -1,0 +1,19 @@
+// CloudMus Sign-in: a modern browser engine (GeckoView) for signing in on a
+// device whose WebView is too old for the sign-in page (a head unit's).
+// Its own Gradle project: GeckoView needs a newer Android Gradle Plugin and
+// compile SDK than the Qt 6.7 build of the main APK takes.
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://maven.mozilla.org/maven2/" }
+    }
+}
+rootProject.name = "cloudmus-signin"

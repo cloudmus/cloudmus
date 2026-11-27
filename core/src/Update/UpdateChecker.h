@@ -32,6 +32,7 @@ public:
         QString assetSuffix = platformAssetSuffix());
 
     QString currentVersion() const { return currentVersion_; }
+    QUrl feedUrl() const { return feedUrl_; }
     // Built between release tags (see Update::Version): not checked at
     // startup, as a developer's own build would always be "outdated".
     bool isDevBuild() const;

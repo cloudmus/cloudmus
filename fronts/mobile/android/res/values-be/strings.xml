@@ -16,4 +16,7 @@
     <string name="phone_page_about">Уваход у %1$s для іншай прылады. На гэтым тэлефоне павінен быць усталяваны CloudMus.</string>
     <string name="phone_page_download">Спампаваць CloudMus</string>
     <string name="phone_page_install">На гэтым тэлефоне няма CloudMus? Спампуйце яго з іншай прылады, усталюйце, вярніцеся на гэтую старонку і адкрыйце.</string>
+    <string name="sign_in_waiting">Уваход у %1$s</string>
+    <string name="sign_in_waiting_text">Завяршыце ўваход у CloudMus Sign-in</string>
+    <string name="sign_in_channel">Уваход</string>
 </resources>

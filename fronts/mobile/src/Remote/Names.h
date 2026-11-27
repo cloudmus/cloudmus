@@ -36,5 +36,6 @@ inline const QString sourceConnections = QStringLiteral("SourceConnections");
 inline const QString sourceFields = QStringLiteral("SourceFields");
 inline const QString pulse = QStringLiteral("Pulse");
 inline const QString updateScreen = QStringLiteral("UpdateScreen");
+inline const QString signInHelper = QStringLiteral("SignInHelper");
 
 } // namespace Remote::Names

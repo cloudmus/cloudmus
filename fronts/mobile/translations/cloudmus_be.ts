@@ -1061,6 +1061,50 @@
       <source>Another network</source>
       <translation>Іншая сетка</translation>
     </message>
+    <message>
+      <source>On this device</source>
+      <translation>На гэтай прыладзе</translation>
+    </message>
+    <message>
+      <source>Signs in on this device, in CloudMus Sign-in&apos;s browser.</source>
+      <translation>Уваход на гэтай прыладзе, у браўзеры CloudMus Sign-in.</translation>
+    </message>
+    <message>
+      <source>The CloudMus Sign-in installed here is signed with another key than this CloudMus. Remove it, then install the one from the same release.</source>
+      <translation>Усталяваны тут CloudMus Sign-in падпісаны іншым ключом, чым гэты CloudMus. Выдаліце яго і ўсталюйце той, што з таго ж рэлізу.</translation>
+    </message>
+    <message>
+      <source>This takes CloudMus Sign-in, a separate app with a modern browser (about 100 MB).</source>
+      <translation>Для гэтага патрэбны CloudMus Sign-in — асобная праграма з сучасным браўзерам (каля 100 МБ).</translation>
+    </message>
+    <message>
+      <source>Download and install</source>
+      <translation>Спампаваць і ўсталяваць</translation>
+    </message>
+    <message>
+      <source>Downloading… %1%</source>
+      <translation>Спампоўванне… %1%</translation>
+    </message>
+    <message>
+      <source>Downloading…</source>
+      <translation>Спампоўванне…</translation>
+    </message>
+    <message>
+      <source>Cancel</source>
+      <translation>Скасаваць</translation>
+    </message>
+    <message>
+      <source>Allow CloudMus to install apps</source>
+      <translation>Дазволіць CloudMus усталёўваць праграмы</translation>
+    </message>
+    <message>
+      <source>Install</source>
+      <translation>Усталяваць</translation>
+    </message>
+    <message>
+      <source>You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.</source>
+      <translation>Можна ўсталяваць і самастойна: файл %1 з таго ж рэлізу, што і гэты CloudMus, на %2.</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>
@@ -1809,6 +1853,13 @@ You can try again later or download the new version yourself.</source>
     <message>
       <source>Open the Library</source>
       <translation>Адкрыць бібліятэку</translation>
+    </message>
+  </context>
+  <context>
+    <name>ViewModel::SignInHelperDownload</name>
+    <message>
+      <source>No release here has CloudMus Sign-in for this device.</source>
+      <translation>Ні ў адным рэлізе тут няма CloudMus Sign-in для гэтай прылады.</translation>
     </message>
   </context>
 </TS>

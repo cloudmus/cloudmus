@@ -112,6 +112,8 @@ target_sources(cloudmus-mobile-core PRIVATE
     src/ViewModel/TrackScreen.h
     src/ViewModel/RowsModel.cpp
     src/ViewModel/RowsModel.h
+    src/ViewModel/SignInHelperDownload.cpp
+    src/ViewModel/SignInHelperDownload.h
     src/ViewModel/SettingsScreen.cpp
     src/ViewModel/SettingsScreen.h
     src/ViewModel/SourceSettingsScreen.cpp

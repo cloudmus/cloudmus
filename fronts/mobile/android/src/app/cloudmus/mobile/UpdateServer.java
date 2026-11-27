@@ -36,6 +36,10 @@ import java.util.regex.Pattern;
 // this app's own when none is. The other device takes the address in its own
 // Developer tools ("Update server"), App::MobileCore.
 //
+// CloudMus Sign-in goes with it, for the other device to download
+// (ViewModel::SignInHelperDownload): the one chosen, else the one installed
+// here, if either.
+//
 // The release is named one patch above the APK's version, which a build
 // between tags ("0.7.0-12-gabc") isn't allowed to be: so it's newer than the
 // same build on the other device, and Android takes it as long as its
@@ -46,11 +50,13 @@ public final class UpdateServer {
     private static final int PORT = 8765;
     // The other device asks for the APK of its own ABI; CI builds arm64 only.
     private static final String ABI_SUFFIX = "-arm64-v8a.apk";
+    private static final String HELPER_SUFFIX = "-arm64-v8a-signin.apk";
 
     private static ServerSocket server;
     private static Thread thread;
     private static File chosen;
     private static String chosenVersion = "";
+    private static File chosenHelper;
 
     private UpdateServer() {
     }
@@ -72,7 +78,7 @@ public final class UpdateServer {
     static void chosen(Context context, Uri uri) {
         Context app = context.getApplicationContext();
         new Thread(() -> {
-            File target = new File(app.getFilesDir(), "served/CloudMus.apk");
+            File target = new File(app.getFilesDir(), "served/chosen.apk");
             target.getParentFile().mkdirs();
             try (InputStream in = app.getContentResolver().openInputStream(uri);
                  OutputStream out = new FileOutputStream(target)) {
@@ -87,8 +93,16 @@ public final class UpdateServer {
             }
             PackageInfo info = app.getPackageManager().getPackageArchiveInfo(target.getPath(), 0);
             synchronized (UpdateServer.class) {
-                chosen = info != null ? target : null;
-                chosenVersion = info != null ? info.versionName : "";
+                boolean helper = info != null && SignInHelper.PACKAGE.equals(info.packageName);
+                File kept = new File(app.getFilesDir(), helper ? "served/CloudMus-signin.apk" : "served/CloudMus.apk");
+                if (info == null || !target.renameTo(kept))
+                    kept = null;
+                if (helper) {
+                    chosenHelper = kept;
+                } else {
+                    chosen = kept;
+                    chosenVersion = kept != null ? info.versionName : "";
+                }
             }
             CmLog.i(TAG, "offering " + uri + ": " + (info != null ? info.versionName : "not an APK"));
             changed();
@@ -173,6 +187,8 @@ public final class UpdateServer {
 
     private static final class Offer {
         File file;
+        // CloudMus Sign-in's APK, or null.
+        File helper;
         String version;
         String tag;
     }
@@ -191,6 +207,18 @@ public final class UpdateServer {
                 offer.version = context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionName;
             } catch (Exception error) {
                 return null;
+            }
+        }
+        synchronized (UpdateServer.class) {
+            if (chosenHelper != null && chosenHelper.isFile())
+                offer.helper = chosenHelper;
+        }
+        if (offer.helper == null) {
+            try {
+                offer.helper = new File(context.getPackageManager()
+                        .getApplicationInfo(SignInHelper.PACKAGE, 0).sourceDir);
+            } catch (Exception absent) {
+                // none to offer
             }
         }
         Matcher match = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)").matcher(offer.version);
@@ -219,13 +247,9 @@ public final class UpdateServer {
                 head(out, 200, "application/json", body.length);
                 out.write(body);
             } else if (offer != null && path.equals("/" + assetName(offer))) {
-                head(out, 200, "application/vnd.android.package-archive", offer.file.length());
-                try (InputStream in = new FileInputStream(offer.file)) {
-                    byte[] buffer = new byte[256 * 1024];
-                    int read;
-                    while ((read = in.read(buffer)) > 0)
-                        out.write(buffer, 0, read);
-                }
+                send(out, offer.file);
+            } else if (offer != null && offer.helper != null && path.equals("/" + helperName(offer))) {
+                send(out, offer.helper);
             } else {
                 byte[] body = "not here\n".getBytes(StandardCharsets.UTF_8);
                 head(out, 404, "text/plain", body.length);
@@ -237,8 +261,27 @@ public final class UpdateServer {
         }
     }
 
+    private static void send(OutputStream out, File file) throws java.io.IOException {
+        head(out, 200, "application/vnd.android.package-archive", file.length());
+        try (InputStream in = new FileInputStream(file)) {
+            byte[] buffer = new byte[256 * 1024];
+            int read;
+            while ((read = in.read(buffer)) > 0)
+                out.write(buffer, 0, read);
+        }
+    }
+
     private static String assetName(Offer offer) {
         return "CloudMus-" + offer.tag + ABI_SUFFIX;
+    }
+
+    private static String helperName(Offer offer) {
+        return "CloudMus-" + offer.tag + HELPER_SUFFIX;
+    }
+
+    private static String asset(String host, String name, File file) {
+        return "{\"name\":\"" + name + "\",\"size\":" + file.length() + ","
+            + "\"browser_download_url\":\"http://" + host + "/" + name + "\"}";
     }
 
     private static String feed(Offer offer, String host) {
@@ -249,8 +292,8 @@ public final class UpdateServer {
             + "\"published_at\":\"" + iso.format(new Date()) + "\","
             + "\"html_url\":\"http://" + host + "/releases.json\","
             + "\"body\":\"" + notes.replace("\\", "\\\\").replace("\"", "\\\"") + "\","
-            + "\"assets\":[{\"name\":\"" + assetName(offer) + "\",\"size\":" + offer.file.length() + ","
-            + "\"browser_download_url\":\"http://" + host + "/" + assetName(offer) + "\"}]}]";
+            + "\"assets\":[" + asset(host, assetName(offer), offer.file)
+            + (offer.helper != null ? "," + asset(host, helperName(offer), offer.helper) : "") + "]}]";
     }
 
     private static void head(OutputStream out, int status, String type, long length) throws java.io.IOException {

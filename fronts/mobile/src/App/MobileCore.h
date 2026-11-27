@@ -11,6 +11,7 @@
 #include "MainScreen.h"
 #include "MediaTree.h"
 #include "PlatformSettings.h"
+#include "SignInHelperDownload.h"
 #include "PlaylistScreens.h"
 #include "PulseScreen.h"
 #include "SettingsScreen.h"
@@ -63,6 +64,7 @@ public:
     ViewModel::SourceSettingsScreen& sourceSettingsScreen() { return sourceSettingsScreen_; }
     ViewModel::PulseScreen& pulseScreen() { return pulseScreen_; }
     ViewModel::UpdateScreen& updateScreen() { return updateScreen_; }
+    ViewModel::SignInHelperDownload& signInHelper() { return signInHelper_; }
 
     // A sign-in waiting for its code to be confirmed elsewhere, in a browser,
     // for the platform to keep the process alive meanwhile (Android's
@@ -111,6 +113,7 @@ private:
     ViewModel::PulseScreen pulseScreen_;
     Update::UpdateChecker updates_;
     ViewModel::UpdateScreen updateScreen_;
+    ViewModel::SignInHelperDownload signInHelper_;
 };
 
 } // namespace App

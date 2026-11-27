@@ -25,6 +25,8 @@
 
     <!-- Android Auto's answer to "on a car's screen?" (CarProjection). -->
     <queries>
+        <!-- CloudMus Sign-in: whether it's there (SignInHelper). -->
+        <package android:name="app.cloudmus.signin" />
         <provider android:authorities="androidx.car.app.connection" />
         <provider android:authorities="media" />
         <intent>
@@ -96,6 +98,16 @@
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
             android:exported="false" />
 
+        <!-- The same in CloudMus Sign-in, a separate app: asks it, and gives
+             its answer to the source. In the core's process, which it keeps
+             meanwhile. -->
+        <activity
+            android:name="app.cloudmus.mobile.SignInHelperActivity"
+            android:process=":playback"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false" />
+
         <!-- Signing in for another device (a head unit) on the same network:
              opened by the link its page offers, which its QR code leads to. -->
         <activity
@@ -162,6 +174,11 @@
         <!-- The package installer's answers about an update (UpdateInstaller). -->
         <receiver
             android:name="app.cloudmus.mobile.UpdateInstaller$StatusReceiver"
+            android:exported="false" />
+
+        <!-- The package installer's answers about CloudMus Sign-in. -->
+        <receiver
+            android:name="app.cloudmus.mobile.SignInHelper$StatusReceiver"
             android:exported="false" />
 
         <receiver android:name="app.cloudmus.mobile.BootReceiver" android:exported="true">

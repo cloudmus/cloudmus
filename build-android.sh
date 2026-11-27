@@ -11,6 +11,11 @@
 # the one in CLOUDMUS_ANDROID_KEYSTORE (with CLOUDMUS_ANDROID_KEY_ALIAS and
 # CLOUDMUS_ANDROID_KEYSTORE_PASSWORD), as CI does.
 #
+# Beside each, CloudMus-<version>-<abi>-signin.apk: CloudMus Sign-in
+# (fronts/mobile/signin-helper), the helper a device with an old WebView signs
+# in with, signed with the same key. It needs the SDK's platform 37.2.
+# CLOUDMUS_ANDROID_HELPER=0 leaves it out.
+#
 # CLOUDMUS_ANDROID_DISTRIBUTION=store builds for Google Play and RuStore
 # (fronts/mobile/CMakeLists.txt): updated by the store, no installing of its
 # own; the APK is then CloudMus-<version>-<abi>-store.apk.
@@ -29,6 +34,7 @@ mkdir -p "$work" dist
 # Qt 6.7 and its Gradle (AGP 7.4) build against the newest platform and
 # build tools they find, which are far newer than they know: a view of the
 # SDK with just the ones they were made for (all links, nothing copied).
+full_sdk=$ANDROID_SDK_ROOT
 sdk=$work/sdk
 if [ ! -d "$sdk/platforms/android-34" ]; then
     rm -rf "$sdk" && mkdir -p "$sdk/platforms" "$sdk/build-tools"
@@ -161,4 +167,14 @@ for abi in "${abis[@]}"; do
     [ -n "$apk" ] || { echo "no APK built for $abi" >&2; exit 1; }
     cp "$apk" "dist/CloudMus-$version-$abi$suffix.apk"
     echo "dist/CloudMus-$version-$abi$suffix.apk"
+    if [ "$distribution" = github ] && [ "${CLOUDMUS_ANDROID_HELPER:-1}" != 0 ]; then
+        # Its own, newer Gradle, with the whole SDK; --no-daemon: not the one
+        # the main app's build leaves behind.
+        env ANDROID_HOME="$full_sdk" ANDROID_SDK_ROOT="$full_sdk" fronts/mobile/signin-helper/gradlew \
+            -p fronts/mobile/signin-helper --no-daemon -q assembleRelease \
+            -Pabi="$abi" -Pversion.name="$version"
+        cp fronts/mobile/signin-helper/build/outputs/apk/release/cloudmus-signin-release.apk \
+            "dist/CloudMus-$version-$abi-signin.apk"
+        echo "dist/CloudMus-$version-$abi-signin.apk"
+    fi
 done

@@ -16,4 +16,7 @@
     <string name="phone_page_about">Inicia sesión en %1$s para el otro dispositivo. CloudMus debe estar instalado en este teléfono.</string>
     <string name="phone_page_download">Descargar CloudMus</string>
     <string name="phone_page_install">¿No tienes CloudMus en este teléfono? Descárgalo del otro dispositivo, instálalo, vuelve a esta página y ábrelo.</string>
+    <string name="sign_in_waiting">Iniciando sesión en %1$s</string>
+    <string name="sign_in_waiting_text">Termina de iniciar sesión en CloudMus Sign-in</string>
+    <string name="sign_in_channel">Inicio de sesión</string>
 </resources>

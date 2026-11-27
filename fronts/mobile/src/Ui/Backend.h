@@ -65,6 +65,8 @@ class Backend : public QObject {
     Q_PROPERTY(QObject* pulse READ pulse NOTIFY readyChanged)
     // An update of the app (ViewModel::UpdateScreen).
     Q_PROPERTY(QObject* updateScreen READ updateScreen NOTIFY readyChanged)
+    // The download of CloudMus Sign-in (ViewModel::SignInHelperDownload).
+    Q_PROPERTY(QObject* signInHelper READ signInHelper NOTIFY readyChanged)
 
 public:
 #ifndef Q_OS_ANDROID
@@ -116,6 +118,7 @@ public:
     QAbstractItemModel* sourceFields() const { return ready_ ? sourceFields_.data() : nullptr; }
     QObject* pulse() const { return ready_ ? pulse_.data() : nullptr; }
     QObject* updateScreen() const { return ready_ ? updateScreen_.data() : nullptr; }
+    QObject* signInHelper() const { return ready_ ? signInHelper_.data() : nullptr; }
     // A view that shows the pulse holds it while shown, and lets it go: the
     // core analyzes the music only while any view holds it. Counted here, so
     // views come and go as they like; the core is told again when it's back.
@@ -163,6 +166,7 @@ private:
     QPointer<QObject> sourceSettings_;
     QPointer<QObject> pulse_;
     QPointer<QObject> updateScreen_;
+    QPointer<QObject> signInHelper_;
     int pulseHolders_ = 0;
     QPointer<QAbstractItemModel> tracks_;
     QPointer<QAbstractItemModel> sources_;

@@ -180,7 +180,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: android-gradle-${{ hashFiles('fronts/mobile/android/build.gradle') }}
+          key: android-gradle-${{ hashFiles('fronts/mobile/android/build.gradle', 'fronts/mobile/signin-helper/build.gradle') }}
 
       # libmpv (the AAR and mpv's headers, build-android.sh): Maven Central
       # and GitHub sometimes answer a runner with 429.
@@ -204,7 +204,8 @@ jobs:
           fi
           rustup target add aarch64-linux-android
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-              "platforms;android-34" "build-tools;35.0.0" "ndk;26.1.10909125" > /dev/null
+              "platforms;android-34" "build-tools;35.0.0" "ndk;26.1.10909125" \
+              "platforms;android-37.2" "build-tools;36.0.0" > /dev/null
 
       - name: Build the APK
         env:
@@ -224,5 +225,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: android
-          path: dist/CloudMus-*-arm64-v8a.apk
+          path: |
+            dist/CloudMus-*-arm64-v8a.apk
+            dist/CloudMus-*-arm64-v8a-signin.apk
           retention-days: ${{ inputs.retention-days }}

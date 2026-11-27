@@ -37,6 +37,11 @@ public final class UiBridge {
     // Non-empty where that WebView is years behind: sign-in pages (Google's)
     // turn such a browser away.
     public static String webViewOutdated(Context context) {
+        // To try what's offered to an old one, on a device with a new one: a
+        // file of this name in the app's external files.
+        java.io.File files = context.getExternalFilesDir(null);
+        if (files != null && new java.io.File(files, "old-webview").exists())
+            return "yes";
         android.content.pm.PackageInfo current = hasWebView(context).isEmpty() ? null
                 : android.webkit.WebView.getCurrentWebViewPackage();
         if (current == null || current.versionName == null)
@@ -46,6 +51,17 @@ public final class UiBridge {
         } catch (NumberFormatException unknown) {
             return "";
         }
+    }
+
+    // The same method in CloudMus Sign-in (SignInHelperActivity).
+    public static void signInWithHelper(Context context, String request, String method, String title) {
+        Intent intent = new Intent(context, SignInHelperActivity.class)
+                .putExtra(SignInHelperActivity.EXTRA_REQUEST, request)
+                .putExtra(SignInHelperActivity.EXTRA_METHOD, method)
+                .putExtra(SignInHelperActivity.EXTRA_TITLE, title);
+        if (!(context instanceof android.app.Activity))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(intent);
     }
 
     // A source's `browser` sign-in method (SignInWebActivity).

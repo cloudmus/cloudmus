@@ -5,8 +5,9 @@ import QtQuick.Layouts
 // Signing in to any source, by the methods it offers (docs/protocol.md §10).
 // Those this device can carry out are offered to choose from, the best one
 // for it marked and chosen to begin with: in the built-in browser; on a phone
-// that signs in for this device (for one whose browser can't, such as a head
-// unit's); a code to enter on a web page, with where to enter it also as a QR
+// that signs in for this device, or here in CloudMus Sign-in, a helper app
+// with a modern browser (both for a device whose own browser can't, such as a
+// head unit's); a code to enter on a web page, with where to enter it also as a QR
 // code; or a form.
 Panel {
     id: card
@@ -28,10 +29,14 @@ Panel {
     property bool busy: false
     property string error
     property QtObject platform: null
+    // The download of CloudMus Sign-in (ViewModel::SignInHelperDownload).
+    property QtObject helper: null
     // The QR code beside the rest rather than under it.
     property bool wide: false
     signal signInRequested()
     signal browserRequested()
+    // `browser`, in CloudMus Sign-in.
+    signal helperRequested()
     signal formSubmitted(var values)
 
     readonly property bool _hasBrowser: browser !== "" && !!platform && platform.hasSignInBrowser === true
@@ -42,20 +47,30 @@ Panel {
     readonly property bool _canBrowse: _hasBrowser && !_proxyInTheWay
     readonly property bool _browserOutdated: !!platform && platform.signInBrowserOutdated === true
     readonly property bool _canUsePhone: browser !== "" && !!platform && platform.canSignInByPhone === true
+    // "installed", "foreign" or "" (Platform::signInHelper).
+    readonly property string _helperState: platform && platform.signInHelper ? platform.signInHelper : ""
+    // Offered where the built-in browser won't do, and wherever it's there:
+    // a phone has no use for fetching 100 MB.
+    readonly property bool _canUseHelper: browser !== "" && !!platform && platform.canSignInByPhone === true
+                                          && (_helperState !== "" || !_canBrowse || _browserOutdated)
     // What can be chosen, the best for this device first: the source's order,
-    // but a phone ahead of a browser that's missing or too old.
+    // but where the built-in browser is missing or too old, ahead of it the
+    // helper if it's installed, else a phone.
     readonly property var _options: {
         const found = []
         for (let i = 0; i < (kinds ? kinds.length : 0); ++i) {
             const kind = kinds[i]
             if (kind === "browser") {
-                const phoneFirst = _canUsePhone && (!_canBrowse || _browserOutdated)
-                if (phoneFirst)
-                    found.push("phone")
+                const poor = !_canBrowse || _browserOutdated
+                const ways = []
                 if (_canBrowse)
-                    found.push("browser")
-                if (_canUsePhone && !phoneFirst)
-                    found.push("phone")
+                    ways.push("browser")
+                if (_canUsePhone)
+                    ways.splice(poor ? 0 : ways.length, 0, "phone")
+                if (_canUseHelper)
+                    ways.splice(!poor ? ways.length : _helperState === "installed" ? 0 : _canUsePhone ? 1 : 0,
+                                0, "device")
+                found.push(...ways)
             } else if (kind === "code" ? url !== "" : kind === "form" && _shownFields.length > 0) {
                 found.push(kind)
             }
@@ -69,6 +84,7 @@ Panel {
     readonly property var _names: ({
         "browser": qsTr("In the browser"),
         "phone": qsTr("With an Android phone"),
+        "device": qsTr("On this device"),
         "code": qsTr("With a code"),
         "form": qsTr("Manually")
     })
@@ -88,6 +104,33 @@ Panel {
     }
     property bool _phoneOffered: false
     readonly property bool _offerPhone: _selected === "phone" && visible && !busy
+
+    // The helper's download, step by step (SignInHelperDownload::Step).
+    readonly property int _helperStep: helper && helper.step ? helper.step : 0
+    readonly property string _helperFile: helper && helper.file ? helper.file : ""
+    // Android lets CloudMus install apps: asked again whenever the app comes
+    // to the front (from Android's settings).
+    property bool _mayInstall: false
+    // The file is with Android's installer.
+    property bool _installing: false
+    property string _installError
+    readonly property bool _active: Qt.application.state === Qt.ApplicationActive
+    on_ActiveChanged: if (_active) _installIfReady(false)
+    on_HelperStepChanged: _installIfReady(false)
+    on_HelperFileChanged: _installIfReady(false)
+    // The file handed over by itself once; again only when asked.
+    property string _handedOver: ""
+    function _installIfReady(asked) {
+        if (!platform || _helperStep !== 2 || _helperFile === "" || _helperState !== "")
+            return
+        _mayInstall = platform.canInstallPackages()
+        if (!_mayInstall || (!asked && _helperFile === _handedOver))
+            return
+        _handedOver = _helperFile
+        _installError = ""
+        _installing = true
+        platform.installSignInHelper(_helperFile)
+    }
 
     function _takeFields() {
         const list = fields ? fields : []
@@ -119,6 +162,7 @@ Panel {
     Component.onCompleted: {
         _takeFields()
         _startPhone()
+        _installIfReady(false)
     }
     Component.onDestruction: _stopPhone()
     onSourceIdChanged: {
@@ -134,6 +178,10 @@ Panel {
     Connections {
         target: card.platform
         ignoreUnknownSignals: true
+        function onSignInHelperInstallFinished(error) {
+            card._installing = false
+            card._installError = error
+        }
         function onPhoneSignInEnded() {
             card._phoneOffered = false
             card._phoneLinks = []
@@ -236,6 +284,93 @@ Panel {
                 text: qsTr("Show the QR code")
                 tint: Theme.accent
                 onClicked: card._startPhone()
+            }
+            // CloudMus Sign-in: there, or to be put there first.
+            BodyText {
+                objectName: "authDeviceHint"
+                visible: card._selected === "device"
+                text: card._helperState === "installed"
+                      ? qsTr("Signs in on this device, in CloudMus Sign-in's browser.")
+                      : card._helperState === "foreign"
+                        ? qsTr("The CloudMus Sign-in installed here is signed with another key than this CloudMus. Remove it, then install the one from the same release.")
+                        : qsTr("This takes CloudMus Sign-in, a separate app with a modern browser (about 100 MB).")
+            }
+            BodyText {
+                objectName: "authDeviceError"
+                visible: card._selected === "device" && card._helperState === "" && text !== ""
+                text: card._helperStep === 3 && card.helper.error ? card.helper.error : card._installError
+                color: Theme.danger
+            }
+            TextButton {
+                objectName: "authDeviceSignIn"
+                visible: card._selected === "device" && card._helperState === "installed"
+                Layout.fillWidth: true
+                text: qsTr("Sign in")
+                tint: Theme.accent
+                busy: card.busy
+                enabled: !card.busy
+                onClicked: card.helperRequested()
+            }
+            TextButton {
+                objectName: "authDeviceDownload"
+                visible: card._selected === "device" && card._helperState === "" && !!card.helper
+                         && card.platform.canInstallSignInHelper === true
+                         && (card._helperStep === 0 || card._helperStep === 3)
+                Layout.fillWidth: true
+                text: qsTr("Download and install")
+                tint: Theme.accent
+                onClicked: {
+                    card._installError = ""
+                    card._handedOver = ""
+                    card.helper.download()
+                }
+            }
+            BodyText {
+                objectName: "authDeviceProgress"
+                visible: card._selected === "device" && card._helperState === "" && card._helperStep === 1
+                text: card.helper && card.helper.progress >= 0
+                      ? qsTr("Downloading… %1%").arg(Math.round(card.helper.progress * 100))
+                      : qsTr("Downloading…")
+            }
+            TextButton {
+                objectName: "authDeviceCancel"
+                visible: card._selected === "device" && card._helperState === "" && card._helperStep === 1
+                Layout.fillWidth: true
+                text: qsTr("Cancel")
+                onClicked: card.helper.cancel()
+            }
+            // Downloaded: Android's permission, then its installer.
+            TextButton {
+                objectName: "authDeviceAllow"
+                visible: card._selected === "device" && card._helperState === "" && card._helperStep === 2
+                         && !card._mayInstall
+                Layout.fillWidth: true
+                text: qsTr("Allow CloudMus to install apps")
+                tint: Theme.accent
+                onClicked: card.platform.requestInstallPermission()
+            }
+            TextButton {
+                objectName: "authDeviceInstall"
+                visible: card._selected === "device" && card._helperState === "" && card._helperStep === 2
+                         && card._mayInstall
+                Layout.fillWidth: true
+                text: qsTr("Install")
+                tint: Theme.accent
+                busy: card._installing
+                enabled: !card._installing
+                onClicked: card._installIfReady(true)
+            }
+            BodyText {
+                objectName: "authDeviceByHand"
+                visible: card._selected === "device" && card._helperState !== "installed"
+                // The release's file, for a device with no internet or whose
+                // installer CloudMus can't use.
+                text: qsTr("You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.")
+                          .arg("CloudMus-" + (card.platform && card.platform.version ? card.platform.version : "")
+                               + (card.helper && card.helper.assetSuffix ? card.helper.assetSuffix : "-signin.apk"))
+                          .arg("github.com/cloudmus/cloudmus/releases")
+                color: Theme.inkSecondary
+                font.pixelSize: Theme.fontSmall
             }
             BodyText {
                 objectName: "authLink"
