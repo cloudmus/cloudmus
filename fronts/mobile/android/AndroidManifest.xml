@@ -87,6 +87,33 @@
                 android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
         </activity>
 
+        <!-- A source's sign-in in a built-in browser (its `browser` method,
+             docs/protocol.md §10). In the UI's process. -->
+        <activity
+            android:name="app.cloudmus.mobile.SignInWebActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:exported="false" />
+
+        <!-- Signing in for another device (a head unit) on the same network:
+             opened by the link its page offers, which its QR code leads to. -->
+        <activity
+            android:name="app.cloudmus.mobile.PhoneSignInActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:launchMode="singleTask"
+            android:taskAffinity="app.cloudmus.mobile.signin"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cloudmus" android:host="sign-in" />
+            </intent-filter>
+        </activity>
+
         <!-- The player: its own process, so it starts without Qt's UI and
              goes on when the UI is unloaded. Found by the car's media
              widget and Android Auto through the intent filters. -->

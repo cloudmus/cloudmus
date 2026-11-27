@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_title">Вход для другого устройства</string>
+    <string name="phone_confirm">Устройство в вашей сети (%1$s) просит войти в %2$s на %3$s. Оно получит доступ к аккаунту, в который вы войдёте. Продолжайте, только если вы сами сейчас отсканировали код на своём устройстве.</string>
+    <string name="phone_sign_in">Войти</string>
+    <string name="phone_cancel">Отмена</string>
+    <string name="phone_close">Закрыть</string>
+    <string name="phone_reaching">Связываемся с другим устройством…</string>
+    <string name="phone_unreachable">Другое устройство недоступно. Оба должны быть в одной сети: например, подключите его к точке доступа этого телефона и отсканируйте код снова.</string>
+    <string name="phone_expired">Этот код больше не действует. Покажите новый на другом устройстве и отсканируйте его.</string>
+    <string name="phone_sending">Отправляем…</string>
+    <string name="phone_sent">Отправлено. Другое устройство завершает вход.</string>
+    <string name="phone_send_failed">Не удалось отправить вход на другое устройство.</string>
+    <string name="phone_unfinished">Вход не завершён.</string>
+    <string name="phone_page_open">Открыть в CloudMus</string>
+    <string name="phone_page_about">Вход в %1$s для другого устройства. На этом телефоне должен быть установлен CloudMus.</string>
+</resources>

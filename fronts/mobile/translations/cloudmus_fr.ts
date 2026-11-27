@@ -992,6 +992,54 @@
       <source>Sign in</source>
       <translation>Se connecter</translation>
     </message>
+    <message>
+      <source>Paste here</source>
+      <translation>Collez ici</translation>
+    </message>
+    <message>
+      <source>Submit</source>
+      <translation>Envoyer</translation>
+    </message>
+    <message>
+      <source>This device&apos;s built-in browser can&apos;t go through the source&apos;s proxy.</source>
+      <translation>Le navigateur intégré de cet appareil ne peut pas passer par le proxy de la source.</translation>
+    </message>
+    <message>
+      <source>In the browser</source>
+      <translation>Dans le navigateur</translation>
+    </message>
+    <message>
+      <source>With a phone</source>
+      <translation>Avec le téléphone</translation>
+    </message>
+    <message>
+      <source>With a code</source>
+      <translation>Avec un code</translation>
+    </message>
+    <message>
+      <source>Manually</source>
+      <translation>Manuellement</translation>
+    </message>
+    <message>
+      <source>★ Recommended for this device</source>
+      <translation>★ Recommandé pour cet appareil</translation>
+    </message>
+    <message>
+      <source>This device&apos;s browser is old: the sign-in page may turn it away.</source>
+      <translation>Le navigateur de cet appareil est ancien : la page de connexion peut le refuser.</translation>
+    </message>
+    <message>
+      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network: this one on the phone&apos;s hotspot, say.</source>
+      <translation>Scannez le code avec l’appareil photo de votre téléphone et connectez-vous sur le téléphone. Les deux appareils doivent être sur le même réseau : celui-ci sur le partage de connexion du téléphone, par exemple.</translation>
+    </message>
+    <message>
+      <source>To sign in with a phone, connect this device to the phone&apos;s network — its hotspot, say — and show the code.</source>
+      <translation>Pour vous connecter avec le téléphone, reliez cet appareil au réseau du téléphone – son partage de connexion, par exemple – puis affichez le code.</translation>
+    </message>
+    <message>
+      <source>Show the QR code</source>
+      <translation>Afficher le code QR</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>

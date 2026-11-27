@@ -23,6 +23,39 @@ public final class UiBridge {
         }
     }
 
+    // Non-empty where there's a WebView to sign in to a source in.
+    public static String hasWebView(Context context) {
+        return context.getPackageManager().hasSystemFeature(android.content.pm.PackageManager.FEATURE_WEBVIEW)
+                ? "yes" : "";
+    }
+
+    // Non-empty where that WebView can be sent through a proxy.
+    public static String webViewTakesProxy(Context context) {
+        return hasWebView(context).isEmpty() || !SignInWebActivity.takesProxy() ? "" : "yes";
+    }
+
+    // Non-empty where that WebView is years behind: sign-in pages (Google's)
+    // turn such a browser away.
+    public static String webViewOutdated(Context context) {
+        android.content.pm.PackageInfo current = hasWebView(context).isEmpty() ? null
+                : android.webkit.WebView.getCurrentWebViewPackage();
+        if (current == null || current.versionName == null)
+            return "";
+        try {
+            return Integer.parseInt(current.versionName.split("\\.")[0]) < 100 ? "yes" : "";
+        } catch (NumberFormatException unknown) {
+            return "";
+        }
+    }
+
+    // A source's `browser` sign-in method (SignInWebActivity).
+    public static void signInWithBrowser(Context context, String request, String method, String title) {
+        Intent intent = SignInWebActivity.intent(context, request, method, title);
+        if (!(context instanceof android.app.Activity))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(intent);
+    }
+
     // The theme in the views, for the system's part of it.
     public static void setAppearance(Context context, String scheme, String dark, String barColor, String backColor) {
         if (!(context instanceof android.app.Activity))

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_title">Connexion pour un autre appareil</string>
+    <string name="phone_confirm">Un appareil de votre réseau (%1$s) demande une connexion à %2$s sur %3$s. Il aura accès au compte auquel vous vous connecterez. Ne continuez que si vous venez de scanner vous-même le code sur votre appareil.</string>
+    <string name="phone_sign_in">Se connecter</string>
+    <string name="phone_cancel">Annuler</string>
+    <string name="phone_close">Fermer</string>
+    <string name="phone_reaching">Contact de l\'autre appareil…</string>
+    <string name="phone_unreachable">Impossible de joindre l\'autre appareil. Les deux doivent être sur le même réseau : connectez-le par exemple au partage de connexion de ce téléphone et scannez à nouveau son code.</string>
+    <string name="phone_expired">Ce code n\'est plus valable. Affichez-en un nouveau sur l\'autre appareil et scannez-le.</string>
+    <string name="phone_sending">Envoi…</string>
+    <string name="phone_sent">Envoyé. L\'autre appareil termine la connexion.</string>
+    <string name="phone_send_failed">Impossible d\'envoyer la connexion à l\'autre appareil.</string>
+    <string name="phone_unfinished">La connexion n\'a pas été terminée.</string>
+    <string name="phone_page_open">Ouvrir dans CloudMus</string>
+    <string name="phone_page_about">Connecte l\'autre appareil à %1$s. CloudMus doit être installé sur ce téléphone.</string>
+</resources>

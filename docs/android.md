@@ -173,6 +173,34 @@ adb logcat -s CloudmusStart             # startup milestones
   starts (many sleep rather than reboot, so `BOOT_COMPLETED` may not come):
   the log lists every broadcast the receiver gets.
 
+## Signing in
+
+The Library's sign-in card (`qml/SignInCard.qml`) offers every way this device
+can carry out of those the source lists (`docs/protocol.md` §10), with the one
+best for the device marked and chosen: the source's order, except that a
+phone comes ahead of a browser that's missing or older than Chromium 100.
+
+- **In the browser** (`SignInWebActivity.java`): the `browser` method in a
+  WebView, in the UI process. It knows no service: the method says where to
+  start and when the sign-in is through. The browser connects as the source
+  does (system, direct or the source's proxy). A proxy goes through
+  `ProxyTunnel.java`, a local CONNECT proxy in front of the HTTP or SOCKS5
+  one, which needs a WebView that takes a proxy (`PROXY_OVERRIDE`); one that
+  doesn't isn't offered for a source with a proxy.
+- **With a phone** (`PhoneSignInServer.java` → `PhoneSignInActivity.java`): for
+  a head unit, whose WebView may be years old (a GWM unit's is Chromium 66,
+  with no store to update it). While the QR code is on the screen, the device
+  serves the method on the local network; the phone's camera opens the page it
+  leads to, whose button opens CloudMus there (`cloudmus://sign-in`). The
+  phone asks the user, signs in with a fresh browser session and sends the
+  outcome back; the head unit submits it to its own source. The session is the
+  head unit's alone. The key is in the QR code (the address's fragment) and
+  never crosses the network; both messages are AES-256-GCM sealed with it, one
+  result is taken, and the offer ends after 10 minutes. The phone talks only
+  to addresses on a local network, since anyone can make such a link. Both
+  need CloudMus, and one network (the head unit on the phone's hotspot, say).
+- **With a code** and **Manually**: the `code` and `form` methods.
+
 ## System equalizers
 
 Poweramp Equalizer, Wavelet and the system's own sound effects find a player

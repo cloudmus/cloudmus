@@ -17,7 +17,7 @@ MobileCore::MobileCore(const Paths& paths, QObject* parent)
     , settingsStore_(paths.settingsFile, QSettings::IniFormat)
     , settings_(settingsStore_)
     , library_(core_.sources(), core_.activePlaylist(), core_.nowPlaying(), core_.authStates(), core_.sourcePage(),
-          core_.sourceManager(), core_.coverArtCache())
+          core_.sourceManager(), core_.coverArtCache(), core_.settings())
     , mainScreen_(core_)
     , downloadsScreen_(core_)
     , playlistScreens_(core_)

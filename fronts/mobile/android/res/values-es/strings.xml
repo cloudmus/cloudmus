@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_title">Iniciar sesión para otro dispositivo</string>
+    <string name="phone_confirm">Un dispositivo de tu red (%1$s) pide iniciar sesión en %2$s en %3$s. Tendrá acceso a la cuenta con la que inicies sesión. Continúa solo si acabas de escanear el código en tu propio dispositivo.</string>
+    <string name="phone_sign_in">Iniciar sesión</string>
+    <string name="phone_cancel">Cancelar</string>
+    <string name="phone_close">Cerrar</string>
+    <string name="phone_reaching">Conectando con el otro dispositivo…</string>
+    <string name="phone_unreachable">No se puede conectar con el otro dispositivo. Ambos deben estar en la misma red: conéctalo, por ejemplo, al punto de acceso de este teléfono y vuelve a escanear su código.</string>
+    <string name="phone_expired">Este código ya no es válido. Muestra uno nuevo en el otro dispositivo y escanéalo.</string>
+    <string name="phone_sending">Enviando…</string>
+    <string name="phone_sent">Enviado. El otro dispositivo termina de iniciar sesión.</string>
+    <string name="phone_send_failed">No se pudo enviar el inicio de sesión al otro dispositivo.</string>
+    <string name="phone_unfinished">No se completó el inicio de sesión.</string>
+    <string name="phone_page_open">Abrir en CloudMus</string>
+    <string name="phone_page_about">Inicia sesión en %1$s para el otro dispositivo. CloudMus debe estar instalado en este teléfono.</string>
+</resources>

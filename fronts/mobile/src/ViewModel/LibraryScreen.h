@@ -5,6 +5,8 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QVariantList>
+#include <QVariantMap>
 
 #include <optional>
 
@@ -12,6 +14,9 @@
 #include "Models.h"
 #include "RowsModel.h"
 
+namespace Config {
+class Settings;
+}
 namespace Covers {
 class CoverArtCache;
 }
@@ -44,10 +49,26 @@ class LibraryScreen : public QObject {
     Q_PROPERTY(QString activeSourceLogo READ activeSourceLogo NOTIFY activeSourceLogoChanged)
     Q_PROPERTY(QString currentSourceIcon READ currentSourceIcon NOTIFY currentSourceIconChanged)
     Q_PROPERTY(QString currentSourceLogo READ currentSourceLogo NOTIFY currentSourceLogoChanged)
-    // Signing in to the source picked: needed at all, then what it asks for.
+    // Signing in to the source picked: needed at all, then what it asks for,
+    // by the methods it offers (docs/protocol.md §10).
     Q_PROPERTY(bool authNeeded READ authNeeded NOTIFY authNeededChanged)
+    // Their kinds ("code", "browser", "form"), the source's preferred first.
+    Q_PROPERTY(QStringList authKinds READ authKinds NOTIFY authKindsChanged)
+    // `code`: the page and the code to enter there.
     Q_PROPERTY(QString authUrl READ authUrl NOTIFY authUrlChanged)
     Q_PROPERTY(QString authCode READ authCode NOTIFY authCodeChanged)
+    // `browser`: the method as JSON, for the platform's built-in browser, with
+    // how the source connects as "connection" ("mode": "system", "direct" or
+    // "proxy", the latter with the proxy): the browser goes the same way.
+    Q_PROPERTY(QString authBrowser READ authBrowser NOTIFY authBrowserChanged)
+    // The source connects through a proxy from the user's list.
+    Q_PROPERTY(bool authBrowserNeedsProxy READ authBrowserNeedsProxy NOTIFY authBrowserNeedsProxyChanged)
+    // `form`: its fields (name, label, secret, multiline) and what the source
+    // says about them, as rich text.
+    Q_PROPERTY(QVariantList authFields READ authFields NOTIFY authFieldsChanged)
+    Q_PROPERTY(QString authFormMessage READ authFormMessage NOTIFY authFormMessageChanged)
+    // A submission, or asking to sign in, is under way.
+    Q_PROPERTY(bool authBusy READ authBusy NOTIFY authBusyChanged)
     Q_PROPERTY(QString authError READ authError NOTIFY authErrorChanged)
     Q_PROPERTY(bool canSignOut READ canSignOut NOTIFY canSignOutChanged)
     // What the source picked says it can do, as ids the page words itself
@@ -57,7 +78,7 @@ class LibraryScreen : public QObject {
 public:
     LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, NowPlaying& nowPlaying, Rpc::AuthStates& authStates,
         SourcePage& sourcePage, Rpc::SourceManager& sourceManager, Covers::CoverArtCache& covers,
-        QObject* parent = nullptr);
+        const Config::Settings& settings, QObject* parent = nullptr);
 
     RowsModel& sourceRows() { return sourceRows_; }
     RowsModel& favoriteRows() { return favoriteRows_; }
@@ -72,8 +93,14 @@ public:
     QString currentSourceIcon() const;
     QString currentSourceLogo() const;
     bool authNeeded() const;
+    QStringList authKinds() const;
     QString authUrl() const;
     QString authCode() const;
+    QString authBrowser() const;
+    bool authBrowserNeedsProxy() const;
+    QVariantList authFields() const;
+    QString authFormMessage() const;
+    bool authBusy() const;
     QString authError() const;
     bool canSignOut() const;
     QStringList capabilities() const;
@@ -95,6 +122,11 @@ public slots:
     void answerOffer(const QString& playlistId, bool accept);
     void refresh();
     void signIn();
+    // The sign-in form's values, by field name.
+    void submitSignInForm(const QVariantMap& values);
+    // What the built-in browser ended up with, as JSON (auth.submit's
+    // `browser`). By source: another may be picked by then.
+    void submitBrowserSignIn(const QString& sourceId, const QString& result);
     void signOut();
 
 signals:
@@ -107,8 +139,14 @@ signals:
     void currentSourceIconChanged();
     void currentSourceLogoChanged();
     void authNeededChanged();
+    void authKindsChanged();
     void authUrlChanged();
     void authCodeChanged();
+    void authBrowserChanged();
+    void authBrowserNeedsProxyChanged();
+    void authFieldsChanged();
+    void authFormMessageChanged();
+    void authBusyChanged();
     void authErrorChanged();
     void canSignOutChanged();
     void capabilitiesChanged();
@@ -133,6 +171,7 @@ private:
     SourcePage& sourcePage_;
     Rpc::SourceManager& sourceManager_;
     Covers::CoverArtCache& covers_;
+    const Config::Settings& settings_;
     RowsModel sourceRows_;
     RowsModel favoriteRows_;
     RowsModel otherRows_;

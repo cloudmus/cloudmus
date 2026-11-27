@@ -992,6 +992,54 @@
       <source>Sign in</source>
       <translation>Iniciar sesión</translation>
     </message>
+    <message>
+      <source>Paste here</source>
+      <translation>Pega aquí</translation>
+    </message>
+    <message>
+      <source>Submit</source>
+      <translation>Enviar</translation>
+    </message>
+    <message>
+      <source>This device&apos;s built-in browser can&apos;t go through the source&apos;s proxy.</source>
+      <translation>El navegador integrado de este dispositivo no puede usar el proxy de la fuente.</translation>
+    </message>
+    <message>
+      <source>In the browser</source>
+      <translation>En el navegador</translation>
+    </message>
+    <message>
+      <source>With a phone</source>
+      <translation>Con el teléfono</translation>
+    </message>
+    <message>
+      <source>With a code</source>
+      <translation>Con un código</translation>
+    </message>
+    <message>
+      <source>Manually</source>
+      <translation>Manualmente</translation>
+    </message>
+    <message>
+      <source>★ Recommended for this device</source>
+      <translation>★ Recomendado para este dispositivo</translation>
+    </message>
+    <message>
+      <source>This device&apos;s browser is old: the sign-in page may turn it away.</source>
+      <translation>El navegador de este dispositivo es antiguo: la página de inicio de sesión puede rechazarlo.</translation>
+    </message>
+    <message>
+      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network: this one on the phone&apos;s hotspot, say.</source>
+      <translation>Escanea el código con la cámara del teléfono e inicia sesión en él. Ambos dispositivos deben estar en la misma red: este, por ejemplo, en el punto de acceso del teléfono.</translation>
+    </message>
+    <message>
+      <source>To sign in with a phone, connect this device to the phone&apos;s network — its hotspot, say — and show the code.</source>
+      <translation>Para iniciar sesión con el teléfono, conecta este dispositivo a la red del teléfono —por ejemplo, a su punto de acceso— y muestra el código.</translation>
+    </message>
+    <message>
+      <source>Show the QR code</source>
+      <translation>Mostrar el código QR</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>

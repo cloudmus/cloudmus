@@ -20,6 +20,8 @@ apply plugin: 'com.android.application'
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
     implementation "androidx.core:core:1.13.1"
+    // The sign-in browser's proxy (SignInWebActivity).
+    implementation "androidx.webkit:webkit:1.8.0"
     implementation "androidx.media3:media3-session:1.4.1"
     implementation "androidx.media3:media3-common:1.4.1"
     // %%CLOUDMUS_STORE_DEPENDENCIES%%
@@ -81,7 +83,7 @@ android {
     }
 
     defaultConfig {
-        resConfig "en"
+        resConfigs "en", "ru", "be", "de", "es", "fr", "it"
         minSdkVersion qtMinSdkVersion
         targetSdkVersion qtTargetSdkVersion
         ndk.abiFilters = qtTargetAbiList.split(",")

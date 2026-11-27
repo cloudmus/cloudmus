@@ -1,6 +1,7 @@
 #include <QAbstractItemModel>
 #include <QColor>
 #include <QDir>
+#include <QJsonDocument>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QGuiApplication>
@@ -2859,6 +2860,172 @@ private slots:
         const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
         if (!shots.isEmpty())
             window->grabWindow().save(shots + QStringLiteral("/phone-landscape.png"));
+    }
+
+    // A source offering its browser first and a form: with no built-in browser
+    // (not Android) it's the form, which keeps what's typed as the page
+    // repaints, and submits it.
+    void signingInByAFormKeepsWhatsTypedAndSubmitsIt()
+    {
+        qputenv("CLOUDMUS_FAKE_AUTH", "1");
+        QTemporaryDir dir;
+        App::MobileCore core({ dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        const QString fake = QStringLiteral("fake");
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
+                && core.core().sourceManager().client(fake)->available(),
+            10000);
+        qunsetenv("CLOUDMUS_FAKE_AUTH");
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(360, 780);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
+
+        AuthMethod browser;
+        browser.kind = QStringLiteral("browser");
+        browser.url = QStringLiteral("https://example.com/sign-in");
+        browser.cookieUrls = QList<QString> { QStringLiteral("https://example.com") };
+        browser.doneCookies = QList<QString> { QStringLiteral("session") };
+        AuthMethod form;
+        form.kind = QStringLiteral("form");
+        form.message = QStringLiteral("Paste the <code>headers</code>");
+        form.fields = QList<AuthField> { AuthField { QStringLiteral("password"), std::nullopt, true, std::nullopt } };
+
+        core.library().selectSource(fake);
+        core.core().authStates().setPrompt(fake, { browser, form });
+        QCOMPARE(core.library().authKinds(), (QStringList { QStringLiteral("browser"), QStringLiteral("form") }));
+        QCOMPARE(core.library().authFormMessage(), QStringLiteral("Paste the headers"));
+        QVERIFY(core.library().authBrowser().contains(QStringLiteral("https://example.com/sign-in")));
+        // The browser connects as the source does.
+        const auto connection = [&core] {
+            return QJsonDocument::fromJson(core.library().authBrowser().toUtf8())
+                .object()
+                .value(QStringLiteral("connection"))
+                .toObject();
+        };
+        QCOMPARE(connection().value(QStringLiteral("mode")).toString(), QStringLiteral("system"));
+        QVERIFY(!core.library().authBrowserNeedsProxy());
+        // The config file outlives a test, and a run.
+        const auto forget = qScopeGuard([&core, &fake] {
+            core.core().settings().setProxies({ });
+            core.core().settings().setSourceConnection(fake, QLatin1String(Config::Settings::kSystemConnection));
+        });
+        core.core().settings().setProxies({ { QStringLiteral("home"), QStringLiteral("Home"),
+            Config::ProxyConfig::Type::Socks5, QStringLiteral("10.0.0.2"), 1080, QStringLiteral("me"),
+            QStringLiteral("secret") } });
+        core.core().settings().setSourceConnection(fake, QStringLiteral("home"));
+        QVERIFY(core.library().authBrowserNeedsProxy());
+        QCOMPARE(connection(),
+            (QJsonObject { { QStringLiteral("mode"), QStringLiteral("proxy") },
+                { QStringLiteral("type"), QStringLiteral("socks5") }, { QStringLiteral("host"), QStringLiteral("10.0.0.2") },
+                { QStringLiteral("port"), 1080 }, { QStringLiteral("username"), QStringLiteral("me") },
+                { QStringLiteral("password"), QStringLiteral("secret") } }));
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "libraryRequested"));
+        // The form's inputs are a Repeater's: in the item tree, not the objects'.
+        const auto input = [window] {
+            QQuickItem* found = nullptr;
+            forEachItem(window->contentItem(), [&found](QQuickItem* item) {
+                if (item->objectName() == QStringLiteral("authField_password"))
+                    found = item;
+            });
+            return found;
+        };
+        QTRY_VERIFY(input() != nullptr);
+        auto* field = input();
+        QTRY_VERIFY(field->isVisible());
+        QVERIFY(!window->findChild<QQuickItem*>("signIn")->isVisible());
+        // Only one way here: nothing to choose.
+        QVERIFY(!window->findChild<QQuickItem*>("authRecommended")->isVisible());
+
+        field->setProperty("text", QStringLiteral("nope"));
+        // The page repainting (a cover arriving) leaves the input alone.
+        core.core().authStates().setPrompt(fake, { browser, form });
+        QTest::qWait(100);
+        QCOMPARE(input(), field);
+        QCOMPARE(field->property("text").toString(), QStringLiteral("nope"));
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        if (!shots.isEmpty())
+            window->grabWindow().save(shots + QStringLiteral("/phone-signin-form.png"));
+
+        QSignalSpy refused(&core.core().sourcePage(), &ViewModel::SourcePage::submitFailed);
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("authSubmit"), "clicked"));
+        QTRY_COMPARE(refused.count(), 1);
+        QCOMPARE(refused.first().at(1).toString(), QStringLiteral("wrong password"));
+    }
+
+    // With more than one way to carry out, they're offered, the source's
+    // first one chosen; another can be picked.
+    void signingInOffersTheWaysThereAre()
+    {
+        qputenv("CLOUDMUS_FAKE_AUTH", "1");
+        QTemporaryDir dir;
+        App::MobileCore core({ dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        const QString fake = QStringLiteral("fake");
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
+                && core.core().sourceManager().client(fake)->available(),
+            10000);
+        qunsetenv("CLOUDMUS_FAKE_AUTH");
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(360, 780);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
+
+        AuthMethod form;
+        form.kind = QStringLiteral("form");
+        form.fields = QList<AuthField> { AuthField { QStringLiteral("token"), std::nullopt, false, std::nullopt } };
+
+        core.library().selectSource(fake);
+        core.core().authStates().setPrompt(fake, { codeMethod(QStringLiteral("abc123")), form });
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "libraryRequested"));
+        const auto find = [window](const QString& name) {
+            QQuickItem* found = nullptr;
+            forEachItem(window->contentItem(), [&](QQuickItem* item) {
+                if (item->objectName() == name)
+                    found = item;
+            });
+            return found;
+        };
+        QTRY_VERIFY(find(QStringLiteral("authWay_form")) != nullptr);
+        QTRY_VERIFY(find(QStringLiteral("authWay_code"))->isVisible());
+        QVERIFY(find(QStringLiteral("authWay_code"))->property("checked").toBool());
+        QVERIFY(find(QStringLiteral("authWay_code"))->property("text").toString().startsWith(QChar(0x2605)));
+        QVERIFY(find(QStringLiteral("authCode"))->isVisible());
+        QVERIFY(!find(QStringLiteral("authSubmit"))->isVisible());
+
+        QVERIFY(QMetaObject::invokeMethod(find(QStringLiteral("authWay_form")), "clicked"));
+        QTRY_VERIFY(find(QStringLiteral("authSubmit"))->isVisible());
+        QVERIFY(find(QStringLiteral("authField_token"))->isVisible());
+        QVERIFY(!find(QStringLiteral("authCode"))->isVisible());
+        QVERIFY(!find(QStringLiteral("authQr"))->isVisible());
+        QTest::qWait(400);
+        const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS");
+        if (!shots.isEmpty())
+            window->grabWindow().save(shots + QStringLiteral("/phone-signin-choice.png"));
     }
 
     // Signing in on a narrow screen: all of it fits, the code copies, and once

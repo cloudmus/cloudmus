@@ -1,5 +1,6 @@
 #include "LibraryScreen.h"
 
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QUrl>
 
@@ -9,6 +10,7 @@
 #include "AuthStates.h"
 #include "CoverArtCache.h"
 #include "NowPlaying.h"
+#include "ProxyRouting.h"
 #include "RpcMethods.h"
 #include "SourceManager.h"
 #include "SourcePage.h"
@@ -21,6 +23,28 @@ namespace {
 
 QString fileUrl(const QString& path) { return path.isEmpty() ? QString() : QUrl::fromLocalFile(path).toString(); }
 
+QJsonObject connectionJson(const Net::Connection& connection)
+{
+    switch (connection.mode) {
+        case Net::Connection::Mode::System:
+            return { { QStringLiteral("mode"), QStringLiteral("system") } };
+        case Net::Connection::Mode::Direct:
+            return { { QStringLiteral("mode"), QStringLiteral("direct") } };
+        case Net::Connection::Mode::Proxy:
+            break;
+    }
+    const Config::ProxyConfig& proxy = *connection.proxy;
+    return {
+        { QStringLiteral("mode"), QStringLiteral("proxy") },
+        { QStringLiteral("type"),
+            proxy.type == Config::ProxyConfig::Type::Socks5 ? QStringLiteral("socks5") : QStringLiteral("http") },
+        { QStringLiteral("host"), proxy.host },
+        { QStringLiteral("port"), proxy.port },
+        { QStringLiteral("username"), proxy.username },
+        { QStringLiteral("password"), proxy.password },
+    };
+}
+
 // `path`: the folders it's in (Playlist.parentId), for one shown away from
 // them — a favorite. `sizeText`: how much its files take, "" when unknown.
 // `offerQuestion`: asked before it's opened (Playlist.offer), "" when nothing
@@ -32,7 +56,7 @@ const QList<QByteArray> kPlaylistRoles { "playlistId", "title", "trackCount", "s
 
 LibraryScreen::LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, NowPlaying& nowPlaying,
     Rpc::AuthStates& authStates, SourcePage& sourcePage, Rpc::SourceManager& sourceManager,
-    Covers::CoverArtCache& covers, QObject* parent)
+    Covers::CoverArtCache& covers, const Config::Settings& settings, QObject* parent)
     : QObject(parent)
     , sources_(sources)
     , activePlaylist_(activePlaylist)
@@ -41,6 +65,7 @@ LibraryScreen::LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, N
     , sourcePage_(sourcePage)
     , sourceManager_(sourceManager)
     , covers_(covers)
+    , settings_(settings)
     , sourceRows_({ "sourceId", "name", "iconUrl", "needsSignIn", "isLoading", "hasError", "isCurrent" })
     , favoriteRows_(kPlaylistRoles)
     , otherRows_(kPlaylistRoles)
@@ -51,6 +76,7 @@ LibraryScreen::LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, N
     connect(&activePlaylist_, &ActivePlaylist::activated, this, &LibraryScreen::activated);
     connect(&authStates_, &Rpc::AuthStates::changed, this, &LibraryScreen::rebuild);
     connect(&covers_, &Covers::CoverArtCache::pixmapReady, this, &LibraryScreen::rebuild);
+    connect(&sourcePage_, &SourcePage::busyChanged, this, &LibraryScreen::authBusyChanged);
     rebuild();
 }
 
@@ -98,6 +124,60 @@ QString LibraryScreen::authCode() const
     const std::optional<AuthMethod> code = authMethod(QStringLiteral("code"));
     return code ? *code->code : QString();
 }
+
+QStringList LibraryScreen::authKinds() const
+{
+    const Rpc::AuthStates::State state = authStates_.state(currentSourceId_);
+    QStringList kinds;
+    for (const AuthMethod& method : state.methods) {
+        if (!kinds.contains(method.kind) && state.method({ method.kind }))
+            kinds.append(method.kind);
+    }
+    return kinds;
+}
+
+QString LibraryScreen::authBrowser() const
+{
+    const std::optional<AuthMethod> browser = authMethod(QStringLiteral("browser"));
+    if (!browser)
+        return QString();
+    QJsonObject method = browser->toJson();
+    method.insert(QStringLiteral("connection"), connectionJson(Net::connectionFor(settings_, currentSourceId_)));
+    return QString::fromUtf8(QJsonDocument(method).toJson(QJsonDocument::Compact));
+}
+
+bool LibraryScreen::authBrowserNeedsProxy() const
+{
+    return Net::connectionFor(settings_, currentSourceId_).mode == Net::Connection::Mode::Proxy;
+}
+
+QVariantList LibraryScreen::authFields() const
+{
+    QVariantList fields;
+    const std::optional<AuthMethod> form = authMethod(QStringLiteral("form"));
+    if (!form)
+        return fields;
+    for (const AuthField& field : *form->fields)
+        fields.append(QVariantMap {
+            { QStringLiteral("name"), field.name },
+            { QStringLiteral("label"), field.label.value_or(QString()) },
+            { QStringLiteral("secret"), field.secret },
+            { QStringLiteral("multiline"), field.multiline.value_or(false) },
+        });
+    return fields;
+}
+
+QString LibraryScreen::authFormMessage() const
+{
+    const std::optional<AuthMethod> form = authMethod(QStringLiteral("form"));
+    QString message = form ? form->message.value_or(QString()) : QString();
+    // QML's StyledText knows the rest of the minimal subset, not <code>.
+    message.remove(QStringLiteral("<code>"));
+    message.remove(QStringLiteral("</code>"));
+    return message;
+}
+
+bool LibraryScreen::authBusy() const { return sourcePage_.isBusy(currentSourceId_); }
 
 QString LibraryScreen::authError() const { return authStates_.state(currentSourceId_).errorMessage; }
 
@@ -209,6 +289,18 @@ void LibraryScreen::signIn()
         sourcePage_.signIn(currentSourceId_);
 }
 
+void LibraryScreen::submitSignInForm(const QVariantMap& values)
+{
+    if (!currentSourceId_.isEmpty())
+        sourcePage_.submit(currentSourceId_, QJsonObject::fromVariantMap(values));
+}
+
+void LibraryScreen::submitBrowserSignIn(const QString& sourceId, const QString& result)
+{
+    // Empty if it isn't JSON; submitBrowser() turns that down.
+    sourcePage_.submitBrowser(sourceId, QJsonDocument::fromJson(result.toUtf8()).object());
+}
+
 QVariantHash LibraryScreen::playlistRow(const Playlist& playlist)
 {
     const PlaylistContext& active = activePlaylist_.context();
@@ -304,8 +396,14 @@ void LibraryScreen::rebuild()
     emit currentSourceIconChanged();
     emit currentSourceLogoChanged();
     emit authNeededChanged();
+    emit authKindsChanged();
     emit authUrlChanged();
     emit authCodeChanged();
+    emit authBrowserChanged();
+    emit authBrowserNeedsProxyChanged();
+    emit authFieldsChanged();
+    emit authFormMessageChanged();
+    emit authBusyChanged();
     emit authErrorChanged();
     emit canSignOutChanged();
     emit capabilitiesChanged();

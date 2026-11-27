@@ -21,6 +21,14 @@ class Platform : public QObject {
     Q_PROPERTY(QString publicLogDirectory READ publicLogDirectory CONSTANT)
     Q_PROPERTY(QString deviceInfo READ deviceInfo CONSTANT)
     Q_PROPERTY(bool android READ android CONSTANT)
+    // There's a browser to sign in to a source in (signInWithBrowser()).
+    Q_PROPERTY(bool hasSignInBrowser READ hasSignInBrowser CONSTANT)
+    // That browser can be sent through a proxy (an old WebView can't).
+    Q_PROPERTY(bool signInBrowserTakesProxy READ signInBrowserTakesProxy CONSTANT)
+    // ...and is old enough that sign-in pages are likely to turn it away.
+    Q_PROPERTY(bool signInBrowserOutdated READ signInBrowserOutdated CONSTANT)
+    // This device can have a phone sign in for it (startPhoneSignIn()).
+    Q_PROPERTY(bool canSignInByPhone READ canSignInByPhone CONSTANT)
     // The app's version, from the release tags: "0.6.4", "0.6.4-163-geaef2c2".
     Q_PROPERTY(QString version READ version CONSTANT)
     // LICENSE, a paragraph to a line, for the About page.
@@ -67,6 +75,23 @@ public:
     QString publicLogDirectory() const;
     QString deviceInfo() const;
     bool android() const;
+    bool hasSignInBrowser() const;
+    bool signInBrowserTakesProxy() const;
+    bool signInBrowserOutdated() const;
+    bool canSignInByPhone() const;
+    // Offers a source's `browser` method to a phone on the same network
+    // (PhoneSignInServer): the address for the phone to open — to be shown as
+    // a QR code — or empty with no network to offer it on. What the phone's
+    // browser ends up with comes in signedInWithBrowser(), as for
+    // signInWithBrowser(). Until stopPhoneSignIn(), or
+    // phoneSignInEnded() once it's expired.
+    Q_INVOKABLE QString startPhoneSignIn(const QString& request, const QString& method, const QString& title) const;
+    Q_INVOKABLE void stopPhoneSignIn() const;
+    // Opens a source's `browser` sign-in method (`method`, as JSON) in the
+    // built-in browser (SignInWebActivity); what it ends up with comes in
+    // signedInWithBrowser(), with `request` passed back. `title` is shown
+    // over it.
+    Q_INVOKABLE void signInWithBrowser(const QString& request, const QString& method, const QString& title) const;
     QString version() const;
     QString licenseText() const;
     QVariantList authors() const;
@@ -180,6 +205,11 @@ signals:
     // What to tell the user: where the zip went, or what went wrong.
     void systemAppsExported(const QString& result);
     void pythonProbeFinished(const QString& result);
+    // signInWithBrowser()'s answer: auth.submit's `browser` as JSON, or
+    // empty if the user left.
+    void signedInWithBrowser(const QString& request, const QString& result);
+    // startPhoneSignIn()'s offer expired unused.
+    void phoneSignInEnded();
     // Another app had audio opened here ("Open with CloudMus"): on to the
     // track. The audio itself goes to the core, which plays it.
     void audioOpened();

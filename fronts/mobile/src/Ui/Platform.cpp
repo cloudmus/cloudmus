@@ -12,11 +12,11 @@
 #include <QScreen>
 #include <QStringList>
 
-#include <atomic>
 #include <QSysInfo>
 #include <QThread>
 #include <QTimer>
 #include <QtConcurrent>
+#include <atomic>
 
 #include <cstdlib>
 #include <memory>
@@ -28,8 +28,8 @@
 
 #include <algorithm>
 
-#include "People.h"
 #include "Log.h"
+#include "People.h"
 
 namespace Ui {
 
@@ -116,6 +116,72 @@ bool Platform::android() const
 #endif
 }
 
+bool Platform::hasSignInBrowser() const
+{
+#ifdef Q_OS_ANDROID
+    return !bridgeString("hasWebView").isEmpty();
+#else
+    return false;
+#endif
+}
+
+bool Platform::signInBrowserTakesProxy() const
+{
+#ifdef Q_OS_ANDROID
+    return !bridgeString("webViewTakesProxy").isEmpty();
+#else
+    return false;
+#endif
+}
+
+bool Platform::signInBrowserOutdated() const
+{
+#ifdef Q_OS_ANDROID
+    return !bridgeString("webViewOutdated").isEmpty();
+#else
+    return false;
+#endif
+}
+
+bool Platform::canSignInByPhone() const { return android(); }
+
+QString Platform::startPhoneSignIn(const QString& request, const QString& method, const QString& title) const
+{
+#ifdef Q_OS_ANDROID
+    return QJniObject::callStaticObjectMethod("app/cloudmus/mobile/PhoneSignInServer", "start",
+        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+        QNativeInterface::QAndroidApplication::context().object(), QJniObject::fromString(request).object<jstring>(),
+        QJniObject::fromString(method).object<jstring>(), QJniObject::fromString(title).object<jstring>())
+        .toString();
+#else
+    Q_UNUSED(request)
+    Q_UNUSED(method)
+    Q_UNUSED(title)
+    return { };
+#endif
+}
+
+void Platform::stopPhoneSignIn() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/PhoneSignInServer", "stop");
+#endif
+}
+
+void Platform::signInWithBrowser(const QString& request, const QString& method, const QString& title) const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "signInWithBrowser",
+        "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+        QNativeInterface::QAndroidApplication::context().object(), QJniObject::fromString(request).object<jstring>(),
+        QJniObject::fromString(method).object<jstring>(), QJniObject::fromString(title).object<jstring>());
+#else
+    Q_UNUSED(request)
+    Q_UNUSED(method)
+    Q_UNUSED(title)
+#endif
+}
+
 QString Platform::version() const { return QStringLiteral(CLOUDMUS_MOBILE_VERSION); }
 
 QString Platform::licenseText() const
@@ -168,7 +234,7 @@ void Platform::limitAccessibility()
     // that only watches the screen doesn't need any of it; a screen reader does.
     if (bridgeString("screenReaderOn").isEmpty()) {
         qCInfo(lcPlatform) << "no screen reader: Qt's accessibility updates are off";
-        QAccessible::installUpdateHandler([](QAccessibleEvent*) {});
+        QAccessible::installUpdateHandler([](QAccessibleEvent*) { });
     }
 #endif
 }
@@ -203,8 +269,8 @@ void Platform::runPythonProbe()
         process->setProcessChannelMode(QProcess::MergedChannels);
         connect(process, &QProcess::readyRead, this, [process, clock] {
             while (process->canReadLine()) {
-                qCInfo(lcPlatform) << "python probe:" << clock->elapsed() << "ms:"
-                                   << QString::fromUtf8(process->readLine()).trimmed();
+                qCInfo(lcPlatform) << "python probe:" << clock->elapsed()
+                                   << "ms:" << QString::fromUtf8(process->readLine()).trimmed();
             }
         });
         connect(process, &QProcess::finished, this, [this, process](int code, QProcess::ExitStatus status) {
@@ -276,8 +342,8 @@ void Platform::requestMediaDelete(const QStringList& uris)
 void Platform::requestMusicPermission()
 {
 #ifdef Q_OS_ANDROID
-    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "requestMusicPermission",
-        QNativeInterface::QAndroidApplication::context());
+    QJniObject::callStaticMethod<void>(
+        "app/cloudmus/mobile/UiBridge", "requestMusicPermission", QNativeInterface::QAndroidApplication::context());
 #endif
 }
 
@@ -380,7 +446,7 @@ QRectF Platform::splashIcon() const
     if (parts.size() == 4)
         return QRectF(parts.at(0).toDouble(), parts.at(1).toDouble(), parts.at(2).toDouble(), parts.at(3).toDouble());
 #endif
-    return {};
+    return { };
 }
 
 void Platform::hideSplash() const
@@ -391,8 +457,7 @@ void Platform::hideSplash() const
 #endif
 }
 
-void Platform::setAppearance(
-    const QString& scheme, bool dark, const QString& barColor, const QString& backColor) const
+void Platform::setAppearance(const QString& scheme, bool dark, const QString& barColor, const QString& backColor) const
 {
 #ifdef Q_OS_ANDROID
     QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setAppearance",
@@ -452,8 +517,8 @@ void Platform::setSystemVolume(int index)
     index = std::clamp(index, 0, volumeMax_);
     if (volumeMax_ <= 0 || index == volume_)
         return;
-    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setVolume",
-        "(Landroid/content/Context;I)V", QNativeInterface::QAndroidApplication::context().object(), jint(index));
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setVolume", "(Landroid/content/Context;I)V",
+        QNativeInterface::QAndroidApplication::context().object(), jint(index));
     // What the system took, not what was asked for.
     readVolume();
 #else
@@ -701,6 +766,40 @@ QString fromJava(JNIEnv* env, jstring text)
     return result;
 }
 } // namespace
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_PhoneSignInServer_nativeSignedIn(
+    JNIEnv* env, jclass, jstring request, jstring result)
+{
+    Ui::Platform* platform = Ui::instance.load();
+    if (!platform)
+        return;
+    QMetaObject::invokeMethod(
+        platform,
+        [platform, request = fromJava(env, request), result = fromJava(env, result)] {
+            emit platform->signedInWithBrowser(request, result);
+        },
+        Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_PhoneSignInServer_nativeExpired(JNIEnv*, jclass)
+{
+    if (Ui::Platform* platform = Ui::instance.load())
+        QMetaObject::invokeMethod(platform, &Ui::Platform::phoneSignInEnded, Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_SignInWebActivity_nativeFinished(
+    JNIEnv* env, jclass, jstring request, jstring result)
+{
+    Ui::Platform* platform = Ui::instance.load();
+    if (!platform)
+        return;
+    QMetaObject::invokeMethod(
+        platform,
+        [platform, request = fromJava(env, request), result = fromJava(env, result)] {
+            emit platform->signedInWithBrowser(request, result);
+        },
+        Qt::QueuedConnection);
+}
 
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_PathPicker_nativePicked(
     JNIEnv* env, jclass, jstring path, jboolean cancelled)

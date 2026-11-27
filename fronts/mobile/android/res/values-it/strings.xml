@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_title">Accesso per un altro dispositivo</string>
+    <string name="phone_confirm">Un dispositivo della tua rete (%1$s) chiede di accedere a %2$s su %3$s. Avrà accesso all\'account con cui accedi. Continua solo se hai appena scansionato tu stesso il codice sul tuo dispositivo.</string>
+    <string name="phone_sign_in">Accedi</string>
+    <string name="phone_cancel">Annulla</string>
+    <string name="phone_close">Chiudi</string>
+    <string name="phone_reaching">Connessione con l\'altro dispositivo…</string>
+    <string name="phone_unreachable">L\'altro dispositivo non è raggiungibile. Devono essere sulla stessa rete: collegalo per esempio all\'hotspot di questo telefono e scansiona di nuovo il codice.</string>
+    <string name="phone_expired">Questo codice non è più valido. Mostrane uno nuovo sull\'altro dispositivo e scansionalo.</string>
+    <string name="phone_sending">Invio…</string>
+    <string name="phone_sent">Inviato. L\'altro dispositivo completa l\'accesso.</string>
+    <string name="phone_send_failed">Impossibile inviare l\'accesso all\'altro dispositivo.</string>
+    <string name="phone_unfinished">L\'accesso non è stato completato.</string>
+    <string name="phone_page_open">Apri in CloudMus</string>
+    <string name="phone_page_about">Fa accedere l\'altro dispositivo a %1$s. CloudMus deve essere installato su questo telefono.</string>
+</resources>

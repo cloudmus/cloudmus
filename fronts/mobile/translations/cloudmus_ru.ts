@@ -997,6 +997,54 @@
       <source>Sign in</source>
       <translation>Войти</translation>
     </message>
+    <message>
+      <source>Paste here</source>
+      <translation>Вставьте сюда</translation>
+    </message>
+    <message>
+      <source>Submit</source>
+      <translation>Отправить</translation>
+    </message>
+    <message>
+      <source>This device&apos;s built-in browser can&apos;t go through the source&apos;s proxy.</source>
+      <translation>Встроенный браузер этого устройства не умеет работать через прокси источника.</translation>
+    </message>
+    <message>
+      <source>In the browser</source>
+      <translation>В браузере</translation>
+    </message>
+    <message>
+      <source>With a phone</source>
+      <translation>С телефона</translation>
+    </message>
+    <message>
+      <source>With a code</source>
+      <translation>По коду</translation>
+    </message>
+    <message>
+      <source>Manually</source>
+      <translation>Вручную</translation>
+    </message>
+    <message>
+      <source>★ Recommended for this device</source>
+      <translation>★ Рекомендуется для этого устройства</translation>
+    </message>
+    <message>
+      <source>This device&apos;s browser is old: the sign-in page may turn it away.</source>
+      <translation>Браузер этого устройства устарел: страница входа может его не пустить.</translation>
+    </message>
+    <message>
+      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network: this one on the phone&apos;s hotspot, say.</source>
+      <translation>Отсканируйте код камерой телефона и войдите на телефоне. Оба устройства должны быть в одной сети: например, это — на точке доступа телефона.</translation>
+    </message>
+    <message>
+      <source>To sign in with a phone, connect this device to the phone&apos;s network — its hotspot, say — and show the code.</source>
+      <translation>Чтобы войти с телефона, подключите это устройство к сети телефона — например, к его точке доступа — и покажите код.</translation>
+    </message>
+    <message>
+      <source>Show the QR code</source>
+      <translation>Показать QR-код</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>

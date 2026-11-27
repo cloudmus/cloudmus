@@ -67,6 +67,16 @@ ApplicationWindow {
         target: uiSettings
         function onColorSchemeChanged() { window.applyAppearance() }
     }
+    // The built-in browser is done signing in to a source: to the source,
+    // wherever the pages are by now.
+    Connections {
+        target: window.platform
+        ignoreUnknownSignals: true
+        function onSignedInWithBrowser(request, result) {
+            if (result !== "" && window.backend.library)
+                window.backend.library.submitBrowserSignIn(request, result)
+        }
+    }
     // A source's Device music was switched on: the system asks once, right
     // then. Settings keeps a row for asking again.
     Connections {

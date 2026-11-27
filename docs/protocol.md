@@ -917,8 +917,9 @@ treated as before: the front may retry once or twice, then stops.
 
 ## 10. Signing in
 
-A source says **which ways** it can be signed in to; the front takes the
-first one it is able to carry out and returns the raw outcome, which the
+A source says **which ways** it can be signed in to, its preferred one
+first; the front takes the first it is able to carry out, or offers the user
+those it can with one preselected, and returns the raw outcome, which the
 source makes sense of. A front needs no knowledge of any particular source.
 
 - `auth.getStatus` (request) → `{"status": "unauthenticated"|"pending"|"authenticated"|"error", "detail"?: string}`
@@ -1005,9 +1006,11 @@ whichever happens first. The front then submits:
 `cookies` maps each of `cookieUrls` to the `Cookie` header the browser would
 send there (`""` when it has none). The front doesn't read or keep them.
 
-The browser may be on another device than the source: the mobile front can
-have a phone carry out a head unit's `browser` method and send the outcome
-back (`docs/android.md`). A source can't tell, and needn't.
+The browser should connect as the source does (§4.3): the session may be tied
+to the address it was made from, and the page may only be reachable that way.
+It may be on another device than the source: the mobile front can have a phone
+carry out a head unit's `browser` method and send the outcome back
+(`docs/android.md`). A source can't tell, and needn't.
 
 ### 10.3 `form`: fields to fill in
 

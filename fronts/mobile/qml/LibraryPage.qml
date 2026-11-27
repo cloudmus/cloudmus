@@ -398,12 +398,23 @@ Page {
                         shown: !!page.library && page.library.authNeeded === true
                         // Not as the page goes over to another source.
                         animated: page._pendingSourceId === ""
+                        sourceId: page.library && page.library.currentSourceId ? page.library.currentSourceId : ""
+                        kinds: page.library && page.library.authKinds ? page.library.authKinds : []
                         url: page.library && page.library.authUrl ? page.library.authUrl : ""
                         code: page.library && page.library.authCode ? page.library.authCode : ""
+                        browser: page.library && page.library.authBrowser ? page.library.authBrowser : ""
+                        browserNeedsProxy: !!page.library && page.library.authBrowserNeedsProxy === true
+                        fields: page.library && page.library.authFields ? page.library.authFields : []
+                        formMessage: page.library && page.library.authFormMessage ? page.library.authFormMessage : ""
+                        busy: !!page.library && page.library.authBusy === true
                         error: page.library && page.library.authError ? page.library.authError : ""
                         platform: page.platform
                         wide: page.wide
                         onSignInRequested: page.library.signIn()
+                        onBrowserRequested: page.platform.signInWithBrowser(
+                            page.library.currentSourceId, browser, page.library.currentSourceName)
+                        sourceName: page.library && page.library.currentSourceName ? page.library.currentSourceName : ""
+                        onFormSubmitted: (values) => page.library.submitSignInForm(values)
                     }
 
                     // Not signed in yet: what there'll be to use.

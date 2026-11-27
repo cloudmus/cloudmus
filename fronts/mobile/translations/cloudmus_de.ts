@@ -992,6 +992,54 @@
       <source>Sign in</source>
       <translation>Anmelden</translation>
     </message>
+    <message>
+      <source>Paste here</source>
+      <translation>Hier einfügen</translation>
+    </message>
+    <message>
+      <source>Submit</source>
+      <translation>Absenden</translation>
+    </message>
+    <message>
+      <source>This device&apos;s built-in browser can&apos;t go through the source&apos;s proxy.</source>
+      <translation>Der integrierte Browser dieses Geräts kann den Proxy der Quelle nicht verwenden.</translation>
+    </message>
+    <message>
+      <source>In the browser</source>
+      <translation>Im Browser</translation>
+    </message>
+    <message>
+      <source>With a phone</source>
+      <translation>Mit dem Telefon</translation>
+    </message>
+    <message>
+      <source>With a code</source>
+      <translation>Mit einem Code</translation>
+    </message>
+    <message>
+      <source>Manually</source>
+      <translation>Manuell</translation>
+    </message>
+    <message>
+      <source>★ Recommended for this device</source>
+      <translation>★ Für dieses Gerät empfohlen</translation>
+    </message>
+    <message>
+      <source>This device&apos;s browser is old: the sign-in page may turn it away.</source>
+      <translation>Der Browser dieses Geräts ist alt: Die Anmeldeseite weist ihn möglicherweise ab.</translation>
+    </message>
+    <message>
+      <source>Scan the code with your phone&apos;s camera and sign in on the phone. Both devices have to be on one network: this one on the phone&apos;s hotspot, say.</source>
+      <translation>Scanne den Code mit der Kamera deines Telefons und melde dich dort an. Beide Geräte müssen im selben Netzwerk sein: dieses zum Beispiel am Hotspot des Telefons.</translation>
+    </message>
+    <message>
+      <source>To sign in with a phone, connect this device to the phone&apos;s network — its hotspot, say — and show the code.</source>
+      <translation>Um dich mit dem Telefon anzumelden, verbinde dieses Gerät mit dem Netzwerk des Telefons – zum Beispiel mit seinem Hotspot – und zeige den Code an.</translation>
+    </message>
+    <message>
+      <source>Show the QR code</source>
+      <translation>QR-Code anzeigen</translation>
+    </message>
   </context>
   <context>
     <name>SourceSettingsPage</name>
