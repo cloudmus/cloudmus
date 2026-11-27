@@ -88,11 +88,15 @@ def with_authorization_marker(raw: str) -> str:
 
 
 def _verify_login(path: Path) -> None:
-    """One authenticated library call with the just-saved headers: a pasted
-    set can parse fine yet be rejected by YouTube (expired or foreign
-    cookie, wrong account index), which would otherwise only show up as an
-    empty library later. Raises on any failure."""
-    YTMusic(auth=str(path)).get_library_playlists(limit=1)
+    """Asks YouTube about the just-saved session: headers can parse fine yet
+    be rejected (expired or foreign cookie, wrong account index), which would
+    otherwise only show up as an empty library later. A rejected session's
+    library call doesn't always fail, so YouTube is also asked who it takes
+    the session for. Raises if it isn't taken."""
+    client = YTMusic(auth=str(path))
+    if client_module.says_signed_out(client):
+        raise RuntimeError(tr("YouTube Music has signed this session out. Sign in again."))
+    client.get_library_playlists(limit=1)
 
 
 def browser_to_headers(cookies: dict[str, str]) -> str:

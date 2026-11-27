@@ -28,6 +28,17 @@ def get_client() -> YTMusic:
     )
 
 
+def says_signed_out(client: YTMusic) -> bool:
+    """YouTube's own word that it answers this session as nobody's. Raises
+    if it can't be asked."""
+    response = client._send_request("account/account_menu", {})
+    for service in response.get("responseContext", {}).get("serviceTrackingParams", []):
+        for param in service.get("params", []):
+            if param.get("key") == "logged_in":
+                return param.get("value") == "0"
+    return False
+
+
 def signed_out() -> bool:
     """True when YouTube answers the saved session as nobody's. Cookies
     copied from a browser die once Google replaces them there, and the
@@ -36,14 +47,9 @@ def signed_out() -> bool:
     a failure; anything short of YouTube's own word (no network, no saved
     session, an answer without the flag) is not a sign-out."""
     try:
-        response = get_client()._send_request("account/account_menu", {})
+        return says_signed_out(get_client())
     except Exception:
         return False
-    for service in response.get("responseContext", {}).get("serviceTrackingParams", []):
-        for param in service.get("params", []):
-            if param.get("key") == "logged_in":
-                return param.get("value") == "0"
-    return False
 
 
 def reset_client() -> None:

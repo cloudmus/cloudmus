@@ -7,6 +7,9 @@ from cloudmus_backend_ytmusic import config
 from rpc_common.generated.models import AuthBrowserResult, PromptParams, SubmitParams
 
 
+_verify_login = auth_module._verify_login
+
+
 @pytest.fixture(autouse=True)
 def _no_network(monkeypatch):
     monkeypatch.setattr(auth_module, "_verify_login", lambda path: None)
@@ -198,3 +201,24 @@ async def test_submit_from_browser_without_a_session_reports_error(monkeypatch, 
     assert session.status == "error"
     assert not headers_file.exists()
     assert events[-1][1]["status"] == "error"
+
+
+@pytest.mark.parametrize("signed_out", [False, True])
+def test_a_session_youtube_answers_as_nobodys_isnt_taken(monkeypatch, tmp_path, signed_out):
+    """Its library call may well succeed, with nothing in it."""
+
+    class Client:
+        def __init__(self, auth):
+            pass
+
+        def get_library_playlists(self, limit):
+            return []
+
+    monkeypatch.setattr(auth_module, "YTMusic", Client)
+    monkeypatch.setattr(auth_module.client_module, "says_signed_out", lambda client: signed_out)
+
+    if signed_out:
+        with pytest.raises(RuntimeError):
+            _verify_login(tmp_path / "headers.json")
+    else:
+        _verify_login(tmp_path / "headers.json")
