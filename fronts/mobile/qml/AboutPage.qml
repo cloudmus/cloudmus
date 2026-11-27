@@ -191,24 +191,10 @@ Page {
                                 onTriggered: versionText.taps = 0
                             }
                         }
-                        IconButton {
-                            id: copyButton
+                        CopyButton {
                             objectName: "copyVersion"
-                            property bool copied: false
-                            size: Theme.dp(36)
-                            iconName: copied ? "check" : "content_copy"
-                            color: copied ? Theme.accent : Theme.inkSecondary
-                            onClicked: {
-                                page.platform.copyText(page.platform.version)
-                                // Brief confirmation right on the button.
-                                copied = true
-                                copiedTimer.restart()
-                            }
-                            Timer {
-                                id: copiedTimer
-                                interval: 1500
-                                onTriggered: copyButton.copied = false
-                            }
+                            content: page.platform ? page.platform.version : ""
+                            platform: page.platform
                         }
                     }
                 }

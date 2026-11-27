@@ -235,6 +235,7 @@ add_library(cloudmus-ui STATIC
     src/Ui/GeneratedCoverArt.cpp
     src/Ui/SourcePanel.cpp
     src/Ui/AuthCard.cpp
+    src/Ui/CopyButton.cpp
     src/Ui/QrCodeView.cpp
     src/Ui/MiniHtml.cpp
     src/Ui/ToastNotifier.cpp

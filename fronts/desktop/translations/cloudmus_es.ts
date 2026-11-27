@@ -683,10 +683,6 @@
         <translation>Salir</translation>
     </message>
     <message>
-        <source>Code copied</source>
-        <translation>Código copiado</translation>
-    </message>
-    <message>
         <source>Click to check now</source>
         <translation>Haz clic para comprobar ahora</translation>
     </message>
@@ -1362,10 +1358,6 @@ Do you agree to use downloads only this way?</source>
     <message>
         <source>Cancel</source>
         <translation>Cancelar</translation>
-    </message>
-    <message>
-        <source>Code copied</source>
-        <translation>Código copiado</translation>
     </message>
     <message>
         <source>A switched-off source doesn&apos;t start and isn&apos;t shown in the sidebar.</source>

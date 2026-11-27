@@ -994,10 +994,6 @@
       <translation>Адкрыйце %1 на любой прыладзе і ўвядзіце гэты код:</translation>
     </message>
     <message>
-      <source>Copied</source>
-      <translation>Скапіравана</translation>
-    </message>
-    <message>
       <source>Sign in</source>
       <translation>Увайсці</translation>
     </message>

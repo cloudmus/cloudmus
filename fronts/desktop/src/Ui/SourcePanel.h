@@ -85,8 +85,6 @@ signals:
     void refreshRequested(QString sourceId);
     // "Settings…": the source's page in the Settings dialog.
     void settingsRequested(QString sourceId);
-    // The sign-in card's "Copy code" was clicked.
-    void codeCopied();
 
 private:
     // Shows authCard_ in place of the "Connected" line.

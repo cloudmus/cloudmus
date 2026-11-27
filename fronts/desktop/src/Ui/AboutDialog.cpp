@@ -1,12 +1,10 @@
 #include "AboutDialog.h"
 
 #include <QButtonGroup>
-#include <QClipboard>
 #include <QDialogButtonBox>
 #include <QFile>
 #include <QFrame>
 #include <QGridLayout>
-#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -18,21 +16,20 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextEdit>
-#include <QTimer>
-#include <QToolButton>
 #include <QVBoxLayout>
 
 #include "AudioPulse.h"
 #include "CloudsBackdrop.h"
-#include "People.h"
+#include "CopyButton.h"
 #include "DialogButtons.h"
 #include "Icons.h"
 #include "OverlayScrollBar.h"
+#include "People.h"
 #include "PulsingLogo.h"
 #include "SmoothScroller.h"
+#include "Spacing.h"
 #include "SpriteAnimation.h"
 #include "StackTransition.h"
-#include "Spacing.h"
 #include "TabOrder.h"
 #include "Tokens.h"
 #include "Typography.h"
@@ -80,8 +77,8 @@ QWidget* peoplePage(const QList<About::Person>& people, QWidget* parent)
         auto* card = new QFrame(page);
         card->setObjectName(QStringLiteral("personCard")); // see StyleSheet.cpp's settingsBlock()
         auto* row = new QHBoxLayout(card);
-        row->setContentsMargins(Theme::Spacing::space3, Theme::Spacing::space3, Theme::Spacing::space4,
-            Theme::Spacing::space3);
+        row->setContentsMargins(
+            Theme::Spacing::space3, Theme::Spacing::space3, Theme::Spacing::space4, Theme::Spacing::space3);
         row->setSpacing(Theme::Spacing::space3);
 
         auto* icon = new QLabel(card);
@@ -147,26 +144,9 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, ViewModel::LogoSound& sou
     versionLabel->setWordWrap(false);
     versionLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
-    auto* copyButton = new QToolButton(this);
-    copyButton->setProperty("variant", "icon");
-    copyButton->setProperty("filled", true);
-    copyButton->setProperty("compact", true); // 20px circle — see StyleSheet.cpp's buttonsBlock()
-    copyButton->setFixedSize(20, 20);
-    copyButton->setIconSize(QSize(12, 12));
+    auto* copyButton = new CopyButton(this);
     copyButton->setToolTip(tr("Copy version"));
-    const auto setCopyIcon = [copyButton](bool copied) {
-        copyButton->setProperty("copied", copied);
-        copyButton->setIcon(Theme::icon(copied ? QStringLiteral("check") : QStringLiteral("content_copy"),
-            copied ? Theme::IconColor::Accent : Theme::IconColor::InkSecondary, 12));
-    };
-    Theme::followTheme(
-        copyButton, [copyButton, setCopyIcon]() { setCopyIcon(copyButton->property("copied").toBool()); });
-    connect(copyButton, &QToolButton::clicked, this, [copyButton, version, setCopyIcon]() {
-        QGuiApplication::clipboard()->setText(version);
-        // Brief confirmation right on the button.
-        setCopyIcon(true);
-        QTimer::singleShot(1500, copyButton, [setCopyIcon]() { setCopyIcon(false); });
-    });
+    copyButton->setSource([version]() { return version; });
 
     auto* versionRow = new QHBoxLayout;
     versionRow->setSpacing(Theme::Spacing::space2);
@@ -228,23 +208,40 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, ViewModel::LogoSound& sou
         QString what;
     };
     const Technology technologies[] = {
-        { .logo = QStringLiteral(":/about/clawd-waving.png"), .frames = 9, .frameMs = 220, .pixelArt = true,
-            .name = QStringLiteral("Claude"), .url = QStringLiteral("https://claude.com/product/claude-code"),
+        { .logo = QStringLiteral(":/about/clawd-waving.png"),
+            .frames = 9,
+            .frameMs = 220,
+            .pixelArt = true,
+            .name = QStringLiteral("Claude"),
+            .url = QStringLiteral("https://claude.com/product/claude-code"),
             .what = tr("AI coding agent by Anthropic") },
-        { .logo = QStringLiteral(":/about/codex-waving.png"), .frames = 10, .frameMs = 140,
-            .name = QStringLiteral("Codex"), .url = QStringLiteral("https://openai.com/codex"),
+        { .logo = QStringLiteral(":/about/codex-waving.png"),
+            .frames = 10,
+            .frameMs = 140,
+            .name = QStringLiteral("Codex"),
+            .url = QStringLiteral("https://openai.com/codex"),
             .what = tr("AI coding agent by OpenAI") },
-        { .logo = QStringLiteral(":/about/qt.svg"), .name = QStringLiteral("Qt"),
-            .url = QStringLiteral("https://www.qt.io"), .what = tr("The interface, on the desktop and on phones") },
-        { .logo = QStringLiteral(":/about/mpv.svg"), .name = QStringLiteral("mpv"),
-            .url = QStringLiteral("https://mpv.io"), .what = tr("Plays the music") },
-        { .logo = QStringLiteral(":/about/cpp.svg"), .name = QStringLiteral("C++"),
-            .url = QStringLiteral("https://isocpp.org"), .what = tr("The app itself") },
-        { .logo = QStringLiteral(":/about/rust.svg"), .tinted = true, .name = QStringLiteral("Rust"),
+        { .logo = QStringLiteral(":/about/qt.svg"),
+            .name = QStringLiteral("Qt"),
+            .url = QStringLiteral("https://www.qt.io"),
+            .what = tr("The interface, on the desktop and on phones") },
+        { .logo = QStringLiteral(":/about/mpv.svg"),
+            .name = QStringLiteral("mpv"),
+            .url = QStringLiteral("https://mpv.io"),
+            .what = tr("Plays the music") },
+        { .logo = QStringLiteral(":/about/cpp.svg"),
+            .name = QStringLiteral("C++"),
+            .url = QStringLiteral("https://isocpp.org"),
+            .what = tr("The app itself") },
+        { .logo = QStringLiteral(":/about/rust.svg"),
+            .tinted = true,
+            .name = QStringLiteral("Rust"),
             .url = QStringLiteral("https://www.rust-lang.org"),
             .what = tr("The music services' backends") },
-        { .logo = QStringLiteral(":/about/python.svg"), .name = QStringLiteral("Python"),
-            .url = QStringLiteral("https://www.python.org"), .what = tr("The music services' backends") },
+        { .logo = QStringLiteral(":/about/python.svg"),
+            .name = QStringLiteral("Python"),
+            .url = QStringLiteral("https://www.python.org"),
+            .what = tr("The music services' backends") },
     };
     // A picture's size, as the logo's is: what each is scaled to, kept to its
     // proportions.
@@ -275,8 +272,8 @@ AboutDialog::AboutDialog(ViewModel::AudioPulse& pulse, ViewModel::LogoSound& sou
             draw();
             logo = image;
         }
-        auto* text = makeLabel(QStringLiteral("%1 · %2").arg(link(technology.url, technology.name),
-                                   technology.what.toHtmlEscaped()),
+        auto* text = makeLabel(
+            QStringLiteral("%1 · %2").arg(link(technology.url, technology.name), technology.what.toHtmlEscaped()),
             Theme::TextStyle::Body, technologiesPage);
         text->setTextFormat(Qt::RichText);
         text->setOpenExternalLinks(true);

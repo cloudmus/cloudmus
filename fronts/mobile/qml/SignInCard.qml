@@ -61,28 +61,11 @@ Panel {
                     font.weight: Font.Bold
                     TapHandler { onTapped: copyCode.clicked() }
                 }
-                IconButton {
+                CopyButton {
                     id: copyCode
                     objectName: "copyAuthCode"
-                    iconName: "content_copy"
-                    onClicked: {
-                        card.platform.copyText(card.code)
-                        copied.visible = true
-                        copiedTimeout.restart()
-                    }
-                }
-                Text {
-                    id: copied
-                    visible: false
-                    text: qsTr("Copied")
-                    color: Theme.inkSecondary
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSmall
-                    Timer {
-                        id: copiedTimeout
-                        interval: 2000
-                        onTriggered: copied.visible = false
-                    }
+                    content: card.code
+                    platform: card.platform
                 }
             }
             // While a code is shown the source is waiting for it: asking again

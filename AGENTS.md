@@ -84,6 +84,13 @@ in Docker, running under Wine, and what only a real Windows can show.
 - Versions come from `x.y.z` git tags; pushing one publishes a release.
   Don't create or push tags unless asked.
 
+## Copying to the clipboard
+
+A button that copies something is always the copy button the About page has —
+the copy glyph beside what it copies, a check mark for a moment once pressed —
+never a "Copy …" text button or a toast of its own: `Ui::CopyButton` on the
+desktop, `CopyButton.qml` on mobile.
+
 ## Commits
 
 - Subject: short, imperative, capitalized, no trailing period; optional

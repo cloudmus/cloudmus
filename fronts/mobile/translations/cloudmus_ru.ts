@@ -994,10 +994,6 @@
       <translation>Откройте %1 на любом устройстве и введите этот код:</translation>
     </message>
     <message>
-      <source>Copied</source>
-      <translation>Скопировано</translation>
-    </message>
-    <message>
       <source>Sign in</source>
       <translation>Войти</translation>
     </message>

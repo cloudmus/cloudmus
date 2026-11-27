@@ -989,10 +989,6 @@
       <translation>Öffnen Sie %1 auf einem beliebigen Gerät und geben Sie diesen Code ein:</translation>
     </message>
     <message>
-      <source>Copied</source>
-      <translation>Kopiert</translation>
-    </message>
-    <message>
       <source>Sign in</source>
       <translation>Anmelden</translation>
     </message>

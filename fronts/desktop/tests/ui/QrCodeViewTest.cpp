@@ -1,14 +1,18 @@
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QJsonObject>
 #include <QTest>
 #include <QThreadPool>
 #include <QVBoxLayout>
 
 #include "AuthCard.h"
+#include "CopyButton.h"
 #include "QrCodeView.h"
 
 namespace Tests {
 
-// The sign-in card's QR code, and the whole of the window it takes on a click.
+// The sign-in card: its code's copy button, its QR code, and the whole of the
+// window that takes on a click.
 class QrCodeViewTest : public QObject {
     Q_OBJECT
 
@@ -35,6 +39,16 @@ private slots:
         shot("card");
         card_->showError(QStringLiteral("expired"));
         QVERIFY(!view()->isVisible());
+    }
+
+    void theCodeIsCopiedFromBesideIt()
+    {
+        auto* copy = card_->findChild<Ui::CopyButton*>();
+        QVERIFY(copy != nullptr && copy->isVisible());
+        QTest::mouseClick(copy, Qt::LeftButton);
+        QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("abc123"));
+        QVERIFY(copy->isCopied());
+        QTRY_VERIFY(!copy->isCopied());
     }
 
     void aClickTakesItOverTheWindowAndEscapeBack()

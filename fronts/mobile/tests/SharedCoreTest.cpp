@@ -2907,6 +2907,7 @@ private slots:
             QStringLiteral("<a href=\"https://ya.ru/device\">")));
         QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("copyAuthCode"), "clicked"));
         QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("abc123"));
+        QVERIFY(window->findChild<QQuickItem*>("copyAuthCode")->property("copied").toBool());
 
         // A tap takes the QR code over the whole screen, and another back.
         auto* qr = window->findChild<QQuickItem*>("authQr");

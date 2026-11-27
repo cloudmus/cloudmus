@@ -193,6 +193,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/DropMenuItem.qml
         qml/CheckMark.qml
         qml/Chip.qml
+        qml/CopyButton.qml
         qml/Cover.qml
         qml/CrossfadeImage.qml
         qml/DeveloperPage.qml

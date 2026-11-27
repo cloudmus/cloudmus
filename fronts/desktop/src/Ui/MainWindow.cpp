@@ -394,7 +394,6 @@ MainWindow::MainWindow(App::DesktopCore& core, QWidget* parent)
     sourcePanel_->setFavoriteCheck([this](const QString& sourceId, const QString& playlistId) {
         return sources_.isFavorite(sourceId, playlistId);
     });
-    connect(sourcePanel_, &SourcePanel::codeCopied, this, [this]() { messages_.success(tr("Code copied")); });
     connect(sourcePanel_, &SourcePanel::settingsRequested, this,
         [this](const QString& sourceId) { showSettingsDialog(QStringLiteral("source:") + sourceId); });
     connect(sourcePanel_, &SourcePanel::refreshRequested, &sources_, &ViewModel::Sources::refresh);

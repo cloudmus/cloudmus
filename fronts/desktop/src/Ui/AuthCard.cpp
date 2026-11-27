@@ -1,9 +1,7 @@
 #include "AuthCard.h"
 
-#include <QClipboard>
 #include <QDesktopServices>
 #include <QFont>
-#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QJsonArray>
 #include <QLabel>
@@ -14,6 +12,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include "CopyButton.h"
 #include "Icons.h"
 #include "MiniHtml.h"
 #include "OverlayScrollBar.h"
@@ -64,14 +63,17 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     codeLabel_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     codeLabel_->hide();
 
-    copyCodeButton_ = new QPushButton(tr("Copy code"), this);
-    copyCodeButton_->setProperty("variant", "secondary");
-    copyCodeButton_->setFont(Theme::font(Theme::TextStyle::Button));
-    connect(copyCodeButton_, &QPushButton::clicked, this, [this]() {
-        QGuiApplication::clipboard()->setText(codeLabel_->text());
-        emit codeCopied();
-    });
+    copyCodeButton_ = new CopyButton(this);
+    copyCodeButton_->setToolTip(tr("Copy code"));
+    copyCodeButton_->setAccessibleName(tr("Copy code"));
+    copyCodeButton_->setSource([this]() { return codeLabel_->text(); });
     copyCodeButton_->hide();
+
+    auto* codeRow = new QHBoxLayout;
+    codeRow->setSpacing(Theme::Spacing::space2);
+    codeRow->addWidget(codeLabel_);
+    codeRow->addWidget(copyCodeButton_);
+    codeRow->addStretch(1);
 
     formLayout_ = new QHBoxLayout;
     multilineFieldsLayout_ = new QVBoxLayout;
@@ -112,7 +114,6 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     busyIndicator_->hide();
 
     auto* buttonRow = new QHBoxLayout;
-    buttonRow->addWidget(copyCodeButton_);
     buttonRow->addLayout(formLayout_);
     buttonRow->addWidget(submitButton_);
     buttonRow->addWidget(openBrowserButton_);
@@ -128,7 +129,7 @@ AuthCard::AuthCard(Look look, QWidget* parent)
     cardLayout->setContentsMargins(0, 0, 0, 0);
     cardLayout->setSpacing(embedded ? Theme::Spacing::space2 : 10);
     cardLayout->addLayout(headerRow);
-    cardLayout->addWidget(codeLabel_);
+    cardLayout->addLayout(codeRow);
     cardLayout->addLayout(multilineFieldsLayout_);
     cardLayout->addLayout(buttonRow);
     cardLayout->addWidget(qrCode_, 0, Qt::AlignLeft);

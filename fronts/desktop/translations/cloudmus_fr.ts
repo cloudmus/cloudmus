@@ -683,10 +683,6 @@
         <translation>Quitter</translation>
     </message>
     <message>
-        <source>Code copied</source>
-        <translation>Code copié</translation>
-    </message>
-    <message>
         <source>Click to check now</source>
         <translation>Cliquez pour vérifier maintenant</translation>
     </message>
@@ -1362,10 +1358,6 @@ Acceptez-vous de n’utiliser les téléchargements que de cette façon ?</trans
     <message>
         <source>Cancel</source>
         <translation>Annuler</translation>
-    </message>
-    <message>
-        <source>Code copied</source>
-        <translation>Code copié</translation>
     </message>
     <message>
         <source>A switched-off source doesn&apos;t start and isn&apos;t shown in the sidebar.</source>

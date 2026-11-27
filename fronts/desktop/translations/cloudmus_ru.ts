@@ -688,10 +688,6 @@
         <translation>Выход</translation>
     </message>
     <message>
-        <source>Code copied</source>
-        <translation>Код скопирован</translation>
-    </message>
-    <message>
         <source>Click to check now</source>
         <translation>Нажмите, чтобы проверить сейчас</translation>
     </message>
@@ -1367,10 +1363,6 @@ Do you agree to use downloads only this way?</source>
     <message>
         <source>Cancel</source>
         <translation>Отмена</translation>
-    </message>
-    <message>
-        <source>Code copied</source>
-        <translation>Код скопирован</translation>
     </message>
     <message>
         <source>A switched-off source doesn&apos;t start and isn&apos;t shown in the sidebar.</source>

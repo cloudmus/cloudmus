@@ -14,6 +14,7 @@ class QVBoxLayout;
 
 namespace Ui {
 
+class CopyButton;
 class QrCodeView;
 
 // A source's sign-in card: renders an auth/prompt (deviceCode's URL and
@@ -53,9 +54,6 @@ signals:
     void submitRequested(QJsonObject fields);
     // Retry, or Sign in: either way, (re)start the sign-in flow.
     void retryRequested();
-    // "Copy code" put the device code on the clipboard — for the owner to
-    // confirm with a toast in its own window.
-    void codeCopied();
 
 private:
     void clearFormFields();
@@ -65,7 +63,7 @@ private:
 
     QLabel* messageLabel_ = nullptr;
     QLabel* codeLabel_ = nullptr;
-    QPushButton* copyCodeButton_ = nullptr;
+    CopyButton* copyCodeButton_ = nullptr;
     QrCodeView* qrCode_ = nullptr;
     QHBoxLayout* formLayout_ = nullptr;
     // Fields whose auth/prompt descriptor sets multiline:true (e.g. a

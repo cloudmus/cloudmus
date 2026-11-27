@@ -683,10 +683,6 @@
         <translation>Beenden</translation>
     </message>
     <message>
-        <source>Code copied</source>
-        <translation>Code kopiert</translation>
-    </message>
-    <message>
         <source>Click to check now</source>
         <translation>Klicken, um jetzt zu prüfen</translation>
     </message>
@@ -1362,10 +1358,6 @@ Stimmen Sie zu, Downloads nur auf diese Weise zu verwenden?</translation>
     <message>
         <source>Cancel</source>
         <translation>Abbrechen</translation>
-    </message>
-    <message>
-        <source>Code copied</source>
-        <translation>Code kopiert</translation>
     </message>
     <message>
         <source>A switched-off source doesn&apos;t start and isn&apos;t shown in the sidebar.</source>
