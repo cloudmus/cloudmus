@@ -120,14 +120,6 @@ target_sources(cloudmus-mobile-core PRIVATE
 target_include_directories(cloudmus-mobile-core PUBLIC src/App)
 target_link_libraries(cloudmus-mobile-core PUBLIC cloudmus-core)
 
-# QR codes for signing in: one source file, no build of its own.
-include(FetchContent)
-FetchContent_Declare(qrcodegen
-    URL https://github.com/nayuki/QR-Code-generator/archive/refs/tags/v1.8.0.tar.gz
-    URL_HASH SHA256=2ec0a4d33d6f521c942eeaf473d42d5fe139abcfa57d2beffe10c5cf7d34ae60
-    DOWNLOAD_EXTRACT_TIMESTAMP ON)
-FetchContent_MakeAvailable(qrcodegen)
-
 # The version, from the release tags, as the desktop's is (fronts/desktop/cmake/Version.cmake):
 # "0.6.4" on one, "0.6.4-163-geaef2c2" after it. The About page shows it; the
 # APK is named by it. The APK's code only has to grow, or Android won't take
@@ -167,9 +159,7 @@ qt_add_library(cloudmus-mobile-ui STATIC
     src/Ui/Platform.h
     src/Ui/QrImageProvider.cpp
     src/Ui/QrImageProvider.h
-    ${qrcodegen_SOURCE_DIR}/cpp/qrcodegen.cpp
 )
-target_include_directories(cloudmus-mobile-ui PRIVATE ${qrcodegen_SOURCE_DIR}/cpp)
 target_include_directories(cloudmus-mobile-ui PUBLIC src/Ui src/Remote)
 target_link_libraries(cloudmus-mobile-ui PUBLIC
     cloudmus-common cloudmus-mobile-i18n cloudmus-mobile-log Qt6::Concurrent Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::RemoteObjects Qt6::Svg)

@@ -11,8 +11,10 @@ it, and neither's sources may be reached into from here.
   playback (`Playback`), settings (`Config`), state (`App`), view models
   (`ViewModel`), and the rest of what sits below the view.
 - `common/` — `cloudmus-common`: the little that needs Qt Core/Gui alone
-  (`I18n`, `Covers/MeshAura`, `About/People.h`), which the mobile front's UI
-  process links without the rest of the core.
+  (`I18n`, `Covers/MeshAura`, `About/People.h`, `Qr`), which the mobile front's
+  UI process links without the rest of the core.
+- `third_party/` — sources copied into the tree unchanged (`qrcodegen`); don't
+  format or edit them.
 - `resources/` — what both fronts embed: fonts, the icon symbols, the logo
   and cloud, the About data (`people.json`, agents, technologies), the sound
   logo. Each front lists what it needs in its own `.qrc` or CMake file.

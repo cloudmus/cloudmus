@@ -283,6 +283,7 @@ if(BUILD_TESTING AND NOT ANDROID)
             tests/PlaylistEditingTest.cpp
             tests/PreloaderTest.cpp
             tests/PreloadTest.cpp
+            tests/QrPictureTest.cpp
             tests/RemotingTest.cpp
             tests/RpcClientTest.cpp
             tests/SequenceTest.cpp

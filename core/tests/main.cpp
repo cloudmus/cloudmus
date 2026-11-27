@@ -24,6 +24,7 @@ QObject* makePlaybackPreloadTest();
 QObject* makePlaylistEditingTest();
 QObject* makePreloaderTest();
 QObject* makePreloadTest();
+QObject* makeQrPictureTest();
 QObject* makeRemotingTest();
 QObject* makeRpcClientTest();
 QObject* makeSequenceTest();
@@ -68,6 +69,7 @@ int main(int argc, char** argv)
              Tests::makePlaylistEditingTest,
              Tests::makePreloaderTest,
              Tests::makePreloadTest,
+             Tests::makeQrPictureTest,
              Tests::makeRemotingTest,
              Tests::makeRpcClientTest,
              Tests::makeSequenceTest,

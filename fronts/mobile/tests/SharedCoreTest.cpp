@@ -40,6 +40,7 @@
 #include "Platform.h"
 #include "PulseScreen.h"
 #include "QrImageProvider.h"
+#include "QrPicture.h"
 #include "TestSupport.h"
 
 #include <QtQml/QQmlExtensionPlugin>
@@ -120,24 +121,16 @@ class SharedCoreTest : public QObject {
     QTemporaryDir settingsDir_;
 
 private slots:
-    void qrCodeIsRoundedOnWhite()
+    // The picture itself is the core's (QrPictureTest); here, what QrCode.qml
+    // asks the provider for.
+    void qrProviderDrawsThePercentEncodedText()
     {
         Ui::QrImageProvider provider;
         QSize size;
         const QImage image = provider.requestImage(
             QString::fromLatin1(QUrl::toPercentEncoding(QStringLiteral("https://ya.ru/device"))), &size, QSize(240, 240));
-        QCOMPARE(size, image.size());
         QCOMPARE(size, QSize(240, 240));
-        // A rounded square: nothing in the very corner, white in the blank
-        // margin a scanner needs.
-        QCOMPARE(qAlpha(image.pixel(0, 0)), 0);
-        QCOMPARE(image.pixel(120, 2), qRgb(255, 255, 255));
-        // The code is 25 modules and the margins 3 each; the middle of the
-        // first finder pattern is solid black.
-        const int middle = qRound((3 + 3.5) * 240 / 31.0);
-        QCOMPARE(image.pixel(middle, middle), qRgb(0, 0, 0));
-        if (const QString shots = qEnvironmentVariable("CLOUDMUS_MOBILE_SHOTS"); !shots.isEmpty())
-            image.save(shots + QStringLiteral("/qr.png"));
+        QCOMPARE(image, Qr::picture(QStringLiteral("https://ya.ru/device"), 240));
     }
 
     // A panel opens and folds over a moment, taking its layout's spacing with it.
