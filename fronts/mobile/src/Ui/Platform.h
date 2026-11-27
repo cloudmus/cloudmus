@@ -99,6 +99,9 @@ public:
     // user (where it went, or what went wrong).
     Q_INVOKABLE QString exportLogs() const;
     Q_INVOKABLE void copyText(const QString& text) const;
+    // While on, the screen doesn't go dark and is at its brightest: for
+    // something another device's camera reads (QrCode.qml).
+    Q_INVOKABLE void setScreenAwake(bool on) const;
     // The head unit's media setup (launcher, media services, the apps the
     // car's widget lists) into the log; what to tell the user.
     Q_INVOKABLE QString logSystemProbe() const;

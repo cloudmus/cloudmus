@@ -419,6 +419,17 @@ void Platform::setStatusBarOverAura(bool over) const
 #endif
 }
 
+void Platform::setScreenAwake(bool on) const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/UiBridge", "setScreenAwake",
+        "(Landroid/content/Context;Ljava/lang/String;)V", QNativeInterface::QAndroidApplication::context().object(),
+        QJniObject::fromString(on ? QStringLiteral("yes") : QString()).object<jstring>());
+#else
+    Q_UNUSED(on)
+#endif
+}
+
 void Platform::readVolume()
 {
 #ifdef Q_OS_ANDROID

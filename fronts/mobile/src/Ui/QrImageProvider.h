@@ -4,9 +4,9 @@
 
 namespace Ui {
 
-// `image://qr/<percent-encoded text>`: the text as a QR code, sharp at the size
-// asked for. A head unit may have no browser, and typing an address into a
-// phone in a car is no fun: signing in shows one.
+// `image://qr/<percent-encoded text>`: the text as a QR code of round dots on a
+// white rounded square, sharp at the size asked for. Views don't use it
+// directly: QrCode.qml is the code as shown.
 class QrImageProvider : public QQuickImageProvider {
 public:
     QrImageProvider();

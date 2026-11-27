@@ -39,6 +39,27 @@ public final class UiBridge {
         activity.runOnUiThread(() -> Appearance.setOverAura(activity, !over.isEmpty()));
     }
 
+    // Something on the screen is for another device's camera: full brightness,
+    // and no going dark. Both are the window's own, so they need no permission
+    // and don't hold once the app isn't in front.
+    public static void setScreenAwake(Context context, String on) {
+        if (!(context instanceof android.app.Activity))
+            return;
+        android.app.Activity activity = (android.app.Activity) context;
+        activity.runOnUiThread(() -> {
+            android.view.Window window = activity.getWindow();
+            if (!on.isEmpty())
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            android.view.WindowManager.LayoutParams attributes = window.getAttributes();
+            attributes.screenBrightness = !on.isEmpty()
+                    ? android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+                    : android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+            window.setAttributes(attributes);
+        });
+    }
+
     // "<current> <max>": the music stream's volume, in the system's own steps.
     public static String volume(Context context) {
         android.media.AudioManager audio = context.getSystemService(android.media.AudioManager.class);
