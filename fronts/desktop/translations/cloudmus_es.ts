@@ -507,8 +507,8 @@
         <translation>Reintentar</translation>
     </message>
     <message>
-        <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
-        <translation>Abre &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; e introduce el código de abajo</translation>
+        <source>Open %1 on any device and enter this code:</source>
+        <translation>Abre %1 en cualquier dispositivo e introduce este código:</translation>
     </message>
     <message>
         <source>Sign in by pasting what&apos;s asked for below.</source>

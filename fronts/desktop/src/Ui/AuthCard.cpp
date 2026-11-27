@@ -171,11 +171,12 @@ void AuthCard::showPrompt(const QJsonObject& params)
         const QString url = params.value(QStringLiteral("url")).toString();
         const QString code = params.value(QStringLiteral("code")).toString();
         messageLabel_->setTextFormat(Qt::RichText);
-        messageLabel_->setText(
-            // Accent-colored inline: a rich-text link otherwise takes the
-            // palette's stock blue, foreign to the app's theme.
-            tr("Open <a href=\"%1\" style=\"color: %3\">%2</a> and enter the code below")
-                .arg(url.toHtmlEscaped(), url.toHtmlEscaped(), Theme::palette().accent.name()));
+        // Accent-colored inline: a rich-text link otherwise takes the
+        // palette's stock blue, foreign to the app's theme.
+        const QString link = QStringLiteral("<a href=\"%1\" style=\"color: %2\">%1</a>")
+                                 .arg(url.toHtmlEscaped(), Theme::palette().accent.name());
+        // Worded as the mobile front's sign-in card.
+        messageLabel_->setText(tr("Open %1 on any device and enter this code:").arg(link));
         codeLabel_->setText(code);
         codeLabel_->show();
         copyCodeButton_->show();

@@ -509,8 +509,8 @@
         <translation>Повторить</translation>
     </message>
     <message>
-        <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
-        <translation>Откройте &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; и введите код ниже</translation>
+        <source>Open %1 on any device and enter this code:</source>
+        <translation>Откройте %1 на любом устройстве и введите этот код:</translation>
     </message>
     <message>
         <source>Sign in by pasting what&apos;s asked for below.</source>

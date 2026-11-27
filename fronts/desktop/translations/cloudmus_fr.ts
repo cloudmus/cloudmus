@@ -507,8 +507,8 @@
         <translation>Réessayer</translation>
     </message>
     <message>
-        <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
-        <translation>Ouvrez &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; et saisissez le code ci-dessous</translation>
+        <source>Open %1 on any device and enter this code:</source>
+        <translation>Ouvrez %1 sur n’importe quel appareil et saisissez ce code :</translation>
     </message>
     <message>
         <source>Sign in by pasting what&apos;s asked for below.</source>

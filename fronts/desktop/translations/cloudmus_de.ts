@@ -507,8 +507,8 @@
         <translation>Erneut versuchen</translation>
     </message>
     <message>
-        <source>Open &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; and enter the code below</source>
-        <translation>Öffnen Sie &lt;a href=&quot;%1&quot; style=&quot;color: %3&quot;&gt;%2&lt;/a&gt; und geben Sie den folgenden Code ein</translation>
+        <source>Open %1 on any device and enter this code:</source>
+        <translation>Öffnen Sie %1 auf einem beliebigen Gerät und geben Sie diesen Code ein:</translation>
     </message>
     <message>
         <source>Sign in by pasting what&apos;s asked for below.</source>
