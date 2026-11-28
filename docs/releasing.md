@@ -22,8 +22,11 @@ build of the one before it.
 
 A pull request from a branch of this repository gets the same builds, from
 `.github/workflows/pull-request.yml`, on every push to it. A pull request
-from a fork isn't built: GitHub gives it no secrets, and a build without the
-Sentry DSN fails on purpose.
+from a fork is built too, but GitHub gives it no secrets: its builds send no
+crash reports and no symbols are uploaded. The first one from a new
+contributor waits for "Approve and run workflows" on the pull request's page;
+look through what it changes (`.github/` and the build scripts above all)
+before pressing it.
 
 The release notes are also what the app's updater shows users: at startup
 and from the menu's "Check for Updates…", it lists the notes of every
