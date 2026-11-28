@@ -5,7 +5,8 @@
 namespace Ui {
 
 // `image://cover/<radius in pixels>/f<percent-encoded file URL>`, or
-// `.../s<percent-encoded seed>` for generated art: a cover, cut square, with
+// `.../s<percent-encoded seed>` for generated art: a square cover (one of
+// another shape fitted into it whole, as Covers::fitCover() does), with
 // rounded corners in its own transparency. Drawn once on a loader thread
 // rather than masked per frame, so that a long list of them scrolls for free.
 class CoverImageProvider : public QQuickImageProvider {

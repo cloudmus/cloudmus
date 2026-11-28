@@ -1,10 +1,10 @@
 #include "CoverImageProvider.h"
 
-#include <QImageReader>
 #include <QPainter>
 #include <QPainterPath>
 #include <QUrl>
 
+#include "CoverPicture.h"
 #include "MeshAura.h"
 
 namespace Ui {
@@ -12,17 +12,6 @@ namespace Ui {
 namespace {
 
 constexpr int kDefaultSide = 256;
-
-// Scaled to fill `side`, read no larger than it needs to be.
-QImage readFile(const QString& path, int side)
-{
-    QImageReader reader(path);
-    reader.setAutoTransform(true);
-    const QSize original = reader.size();
-    if (original.isValid())
-        reader.setScaledSize(original.scaled(side, side, Qt::KeepAspectRatioByExpanding));
-    return reader.read();
-}
 
 } // namespace
 
@@ -40,12 +29,14 @@ QImage CoverImageProvider::requestImage(const QString& id, QSize* size, const QS
     const QChar kind = id.at(separator + 1);
     const QString value = QUrl::fromPercentEncoding(id.mid(separator + 2).toUtf8());
     const int side = requestedSize.width() > 0 ? requestedSize.width() : kDefaultSide;
+    // What's blurred is drawn no larger than this: it looks the same, sooner.
+    const qreal blurScale = qMin(1.0, 480.0 / side);
 
     QImage source;
     if (kind == QLatin1Char('s'))
-        source = Covers::meshAuraImage(value, QSize(side, side), &Covers::gaussianBlur, qMin(1.0, 480.0 / side));
+        source = Covers::meshAuraImage(value, QSize(side, side), &Covers::gaussianBlur, blurScale);
     else
-        source = readFile(QUrl(value).toLocalFile(), side);
+        source = Covers::readScaled(QUrl(value).toLocalFile(), side);
     if (source.isNull())
         return { };
 
@@ -57,8 +48,7 @@ QImage CoverImageProvider::requestImage(const QString& id, QSize* size, const QS
     QPainterPath clip;
     clip.addRoundedRect(QRectF(rounded.rect()), radius, radius);
     painter.setClipPath(clip);
-    const QSize filled = source.size().scaled(side, side, Qt::KeepAspectRatioByExpanding);
-    painter.drawImage(QRect(QPoint((side - filled.width()) / 2, (side - filled.height()) / 2), filled), source);
+    painter.drawImage(0, 0, Covers::fitCover(source, rounded.size(), &Covers::gaussianBlur, blurScale));
     painter.end();
 
     if (size)

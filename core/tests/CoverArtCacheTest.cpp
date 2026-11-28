@@ -12,6 +12,7 @@
 #include <limits>
 
 #include "CoverArtCache.h"
+#include "CoverPicture.h"
 #include "DiskSpace.h"
 
 namespace Tests {
@@ -37,6 +38,27 @@ class CoverArtCacheTest : public QObject {
     Q_OBJECT
 
 private slots:
+    // A wide cover in a square: all of it, centered, over its own dimmed blur.
+    void aCoverOfAnotherShapeIsFittedWhole()
+    {
+        QImage wide = plain(200, 100);
+        for (int y = 0; y < wide.height(); ++y) {
+            for (int x = 0; x < 20; ++x)
+                wide.setPixelColor(x, y, Qt::red);
+        }
+        for (const qreal renderScale : { 1.0, 0.5 }) {
+            const QImage fitted = Covers::fitCover(wide, QSize(100, 100), &Covers::gaussianBlur, renderScale);
+            QCOMPARE(fitted.size(), QSize(100, 100));
+            // The side a crop would have lost.
+            QCOMPARE(fitted.pixelColor(2, 50), QColor(Qt::red));
+            QCOMPARE(fitted.pixelColor(50, 50), QColor(Qt::darkCyan));
+            // Above it, the blur: opaque and darker.
+            const QColor above = fitted.pixelColor(50, 5);
+            QCOMPARE(above.alpha(), 255);
+            QVERIFY(above.green() > 0 && above.green() < QColor(Qt::darkCyan).green());
+        }
+    }
+
     // A local cover is the file it's in: nothing is fetched, copied or kept.
     void aLocalCoverIsItsOwnFile()
     {

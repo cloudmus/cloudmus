@@ -5,7 +5,6 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
-#include <QImageReader>
 #include <QLoggingCategory>
 #include <QNetworkDiskCache>
 #include <QNetworkProxyFactory>
@@ -17,6 +16,7 @@
 #include <QTimer>
 #include <QUrl>
 
+#include "CoverPicture.h"
 #include "DiskSpace.h"
 #include "ProxyRouting.h"
 
@@ -43,20 +43,6 @@ constexpr int kFileSide = 1024;
 // for while it's read are made from it.
 constexpr int kLocalReadSide = 1024;
 
-// A local picture, decoded no larger than needed for `side` (its shorter side
-// still that long, if it was); null if it can't be read.
-QImage readScaled(const QString& path, int side)
-{
-    QImageReader reader(path);
-    reader.setAutoTransform(true);
-    const QSize original = reader.size();
-    if (side > 0 && original.isValid() && (original.width() > side && original.height() > side))
-        reader.setScaledSize(original.scaled(side, side, Qt::KeepAspectRatioByExpanding));
-    QImage image = reader.read();
-    if (image.isNull())
-        qCWarning(lcCovers) << "can't read the cover" << path << reader.errorString();
-    return image;
-}
 } // namespace
 
 // Asks the cache, per request, which proxy that URL's source uses —

@@ -2076,7 +2076,7 @@ private slots:
     }
 
     // Rounded corners in the image's own transparency, for a real file and for
-    // generated art, cut square whatever shape the file is.
+    // generated art, square whatever shape the file is.
     void coversHaveRoundedCorners()
     {
         Ui::CoverImageProvider provider;

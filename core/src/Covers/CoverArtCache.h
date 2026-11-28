@@ -66,9 +66,9 @@ public:
     void setProxyProvider(ProxyProvider provider) { proxyProvider_ = std::move(provider); }
 
     // Turns a decoded cover into the cached pixmap of exactly `target`
-    // size. The app sets Ui::fitCover() — a non-square cover fitted over
-    // its own blur — which needs Qt Widgets, kept out of this library;
-    // without one, a cover is just scaled to fit.
+    // size. The app sets Ui::fitCover() — Covers::fitCover() with the blur of
+    // Qt Widgets, kept out of this library; without one, a cover is just
+    // scaled to fit.
     using Fitter = std::function<QPixmap(const QImage& source, const QSize& target)>;
     void setFitter(Fitter fitter) { fitter_ = std::move(fitter); }
     void assignSource(const QString& sourceId, const QString& url);
