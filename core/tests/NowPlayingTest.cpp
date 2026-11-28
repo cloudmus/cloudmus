@@ -155,14 +155,40 @@ private slots:
         Track saved = track(QStringLiteral("t1"));
         saved.liked = true;
         trackStates_->observe(QStringLiteral("fake"), saved);
-        nowPlaying_->setPreviewTrack(QStringLiteral("fake"), saved.id);
-        QVERIFY(!nowPlaying_->hasTrack());
+        nowPlaying_->setSavedTrack(QStringLiteral("fake"), saved);
+        QVERIFY(nowPlaying_->hasTrack());
+        QVERIFY(!playback_->hasCurrentTrack());
         QVERIFY(nowPlaying_->feedback().likeSupported);
         QVERIFY(nowPlaying_->feedback().liked);
 
         play({ saved });
         QVERIFY(nowPlaying_->feedback().liked);
         QCOMPARE(trackStates_->state(QStringLiteral("fake"), saved.id).liked, std::optional<bool>(true));
+    }
+
+    void aSavedTrackShowsWithItsPositionUntilOneIsLoaded()
+    {
+        Track saved = track(QStringLiteral("t1"));
+        saved.title = QStringLiteral("Saved");
+        saved.durationMs = 60000;
+        settings_.setLastActiveTrack(saved.id, 0);
+        settings_.setLastActivePositionMs(12000);
+        QSignalSpy resume(nowPlaying_.get(), &ViewModel::NowPlaying::resumeRequested);
+        QSignalSpy step(nowPlaying_.get(), &ViewModel::NowPlaying::stepRequested);
+        nowPlaying_->setSavedTrack(QStringLiteral("fake"), saved);
+        QCOMPARE(nowPlaying_->title(), QStringLiteral("Saved"));
+        QCOMPARE(nowPlaying_->positionMs(), qint64(12000));
+        QCOMPARE(nowPlaying_->durationMs(), qint64(60000));
+        QVERIFY(!nowPlaying_->playing());
+        nowPlaying_->seek(30000);
+        QCOMPARE(settings_.lastActivePositionMs(), qint64(30000));
+        nowPlaying_->togglePause();
+        QCOMPARE(resume.size(), 1);
+        nowPlaying_->next();
+        QCOMPARE(step.size(), 1);
+        nowPlaying_->setSavedTrack(QString(), std::nullopt);
+        QVERIFY(!nowPlaying_->hasTrack());
+        QVERIFY(nowPlaying_->title().isEmpty());
     }
 
     void aFailedLikeRollsBackAndSaysWhy()

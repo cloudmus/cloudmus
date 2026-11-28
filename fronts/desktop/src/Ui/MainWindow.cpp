@@ -537,12 +537,7 @@ void MainWindow::bindNowPlaying()
 {
     // What the user does with the toolbar goes to the view model...
     using ViewModel::NowPlaying;
-    connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, this, [this]() {
-        if (nowPlaying_.hasTrack())
-            nowPlaying_.togglePause();
-        else
-            activePlaylist_.play();
-    });
+    connect(nowPlayingBar_, &NowPlayingBar::playPauseClicked, &nowPlaying_, &NowPlaying::togglePause);
     connect(nowPlayingBar_, &NowPlayingBar::nextClicked, &nowPlaying_, &NowPlaying::next);
     connect(nowPlayingBar_, &NowPlayingBar::previousClicked, &nowPlaying_, &NowPlaying::previous);
     connect(nowPlayingBar_, &NowPlayingBar::stopClicked, &nowPlaying_, &NowPlaying::stop);
@@ -585,7 +580,8 @@ void MainWindow::bindNowPlaying()
         const bool hasTrack = nowPlaying_.hasTrack();
         nowPlayingBar_->setTrackAvailable(hasTrack);
         nowPlayingBar_->setTrackWebUrl(nowPlaying_.webUrl());
-        if (hasTrack)
+        // A saved track, not loaded yet, keeps the hero's Play button.
+        if (playback_.hasCurrentTrack())
             heroPanel_->setNowPlaying(nowPlaying_.track());
         else
             refreshHero();
@@ -636,6 +632,8 @@ void MainWindow::bindNowPlaying()
         nowPlayingBar_->setLoading(true);
     nowPlayingBar_->setQueueAvailable(nowPlaying_.queueAvailable());
     showTrack();
+    if (nowPlaying_.hasTrack())
+        nowPlayingBar_->setPosition(nowPlaying_.positionMs(), nowPlaying_.durationMs());
     showFeedback();
     showPlayModes();
 }
@@ -1284,11 +1282,11 @@ void MainWindow::hideToTray()
 
 void MainWindow::showPlaylistsMenu(QPoint anchor)
 {
-    if (!playback_.hasCurrentTrack())
+    if (!nowPlaying_.hasTrack())
         return;
     auto* menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
-    fillPlaylistsMenuAsync(menu, playback_.currentSourceId(), playback_.currentTrack(), anchor).detach();
+    fillPlaylistsMenuAsync(menu, nowPlaying_.sourceId(), nowPlaying_.track(), anchor).detach();
     Theme::popupMenu(menu, anchor);
 }
 

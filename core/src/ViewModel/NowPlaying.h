@@ -90,8 +90,9 @@ public:
 
     // --- the track
     bool hasTrack() const;
-    // The saved track shown before playback starts.
-    void setPreviewTrack(const QString& sourceId, const QString& trackId);
+    // The track to show while the player has none loaded: the one Play goes
+    // on with, from where it was left (ActivePlaylist::savedEntry()).
+    void setSavedTrack(const QString& sourceId, const std::optional<Track>& track);
     // Only meaningful while hasTrack().
     const Track& track() const;
     QString sourceId() const;
@@ -191,6 +192,8 @@ signals:
     void trackChanged();
     // Play was asked for with nothing loaded: only a saved track, if that.
     void resumeRequested();
+    // Next (1) or previous (-1) from the saved track.
+    void stepRequested(int delta);
     // Asked to stop: on Android the playback service ends with it.
     void stopped();
     // The same, per property (see the class's comment).
@@ -228,6 +231,7 @@ signals:
 
 private:
     void emitTrackChanged();
+    void step(int delta);
     void updateTrackDirection();
     QString coverSource() const;
     bool isCurrent(const QString& sourceId, const QString& trackId) const;
@@ -263,8 +267,9 @@ private:
     // Likes and dislikes, one after another (see setTrackLiked()).
     Rpc::Sequence rating_;
     App::Outbox* outbox_ = nullptr;
-    QString previewSourceId_;
-    QString previewTrackId_;
+    // Shown while the player has nothing loaded (setSavedTrack()).
+    QString savedSourceId_;
+    std::optional<Track> savedTrack_;
 };
 
 } // namespace ViewModel

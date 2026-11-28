@@ -64,7 +64,9 @@ public:
     QVector<Playback::QueueEntry> entries() const;
     // The saved song's row in freshly fetched playlist tracks, or the first row.
     int resumeIndex() const;
-    // The saved song, when it is still present in the restored playlist.
+    // The saved song's row in entries(), -1 if it isn't there.
+    int savedRow() const;
+    // The saved song, when it is still present in entries().
     std::optional<Playback::QueueEntry> savedEntry() const;
     // How long what's saved may stand after the start before it's refreshed
     // from its source, for that not to compete with what's coming up on screen
@@ -105,9 +107,12 @@ public:
 public slots:
     // The hero's Play: (re)starts the active playlist.
     void play();
-    // Whatever was playing last goes on: from the disk if it's there, else
-    // as soon as the source and the tracks are.
+    // Whatever was playing last goes on, with what was saved of it: at once
+    // from the disk, else as soon as the source is up — or, with nothing
+    // saved, as soon as the tracks are.
     void resume();
+    // The track `delta` rows from the saved one, with nothing loaded yet.
+    void step(int delta);
     // A row of the main list played.
     void playRow(int row);
     // A radio's queue made anew: a new station, from the settings as they

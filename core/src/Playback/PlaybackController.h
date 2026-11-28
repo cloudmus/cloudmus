@@ -198,6 +198,8 @@ public:
     qint64 positionMs() const;
     bool hasCurrentTrack() const { return index_ >= 0 && index_ < queue_.size(); }
     bool hasQueue() const { return !queue_.isEmpty(); }
+    // A track is on its way to playing: resolved, or waiting for its source.
+    bool isStarting() const { return startingIndex_ >= 0 || awaitedIndex_ >= 0; }
     const Track& currentTrack() const { return queue_[index_].track; }
     const QString& currentSourceId() const { return queue_[index_].sourceId; }
     const QVector<QueueEntry>& queue() const { return queue_; }

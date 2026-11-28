@@ -86,7 +86,16 @@ void MainScreen::checkConnection()
     emit message(int(Messages::Kind::Info), status.text(), status.details());
 }
 
-void MainScreen::setViewShown(bool shown) { core_.connectionStatus().setViewShown(shown); }
+void MainScreen::setViewShown(bool shown)
+{
+    core_.connectionStatus().setViewShown(shown);
+    // With nothing loaded no track change brings the list to the saved track.
+    if (shown && !core_.playback().hasCurrentTrack()) {
+        const QModelIndex source = core_.activeTracks().index(core_.activePlaylist().savedRow());
+        if (source.isValid())
+            emit playingRowChanged(filter_.mapFromSource(source).row());
+    }
+}
 
 QString MainScreen::spaceWarning() const { return core_.preload().spaceWarning(); }
 

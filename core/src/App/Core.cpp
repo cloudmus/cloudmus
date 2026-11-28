@@ -185,15 +185,21 @@ Core::Core(QObject* parent)
     connect(&authStates_, &Rpc::AuthStates::signInFailed, &analytics_,
         [this](const QString& sourceId) { analytics_.recordSignIn(sourceId, Analytics::SignInStep::Error); });
     connect(&nowPlaying_, &ViewModel::NowPlaying::feedbackSent, &analytics_, &Analytics::recordTrackFeedback);
-    const auto syncPreview = [this]() {
+    const auto syncSaved = [this]() {
         const std::optional<Playback::QueueEntry> entry = activePlaylist_.savedEntry();
-        nowPlaying_.setPreviewTrack(entry ? entry->sourceId : QString(), entry ? entry->track.id : QString());
+        if (entry)
+            coverArtCache_.assignSource(entry->sourceId, { entry->track });
+        nowPlaying_.setSavedTrack(
+            entry ? entry->sourceId : QString(), entry ? std::optional<Track>(entry->track) : std::nullopt);
     };
-    connect(&activePlaylist_, &ViewModel::ActivePlaylist::contextChanged, this, syncPreview);
-    connect(&activePlaylist_, &ViewModel::ActivePlaylist::entriesChanged, this, syncPreview);
-    connect(&playback_, &Playback::PlaybackController::trackChanged, this, syncPreview);
-    syncPreview();
-    connect(&nowPlaying_, &ViewModel::NowPlaying::resumeRequested, &activePlaylist_, &ViewModel::ActivePlaylist::resume);
+    connect(&activePlaylist_, &ViewModel::ActivePlaylist::contextChanged, this, syncSaved);
+    connect(&activePlaylist_, &ViewModel::ActivePlaylist::entriesChanged, this, syncSaved);
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this, syncSaved);
+    connect(&playback_, &Playback::PlaybackController::currentTrackAvailabilityChanged, this, syncSaved);
+    syncSaved();
+    connect(
+        &nowPlaying_, &ViewModel::NowPlaying::resumeRequested, &activePlaylist_, &ViewModel::ActivePlaylist::resume);
+    connect(&nowPlaying_, &ViewModel::NowPlaying::stepRequested, &activePlaylist_, &ViewModel::ActivePlaylist::step);
 
     // History's saved snapshots: when each track was last played, plus
     // whatever like state it was recorded with — only where nothing

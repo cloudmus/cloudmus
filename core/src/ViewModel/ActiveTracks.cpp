@@ -16,6 +16,8 @@ ActiveTracks::ActiveTracks(ActivePlaylist& activePlaylist, Playback::PlaybackCon
     setCovers(&covers);
     connect(&activePlaylist_, &ActivePlaylist::entriesChanged, this, &ActiveTracks::refill);
     connect(&playback_, &Playback::PlaybackController::trackChanged, this, &ActiveTracks::markCurrent);
+    connect(
+        &playback_, &Playback::PlaybackController::currentTrackAvailabilityChanged, this, &ActiveTracks::markCurrent);
     refill();
 }
 
@@ -35,7 +37,8 @@ void ActiveTracks::refill()
 void ActiveTracks::markCurrent()
 {
     const int previous = current_;
-    current_ = playback_.currentIndex();
+    // With nothing loaded, the one that Play would go on with.
+    current_ = playback_.hasCurrentTrack() ? playback_.currentIndex() : activePlaylist_.savedRow();
     for (const int row : { previous, current_ }) {
         if (row >= 0 && row < rowCount())
             emit dataChanged(index(row), index(row), { IsCurrentRole });

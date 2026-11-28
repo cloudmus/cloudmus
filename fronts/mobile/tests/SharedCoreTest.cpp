@@ -255,7 +255,7 @@ private slots:
         QAbstractItemModel* tracks = backend.tracks();
         QTRY_COMPARE(playlist->property("title").toString(), QStringLiteral("Playlist One"));
         QTRY_COMPARE(tracks->rowCount(), 2);
-        QTRY_VERIFY_WITH_TIMEOUT(core.nowPlaying().hasTrack(), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().playback().hasCurrentTrack(), 10000);
         QTRY_COMPARE(nowPlaying->property("title").toString(), core.nowPlaying().title());
         QVERIFY(!nowPlaying->property("title").toString().isEmpty());
         const QString first = nowPlaying->property("title").toString();
@@ -304,8 +304,11 @@ private slots:
         QSignalSpy spy(&activated, &Receiver::ran);
         QMetaObject::invokeMethod(library, "playPlaylist", Q_ARG(QString, QStringLiteral("p1")));
         QTRY_COMPARE_WITH_TIMEOUT(spy.count(), 1, 10000);
-        QTRY_VERIFY(core.nowPlaying().hasTrack());
+        QTRY_VERIFY(core.core().playback().hasCurrentTrack());
         QTRY_COMPARE(backend.tracks()->rowCount(), 2);
+        // An earlier test's saved track may be what it went on with.
+        QMetaObject::invokeMethod(backend.playlist(), "playRow", Q_ARG(int, 0));
+        QTRY_COMPARE(core.core().playback().currentIndex(), 0);
         const QString track = core.nowPlaying().title();
 
         QMetaObject::invokeMethod(backend.playlist(), "playRow", Q_ARG(int, 1));
@@ -369,7 +372,7 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(changed.count() > 0, 5000);
 
         tree.play(QStringLiteral("playlist/fake/p1"));
-        QTRY_VERIFY_WITH_TIMEOUT(core.nowPlaying().hasTrack(), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().playback().hasCurrentTrack(), 10000);
         QCOMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
 
         // With a queue, search finds its tracks too, before the playlists.
@@ -406,8 +409,8 @@ private slots:
         QVERIFY(core.core().sourceManager().client(QStringLiteral("fake")) == nullptr);
         QVERIFY(!core.mediaTree().children(QStringLiteral("root")).isEmpty());
         core.mediaTree().play(QStringLiteral("playlist/fake/p1"));
-        QVERIFY(!core.nowPlaying().hasTrack());
-        QTRY_VERIFY_WITH_TIMEOUT(core.nowPlaying().hasTrack(), 10000);
+        QVERIFY(!core.core().playback().hasCurrentTrack());
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().playback().hasCurrentTrack(), 10000);
         QCOMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
     }
 
@@ -2169,7 +2172,7 @@ private slots:
         QTRY_VERIFY(backend.trackPlaylists()->rowCount() > 0);
 
         QMetaObject::invokeMethod(screen, "playRow", Q_ARG(int, 0));
-        QTRY_VERIFY(core.nowPlaying().hasTrack());
+        QTRY_VERIFY(core.core().playback().hasCurrentTrack());
         QTRY_COMPARE(core.nowPlaying().track().id, QStringLiteral("t2"));
         QTRY_COMPARE(core.activePlaylist().context().playlist.id, QStringLiteral("p1"));
     }
@@ -3391,7 +3394,7 @@ private slots:
         QMetaObject::invokeMethod(list, "positionViewAtEnd");
         QTest::qWait(300);
         QMetaObject::invokeMethod(backend.playlistScreen(), "playRow", Q_ARG(int, 1));
-        QTRY_VERIFY(core.nowPlaying().hasTrack());
+        QTRY_VERIFY(core.core().playback().hasCurrentTrack());
         QTRY_COMPARE(core.nowPlaying().track().id, QStringLiteral("t2"));
     }
 

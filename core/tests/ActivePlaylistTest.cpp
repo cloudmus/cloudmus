@@ -23,8 +23,8 @@
 #include "SourceSession.h"
 #include "Sources.h"
 #include "TestSupport.h"
-#include "TrackFetch.h"
 #include "TrackCache.h"
+#include "TrackFetch.h"
 #include "TrackStates.h"
 
 namespace Tests {
@@ -371,6 +371,79 @@ private slots:
         // Another song starts from its beginning.
         settings_->setLastActiveTrack(QStringLiteral("t1"), 0);
         QCOMPARE(settings_->lastActivePositionMs(), qint64(0));
+    }
+
+    // Play with what was saved doesn't wait for the source to list anything.
+    void resumePlaysTheSavedTracksBeforeTheSourceListsThem()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        active_->playRow(1);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+
+        restartApp();
+        start(false);
+        QCOMPARE(active_->savedRow(), 1);
+        QVERIFY(active_->savedEntry());
+        QCOMPARE(active_->savedEntry()->track.id, QStringLiteral("t2"));
+        active_->resume();
+        QVERIFY(playback_->hasQueue());
+        sourceManager_->startAll();
+        QTRY_VERIFY_WITH_TIMEOUT(playback_->hasCurrentTrack(), 10000);
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+    }
+
+    void resumeAfterStopGoesOnWithTheSameSong()
+    {
+        start();
+        await(active_->activateAndPlay(QStringLiteral("fake"), playlist(QStringLiteral("p1"))));
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        active_->playRow(1);
+        QTRY_COMPARE(settings_->lastActiveTrackId(), QStringLiteral("t2"));
+        playback_->stop();
+        QVERIFY(!playback_->hasCurrentTrack());
+        QCOMPARE(active_->savedRow(), 1);
+        active_->resume();
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t2"));
+    }
+
+    // A radio comes back playing what was saved, with a station behind it.
+    void resumingASavedRadioPlaysItsSongAndAttachesAStation()
+    {
+        start();
+        Playlist station = playlist(QStringLiteral("wave"));
+        station.kind = QStringLiteral("radioStation");
+        active_->setContext({ QStringLiteral("fake"), station });
+        playback_->startRadio(QStringLiteral("fake"), QStringLiteral("old-station"),
+            { track(QStringLiteral("old-1")), track(QStringLiteral("old-2")) });
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        playback_->playAt(1);
+        QTRY_COMPARE(settings_->lastActiveTrackId(), QStringLiteral("old-2"));
+
+        restartApp();
+        start(false);
+        QCOMPARE(active_->savedRow(), 1);
+        active_->resume();
+        QVERIFY(playback_->hasQueue());
+        sourceManager_->startAll();
+        QTRY_VERIFY_WITH_TIMEOUT(playback_->hasCurrentTrack(), 10000);
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("old-2"));
+        QVERIFY(playback_->isRadio());
+        QTRY_VERIFY(!playback_->awaitsStation());
+        QTRY_VERIFY(playback_->queue().size() > 2);
+    }
+
+    void aStepFromTheSavedSongPlaysItsNeighbour()
+    {
+        settings_->setLastActivePlaylist({ QStringLiteral("fake"), QStringLiteral("p1"), QStringLiteral("playlist") });
+        settings_->setLastActiveTrack(QStringLiteral("t2"), 1);
+        start();
+        QTRY_COMPARE(active_->entries().size(), 2);
+        active_->step(-1);
+        QTRY_VERIFY(playback_->hasCurrentTrack());
+        QCOMPARE(playback_->currentTrack().id, QStringLiteral("t1"));
     }
 
     void resumeWithNothingSavedDoesNothing()

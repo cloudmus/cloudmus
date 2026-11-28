@@ -84,8 +84,8 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
         loading_ = loading;
         emit loadingChanged(loading);
     });
-    connect(&playback_, &Playback::PlaybackController::positionChanged, this,
-        [this](qint64 positionMs, qint64 durationMs) {
+    connect(
+        &playback_, &Playback::PlaybackController::positionChanged, this, [this](qint64 positionMs, qint64 durationMs) {
             durationMs_ = durationMs;
             emit positionChanged(positionMs, durationMs);
             positionThrottle_.trigger();
@@ -115,28 +115,36 @@ NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManage
     // Whether the playing track is being saved.
     connect(&downloads_, &Downloads::changed, this, &NowPlaying::feedbackChanged);
     connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, [this](Rpc::RpcClient* client) {
-        if (client->sourceId() == previewSourceId_)
+        if (client->sourceId() == savedSourceId_)
             emit feedbackChanged();
     });
 }
 
-bool NowPlaying::hasTrack() const { return playback_.hasCurrentTrack(); }
-
-void NowPlaying::setPreviewTrack(const QString& sourceId, const QString& trackId)
+void NowPlaying::setSavedTrack(const QString& sourceId, const std::optional<Track>& track)
 {
-    if (previewSourceId_ == sourceId && previewTrackId_ == trackId)
+    if (savedTrack_.has_value() == track.has_value()
+        && (!track || (savedSourceId_ == sourceId && savedTrack_->toJson() == track->toJson())))
         return;
-    previewSourceId_ = sourceId;
-    previewTrackId_ = trackId;
-    if (!hasTrack()) {
-        resetBusy();
-        emit feedbackChanged();
-    }
+    savedSourceId_ = track ? sourceId : QString();
+    savedTrack_ = track;
+    // Behind a loaded track it isn't shown.
+    if (playback_.hasCurrentTrack())
+        return;
+    resetBusy();
+    emitTrackChanged();
+    emit feedbackChanged();
+    emit positionChanged(positionMs(), durationMs());
+    emit positionMsChanged();
 }
 
-const Track& NowPlaying::track() const { return playback_.currentTrack(); }
+bool NowPlaying::hasTrack() const { return playback_.hasCurrentTrack() || savedTrack_.has_value(); }
 
-QString NowPlaying::sourceId() const { return hasTrack() ? playback_.currentSourceId() : QString(); }
+const Track& NowPlaying::track() const { return playback_.hasCurrentTrack() ? playback_.currentTrack() : *savedTrack_; }
+
+QString NowPlaying::sourceId() const
+{
+    return playback_.hasCurrentTrack() ? playback_.currentSourceId() : savedSourceId_;
+}
 
 QString NowPlaying::webUrl() const { return hasTrack() ? track().webUrl.value_or(QString()) : QString(); }
 
@@ -187,7 +195,7 @@ void NowPlaying::setCovers(Covers::CoverArtCache* covers)
 
 void NowPlaying::updateTrackDirection()
 {
-    if (!hasTrack())
+    if (!playback_.hasCurrentTrack())
         return;
     // By where the last track is in the queue now, not by the indexes as they
     // were: a radio drops what it has played, which moves them. Gone from the
@@ -260,9 +268,20 @@ void NowPlaying::togglePause()
         emit resumeRequested();
 }
 
-void NowPlaying::next() { playback_.next(); }
+void NowPlaying::next() { step(1); }
 
-void NowPlaying::previous() { playback_.previous(); }
+void NowPlaying::previous() { step(-1); }
+
+void NowPlaying::step(int delta)
+{
+    // From the saved track: there's no queue yet to go through.
+    if (!playback_.hasCurrentTrack() && savedTrack_)
+        emit stepRequested(delta);
+    else if (delta > 0)
+        playback_.next();
+    else
+        playback_.previous();
+}
 
 void NowPlaying::stop()
 {
@@ -270,9 +289,28 @@ void NowPlaying::stop()
     emit stopped();
 }
 
-void NowPlaying::seek(qint64 positionMs) { playback_.seek(positionMs); }
+void NowPlaying::seek(qint64 positionMs)
+{
+    if (playback_.hasCurrentTrack() || !savedTrack_ || savedTrack_->id != settings_.lastActiveTrackId()) {
+        playback_.seek(positionMs);
+        return;
+    }
+    // Where it goes on from once played.
+    settings_.setLastActivePositionMs(std::clamp(positionMs, qint64(0), std::max(durationMs(), qint64(0))));
+    emit positionChanged(this->positionMs(), durationMs());
+    emit positionMsChanged();
+}
 
-qint64 NowPlaying::positionMs() const { return playback_.positionMs(); }
+qint64 NowPlaying::positionMs() const
+{
+    if (playback_.hasCurrentTrack() || !savedTrack_)
+        return playback_.positionMs();
+    if (savedTrack_->id != settings_.lastActiveTrackId())
+        return 0;
+    // Not clamped to a duration the source didn't tell.
+    const qint64 saved = std::max(settings_.lastActivePositionMs(), qint64(0));
+    return savedTrack_->durationMs > 0 ? std::min(saved, qint64(savedTrack_->durationMs)) : saved;
+}
 
 void NowPlaying::setVolume(int volume0To100)
 {
@@ -338,7 +376,6 @@ void NowPlaying::toggleShuffle() { setShuffle(!shuffle()); }
 
 void NowPlaying::cycleRepeat() { setRepeatMode(nextRepeatMode(repeatMode(), isRadio())); }
 
-
 void NowPlaying::setShuffle(bool on) { playback_.setShuffle(on); }
 
 void NowPlaying::setRepeatMode(Playback::RepeatMode mode) { playback_.setRepeatMode(mode); }
@@ -347,8 +384,8 @@ NowPlaying::Feedback NowPlaying::feedback() const
 {
     Feedback result;
     const bool current = hasTrack();
-    const QString source = current ? playback_.currentSourceId() : previewSourceId_;
-    const QString trackId = current ? track().id : previewTrackId_;
+    const QString source = sourceId();
+    const QString trackId = current ? track().id : QString();
     if (source.isEmpty() || trackId.isEmpty())
         return result;
     const QJsonObject caps = capabilities(source);
@@ -370,23 +407,19 @@ NowPlaying::Feedback NowPlaying::feedback() const
 void NowPlaying::setLiked(bool liked)
 {
     if (hasTrack())
-        setTrackLiked(playback_.currentSourceId(), track().id, liked, /*announce=*/false).detach();
-    else if (!previewTrackId_.isEmpty())
-        setTrackLiked(previewSourceId_, previewTrackId_, liked, /*announce=*/false).detach();
+        setTrackLiked(sourceId(), track().id, liked, /*announce=*/false).detach();
 }
 
 void NowPlaying::setDisliked(bool disliked)
 {
     if (hasTrack())
-        setTrackDisliked(playback_.currentSourceId(), track().id, disliked, /*announce=*/false).detach();
-    else if (!previewTrackId_.isEmpty())
-        setTrackDisliked(previewSourceId_, previewTrackId_, disliked, /*announce=*/false).detach();
+        setTrackDisliked(sourceId(), track().id, disliked, /*announce=*/false).detach();
 }
 
 void NowPlaying::download()
 {
     if (hasTrack())
-        downloads_.downloadTrack(playback_.currentSourceId(), track());
+        downloads_.downloadTrack(sourceId(), track());
 }
 
 Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, bool liked, bool announce)
@@ -543,12 +576,13 @@ void NowPlaying::applyDisliked(const QString& sourceId, const QString& trackId, 
 
 bool NowPlaying::isCurrent(const QString& sourceId, const QString& trackId) const
 {
-    return hasTrack() && playback_.currentSourceId() == sourceId && track().id == trackId;
+    return playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
+        && playback_.currentTrack().id == trackId;
 }
 
 bool NowPlaying::isShownTrack(const QString& sourceId, const QString& trackId) const
 {
-    return isCurrent(sourceId, trackId) || (!hasTrack() && previewSourceId_ == sourceId && previewTrackId_ == trackId);
+    return hasTrack() && this->sourceId() == sourceId && track().id == trackId;
 }
 
 QJsonObject NowPlaying::capabilities(const QString& sourceId) const
