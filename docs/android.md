@@ -342,6 +342,14 @@ and the stage of any failed write. After changing permissions in Android
 Settings or reconnecting a drive, run the check again. Vendor partitions
 listed in a head unit's firmware can have different access rules at runtime.
 
+GWM head units (Haval) put their own pages in place of Android's permission
+request and app info screen. Those pages don't offer storage, so a request for
+it is refused with no dialog. On such a unit, which `GwmAppSettings.java`
+recognizes by GWM's settings app, the grant buttons open Android's own app
+page in `com.android.settings`, where storage can be granted. If that fails,
+they open its list of apps. What's still open there, and the unit's volume:
+[`plans/gwm-head-unit.md`](plans/gwm-head-unit.md).
+
 When another app offers **Open with CloudMus** for an audio file, the track
 plays immediately after insertion in the current queue. Playback continues
 with the rest of that queue. A provider can give CloudMus either a temporary

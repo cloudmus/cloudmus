@@ -12,5 +12,8 @@ part of the app, and the plan is shortened to what's left or deleted.
   Music or Yandex Music where there is one.
 - [`android-battery.md`](android-battery.md): what background playback costs
   the battery on Android, and ideas to make it cost less.
+- [`gwm-head-unit.md`](gwm-head-unit.md): GWM head units: the volume
+  slider that can't change the unit's fixed volume, and storage access past
+  GWM's own permission pages.
 - [`go-backends.md`](go-backends.md): backends in Go instead of Python
   (evaluated, not started).
