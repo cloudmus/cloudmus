@@ -187,8 +187,14 @@ adb logcat -s CloudmusStart             # startup milestones
 The Library's sign-in card (`qml/SignInCard.qml`) offers every way this device
 can carry out of those the source lists (`docs/protocol.md` §10), with the one
 best for the device marked and chosen: the source's order, except that where
-the built-in browser is missing or older than Chromium 100, ahead of it comes
-CloudMus Sign-in if it's installed, else a phone.
+the built-in browser is missing, older than Chromium 100 or can't go through
+the source's proxy, ahead of it come CloudMus Sign-in (if installed or
+installable) and then a phone.
+
+A sign-in keeps the app from being unloaded (`SignInService`, a foreground
+service with a notification) only while it's on screen: a `code` sign-in while
+the Library's page shows that source's card (behind a browser it still counts;
+`LibraryScreen.watchSignIn`), one in CloudMus Sign-in while the helper is open.
 
 - **In the browser** (`SignInWebActivity.java`): the `browser` method in a
   WebView, in the UI process. It knows no service: the method says where to
@@ -246,6 +252,11 @@ Both apps are signed with one key and check each other's signature: the helper
 answers no one else, and CloudMus hands the sign-in to no other build. So a
 CloudMus signed otherwise (a store's own signing key) can't use the helper of a
 GitHub release.
+
+The card warns that installing it adds a second app (about 200 MB). It can be
+removed under CloudMus Settings → Sources → **CloudMus Sign-in** (shown while
+it's installed; Android asks) or in Android's settings; the sign-ins stay, and
+signing in again needs it again.
 
 The card offers it where the built-in browser is missing or old, and wherever
 it's installed. It gets onto a device in one of two ways:

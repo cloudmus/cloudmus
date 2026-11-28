@@ -432,6 +432,14 @@
       <source>Capabilities</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>%1 wird gestartet…</translation>
+    </message>
+    <message>
+      <source>Loading playlists…</source>
+      <translation>Wiedergabelisten werden geladen…</translation>
+    </message>
   </context>
   <context>
     <name>LogPage</name>
@@ -977,6 +985,10 @@
       <source>What's being saved, and what has been</source>
       <translation>Was gespeichert wird und was schon gespeichert ist</translation>
     </message>
+    <message>
+      <source>Installed for signing in on this device. Tap to remove it: frees about 200 MB. Sign-ins stay.</source>
+      <translation>Für die Anmeldung auf diesem Gerät installiert. Zum Entfernen antippen: gibt etwa 200 MB frei. Anmeldungen bleiben erhalten.</translation>
+    </message>
   </context>
   <context>
     <name>SignInCard</name>
@@ -1099,6 +1111,22 @@
     <message>
       <source>You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.</source>
       <translation>Du kannst es auch selbst installieren: die Datei %1 aus demselben Release wie dieses CloudMus, unter %2.</translation>
+    </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>%1 wird gestartet…</translation>
+    </message>
+    <message>
+      <source>Getting %1 ready to sign in…</source>
+      <translation>%1 bereitet die Anmeldung vor…</translation>
+    </message>
+    <message>
+      <source>Try again</source>
+      <translation>Erneut versuchen</translation>
+    </message>
+    <message>
+      <source>Installing it adds a second app to this device, taking about 200 MB. Once signed in, you can remove it: CloudMus Settings → CloudMus Sign-in, or Android&apos;s settings → Apps. Signing in again later needs it again.</source>
+      <translation>Dabei wird eine zweite App auf diesem Gerät installiert, die etwa 200 MB belegt. Nach der Anmeldung kannst du sie entfernen: CloudMus-Einstellungen → CloudMus Sign-in oder Android-Einstellungen → Apps. Für eine erneute Anmeldung wird sie wieder gebraucht.</translation>
     </message>
   </context>
   <context>

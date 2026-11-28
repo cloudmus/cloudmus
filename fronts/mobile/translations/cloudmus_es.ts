@@ -432,6 +432,14 @@
       <source>Capabilities</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>%1 se está iniciando…</translation>
+    </message>
+    <message>
+      <source>Loading playlists…</source>
+      <translation>Cargando listas…</translation>
+    </message>
   </context>
   <context>
     <name>LogPage</name>
@@ -977,6 +985,10 @@
       <source>What's being saved, and what has been</source>
       <translation>Lo que se está guardando y lo ya guardado</translation>
     </message>
+    <message>
+      <source>Installed for signing in on this device. Tap to remove it: frees about 200 MB. Sign-ins stay.</source>
+      <translation>Instalado para iniciar sesión en este dispositivo. Toca para quitarlo: libera unos 200 MB. Las sesiones se conservan.</translation>
+    </message>
   </context>
   <context>
     <name>SignInCard</name>
@@ -1099,6 +1111,22 @@
     <message>
       <source>You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.</source>
       <translation>También puedes instalarlo tú: el archivo %1 de la misma versión que este CloudMus, en %2.</translation>
+    </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>%1 se está iniciando…</translation>
+    </message>
+    <message>
+      <source>Getting %1 ready to sign in…</source>
+      <translation>Preparando el inicio de sesión de %1…</translation>
+    </message>
+    <message>
+      <source>Try again</source>
+      <translation>Reintentar</translation>
+    </message>
+    <message>
+      <source>Installing it adds a second app to this device, taking about 200 MB. Once signed in, you can remove it: CloudMus Settings → CloudMus Sign-in, or Android&apos;s settings → Apps. Signing in again later needs it again.</source>
+      <translation>Al instalarlo se añade una segunda aplicación a este dispositivo, que ocupa unos 200 MB. Tras iniciar sesión puedes quitarla: Ajustes de CloudMus → CloudMus Sign-in, o Ajustes de Android → Aplicaciones. Para volver a iniciar sesión hará falta de nuevo.</translation>
     </message>
   </context>
   <context>

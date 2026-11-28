@@ -831,6 +831,14 @@ extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeBrow
     });
 }
 
+extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeViewsGone(JNIEnv*, jclass)
+{
+    post([] {
+        if (coreInstance)
+            coreInstance->library().watchSignIn(QString());
+    });
+}
+
 extern "C" JNIEXPORT void JNICALL Java_app_cloudmus_mobile_CoreBridge_nativeStop(JNIEnv*, jclass)
 {
     post([] { QCoreApplication::quit(); });

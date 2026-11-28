@@ -3,6 +3,7 @@
 #include <QJsonValue>
 #include <QMap>
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -42,6 +43,9 @@ class LibraryScreen : public QObject {
     Q_PROPERTY(QString currentSourceId READ currentSourceId NOTIFY currentSourceIdChanged)
     Q_PROPERTY(QString currentSourceName READ currentSourceName NOTIFY currentSourceNameChanged)
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
+    // The source picked is on its way up: left unstarted so far, spawned, or
+    // in its handshake. It takes seconds on a phone, and more after an update.
+    Q_PROPERTY(bool sourceStarting READ sourceStarting NOTIFY sourceStartingChanged)
     // The active playlist's source, for the button that opens this screen.
     Q_PROPERTY(QString activeSourceName READ activeSourceName NOTIFY activeSourceNameChanged)
     Q_PROPERTY(QString activeSourceIcon READ activeSourceIcon NOTIFY activeSourceIconChanged)
@@ -67,6 +71,10 @@ class LibraryScreen : public QObject {
     // says about them, as rich text.
     Q_PROPERTY(QVariantList authFields READ authFields NOTIFY authFieldsChanged)
     Q_PROPERTY(QString authFormMessage READ authFormMessage NOTIFY authFormMessageChanged)
+    // Sign-in is needed, and the ways to do it are still to come: the source
+    // is starting, or is being asked (prepareSignIn()). Neither this nor any
+    // way: asking brought none, and it may be asked again (signIn()).
+    Q_PROPERTY(bool authPreparing READ authPreparing NOTIFY authPreparingChanged)
     // A submission, or asking to sign in, is under way.
     Q_PROPERTY(bool authBusy READ authBusy NOTIFY authBusyChanged)
     Q_PROPERTY(QString authError READ authError NOTIFY authErrorChanged)
@@ -87,6 +95,8 @@ public:
     QString currentSourceId() const { return currentSourceId_; }
     QString currentSourceName() const;
     bool loading() const;
+    bool sourceStarting() const;
+    bool authPreparing() const;
     QString activeSourceName() const;
     QString activeSourceIcon() const;
     QString activeSourceLogo() const;
@@ -104,6 +114,8 @@ public:
     QString authError() const;
     bool canSignOut() const;
     QStringList capabilities() const;
+    // The source whose sign-in is on screen (watchSignIn()), or "".
+    QString watchedSignIn() const { return watchedSignIn_; }
     // playPlaylist() for any source: for what doesn't go through picking one.
     void playPlaylistOf(const QString& sourceId, const QString& playlistId);
 
@@ -122,17 +134,28 @@ public slots:
     void answerOffer(const QString& playlistId, bool accept);
     void refresh();
     void signIn();
+    // The sign-in card is on screen with nothing to offer: the source is
+    // started if it was left unstarted, else asked for its ways, once. For the
+    // views, so that nothing has to be pressed to see them.
+    void prepareSignIn();
     // The sign-in form's values, by field name.
     void submitSignInForm(const QVariantMap& values);
     // What the built-in browser ended up with, as JSON (auth.submit's
     // `browser`). By source: another may be picked by then.
     void submitBrowserSignIn(const QString& sourceId, const QString& result);
     void signOut();
+    // The Library's page showing `sourceId`'s sign-in card came to the front,
+    // or "": it left, or the views are gone. Only a sign-in on screen keeps the
+    // app from being unloaded while it's under way (MobileCore::SignInNotice).
+    void watchSignIn(const QString& sourceId);
 
 signals:
+    void watchedSignInChanged();
     void currentSourceIdChanged();
     void currentSourceNameChanged();
     void loadingChanged();
+    void sourceStartingChanged();
+    void authPreparingChanged();
     void activeSourceNameChanged();
     void activeSourceIconChanged();
     void activeSourceLogoChanged();
@@ -175,6 +198,10 @@ private:
     RowsModel sourceRows_;
     RowsModel favoriteRows_;
     RowsModel otherRows_;
+    // Sources asked for their ways to sign in (prepareSignIn()) that are
+    // still up and still need it.
+    QSet<QString> asked_;
+    QString watchedSignIn_;
     QString currentSourceId_;
     QString startingPlaylistId_;
     // A source was picked in the Library: it stays, as sources come and go.

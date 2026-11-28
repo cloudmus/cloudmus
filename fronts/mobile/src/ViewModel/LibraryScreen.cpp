@@ -77,12 +77,31 @@ LibraryScreen::LibraryScreen(Sources& sources, ActivePlaylist& activePlaylist, N
     connect(&authStates_, &Rpc::AuthStates::changed, this, &LibraryScreen::rebuild);
     connect(&covers_, &Covers::CoverArtCache::pixmapReady, this, &LibraryScreen::rebuild);
     connect(&sourcePage_, &SourcePage::busyChanged, this, &LibraryScreen::authBusyChanged);
+    connect(&sourcePage_, &SourcePage::busyChanged, this, &LibraryScreen::authPreparingChanged);
     rebuild();
 }
 
 QString LibraryScreen::currentSourceName() const { return sources_.model().sourceName(currentSourceId_); }
 
 bool LibraryScreen::loading() const { return !currentSourceId_.isEmpty() && sources_.isLoading(currentSourceId_); }
+
+bool LibraryScreen::sourceStarting() const
+{
+    return !currentSourceId_.isEmpty() && sourceManager_.isStarting(currentSourceId_);
+}
+
+bool LibraryScreen::authPreparing() const
+{
+    const Rpc::AuthStates::State state = authStates_.state(currentSourceId_);
+    if (!state.hasProblem || !state.methods.isEmpty() || !state.errorMessage.isEmpty())
+        return false;
+    if (sourceStarting())
+        return true;
+    // Up (one that failed to start has no client): not asked yet, or asking.
+    const Rpc::RpcClient* client = sourceManager_.client(currentSourceId_);
+    return client != nullptr && client->available()
+        && (!asked_.contains(currentSourceId_) || sourcePage_.isBusy(currentSourceId_));
+}
 
 QString LibraryScreen::activeSourceName() const
 {
@@ -285,8 +304,31 @@ void LibraryScreen::signIn()
 {
     if (sourcePage_.wake(currentSourceId_))
         return; // signs in as it comes up
-    if (!currentSourceId_.isEmpty())
+    if (!currentSourceId_.isEmpty()) {
+        asked_.insert(currentSourceId_);
         sourcePage_.signIn(currentSourceId_);
+        emit authPreparingChanged();
+    }
+}
+
+void LibraryScreen::prepareSignIn()
+{
+    if (!authPreparing())
+        return;
+    if (sourceStarting()) {
+        sourcePage_.wake(currentSourceId_); // no-op for one on its way
+        return;
+    }
+    if (!asked_.contains(currentSourceId_))
+        signIn();
+}
+
+void LibraryScreen::watchSignIn(const QString& sourceId)
+{
+    if (watchedSignIn_ == sourceId)
+        return;
+    watchedSignIn_ = sourceId;
+    emit watchedSignInChanged();
 }
 
 void LibraryScreen::submitSignInForm(const QVariantMap& values)
@@ -386,10 +428,16 @@ void LibraryScreen::rebuild()
     }
     otherRows_.setRows(others);
 
+    // Asked again if it goes down, or once it needs signing in anew.
+    if (sourceStarting() || !authNeeded())
+        asked_.remove(currentSourceId_);
+
     // Each property's own signal, for a replica; they're cheap to repeat.
     emit currentSourceIdChanged();
     emit currentSourceNameChanged();
     emit loadingChanged();
+    emit sourceStartingChanged();
+    emit authPreparingChanged();
     emit activeSourceNameChanged();
     emit activeSourceIconChanged();
     emit activeSourceLogoChanged();

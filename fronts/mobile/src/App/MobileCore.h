@@ -66,9 +66,10 @@ public:
     ViewModel::UpdateScreen& updateScreen() { return updateScreen_; }
     ViewModel::SignInHelperDownload& signInHelper() { return signInHelper_; }
 
-    // A sign-in waiting for its code to be confirmed elsewhere, in a browser,
-    // for the platform to keep the process alive meanwhile (Android's
-    // SignInService): an empty title when there is none.
+    // The sign-in on screen (LibraryScreen::watchSignIn) waiting for its code
+    // to be confirmed elsewhere, in a browser, for the platform to keep the
+    // process alive meanwhile (Android's SignInService): an empty title when
+    // there is none.
     struct SignInNotice {
         QString title;
         QString text;

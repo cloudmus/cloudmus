@@ -23,6 +23,9 @@
          fronts/mobile/CMakeLists.txt, CLOUDMUS_ANDROID_DISTRIBUTION). -->
     <!-- %%CLOUDMUS_INSTALL_PERMISSION%% -->
 
+    <!-- Asking to remove CloudMus Sign-in (Settings; Android asks the user). -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
     <!-- Android Auto's answer to "on a car's screen?" (CarProjection). -->
     <queries>
         <!-- CloudMus Sign-in: whether it's there (SignInHelper). -->

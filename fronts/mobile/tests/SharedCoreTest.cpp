@@ -2600,7 +2600,14 @@ private slots:
             // Its code again: the Library is on it.
             core.core().authStates().setPrompt(fake, { codeMethod(QStringLiteral("AB"), 200) });
             QTRY_COMPARE(core.library().currentSourceId(), fake);
-            // Kept alive while it waits (Android's SignInService), until it's over.
+            // Kept alive while it waits (Android's SignInService) only with its
+            // sign-in on screen, until it's over.
+            QVERIFY(core.signInNotice().title.isEmpty());
+            core.library().watchSignIn(fake);
+            QVERIFY(!core.signInNotice().title.isEmpty());
+            core.library().watchSignIn(QString());
+            QVERIFY(core.signInNotice().title.isEmpty());
+            core.library().watchSignIn(fake);
             QVERIFY2(core.signInNotice().title.contains(QStringLiteral("Fake Source")), qPrintable(core.signInNotice().title));
             QVERIFY(core.signInNotice().text.contains(QStringLiteral("AB")));
             QSignalSpy over(&core, &App::MobileCore::signInNoticeChanged);
@@ -2963,6 +2970,59 @@ private slots:
         QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("authSubmit"), "clicked"));
         QTRY_COMPARE(refused.count(), 1);
         QCOMPARE(refused.first().at(1).toString(), QStringLiteral("wrong password"));
+    }
+
+    // With no way to sign in yet, the card asks for them by itself and shows
+    // no button meanwhile; if asking brings none, it can be asked again.
+    void signingInAsksForTheWaysByItself()
+    {
+        qputenv("CLOUDMUS_FAKE_AUTH", "1");
+        QTemporaryDir dir;
+        App::MobileCore core({ dir.filePath("core.ini") });
+        Ui::Backend backend(core);
+        Ui::Platform platform(dir.path());
+        const QString fake = QStringLiteral("fake");
+        QTRY_VERIFY_WITH_TIMEOUT(core.core().sourceManager().client(fake) != nullptr
+                && core.core().sourceManager().client(fake)->available(),
+            10000);
+        qunsetenv("CLOUDMUS_FAKE_AUTH");
+
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("aura"), new Ui::AuraImageProvider);
+        engine.addImageProvider(QStringLiteral("cover"), new Ui::CoverImageProvider);
+        engine.addImageProvider(QStringLiteral("qr"), new Ui::QrImageProvider);
+        engine.setInitialProperties({
+            { "backend", QVariant::fromValue<QObject*>(&backend) },
+            { "platform", QVariant::fromValue<QObject*>(&platform) },
+        });
+        engine.loadFromModule("Cloudmus.Mobile", "Main");
+        auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->resize(360, 780);
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QVERIFY(startScreenGone(window));
+
+        core.library().selectSource(fake);
+        QVERIFY(!core.library().sourceStarting());
+        core.core().authStates().setSignedOut(fake);
+        QVERIFY(core.library().authPreparing());
+        QVERIFY(core.library().watchedSignIn().isEmpty());
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("playlist"), "libraryRequested"));
+        // On screen while the Library is, and no longer.
+        QTRY_COMPARE(core.library().watchedSignIn(), fake);
+        // The fake says it's signed in, and sends no ways: nothing more is
+        // coming.
+        QTRY_VERIFY(!core.library().authPreparing());
+        auto* button = window->findChild<QQuickItem*>("signIn");
+        QTRY_VERIFY(button->isVisible());
+        QCOMPARE(button->property("text").toString(), QStringLiteral("Try again"));
+        QVERIFY(!window->findChild<QQuickItem*>("authPreparing")->isVisible());
+
+        core.core().authStates().setPrompt(fake, { codeMethod(QStringLiteral("abc123")) });
+        QTRY_VERIFY(!button->isVisible());
+        QVERIFY(!window->findChild<QQuickItem*>("authPreparing")->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem*>("library"), "closeRequested"));
+        QTRY_VERIFY(core.library().watchedSignIn().isEmpty());
     }
 
     // With more than one way to carry out, they're offered, the source's

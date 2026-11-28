@@ -27,6 +27,10 @@ Panel {
     property var fields: []
     property string formMessage
     property bool busy: false
+    // The ways are still to come (LibraryScreen::authPreparing), the source
+    // starting up or being asked.
+    property bool preparing: false
+    property bool starting: false
     property string error
     property QtObject platform: null
     // The download of CloudMus Sign-in (ViewModel::SignInHelperDownload).
@@ -34,6 +38,8 @@ Panel {
     // The QR code beside the rest rather than under it.
     property bool wide: false
     signal signInRequested()
+    // On screen with no way to offer: asks for them (prepareSignIn()).
+    signal prepareRequested()
     signal browserRequested()
     // `browser`, in CloudMus Sign-in.
     signal helperRequested()
@@ -54,8 +60,8 @@ Panel {
     readonly property bool _canUseHelper: browser !== "" && !!platform && platform.canSignInByPhone === true
                                           && (_helperState !== "" || !_canBrowse || _browserOutdated)
     // What can be chosen, the best for this device first: the source's order,
-    // but where the built-in browser is missing or too old, ahead of it the
-    // helper if it's installed, else a phone.
+    // but where the built-in browser is missing, too old or can't go through
+    // the source's proxy, ahead of it the helper, then a phone.
     readonly property var _options: {
         const found = []
         for (let i = 0; i < (kinds ? kinds.length : 0); ++i) {
@@ -67,9 +73,12 @@ Panel {
                     ways.push("browser")
                 if (_canUsePhone)
                     ways.splice(poor ? 0 : ways.length, 0, "phone")
+                // Where the built-in browser won't do, the helper comes first
+                // — unless it can't be put here but by hand.
+                const helperFirst = _helperState === "installed"
+                                    || (!!platform && platform.canInstallSignInHelper === true)
                 if (_canUseHelper)
-                    ways.splice(!poor ? ways.length : _helperState === "installed" ? 0 : _canUsePhone ? 1 : 0,
-                                0, "device")
+                    ways.splice(!poor ? ways.length : helperFirst || !_canUsePhone ? 0 : 1, 0, "device")
                 found.push(...ways)
             } else if (kind === "code" ? url !== "" : kind === "form" && _shownFields.length > 0) {
                 found.push(kind)
@@ -104,6 +113,17 @@ Panel {
     }
     property bool _phoneOffered: false
     readonly property bool _offerPhone: _selected === "phone" && visible && !busy
+
+    // Nothing to press until there's a way: it's asked for by itself, and
+    // again as the source comes up.
+    readonly property bool _waiting: _options.length === 0 && preparing
+    function _prepare() {
+        if (visible && _options.length === 0 && preparing)
+            prepareRequested()
+    }
+    onPreparingChanged: Qt.callLater(_prepare)
+    onStartingChanged: Qt.callLater(_prepare)
+    onVisibleChanged: Qt.callLater(_prepare)
 
     // The helper's download, step by step (SignInHelperDownload::Step).
     readonly property int _helperStep: helper && helper.step ? helper.step : 0
@@ -163,6 +183,7 @@ Panel {
         _takeFields()
         _startPhone()
         _installIfReady(false)
+        Qt.callLater(_prepare)
     }
     Component.onDestruction: _stopPhone()
     onSourceIdChanged: {
@@ -171,6 +192,7 @@ Panel {
         _shownFields = []
         _takeFields()
         Qt.callLater(_startPhone)
+        Qt.callLater(_prepare)
     }
     // Once all that changed together has.
     on_OfferPhoneChanged: Qt.callLater(_startPhone)
@@ -295,6 +317,13 @@ Panel {
                         ? qsTr("The CloudMus Sign-in installed here is signed with another key than this CloudMus. Remove it, then install the one from the same release.")
                         : qsTr("This takes CloudMus Sign-in, a separate app with a modern browser (about 100 MB).")
             }
+            // Before it's put there: what that brings, and how to be rid of it.
+            BodyText {
+                objectName: "authDeviceWarning"
+                visible: card._selected === "device" && card._helperState !== "installed"
+                color: Theme.inkSecondary
+                text: qsTr("Installing it adds a second app to this device, taking about 200 MB. Once signed in, you can remove it: CloudMus Settings → CloudMus Sign-in, or Android's settings → Apps. Signing in again later needs it again.")
+            }
             BodyText {
                 objectName: "authDeviceError"
                 visible: card._selected === "device" && card._helperState === "" && text !== ""
@@ -402,18 +431,35 @@ Panel {
                     platform: card.platform
                 }
             }
+            RowLayout {
+                objectName: "authPreparing"
+                visible: card._waiting
+                Layout.fillWidth: true
+                spacing: Theme.dp(12)
+                Spinner {
+                    implicitWidth: Theme.dp(32)
+                    implicitHeight: Theme.dp(32)
+                    running: card._waiting
+                }
+                BodyText {
+                    Layout.fillWidth: true
+                    color: Theme.inkSecondary
+                    text: card.starting ? qsTr("%1 is starting…").arg(card.sourceName)
+                                        : qsTr("Getting %1 ready to sign in…").arg(card.sourceName)
+                }
+            }
             // While a code is shown the source is waiting for it: asking again
             // would only change the code.
             TextButton {
                 objectName: "signIn"
-                visible: card._selected === "browser" || card._selected === ""
+                // With no way offered and none coming, they can be asked for
+                // again.
+                visible: card._selected === "browser" || (card._selected === "" && !card.preparing)
                 Layout.fillWidth: true
-                text: qsTr("Sign in")
+                text: card._selected === "browser" ? qsTr("Sign in") : qsTr("Try again")
                 tint: Theme.accent
                 busy: card.busy
                 enabled: !card.busy
-                // With nothing offered yet, it's asked for; then the ways
-                // are there to choose from.
                 onClicked: card._selected === "browser" ? card.browserRequested() : card.signInRequested()
             }
             // The phone's sign-in on its way to the source.

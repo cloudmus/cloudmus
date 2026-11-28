@@ -337,6 +337,11 @@ public final class PlaybackService extends MediaLibraryService {
         // The UI was swiped away; the music goes on. Without playback there
         // is nothing to keep the service for.
         CmLog.i(TAG, "task removed, playing: " + player.getPlayWhenReady());
+        try {
+            CoreBridge.nativeViewsGone();
+        } catch (UnsatisfiedLinkError noCore) {
+            CmLog.i(TAG, "no core to tell");
+        }
         if (!player.getPlayWhenReady())
             stopSelf();
     }

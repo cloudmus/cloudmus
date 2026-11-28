@@ -434,6 +434,14 @@
       <source>Refresh</source>
       <translation>Обновить</translation>
     </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>%1 запускается…</translation>
+    </message>
+    <message>
+      <source>Loading playlists…</source>
+      <translation>Загрузка плейлистов…</translation>
+    </message>
   </context>
   <context>
     <name>LogPage</name>
@@ -982,6 +990,10 @@
       <source>What's being saved, and what has been</source>
       <translation>Что сохраняется и что уже сохранено</translation>
     </message>
+    <message>
+      <source>Installed for signing in on this device. Tap to remove it: frees about 200 MB. Sign-ins stay.</source>
+      <translation>Установлено для входа на этом устройстве. Нажмите, чтобы удалить: освободится около 200 МБ. Входы в аккаунты сохранятся.</translation>
+    </message>
   </context>
   <context>
     <name>SignInCard</name>
@@ -1104,6 +1116,22 @@
     <message>
       <source>You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.</source>
       <translation>Можно установить и самостоятельно: файл %1 из того же релиза, что и этот CloudMus, на %2.</translation>
+    </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>%1 запускается…</translation>
+    </message>
+    <message>
+      <source>Getting %1 ready to sign in…</source>
+      <translation>%1 готовится ко входу…</translation>
+    </message>
+    <message>
+      <source>Try again</source>
+      <translation>Повторить</translation>
+    </message>
+    <message>
+      <source>Installing it adds a second app to this device, taking about 200 MB. Once signed in, you can remove it: CloudMus Settings → CloudMus Sign-in, or Android&apos;s settings → Apps. Signing in again later needs it again.</source>
+      <translation>На устройство будет установлено второе приложение, оно займёт около 200 МБ. После входа его можно удалить: настройки CloudMus → CloudMus Sign-in или настройки Android → Приложения. Для повторного входа оно понадобится снова.</translation>
     </message>
   </context>
   <context>

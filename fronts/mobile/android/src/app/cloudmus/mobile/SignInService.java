@@ -62,8 +62,9 @@ public final class SignInService extends Service {
             manager.createNotificationChannel(
                 new NotificationChannel(CHANNEL_ID, channel, NotificationManager.IMPORTANCE_LOW));
         }
-        Intent open = new Intent(this, MainActivity.class)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        // The app as it was left, whatever is on top (the sign-in helper's
+        // screen too), as from the launcher.
+        Intent open = getPackageManager().getLaunchIntentForPackage(getPackageName());
         Notification notification = new Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_cloudmus)
             .setContentTitle(intent.getStringExtra(EXTRA_TITLE))
@@ -87,6 +88,12 @@ public final class SignInService extends Service {
             stopSelf();
         }
         return START_NOT_STICKY;
+    }
+
+    // Swiped away: whatever was signing in went with it.
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        stopSelf();
     }
 
     @Override

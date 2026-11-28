@@ -432,6 +432,14 @@
       <source>Capabilities</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>Démarrage de %1…</translation>
+    </message>
+    <message>
+      <source>Loading playlists…</source>
+      <translation>Chargement des playlists…</translation>
+    </message>
   </context>
   <context>
     <name>LogPage</name>
@@ -977,6 +985,10 @@
       <source>What's being saved, and what has been</source>
       <translation>Ce qui est en cours d’enregistrement et ce qui l’a été</translation>
     </message>
+    <message>
+      <source>Installed for signing in on this device. Tap to remove it: frees about 200 MB. Sign-ins stay.</source>
+      <translation>Installé pour se connecter sur cet appareil. Touchez pour le supprimer : libère environ 200 Mo. Les connexions sont conservées.</translation>
+    </message>
   </context>
   <context>
     <name>SignInCard</name>
@@ -1099,6 +1111,22 @@
     <message>
       <source>You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.</source>
       <translation>Vous pouvez aussi l’installer vous-même : le fichier %1 de la même version que ce CloudMus, sur %2.</translation>
+    </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>Démarrage de %1…</translation>
+    </message>
+    <message>
+      <source>Getting %1 ready to sign in…</source>
+      <translation>Préparation de la connexion à %1…</translation>
+    </message>
+    <message>
+      <source>Try again</source>
+      <translation>Réessayer</translation>
+    </message>
+    <message>
+      <source>Installing it adds a second app to this device, taking about 200 MB. Once signed in, you can remove it: CloudMus Settings → CloudMus Sign-in, or Android&apos;s settings → Apps. Signing in again later needs it again.</source>
+      <translation>Son installation ajoute une deuxième application sur cet appareil, qui occupe environ 200 Mo. Une fois connecté, vous pouvez la supprimer : Réglages de CloudMus → CloudMus Sign-in, ou Réglages Android → Applications. Elle sera à nouveau nécessaire pour vous reconnecter.</translation>
     </message>
   </context>
   <context>

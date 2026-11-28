@@ -432,6 +432,14 @@
       <source>Capabilities</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>Avvio di %1…</translation>
+    </message>
+    <message>
+      <source>Loading playlists…</source>
+      <translation>Caricamento delle playlist…</translation>
+    </message>
   </context>
   <context>
     <name>LogPage</name>
@@ -977,6 +985,10 @@
       <source>What's being saved, and what has been</source>
       <translation>Cosa si sta salvando e cosa è già stato salvato</translation>
     </message>
+    <message>
+      <source>Installed for signing in on this device. Tap to remove it: frees about 200 MB. Sign-ins stay.</source>
+      <translation>Installata per accedere da questo dispositivo. Tocca per rimuoverla: libera circa 200 MB. Gli accessi restano.</translation>
+    </message>
   </context>
   <context>
     <name>SignInCard</name>
@@ -1099,6 +1111,22 @@
     <message>
       <source>You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.</source>
       <translation>Puoi anche installarlo da te: il file %1 della stessa versione di questo CloudMus, su %2.</translation>
+    </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>Avvio di %1…</translation>
+    </message>
+    <message>
+      <source>Getting %1 ready to sign in…</source>
+      <translation>Preparazione dell’accesso a %1…</translation>
+    </message>
+    <message>
+      <source>Try again</source>
+      <translation>Riprova</translation>
+    </message>
+    <message>
+      <source>Installing it adds a second app to this device, taking about 200 MB. Once signed in, you can remove it: CloudMus Settings → CloudMus Sign-in, or Android&apos;s settings → Apps. Signing in again later needs it again.</source>
+      <translation>L’installazione aggiunge una seconda app a questo dispositivo, che occupa circa 200 MB. Dopo l’accesso puoi rimuoverla: Impostazioni di CloudMus → CloudMus Sign-in, oppure Impostazioni di Android → App. Per accedere di nuovo servirà ancora.</translation>
     </message>
   </context>
   <context>

@@ -31,7 +31,7 @@ class SignInHelperDownload : public QObject {
     Q_PROPERTY(QString file READ file NOTIFY fileChanged)
     // The APK a release carries for this device, for installing by hand:
     // "…-arm64-v8a-signin.apk".
-    Q_PROPERTY(QString assetSuffix READ assetSuffix CONSTANT)
+    Q_PROPERTY(QString assetSuffix READ assetSuffix NOTIFY assetSuffixChanged)
     // Step::Failed: what went wrong.
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
 
@@ -66,6 +66,8 @@ signals:
     void stepChanged();
     void progressChanged();
     void fileChanged();
+    // Never: a replica's property needs a signal.
+    void assetSuffixChanged();
     void errorChanged();
 
 private:

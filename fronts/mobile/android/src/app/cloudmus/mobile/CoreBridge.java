@@ -134,6 +134,9 @@ public final class CoreBridge {
     // What CloudMus Sign-in ended up with, for the source (SignInHelperActivity).
     static native void nativeBrowserSignedIn(String sourceId, String result);
 
+    // The views were swiped away: no page of theirs is on screen.
+    static native void nativeViewsGone();
+
     // One entry of what a media browser lists (ViewModel::MediaTree).
     public static final class BrowseItem {
         public final String id;

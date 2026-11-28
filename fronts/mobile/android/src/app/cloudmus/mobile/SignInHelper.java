@@ -1,5 +1,6 @@
 package app.cloudmus.mobile;
 
+import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -7,6 +8,7 @@ import android.app.PendingIntent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 
 import java.io.File;
@@ -55,6 +57,19 @@ public final class SignInHelper {
             CmLog.e(TAG, "this app", impossible);
         }
         return "";
+    }
+
+    // Android's own question about removing it.
+    public static void uninstall(Context context) {
+        Intent intent = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + PACKAGE));
+        if (!(context instanceof Activity))
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            context.startActivity(intent);
+        } catch (Exception error) {
+            // A head unit without the screen for it: Android's settings, then.
+            CmLog.e(TAG, "remove the sign-in helper", error);
+        }
     }
 
     // Hands `path` to the package installer, off the calling thread; the

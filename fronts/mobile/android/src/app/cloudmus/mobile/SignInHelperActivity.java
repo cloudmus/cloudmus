@@ -60,6 +60,15 @@ public final class SignInHelperActivity extends Activity {
         answer(result != null ? result : "");
     }
 
+    // Gone without an answer (the helper closed by Android, the task cleared):
+    // nothing is signing in any more.
+    @Override
+    protected void onDestroy() {
+        if (isFinishing())
+            SignInService.update(this, "", "", "");
+        super.onDestroy();
+    }
+
     // `result` empty: the user left.
     private void answer(String result) {
         if (!result.isEmpty()) {

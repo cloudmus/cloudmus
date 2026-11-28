@@ -107,6 +107,9 @@ public:
     // The downloaded APK, to Android's installer (after
     // requestInstallPermission()); signInHelperInstallFinished() after.
     Q_INVOKABLE void installSignInHelper(const QString& path) const;
+    // Android asks the user, then removes it; signInHelper changes once the
+    // app is back in front.
+    Q_INVOKABLE void uninstallSignInHelper() const;
     // As signInWithBrowser(), in the helper.
     Q_INVOKABLE void signInWithHelper(const QString& request, const QString& method, const QString& title) const;
     QString version() const;

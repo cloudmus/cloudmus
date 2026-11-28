@@ -138,6 +138,7 @@ void MobileCore::leaveUnstartedWhatAskedForSignIn()
     }
     settingsStore_.endGroup();
     core_.sourceManager().setDeferredIds(unstarted);
+    connect(&library_, &ViewModel::LibraryScreen::watchedSignInChanged, this, &MobileCore::updateSignInNotice);
     Rpc::AuthStates& states = core_.authStates();
     for (const QString& sourceId : unstarted)
         states.setSignedOut(sourceId); // it's what the Library shows for it
@@ -174,17 +175,10 @@ void MobileCore::updateSignInNotice()
     SignInNotice notice;
     const Rpc::AuthStates& states = core_.authStates();
     const ViewModel::SidebarModel& model = core_.sources().model();
-    QStringList waiting;
-    for (int row = 0; row < model.rowCount(); ++row) {
-        const QModelIndex index = model.index(row, 0);
-        if (index.data(ViewModel::SidebarModel::KindRole).toInt() != int(ViewModel::SidebarModel::Kind::SourceHeader))
-            continue;
-        const QString sourceId = index.data(ViewModel::SidebarModel::SourceIdRole).toString();
-        if (states.state(sourceId).method({ QStringLiteral("code") }))
-            waiting.append(sourceId);
-    }
-    if (!waiting.isEmpty()) {
-        const QString sourceId = waiting.first();
+    // Only for the sign-in on screen (the app may be behind a browser then):
+    // a code left behind is no reason to stay loaded.
+    const QString sourceId = library_.watchedSignIn();
+    if (!sourceId.isEmpty() && states.state(sourceId).method({ QStringLiteral("code") })) {
         notice.title = tr("Signing in to %1").arg(model.sourceName(sourceId));
         notice.text = tr("Waiting for the code %1 to be confirmed")
                           .arg(*states.state(sourceId).method({ QStringLiteral("code") })->code);

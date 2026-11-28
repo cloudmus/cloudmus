@@ -208,6 +208,14 @@ void Platform::installSignInHelper(const QString& path) const
 #endif
 }
 
+void Platform::uninstallSignInHelper() const
+{
+#ifdef Q_OS_ANDROID
+    QJniObject::callStaticMethod<void>("app/cloudmus/mobile/SignInHelper", "uninstall",
+        "(Landroid/content/Context;)V", QNativeInterface::QAndroidApplication::context());
+#endif
+}
+
 void Platform::signInWithHelper(const QString& request, const QString& method, const QString& title) const
 {
 #ifdef Q_OS_ANDROID

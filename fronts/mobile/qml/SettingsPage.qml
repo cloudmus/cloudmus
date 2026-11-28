@@ -353,6 +353,16 @@ Page {
                         onClicked: page.sourceRequested(sourceId)
                     }
                 }
+                // CloudMus Sign-in, while it's installed: removed here too,
+                // as a head unit may hide Android's list of apps.
+                SettingsRow {
+                    objectName: "removeSignInHelper"
+                    shown: !!page.platform && !!page.platform.signInHelper
+                    text: "CloudMus Sign-in"
+                    subtitle: qsTr("Installed for signing in on this device. Tap to remove it: frees about 200 MB. Sign-ins stay.")
+                    chevron: false
+                    onClicked: page.platform.uninstallSignInHelper()
+                }
             }
 
             // Developer tools: shown once the About page's version was tapped

@@ -20,6 +20,13 @@ Page {
     signal aboutRequested()
 
     readonly property QtObject library: backend.library
+    // The sign-in on screen, for the core (LibraryScreen::watchSignIn): while
+    // this page is the one shown — it stays so behind a browser.
+    readonly property string _watched: StackView.status === StackView.Active && library
+                                       && library.authNeeded === true && library.currentSourceId
+                                       ? library.currentSourceId : ""
+    on_WatchedChanged: if (library) library.watchSignIn(_watched)
+    Component.onDestruction: if (library) library.watchSignIn("")
     readonly property bool wide: width > height * 1.1
 
     background: Rectangle { color: Theme.surface0 }
@@ -395,6 +402,7 @@ Page {
 
                     // Signing in, when the source asks for it.
                     SignInCard {
+                        id: signInCard
                         shown: !!page.library && page.library.authNeeded === true
                         // Not as the page goes over to another source.
                         animated: page._pendingSourceId === ""
@@ -408,10 +416,13 @@ Page {
                         formMessage: page.library && page.library.authFormMessage ? page.library.authFormMessage : ""
                         busy: !!page.library && page.library.authBusy === true
                         error: page.library && page.library.authError ? page.library.authError : ""
+                        preparing: !!page.library && page.library.authPreparing === true
+                        starting: !!page.library && page.library.sourceStarting === true
                         platform: page.platform
                         helper: page.backend ? page.backend.signInHelper : null
                         wide: page.wide
                         onSignInRequested: page.library.signIn()
+                        onPrepareRequested: page.library.prepareSignIn()
                         onHelperRequested: page.platform.signInWithHelper(
                             page.library.currentSourceId, browser, page.library.currentSourceName)
                         onBrowserRequested: page.platform.signInWithBrowser(
@@ -611,9 +622,35 @@ Page {
                             }
                         }
                     }
+                    // Nothing to list yet: the source is on its way.
+                    Panel {
+                        id: waiting
+                        objectName: "sourceWaiting"
+                        readonly property bool starting: !!page.library && page.library.sourceStarting === true
+                        shown: !!page.library && (starting || page.library.loading === true)
+                               && !page.library.authNeeded && tiles.count === 0 && others.count === 0
+                        animated: page._pendingSourceId === ""
+                        color: "transparent"
+                        spacing: Theme.padding
+                        Spinner {
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: Theme.dp(48)
+                            implicitWidth: Theme.dp(48)
+                            implicitHeight: Theme.dp(48)
+                            running: waiting.shown
+                        }
+                        BodyText {
+                            Layout.fillWidth: true
+                            horizontalAlignment: Text.AlignHCenter
+                            color: Theme.inkSecondary
+                            text: waiting.starting
+                                  ? qsTr("%1 is starting…").arg(page.library.currentSourceName)
+                                  : qsTr("Loading playlists…")
+                        }
+                    }
                     BodyText {
-                        visible: page.library && !page.library.loading && !page.library.authNeeded
-                                 && tiles.count === 0 && others.count === 0
+                        visible: page.library && !page.library.loading && !page.library.sourceStarting
+                                 && !page.library.authNeeded && tiles.count === 0 && others.count === 0
                         text: page.library && page.library.currentSourceId ? qsTr("No playlists") : qsTr("No sources")
                     }
                 }

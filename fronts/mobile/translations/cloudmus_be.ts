@@ -434,6 +434,14 @@
       <source>Capabilities</source>
       <translation type="unfinished" />
     </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>%1 запускаецца…</translation>
+    </message>
+    <message>
+      <source>Loading playlists…</source>
+      <translation>Загрузка плэйлістоў…</translation>
+    </message>
   </context>
   <context>
     <name>LogPage</name>
@@ -982,6 +990,10 @@
       <source>What's being saved, and what has been</source>
       <translation>Што захоўваецца і што ўжо захавана</translation>
     </message>
+    <message>
+      <source>Installed for signing in on this device. Tap to remove it: frees about 200 MB. Sign-ins stay.</source>
+      <translation>Усталявана для ўваходу на гэтай прыладзе. Націсніце, каб выдаліць: вызваліцца каля 200 МБ. Уваходы ва ўліковыя запісы захаваюцца.</translation>
+    </message>
   </context>
   <context>
     <name>SignInCard</name>
@@ -1104,6 +1116,22 @@
     <message>
       <source>You can also install it yourself: the file %1 from the same release as this CloudMus, at %2.</source>
       <translation>Можна ўсталяваць і самастойна: файл %1 з таго ж рэлізу, што і гэты CloudMus, на %2.</translation>
+    </message>
+    <message>
+      <source>%1 is starting…</source>
+      <translation>%1 запускаецца…</translation>
+    </message>
+    <message>
+      <source>Getting %1 ready to sign in…</source>
+      <translation>%1 рыхтуецца да ўваходу…</translation>
+    </message>
+    <message>
+      <source>Try again</source>
+      <translation>Паўтарыць</translation>
+    </message>
+    <message>
+      <source>Installing it adds a second app to this device, taking about 200 MB. Once signed in, you can remove it: CloudMus Settings → CloudMus Sign-in, or Android&apos;s settings → Apps. Signing in again later needs it again.</source>
+      <translation>На прыладу будзе ўсталявана другая праграма, яна зойме каля 200 МБ. Пасля ўваходу яе можна выдаліць: налады CloudMus → CloudMus Sign-in або налады Android → Праграмы. Для паўторнага ўваходу яна спатрэбіцца зноў.</translation>
     </message>
   </context>
   <context>
