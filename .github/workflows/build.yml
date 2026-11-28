@@ -1,5 +1,6 @@
 # The AppImage, the Windows installer and the macOS DMGs, built the same way
-# for a release (release.yml) and for every push to develop (develop.yml).
+# for a release (release.yml), for every push to develop (develop.yml) and for
+# pull requests (pull-request.yml).
 # Uploads them as workflow artifacts, and the debug symbols to Sentry.
 name: Build
 
@@ -10,6 +11,10 @@ on:
         description: Release build, with usage statistics (a develop build leaves them out)
         type: boolean
         default: false
+      require-secrets:
+        description: Fail without the Sentry secrets and upload the debug symbols (off for a pull request from a fork, which gets no secrets)
+        type: boolean
+        default: true
       retention-days:
         description: How long the artifacts stay (0 = the repository's default)
         type: number
@@ -42,14 +47,17 @@ jobs:
           CLOUDMUS_GA4_MEASUREMENT_ID: ${{ inputs.release && secrets.CLOUDMUS_GA4_MEASUREMENT_ID || '' }}
           CLOUDMUS_SENTRY_DSN: ${{ secrets.CLOUDMUS_SENTRY_DSN }}
           RELEASE: ${{ inputs.release }}
+          REQUIRE_SECRETS: ${{ inputs.require-secrets }}
         # A build must contain working crash reports, and a release working
-        # analytics too, not silently omit them.
+        # analytics too, not silently omit them. A fork's pull request is the
+        # exception: it has no secrets to build them in with.
         run: |
           if [ "$RELEASE" = true ]; then test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"; fi
-          test -n "$CLOUDMUS_SENTRY_DSN"
+          if [ "$REQUIRE_SECRETS" = true ]; then test -n "$CLOUDMUS_SENTRY_DSN"; fi
           ./build-appimage.sh
 
       - name: Upload debug symbols to Sentry
+        if: inputs.require-secrets
         uses: ./.github/actions/upload-symbols
         with:
           auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -73,12 +81,14 @@ jobs:
           CLOUDMUS_GA4_MEASUREMENT_ID: ${{ inputs.release && secrets.CLOUDMUS_GA4_MEASUREMENT_ID || '' }}
           CLOUDMUS_SENTRY_DSN: ${{ secrets.CLOUDMUS_SENTRY_DSN }}
           RELEASE: ${{ inputs.release }}
+          REQUIRE_SECRETS: ${{ inputs.require-secrets }}
         run: |
           if [ "$RELEASE" = true ]; then test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"; fi
-          test -n "$CLOUDMUS_SENTRY_DSN"
+          if [ "$REQUIRE_SECRETS" = true ]; then test -n "$CLOUDMUS_SENTRY_DSN"; fi
           ./build-windows.sh
 
       - name: Upload debug symbols to Sentry
+        if: inputs.require-secrets
         uses: ./.github/actions/upload-symbols
         with:
           auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -138,12 +148,14 @@ jobs:
           CLOUDMUS_GA4_MEASUREMENT_ID: ${{ inputs.release && secrets.CLOUDMUS_GA4_MEASUREMENT_ID || '' }}
           CLOUDMUS_SENTRY_DSN: ${{ secrets.CLOUDMUS_SENTRY_DSN }}
           RELEASE: ${{ inputs.release }}
+          REQUIRE_SECRETS: ${{ inputs.require-secrets }}
         run: |
           if [ "$RELEASE" = true ]; then test -n "$CLOUDMUS_GA4_MEASUREMENT_ID"; fi
-          test -n "$CLOUDMUS_SENTRY_DSN"
+          if [ "$REQUIRE_SECRETS" = true ]; then test -n "$CLOUDMUS_SENTRY_DSN"; fi
           packaging/macos/build-app.sh
 
       - name: Upload debug symbols to Sentry
+        if: inputs.require-secrets
         uses: ./.github/actions/upload-symbols
         with:
           auth-token: ${{ secrets.SENTRY_AUTH_TOKEN }}

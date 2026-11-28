@@ -1,6 +1,10 @@
 # Test builds of a pull request: the same AppImage, Windows installer and
 # macOS DMGs as for develop.yml, built from every push to the pull request,
 # as workflow artifacts (the PR's Checks → the run → Artifacts).
+#
+# A pull request from a fork is built too, but GitHub gives it no secrets, so
+# its builds send no crash reports. Never switch to pull_request_target to get
+# them: that would hand the secrets to the fork's code.
 name: Pull request
 
 on:
@@ -14,12 +18,10 @@ concurrency:
 
 jobs:
   build:
-    # A build must carry working crash reports (build.yml), and GitHub gives
-    # no secrets to a pull request from a fork, so only this repository's
-    # branches are built.
-    if: github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/build.yml
     secrets: inherit
     with:
       release: false
+      # This repository's own branches get the secrets, and must use them.
+      require-secrets: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
       retention-days: 14
