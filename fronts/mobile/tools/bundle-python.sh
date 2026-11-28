@@ -19,8 +19,11 @@ venv_python=$root/.venv/bin/python3
 [ -x "$venv_python" ] || { echo "needs the repo's .venv (docs/development.md)" >&2; exit 1; }
 
 here=$(cd "$(dirname "$0")" && pwd)
+# Of the files as they are, uncommitted ones included: the app unpacks anew
+# only when this changes.
 stamp=$( { echo "$python_version $abi"; sha256sum "$0" "$here/../python/"*;
-    git -C "$root" ls-files -s backends protocol | sha256sum; } | sha256sum | cut -d' ' -f1)
+    (cd "$root" && git ls-files -z --cached --others --exclude-standard backends protocol |
+        while IFS= read -r -d '' file; do [ -f "$file" ] && sha256sum "$file"; done); } | sha256sum | cut -d' ' -f1)
 if [ -f "$out/python.stamp" ] && [ "$(cat "$out/python.stamp")" = "$stamp" ]; then
     exit 0
 fi
