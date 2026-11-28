@@ -440,8 +440,19 @@ Page {
                 parent: list
                 anchors.centerIn: parent
                 width: implicitWidth
+                // Not by the list alone: it's empty under a filter too, and for
+                // a moment after one is cleared.
                 visible: list.count === 0 && page.screen && !page.screen.loading
+                         && page.screen.count === 0 && filter.text.trim() === ""
                 text: page.screen && page.screen.isRadio ? qsTr("Press play to start the station") : qsTr("No tracks")
+            }
+            NothingFound {
+                objectName: "nothingFound"
+                parent: list
+                anchors.fill: parent
+                // While loading, only once there are rows that didn't match.
+                shown: list.count === 0 && filter.text.trim() !== "" && !!page.screen
+                       && (!page.loading || page.screen.count > 0)
             }
         }
     }

@@ -601,9 +601,19 @@ Page {
                         objectName: "welcomePanel"
                         parent: list
                         anchors.fill: parent
-                        visible: list.count === 0 && page.library !== null && page.screenProgress < 0.5
+                        // By the playlist's own rows: a filter that matches
+                        // none of them leaves the list empty too.
+                        visible: list.count === 0 && !(page.playlist && page.playlist.count > 0)
+                                 && page.library !== null && page.screenProgress < 0.5
                         backend: page.backend
                         onLibraryRequested: page.libraryRequested()
+                    }
+                    NothingFound {
+                        objectName: "nothingFound"
+                        parent: list
+                        anchors.fill: parent
+                        shown: list.count === 0 && filterField.text.trim() !== ""
+                               && !!page.playlist && page.playlist.count > 0
                     }
                 }
             }

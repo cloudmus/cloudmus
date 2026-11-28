@@ -184,6 +184,7 @@ qt_add_qml_module(cloudmus-mobile-ui
         qml/AppSwitch.qml
         qml/AuraBackground.qml
         qml/BodyText.qml
+        qml/NothingFound.qml
         qml/CapabilityTags.qml
         qml/QrCode.qml
         qml/Panel.qml

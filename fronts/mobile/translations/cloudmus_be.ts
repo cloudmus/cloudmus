@@ -521,6 +521,17 @@
     </message>
   </context>
   <context>
+    <name>NothingFound</name>
+    <message>
+      <source>Nothing found</source>
+      <translation>Нічога не знойдзена</translation>
+    </message>
+    <message>
+      <source>Try another title, artist or album</source>
+      <translation>Паспрабуйце іншую назву, выканаўцу ці альбом</translation>
+    </message>
+  </context>
+  <context>
     <name>NowPlayingPage</name>
     <message>
       <source>Now playing</source>

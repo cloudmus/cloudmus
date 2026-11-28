@@ -519,6 +519,17 @@
     </message>
   </context>
   <context>
+    <name>NothingFound</name>
+    <message>
+      <source>Nothing found</source>
+      <translation>No se ha encontrado nada</translation>
+    </message>
+    <message>
+      <source>Try another title, artist or album</source>
+      <translation>Prueba con otro título, artista o álbum</translation>
+    </message>
+  </context>
+  <context>
     <name>NowPlayingPage</name>
     <message>
       <source>Now playing</source>

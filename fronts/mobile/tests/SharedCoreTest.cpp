@@ -3296,6 +3296,17 @@ private slots:
         QTRY_COMPARE(backend.openFolders()->rowCount(), 1);
         QTRY_VERIFY((folder = findItem(parentPage, QStringLiteral("folder_p3"))) != nullptr);
 
+        // A filter matching neither a subfolder nor a track says so.
+        auto* filter = findItem(parentPage, QStringLiteral("filter"));
+        auto* nothingFound = findItem(parentPage, QStringLiteral("nothingFound"));
+        QVERIFY(filter && nothingFound && !nothingFound->isVisible());
+        filter->setProperty("text", QStringLiteral("no such track"));
+        QTRY_COMPARE(nothingFound->opacity(), 1.0);
+        QVERIFY(nothingFound->isVisible());
+        filter->setProperty("text", QString());
+        QTRY_VERIFY(!nothingFound->isVisible());
+        QTRY_VERIFY((folder = findItem(parentPage, QStringLiteral("folder_p3"))) != nullptr);
+
         QMetaObject::invokeMethod(folder, "clicked");
         QTRY_COMPARE(stack->property("depth").toInt(), 4);
         QQuickItem* childPage = nullptr;
@@ -3931,9 +3942,21 @@ private slots:
         const auto listTop = window->findChild<QQuickItem*>("mainList")->mapToScene(QPointF(0, 0)).y();
         QVERIFY(filterField->mapToScene(QPointF(0, filterField->height())).y() <= listTop);
         shot("main-filter");
+        // Nothing matches: that's said, not the way to the Library.
+        auto* nothingFound = window->findChild<QQuickItem*>("nothingFound");
+        auto* welcome = window->findChild<QQuickItem*>("welcomePanel");
+        QVERIFY(nothingFound && welcome && !nothingFound->isVisible());
+        filterField->setProperty("text", QStringLiteral("no such track"));
+        QTRY_COMPARE(backend.tracks()->rowCount(), 0);
+        QTRY_COMPARE(nothingFound->opacity(), 1.0);
+        QVERIFY(nothingFound->isVisible());
+        QVERIFY(!welcome->isVisible());
+        shot("main-nothing-found");
         playlist->setProperty("filterOpen", false);
         QCOMPARE(filterField->property("text").toString(), QString());
         QTRY_COMPARE(backend.tracks()->rowCount(), 2);
+        QTRY_VERIFY(!nothingFound->isVisible());
+        QVERIFY(!welcome->isVisible());
 
         // On a head unit, the two modes of the screen: everything has moved when
         // the animation is over, the source's button clear of the cover in both,
