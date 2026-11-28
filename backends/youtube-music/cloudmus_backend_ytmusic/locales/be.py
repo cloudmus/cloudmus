@@ -27,6 +27,8 @@ STRINGS = {'expected true or false': 'чакаецца true або false',
  'YouTube Music streaming service': 'Стрымінгавы сэрвіс YouTube Music',
  'Liked Songs': 'Песні, што спадабаліся',
  'Track in playlist not found': 'Трэк у плэйлісце не знойдзены',
+ "YouTube wants to verify that you're human. Change the connection in the YouTube Music source settings and try again.":
+     'YouTube просіць пацвердзіць, што вы чалавек. Змяніце падключэнне ў наладах крыніцы YouTube Music і паспрабуйце зноў.',
  'Track not playable: {error}': 'Трэк немагчыма прайграць: {error}',
  'Open <a href="https://music.youtube.com">music.youtube.com</a> in your browser while signed in, open <b>DevTools → Network</b>, click any request to <code>music.youtube.com</code>, and paste its <b>Request Headers</b> (Firefox) or <b>Copy as cURL (bash)</b> (Chrome) below.': 'Адкрыйце '
                                                                                                                                                                                                                                                                                       '<a '
@@ -60,4 +62,10 @@ STRINGS = {'expected true or false': 'чакаецца true або false',
                                                                                                                                                                                                                                                                                       '(bash)</b> '
                                                                                                                                                                                                                                                                                       '(Chrome).',
  'Do this in a private window and close it afterwards without signing out: a browser that keeps using the same session soon makes these headers stop working.': 'Рабіце гэта ў прыватным акне і потым закрыйце яго, не выходзячы з акаўнта: браўзер, які працягвае карыстацца той самай сесіяй, неўзабаве робіць гэтыя загалоўкі несапраўднымі.',
- 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music завяршыў гэты сеанс. Увайдзіце зноў.'}
+ 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music завяршыў гэты сеанс. Увайдзіце зноў.',
+ "the service's address can't be resolved": 'не ўдаецца знайсці адрас сэрвісу',
+ "the service doesn't answer in time": 'сэрвіс не адказвае своечасова',
+ 'the connection is refused': 'злучэнне адхілена',
+ "the proxy can't be reached": 'проксі недаступны',
+ 'the network is unreachable': 'сетка недаступная',
+ "a secure connection can't be made": 'не ўдаецца ўсталяваць абароненае злучэнне'}

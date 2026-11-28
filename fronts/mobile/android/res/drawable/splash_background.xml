@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 8–11's start screen (they have no splash screen of their own):
+     the logo in the middle of the window, as large as StartSplash.qml's
+     fallbackSide, which takes over from it. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/windowBackground" />
+    <item
+        android:width="128dp"
+        android:height="128dp"
+        android:gravity="center"
+        android:drawable="@drawable/logo_disc" />
+</layer-list>

@@ -1,0 +1,1941 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="be_BY" sourcelanguage="en">
+<context>
+    <name>App::PlaylistEditing</name>
+    <message>
+        <source>Added to &quot;%1&quot;</source>
+        <translation>Дададзена ў «%1»</translation>
+    </message>
+    <message>
+        <source>Removed from &quot;%1&quot;</source>
+        <translation>Выдалена з «%1»</translation>
+    </message>
+</context>
+<context>
+    <name>App::SourceSession</name>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+</context>
+<context>
+    <name>App::TrackDeletion</name>
+    <message numerus="yes">
+        <source>%n track(s) couldn&apos;t be deleted</source>
+        <translation>
+            <numerusform>%n трэк не ўдалося выдаліць</numerusform>
+            <numerusform>%n трэкі не ўдалося выдаліць</numerusform>
+            <numerusform>%n трэкаў не ўдалося выдаліць</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Deleted &quot;%1&quot;</source>
+        <translation>«%1» выдалена</translation>
+    </message>
+    <message numerus="yes">
+        <source>Deleted %n track(s)</source>
+        <translation>
+            <numerusform>Выдалены %n трэк</numerusform>
+            <numerusform>Выдалена %n трэкі</numerusform>
+            <numerusform>Выдалена %n трэкаў</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>Hotkeys</name>
+    <message>
+        <source>Show or hide the player</source>
+        <translation>Паказаць або схаваць плэер</translation>
+    </message>
+    <message>
+        <source>Play / pause</source>
+        <translation>Прайграванне / паўза</translation>
+    </message>
+    <message>
+        <source>Next track</source>
+        <translation>Наступны трэк</translation>
+    </message>
+    <message>
+        <source>Previous track</source>
+        <translation>Папярэдні трэк</translation>
+    </message>
+    <message>
+        <source>Rewind</source>
+        <translation>Перамотаць назад</translation>
+    </message>
+    <message>
+        <source>Fast forward</source>
+        <translation>Перамотаць наперад</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation>Стоп</translation>
+    </message>
+    <message>
+        <source>Volume up</source>
+        <translation>Гучнасць большая</translation>
+    </message>
+    <message>
+        <source>Volume down</source>
+        <translation>Гучнасць меншая</translation>
+    </message>
+    <message>
+        <source>Quiet mode on / off</source>
+        <translation>Ціхі рэжым укл. / выкл.</translation>
+    </message>
+    <message>
+        <source>Like / unlike</source>
+        <translation>Паставіць/зняць «Падабаецца»</translation>
+    </message>
+    <message>
+        <source>Dislike / remove dislike</source>
+        <translation>Паставіць/зняць «Не падабаецца»</translation>
+    </message>
+    <message>
+        <source>Download track</source>
+        <translation>Спампаваць трэк</translation>
+    </message>
+</context>
+<context>
+    <name>Hotkeys::Dispatcher</name>
+    <message>
+        <source>Volume</source>
+        <translation>Гучнасць</translation>
+    </message>
+    <message>
+        <source>%1%</source>
+        <translation>%1%</translation>
+    </message>
+    <message>
+        <source>Quiet mode</source>
+        <translation>Ціхі рэжым</translation>
+    </message>
+    <message>
+        <source>On</source>
+        <translation>Укл.</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>Выкл.</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Nothing to like</source>
+        <translation>Няма чаго адзначаць</translation>
+    </message>
+    <message>
+        <source>Removed from liked</source>
+        <translation>Выдалена з падабаных</translation>
+    </message>
+    <message>
+        <source>Liked</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+    <message>
+        <source>Nothing to dislike</source>
+        <translation>Няма чаго адзначаць</translation>
+    </message>
+    <message>
+        <source>Dislike removed</source>
+        <translation>«Не падабаецца» зняты</translation>
+    </message>
+    <message>
+        <source>Disliked</source>
+        <translation>Не падабаецца</translation>
+    </message>
+    <message>
+        <source>Download</source>
+        <translation>Спампоўка</translation>
+    </message>
+    <message>
+        <source>Nothing to download</source>
+        <translation>Няма чаго спампоўваць</translation>
+    </message>
+    <message>
+        <source>Downloading</source>
+        <translation>Спампоўваецца</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::DockTile</name>
+    <message>
+        <source>Next</source>
+        <translation>Наступны</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Папярэдні</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Паўза</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Прайграць</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Зняць «Падабаецца»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Зняць «Не падабаецца»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::GlobalHotkeys</name>
+    <message>
+        <source>This desktop has no way for an app to have global shortcuts.</source>
+        <translation>У гэтым асяроддзі працоўнага стала праграмы не могуць атрымаць глабальныя спалучэнні клавіш.</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::GlobalHotkeysPortal</name>
+    <message>
+        <source>The desktop did not open a global shortcuts session.</source>
+        <translation>Працоўны стол не адкрыў сеанс глабальных спалучэнняў клавіш.</translation>
+    </message>
+    <message>
+        <source>The desktop refused global shortcuts: %1</source>
+        <translation>Працоўны стол адмовіў у глабальных спалучэннях клавіш: %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus isn&apos;t installed (there is no %1.desktop file), so the desktop won&apos;t give it global shortcuts.</source>
+        <translation>Гэтая копія CloudMus не ўсталяваная (няма файла %1.desktop), таму працоўны стол не дасць ёй глабальных спалучэнняў клавіш.</translation>
+    </message>
+    <message>
+        <source>The desktop could not set up the global shortcuts.</source>
+        <translation>Працоўнаму стала не ўдалося наладзіць глабальныя спалучэнні клавіш.</translation>
+    </message>
+    <message>
+        <source>The desktop could not set up the global shortcuts: %1</source>
+        <translation>Працоўнаму стала не ўдалося наладзіць глабальныя спалучэнні клавіш: %1</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::NotificationToast</name>
+    <message>
+        <source>Show player</source>
+        <translation>Паказаць плэер</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::NowPlayingCenter</name>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+</context>
+<context>
+    <name>Integration::TrayIcon</name>
+    <message>
+        <source>Previous</source>
+        <translation>Папярэдні</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Прайграць</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Наступны</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation>Стоп</translation>
+    </message>
+    <message>
+        <source>Playlists</source>
+        <translation>Плэйлісты</translation>
+    </message>
+    <message>
+        <source>Quit</source>
+        <translation>Выхад</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Паўза</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Зняць «Падабаецца»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Зняць «Не падабаецца»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+    <message>
+        <source>Loading…</source>
+        <translation>Загрузка…</translation>
+    </message>
+    <message>
+        <source>No playlists</source>
+        <translation>Няма плэйлістаў</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t load playlists</source>
+        <translation>Не атрымалася загрузіць плэйлісты</translation>
+    </message>
+    <message>
+        <source>Hide</source>
+        <translation>Схаваць</translation>
+    </message>
+    <message>
+        <source>Show</source>
+        <translation>Паказаць</translation>
+    </message>
+</context>
+<context>
+    <name>Playback::PlaybackController</name>
+    <message>
+        <source>Can&apos;t open the audio output</source>
+        <translation>Не ўдаецца адкрыць аўдыявыхад</translation>
+    </message>
+    <message>
+        <source>No network connection: playing the next downloaded track</source>
+        <translation>Няма сеткі: іграе наступны загружаны трэк</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is unavailable, skipped</source>
+        <translation>«%1» недаступны, прапушчаны</translation>
+    </message>
+    <message>
+        <source>No network connection, and no downloaded track follows</source>
+        <translation>Няма сеткі, і далей няма загружаных трэкаў</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is unavailable</source>
+        <translation>«%1» недаступны</translation>
+    </message>
+    <message>
+        <source>No network connection: playing downloaded tracks</source>
+        <translation>Няма падключэння да сеткі: гучаць спампаваныя трэкі</translation>
+    </message>
+</context>
+<context>
+    <name>QLineEdit</name>
+    <message>
+        <source>Hide</source>
+        <translation>Схаваць</translation>
+    </message>
+    <message>
+        <source>Show</source>
+        <translation>Паказаць</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <source>Unknown Artist</source>
+        <translation>Невядомы выканаўца</translation>
+    </message>
+    <message>
+        <source>Unknown Source</source>
+        <translation>Невядомая крыніца</translation>
+    </message>
+    <message>
+        <source>Unknown Album</source>
+        <translation>Невядомы альбом</translation>
+    </message>
+    <message>
+        <source>%1 of %2 KB</source>
+        <translation>%1 з %2 КБ</translation>
+    </message>
+    <message>
+        <source>%1 of %2 MB</source>
+        <translation>%1 з %2 МБ</translation>
+    </message>
+    <message>
+        <source>Waiting</source>
+        <translation>Чаканне</translation>
+    </message>
+    <message>
+        <source>Saved %1 of %2 tracks</source>
+        <translation>Захавана трэкаў: %1 з %2</translation>
+    </message>
+    <message>
+        <source>Saved</source>
+        <translation>Захавана</translation>
+    </message>
+    <message>
+        <source>Failed</source>
+        <translation>Памылка</translation>
+    </message>
+    <message>
+        <source>Cancelled</source>
+        <translation>Скасавана</translation>
+    </message>
+    <message>
+        <source>Listing tracks…</source>
+        <translation>Атрыманне спіса трэкаў…</translation>
+    </message>
+    <message>
+        <source>%1 of %2 tracks</source>
+        <translation>%1 з %2 трэкаў</translation>
+    </message>
+    <message>
+        <source>Saving…</source>
+        <translation>Захаванне…</translation>
+    </message>
+    <message>
+        <source>Remove from sidebar</source>
+        <translation>Прыбраць з бакавой панэлі</translation>
+    </message>
+    <message>
+        <source>Add to sidebar</source>
+        <translation>Дадаць на бакавую панэль</translation>
+    </message>
+    <message>
+        <source>Radio</source>
+        <translation>Радыё</translation>
+    </message>
+    <message>
+        <source>Unknown track</source>
+        <translation>Невядомы трэк</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::AboutDialog</name>
+    <message>
+        <source>About CloudMus</source>
+        <translation>Пра CloudMus</translation>
+    </message>
+    <message>
+        <source>Play the CloudMus sound</source>
+        <translation>Прайграць гук CloudMus</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>Версія %1</translation>
+    </message>
+    <message>
+        <source>Copy version</source>
+        <translation>Скапіяваць версію</translation>
+    </message>
+    <message>
+        <source>Enjoy listening to your clouds</source>
+        <translation>Слухайце свае аблокі з задавальненнем</translation>
+    </message>
+    <message>
+        <source>Telegram chat</source>
+        <translation>Telegram-чат</translation>
+    </message>
+    <message>
+        <source>AI coding agent by Anthropic</source>
+        <translation>ШІ-агент для праграмавання ад Anthropic</translation>
+    </message>
+    <message>
+        <source>The interface, on the desktop and on phones</source>
+        <translation>Інтэрфейс на камп’ютары і на тэлефонах</translation>
+    </message>
+    <message>
+        <source>Plays the music</source>
+        <translation>Грае музыку</translation>
+    </message>
+    <message>
+        <source>The app itself</source>
+        <translation>Сама праграма</translation>
+    </message>
+    <message>
+        <source>The music services&apos; backends</source>
+        <translation>Бэкенды музычных сэрвісаў</translation>
+    </message>
+    <message>
+        <source>AI coding agent by OpenAI</source>
+        <translation>ШІ-агент для праграмавання ад OpenAI</translation>
+    </message>
+    <message>
+        <source>Authors</source>
+        <translation>Аўтары</translation>
+    </message>
+    <message>
+        <source>License</source>
+        <translation>Ліцэнзія</translation>
+    </message>
+    <message>
+        <source>Contributors</source>
+        <translation>Удзельнікі</translation>
+    </message>
+    <message>
+        <source>Technologies</source>
+        <translation>Тэхналогіі</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::AuthCard</name>
+    <message>
+        <source>Copy code</source>
+        <translation>Скапіяваць код</translation>
+    </message>
+    <message>
+        <source>Submit</source>
+        <translation>Адправіць</translation>
+    </message>
+    <message>
+        <source>Retry</source>
+        <translation>Паўтарыць</translation>
+    </message>
+    <message>
+        <source>Open %1 on any device and enter this code:</source>
+        <translation>Адкрыйце %1 на любой прыладзе і ўвядзіце гэты код:</translation>
+    </message>
+    <message>
+        <source>Sign in by pasting what&apos;s asked for below.</source>
+        <translation>Увайдзіце, уставіўшы ніжэй тое, што запытваецца.</translation>
+    </message>
+    <message>
+        <source>Sign in</source>
+        <translation>Увайсці</translation>
+    </message>
+    <message>
+        <source>Paste here</source>
+        <translation>Устаўце сюды</translation>
+    </message>
+    <message>
+        <source>Sign-in required</source>
+        <translation>Патрабуецца ўваход</translation>
+    </message>
+    <message>
+        <source>Not signed in</source>
+        <translation>Уваход не выкананы</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::CardPopup</name>
+    <message>
+        <source>Liked</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Disliked</source>
+        <translation>Не падабаецца</translation>
+    </message>
+    <message>
+        <source>Explicit</source>
+        <translation>Для дарослых</translation>
+    </message>
+    <message>
+        <source>Album</source>
+        <translation>Альбом</translation>
+    </message>
+    <message>
+        <source>Duration</source>
+        <translation>Даўжыня</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Крыніца</translation>
+    </message>
+    <message>
+        <source>Quality</source>
+        <translation>Якасць</translation>
+    </message>
+    <message>
+        <source>%1 kbps</source>
+        <translation>%1 кбіт/с</translation>
+    </message>
+    <message>
+        <source>Location</source>
+        <translation>Размяшчэнне</translation>
+    </message>
+    <message>
+        <source>Last played</source>
+        <translation>Слухалі</translation>
+    </message>
+    <message>
+        <source>Never</source>
+        <translation>Ніколі</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::DownloadsPanel</name>
+    <message>
+        <source>Downloads</source>
+        <translation>Спампоўкі</translation>
+    </message>
+    <message>
+        <source>Save Playing Track</source>
+        <translation>Захаваць бягучы трэк</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::EmptyStatePlaceholder</name>
+    <message>
+        <source>CloudMus</source>
+        <translation>CloudMus</translation>
+    </message>
+    <message>
+        <source>Select a playlist</source>
+        <translation>Абярыце плэйліст</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::HeroPanel</name>
+    <message>
+        <source>Play</source>
+        <translation>Прайграць</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::MainWindow</name>
+    <message>
+        <source>Cancel</source>
+        <translation>Скасаваць</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>Выдаліць</translation>
+    </message>
+    <message>
+        <source>Delete &quot;%1&quot; and everything in it?</source>
+        <translation>Выдаліць «%1» з усім змесцівам?</translation>
+    </message>
+    <message>
+        <source>Delete &quot;%1&quot; from the disk?</source>
+        <translation>Выдаліць «%1» з дыска?</translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n Track(s) from Disk…</source>
+        <translation>
+            <numerusform>Выдаліць %n трэк з дыска…</numerusform>
+            <numerusform>Выдаліць %n трэкі з дыска…</numerusform>
+            <numerusform>Выдаліць %n трэкаў з дыска…</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>Delete %n track(s) from the disk?</source>
+        <translation>
+            <numerusform>Выдаліць %n трэк з дыска?</numerusform>
+            <numerusform>Выдаліць %n трэкі з дыска?</numerusform>
+            <numerusform>Выдаліць %n трэкаў з дыска?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Delete Folder…</source>
+        <translation>Выдаліць тэчку…</translation>
+    </message>
+    <message>
+        <source>Delete from Disk…</source>
+        <translation>Выдаліць з дыска…</translation>
+    </message>
+    <message>
+        <source>Deleted files can&apos;t be brought back.</source>
+        <translation>Выдаленыя файлы нельга аднавіць.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Its %n track(s) are deleted from the disk, and can&apos;t be brought back.</source>
+        <translation>
+            <numerusform>Яе %n трэк будзе выдалены з дыска без магчымасці аднаўлення.</numerusform>
+            <numerusform>Яе %n трэкі будуць выдалены з дыска без магчымасці аднаўлення.</numerusform>
+            <numerusform>Яе %n трэкаў будуць выдалены з дыска без магчымасці аднаўлення.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>A continuous radio station</source>
+        <translation>Бесперапынная радыёстанцыя</translation>
+    </message>
+    <message>
+        <source>Settings…</source>
+        <translation>Налады…</translation>
+    </message>
+    <message>
+        <source>Check for Updates…</source>
+        <translation>Праверыць абнаўленні…</translation>
+    </message>
+    <message>
+        <source>About CloudMus</source>
+        <translation>Пра CloudMus</translation>
+    </message>
+    <message>
+        <source>Quit</source>
+        <translation>Выхад</translation>
+    </message>
+    <message>
+        <source>Click to check now</source>
+        <translation>Націсніце, каб праверыць зараз</translation>
+    </message>
+    <message>
+        <source>History</source>
+        <translation>Гісторыя</translation>
+    </message>
+    <message>
+        <source>Force Refresh Playlists</source>
+        <translation>Прымусова абнавіць плэйлісты</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Прайграць</translation>
+    </message>
+    <message>
+        <source>Remove from Favorites</source>
+        <translation>Прыбраць з абранага</translation>
+    </message>
+    <message>
+        <source>Add to Favorites</source>
+        <translation>Дадаць у абранае</translation>
+    </message>
+    <message>
+        <source>Save Playlist to Downloads</source>
+        <translation>Захаваць плэйліст у спампоўкі</translation>
+    </message>
+    <message>
+        <source>Removed from Favorites</source>
+        <translation>Прыбрана з абранага</translation>
+    </message>
+    <message>
+        <source>“%1” is no longer in the sidebar</source>
+        <translation>«%1» больш няма на бакавой панэлі</translation>
+    </message>
+    <message>
+        <source>Only favorites are shown in the sidebar, apart from a source&apos;s regular playlists. Everything else — stations, mixes, liked tracks — is listed on the source&apos;s page: click “%1” in the sidebar, and use the star next to an entry to bring it back.</source>
+        <translation>На бакавой панэлі паказаны толькі абраныя элементы і звычайныя плэйлісты крыніцы. Усё астатняе — станцыі, міксы, падабаныя трэкі — пералічана на старонцы крыніцы: націсніце «%1» на бакавой панэлі і скарыстайце зорку каля запісу, каб вярнуць яго.</translation>
+    </message>
+    <message>
+        <source>Open %1</source>
+        <translation>Адкрыць %1</translation>
+    </message>
+    <message>
+        <source>Play Next</source>
+        <translation>Прайграць наступным</translation>
+    </message>
+    <message>
+        <source>Add to Queue</source>
+        <translation>Дадаць у чаргу</translation>
+    </message>
+    <message>
+        <source>Playlists</source>
+        <translation>Плэйлісты</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Зняць «Падабаецца»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Зняць «Не падабаецца»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+    <message>
+        <source>Start Radio from This Track</source>
+        <translation>Запусціць радыё па гэтым трэку</translation>
+    </message>
+    <message>
+        <source>Radio: %1</source>
+        <translation>Радыё: %1</translation>
+    </message>
+    <message>
+        <source>Open Track Page</source>
+        <translation>Адкрыць старонку трэка</translation>
+    </message>
+    <message>
+        <source>Save to Downloads</source>
+        <translation>Захаваць у спампоўкі</translation>
+    </message>
+    <message>
+        <source>Loading…</source>
+        <translation>Загрузка…</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t load playlists</source>
+        <translation>Не атрымалася загрузіць плэйлісты</translation>
+    </message>
+    <message>
+        <source>No playlists</source>
+        <translation>Няма плэйлістаў</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::NowPlayingBar</name>
+    <message>
+        <source>Open track page</source>
+        <translation>Адкрыць старонку трэка</translation>
+    </message>
+    <message>
+        <source>Add to playlist</source>
+        <translation>Дадаць у плэйліст</translation>
+    </message>
+    <message>
+        <source>Quiet mode</source>
+        <translation>Ціхі рэжым</translation>
+    </message>
+    <message>
+        <source>New tracks for the radio</source>
+        <translation>Новыя трэкі для радыё</translation>
+    </message>
+    <message>
+        <source>Shuffle: on</source>
+        <translation>Перамешванне: укл.</translation>
+    </message>
+    <message>
+        <source>Shuffle: off</source>
+        <translation>Перамешванне: выкл.</translation>
+    </message>
+    <message>
+        <source>Repeat: list</source>
+        <translation>Паўтор: спіс</translation>
+    </message>
+    <message>
+        <source>Repeat: track</source>
+        <translation>Паўтор: трэк</translation>
+    </message>
+    <message>
+        <source>Repeat: off</source>
+        <translation>Паўтор: выкл.</translation>
+    </message>
+    <message>
+        <source>Previous</source>
+        <translation>Папярэдні</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Паўза</translation>
+    </message>
+    <message>
+        <source>Play</source>
+        <translation>Прайграць</translation>
+    </message>
+    <message>
+        <source>Next</source>
+        <translation>Наступны</translation>
+    </message>
+    <message>
+        <source>Stop</source>
+        <translation>Стоп</translation>
+    </message>
+    <message>
+        <source>Unlike</source>
+        <translation>Зняць «Падабаецца»</translation>
+    </message>
+    <message>
+        <source>Like</source>
+        <translation>Падабаецца</translation>
+    </message>
+    <message>
+        <source>Remove Dislike</source>
+        <translation>Зняць «Не падабаецца»</translation>
+    </message>
+    <message>
+        <source>Dislike</source>
+        <translation>Не падабаецца</translation>
+    </message>
+    <message>
+        <source>Downloads</source>
+        <translation>Спампоўкі</translation>
+    </message>
+    <message>
+        <source>Save to Downloads</source>
+        <translation>Захаваць у спампоўкі</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::PlaylistSheet</name>
+    <message>
+        <source>Play all</source>
+        <translation>Прайграць усё</translation>
+    </message>
+    <message>
+        <source>Save playlist to Downloads</source>
+        <translation>Захаваць плэйліст у спампоўкі</translation>
+    </message>
+    <message>
+        <source>Back</source>
+        <translation>Назад</translation>
+    </message>
+    <message>
+        <source>Filter by title, artist or album</source>
+        <translation>Фільтр па назве, выканаўцы або альбоме</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::QrCodeView</name>
+    <message>
+        <source>QR code</source>
+        <translation>QR-код</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Rows</name>
+    <message>
+        <source>%1 — %2</source>
+        <translation>%1 — %2</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Settings::DownloadsPage</name>
+    <message>
+        <source>Downloads</source>
+        <translation>Спампоўкі</translation>
+    </message>
+    <message>
+        <source>Allow saving tracks to this computer</source>
+        <translation>Дазволіць захаванне трэкаў на гэты камп’ютар</translation>
+    </message>
+    <message>
+        <source>Browse…</source>
+        <translation>Агляд…</translation>
+    </message>
+    <message>
+        <source>Download folder</source>
+        <translation>Тэчка спамповак</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>Няма</translation>
+    </message>
+    <message>
+        <source>By source</source>
+        <translation>Па крыніцы</translation>
+    </message>
+    <message>
+        <source>By artist</source>
+        <translation>Па выканаўцы</translation>
+    </message>
+    <message>
+        <source>By artist and album</source>
+        <translation>Па выканаўцы і альбоме</translation>
+    </message>
+    <message>
+        <source>Download folder:</source>
+        <translation>Тэчка спамповак:</translation>
+    </message>
+    <message>
+        <source>Subfolders:</source>
+        <translation>Падтэчкі:</translation>
+    </message>
+    <message>
+        <source>Downloads are for your own listening</source>
+        <translation>Спампоўкі — толькі для асабістага праслухоўвання</translation>
+    </message>
+    <message>
+        <source>Piracy hurts the artists whose music you love. Tracks you save with CloudMus are for your personal listening only — not for sharing, uploading, selling or passing on to anyone else. Saving music may also be against your music service&apos;s terms of use.
+
+Do you agree to use downloads only this way?</source>
+        <translation>Піратства шкодзіць выканаўцам, чыю музыку вы любіце. Трэкі, захаваныя ў CloudMus, прызначаныя толькі для вашага асабістага праслухоўвання — не для таго, каб імі дзяліцца, выкладваць, прадаваць або перадаваць каму-небудзь. Захаванне музыкі таксама можа парушаць умовы выкарыстання вашага музычнага сэрвісу.
+
+Вы згодныя выкарыстоўваць спампоўкі толькі так?</translation>
+    </message>
+    <message>
+        <source>I Agree</source>
+        <translation>Згодны</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Скасаваць</translation>
+    </message>
+    <message>
+        <source>/&lt;source&gt;</source>
+        <translation>/&lt;source&gt;</translation>
+    </message>
+    <message>
+        <source>/&lt;artist&gt;</source>
+        <translation>/&lt;artist&gt;</translation>
+    </message>
+    <message>
+        <source>/&lt;artist&gt;/&lt;album&gt;</source>
+        <translation>/&lt;artist&gt;/&lt;album&gt;</translation>
+    </message>
+    <message>
+        <source>Tracks are saved to %1/</source>
+        <translation>Трэкі захоўваюцца ў %1/</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Settings::GeneralPage</name>
+    <message>
+        <source>General</source>
+        <translation>Агульныя</translation>
+    </message>
+    <message>
+        <source>Launch CloudMus when you log in</source>
+        <translation>Запускаць CloudMus пры ўваходзе ў сістэму</translation>
+    </message>
+    <message>
+        <source>Start hidden in the tray</source>
+        <translation>Запускаць схаваным у трэі</translation>
+    </message>
+    <message>
+        <source>Resume playback on start if it was playing at exit</source>
+        <translation>Аднаўляць прайграванне пры запуску, калі яно ішло пры выхадзе</translation>
+    </message>
+    <message>
+        <source>Closing the window minimizes to the tray instead of quitting</source>
+        <translation>Закрыццё акна згортвае ў трэй замест выхаду</translation>
+    </message>
+    <message>
+        <source>Clicking the menu bar icon shows the window (right-click opens the menu)</source>
+        <translation>Пстрычка па значку ў радку меню паказвае акно (пстрычка правай кнопкай адкрывае меню)</translation>
+    </message>
+    <message>
+        <source>Show the playing track&apos;s cover on the Dock icon</source>
+        <translation>Паказваць вокладку трэка, які грае, на значку ў Dock</translation>
+    </message>
+    <message>
+        <source>Show a notification when the track changes</source>
+        <translation>Паказваць апавяшчэнне пры змене трэка</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>Сістэмная</translation>
+    </message>
+    <message>
+        <source>Light</source>
+        <translation>Светлая</translation>
+    </message>
+    <message>
+        <source>Dark</source>
+        <translation>Цёмная</translation>
+    </message>
+    <message>
+        <source>Theme:</source>
+        <translation>Тэма:</translation>
+    </message>
+    <message>
+        <source>Automatic</source>
+        <translation>Аўтаматычна</translation>
+    </message>
+    <message>
+        <source>Light panel</source>
+        <translation>Светлая панэль</translation>
+    </message>
+    <message>
+        <source>Dark panel</source>
+        <translation>Цёмная панэль</translation>
+    </message>
+    <message>
+        <source>Tray icon for:</source>
+        <translation>Значок у трэі для:</translation>
+    </message>
+    <message>
+        <source>The color of the panel the tray icon is on, for when the icon doesn&apos;t stand out.</source>
+        <translation>Колер панэлі, на якой знаходзіцца значок у трэі, — на выпадак, калі значок дрэнна бачны.</translation>
+    </message>
+    <message>
+        <source>Language:</source>
+        <translation>Мова:</translation>
+    </message>
+    <message>
+        <source>Glass background: blur what&apos;s behind the window</source>
+        <translation>Шкляны фон: размываць тое, што за акном</translation>
+    </message>
+    <message>
+        <source>This desktop doesn&apos;t blur behind windows by itself, so without help the window is just see-through. On GNOME, install the Blur my Shell extension and add &quot;cloudmus-qt&quot; to its application blur list.</source>
+        <translation>Гэты працоўны стол сам не размывае фон за вокнамі, таму без дапамогі акно будзе проста празрыстым. У GNOME усталюйце пашырэнне Blur my Shell і дадайце «cloudmus-qt» у яго спіс праграм для размывання.</translation>
+    </message>
+    <message>
+        <source>Not supported by this desktop.</source>
+        <translation>Не падтрымліваецца гэтым працоўным сталом.</translation>
+    </message>
+    <message>
+        <source>Send usage statistics to Google Analytics</source>
+        <translation>Адпраўляць статыстыку выкарыстання ў Google Analytics</translation>
+    </message>
+    <message>
+        <source>Send crash reports to Sentry</source>
+        <translation>Адпраўляць справаздачы пра збоі ў Sentry</translation>
+    </message>
+    <message>
+        <source>Takes effect the next time CloudMus starts.</source>
+        <translation>Уступіць у сілу пры наступным запуску CloudMus.</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Settings::HotkeysPage</name>
+    <message>
+        <source>Keyboard shortcuts</source>
+        <translation>Спалучэнні клавіш</translation>
+    </message>
+    <message>
+        <source>Filter by action or shortcut</source>
+        <translation>Фільтр па дзеянні або спалучэнні</translation>
+    </message>
+    <message>
+        <source>No shortcuts match the filter.</source>
+        <translation>Няма спалучэнняў, якія адпавядаюць фільтру.</translation>
+    </message>
+    <message>
+        <source>Change in the system settings…</source>
+        <translation>Змяніць у сістэмных наладах…</translation>
+    </message>
+    <message>
+        <source>Action</source>
+        <translation>Дзеянне</translation>
+    </message>
+    <message>
+        <source>Shortcut</source>
+        <translation>Спалучэнне</translation>
+    </message>
+    <message>
+        <source>Global</source>
+        <translation>Глабальна</translation>
+    </message>
+    <message>
+        <source>Notify</source>
+        <translation>Апавяшчаць</translation>
+    </message>
+    <message>
+        <source>Sound</source>
+        <translation>Гук</translation>
+    </message>
+    <message>
+        <source>Works with the window out of focus</source>
+        <translation>Працуе, калі акно не ў фокусе</translation>
+    </message>
+    <message>
+        <source>Says what it did in a notification</source>
+        <translation>Паведамляе пра зробленае ў апавяшчэнні</translation>
+    </message>
+    <message>
+        <source>Plays a sound saying what it did</source>
+        <translation>Прайгравае гук пра зробленае</translation>
+    </message>
+    <message>
+        <source>Reset</source>
+        <translation>Скінуць</translation>
+    </message>
+    <message>
+        <source>Restore defaults</source>
+        <translation>Аднавіць значэнні па змоўчванні</translation>
+    </message>
+    <message>
+        <source>Global shortcuts aren&apos;t available on this desktop: the shortcuts work only while the CloudMus window is in front.</source>
+        <translation>Глабальныя спалучэнні клавіш недаступныя ў гэтым асяроддзі: спалучэнні працуюць, толькі пакуль акно CloudMus на пярэднім плане.</translation>
+    </message>
+    <message>
+        <source>Global shortcuts aren&apos;t available: %1 The shortcuts work only while the CloudMus window is in front.</source>
+        <translation>Глабальныя спалучэнні клавіш недаступныя: %1 Спалучэнні працуюць, толькі пакуль акно CloudMus на пярэднім плане.</translation>
+    </message>
+    <message>
+        <source>A global shortcut works even when the CloudMus window isn&apos;t in front.</source>
+        <translation>Глабальнае спалучэнне працуе, нават калі акно CloudMus не на пярэднім плане.</translation>
+    </message>
+    <message>
+        <source>This desktop decides the keys of global shortcuts: the key here is what CloudMus asks for the first time, and it is what works while the window is in front. To change a global one afterwards, use the desktop&apos;s own settings.</source>
+        <translation>Клавішы глабальных спалучэнняў вызначае працоўны стол: паказанае тут спалучэнне CloudMus запытвае пры першым запуску, і менавіта яно працуе, пакуль акно на пярэднім плане. Каб потым змяніць глабальнае, скарыстайце налады самога працоўнага стала.</translation>
+    </message>
+    <message>
+        <source>The same shortcut as “%1”.</source>
+        <translation>Тое ж спалучэнне, што і ў «%1».</translation>
+    </message>
+    <message>
+        <source>Another program already has this shortcut, so it works only while the window is in front.</source>
+        <translation>Гэтае спалучэнне ўжо занята іншай праграмай, таму яно працуе, толькі пакуль акно на пярэднім плане.</translation>
+    </message>
+    <message>
+        <source>The desktop hasn&apos;t set a global shortcut for this yet.</source>
+        <translation>Працоўны стол яшчэ не прызначыў для гэтага глабальнае спалучэнне.</translation>
+    </message>
+    <message>
+        <source>Global shortcut set by the desktop: %1</source>
+        <translation>Глабальнае спалучэнне, зададзенае працоўным сталом: %1</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Settings::NetworkPage</name>
+    <message>
+        <source>Network</source>
+        <translation>Сетка</translation>
+    </message>
+    <message>
+        <source>Proxies a source can connect through — choose one on the source&apos;s own page, under Sources. Everything of that source goes through it: the source itself, its streams and its covers.</source>
+        <translation>Проксі, праз якія можа падключацца крыніца, — абярыце адзін на старонцы самой крыніцы ў раздзеле «Крыніцы». Праз яго ідзе ўсё, што звязана з крыніцай: сама крыніца, яе струмені і вокладкі.</translation>
+    </message>
+    <message>
+        <source>Add proxy</source>
+        <translation>Дадаць проксі</translation>
+    </message>
+    <message>
+        <source>Every proxy needs a host</source>
+        <translation>У кожнага проксі павінен быць хост</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Settings::PreloadPage</name>
+    <message>
+        <source>Preloading</source>
+        <translation>Перадзагрузка</translation>
+    </message>
+    <message>
+        <source>How many tracks after the playing one are downloaded in advance, one at a time, so they start at once and keep playing through a bad connection. With 0 only the playing track is downloaded.</source>
+        <translation>Колькі трэкаў пасля таго, што грае, спампоўваецца загадзя, па адным, каб яны пачыналіся адразу і гралі нават пры дрэннай сувязі. Пры 0 спампоўваецца толькі трэк, які грае.</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <extracomment>Megabytes, after a number: &quot;1024 MB&quot;</extracomment>
+        <translation> МБ</translation>
+    </message>
+    <message>
+        <source>When less than this is left free, old tracks and covers are removed first; then tracks play without being downloaded, and nothing new is saved.</source>
+        <translation>Калі вольнага месца застаецца менш, спачатку выдаляюцца старыя трэкі і вокладкі; потым трэкі граюць без загрузкі, і нічога новага не захоўваецца.</translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation>Ачысціць</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a playlist:</source>
+        <translation>Трэкаў наперад у плэйлісце:</translation>
+    </message>
+    <message>
+        <source>Tracks ahead in a radio:</source>
+        <translation>Трэкаў наперад у радыё:</translation>
+    </message>
+    <message>
+        <source>Disk space for tracks:</source>
+        <translation>Месца на дыску пад трэкі:</translation>
+    </message>
+    <message>
+        <source>Keep free on the disk:</source>
+        <translation>Пакідаць вольным на дыску:</translation>
+    </message>
+    <message>
+        <source>%1 used</source>
+        <translation>Занята: %1</translation>
+    </message>
+    <message>
+        <source>%1 free now</source>
+        <translation>Зараз вольна: %1</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Settings::ProxyEditor</name>
+    <message>
+        <source>e.g. Home SOCKS</source>
+        <translation>напр., Хатні SOCKS</translation>
+    </message>
+    <message>
+        <source>host or IP</source>
+        <translation>хост або IP</translation>
+    </message>
+    <message>
+        <source>optional</source>
+        <translation>неабавязкова</translation>
+    </message>
+    <message>
+        <source>Check</source>
+        <translation>Праверыць</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Выдаліць</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Назва:</translation>
+    </message>
+    <message>
+        <source>Type:</source>
+        <translation>Тып:</translation>
+    </message>
+    <message>
+        <source>Host:</source>
+        <translation>Хост:</translation>
+    </message>
+    <message>
+        <source>Port:</source>
+        <translation>Порт:</translation>
+    </message>
+    <message>
+        <source>Username:</source>
+        <translation>Імя карыстальніка:</translation>
+    </message>
+    <message>
+        <source>Password:</source>
+        <translation>Пароль:</translation>
+    </message>
+    <message>
+        <source>%1: enter the proxy&apos;s host first</source>
+        <translation>%1: спачатку ўкажыце хост проксі</translation>
+    </message>
+    <message>
+        <source>%1 works</source>
+        <translation>%1 працуе</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Settings::SettingsForm</name>
+    <message>
+        <source>Saved — type to replace</source>
+        <translation>Захавана — увядзіце, каб замяніць</translation>
+    </message>
+    <message>
+        <source>Browse…</source>
+        <translation>Агляд…</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::Settings::SourcePage</name>
+    <message>
+        <source>Sources</source>
+        <translation>Крыніцы</translation>
+    </message>
+    <message>
+        <source>Enabled</source>
+        <translation>Уключана</translation>
+    </message>
+    <message>
+        <source>Connection:</source>
+        <translation>Падключэнне:</translation>
+    </message>
+    <message>
+        <source>Radio: tracks before a repeat:</source>
+        <translation>Радыё: трэкаў да паўтору:</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>Выкл.</translation>
+    </message>
+    <message>
+        <source>or days:</source>
+        <translation>або дзён:</translation>
+    </message>
+    <message>
+        <source>The radio leaves out this many of the tracks last played from this source, or all it played in this many days if that is more, as long as it has others to play. 0 and Off: it may repeat any track. Applies to the next station you start.</source>
+        <translation>Радыё не ставіць столькі апошніх прайграных трэкаў гэтай крыніцы — або ўсе прайграныя за столькі дзён, калі іх больш, — пакуль у яго ёсць іншыя. 0 трэкаў і «Выкл.» — можа паўтарыць любы трэк. Ужываецца да наступнай запушчанай станцыі.</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>Аўта</translation>
+    </message>
+    <message>
+        <source>Download connections:</source>
+        <translation>Злучэнняў для спампоўвання:</translation>
+    </message>
+    <message>
+        <source>How many parts of a track are downloaded at once. A service that slows each connection down gives several more in all. Auto: as many as the source suggests. Applies to the next track.</source>
+        <translation>Колькі частак трэка спампоўваецца адначасова. Сэрвіс, які запавольвае кожнае злучэнне, праз некалькі аддае больш. Аўта — колькі прапануе крыніца. Ужываецца да наступнага трэка.</translation>
+    </message>
+    <message>
+        <source>Account</source>
+        <translation>Акаўнт</translation>
+    </message>
+    <message>
+        <source>Sign out</source>
+        <translation>Выйсці</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Скасаваць</translation>
+    </message>
+    <message>
+        <source>A switched-off source doesn&apos;t start and isn&apos;t shown in the sidebar.</source>
+        <translation>Выключаная крыніца не запускаецца і не паказваецца на бакавой панэлі.</translation>
+    </message>
+    <message>
+        <source>The source couldn&apos;t be started.</source>
+        <translation>Не атрымалася запусціць крыніцу.</translation>
+    </message>
+    <message>
+        <source>Starting…</source>
+        <translation>Запуск…</translation>
+    </message>
+    <message>
+        <source>Signing in…</source>
+        <translation>Уваход…</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t sign in</source>
+        <translation>Не атрымалася ўвайсці</translation>
+    </message>
+    <message>
+        <source>Signed in</source>
+        <translation>Уваход выкананы</translation>
+    </message>
+    <message>
+        <source>Sign-in failed</source>
+        <translation>Памылка ўваходу</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t sign out: %1</source>
+        <translation>Не атрымалася выйсці: %1</translation>
+    </message>
+    <message>
+        <source>Loading settings…</source>
+        <translation>Загрузка налад…</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t load the settings: %1</source>
+        <translation>Не атрымалася загрузіць налады: %1</translation>
+    </message>
+    <message>
+        <source>System</source>
+        <translation>Сістэмная</translation>
+    </message>
+    <message>
+        <source>Direct</source>
+        <translation>Наўпрост</translation>
+    </message>
+    <message>
+        <source>Its proxy was removed — it uses the system connection.</source>
+        <translation>Яго проксі выдалены — выкарыстоўваецца сістэмнае падключэнне.</translation>
+    </message>
+    <message>
+        <source>Uses the system&apos;s proxy settings, if any.</source>
+        <translation>Выкарыстоўвае сістэмныя налады проксі, калі яны ёсць.</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::SettingsDialog</name>
+    <message>
+        <source>Settings</source>
+        <translation>Налады</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::SourcePanel</name>
+    <message>
+        <source>Connected</source>
+        <translation>Падключана</translation>
+    </message>
+    <message>
+        <source>Playlists</source>
+        <translation>Плэйлісты</translation>
+    </message>
+    <message>
+        <source>Refresh playlists</source>
+        <translation>Абнавіць плэйлісты</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Стан</translation>
+    </message>
+    <message>
+        <source>Settings…</source>
+        <translation>Налады…</translation>
+    </message>
+    <message>
+        <source>Features</source>
+        <translation>Магчымасці</translation>
+    </message>
+    <message>
+        <source>Liked songs</source>
+        <translation>Падабаныя песні</translation>
+    </message>
+    <message>
+        <source>Radio</source>
+        <translation>Радыё</translation>
+    </message>
+    <message>
+        <source>Search</source>
+        <translation>Пошук</translation>
+    </message>
+    <message>
+        <source>Downloads</source>
+        <translation>Спампоўкі</translation>
+    </message>
+    <message>
+        <source>Sign-in</source>
+        <translation>Уваход</translation>
+    </message>
+    <message>
+        <source>Sign in to see playlists</source>
+        <translation>Увайдзіце, каб убачыць плэйлісты</translation>
+    </message>
+    <message>
+        <source>Loading…</source>
+        <translation>Загрузка…</translation>
+    </message>
+    <message>
+        <source>No playlists</source>
+        <translation>Няма плэйлістаў</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::StarPromptFlow</name>
+    <message>
+        <source>Support CloudMus</source>
+        <translation>Падтрымаць CloudMus</translation>
+    </message>
+    <message>
+        <source>Enjoying CloudMus?</source>
+        <translation>Падабаецца CloudMus?</translation>
+    </message>
+    <message>
+        <source>If the player has found a place in your day, please give it a star on GitHub. It&apos;s easy for you and it makes the author happy.</source>
+        <translation>Калі плэер прыйшоўся вам даспадобы, пастаўце яму зорачку на GitHub. Вам няцяжка, а аўтару прыемна.</translation>
+    </message>
+    <message>
+        <source>Star on GitHub</source>
+        <translation>Паставіць зорачку</translation>
+    </message>
+    <message>
+        <source>No, thanks</source>
+        <translation>Не, дзякуй</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::ToastNotifier</name>
+    <message>
+        <source>Copy Message</source>
+        <translation>Скапіяваць паведамленне</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::TrackRowDelegate</name>
+    <message>
+        <source>Today</source>
+        <translation>Сёння</translation>
+    </message>
+    <message>
+        <source>Yesterday</source>
+        <translation>Учора</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::UpdateDialog</name>
+    <message>
+        <source>CloudMus Update</source>
+        <translation>Абнаўленне CloudMus</translation>
+    </message>
+    <message>
+        <source>A new version of CloudMus is available</source>
+        <translation>Даступная новая версія CloudMus</translation>
+    </message>
+    <message>
+        <source>Version &lt;b&gt;%1&lt;/b&gt; is out — you have &lt;b&gt;%2&lt;/b&gt;.</source>
+        <translation>Выйшла версія &lt;b&gt;%1&lt;/b&gt;, у вас &lt;b&gt;%2&lt;/b&gt;.</translation>
+    </message>
+    <message>
+        <source>Skip This Version</source>
+        <translation>Прапусціць гэтую версію</translation>
+    </message>
+    <message>
+        <source>Install</source>
+        <translation>Усталяваць</translation>
+    </message>
+    <message>
+        <source>Open Release Page</source>
+        <translation>Адкрыць старонку выпуску</translation>
+    </message>
+    <message>
+        <source>Downloading CloudMus %1</source>
+        <translation>Спампоўка CloudMus %1</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Скасаваць</translation>
+    </message>
+    <message>
+        <source>The update didn&apos;t work out</source>
+        <translation>Абнаўленне не атрымалася</translation>
+    </message>
+    <message>
+        <source>%1
+
+You can try again later or download the new version yourself.</source>
+        <translation>%1
+
+Можна паўтарыць пазней або спампаваць новую версію самастойна.</translation>
+    </message>
+    <message>
+        <source>Close</source>
+        <translation>Закрыць</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t open %1 in a browser</source>
+        <translation>Не атрымалася адкрыць %1 у браўзеры</translation>
+    </message>
+    <message>
+        <source>Installing CloudMus %1</source>
+        <translation>Усталёўка CloudMus %1</translation>
+    </message>
+</context>
+<context>
+    <name>Ui::UpdateFlow</name>
+    <message>
+        <source>Check for Updates</source>
+        <translation>Праверка абнаўленняў</translation>
+    </message>
+</context>
+<context>
+    <name>Update::Installer</name>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only the AppImage can.</source>
+        <translation>Гэтая копія CloudMus не можа абнаўляцца сама: на гэта здольны толькі AppImage.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself: the folder %1 is not writable.</source>
+        <translation>CloudMus не можа абнавіцца сам: тэчка %1 недаступная для запісу.</translation>
+    </message>
+    <message>
+        <source>Can&apos;t make %1 executable</source>
+        <translation>Не атрымалася зрабіць %1 выканальным</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only an installed one can.</source>
+        <translation>Гэтая копія CloudMus не можа абнаўляцца сама: гэта магчыма толькі для ўсталяванай.</translation>
+    </message>
+    <message>
+        <source>Can&apos;t rename %1</source>
+        <translation>Не атрымалася перайменаваць %1</translation>
+    </message>
+    <message>
+        <source>This copy of CloudMus can&apos;t update itself: only CloudMus.app can.</source>
+        <translation>Гэтая копія CloudMus не можа абнавіцца сама: гэта ўмее толькі CloudMus.app.</translation>
+    </message>
+    <message>
+        <source>CloudMus can&apos;t update itself while it runs from the disk image or the Downloads folder: move it to Applications first.</source>
+        <translation>CloudMus не можа абнавіцца, пакуль запушчаны з вобраза дыска або папкі «Спампоўкі»: спачатку перанясіце яго ў «Праграмы».</translation>
+    </message>
+    <message>
+        <source>The disk image has no CloudMus.app</source>
+        <translation>У вобразе дыска няма CloudMus.app</translation>
+    </message>
+    <message>
+        <source>The disk image holds another app</source>
+        <translation>У вобразе дыска іншая праграма</translation>
+    </message>
+</context>
+<context>
+    <name>Update::UpdateChecker</name>
+    <message>
+        <source>The server answered with HTTP %1</source>
+        <translation>Сервер адказаў HTTP %1</translation>
+    </message>
+    <message>
+        <source>Unexpected answer from GitHub</source>
+        <translation>Нечаканы адказ ад GitHub</translation>
+    </message>
+    <message>
+        <source>Unknown version of this build: %1</source>
+        <translation>Невядомая версія гэтай зборкі: %1</translation>
+    </message>
+</context>
+<context>
+    <name>Update::UpdateDownloader</name>
+    <message>
+        <source>The server answered with HTTP %1</source>
+        <translation>Сервер адказаў HTTP %1</translation>
+    </message>
+    <message>
+        <source>Downloaded %1 bytes of %2</source>
+        <translation>Спампавана %1 з %2 байт</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::ActivePlaylist</name>
+    <message>
+        <source>History</source>
+        <translation>Гісторыя</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t open the audio file. Check its permissions.</source>
+        <translation>Не ўдалося адкрыць аўдыяфайл. Праверце правы доступу да яго.</translation>
+    </message>
+    <message>
+        <source>Opened audio</source>
+        <translation>Адкрытае аўдыя</translation>
+    </message>
+    <message>
+        <source>No network connection, and nothing of %1 is downloaded to play</source>
+        <translation>Няма падключэння да сеткі, а з %1 нічога не спампавана</translation>
+    </message>
+    <message>
+        <source>No network connection: playing downloaded tracks</source>
+        <translation>Няма падключэння да сеткі: гучаць спампаваныя трэкі</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::ConnectionStatus</name>
+    <message>
+        <source>No network</source>
+        <translation>Няма сеткі</translation>
+    </message>
+    <message>
+        <source>%1 is unreachable</source>
+        <translation>Няма сувязі з %1</translation>
+    </message>
+    <message>
+        <source>Services are unreachable</source>
+        <translation>Няма сувязі з сэрвісамі</translation>
+    </message>
+    <message>
+        <source>Online</source>
+        <translation>У сетцы</translation>
+    </message>
+    <message>
+        <source>The device is not connected to a network</source>
+        <translation>Прылада не падключана да сеткі</translation>
+    </message>
+    <message>
+        <source>%1: unreachable since %2</source>
+        <translation>%1: няма сувязі з %2</translation>
+    </message>
+    <message>
+        <source>%1: unreachable since %2 (%3)</source>
+        <translation>%1: няма сувязі з %2 (%3)</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n action(s) will be sent once the connection is back</source>
+        <translation>
+            <numerusform>%n дзеянне будзе адпраўлена, калі сувязь аднавіцца</numerusform>
+            <numerusform>%n дзеянні будуць адпраўлены, калі сувязь аднавіцца</numerusform>
+            <numerusform>%n дзеянняў будуць адпраўлены, калі сувязь аднавіцца</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Downloads</name>
+    <message>
+        <source>%1 isn&apos;t running</source>
+        <translation>%1 не запушчаны</translation>
+    </message>
+    <message>
+        <source>Can&apos;t create the folder %1</source>
+        <translation>Не атрымалася стварыць тэчку %1</translation>
+    </message>
+    <message>
+        <source>%1 can&apos;t save tracks</source>
+        <translation>%1 не ўмее захоўваць трэкі</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t find the file to save</source>
+        <translation>Не ўдалося знайсці файл для захавання</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t publish the track</source>
+        <translation>Не ўдалося дадаць трэк у медыятэку</translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>The track couldn&apos;t be downloaded</source>
+        <translation>Не ўдалося спампаваць трэк</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t write the file to %1</source>
+        <translation>Не ўдалося запісаць файл у %1</translation>
+    </message>
+    <message>
+        <source>Saved to %1. Check shared storage permissions and free space.</source>
+        <translation>Захавана ў %1. Праверце дазволы на агульнае сховішча і вольнае месца.</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; is saved already</source>
+        <translation>Трэк «%1» ужо захаваны</translation>
+    </message>
+    <message>
+        <source>Saved &quot;%1&quot;</source>
+        <translation>Захавана: «%1»</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t save &quot;%1&quot;</source>
+        <translation>Не атрымалася захаваць «%1»</translation>
+    </message>
+    <message>
+        <source>&quot;%1&quot; has no tracks to save</source>
+        <translation>У «%1» няма трэкаў для захавання</translation>
+    </message>
+    <message>
+        <source>Saved %1 tracks of &quot;%2&quot;</source>
+        <translation>Захавана трэкаў з «%2»: %1</translation>
+    </message>
+    <message>
+        <source>All tracks of &quot;%1&quot; are saved already</source>
+        <translation>Усе трэкі з «%1» ужо захаваныя</translation>
+    </message>
+    <message>
+        <source>Saved %1 tracks of &quot;%2&quot;, %3 were saved already</source>
+        <translation>Захавана трэкаў з «%2»: %1, яшчэ %3 ужо былі захаваныя</translation>
+    </message>
+    <message>
+        <source>Saved %1 of %2 tracks of &quot;%3&quot; — %4</source>
+        <translation>Захавана %1 з %2 трэкаў з «%3» — %4</translation>
+    </message>
+    <message>
+        <source>Not enough free space on the disk</source>
+        <translation>Недастаткова вольнага месца на дыску</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Messages</name>
+    <message>
+        <source>%1: %2</source>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>No network connection</source>
+        <translation>Няма падключэння да сеткі</translation>
+    </message>
+    <message>
+        <source>%1: no network connection</source>
+        <translation>%1: няма падключэння да сеткі</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::NowPlaying</name>
+    <message>
+        <source>Added to Liked</source>
+        <translation>Дададзена ў падабаныя</translation>
+    </message>
+    <message>
+        <source>Removed from Liked</source>
+        <translation>Выдалена з падабаных</translation>
+    </message>
+    <message>
+        <source>Disliked</source>
+        <translation>Не падабаецца</translation>
+    </message>
+    <message>
+        <source>Removed dislike</source>
+        <translation>«Не падабаецца» зняты</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Preload</name>
+    <message>
+        <source>Only %1 MB left on the disk, less than the %2 MB kept free: old tracks are removed, new ones play without being downloaded, and nothing is saved.</source>
+        <translation>На дыску засталося ўсяго %1 МБ, менш за %2 МБ, што пакідаюцца вольнымі: старыя трэкі выдаляюцца, новыя граюць без загрузкі, нічога не захоўваецца.</translation>
+    </message>
+    <message>
+        <source>Downloaded ahead: %1 of %2</source>
+        <translation>Спампавана наперад: %1 з %2</translation>
+    </message>
+    <message>
+        <source>%1 — downloaded</source>
+        <translation>%1 — спампаваны</translation>
+    </message>
+    <message>
+        <source>%1 — %2%</source>
+        <translation>%1 — %2%</translation>
+    </message>
+    <message>
+        <source>%1 — couldn&apos;t be downloaded</source>
+        <translation>%1 — не ўдалося спампаваць</translation>
+    </message>
+    <message>
+        <source>%1 — waiting, %2% so far</source>
+        <translation>%1 — чакае, спампавана %2%</translation>
+    </message>
+    <message>
+        <source>%1 — waiting</source>
+        <translation>%1 — чакае</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::SidebarModel</name>
+    <message>
+        <source>Playlists</source>
+        <translation>Плэйлісты</translation>
+    </message>
+    <message>
+        <source>History</source>
+        <translation>Гісторыя</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::Sources</name>
+    <message>
+        <source>%1 is unavailable</source>
+        <translation>Няма сувязі з %1</translation>
+    </message>
+    <message>
+        <source>timed out loading playlists</source>
+        <translation>скончыўся час чакання загрузкі плэйлістаў</translation>
+    </message>
+</context>
+<context>
+    <name>ViewModel::UpdateScreen</name>
+    <message>
+        <source>Version %1 is the latest one.</source>
+        <translation>Версія %1 — апошняя.</translation>
+    </message>
+    <message>
+        <source> It&apos;s built on %1, released on %2.</source>
+        <translation> Сабрана %1, выпушчана %2.</translation>
+    </message>
+    <message>
+        <source> Released on %1.</source>
+        <translation> Выпушчана %1.</translation>
+    </message>
+    <message>
+        <source>CloudMus is up to date</source>
+        <translation>У вас актуальная версія CloudMus</translation>
+    </message>
+    <message>
+        <source>Couldn&apos;t check for updates</source>
+        <translation>Не атрымалася праверыць абнаўленні</translation>
+    </message>
+    <message>
+        <source>%1 from %2</source>
+        <translation>%1 ад %2</translation>
+    </message>
+    <message>
+        <source>%1 of %2</source>
+        <translation>%1 з %2</translation>
+    </message>
+    <message>
+        <source>No description.</source>
+        <translation>Няма апісання.</translation>
+    </message>
+    <message>
+        <source>This build can&apos;t install updates by itself</source>
+        <translation>Гэтая зборка не можа ўсталяваць абнаўленне сама</translation>
+    </message>
+    <message>
+        <source>Connecting…</source>
+        <translation>Падключэнне…</translation>
+    </message>
+    <message numerus="yes">
+        <source>about %n s left</source>
+        <translation>
+            <numerusform>засталося каля %n с</numerusform>
+            <numerusform>засталося каля %n с</numerusform>
+            <numerusform>засталося каля %n с</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>about %n min left</source>
+        <translation>
+            <numerusform>засталося каля %n хв</numerusform>
+            <numerusform>засталося каля %n хв</numerusform>
+            <numerusform>засталося каля %n хв</numerusform>
+        </translation>
+    </message>
+</context>
+</TS>

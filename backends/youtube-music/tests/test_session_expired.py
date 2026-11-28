@@ -5,6 +5,7 @@ import pytest
 from cloudmus_backend_ytmusic import auth as auth_module
 from cloudmus_backend_ytmusic import catalog, client, config, server
 from rpc_common import errors
+from rpc_common.generated.models import SubmitParams
 from rpc_common.server import BackendError
 
 
@@ -93,5 +94,7 @@ async def test_signing_in_again_clears_it(monkeypatch, tmp_path):
 
     await session.mark_expired(notify)
     assert session.get_status()["status"] == "error"
-    await session.submit({"headers": "cookie: __Secure-3PAPISID=abcdef123456\nx-goog-authuser: 0\n"}, notify)
+    await session.submit(
+            SubmitParams(form={"headers": "cookie: __Secure-3PAPISID=abcdef123456\nx-goog-authuser: 0\n"}), notify
+        )
     assert session.get_status() == {"status": "authenticated"}

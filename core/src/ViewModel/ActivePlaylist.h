@@ -1,0 +1,200 @@
+#pragma once
+
+#include "Throttle.h"
+
+#include <QObject>
+#include <QVector>
+
+#include <functional>
+
+#include "Coro.h"
+#include "PlaybackController.h"
+#include "PlaylistContext.h"
+#include "Settings.h"
+
+namespace App {
+class PlaylistEditing;
+class PlaylistTrackCache;
+}
+namespace Covers {
+class CoverArtCache;
+}
+namespace History {
+class PlaybackHistory;
+}
+namespace Library {
+class TrackStates;
+}
+namespace Rpc {
+class SourceManager;
+}
+
+namespace ViewModel {
+
+class Messages;
+class Sources;
+
+// The playlist the main area has active — what it shows, and what the
+// queue came from: making one active (and playing it, or starting its
+// radio), its tracks until they're queued, marking it in the sidebar, and
+// bringing the last one back at startup — playing it again only if it was
+// playing at quit and Settings::resumePlaybackAtStartup() is on. That
+// needs nothing from the source when the saved song is downloaded: it plays
+// at once, and the source catches up behind it.
+class ActivePlaylist : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QString title READ title NOTIFY titleChanged)
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(bool loading READ isLoading NOTIFY loadingChanged)
+    Q_PROPERTY(bool startingRadio READ isStartingRadio NOTIFY startingRadioChanged)
+
+public:
+    ActivePlaylist(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
+        Library::TrackStates& trackStates, Covers::CoverArtCache& coverArtCache, History::PlaybackHistory& history,
+        Config::Settings& settings, Sources& sources, App::PlaylistEditing& playlistEditing, Messages& messages,
+        const App::PlaylistTrackCache& playlistTracks, QObject* parent = nullptr);
+
+    const PlaylistContext& context() const { return context_; }
+    QString title() const { return context_.isHistory ? tr("History") : context_.playlist.title; }
+    int count() const { return int(entries().size()); }
+    // History, as a context.
+    PlaylistContext historyContext() const;
+    // What the main list shows: the queue once there is one, else the
+    // active playlist's tracks.
+    QVector<Playback::QueueEntry> entries() const;
+    // The saved song's row in freshly fetched playlist tracks, or the first row.
+    int resumeIndex() const;
+    // The saved song's row in entries(), -1 if it isn't there.
+    int savedRow() const;
+    // The saved song, when it is still present in entries().
+    std::optional<Playback::QueueEntry> savedEntry() const;
+    // How long what's saved may stand after the start before it's refreshed
+    // from its source, for that not to compete with what's coming up on screen
+    // and in the speakers. Call before the source lists its playlists.
+    void setRefreshDelay(int ms) { refreshDelayMs_ = ms; }
+    // Its tracks are being fetched (the list's busy bar).
+    bool isLoading() const { return loading_; }
+    // A radio is starting (the hero's Play button spins).
+    bool isStartingRadio() const { return startingRadio_; }
+
+    // Whether a source is known to be offline now (App::Connectivity): a
+    // radio of it then starts from the disk without asking it first.
+    void setOfflineProvider(std::function<bool(const QString& sourceId)> provider) { offline_ = std::move(provider); }
+
+    // Makes `context` active without touching playback.
+    void setContext(const PlaylistContext& context);
+    void playLocalInput(const Track& track, const QString& url, bool persistent);
+    void reportLocalInputError();
+    // Makes `context` active and plays `entries` from `startIndex` (History
+    // fills its own; a radio station starts instead).
+    void activate(const PlaylistContext& context, const QVector<Playback::QueueEntry>& entries, int startIndex);
+    // Fetches the playlist's tracks, then activate()s it — from the saved ones
+    // if its source can't answer.
+    Rpc::Task<void> activateAndPlay(QString sourceId, Playlist playlist);
+    // Downloaded tracks of the source for a radio to go on with offline: from
+    // History, the radio's saved tracks and the queue; not disliked or
+    // unavailable, none queued after the current one; the ones played
+    // lately only when there's nothing else. Up to `count`, in random order.
+    QList<Track> cachedRadioTracks(const QString& sourceId, int count) const;
+    // Starts a radio from `seed` and, once it runs, makes `context` active.
+    Rpc::Task<void> startRadio(
+        QString sourceId, QString seed, PlaylistContext context, std::optional<Track> resumeTrack = std::nullopt);
+
+    // The source deleted these tracks: they leave the playlist (not a running
+    // queue, which goes on as it is).
+    void dropTracks(const QString& sourceId, const QStringList& trackIds);
+
+public slots:
+    // The hero's Play: (re)starts the active playlist.
+    void play();
+    // Whatever was playing last goes on, with what was saved of it: at once
+    // from the disk, else as soon as the source is up — or, with nothing
+    // saved, as soon as the tracks are.
+    void resume();
+    // The track `delta` rows from the saved one, with nothing loaded yet.
+    void step(int delta);
+    // A row of the main list played.
+    void playRow(int row);
+    // A radio's queue made anew: a new station, from the settings as they
+    // are now, in place of what it has queued. Nothing for a playlist.
+    void restartRadio();
+
+signals:
+    void contextChanged();
+    void entriesChanged();
+    void titleChanged();
+    void countChanged();
+    void loadingChanged(bool loading);
+    void startingRadioChanged(bool starting);
+    // Something started playing from here — the sheet steps aside.
+    void activated();
+
+private:
+    Rpc::Task<void> loadTracks(PlaylistContext context);
+    Rpc::Task<void> refreshRadioLikes(QString sourceId, QString playlistId);
+    void restoreFrom(const QString& sourceId, const QList<Playlist>& playlists);
+    // Plays the restored playlist from its saved song, once, if a resume
+    // is still pending and nothing else has started meanwhile.
+    void resumePlayback();
+    // The track started next goes on from where it was left.
+    void resumePosition();
+    void savePosition();
+    // At startup: plays the saved song from what is on disk already, with
+    // no wait for its source — see the constructor.
+    void resumeFromCache();
+    // The saved tracks of a radio, from the saved one, with no station yet.
+    // The radio's saved tracks, from `index` (the saved resume point if -1),
+    // with no station yet: it is attached when the source is up.
+    void playSavedRadio(int index = -1);
+    // No station to be had: the radio plays what's on the disk — its own
+    // saved tracks if any are downloaded, else cachedRadioTracks(). False if
+    // there's nothing.
+    bool playOfflineRadio(const PlaylistContext& context);
+    // playOfflineRadio(), or saying there's nothing to play.
+    void startOfflineRadio(const PlaylistContext& context, const QString& sourceName);
+    // The source is up and answering.
+    bool sourceAnswers(const QString& sourceId) const;
+    // A radio resumed without its station gets one, once its source is up.
+    Rpc::Task<void> attachStation(QString sourceId, QString seed);
+    // What a station is started with: its seed, and the source's tracks
+    // played lately, for it not to play them again so soon.
+    StartRadioParams radioParams(const QString& sourceId, const QString& seed) const;
+    void applyPlaylistEdit(
+        const QString& sourceId, const Track& track, const QString& playlistId, bool added, int trackCount);
+    void loadCachedTracks();
+    void saveCachedTracks() const;
+    QVector<Playback::QueueEntry> restoredQueue(int& baseIndex) const;
+    // Makes `context` active and plays it from what was saved of its tracks;
+    // false if nothing was.
+    bool activateFromCache(const PlaylistContext& context);
+
+    Playback::PlaybackController& playback_;
+    Rpc::SourceManager& sourceManager_;
+    Library::TrackStates& trackStates_;
+    Covers::CoverArtCache& coverArtCache_;
+    History::PlaybackHistory& history_;
+    Config::Settings& settings_;
+    Sources& sources_;
+    Messages& messages_;
+    const App::PlaylistTrackCache& playlistTracks_;
+
+    std::function<bool(const QString& sourceId)> offline_;
+    PlaylistContext context_;
+    QVector<Playback::QueueEntry> tracks_;
+    QVector<QPair<int, Playback::QueueEntry>> restoredInputs_;
+    QString lastLocalInputId_;
+    bool loading_ = false;
+    bool startingRadio_ = false;
+    // The active playlist saved last run, until its source lists it.
+    Config::Settings::ActivePlaylistRef pendingRestore_;
+    // tracks_ are the saved ones: loading them anew failed.
+    bool tracksStale_ = false;
+    Timing::Throttle positionSave_;
+    int refreshDelayMs_ = 0;
+    // The restored playlist is to play once it's back (resumePlayback()).
+    bool resumePending_ = false;
+    quint64 likesRefreshGeneration_ = 0;
+    quint64 feedbackRevision_ = 0;
+};
+
+} // namespace ViewModel

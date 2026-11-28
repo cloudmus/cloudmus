@@ -1,4 +1,4 @@
-from ytmusicapi import OAuthCredentials, YTMusic
+from ytmusicapi import YTMusic
 
 from rpc_common import errors
 from rpc_common.server import BackendError
@@ -9,30 +9,9 @@ from .i18n import tr
 _client: YTMusic | None = None
 
 
-def _oauth_credentials() -> OAuthCredentials:
-    creds = config.get_client_credentials()
-    if creds is None:
-        raise BackendError(
-            errors.AUTH_NOT_AUTHENTICATED,
-            f"YouTube Music OAuth client not configured: create a Google Cloud OAuth "
-            f'client ("TVs and Limited Input devices" type, YouTube Data API v3 enabled) '
-            f"and write {{\"clientId\": ..., \"clientSecret\": ...}} to {config.CLIENT_FILE}",
-            errors.app_error_data(retryable=False),
-        )
-    client_id, client_secret = creds
-    return OAuthCredentials(client_id=client_id, client_secret=client_secret)
-
-
 def get_client() -> YTMusic:
     """Returns the cached authenticated YTMusic client, or raises BackendError
-    (auth-not-authenticated) if neither auth mechanism has been set up yet.
-
-    Browser-header auth is tried first: it's the currently-active flow (see
-    auth.py's BrowserAuthSession) since device-code OAuth's data calls are
-    presently broken upstream (sigma67/ytmusicapi#676) even though OAuth
-    login itself still succeeds. Falling back to a leftover oauth_token.json
-    from before that break is harmless — it just won't actually work until
-    upstream fixes it, same as it doesn't today.
+    (auth-not-authenticated) if nobody has signed in yet (see auth.py).
     """
     global _client
     if _client is not None:
@@ -42,18 +21,22 @@ def get_client() -> YTMusic:
         _client = YTMusic(auth=str(config.BROWSER_HEADERS_FILE))
         return _client
 
-    if config.has_token():
-        # auth=str(path) (not a dict) so ytmusicapi's RefreshingToken keeps
-        # local_cache pointed at this file and auto-persists refreshed
-        # tokens back to it on every access_token read past expiry.
-        _client = YTMusic(auth=str(config.TOKEN_FILE), oauth_credentials=_oauth_credentials())
-        return _client
-
     raise BackendError(
         errors.AUTH_NOT_AUTHENTICATED,
         tr("Not authenticated: call auth.start first"),
         errors.app_error_data(retryable=False),
     )
+
+
+def says_signed_out(client: YTMusic) -> bool:
+    """YouTube's own word that it answers this session as nobody's. Raises
+    if it can't be asked."""
+    response = client._send_request("account/account_menu", {})
+    for service in response.get("responseContext", {}).get("serviceTrackingParams", []):
+        for param in service.get("params", []):
+            if param.get("key") == "logged_in":
+                return param.get("value") == "0"
+    return False
 
 
 def signed_out() -> bool:
@@ -64,18 +47,13 @@ def signed_out() -> bool:
     a failure; anything short of YouTube's own word (no network, no saved
     session, an answer without the flag) is not a sign-out."""
     try:
-        response = get_client()._send_request("account/account_menu", {})
+        return says_signed_out(get_client())
     except Exception:
         return False
-    for service in response.get("responseContext", {}).get("serviceTrackingParams", []):
-        for param in service.get("params", []):
-            if param.get("key") == "logged_in":
-                return param.get("value") == "0"
-    return False
 
 
 def reset_client() -> None:
-    """Drops the cached client so the next get_client() re-reads the token
-    (used after a fresh login or a logout)."""
+    """Drops the cached client so the next get_client() re-reads the saved
+    session (used after a fresh login or a logout)."""
     global _client
     _client = None

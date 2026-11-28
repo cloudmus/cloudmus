@@ -1,7 +1,6 @@
 import os
 import shutil
 import subprocess
-import sys
 
 import pytest
 
@@ -22,7 +21,11 @@ def _make_silent_mp3(path, duration_sec=2):
 
 
 @pytest.mark.asyncio
-async def test_app_boots_with_local_folder_backend(tmp_path):
+async def test_app_boots_with_local_folder_backend(tmp_path, local_folder_argv, monkeypatch):
+    import mpv
+
+    make_player = mpv.MPV
+    monkeypatch.setattr(mpv, "MPV", lambda **options: make_player(**{**options, "ao": "null"}))
     (tmp_path / "AlbumA").mkdir()
     if shutil.which("ffmpeg"):
         _make_silent_mp3(tmp_path / "AlbumA" / "track1.mp3")
@@ -33,7 +36,7 @@ async def test_app_boots_with_local_folder_backend(tmp_path):
     manifest = BackendManifest(
         id="local-folder",
         name="Local Folder",
-        argv=["python", "-m", "cloudmus_backend_local"],
+        argv=local_folder_argv,
         protocol_version="1.0",
         manifest_path=None,
     )
@@ -53,7 +56,7 @@ async def test_app_boots_with_local_folder_backend(tmp_path):
         labels = [str(item.children[0].render()) for item in sidebar.children]
         assert any("AlbumA" in label for label in labels)
 
-        playlist_item = sidebar.children[0]
+        playlist_item = next(item for item in sidebar.children if "AlbumA" in str(item.children[0].render()))
         await app._load_source(playlist_item)
         await pilot.pause(0.2)
 
@@ -112,7 +115,7 @@ async def test_track_change_scrolls_open_playlist(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_restart_restores_playlist_and_last_song_without_playing(tmp_path, monkeypatch):
+async def test_restart_restores_playlist_and_last_song_without_playing(tmp_path, monkeypatch, local_folder_argv):
     music_dir = tmp_path / "music"
     album = music_dir / "AlbumA"
     album.mkdir(parents=True)
@@ -120,7 +123,7 @@ async def test_restart_restores_playlist_and_last_song_without_playing(tmp_path,
         (album / name).write_bytes(b"")
     monkeypatch.setenv("CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR", str(music_dir))
     manifest = BackendManifest(
-        id="local-folder", name="Local Folder", argv=[sys.executable, "-m", "cloudmus_backend_local"],
+        id="local-folder", name="Local Folder", argv=local_folder_argv,
         protocol_version="1.0", manifest_path=None,
     )
     path = tmp_path / "session.json"
@@ -128,7 +131,11 @@ async def test_restart_restores_playlist_and_last_song_without_playing(tmp_path,
     first = PlayerApp(manifests=[manifest], session_path=path)
     async with first.run_test() as pilot:
         await pilot.pause()
-        await first._load_source(first.query_one("#sidebar").children[0])
+        await pilot.pause(0.2)
+        album_item = next(
+            item for item in first.query_one("#sidebar").children if "AlbumA" in str(item.children[0].render())
+        )
+        await first._load_source(album_item)
         assert len(first._current_tracks) == 2
         assert first.playback_engine is not None
         first.playback_engine.queue = [QueueEntry("local-folder", track) for track in first._current_tracks]

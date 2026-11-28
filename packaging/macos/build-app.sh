@@ -2,7 +2,7 @@
 # Builds dist/CloudMus-<version>-<arch>.dmg (arch: x86_64 or arm64, this
 # machine's) — CloudMus.app with Qt, libmpv, a Python runtime and the
 # backends inside, here and in GitHub Actions alike. The update installer
-# (fronts/qt/src/Update/InstallerMac.cpp) expects CloudMus.app at the DMG's
+# (fronts/desktop/src/Update/InstallerMac.cpp) expects CloudMus.app at the DMG's
 # root, and release.yml the file's name.
 #
 # Needs what docs/development.md's "macOS" section sets up: Xcode's Command
@@ -52,7 +52,7 @@ case $arch in
         exit 1
         ;;
 esac
-backends=(local-folder yandex-music youtube-music)
+backends=(yandex-music youtube-music)
 
 # Same derivation as cmake/Version.cmake and packaging/windows/build-in-docker.sh.
 version="$(git describe --tags --dirty --match '[0-9]*' --match 'v[0-9]*' 2>/dev/null || true)"
@@ -80,7 +80,7 @@ sentry=OFF
 if [[ -n ${CLOUDMUS_SENTRY_DSN:-} ]]; then sentry=ON; fi
 # -g1: enough debug info for Sentry to name functions and lines in a crash
 # stack; it goes into the dSYM below, macdeployqt strips what ships.
-PKG_CONFIG_PATH=$deps/lib/pkgconfig cmake -S fronts/qt -B "$build" -G Ninja \
+PKG_CONFIG_PATH=$deps/lib/pkgconfig cmake -S fronts/desktop -B "$build" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
     -DCMAKE_C_FLAGS=-g1 -DCMAKE_CXX_FLAGS=-g1 \
     -DCLOUDMUS_SENTRY="$sentry" \
@@ -145,7 +145,10 @@ rm -rf "$pylib"/{test,idlelib,tkinter,turtledemo} "$pylib"/lib-dynload/_tkinter*
 find "$python/bin" -mindepth 1 ! -name python3 ! -name python3.13 -delete
 
 mkdir -p "$resources/backends"
-python3 - "$resources/backends" "${backends[@]}" <<'PY'
+cargo build --release --locked --target "$python_triple" \
+    --manifest-path backends/local-folder/Cargo.toml --target-dir "$build/rust"
+cp "$build/rust/$python_triple/release/cloudmus-backend-local-folder" "$resources/backends/"
+python3 - "$resources/backends" local-folder "${backends[@]}" <<'PY'
 import json
 import pathlib
 import sys
@@ -156,11 +159,17 @@ for backend_id in sys.argv[2:]:
     manifest = json.loads((source / 'manifest.json').read_text(encoding='utf-8'))
     # Relative to the manifest (Rpc::BackendManifest's bundled scan). -s:
     # no user site-packages (~/Library/Python/3.13) to shadow the bundle's.
-    manifest['argv'] = ['../python/bin/python3', '-s', *manifest['argv'][1:]]
+    manifest['argv'] = (
+        ['cloudmus-backend-local-folder'] if backend_id == 'local-folder'
+        else ['../python/bin/python3', '-s', *manifest['argv'][1:]]
+    )
     # All the backends' files share one folder: the icon goes by the id.
     if 'icon' in manifest:
         manifest['icon'] = f'{backend_id}.svg'
         (dest / f'{backend_id}.svg').write_bytes((source / 'icon.svg').read_bytes())
+    if 'logo' in manifest:
+        manifest['logo'] = f'{backend_id}-logo.svg'
+        (dest / f'{backend_id}-logo.svg').write_bytes((source / 'logo.svg').read_bytes())
     (dest / f'{backend_id}.json').write_text(json.dumps(manifest, ensure_ascii=False), encoding='utf-8')
 PY
 

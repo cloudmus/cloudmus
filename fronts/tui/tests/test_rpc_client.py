@@ -1,4 +1,3 @@
-import sys
 
 import pytest
 
@@ -6,23 +5,23 @@ from cloudmus_tui.discovery import BackendManifest
 from cloudmus_tui.rpc_client import BackendClient
 
 
-def _local_folder_manifest(music_dir) -> BackendManifest:
+def _local_folder_manifest(music_dir, local_folder_argv) -> BackendManifest:
     import os
 
     os.environ["CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR"] = str(music_dir)
     return BackendManifest(
         id="local-folder",
         name="Local Folder",
-        argv=[sys.executable, "-m", "cloudmus_backend_local"],
+        argv=local_folder_argv,
         protocol_version="1.0",
         manifest_path=None,
     )
 
 
 @pytest.mark.asyncio
-async def test_backend_client_initialize_and_shutdown(tmp_path):
+async def test_backend_client_initialize_and_shutdown(tmp_path, local_folder_argv):
     (tmp_path / "track.mp3").write_bytes(b"")
-    manifest = _local_folder_manifest(tmp_path)
+    manifest = _local_folder_manifest(tmp_path, local_folder_argv)
     notifications = []
     client = BackendClient(manifest, lambda method, params: notifications.append((method, params)))
 
@@ -32,22 +31,23 @@ async def test_backend_client_initialize_and_shutdown(tmp_path):
     assert client.source_info["id"] == "local-folder"
 
     result = await client.request("catalog.listPlaylists", {})
-    assert len(result["playlists"]) == 1
+    # The wave, and all the music.
+    assert [playlist["kind"] for playlist in result["playlists"]] == ["radioStation", "playlist"]
 
     await client.shutdown()
     assert client.available is False
 
 
 @pytest.mark.asyncio
-async def test_backend_client_play_delivers_stream_ready_notification(tmp_path):
+async def test_backend_client_play_delivers_stream_ready_notification(tmp_path, local_folder_argv):
     (tmp_path / "track.mp3").write_bytes(b"")
-    manifest = _local_folder_manifest(tmp_path)
+    manifest = _local_folder_manifest(tmp_path, local_folder_argv)
     notifications = []
     client = BackendClient(manifest, lambda method, params: notifications.append((method, params)))
     await client.start()
 
     playlists = await client.request("catalog.listPlaylists", {})
-    playlist_id = playlists["playlists"][0]["id"]
+    playlist_id = next(p["id"] for p in playlists["playlists"] if p["kind"] == "playlist")
     tracks = await client.request("catalog.listTracks", {"playlistId": playlist_id})
     track_id = tracks["tracks"][0]["id"]
 

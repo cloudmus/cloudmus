@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/fonts">
+        <file alias="fonts/Manrope-Regular.ttf">../../../core/resources/fonts/Manrope-Regular.ttf</file>
+        <file alias="fonts/Manrope-Medium.ttf">../../../core/resources/fonts/Manrope-Medium.ttf</file>
+        <file alias="fonts/Manrope-SemiBold.ttf">../../../core/resources/fonts/Manrope-SemiBold.ttf</file>
+        <file alias="fonts/Manrope-Bold.ttf">../../../core/resources/fonts/Manrope-Bold.ttf</file>
+    </qresource>
+</RCC>

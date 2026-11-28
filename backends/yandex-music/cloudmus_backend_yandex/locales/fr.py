@@ -31,4 +31,10 @@ STRINGS = {'expected true or false': 'true ou false attendu',
                                                                   'goûts et votre historique d’écoute',
  'Liked': 'J’aime',
  'Playlist or track not found': 'Liste de lecture ou piste introuvable',
- 'Track in playlist not found': 'Piste introuvable dans la liste de lecture'}
+ 'Track in playlist not found': 'Piste introuvable dans la liste de lecture',
+ "the service's address can't be resolved": 'l’adresse du service ne peut pas être résolue',
+ "the service doesn't answer in time": 'le service ne répond pas à temps',
+ 'the connection is refused': 'la connexion est refusée',
+ "the proxy can't be reached": 'le proxy est injoignable',
+ 'the network is unreachable': 'le réseau est injoignable',
+ "a secure connection can't be made": 'impossible d’établir une connexion sécurisée'}

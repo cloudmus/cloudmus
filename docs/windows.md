@@ -6,7 +6,7 @@ and the host's Wine runs the result. Neither replaces a real Windows machine
 for how things look (see [What Wine can't tell](#what-wine-cant-tell)).
 
 Windows-only code sits behind `Q_OS_WIN`, or in `*Win.cpp` files listed under
-`if(WIN32)` in `fronts/qt/CMakeLists.txt`. A Linux build doesn't compile any
+`if(WIN32)` in `fronts/desktop/CMakeLists.txt`. A Linux build doesn't compile any
 of it, so passing Linux tests says nothing about it: build for Windows too.
 
 ## Building
@@ -48,8 +48,8 @@ laid over it when that one is newer. The Wine prefix is its own
 touched. The debug log is on. Headless mode waits `SHOT_DELAY` seconds (default
 25) before the screenshot, and then kills Wine and Xvfb.
 
-Under Wine the app really works: the backends start from the bundled Python,
-the local-folder backend sees `~/Music`, and the sign-in flows start. Keep
+Under Wine the app really works: the online backends start from the bundled Python,
+the Rust local-folder backend sees `~/Music`, and the sign-in flows start. Keep
 that in mind: a run can start OAuth device flows against real services.
 
 Windows settings the app reads come from the prefix's registry, set with

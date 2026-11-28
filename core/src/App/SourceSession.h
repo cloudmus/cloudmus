@@ -1,0 +1,86 @@
+#pragma once
+
+#include <QJsonObject>
+#include <QObject>
+#include <QString>
+
+#include "Coro.h"
+#include "Models.h"
+
+namespace Covers {
+class CoverArtCache;
+}
+namespace Library {
+class TrackStates;
+}
+namespace Playback {
+class PlaybackController;
+}
+namespace ViewModel {
+class Messages;
+}
+namespace Rpc {
+class AuthStates;
+class RpcClient;
+class SourceManager;
+} // namespace Rpc
+
+namespace App {
+
+// A running source's side of the conversation that doesn't depend on any
+// view: its notifications go where they belong (streams and radio tracks
+// to playback, sign-in prompts and results to Rpc::AuthStates, errors to
+// ViewModel::Messages), and it's signed in as it starts. Part of App::Core,
+// so this keeps working while no window exists.
+class SourceSession : public QObject {
+    Q_OBJECT
+
+public:
+    SourceSession(Rpc::SourceManager& sourceManager, Playback::PlaybackController& playback,
+        Rpc::AuthStates& authStates, Library::TrackStates& trackStates, Covers::CoverArtCache& coverArtCache,
+        ViewModel::Messages& messages, QObject* parent = nullptr);
+
+    // Asks the source to sign in unless it already is (auth.getStatus, then
+    // auth.start) — its prompt and result then come in as notifications.
+    Rpc::Task<void> signIn(QString sourceId);
+    // What came of a prompt's `form` or `browser` method (auth.submit): the
+    // form's values by field name, or what the built-in browser ended up
+    // with. An empty result on success, else what went wrong (also posted as
+    // an error message).
+    Rpc::Task<QString> submitForm(QString sourceId, QJsonObject fields);
+    Rpc::Task<QString> submitBrowser(QString sourceId, AuthBrowserResult result);
+    // A source left unstarted until it's needed comes up, and signs in as any
+    // source does. False if it was running already.
+    bool wake(const QString& sourceId);
+    // Whether the source is one to sign out of, and signed in right now.
+    bool canSignOut(const QString& sourceId) const;
+    // What the running source declared; empty while it isn't running.
+    QJsonObject capabilities(const QString& sourceId) const;
+    // auth.logout. The same outcome as submitForm().
+    Rpc::Task<QString> signOut(QString sourceId);
+
+signals:
+    // A source has started and is wired up — ready to list its playlists.
+    void sourceReady(Rpc::RpcClient* client);
+    // A source finished signing in — what it lists may have changed.
+    void signedIn(Rpc::RpcClient* client);
+    // How far one of its named downloads has got (docs/protocol.md §7.5).
+    void downloadProgress(const QString& sourceId, const DownloadProgressParams& params);
+    // The source noticed its service go away or come back (connection/changed,
+    // docs/protocol.md §7.9).
+    void connectionChanged(const QString& sourceId, bool online, const QString& detail);
+
+private:
+    void wire(Rpc::RpcClient* client);
+    Rpc::Task<void> signIn(Rpc::RpcClient* client);
+    Rpc::Task<QString> submit(QString sourceId, SubmitParams params);
+
+    Rpc::SourceManager& sourceManager_;
+    Playback::PlaybackController& playback_;
+    Rpc::AuthStates& authStates_;
+    Library::TrackStates& trackStates_;
+    Covers::CoverArtCache& coverArtCache_;
+    ViewModel::Messages& messages_;
+};
+
+} // namespace App

@@ -1,0 +1,130 @@
+#pragma once
+
+#include <QObject>
+#include <QSet>
+
+#include "ActivePlaylist.h"
+#include "ActiveTracks.h"
+#include "Analytics.h"
+#include "AudioFileProbe.h"
+#include "AudioPulse.h"
+#include "LogoSound.h"
+#include "AuthStates.h"
+#include "ConnectionStatus.h"
+#include "CoverArtCache.h"
+#include "Downloads.h"
+#include "ListeningTime.h"
+#include "Messages.h"
+#include "NowPlaying.h"
+#include "Outbox.h"
+#include "PlaybackController.h"
+#include "PlaybackHistory.h"
+#include "PlaylistEditing.h"
+#include "Connectivity.h"
+#include "Preload.h"
+#include "ProxyRouting.h"
+#include "Settings.h"
+#include "TrackFetch.h"
+#include "SourceManager.h"
+#include "SourcePage.h"
+#include "TrackActions.h"
+#include "TrackDeletion.h"
+#include "SourceSession.h"
+#include "Sources.h"
+#include "TrackStates.h"
+#include "Translator.h"
+
+namespace App {
+
+// Everything the app is, short of its window: settings, the backends,
+// playback and the state kept about them. Created once in main() and alive
+// for the whole run — the window (and the tray, MPRIS/SMTC, notifications)
+// only use it, so a window can come and go without anything here being
+// lost. Both fronts run this; App::DesktopCore adds what only the desktop has.
+class Core : public QObject {
+    Q_OBJECT
+
+public:
+    explicit Core(QObject* parent = nullptr);
+
+    Config::Settings& settings() { return settings_; }
+    I18n::Translator& translator() { return translator_; }
+    Analytics& analytics() { return analytics_; }
+    Rpc::SourceManager& sourceManager() { return sourceManager_; }
+    Playback::PlaybackController& playback() { return playback_; }
+    ViewModel::AudioPulse& audioPulse() { return audioPulse_; }
+    ViewModel::LogoSound& logoSound() { return logoSound_; }
+    Rpc::AuthStates& authStates() { return authStates_; }
+    History::PlaybackHistory& playbackHistory() { return playbackHistory_; }
+    Library::TrackStates& trackStates() { return trackStates_; }
+    Covers::CoverArtCache& coverArtCache() { return coverArtCache_; }
+    SourceSession& sourceSession() { return sourceSession_; }
+    ViewModel::Messages& messages() { return messages_; }
+    ViewModel::NowPlaying& nowPlaying() { return nowPlaying_; }
+    ViewModel::Downloads& downloads() { return downloads_; }
+    ViewModel::Preload& preload() { return preload_; }
+    PlaylistEditing& playlistEditing() { return playlistEditing_; }
+    const PlaylistTrackCache& playlistTracks() const { return playlistTracks_; }
+    ViewModel::Sources& sources() { return sources_; }
+    ViewModel::ActivePlaylist& activePlaylist() { return activePlaylist_; }
+    ViewModel::ActiveTracks& activeTracks() { return activeTracks_; }
+    ViewModel::TrackActions& trackActions() { return trackActions_; }
+    TrackDeletion& trackDeletion() { return trackDeletion_; }
+    ViewModel::SourcePage& sourcePage() { return sourcePage_; }
+    ListeningTime& listeningTime() { return listeningTime_; }
+    Connectivity& connectivity() { return connectivity_; }
+    ViewModel::ConnectionStatus& connectionStatus() { return connectionStatus_; }
+    Outbox& outbox() { return outbox_; }
+
+private:
+    // How a source reaches the network: its setting, except for a source
+    // that doesn't use the network at all (whatever an older setting says).
+    Net::Connection connectionOf(const QString& sourceId) const;
+    // connection.check for Connectivity: nullopt when the source can't be
+    // asked that way.
+    Rpc::Task<std::optional<Connectivity::CheckResult>> checkConnection(QString sourceId);
+    // The outbox, hooked up to who queues into it and to when it's sent.
+    void setUpOutbox();
+    // For playback: true at once unless the source was found offline, then
+    // what a fresh check says.
+    Rpc::Task<bool> reachable(QString sourceId);
+    // feedback.played, or into the outbox.
+    Rpc::Task<void> reportPlay(QString sourceId, QString trackId, int playedMs, QDateTime startedAt);
+
+    // Declaration order is construction order: playback_ needs
+    // sourceManager_.
+    Config::Settings settings_;
+    PlaylistTrackCache playlistTracks_;
+    I18n::Translator translator_;
+    Analytics analytics_;
+    Rpc::SourceManager sourceManager_;
+    Playback::PlaybackController playback_;
+    ViewModel::Preload preload_;
+    ViewModel::AudioPulse audioPulse_;
+    ViewModel::LogoSound logoSound_;
+    Rpc::AuthStates authStates_;
+    History::PlaybackHistory playbackHistory_;
+    Library::TrackStates trackStates_;
+    // Likes, playlist edits and plays the sources couldn't be told yet.
+    Outbox outbox_;
+    Playback::AudioFileProbe fileProbe_;
+    // Cached files asked of fileProbe_ already (once is enough for a run).
+    QSet<QString> probedFiles_;
+    Covers::CoverArtCache coverArtCache_;
+    ViewModel::Messages messages_;
+    SourceSession sourceSession_;
+    ViewModel::Downloads downloads_;
+    ViewModel::NowPlaying nowPlaying_;
+    PlaylistEditing playlistEditing_;
+    ViewModel::Sources sources_;
+    ViewModel::ActivePlaylist activePlaylist_;
+    ViewModel::ActiveTracks activeTracks_;
+    ViewModel::TrackActions trackActions_;
+    TrackDeletion trackDeletion_;
+    ViewModel::SourcePage sourcePage_;
+    ListeningTime listeningTime_;
+    Connectivity connectivity_;
+    ViewModel::ConnectionStatus connectionStatus_;
+};
+
+} // namespace App

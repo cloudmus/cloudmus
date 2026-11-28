@@ -60,7 +60,7 @@ def _as_int(value: object) -> int:
     # returns a real playlist's "count" as a numeric-looking *string* (e.g.
     # "28"), while special entries (liked-music/podcast-queue placeholders)
     # carry a real int 0. The protocol's Playlist.trackCount/Track.durationMs
-    # are strict integers (fronts/qt's generated ...::fromJson() throws
+    # are strict integers (fronts/desktop's generated ...::fromJson() throws
     # ProtocolParseError on a type mismatch), so passing either through
     # unconverted breaks the *entire* listPlaylists/listTracks response, not
     # just that one field — used for both below since the same inconsistency

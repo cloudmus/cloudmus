@@ -1,0 +1,270 @@
+package app.cloudmus.mobile;
+
+import android.Manifest;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
+import android.media.AudioManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.view.KeyEvent;
+
+import org.qtproject.qt.android.bindings.QtActivity;
+
+public class MainActivity extends QtActivity {
+    private static final String TAG = "MainActivity";
+
+    // Held while the screen is up. The views talk to the core over a socket,
+    // which Android doesn't see: with no binding the core's process counts as a
+    // background service, and it and the sources it starts get only the slow
+    // processors (cpuset /background) — a source took 3 s to start on a Pixel.
+    private final ServiceConnection core = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+        }
+    };
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        CmLog.mark("activity onCreate");
+        CmLog.i(TAG, "onCreate action=" + getIntent().getAction());
+        UiBridge.pythonProbeRequested = getIntent().getBooleanExtra("pythonProbe", false);
+        super.onCreate(savedInstanceState);
+        Appearance.setUp(this);
+        StartScreen.hold(this);
+        preferFastestRefreshRate();
+        hideFromOtherAccessibility();
+        if (savedInstanceState == null) {
+            openAudio(getIntent());
+            openDownloads(getIntent());
+        }
+        // Android 8–9 needs this grant to write shared music and logs.
+        if (Build.VERSION.SDK_INT <= 28
+            && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+        }
+    }
+
+    // Android asks a window for its content for accessibility services and for
+    // content capture, and each answer waits for Qt's thread (see
+    // Platform::limitAccessibility()). Only a screen reader gets one.
+    private void hideFromOtherAccessibility() {
+        if (!UiBridge.screenReaderOn(this).isEmpty())
+            return;
+        android.view.View root = getWindow().getDecorView();
+        root.setImportantForAccessibility(android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        if (Build.VERSION.SDK_INT >= 30)
+            root.setImportantForContentCapture(android.view.View.IMPORTANT_FOR_CONTENT_CAPTURE_NO_EXCLUDE_DESCENDANTS);
+    }
+
+    // Android leaves a surface that doesn't ask at 60 Hz, even on a 90 or
+    // 120 Hz screen: scrolling under the finger then stutters. The fastest
+    // mode at the current resolution.
+    private void preferFastestRefreshRate() {
+        android.view.Display display = getWindowManager().getDefaultDisplay();
+        android.view.Display.Mode current = display.getMode();
+        android.view.Display.Mode best = current;
+        StringBuilder modes = new StringBuilder();
+        for (android.view.Display.Mode mode : display.getSupportedModes()) {
+            modes.append(' ').append(mode.getPhysicalWidth()).append('x').append(mode.getPhysicalHeight())
+                .append('@').append(mode.getRefreshRate());
+            if (mode.getPhysicalWidth() == current.getPhysicalWidth()
+                && mode.getPhysicalHeight() == current.getPhysicalHeight()
+                && mode.getRefreshRate() > best.getRefreshRate())
+                best = mode;
+        }
+        android.view.WindowManager.LayoutParams params = getWindow().getAttributes();
+        params.preferredDisplayModeId = best.getModeId();
+        getWindow().setAttributes(params);
+        CmLog.i(TAG, "display modes:" + modes + "; current " + current.getRefreshRate() + " Hz, asked for "
+                + best.getRefreshRate() + " Hz");
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(code, permissions, results);
+        CmLog.i(TAG, "permissions result: " + java.util.Arrays.toString(permissions) + " "
+                + java.util.Arrays.toString(results));
+        CmLog.storageChanged();
+        startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
+    }
+
+    private void openAudio(Intent incoming) {
+        if (!Intent.ACTION_VIEW.equals(incoming.getAction()) || incoming.getData() == null)
+            return;
+        Intent command = new Intent(this, PlaybackService.class)
+            .setAction(PlaybackService.ACTION_OPEN_AUDIO)
+            .setDataAndType(incoming.getData(), incoming.getType())
+            .setFlags(incoming.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION));
+        startService(command);
+        UiBridge.audioOpened();
+    }
+
+    private void openDownloads(Intent incoming) {
+        if (incoming.getBooleanExtra(DownloadNotice.EXTRA_OPEN_DOWNLOADS, false))
+            UiBridge.downloadsOpened();
+    }
+
+    private static final int NOTIFICATION_REQUEST = 4;
+
+    // Android 13+ asks; it stops asking by itself once the user has said no
+    // twice. The notification is all it's for: the app's own screen shows the
+    // same without it.
+    void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33)
+            return;
+        runOnUiThread(() -> {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+                requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_REQUEST);
+        });
+    }
+
+    private static final int DELETE_REQUEST = 3;
+
+    void requestMediaDelete(String[] uris) {
+        if (Build.VERSION.SDK_INT < 30 || uris.length == 0)
+            return;
+        runOnUiThread(() -> {
+            java.util.List<android.net.Uri> items = new java.util.ArrayList<>();
+            for (String uri : uris)
+                items.add(android.net.Uri.parse(uri));
+            try {
+                android.app.PendingIntent request
+                    = android.provider.MediaStore.createDeleteRequest(getContentResolver(), items);
+                startIntentSenderForResult(request.getIntentSender(), DELETE_REQUEST, null, 0, 0, 0);
+            } catch (Exception error) {
+                CmLog.e(TAG, "ask to delete tracks", error);
+            }
+        });
+    }
+
+    @Override
+    protected void onActivityResult(int code, int result, Intent data) {
+        super.onActivityResult(code, result, data);
+        if (code == DELETE_REQUEST)
+            startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
+        if (code == UpdateServer.CHOOSE_REQUEST && result == RESULT_OK && data != null && data.getData() != null)
+            UpdateServer.chosen(this, data.getData());
+        if (code == PathPicker.REQUEST)
+            PathPicker.picked(this, result, data);
+    }
+
+    void requestMusicPermission() {
+        runOnUiThread(() -> {
+            String permission = MusicStorage.readPermission();
+            if (checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED)
+                return;
+            // GWM's request page can't grant storage: Android's own app
+            // screen can (GwmAppSettings).
+            if (GwmAppSettings.present(this) && GwmAppSettings.openAppPermissions(this))
+                return;
+            requestPermissions(new String[] {permission}, 2);
+        });
+    }
+
+    // With the app on screen the head unit hands the steering-wheel buttons
+    // to it as plain keys, and Qt swallowed them: the media session never
+    // saw them. They go to the media session the way they would with the
+    // app in the background — through the system, which picks the session.
+    // Vendor (unknown) codes are only logged.
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int code = event.getKeyCode();
+        if (isMediaKey(code)) {
+            CmLog.i(TAG, "media key to the session: " + event);
+            getSystemService(AudioManager.class).dispatchMediaKeyEvent(event);
+            return true;
+        }
+        if (code == KeyEvent.KEYCODE_UNKNOWN || code > KeyEvent.getMaxKeyCode())
+            CmLog.i(TAG, "key " + event);
+        return super.dispatchKeyEvent(event);
+    }
+
+    // KeyEvent.isMediaSessionKey() is Android 10+.
+    private static boolean isMediaKey(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_HEADSETHOOK:
+            case KeyEvent.KEYCODE_MEDIA_PLAY:
+            case KeyEvent.KEYCODE_MEDIA_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+            case KeyEvent.KEYCODE_MEDIA_STOP:
+            case KeyEvent.KEYCODE_MEDIA_NEXT:
+            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD:
+            case KeyEvent.KEYCODE_MEDIA_STEP_FORWARD:
+            case KeyEvent.KEYCODE_MEDIA_STEP_BACKWARD:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        CmLog.i(TAG, "onNewIntent action=" + intent.getAction());
+        super.onNewIntent(intent);
+        setIntent(intent);
+        openAudio(intent);
+        openDownloads(intent);
+    }
+
+    // The UI's own start may have come too early for Android, and the service
+    // ends when the music is closed: on screen, it's up.
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_MUSIC_REFRESH));
+        UiBridge.startService(this);
+        UpdateInstaller.clearUpdatedNotice(this);
+    }
+
+    @Override
+    protected void onStart() {
+        CmLog.i(TAG, "onStart");
+        super.onStart();
+        // Important: as this screen is. Not AUTO_CREATE: starting and ending
+        // the service stay as they are.
+        bindService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_VIEWS), core,
+                Context.BIND_IMPORTANT);
+        // After the screen is up, not before: on a GWM head unit it's a
+        // blink of Media Center, once, to put the player in the car's widget.
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            if (!isFinishing() && !isDestroyed())
+                GwmMediaCenter.connectIfNeeded(this);
+        }, 2000);
+    }
+
+    @Override
+    protected void onStop() {
+        CmLog.i(TAG, "onStop");
+        unbindService(core);
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        CmLog.i(TAG, "onDestroy, finishing " + isFinishing());
+        boolean finishing = isFinishing();
+        super.onDestroy();
+        // The UI is done (swiped away): so is this process, the music has its
+        // own. Qt can't start again in a process it ran in, and a new launch that
+        // found this one alive stayed on the splash screen for good. Left to exit
+        // by itself it also crashed: the static destructors ran under the threads
+        // still going (a destroyed mutex, on the log's thread).
+        if (finishing) {
+            CmLog.cleanExit();
+            android.os.Process.killProcess(android.os.Process.myPid());
+        }
+    }
+}

@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 /// What the autostart entry passes: `kLaunchedAtLoginArgument` in
-/// fronts/qt/src/Integration/Autostart.h.
+/// fronts/desktop/src/Integration/Autostart.h.
 const LAUNCHED_AT_LOGIN: &str = "--autostart";
 /// Long enough for a slow login, short enough that a launch outside any
 /// graphical session still ends with a report.

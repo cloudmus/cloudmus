@@ -69,7 +69,7 @@ class BackendClient:
         result = await self.request(
             "initialize",
             {
-                "protocolVersion": "1.0",
+                "protocolVersion": "2.0",
                 "front": {"name": "cloudmus-tui", "version": "0.1.0"},
                 # Backends answer in the user's language (docs/protocol.md §7.8)
                 **({"locale": locale} if (locale := _system_locale()) else {}),

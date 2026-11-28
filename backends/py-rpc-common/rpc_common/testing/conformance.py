@@ -2,7 +2,7 @@
 
 Runnable directly: `python -m rpc_common.testing.conformance <argv...>`
 where <argv...> is the backend's own manifest "argv" (e.g. `python -m
-cloudmus_backend_local`).
+cloudmus_backend_yandex`).
 """
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ _SETTING_VALUE_TYPES = {
 async def _check_settings(writer: Any, reader: Any, ids: Any, passed: list[str]) -> None:
     describe_id = next(ids)
     await writer.send(jsonrpc.make_request(describe_id, "settings.describe", {}))
-    response = await reader.__anext__()
+    response = await _response_to(reader, describe_id)
     if response.get("id") != describe_id or "result" not in response:
         raise ConformanceFailure(f"settings.describe failed: {response!r}")
     description = response["result"]
@@ -93,7 +93,7 @@ async def _check_settings(writer: Any, reader: Any, ids: Any, passed: list[str])
     await writer.send(
         jsonrpc.make_request(update_id, "settings.update", {"values": {"conformance.noSuchKey": True}})
     )
-    response = await reader.__anext__()
+    response = await _response_to(reader, update_id)
     if response.get("id") != update_id or response.get("error", {}).get("code") != -32602:
         raise ConformanceFailure(f"settings.update with an unknown key should fail with -32602: {response!r}")
     passed.append("settings.update rejects an unknown key")
@@ -107,7 +107,7 @@ async def _check_localization(writer: Any, reader: Any, ids: Any, caps: dict, pa
     for requested in [*locales, "xx-YY"]:
         request_id = next(ids)
         await writer.send(jsonrpc.make_request(request_id, "localization.setLanguage", {"locale": requested}))
-        response = await reader.__anext__()
+        response = await _response_to(reader, request_id)
         if response.get("id") != request_id or "result" not in response:
             raise ConformanceFailure(f"localization.setLanguage {requested!r} failed: {response!r}")
         applied = response["result"]["locale"]
@@ -117,11 +117,22 @@ async def _check_localization(writer: Any, reader: Any, ids: Any, caps: dict, pa
         if caps.get("settings"):
             describe_id = next(ids)
             await writer.send(jsonrpc.make_request(describe_id, "settings.describe", {}))
-            response = await reader.__anext__()
+            response = await _response_to(reader, describe_id)
             if response.get("id") != describe_id or "result" not in response:
                 raise ConformanceFailure(f"settings.describe in {requested!r} failed: {response!r}")
             _validate("settings_description.yaml", response["result"])
     passed.append("localization.setLanguage switches among declared locales and falls back to en")
+
+
+# The answer to one request; a notification may come ahead of it at any time
+# (docs/protocol.md §8), such as media/wanted right after initialize.
+async def _response_to(reader: Any, request_id: int) -> dict:
+    while True:
+        message = await reader.__anext__()
+        if message.get("id") == request_id:
+            return message
+        if message.get("method") is None:
+            raise ConformanceFailure(f"expected the answer to {request_id}, got {message!r}")
 
 
 async def run_conformance(argv: list[str]) -> list[str]:
@@ -147,10 +158,10 @@ async def run_conformance(argv: list[str]) -> list[str]:
             jsonrpc.make_request(
                 init_id,
                 "initialize",
-                {"protocolVersion": "1.1", "front": {"name": "conformance-suite", "version": "0.0.0"}},
+                {"protocolVersion": "2.0", "front": {"name": "conformance-suite", "version": "0.0.0"}},
             )
         )
-        response = await reader.__anext__()
+        response = await _response_to(reader, init_id)
         if response.get("id") != init_id or "result" not in response:
             raise ConformanceFailure(f"initialize did not return a matching result: {response!r}")
         result = response["result"]
@@ -166,7 +177,7 @@ async def run_conformance(argv: list[str]) -> list[str]:
         if caps["auth"]["required"]:
             status_id = next(ids)
             await writer.send(jsonrpc.make_request(status_id, "auth.getStatus", {}))
-            response = await reader.__anext__()
+            response = await _response_to(reader, status_id)
             if response.get("id") != status_id or "result" not in response:
                 raise ConformanceFailure(f"auth.getStatus failed: {response!r}")
             status = response["result"]["status"]
@@ -178,7 +189,7 @@ async def run_conformance(argv: list[str]) -> list[str]:
         if caps["browse"]["playlists"] and authenticated:
             list_id = next(ids)
             await writer.send(jsonrpc.make_request(list_id, "catalog.listPlaylists", {}))
-            response = await reader.__anext__()
+            response = await _response_to(reader, list_id)
             if response.get("id") != list_id or "result" not in response:
                 raise ConformanceFailure(f"catalog.listPlaylists failed: {response!r}")
             for playlist in response["result"]["playlists"]:
@@ -186,6 +197,16 @@ async def run_conformance(argv: list[str]) -> list[str]:
             passed.append("catalog.listPlaylists results match schema")
         elif caps["browse"]["playlists"]:
             passed.append("catalog.listPlaylists skipped (backend requires auth, not authenticated)")
+
+        if caps.get("connectionCheck"):
+            check_id = next(ids)
+            await writer.send(jsonrpc.make_request(check_id, "connection.check", {}))
+            # connection/changed may come ahead of the answer.
+            response = await asyncio.wait_for(_response_to(reader, check_id), timeout=10)
+            state = response.get("result", {}).get("state")
+            if state not in ("online", "offline"):
+                raise ConformanceFailure(f"connection.check must answer online or offline: {response!r}")
+            passed.append(f"connection.check answers in time ({state})")
 
         if "localization" in caps:
             await _check_localization(writer, reader, ids, caps, passed)
@@ -195,7 +216,7 @@ async def run_conformance(argv: list[str]) -> list[str]:
 
         shutdown_id = next(ids)
         await writer.send(jsonrpc.make_request(shutdown_id, "shutdown", {}))
-        response = await reader.__anext__()
+        response = await _response_to(reader, shutdown_id)
         if response.get("id") != shutdown_id or "result" not in response:
             raise ConformanceFailure(f"shutdown did not ack: {response!r}")
         passed.append("shutdown acked")

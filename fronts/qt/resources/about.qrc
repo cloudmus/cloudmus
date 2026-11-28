@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/about">
-        <file alias="LICENSE">../../../LICENSE</file>
-    </qresource>
-</RCC>

@@ -1,0 +1,11 @@
+{
+  "manifest_version": 2,
+  "name": "CloudMus Sign-in",
+  "version": "1.0",
+  "browser_specific_settings": {"gecko": {"id": "signin@cloudmus.app"}},
+  "description": "Hands the app the cookies of the addresses it asks for, and connects as it says.",
+  "background": {"scripts": ["background.js"]},
+  "permissions": [
+    "cookies", "nativeMessaging", "geckoViewAddons", "proxy", "webRequest", "webRequestBlocking", "<all_urls>"
+  ]
+}

@@ -1,6 +1,6 @@
-# cloudmus protocol: schema-first source of truth
+# CloudMus protocol: schema-first source of truth
 
-This directory is the machine-readable source of truth for the cloudmus
+This directory is the machine-readable source of truth for the CloudMus
 front/backend JSON-RPC protocol. `docs/protocol.md` is still the normative
 prose reference (if they disagree, `docs/protocol.md` wins — update this
 directory to match, not the other way around), but the actual data shapes
@@ -29,7 +29,7 @@ this protocol needs, not a general JSON-RPC framework.
 
 ```
 python protocol/codegen/generate.py --lang python   # -> backends/py-rpc-common/rpc_common/generated/
-python protocol/codegen/generate.py --lang cpp       # -> fronts/qt/generated/
+python protocol/codegen/generate.py --lang cpp       # -> core/generated/
 python protocol/codegen/generate.py --lang python cpp  # both
 ```
 
@@ -42,11 +42,11 @@ than committed, so there's nothing to go stale relative to `protocol/schema`
   Python backend or its tests (`rpc_common.generated.*` won't exist on a
   fresh checkout otherwise) — CI must run this before the Python test suites.
 - Run `python protocol/codegen/generate.py --lang cpp` before building
-  `fronts/qt` — CI/the build must run this before invoking CMake.
+  `fronts/desktop` — CI/the build must run this before invoking CMake.
 
 Requires (dev-time only, not a runtime dependency of any generated code):
 `pip install jinja2 pyyaml`. The C++ target also formats its own output with
-`clang-format` (via `fronts/qt/_clang-format`, see `fronts/qt/AGENTS.md`) as
+`clang-format` (via `fronts/desktop/_clang-format`, see `fronts/desktop/AGENTS.md`) as
 the last step of generation; if `clang-format` isn't on `PATH`, generation
 still succeeds but prints a warning and leaves the output unformatted.
 
@@ -60,8 +60,8 @@ still succeeds but prints a warning and leaves the output unformatted.
    A bare `{type: object, properties: {}}` means "no fields" (used for
    empty params/results like `auth.cancel`'s `{}`) and needs no name.
 3. Regenerate both languages, run the Python test suites
-   (`backends/py-rpc-common`, `backends/yandex-music`, `backends/local-folder`),
-   and rebuild whatever's consuming `fronts/qt/generated/`.
+   (`backends/py-rpc-common`, `backends/yandex-music`, `backends/youtube-music`),
+   and rebuild whatever's consuming `core/generated/`.
 4. Update `docs/protocol.md` prose and add a `docs/protocol-changelog.md`
    entry (MINOR for anything additive/optional, MAJOR for anything that
    changes or removes existing meaning — see `docs/protocol.md` §12).
@@ -73,7 +73,8 @@ Supported schema constructs: `string`/`integer`/`number`/`boolean`, `array`
 struct/dataclass), `$ref` to another schema file, string `enum`,
 `additionalProperties`-based maps or free-form ("any") objects, and `{}` —
 no `type` at all — for a value of any JSON type (a setting's
-`default`/`value`, whose type a sibling field decides). This is deliberately not a general JSON-Schema
+`default`/`value`, whose type a sibling field decides). An `integer` with
+`format: int64` is a 64-bit one in C++ (`qint64`), for byte counts. This is deliberately not a general JSON-Schema
 engine — it only supports what this protocol actually uses. Both language
 targets generate real validation code inline (required-field presence,
 per-field type/enum checks) rather than deferring to a runtime schema
@@ -83,15 +84,15 @@ Python output (`backends/py-rpc-common/rpc_common/generated/`):
 `models.py` (dataclasses, `to_dict()`/`from_dict()`), `methods.py` (a
 `BackendMethods` typed reference `Protocol` — not required to subclass — and
 `emit_*` notification helpers, used by backends for the notifications whose
-wire shape is fully captured by their schema; one exception exists today —
-`auth/prompt`'s payload varies per `auth.flow` and isn't modeled as a
-`oneOf`, so it's still sent by hand in `cloudmus_backend_yandex/auth.py`).
+wire shape is fully captured by their schema). Where a payload's fields
+depend on a discriminator (`schema/auth_method.yaml`'s `kind`), it's modeled
+as one object with those fields optional: there is no `oneOf`.
 
-C++ output (`fronts/qt/generated/`): `Models.h` (structs with `fromJson`/
+C++ output (`core/generated/`): `Models.h` (structs with `fromJson`/
 `toJson`) and `RpcMethods.h` (typed call-wrapper declarations per method,
 forward-declaring the hand-written `Task<T>`/`RpcClient` runtime that
-implements them — see `fronts/qt/src/Rpc/`, `namespace Rpc`, per
-`fronts/qt/AGENTS.md`'s folder-matches-namespace rule). C++ field names that collide
+implements them — see `core/src/Rpc/`, `namespace Rpc`, per
+`fronts/desktop/AGENTS.md`'s folder-matches-namespace rule). C++ field names that collide
 with a C++20 keyword (only `explicit` today) get a trailing underscore on
 the struct member; the JSON wire key is untouched.
 
@@ -99,7 +100,7 @@ Generated C++ bodies are one line per field (`out.id =
 Rpc::requiredField<QString>(obj, "Track", "id");`), not inlined
 presence/type-check blocks — the actual validation logic lives once, as a
 small set of hand-written templates in
-`fronts/qt/src/Rpc/JsonValidation.h` (`requiredField<T>`/`optionalField<T>`/
+`core/src/Rpc/JsonValidation.h` (`requiredField<T>`/`optionalField<T>`/
 `requiredArray<T>`/`requiredMap<T>`/`optionalMap<T>`/`required|optionalEnumField`,
 plus the `toJson*`/`insertOptional*` counterparts), keyed on a `JsonField<T>`
 trait (specialized for `QString`/`int`/`double`/`bool`/`QJsonValue`; the

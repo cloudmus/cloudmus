@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_title">Anmeldung für ein anderes Gerät</string>
+    <string name="phone_confirm">Ein Gerät in deinem Netzwerk (%1$s) bittet um eine Anmeldung bei %2$s auf %3$s. Es erhält Zugriff auf das Konto, mit dem du dich anmeldest. Fahre nur fort, wenn du gerade selbst den Code auf deinem Gerät gescannt hast.</string>
+    <string name="phone_sign_in">Anmelden</string>
+    <string name="phone_cancel">Abbrechen</string>
+    <string name="phone_close">Schließen</string>
+    <string name="phone_reaching">Das andere Gerät wird erreicht…</string>
+    <string name="phone_unreachable">Das andere Gerät ist nicht erreichbar. Beide müssen im selben Netzwerk sein: Verbinde es zum Beispiel mit dem Hotspot dieses Telefons und scanne den Code erneut.</string>
+    <string name="phone_expired">Dieser Code ist nicht mehr gültig. Zeige auf dem anderen Gerät einen neuen an und scanne ihn.</string>
+    <string name="phone_sending">Wird gesendet…</string>
+    <string name="phone_sent">Gesendet. Das andere Gerät schließt die Anmeldung ab.</string>
+    <string name="phone_send_failed">Die Anmeldung konnte nicht an das andere Gerät gesendet werden.</string>
+    <string name="phone_unfinished">Die Anmeldung wurde nicht abgeschlossen.</string>
+    <string name="phone_page_open">In CloudMus öffnen</string>
+    <string name="phone_page_about">Meldet das andere Gerät bei %1$s an. CloudMus muss auf diesem Telefon installiert sein.</string>
+    <string name="phone_page_download">CloudMus herunterladen</string>
+    <string name="phone_page_install">Kein CloudMus auf diesem Telefon? Lade es vom anderen Gerät herunter, installiere es, kehre dann zu dieser Seite zurück und öffne es.</string>
+    <string name="sign_in_waiting">Anmeldung bei %1$s</string>
+    <string name="sign_in_waiting_text">Schließe die Anmeldung in CloudMus Sign-in ab</string>
+    <string name="sign_in_channel">Anmeldung</string>
+</resources>

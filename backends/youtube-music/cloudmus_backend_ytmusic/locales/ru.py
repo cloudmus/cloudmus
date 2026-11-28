@@ -27,6 +27,8 @@ STRINGS = {'expected true or false': 'ожидается true или false',
  'YouTube Music streaming service': 'Стриминговый сервис YouTube Music',
  'Liked Songs': 'Понравившиеся',
  'Track in playlist not found': 'Трек в плейлисте не найден',
+ "YouTube wants to verify that you're human. Change the connection in the YouTube Music source settings and try again.":
+     'YouTube просит подтвердить, что вы человек. Смените подключение в настройках источника YouTube Music и попробуйте снова.',
  'Track not playable: {error}': 'Трек недоступен для воспроизведения: {error}',
  'Open <a href="https://music.youtube.com">music.youtube.com</a> in your browser while signed in, open <b>DevTools → Network</b>, click any request to <code>music.youtube.com</code>, and paste its <b>Request Headers</b> (Firefox) or <b>Copy as cURL (bash)</b> (Chrome) below.': 'Откройте '
                                                                                                                                                                                                                                                                                       '<a '
@@ -59,4 +61,10 @@ STRINGS = {'expected true or false': 'ожидается true или false',
                                                                                                                                                                                                                                                                                       '(bash)</b> '
                                                                                                                                                                                                                                                                                       '(Chrome).',
  'Do this in a private window and close it afterwards without signing out: a browser that keeps using the same session soon makes these headers stop working.': 'Делайте это в приватном окне и потом закройте его, не выходя из аккаунта: браузер, который продолжает пользоваться той же сессией, вскоре делает эти заголовки недействительными.',
- 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music завершил этот сеанс. Войдите заново.'}
+ 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music завершил этот сеанс. Войдите заново.',
+ "the service's address can't be resolved": 'не удаётся найти адрес сервиса',
+ "the service doesn't answer in time": 'сервис не отвечает вовремя',
+ 'the connection is refused': 'соединение отклонено',
+ "the proxy can't be reached": 'прокси недоступен',
+ 'the network is unreachable': 'сеть недоступна',
+ "a secure connection can't be made": 'не удаётся установить защищённое соединение'}

@@ -1,0 +1,484 @@
+#include "FakeBackend.h"
+
+#include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QStandardPaths>
+#include <QThread>
+
+#include <cstdio>
+#include <iostream>
+#include <string>
+
+namespace Tests {
+
+namespace {
+
+// How long the front waits for playback.play (PlaybackController).
+constexpr unsigned long kPlayTimeoutMs = 5000;
+
+void send(const QJsonObject& message)
+{
+    const QByteArray line = QJsonDocument(message).toJson(QJsonDocument::Compact);
+    std::fwrite(line.constData(), 1, size_t(line.size()), stdout);
+    std::fputc('\n', stdout);
+    std::fflush(stdout);
+}
+
+void reply(const QJsonValue& id, const QJsonObject& result)
+{
+    send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
+        { QStringLiteral("result"), result } });
+}
+
+// Switched by a test, while it runs: no network as long as this file exists.
+bool networkIsDown()
+{
+    const QString file = qEnvironmentVariable("CLOUDMUS_FAKE_OFFLINE_FILE");
+    return !file.isEmpty() && QFile::exists(file);
+}
+
+void replyOffline(const QJsonValue& id)
+{
+    send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
+        { QStringLiteral("error"),
+            QJsonObject { { QStringLiteral("code"), 1200 }, { QStringLiteral("message"), QStringLiteral("no network") },
+                { QStringLiteral("data"),
+                    QJsonObject { { QStringLiteral("reason"), QStringLiteral("offline") } } } } } });
+}
+
+void replyError(const QJsonValue& id, int code, const QString& message)
+{
+    send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
+        { QStringLiteral("error"),
+            QJsonObject { { QStringLiteral("code"), code }, { QStringLiteral("message"), message } } } });
+}
+
+void notify(const QString& method, const QJsonObject& params)
+{
+    send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("method"), method },
+        { QStringLiteral("params"), params } });
+}
+
+QJsonObject settingsDescription(const QJsonObject& values)
+{
+    const auto value = [&](const char* key, const QJsonValue& fallback) {
+        return values.contains(QLatin1String(key)) ? values.value(QLatin1String(key)) : fallback;
+    };
+    return {
+        { QStringLiteral("groups"),
+            QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("more") },
+                { QStringLiteral("title"), QStringLiteral("More") },
+                { QStringLiteral("description"), QStringLiteral("More of them") } } } },
+        { QStringLiteral("fields"),
+            QJsonArray {
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("quality") },
+                    { QStringLiteral("label"), QStringLiteral("Quality") },
+                    { QStringLiteral("type"), QStringLiteral("enum") },
+                    { QStringLiteral("default"), QStringLiteral("high") },
+                    { QStringLiteral("value"), value("quality", QStringLiteral("high")) },
+                    { QStringLiteral("options"),
+                        QJsonArray { QJsonObject { { QStringLiteral("value"), QStringLiteral("high") },
+                                         { QStringLiteral("label"), QStringLiteral("High") } },
+                            QJsonObject { { QStringLiteral("value"), QStringLiteral("low") },
+                                { QStringLiteral("label"), QStringLiteral("Low") } } } } },
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("count") },
+                    { QStringLiteral("group"), QStringLiteral("more") },
+                    { QStringLiteral("label"), QStringLiteral("Count") },
+                    { QStringLiteral("type"), QStringLiteral("integer") }, { QStringLiteral("default"), 3 },
+                    { QStringLiteral("value"), value("count", 3) }, { QStringLiteral("min"), 1 },
+                    { QStringLiteral("max"), 9 } },
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("flag") },
+                    { QStringLiteral("group"), QStringLiteral("more") },
+                    { QStringLiteral("label"), QStringLiteral("Flag") },
+                    { QStringLiteral("description"), QStringLiteral("Takes a restart") },
+                    { QStringLiteral("type"), QStringLiteral("boolean") }, { QStringLiteral("default"), false },
+                    { QStringLiteral("value"), value("flag", false) }, { QStringLiteral("restartRequired"), true } },
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("name") },
+                    { QStringLiteral("group"), QStringLiteral("more") },
+                    { QStringLiteral("label"), QStringLiteral("Name") },
+                    { QStringLiteral("type"), QStringLiteral("string") }, { QStringLiteral("default"), QString() },
+                    { QStringLiteral("value"), value("name", QString()) } },
+                QJsonObject { { QStringLiteral("key"), QStringLiteral("token") },
+                    { QStringLiteral("group"), QStringLiteral("more") },
+                    { QStringLiteral("label"), QStringLiteral("Token") },
+                    { QStringLiteral("type"), QStringLiteral("secret") }, { QStringLiteral("default"), QString() },
+                    { QStringLiteral("value"), QJsonValue::Null },
+                    { QStringLiteral("isSet"), values.contains(QStringLiteral("token")) } },
+            } },
+    };
+}
+
+QJsonObject capabilities()
+{
+    QJsonObject caps = {
+        { QStringLiteral("playback"),
+            QJsonObject { { QStringLiteral("providesStream"), true }, { QStringLiteral("resolveStream"), true },
+                { QStringLiteral("selfPlayback"), false },
+                { QStringLiteral("controls"),
+                    QJsonObject { { QStringLiteral("pause"), false }, { QStringLiteral("seek"), false },
+                        { QStringLiteral("volume"), false } } } } },
+        { QStringLiteral("browse"),
+            QJsonObject { { QStringLiteral("playlists"), true }, { QStringLiteral("likedTracks"), true },
+                { QStringLiteral("radio"), false }, { QStringLiteral("search"), false },
+                { QStringLiteral("editPlaylists"), true } } },
+        { QStringLiteral("feedback"),
+            QJsonObject { { QStringLiteral("like"), true }, { QStringLiteral("dislike"), true },
+                { QStringLiteral("skip"), false }, { QStringLiteral("played"), true } } },
+        { QStringLiteral("connectionCheck"), true },
+        { QStringLiteral("download"), true },
+        { QStringLiteral("downloadControl"), true },
+        { QStringLiteral("downloadFromStream"), true },
+        { QStringLiteral("localization"),
+            QJsonObject { { QStringLiteral("locales"),
+                QJsonArray { QStringLiteral("en"), QStringLiteral("de"), QStringLiteral("ru") } } } },
+        { QStringLiteral("auth"), QJsonObject { { QStringLiteral("required"), false } } },
+    };
+    // Switched by a test: a source to sign in to.
+    if (qEnvironmentVariable("CLOUDMUS_FAKE_AUTH") == QStringLiteral("1")) {
+        caps.insert(QStringLiteral("auth"), QJsonObject { { QStringLiteral("required"), true } });
+    }
+    // Switched by a test: a source with settings of its own.
+    if (qEnvironmentVariable("CLOUDMUS_FAKE_SETTINGS") == QStringLiteral("1"))
+        caps.insert(QStringLiteral("settings"), true);
+    // Switched by a test: a source that only reads local files.
+    if (qEnvironmentVariable("CLOUDMUS_FAKE_NETWORK") == QStringLiteral("0"))
+        caps.insert(QStringLiteral("network"), false);
+    return caps;
+}
+
+} // namespace
+
+QStringList fakeBackendArgv()
+{
+    return { QCoreApplication::applicationFilePath(), QString::fromLatin1(kFakeBackendArgument) };
+}
+
+void installFakeBackendManifest()
+{
+    qunsetenv("CLOUDMUS_DEV_BACKENDS");
+    QDir dir(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+        + QStringLiteral("/cloudmus/backends.d"));
+    dir.removeRecursively();
+    dir.mkpath(QStringLiteral("."));
+    const QJsonObject manifest {
+        { QStringLiteral("id"), QStringLiteral("fake") },
+        { QStringLiteral("name"), QStringLiteral("Fake Source") },
+        { QStringLiteral("argv"), QJsonArray::fromStringList(fakeBackendArgv()) },
+        { QStringLiteral("protocolVersion"), QStringLiteral("2.0") },
+    };
+    QFile file(dir.filePath(QStringLiteral("fake.json")));
+    file.open(QIODevice::WriteOnly);
+    file.write(QJsonDocument(manifest).toJson());
+}
+
+int runFakeBackend()
+{
+    // A catalog.downloadTrack of the track "slow" waits here, unanswered,
+    // until a catalog.cancelDownload for it.
+    // The language the front asked for, in initialize or after.
+    QString locale = QStringLiteral("en");
+    // settings.update's, for settings.describe. Kept while the process lives.
+    QJsonObject settingValues;
+    QJsonValue slowDownloadRequestId;
+    QString slowDownloadId;
+    int skipCount = 0;
+    int topUpCount = 0;
+    // The feedback and playlist edits that reached it, in order — what a
+    // test asks with fake.received.
+    QJsonArray received;
+    std::string line;
+    while (std::getline(std::cin, line)) {
+        const QJsonObject request = QJsonDocument::fromJson(QByteArray::fromStdString(line)).object();
+        const QString method = request.value(QStringLiteral("method")).toString();
+        const QJsonValue id = request.value(QStringLiteral("id"));
+        if (id.isUndefined())
+            continue; // a notification from the front — nothing to answer
+
+        if (method == QStringLiteral("connection.check")) {
+            reply(id,
+                { { QStringLiteral("state"),
+                    networkIsDown() ? QStringLiteral("offline") : QStringLiteral("online") } });
+            continue;
+        }
+        if (method == QStringLiteral("fake.received")) {
+            reply(id, { { QStringLiteral("calls"), received } });
+            continue;
+        }
+        if (networkIsDown()
+            && (method.startsWith(QStringLiteral("catalog.")) || method.startsWith(QStringLiteral("playback."))
+                || method.startsWith(QStringLiteral("feedback.")))) {
+            replyOffline(id);
+            continue;
+        }
+        if (method.startsWith(QStringLiteral("feedback.")) || method == QStringLiteral("catalog.addToPlaylist")
+            || method == QStringLiteral("catalog.removeFromPlaylist"))
+            received.append(QJsonObject { { QStringLiteral("method"), method },
+                { QStringLiteral("params"), request.value(QStringLiteral("params")) } });
+
+        if (method == QStringLiteral("settings.describe")) {
+            reply(id, settingsDescription(settingValues));
+            continue;
+        }
+        if (method == QStringLiteral("settings.update")) {
+            const QJsonObject values
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("values")).toObject();
+            if (values.value(QStringLiteral("name")).toString() == QStringLiteral("bad")) {
+                send({ { QStringLiteral("jsonrpc"), QStringLiteral("2.0") }, { QStringLiteral("id"), id },
+                    { QStringLiteral("error"),
+                        QJsonObject { { QStringLiteral("code"), -32602 },
+                            { QStringLiteral("message"), QStringLiteral("invalid") },
+                            { QStringLiteral("data"),
+                                QJsonObject { { QStringLiteral("key"), QStringLiteral("name") },
+                                    { QStringLiteral("message"), QStringLiteral("Not that name") } } } } } });
+                continue;
+            }
+            for (auto it = values.constBegin(); it != values.constEnd(); ++it)
+                settingValues.insert(it.key(), it.value());
+            reply(id, { });
+            continue;
+        }
+
+        if (method == QStringLiteral("initialize")) {
+            locale = request.value(QStringLiteral("params"))
+                         .toObject()
+                         .value(QStringLiteral("locale"))
+                         .toString(QStringLiteral("en"));
+            reply(id,
+                { { QStringLiteral("protocolVersion"), QStringLiteral("2.0") },
+                    { QStringLiteral("source"),
+                        QJsonObject { { QStringLiteral("id"), QStringLiteral("fake") },
+                            { QStringLiteral("name"), QStringLiteral("Fake Source") },
+                            { QStringLiteral("description"), QStringLiteral("locale=%1").arg(locale) } } },
+                    { QStringLiteral("capabilities"), capabilities() } });
+        } else if (method == QStringLiteral("localization.setLanguage")) {
+            locale = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("locale")).toString();
+            reply(id,
+                { { QStringLiteral("locale"), locale },
+                    { QStringLiteral("description"), QStringLiteral("locale=%1").arg(locale) } });
+        } else if (method == QStringLiteral("fake.currentLocale")) {
+            // Not part of the protocol: lets a test see what the front set.
+            reply(id, { { QStringLiteral("locale"), locale } });
+        } else if (method == QStringLiteral("catalog.listPlaylists")) {
+            // A notification ahead of the reply, as a real backend may send
+            // one at any time.
+            notify(QStringLiteral("error"),
+                { { QStringLiteral("code"), 1200 }, { QStringLiteral("message"), QStringLiteral("heads up") } });
+            QJsonArray playlists {
+                QJsonObject { { QStringLiteral("id"), QStringLiteral("p1") },
+                    { QStringLiteral("title"), QStringLiteral("First") }, { QStringLiteral("trackCount"), 2 },
+                    { QStringLiteral("kind"), QStringLiteral("playlist") }, { QStringLiteral("editable"), true } },
+                // Saved from someone else — not the user's to edit.
+                QJsonObject { { QStringLiteral("id"), QStringLiteral("p2") },
+                    { QStringLiteral("title"), QStringLiteral("Saved") }, { QStringLiteral("trackCount"), 5 },
+                    { QStringLiteral("kind"), QStringLiteral("playlist") } },
+            };
+            // A folder inside the first, for a test that asks for it.
+            // ("many": a lot, as a library by artist has.)
+            if (qEnvironmentVariableIsSet("CLOUDMUS_FAKE_SUBFOLDER")) {
+                const int count = qEnvironmentVariable("CLOUDMUS_FAKE_SUBFOLDER") == QStringLiteral("many") ? 300 : 1;
+                for (int i = 0; i < count; ++i)
+                    playlists.append(QJsonObject { { QStringLiteral("id"), QStringLiteral("p%1").arg(i + 3) },
+                        { QStringLiteral("title"),
+                            i == 0 ? QStringLiteral("Inside") : QStringLiteral("Folder %1").arg(i) },
+                        { QStringLiteral("trackCount"), 2 }, { QStringLiteral("kind"), QStringLiteral("playlist") },
+                        { QStringLiteral("parentId"), QStringLiteral("p1") } });
+            }
+            reply(id, { { QStringLiteral("playlists"), playlists } });
+        } else if (method == QStringLiteral("catalog.listTracks")) {
+            const auto track = [](const QString& trackId) {
+                return QJsonObject { { QStringLiteral("id"), trackId },
+                    { QStringLiteral("title"), QStringLiteral("Track %1").arg(trackId) },
+                    { QStringLiteral("artists"), QJsonArray { } }, { QStringLiteral("durationMs"), 180000 } };
+            };
+            reply(id,
+                { { QStringLiteral("tracks"),
+                    QJsonArray { track(QStringLiteral("t1")), track(QStringLiteral("t2")) } } });
+        } else if (method == QStringLiteral("catalog.listLiked")) {
+            reply(id,
+                { { QStringLiteral("tracks"),
+                    QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("old-2") },
+                        { QStringLiteral("title"), QStringLiteral("Old track 2") },
+                        { QStringLiteral("artists"), QJsonArray { } }, { QStringLiteral("durationMs"), 180000 },
+                        { QStringLiteral("liked"), true } } } } });
+        } else if (method == QStringLiteral("catalog.startRadio")
+            && request.value(QStringLiteral("params")).toObject().value(QStringLiteral("seed")).toString()
+                == QStringLiteral("recent-check")) {
+            // A station that plays back what it was told had played lately
+            // (recentTrackIds, and recentTracks' titles as the titles), for
+            // a test to see what that was.
+            QJsonArray tracks;
+            const QJsonObject params = request.value(QStringLiteral("params")).toObject();
+            const QJsonArray recent = params.value(QStringLiteral("recentTrackIds")).toArray();
+            const QJsonArray recentTracks = params.value(QStringLiteral("recentTracks")).toArray();
+            for (qsizetype i = 0; i < recent.size(); ++i) {
+                const QString name = QStringLiteral("recent:") + recent[i].toString();
+                const QString title = QStringLiteral("recent:")
+                    + recentTracks.at(i).toObject().value(QStringLiteral("title")).toString();
+                tracks.append(QJsonObject { { QStringLiteral("id"), name }, { QStringLiteral("title"), title },
+                    { QStringLiteral("artists"), QJsonArray { } }, { QStringLiteral("durationMs"), 180000 } });
+            }
+            reply(id,
+                { { QStringLiteral("stationId"), QStringLiteral("station") },
+                    { QStringLiteral("initialTracks"), tracks } });
+        } else if (method == QStringLiteral("catalog.startRadio")) {
+            reply(id,
+                { { QStringLiteral("stationId"), QStringLiteral("station") },
+                    { QStringLiteral("initialTracks"),
+                        QJsonArray { QJsonObject { { QStringLiteral("id"), QStringLiteral("old-2") },
+                                         { QStringLiteral("title"), QStringLiteral("Stale old track") },
+                                         { QStringLiteral("artists"), QJsonArray { } },
+                                         { QStringLiteral("durationMs"), 180000 }, { QStringLiteral("liked"), false } },
+                            QJsonObject { { QStringLiteral("id"), QStringLiteral("fresh") },
+                                { QStringLiteral("title"), QStringLiteral("Fresh track") },
+                                { QStringLiteral("artists"), QJsonArray { } },
+                                { QStringLiteral("durationMs"), 180000 } } } } });
+        } else if (method == QStringLiteral("catalog.getTrackPlaylists")) {
+            reply(id, { { QStringLiteral("playlistIds"), QJsonArray { QStringLiteral("p1") } } });
+        } else if (method == QStringLiteral("catalog.addToPlaylist")) {
+            reply(id, { { QStringLiteral("trackCount"), 3 } });
+        } else if (method == QStringLiteral("catalog.removeFromPlaylist")) {
+            // A track id of "fail" can't be removed.
+            const QString trackId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
+            if (trackId == QStringLiteral("fail"))
+                replyError(id, 1300, QStringLiteral("not in the playlist"));
+            else
+                reply(id, { { QStringLiteral("trackCount"), 1 } });
+        } else if (method == QStringLiteral("playback.play")) {
+            // Accepted, but no stream follows: the track counts as current
+            // (what the tests look at) without anything actually playing.
+            // Except for "refused": its stream is one nothing answers at —
+            // and for a track whose id is a URL, which is its stream.
+            // "late": answered only after the front's play timeout, as a
+            // source busy with a long request does, its stream right behind.
+            const QString trackId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
+            if (trackId == QStringLiteral("late"))
+                QThread::msleep(kPlayTimeoutMs + 500);
+            reply(id, { { QStringLiteral("accepted"), true } });
+            const QString url = trackId == QStringLiteral("refused") || trackId == QStringLiteral("late")
+                ? QStringLiteral("http://127.0.0.1:9/") + trackId
+                : trackId.startsWith(QStringLiteral("http://")) || trackId.startsWith(QStringLiteral("file://"))
+                ? trackId
+                : QString();
+            // "gone" and "offline": the source can't produce the stream, and
+            // says why (docs/protocol.md §9.1).
+            if (trackId == QStringLiteral("gone") || trackId == QStringLiteral("offline")) {
+                const bool offline = trackId == QStringLiteral("offline");
+                notify(QStringLiteral("error"),
+                    { { QStringLiteral("code"), offline ? 1200 : 1300 }, { QStringLiteral("message"), trackId },
+                        { QStringLiteral("data"),
+                            QJsonObject { { QStringLiteral("retryable"), offline },
+                                { QStringLiteral("trackId"), trackId },
+                                { QStringLiteral("reason"),
+                                    offline ? QStringLiteral("offline") : QStringLiteral("unavailable") } } } });
+            }
+            if (!url.isEmpty())
+                notify(QStringLiteral("track/streamReady"),
+                    { { QStringLiteral("requestId"), id }, { QStringLiteral("trackId"), trackId },
+                        { QStringLiteral("stream"),
+                            QJsonObject { { QStringLiteral("kind"), QStringLiteral("url") },
+                                { QStringLiteral("url"), url },
+                                { QStringLiteral("mimeType"), QStringLiteral("audio/mpeg") } } } });
+        } else if (method == QStringLiteral("playback.resolveStream")) {
+            // Only a track whose id is a URL has a stream to resolve.
+            const QString trackId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
+            if (trackId.startsWith(QStringLiteral("http://")) || trackId.startsWith(QStringLiteral("file://")))
+                reply(id,
+                    { { QStringLiteral("stream"),
+                        QJsonObject { { QStringLiteral("kind"), QStringLiteral("url") },
+                            { QStringLiteral("url"), trackId },
+                            { QStringLiteral("mimeType"), QStringLiteral("audio/mpeg") } } } });
+            else
+                replyError(id, 1300, QStringLiteral("no stream"));
+        } else if (method.startsWith(QStringLiteral("feedback."))) {
+            // A track id of "fail" makes any feedback call fail.
+            const QString trackId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("trackId")).toString();
+            if (trackId == QStringLiteral("fail"))
+                replyError(id, 1200, QStringLiteral("service down"));
+            else
+                reply(id, { });
+            // A skip makes a radio recompute what comes next — here, for
+            // the tracks that are streams (ids that are URLs): one new
+            // track, a different one each time.
+            if (method == QStringLiteral("feedback.skip") && trackId.startsWith(QStringLiteral("http://"))) {
+                const QString name = QStringLiteral("after-skip-%1").arg(++skipCount);
+                notify(QStringLiteral("radio/tracksAdded"),
+                    { { QStringLiteral("stationId"), QStringLiteral("station") },
+                        { QStringLiteral("replaceUpcoming"), true },
+                        { QStringLiteral("tracks"),
+                            QJsonArray { QJsonObject { { QStringLiteral("id"), name },
+                                { QStringLiteral("title"), name }, { QStringLiteral("artists"), QJsonArray { } },
+                                { QStringLiteral("durationMs"), 180000 } } } } });
+            }
+            // A radio tops its queue up by what the front says it has left
+            // (queuedAfter) — here, once nothing is: one more track.
+            const QJsonValue queuedAfter
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("queuedAfter"));
+            if (method == QStringLiteral("feedback.trackStarted") && trackId.startsWith(QStringLiteral("http://"))
+                && queuedAfter.isDouble() && queuedAfter.toInt() == 0) {
+                const QString name = QStringLiteral("topped-up-%1").arg(++topUpCount);
+                notify(QStringLiteral("radio/tracksAdded"),
+                    { { QStringLiteral("stationId"), QStringLiteral("station") },
+                        { QStringLiteral("tracks"),
+                            QJsonArray { QJsonObject { { QStringLiteral("id"), name },
+                                { QStringLiteral("title"), name }, { QStringLiteral("artists"), QJsonArray { } },
+                                { QStringLiteral("durationMs"), 180000 } } } } });
+            }
+        } else if (method == QStringLiteral("catalog.downloadTrack")) {
+            const QJsonObject params = request.value(QStringLiteral("params")).toObject();
+            const QString trackId = params.value(QStringLiteral("trackId")).toString();
+            const QString downloadId = params.value(QStringLiteral("downloadId")).toString();
+            const auto progress = [&](int received) {
+                notify(QStringLiteral("download/progress"),
+                    { { QStringLiteral("downloadId"), downloadId }, { QStringLiteral("receivedBytes"), received },
+                        { QStringLiteral("totalBytes"), 100 } });
+            };
+            if (trackId == QStringLiteral("fail")) {
+                replyError(id, 1300, QStringLiteral("no such track"));
+            } else if (trackId == QStringLiteral("slow")) {
+                progress(50);
+                slowDownloadRequestId = id;
+                slowDownloadId = downloadId;
+            } else if (trackId.startsWith(QStringLiteral("http://"))) {
+                // A stream: the front saves those itself, and is not to ask.
+                replyError(id, 1100, QStringLiteral("saving is the front's job"));
+            } else {
+                progress(50);
+                progress(100);
+                reply(id,
+                    { { QStringLiteral("path"),
+                        params.value(QStringLiteral("destDir")).toString() + QStringLiteral("/") + trackId } });
+            }
+        } else if (method == QStringLiteral("catalog.cancelDownload")) {
+            const QString downloadId
+                = request.value(QStringLiteral("params")).toObject().value(QStringLiteral("downloadId")).toString();
+            reply(id, { });
+            if (downloadId == slowDownloadId && !slowDownloadRequestId.isUndefined()) {
+                replyError(slowDownloadRequestId, 1410, QStringLiteral("Download cancelled"));
+                slowDownloadRequestId = QJsonValue();
+                slowDownloadId.clear();
+            }
+        } else if (method == QStringLiteral("auth.getStatus")) {
+            reply(id, { { QStringLiteral("status"), QStringLiteral("authenticated") } });
+        } else if (method == QStringLiteral("auth.logout")) {
+            reply(id, { });
+        } else if (method == QStringLiteral("auth.submit")) {
+            replyError(id, 1002, QStringLiteral("wrong password"));
+        } else if (method == QStringLiteral("shutdown")) {
+            reply(id, { });
+            return 0;
+        } else {
+            replyError(id, -32601, QStringLiteral("no such method: %1").arg(method));
+        }
+    }
+    return 0;
+}
+
+} // namespace Tests

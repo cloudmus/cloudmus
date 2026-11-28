@@ -1,0 +1,60 @@
+#include "WindowHost.h"
+
+#include <QTimer>
+
+#include "DesktopCore.h"
+#include "MainWindow.h"
+#include "Tokens.h"
+
+namespace Ui {
+
+WindowHost::WindowHost(App::DesktopCore& core, QObject* parent)
+    : QObject(parent)
+    , core_(core)
+{
+    create();
+    // Glass is set up as a window is created — switching it takes a new one.
+    connect(&Theme::notifier(), &Theme::Notifier::glassChanged, this, &WindowHost::recreate);
+    // ...and so are its texts, built as the widgets are: a new window, in the
+    // new language, rather than every label told to read its text again.
+    connect(&core_.translator(), &I18n::Translator::languageChanged, this, &WindowHost::recreate);
+}
+
+WindowHost::~WindowHost() = default;
+
+void WindowHost::create()
+{
+    window_ = std::make_unique<MainWindow>(core_);
+    connect(window_.get(), &MainWindow::aboutToReallyQuit, this, &WindowHost::aboutToReallyQuit);
+    connect(window_.get(), &MainWindow::checkForUpdatesRequested, this, &WindowHost::checkForUpdatesRequested);
+    emit windowCreated(window_.get());
+}
+
+void WindowHost::show() { window_->show(); }
+
+bool WindowHost::isOnScreen() const { return window_->isOnScreen(); }
+
+void WindowHost::toggleShown() { window_->toggleShown(); }
+
+void WindowHost::bringToFront(const QString& activationToken) { window_->bringToFront(activationToken); }
+
+void WindowHost::quit() { window_->quitForReal(); }
+
+void WindowHost::recreate()
+{
+    if (recreatePending_)
+        return;
+    recreatePending_ = true;
+    QTimer::singleShot(0, this, [this]() {
+        recreatePending_ = false;
+        const bool visible = window_->isVisible();
+        // The old window saves its geometry as it goes; the new one picks
+        // it up, maximized or not.
+        window_.reset();
+        create();
+        if (visible)
+            window_->show();
+    });
+}
+
+} // namespace Ui

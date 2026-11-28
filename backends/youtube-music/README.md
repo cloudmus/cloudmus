@@ -21,17 +21,21 @@ resolve stream URLs.
 
 ## Authentication
 
-Sign-in is done by **pasting browser request headers**. Device-code OAuth
-logs in fine, but every data call made with its token fails with
-`HTTP 400` — a confirmed upstream break,
+The session is a browser's cookies. The backend offers two ways to get them
+(`docs/protocol.md` §10), in this order:
+
+1. **`browser`** — Google's sign-in page in the front's built-in browser; the
+   front returns the cookies. The mobile front does this: tap **Sign in**.
+2. **`form`** — pasting request headers copied from a browser, for a front
+   with no built-in browser (desktop, TUI).
+
+Device-code OAuth isn't offered: it logs in fine, but every data call made
+with its token fails with `HTTP 400` — a confirmed upstream break,
 [sigma67/ytmusicapi#676](https://github.com/sigma67/ytmusicapi/issues/676).
-The `usernamePassword` auth flow is repurposed to collect the headers; the
-OAuth code is kept in `auth.py` for when that's fixed (see the comment on
-`CAPABILITIES` in `server.py`).
 
-### Setting up browser-header auth
+### Pasting request headers
 
-1. Open [music.youtube.com](https://music.youtube.com) in any browser,
+1. Open [music.youtube.com](https://music.youtube.com) in a private window,
    signed in to the Google account you want CloudMus to use.
 2. Open DevTools (F12) → **Network** tab.
 3. Click any request to `music.youtube.com` (reload the page if the list is
@@ -41,29 +45,29 @@ OAuth code is kept in `auth.py` for when that's fixed (see the comment on
      Headers*.
    - **Chrome**: right-click the request → *Copy* → *Copy as cURL (bash)*.
      The pasted `curl` command is converted to headers automatically.
-5. In CloudMus, open YouTube Music's page in **Settings**, paste the copied
-   text into the sign-in box and submit.
+5. Close the window without signing out. In CloudMus, open YouTube Music's
+   page in **Settings**, paste the copied text into the sign-in box and
+   submit.
 
 If the headers lack a `cookie` with `__Secure-3PAPISID` or an
 `x-goog-authuser` header, the app says which one is missing — copy them
 again from a request made while signed in, and retry.
 
 The cookie can't be refreshed: once it expires (signing out elsewhere,
-Google forcing re-auth), repeat the steps above.
+Google forcing re-auth), sign in again.
 
 ### Config files
 
-In `~/.config/cloudmus/backends/youtube-music/`, all written `chmod 0600`:
+In `~/.config/cloudmus/backends/youtube-music/`:
 
 | File | Purpose |
 |---|---|
-| `browser_headers.json` | The active credential. Delete it (or sign out) to force re-authentication. |
-| `oauth_token.json` | Leftover from the dormant OAuth path; used only if `browser_headers.json` doesn't exist. |
-| `config.json` | `{"clientId": "...", "clientSecret": "..."}`, written by hand — only to revive the OAuth path (a Google Cloud OAuth client of the "TVs and Limited Input devices" type, YouTube Data API v3 enabled). Also keeps `"settings"`: the stream quality chosen in **Settings**. |
+| `browser_headers.json` | The signed-in session, written `chmod 0600`. Delete it (or sign out) to force re-authentication. |
+| `config.json` | `"settings"`: the stream quality chosen in **Settings**. |
 
 ## Dependencies
 
-- `ytmusicapi>=1.8,<2` — catalog and library, both auth mechanisms.
+- `ytmusicapi>=1.8,<2` — catalog and library, and the session headers.
 - `yt-dlp` (pinned in `pyproject.toml`, bumped by hand) — stream URLs (`playback.py`).
 - `cloudmus-rpc-common` — shared transport (`backends/py-rpc-common`).
 

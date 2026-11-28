@@ -1,7 +1,13 @@
 {
   "id": "local-folder",
   "name": "Local Folder",
-  "argv": ["python3", "-m", "cloudmus_backend_local"],
-  "protocolVersion": "1.12",
+  "name[be]": "Файлы",
+  "name[de]": "Dateien",
+  "name[es]": "Archivos",
+  "name[fr]": "Fichiers",
+  "name[it]": "File",
+  "name[ru]": "Файлы",
+  "argv": ["./target/debug/cloudmus-backend-local-folder"],
+  "protocolVersion": "2.0",
   "icon": "icon.svg"
 }

@@ -1,0 +1,600 @@
+#include "NowPlaying.h"
+
+#include <algorithm>
+
+#include <QDir>
+#include <QEasingCurve>
+#include <QJsonObject>
+#include <QLoggingCategory>
+#include <QUrl>
+
+#include "CoverArtCache.h"
+#include "Downloads.h"
+#include "Messages.h"
+#include "Outbox.h"
+#include "PlaybackController.h"
+#include "PlaybackHistory.h"
+#include "RpcClient.h"
+#include "RpcMethods.h"
+#include "Settings.h"
+#include "SourceManager.h"
+#include "TrackStates.h"
+
+namespace ViewModel {
+
+namespace {
+Q_LOGGING_CATEGORY(lcNowPlaying, "cloudmus.viewmodel.nowplaying")
+// One per track in the outbox: like and dislike cross-clear, so the last
+// of the four asked is the state that counts.
+QString ratingKey(const QString& trackId) { return QStringLiteral("rating:") + trackId; }
+
+// Fine enough for a seek bar, rare enough for a replica.
+constexpr int kPositionIntervalMs = 250;
+}
+
+NowPlaying::NowPlaying(Playback::PlaybackController& playback, Rpc::SourceManager& sourceManager,
+    Library::TrackStates& trackStates, History::PlaybackHistory& history, Config::Settings& settings,
+    Downloads& downloads, Messages& messages, QObject* parent)
+    : QObject(parent)
+    , playback_(playback)
+    , sourceManager_(sourceManager)
+    , trackStates_(trackStates)
+    , history_(history)
+    , settings_(settings)
+    , downloads_(downloads)
+    , messages_(messages)
+    , positionThrottle_(kPositionIntervalMs, [this] {
+        emit positionMsChanged();
+        emit durationMsChanged();
+    })
+{
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::likedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::likeSupportedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::dislikedChanged);
+    connect(this, &NowPlaying::feedbackChanged, this, &NowPlaying::dislikeSupportedChanged);
+    // The saved volume and play modes, applied to playback itself — mpv
+    // otherwise starts at its own default (max) volume.
+    volume_ = settings_.volume();
+    quietVolume_ = settings_.quietVolume();
+    quiet_ = settings_.quiet();
+    fade_.setDuration(fadeMs);
+    fade_.setEasingCurve(QEasingCurve::OutCubic);
+    connect(&fade_, &QVariantAnimation::valueChanged, this,
+        [this](const QVariant& value) { playback_.setVolume(value.toInt()); });
+    fade_.setStartValue(volume());
+    fade_.setEndValue(volume());
+    playback_.setVolume(volume());
+    playback_.setShuffle(settings_.shuffle());
+    playback_.setRepeatMode(settings_.repeatMode());
+
+    connect(&playback_, &Playback::PlaybackController::trackChanged, this, [this]() {
+        resetBusy();
+        emitTrackChanged();
+        emit feedbackChanged();
+    });
+    connect(&playback_, &Playback::PlaybackController::currentTrackAvailabilityChanged, this, [this](bool available) {
+        if (available)
+            return; // trackChanged() follows right away
+        resetBusy();
+        emitTrackChanged();
+        emit feedbackChanged();
+    });
+    connect(&playback_, &Playback::PlaybackController::playingChanged, this, &NowPlaying::playingChanged);
+    connect(&playback_, &Playback::PlaybackController::loadingChanged, this, [this](bool loading) {
+        loading_ = loading;
+        emit loadingChanged(loading);
+    });
+    connect(
+        &playback_, &Playback::PlaybackController::positionChanged, this, [this](qint64 positionMs, qint64 durationMs) {
+            durationMs_ = durationMs;
+            emit positionChanged(positionMs, durationMs);
+            positionThrottle_.trigger();
+        });
+    connect(&playback_, &Playback::PlaybackController::bufferedChanged, this, [this](qint64 bufferedMs) {
+        bufferedMs_ = bufferedMs;
+        emit bufferedChanged(bufferedMs);
+    });
+    connect(&playback_, &Playback::PlaybackController::queueAvailabilityChanged, this,
+        &NowPlaying::queueAvailabilityChanged);
+    // However they were changed — here, or over MPRIS — play modes are
+    // remembered as the user set them.
+    connect(&playback_, &Playback::PlaybackController::playModeChanged, this, [this]() {
+        settings_.setShuffle(playback_.shuffle());
+        settings_.setRepeatMode(playback_.repeatMode());
+        emit playModesChanged();
+        emit shuffleChanged();
+        emit radioChanged();
+        emit repeatChanged();
+    });
+    connect(
+        &trackStates_, &Library::TrackStates::changed, this, [this](const QString& sourceId, const QString& trackId) {
+            if (isShownTrack(sourceId, trackId))
+                emit feedbackChanged();
+        });
+    connect(&trackStates_, &Library::TrackStates::bulkChanged, this, &NowPlaying::feedbackChanged);
+    // Whether the playing track is being saved.
+    connect(&downloads_, &Downloads::changed, this, &NowPlaying::feedbackChanged);
+    connect(&sourceManager_, &Rpc::SourceManager::sourceReady, this, [this](Rpc::RpcClient* client) {
+        if (client->sourceId() == savedSourceId_)
+            emit feedbackChanged();
+    });
+}
+
+void NowPlaying::setSavedTrack(const QString& sourceId, const std::optional<Track>& track)
+{
+    if (savedTrack_.has_value() == track.has_value()
+        && (!track || (savedSourceId_ == sourceId && savedTrack_->toJson() == track->toJson())))
+        return;
+    savedSourceId_ = track ? sourceId : QString();
+    savedTrack_ = track;
+    // Behind a loaded track it isn't shown.
+    if (playback_.hasCurrentTrack())
+        return;
+    resetBusy();
+    emitTrackChanged();
+    emit feedbackChanged();
+    emit positionChanged(positionMs(), durationMs());
+    emit positionMsChanged();
+}
+
+bool NowPlaying::hasTrack() const { return playback_.hasCurrentTrack() || savedTrack_.has_value(); }
+
+const Track& NowPlaying::track() const { return playback_.hasCurrentTrack() ? playback_.currentTrack() : *savedTrack_; }
+
+QString NowPlaying::sourceId() const
+{
+    return playback_.hasCurrentTrack() ? playback_.currentSourceId() : savedSourceId_;
+}
+
+QString NowPlaying::webUrl() const { return hasTrack() ? track().webUrl.value_or(QString()) : QString(); }
+
+bool NowPlaying::playing() const { return playback_.isPlaying(); }
+
+bool NowPlaying::queueAvailable() const { return playback_.hasQueue(); }
+
+QString NowPlaying::title() const { return hasTrack() ? track().title : QString(); }
+
+QString NowPlaying::artist() const
+{
+    if (!hasTrack())
+        return { };
+    QStringList names;
+    for (const Artist& artist : track().artists)
+        names.append(artist.name);
+    return names.join(QStringLiteral(", "));
+}
+
+QString NowPlaying::coverSource() const
+{
+    if (!hasTrack())
+        return { };
+    return track().coverUrl.value_or(track().album ? track().album->coverUrl.value_or(QString()) : QString());
+}
+
+QString NowPlaying::coverUrl() const
+{
+    if (covers_ == nullptr)
+        return { };
+    const QString file = covers_->localFile(coverSource());
+    return file.isEmpty() ? QString() : QUrl::fromLocalFile(file).toString();
+}
+
+QString NowPlaying::backgroundSeed(const Track& track)
+{
+    return track.album && !track.album->title.isEmpty() ? track.album->title : track.title;
+}
+
+void NowPlaying::setCovers(Covers::CoverArtCache* covers)
+{
+    covers_ = covers;
+    connect(covers_, &Covers::CoverArtCache::pixmapReady, this, [this](const QString& url) {
+        if (url == coverSource())
+            emit coverUrlChanged();
+    });
+}
+
+void NowPlaying::updateTrackDirection()
+{
+    if (!playback_.hasCurrentTrack())
+        return;
+    // By where the last track is in the queue now, not by the indexes as they
+    // were: a radio drops what it has played, which moves them. Gone from the
+    // queue, it was played long ago.
+    const QVector<Playback::QueueEntry>& queue = playback_.queue();
+    const int current = playback_.currentIndex();
+    int last = -1;
+    for (int i = 0; i < queue.size(); ++i) {
+        if (queue[i].sourceId == lastSourceId_ && queue[i].track.id == lastTrackId_) {
+            last = i;
+            break;
+        }
+    }
+    int direction = last >= 0 && current < last ? -1 : 1;
+    // Around the end of a list that repeats, a step is a step.
+    if (playback_.repeatMode() == Playback::RepeatMode::All && queue.size() > 2) {
+        if (last == queue.size() - 1 && current == 0)
+            direction = 1;
+        else if (last == 0 && current == queue.size() - 1)
+            direction = -1;
+    }
+    lastSourceId_ = playback_.currentSourceId();
+    lastTrackId_ = track().id;
+    if (direction != trackDirection_) {
+        trackDirection_ = direction;
+        emit trackDirectionChanged();
+    }
+}
+
+void NowPlaying::emitTrackChanged()
+{
+    durationMs_ = 0; // until the new track's position says
+    updateTrackDirection();
+    emit trackChanged();
+    emit hasTrackChanged();
+    emit titleChanged();
+    emit artistChanged();
+    emit coverUrlChanged();
+    emit backgroundSeedChanged();
+    emit webUrlChanged();
+    emit durationMsChanged();
+}
+
+qint64 NowPlaying::durationMs() const
+{
+    if (durationMs_ > 0)
+        return durationMs_;
+    return hasTrack() ? track().durationMs : 0;
+}
+
+void NowPlaying::play()
+{
+    if (!playback_.hasCurrentTrack())
+        emit resumeRequested();
+    else if (!playing())
+        playback_.togglePause();
+}
+
+void NowPlaying::pause()
+{
+    if (playing())
+        playback_.togglePause();
+}
+
+void NowPlaying::togglePause()
+{
+    if (playback_.hasCurrentTrack())
+        playback_.togglePause();
+    else
+        emit resumeRequested();
+}
+
+void NowPlaying::next() { step(1); }
+
+void NowPlaying::previous() { step(-1); }
+
+void NowPlaying::step(int delta)
+{
+    // From the saved track: there's no queue yet to go through.
+    if (!playback_.hasCurrentTrack() && savedTrack_)
+        emit stepRequested(delta);
+    else if (delta > 0)
+        playback_.next();
+    else
+        playback_.previous();
+}
+
+void NowPlaying::stop()
+{
+    playback_.stop();
+    emit stopped();
+}
+
+void NowPlaying::seek(qint64 positionMs)
+{
+    if (playback_.hasCurrentTrack() || !savedTrack_ || savedTrack_->id != settings_.lastActiveTrackId()) {
+        playback_.seek(positionMs);
+        return;
+    }
+    // Where it goes on from once played.
+    settings_.setLastActivePositionMs(std::clamp(positionMs, qint64(0), std::max(durationMs(), qint64(0))));
+    emit positionChanged(this->positionMs(), durationMs());
+    emit positionMsChanged();
+}
+
+qint64 NowPlaying::positionMs() const
+{
+    if (playback_.hasCurrentTrack() || !savedTrack_)
+        return playback_.positionMs();
+    if (savedTrack_->id != settings_.lastActiveTrackId())
+        return 0;
+    // Not clamped to a duration the source didn't tell.
+    const qint64 saved = std::max(settings_.lastActivePositionMs(), qint64(0));
+    return savedTrack_->durationMs > 0 ? std::min(saved, qint64(savedTrack_->durationMs)) : saved;
+}
+
+void NowPlaying::setVolume(int volume0To100)
+{
+    const int level = std::clamp(volume0To100, 0, 100);
+    int& current = quiet_ ? quietVolume_ : volume_;
+    if (current == level)
+        return;
+    current = level;
+    if (quiet_)
+        settings_.setQuietVolume(level);
+    else
+        settings_.setVolume(level);
+    // A slider drag or a key press is heard at once, not faded.
+    applyVolume(false);
+    emit volumeChanged(level);
+}
+
+void NowPlaying::setQuiet(bool on)
+{
+    if (quiet_ == on)
+        return;
+    quiet_ = on;
+    settings_.setQuiet(on);
+    applyVolume(true);
+    emit quietChanged(on);
+    emit volumeChanged(volume());
+}
+
+void NowPlaying::applyVolume(bool animated)
+{
+    const int target = volume();
+    // Start from what is playing now, so a toggle in mid-fade turns around
+    // smoothly.
+    const int from
+        = fade_.state() == QAbstractAnimation::Running ? fade_.currentValue().toInt() : fade_.endValue().toInt();
+    fade_.stop();
+    if (!animated || from == target) {
+        fade_.setStartValue(target);
+        fade_.setEndValue(target);
+        playback_.setVolume(target);
+        return;
+    }
+    fade_.setStartValue(from);
+    fade_.setEndValue(target);
+    fade_.start();
+}
+
+bool NowPlaying::shuffle() const { return playback_.shuffleActive(); }
+
+Playback::RepeatMode NowPlaying::repeatMode() const { return playback_.effectiveRepeatMode(); }
+
+bool NowPlaying::isRadio() const { return playback_.isRadio(); }
+
+Playback::RepeatMode NowPlaying::nextRepeatMode(Playback::RepeatMode mode, bool radio)
+{
+    using Playback::RepeatMode;
+    if (mode == RepeatMode::Off)
+        return radio ? RepeatMode::One : RepeatMode::All;
+    return mode == RepeatMode::All ? RepeatMode::One : RepeatMode::Off;
+}
+
+void NowPlaying::toggleShuffle() { setShuffle(!shuffle()); }
+
+void NowPlaying::cycleRepeat() { setRepeatMode(nextRepeatMode(repeatMode(), isRadio())); }
+
+void NowPlaying::setShuffle(bool on) { playback_.setShuffle(on); }
+
+void NowPlaying::setRepeatMode(Playback::RepeatMode mode) { playback_.setRepeatMode(mode); }
+
+NowPlaying::Feedback NowPlaying::feedback() const
+{
+    Feedback result;
+    const bool current = hasTrack();
+    const QString source = sourceId();
+    const QString trackId = current ? track().id : QString();
+    if (source.isEmpty() || trackId.isEmpty())
+        return result;
+    const QJsonObject caps = capabilities(source);
+    const QJsonObject feedback = caps.value(QStringLiteral("feedback")).toObject();
+    const Library::TrackState state = trackStates_.state(source, trackId);
+    result.likeSupported = feedback.value(QStringLiteral("like")).toBool();
+    result.liked = pendingLiked_.value_or(state.liked.value_or(false));
+    result.likeBusy = pendingLiked_.has_value();
+    result.dislikeSupported = feedback.value(QStringLiteral("dislike")).toBool();
+    result.disliked = pendingDisliked_.value_or(state.disliked.value_or(false));
+    result.dislikeBusy = pendingDisliked_.has_value();
+    result.downloadSupported = current && downloads_.isEnabled() && Downloads::canSave(caps);
+    result.downloadBusy = current && downloads_.isDownloading(source, trackId);
+    result.playlistsSupported
+        = current && caps.value(QStringLiteral("browse")).toObject().value(QStringLiteral("editPlaylists")).toBool();
+    return result;
+}
+
+void NowPlaying::setLiked(bool liked)
+{
+    if (hasTrack())
+        setTrackLiked(sourceId(), track().id, liked, /*announce=*/false).detach();
+}
+
+void NowPlaying::setDisliked(bool disliked)
+{
+    if (hasTrack())
+        setTrackDisliked(sourceId(), track().id, disliked, /*announce=*/false).detach();
+}
+
+void NowPlaying::download()
+{
+    if (hasTrack())
+        downloads_.downloadTrack(sourceId(), track());
+}
+
+Rpc::Task<void> NowPlaying::setTrackLiked(QString sourceId, QString trackId, bool liked, bool announce)
+{
+    const QString method = liked ? QStringLiteral("feedback.like") : QStringLiteral("feedback.unlike");
+    // The source can't be told now, or something is queued for it already
+    // (which goes first): it's done here, and sent once it can be.
+    if (queueRating(sourceId, trackId, method)) {
+        applyLiked(sourceId, trackId, liked, announce);
+        co_return;
+    }
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available())
+        co_return;
+    // Busy shows only on the track displayed — the queue may move on while
+    // the call runs; what the call changes (trackStates_, history) is
+    // updated regardless.
+    if (isShownTrack(sourceId, trackId)) {
+        pendingLiked_ = liked;
+        emit feedbackChanged();
+    }
+    // After whatever was asked of this kind before it: a like and an
+    // unlike reach the source in the order they were made.
+    const Rpc::Sequence::Turn turn = co_await rating_.turn();
+    client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available()) {
+        if (isShownTrack(sourceId, trackId)) {
+            pendingLiked_.reset();
+            emit feedbackChanged();
+        }
+        co_return;
+    }
+    try {
+        if (liked)
+            co_await Rpc::feedbackLike(*client, LikeParams { trackId });
+        else
+            co_await Rpc::feedbackUnlike(*client, UnlikeParams { trackId });
+        if (isShownTrack(sourceId, trackId))
+            pendingLiked_.reset();
+        applyLiked(sourceId, trackId, liked, announce);
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcNowPlaying) << "feedback.like/unlike failed for" << trackId << ":" << message;
+        if (isShownTrack(sourceId, trackId))
+            pendingLiked_.reset();
+        const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
+        if (call != nullptr && call->isOffline() && outbox_ != nullptr) {
+            // The network went as it was sent: later, then.
+            outbox_->enqueue(sourceId, method, LikeParams { trackId }.toJson(), ratingKey(trackId));
+            trackStates_.holdRating(sourceId, trackId, true);
+            applyLiked(sourceId, trackId, liked, announce);
+            co_return;
+        }
+        messages_.failure(client->sourceName(), e);
+        // Back to what trackStates_ still says.
+        emit feedbackChanged();
+    }
+}
+
+Rpc::Task<void> NowPlaying::setTrackDisliked(QString sourceId, QString trackId, bool disliked, bool announce)
+{
+    const QString method = disliked ? QStringLiteral("feedback.dislike") : QStringLiteral("feedback.undislike");
+    // No point listening to a track being disliked — move on right away, like
+    // the services' own players do, instead of waiting for the slow call.
+    // next() also sends the skip feedback a radio uses to adapt its upcoming
+    // tracks, and stops playback when the queue is over.
+    const bool queued = queueRating(sourceId, trackId, method);
+    if (queued) {
+        applyDisliked(sourceId, trackId, disliked, announce);
+        if (disliked && isCurrent(sourceId, trackId))
+            playback_.next();
+        co_return;
+    }
+    Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available())
+        co_return;
+    if (isShownTrack(sourceId, trackId)) {
+        pendingDisliked_ = disliked;
+        emit feedbackChanged();
+    }
+    // The button stays busy (pendingDisliked_) until the call finishes.
+    if (disliked && isCurrent(sourceId, trackId)) {
+        playback_.next();
+        // The busy flag isn't per track: don't leave it on the next one.
+        if (!isShownTrack(sourceId, trackId)) {
+            pendingDisliked_.reset();
+            emit feedbackChanged();
+        }
+    }
+    const Rpc::Sequence::Turn turn = co_await rating_.turn();
+    client = sourceManager_.client(sourceId);
+    if (client == nullptr || !client->available()) {
+        if (isShownTrack(sourceId, trackId)) {
+            pendingDisliked_.reset();
+            emit feedbackChanged();
+        }
+        co_return;
+    }
+    try {
+        if (disliked)
+            co_await Rpc::feedbackDislike(*client, DislikeParams { trackId });
+        else
+            co_await Rpc::feedbackUndislike(*client, UndislikeParams { trackId });
+        if (isShownTrack(sourceId, trackId))
+            pendingDisliked_.reset();
+        applyDisliked(sourceId, trackId, disliked, announce);
+    } catch (const std::exception& e) {
+        const QString message = QString::fromStdString(e.what());
+        qCWarning(lcNowPlaying) << "feedback.dislike/undislike failed for" << trackId << ":" << message;
+        if (isShownTrack(sourceId, trackId))
+            pendingDisliked_.reset();
+        const auto* call = dynamic_cast<const Rpc::RpcCallException*>(&e);
+        if (call != nullptr && call->isOffline() && outbox_ != nullptr) {
+            outbox_->enqueue(sourceId, method, DislikeParams { trackId }.toJson(), ratingKey(trackId));
+            trackStates_.holdRating(sourceId, trackId, true);
+            applyDisliked(sourceId, trackId, disliked, announce);
+            co_return;
+        }
+        messages_.failure(client->sourceName(), e);
+        emit feedbackChanged();
+    }
+}
+
+bool NowPlaying::queueRating(const QString& sourceId, const QString& trackId, const QString& method)
+{
+    if (outbox_ == nullptr || !outbox_->holds(sourceId))
+        return false;
+    // The params of all four are {trackId}.
+    outbox_->enqueue(sourceId, method, LikeParams { trackId }.toJson(), ratingKey(trackId));
+    trackStates_.holdRating(sourceId, trackId, true);
+    return true;
+}
+
+void NowPlaying::applyLiked(const QString& sourceId, const QString& trackId, bool liked, bool announce)
+{
+    emit feedbackSent(sourceId, liked ? QStringLiteral("like") : QStringLiteral("unlike"));
+    // Cross-clears the dislike too (docs/protocol.md §7.4).
+    trackStates_.setLiked(sourceId, trackId, liked);
+    history_.markTrackLiked(sourceId, trackId, liked); // keeps the saved snapshot fresh
+    if (announce)
+        messages_.info(liked ? tr("Added to Liked") : tr("Removed from Liked"));
+}
+
+void NowPlaying::applyDisliked(const QString& sourceId, const QString& trackId, bool disliked, bool announce)
+{
+    emit feedbackSent(sourceId, disliked ? QStringLiteral("dislike") : QStringLiteral("undislike"));
+    // Cross-clears the like too (docs/protocol.md §7.4).
+    trackStates_.setDisliked(sourceId, trackId, disliked);
+    if (disliked)
+        history_.markTrackLiked(sourceId, trackId, false);
+    if (announce)
+        messages_.info(disliked ? tr("Disliked") : tr("Removed dislike"));
+}
+
+bool NowPlaying::isCurrent(const QString& sourceId, const QString& trackId) const
+{
+    return playback_.hasCurrentTrack() && playback_.currentSourceId() == sourceId
+        && playback_.currentTrack().id == trackId;
+}
+
+bool NowPlaying::isShownTrack(const QString& sourceId, const QString& trackId) const
+{
+    return hasTrack() && this->sourceId() == sourceId && track().id == trackId;
+}
+
+QJsonObject NowPlaying::capabilities(const QString& sourceId) const
+{
+    const Rpc::RpcClient* client = sourceManager_.client(sourceId);
+    return client != nullptr ? client->capabilities() : QJsonObject();
+}
+
+void NowPlaying::resetBusy()
+{
+    pendingLiked_.reset();
+    pendingDisliked_.reset();
+}
+
+} // namespace ViewModel

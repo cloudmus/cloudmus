@@ -10,10 +10,15 @@ logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 # they're stdlib logging-based, so basicConfig(stream=sys.stderr) above
 # already routes them correctly.
 
+from rpc_common import startup
 from rpc_common.server import serve
+
+startup.mark("the protocol imported")
 
 from cloudmus_backend_yandex import http_logging, http_session, model_compat
 from cloudmus_backend_yandex.server import build_server
+
+startup.mark("the source imported")
 
 # Must happen before any Client()/get_client() call (auth.py's device-auth
 # flow makes its own throwaway Client(), not just client.py's cached one) —
@@ -26,6 +31,8 @@ model_compat.install()
 
 def main() -> None:
     server = build_server()
+    startup.mark("ready")
+    startup.report_bytecode()
     serve(server, _rpc_out)
 
 

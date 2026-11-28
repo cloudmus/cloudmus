@@ -1,0 +1,197 @@
+<?xml version="1.0"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="app.cloudmus.mobile"
+    android:installLocation="auto"
+    android:versionCode="-- %%INSERT_VERSION_CODE%% --"
+    android:versionName="-- %%INSERT_VERSION_NAME%% --">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- %%INSERT_FEATURES -->
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- SignInService: kept while a sign-in's code is confirmed in a browser. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Installing an update the app downloaded (the GitHub build only:
+         fronts/mobile/CMakeLists.txt, CLOUDMUS_ANDROID_DISTRIBUTION). -->
+    <!-- %%CLOUDMUS_INSTALL_PERMISSION%% -->
+
+    <!-- Asking to remove CloudMus Sign-in (Settings; Android asks the user). -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
+    <!-- Android Auto's answer to "on a car's screen?" (CarProjection). -->
+    <queries>
+        <!-- CloudMus Sign-in: whether it's there (SignInHelper). -->
+        <package android:name="app.cloudmus.signin" />
+        <provider android:authorities="androidx.car.app.connection" />
+        <provider android:authorities="media" />
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT_TREE" />
+        </intent>
+    </queries>
+
+    <supports-screens
+        android:anyDensity="true"
+        android:largeScreens="true"
+        android:normalScreens="true"
+        android:smallScreens="true" />
+    <application
+        android:name="app.cloudmus.mobile.CmApp"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="CloudMus"
+        android:allowBackup="false"
+        android:fullBackupOnly="false">
+
+        <!-- Tells Android Auto this is a media app. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+        <!-- Yandex's media hub (yandex.auto.uma) on Russian head units lists
+             a source if it is in its white list or declares this: on the
+             browser service for the sources it browses, on the application
+             for the ones it finds by their playing media session. -->
+        <meta-data android:name="yandex.auto.uma.AudioSource" android:value="true" />
+
+        <activity
+            android:name="app.cloudmus.mobile.MainActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="unspecified"
+            android:theme="@style/CloudmusTheme"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="-- %%INSERT_APP_LIB_NAME%% --" />
+
+            <meta-data
+                android:name="android.app.arguments"
+                android:value="-- %%INSERT_APP_ARGUMENTS%% --" />
+        </activity>
+
+        <!-- A source's sign-in in a built-in browser (its `browser` method,
+             docs/protocol.md §10). In the UI's process. -->
+        <activity
+            android:name="app.cloudmus.mobile.SignInWebActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:exported="false" />
+
+        <!-- The same in CloudMus Sign-in, a separate app: asks it, and gives
+             its answer to the source. In the core's process, which it keeps
+             meanwhile. -->
+        <activity
+            android:name="app.cloudmus.mobile.SignInHelperActivity"
+            android:process=":playback"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:exported="false" />
+
+        <!-- Signing in for another device (a head unit) on the same network:
+             opened by the link its page offers, which its QR code leads to. -->
+        <activity
+            android:name="app.cloudmus.mobile.PhoneSignInActivity"
+            android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:launchMode="singleTask"
+            android:taskAffinity="app.cloudmus.mobile.signin"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cloudmus" android:host="sign-in" />
+            </intent-filter>
+        </activity>
+
+        <!-- The player: its own process, so it starts without Qt's UI and
+             goes on when the UI is unloaded. Found by the car's media
+             widget and Android Auto through the intent filters. -->
+        <service
+            android:name="app.cloudmus.mobile.PlaybackService"
+            android:process=":playback"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+            <!-- yandex.auto.uma: see the application's meta-data. -->
+            <meta-data android:name="yandex.auto.uma.AudioSource" android:value="true" />
+        </service>
+
+        <!-- Keeps the player's process while a sign-in waits for its code to
+             be confirmed in a browser: see SignInService. -->
+        <service
+            android:name="app.cloudmus.mobile.SignInService"
+            android:process=":playback"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <!-- Covers for a media browser in another app: see CoverProvider. -->
+        <provider
+            android:name="app.cloudmus.mobile.CoverProvider"
+            android:authorities="app.cloudmus.mobile.covers"
+            android:process=":playback"
+            android:exported="true" />
+
+        <!-- Media buttons while nothing plays (the steering wheel after the
+             car starts). Media3's own. -->
+        <receiver android:name="androidx.media3.session.MediaButtonReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- The downloads notification's Cancel, in the process that saves. -->
+        <receiver
+            android:name="app.cloudmus.mobile.DownloadNotice$CancelReceiver"
+            android:process=":playback"
+            android:exported="false" />
+
+        <!-- The package installer's answers about an update (UpdateInstaller). -->
+        <receiver
+            android:name="app.cloudmus.mobile.UpdateInstaller$StatusReceiver"
+            android:exported="false" />
+
+        <!-- The package installer's answers about CloudMus Sign-in. -->
+        <receiver
+            android:name="app.cloudmus.mobile.SignInHelper$StatusReceiver"
+            android:exported="false" />
+
+        <receiver android:name="app.cloudmus.mobile.BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -1,0 +1,301 @@
+#include "SourceManager.h"
+
+#include <QLoggingCategory>
+#include <QTimer>
+
+#include <algorithm>
+
+namespace Rpc {
+
+namespace {
+
+Q_LOGGING_CATEGORY(lcSourceManager, "cloudmus.rpc.sourcemanager")
+
+bool wantsHostMedia(const RpcClient* client)
+{
+    return client->capabilities().value(QStringLiteral("hostMedia")).toBool();
+}
+
+} // namespace
+
+// The current library to one source; `announce`: the source was running
+// already, so what it lists is to be read again.
+Task<void> sendLibraryTo(SourceManager& manager, RpcClient* client, bool announce)
+{
+    HostMedia* media = manager.hostMedia_;
+    if (media == nullptr || !client->available() || !wantsHostMedia(client) || media->libraryPath().isEmpty())
+        co_return;
+    try {
+        co_await mediaSetLibrary(*client, SetLibraryParams { media->libraryPath(), int(media->revision()) });
+    } catch (const RpcCallException& e) {
+        qCWarning(lcSourceManager) << client->manifest().id << "did not take the media library:" << e.error().message;
+        co_return;
+    }
+    if (announce && manager.client(client->manifest().id) == client)
+        manager.notifySettingsChanged(client->manifest().id);
+}
+
+namespace {
+
+// Runs client->start(), reporting success/failure back through the two
+// SourceManager signals. A free coroutine (not a SourceManager method) so
+// it can be detach()ed cleanly from startOne() without SourceManager itself
+// needing to be a coroutine.
+Task<void> runStart(SourceManager& manager, RpcClient* client, QProcessEnvironment environment, QString locale)
+{
+    // Switched off (SourceManager::setEnabled) while still handshaking:
+    // its shutdown() was a no-op then, as nothing was up yet.
+    const auto superseded = [&manager, client]() { return manager.client(client->manifest().id) != client; };
+    try {
+        co_await client->start(std::move(environment), locale);
+        if (superseded()) {
+            co_await client->shutdown();
+            co_return;
+        }
+        qCInfo(lcSourceManager) << client->manifest().id << "connected —" << client->sourceName()
+                                << "capabilities=" << client->capabilities();
+        // The language changed while it started (on Android the UI says
+        // which it is only once it's up): setLocale() skipped it then.
+        // Not listed yet, so nothing to read again.
+        if (manager.locale() != locale) {
+            try {
+                co_await client->setLanguage(manager.locale());
+            } catch (const std::exception& e) {
+                qCWarning(lcSourceManager) << client->manifest().id << "could not switch language:" << e.what();
+            }
+        }
+        // Before it's listed: its first list has the library in it.
+        co_await sendLibraryTo(manager, client, false);
+        if (superseded())
+            co_return;
+        emit manager.sourceReady(client);
+    } catch (const RpcCallException& e) {
+        if (superseded())
+            co_return;
+        qCWarning(lcSourceManager) << client->manifest().id << "failed to start:" << e.error().message
+                                   << "stderr tail:" << client->stderrTail();
+        emit manager.sourceUnavailable(client->manifest().id, manager.displayName(client->manifest()), client->stderrTail());
+    }
+}
+
+// Switches one running backend's language, then tells the front to read
+// what it shows from it again.
+Task<void> runSetLanguage(SourceManager& manager, RpcClient* client, QString locale)
+{
+    try {
+        co_await client->setLanguage(std::move(locale));
+    } catch (const std::exception& e) {
+        qCWarning(lcSourceManager) << client->manifest().id << "could not switch language:" << e.what();
+        co_return;
+    }
+    // Restarted or switched off meanwhile: not this client's to report.
+    if (manager.client(client->manifest().id) == client)
+        manager.notifySettingsChanged(client->manifest().id);
+}
+
+} // namespace
+
+SourceManager::SourceManager(QObject* parent)
+    : QObject(parent)
+{
+    connect(this, &SourceManager::sourceUnavailable, this,
+        [this](const QString& manifestId) { unavailableIds_.insert(manifestId); });
+}
+
+const QList<BackendManifest>& SourceManager::manifests()
+{
+    if (!manifests_)
+        manifests_ = discoverManifests();
+    return *manifests_;
+}
+
+void SourceManager::discoverNewSources()
+{
+    const auto known = manifests();
+    manifests_ = discoverManifests();
+    for (const auto& manifest : manifests()) {
+        const bool exists = std::any_of(known.cbegin(), known.cend(),
+            [&manifest](const BackendManifest& previous) { return previous.id == manifest.id; });
+        if (exists || !isEnabled(manifest.id))
+            continue;
+        emit sourceStarting(manifest);
+        if (!isDeferred(manifest.id))
+            startOne(manifest);
+    }
+}
+
+void SourceManager::setLocale(const QString& locale)
+{
+    if (locale == locale_)
+        return;
+    locale_ = locale;
+    for (RpcClient* client : std::as_const(clientsById_)) {
+        if (client->available())
+            runSetLanguage(*this, client, locale_).detach();
+    }
+}
+
+void SourceManager::setHostMedia(HostMedia* media)
+{
+    if (hostMedia_ != nullptr)
+        disconnect(hostMedia_, nullptr, this, nullptr);
+    hostMedia_ = media;
+    if (media != nullptr) {
+        connect(media, &HostMedia::changed, this, &SourceManager::sendLibrary);
+        connect(media, &HostMedia::permissionNeededChanged, this, &SourceManager::mediaPermissionNeededChanged);
+        connect(media, &HostMedia::removalNeedsConsent, this, &SourceManager::mediaRemovalNeedsConsent);
+    }
+    emit mediaPermissionNeededChanged();
+}
+
+void SourceManager::sendLibrary()
+{
+    for (RpcClient* client : std::as_const(clientsById_))
+        sendLibraryTo(*this, client, true).detach();
+}
+
+void SourceManager::setDisabledIds(const QStringList& ids) { disabledIds_ = QSet<QString>(ids.begin(), ids.end()); }
+
+void SourceManager::setDeferredIds(const QStringList& ids) { deferredIds_ = QSet<QString>(ids.begin(), ids.end()); }
+
+void SourceManager::startDeferred(const QString& sourceId)
+{
+    if (!deferredIds_.remove(sourceId) || !isEnabled(sourceId))
+        return;
+    for (const auto& manifest : manifests()) {
+        if (manifest.id == sourceId) {
+            emit sourceStarting(manifest);
+            startOne(manifest);
+        }
+    }
+}
+
+void SourceManager::startAll()
+{
+    for (const auto& manifest : manifests()) {
+        if (isEnabled(manifest.id))
+            emit sourceStarting(manifest);
+    }
+    if (spawnDelayMs_ > 0)
+        QTimer::singleShot(spawnDelayMs_, this, &SourceManager::spawnWaiting);
+    else
+        spawnWaiting();
+}
+
+void SourceManager::spawnWaiting()
+{
+    for (const auto& manifest : manifests()) {
+        if (isEnabled(manifest.id) && !isDeferred(manifest.id) && !clientsById_.contains(manifest.id))
+            startOne(manifest);
+    }
+}
+
+void SourceManager::setEnabled(const QString& sourceId, bool enabled)
+{
+    if (enabled == isEnabled(sourceId))
+        return;
+    if (enabled) {
+        disabledIds_.remove(sourceId);
+        for (const auto& manifest : manifests()) {
+            if (manifest.id == sourceId) {
+                restartAttempts_.remove(sourceId);
+                emit sourceStarting(manifest);
+                startOne(manifest);
+            }
+        }
+        return;
+    }
+
+    disabledIds_.insert(sourceId);
+    RpcClient* client = clientsById_.take(sourceId);
+    if (client == nullptr)
+        return;
+    // Before shutdown(): a request still in flight makes the process exit
+    // look like a crash (becameUnavailable), and watch()'s handler would
+    // restart it. The client object itself stays parented to `this`, like
+    // a crashed one replaced by a restart: coroutines may still hold it.
+    disconnect(client, nullptr, this, nullptr);
+    client->shutdown().detach();
+    qCInfo(lcSourceManager) << sourceId << "disabled";
+    emit sourceStopped(sourceId);
+}
+
+void SourceManager::startOne(const BackendManifest& manifest)
+{
+    qCDebug(lcSourceManager) << "starting" << manifest.id << manifest.argv;
+    unavailableIds_.remove(manifest.id);
+    auto* client = new RpcClient(manifest, this);
+    clientsById_.insert(manifest.id, client);
+    watch(client);
+    client->notifications.onMediaWanted = [this, id = manifest.id](const MediaWantedParams& params) {
+        if (hostMedia_ != nullptr)
+            hostMedia_->want(id, params.scope == QStringLiteral("all"));
+    };
+    // Asked anew for every spawn, restarts included: the source's proxy may
+    // have changed since the last one.
+    const QProcessEnvironment environment
+        = environmentProvider_ ? environmentProvider_(manifest.id) : QProcessEnvironment::systemEnvironment();
+    runStart(*this, client, environment, locale_).detach();
+}
+
+void SourceManager::watch(RpcClient* client)
+{
+    const QString id = client->manifest().id;
+    connect(client, &RpcClient::becameUnavailable, this, [this, client, id]() {
+        if (client->exitedUnexpectedly())
+            emit sourceCrashed(id);
+        int attempt = restartAttempts_.value(id, 0);
+        if (attempt >= kMaxRestartAttempts) {
+            qCWarning(lcSourceManager) << id << "exhausted" << kMaxRestartAttempts
+                                       << "restart attempts, giving up for this session";
+            emit sourceUnavailable(id, displayName(client->manifest()), client->stderrTail());
+            return;
+        }
+        const int delayMs = kRestartDelaysMs[attempt];
+        qCWarning(lcSourceManager) << id << "became unavailable, retrying in" << delayMs << "ms (attempt"
+                                   << (attempt + 1) << "of" << kMaxRestartAttempts << ")";
+        restartAttempts_.insert(id, attempt + 1);
+        const BackendManifest manifest = client->manifest();
+        QTimer::singleShot(delayMs, this, [this, manifest]() {
+            // Switched off while waiting to restart.
+            if (!isEnabled(manifest.id))
+                return;
+            // The old client object stays parented to `this` and gets
+            // cleaned up with it; replace the map entry with a fresh client.
+            startOne(manifest);
+        });
+    });
+}
+
+void SourceManager::restart(const QString& sourceId)
+{
+    if (!isEnabled(sourceId))
+        return;
+    setEnabled(sourceId, false);
+    setEnabled(sourceId, true);
+}
+
+bool SourceManager::isStarting(const QString& sourceId)
+{
+    if (!isEnabled(sourceId) || isUnavailable(sourceId))
+        return false;
+    const auto& known = manifests();
+    const bool exists = std::any_of(known.cbegin(), known.cend(), [&](const BackendManifest& m) { return m.id == sourceId; });
+    if (!exists)
+        return false;
+    const RpcClient* client = clientsById_.value(sourceId, nullptr);
+    return client == nullptr || !client->available();
+}
+
+QList<RpcClient*> SourceManager::clients() const { return clientsById_.values(); }
+
+RpcClient* SourceManager::client(const QString& sourceId) const { return clientsById_.value(sourceId, nullptr); }
+
+void SourceManager::shutdownAll()
+{
+    for (RpcClient* client : std::as_const(clientsById_)) {
+        client->shutdown().detach();
+    }
+}
+
+} // namespace Rpc

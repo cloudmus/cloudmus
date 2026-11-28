@@ -1,0 +1,202 @@
+#include "BackendManifest.h"
+
+#include <QDir>
+#include <QCoreApplication>
+#include <QFile>
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QProcessEnvironment>
+#include <QSet>
+#include <QStandardPaths>
+
+#ifndef CLOUDMUS_DEV_REPO_ROOT
+#define CLOUDMUS_DEV_REPO_ROOT ""
+#endif
+
+namespace Rpc {
+
+namespace {
+
+bool envFlagTruthy(const QString& value)
+{
+    const QString v = value.trimmed().toLower();
+    return v == QStringLiteral("1") || v == QStringLiteral("true") || v == QStringLiteral("yes");
+}
+
+// Dev-mode manifests carry a bare "python"/"python3" in argv[0], resolved
+// via PATH — correct for fronts/tui, whose own process only runs at all
+// once its venv is already activated (activation prepends .venv/bin to
+// PATH, so the *same* PATH is inherited by the subprocess it spawns). A
+// compiled front like this one has no such activation step, so a bare
+// interpreter name on PATH silently resolves to the system Python instead
+// — which doesn't have the backend packages installed (they're only
+// `pip install -e`'d into the repo's .venv) and fails at import time. Only
+// applied to *dev-mode* discovery (repo-relative backends/*/manifest.json);
+// installed manifests (~/.config/cloudmus/backends.d/) are a packaging
+// concern and are left untouched.
+void preferRepoVenvInterpreter(BackendManifest& manifest, const QString& repoRoot)
+{
+    if (manifest.argv.isEmpty())
+        return;
+    const QString& interpreter = manifest.argv.first();
+    if (interpreter != QStringLiteral("python") && interpreter != QStringLiteral("python3"))
+        return;
+    const QString venvPython = repoRoot + QStringLiteral("/.venv/bin/python3");
+    if (QFile::exists(venvPython)) {
+        manifest.argv[0] = venvPython;
+    }
+}
+
+// A file named by the manifest, relative to the manifest's own directory;
+// empty if not named or missing.
+QString manifestFile(const QString& manifestPath, const QJsonObject& obj, const QString& key)
+{
+    const QString name = obj.value(key).toString();
+    if (name.isEmpty())
+        return { };
+    const QString resolved = QDir(QFileInfo(manifestPath).absolutePath()).absoluteFilePath(name);
+    return QFileInfo::exists(resolved) ? resolved : QString();
+}
+
+} // namespace
+
+QString BackendManifest::localizedName(const QString& locale) const
+{
+    QString tag = locale;
+    tag.replace(QLatin1Char('_'), QLatin1Char('-'));
+    while (!tag.isEmpty()) {
+        const auto it = localizedNames.constFind(tag.toLower());
+        if (it != localizedNames.cend())
+            return it.value();
+        const qsizetype dash = tag.lastIndexOf(QLatin1Char('-'));
+        tag = dash < 0 ? QString() : tag.left(dash);
+    }
+    return { };
+}
+
+QString BackendManifest::displayName(const QString& locale) const
+{
+    const QString localized = localizedName(locale);
+    return localized.isEmpty() ? name : localized;
+}
+
+namespace {
+
+bool parseManifest(const QString& path, BackendManifest& out)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return false;
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &error);
+    if (error.error != QJsonParseError::NoError || !doc.isObject())
+        return false;
+    QJsonObject obj = doc.object();
+    if (!obj.contains(QStringLiteral("id")) || !obj.contains(QStringLiteral("argv")))
+        return false;
+
+    out.id = obj.value(QStringLiteral("id")).toString();
+    out.name = obj.value(QStringLiteral("name")).toString();
+    out.localizedNames.clear();
+    for (auto it = obj.begin(); it != obj.end(); ++it) {
+        const QString key = it.key();
+        if (key.startsWith(QStringLiteral("name[")) && key.endsWith(QLatin1Char(']')) && it.value().isString())
+            out.localizedNames.insert(key.mid(5, key.size() - 6).replace(QLatin1Char('_'), QLatin1Char('-')).toLower(),
+                it.value().toString());
+    }
+    out.protocolVersion = obj.value(QStringLiteral("protocolVersion")).toString();
+    out.manifestPath = path;
+    out.iconPath = manifestFile(path, obj, QStringLiteral("icon"));
+    out.logoPath = manifestFile(path, obj, QStringLiteral("logo"));
+    out.argv.clear();
+    for (const QJsonValue& v : obj.value(QStringLiteral("argv")).toArray()) {
+        out.argv.append(v.toString());
+    }
+    return !out.id.isEmpty() && !out.argv.isEmpty();
+}
+
+void scanDir(const QDir& dir, QList<BackendManifest>& out, QSet<QString>& seenIds, bool bundled = false)
+{
+    if (!dir.exists())
+        return;
+    const QStringList jsonFiles = dir.entryList(QStringList { QStringLiteral("*.json") }, QDir::Files);
+    for (const QString& fileName : jsonFiles) {
+        BackendManifest manifest;
+        if (!parseManifest(dir.filePath(fileName), manifest))
+            continue;
+        if (bundled && !QDir::isAbsolutePath(manifest.argv.first())) {
+            manifest.argv[0] = dir.absoluteFilePath(manifest.argv.first());
+        }
+        if (seenIds.contains(manifest.id))
+            continue;
+        seenIds.insert(manifest.id);
+        out.append(manifest);
+    }
+}
+
+} // namespace
+
+QList<BackendManifest> discoverManifests()
+{
+    QList<BackendManifest> result;
+    QSet<QString> seenIds;
+
+    const QString configHome = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+    scanDir(QDir(configHome + QStringLiteral("/cloudmus/backends.d")), result, seenIds);
+
+    // The backends that ship with the app (packaging/windows,
+    // packaging/macos/build-app.sh).
+#ifdef Q_OS_WIN
+    scanDir(QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/backends")), result, seenIds, true);
+#elif defined(Q_OS_MACOS)
+    scanDir(
+        QDir(QCoreApplication::applicationDirPath() + QStringLiteral("/../Resources/backends")), result, seenIds, true);
+#endif
+
+    // ...or that the app unpacks as it runs (Android: PythonRuntime.java), with
+    // the interpreter wherever the platform lets it be started from.
+    const QProcessEnvironment system = QProcessEnvironment::systemEnvironment();
+    const QString nativeDir = system.value(QStringLiteral("CLOUDMUS_NATIVE_BACKENDS_DIR"));
+    if (!nativeDir.isEmpty())
+        scanDir(QDir(nativeDir), result, seenIds, true);
+    const QString unpackedDir = system.value(QStringLiteral("CLOUDMUS_BACKENDS_DIR"));
+    if (!unpackedDir.isEmpty()) {
+        const qsizetype first = result.size();
+        scanDir(QDir(unpackedDir), result, seenIds);
+        const QString python = system.value(QStringLiteral("CLOUDMUS_BACKENDS_PYTHON"));
+        for (qsizetype i = first; i < result.size() && !python.isEmpty(); ++i) {
+            if (result[i].argv.first() == QStringLiteral("python3"))
+                result[i].argv[0] = python;
+        }
+    }
+
+    const QString devFlag = QProcessEnvironment::systemEnvironment().value(QStringLiteral("CLOUDMUS_DEV_BACKENDS"));
+    if (envFlagTruthy(devFlag)) {
+        const QString repoRoot = QStringLiteral(CLOUDMUS_DEV_REPO_ROOT);
+        if (!repoRoot.isEmpty()) {
+            QDir backendsDir(repoRoot + QStringLiteral("/backends"));
+            const QStringList subdirs = backendsDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+            for (const QString& subdir : subdirs) {
+                QDir dir(backendsDir.filePath(subdir));
+                if (!dir.exists(QStringLiteral("manifest.json")))
+                    continue;
+                BackendManifest manifest;
+                if (!parseManifest(dir.filePath(QStringLiteral("manifest.json")), manifest))
+                    continue;
+                if (seenIds.contains(manifest.id))
+                    continue;
+                if (manifest.argv.first().startsWith(QStringLiteral("./")))
+                    manifest.argv[0] = dir.absoluteFilePath(manifest.argv.first());
+                preferRepoVenvInterpreter(manifest, repoRoot);
+                seenIds.insert(manifest.id);
+                result.append(manifest);
+            }
+        }
+    }
+
+    return result;
+}
+
+} // namespace Rpc

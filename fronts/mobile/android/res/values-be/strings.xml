@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="phone_title">Уваход для іншай прылады</string>
+    <string name="phone_confirm">Прылада ў вашай сетцы (%1$s) просіць увайсці ў %2$s на %3$s. Яна атрымае доступ да ўліковага запісу, у які вы ўвойдзеце. Працягвайце, толькі калі вы самі зараз адсканавалі код на сваёй прыладзе.</string>
+    <string name="phone_sign_in">Увайсці</string>
+    <string name="phone_cancel">Скасаваць</string>
+    <string name="phone_close">Закрыць</string>
+    <string name="phone_reaching">Звязваемся з іншай прыладай…</string>
+    <string name="phone_unreachable">Іншая прылада недаступная. Абедзве мусяць быць у адной сетцы: напрыклад, падключыце яе да пункта доступу гэтага тэлефона і адсканіруйце код зноў.</string>
+    <string name="phone_expired">Гэты код больш не дзейнічае. Пакажыце новы на іншай прыладзе і адсканіруйце яго.</string>
+    <string name="phone_sending">Адпраўляем…</string>
+    <string name="phone_sent">Адпраўлена. Іншая прылада завяршае ўваход.</string>
+    <string name="phone_send_failed">Не ўдалося адправіць уваход на іншую прыладу.</string>
+    <string name="phone_unfinished">Уваход не завершаны.</string>
+    <string name="phone_page_open">Адкрыць у CloudMus</string>
+    <string name="phone_page_about">Уваход у %1$s для іншай прылады. На гэтым тэлефоне павінен быць усталяваны CloudMus.</string>
+    <string name="phone_page_download">Спампаваць CloudMus</string>
+    <string name="phone_page_install">На гэтым тэлефоне няма CloudMus? Спампуйце яго з іншай прылады, усталюйце, вярніцеся на гэтую старонку і адкрыйце.</string>
+    <string name="sign_in_waiting">Уваход у %1$s</string>
+    <string name="sign_in_waiting_text">Завяршыце ўваход у CloudMus Sign-in</string>
+    <string name="sign_in_channel">Уваход</string>
+</resources>

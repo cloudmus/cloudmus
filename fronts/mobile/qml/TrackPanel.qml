@@ -1,0 +1,938 @@
+import QtQuick
+import QtQuick.Window
+import QtQuick.Controls.Basic
+import QtQuick.Controls.impl
+import QtQuick.Effects
+import QtQuick.Layouts
+
+// The track that plays, big: cover, title, position and the transport. With
+// room to the side (`sideBySide`, or `progress` on the way there) the cover is
+// left of the rest. Folded (`collapse`) it's a phone's mini player: a small
+// cover with the title beside it and the transport under them, in `miniRect`.
+Item {
+    id: panel
+
+    property QtObject nowPlaying
+    // The active playlist: for a radio, shuffle's button asks it for new tracks.
+    property QtObject playlist
+    property bool sideBySide: false
+    // Over the generated background, which is dark in either theme.
+    property bool overAura: false
+    property bool showMenu: false
+    // Swiping sideways goes to the next or the previous track. Off under what's
+    // over the panel.
+    property bool swipeEnabled: true
+    // Swiping up or down on the cover sets the system's volume (a head unit,
+    // where the phone's own keys are out of reach).
+    property bool volumeSwipe: false
+    // Platform: the volume it sets.
+    property QtObject platform
+    // Where the volume's level goes, over all it blurs, and what that is, back to
+    // front (none of which may hold the layer). Unset: in the cover, blurring the
+    // pictures only.
+    property Item glassLayer: null
+    property list<Item> glassBehind
+    // Where a swipe can begin: all around the panel, as far as what it's in goes,
+    // not just on what the panel takes up at the moment.
+    property Item swipeSurface: panel
+    // Where a swipe would go and what comes in: ViewModel::MainScreen.
+    property QtObject neighbors
+    // A finger going sideways, or the cover not back from that. It stays that way
+    // until it's lifted: nothing else is to take it up or down meanwhile.
+    readonly property bool swipedSideways: trackSwipe.active || _swiping
+    // What it plays from, shown above the title with the cover beside it: where
+    // the list that says so is folded away. Empty: nothing is shown.
+    property string playlistTitle
+    signal menuRequested()
+    // How far the tracks after this one have got (PreloadCells).
+    property var preloadFractions: []
+    property color inkColor: overAura ? "#FFFFFF" : Theme.ink
+    property color inkSecondaryColor: overAura ? "#D9FFFFFF" : Theme.inkSecondary
+    readonly property string seed: nowPlaying && nowPlaying.backgroundSeed ? nowPlaying.backgroundSeed : ""
+
+    // 0 the cover above the rest .. 1 beside it: animating this moves them from
+    // one place to the other, which a layout can't.
+    property real progress: sideBySide ? 1 : 0
+    // Of the width, what the cover may take when beside the rest.
+    property real sideCoverShare: 0.48
+    // Of the height, likewise.
+    property real sideCoverHeightShare: 1
+
+    readonly property real _gap: Theme.padding
+    readonly property real _detailsHeight: details.implicitHeight
+    // Below the title: the same in every layout.
+    readonly property real _belowTitle: seekBar.implicitHeight + transport.implicitHeight + details.spacing * 2
+    readonly property real _coverOnTop: height - _belowTitle - titleRow.implicitHeight - _gap
+    // Too low for a cover above the title (a phone on its side): beside it,
+    // with the position and the transport under both. Set from outside: worked
+    // out here from the sizes it changes, it would flip back and forth for good.
+    property bool compact: false
+    readonly property real _compactRow: Math.max(0, height - _belowTitle)
+    readonly property real _aboveSide: compact ? Math.min(_compactRow, width * 0.42)
+                                               : Math.max(0, Math.min(width, _coverOnTop))
+    // 1: shuffle and repeat are shown somewhere else; the title takes their room.
+    property real modesElsewhere: 0
+    // Where that is, in the panel's coordinates: shuffle's top left, repeat
+    // right of it. Set, the buttons go there as `modesElsewhere` comes to 1
+    // rather than fade away; unset (null), they fade.
+    property var modesAway: null
+    // As large as there's room for, leaving the rest the width it needs.
+    readonly property real _besideSide: Math.max(Theme.dp(120),
+        Math.min(height * sideCoverHeightShare, width * sideCoverShare, width - _gap * 2 - details.implicitWidth))
+    readonly property real _besideDetailsX: _besideSide + _gap * 2
+
+    readonly property int _textDirection: nowPlaying && nowPlaying.trackDirection === -1 ? -1 : 1
+
+    // 0 the panel as laid out .. 1 the mini player: the other way of moving
+    // everything, after `progress`. The panel keeps its size meanwhile, so
+    // nothing in it is laid out anew; the mini player is wherever `miniRect`
+    // puts it, in the panel's own coordinates (below it, as a rule).
+    property real collapse: 0
+    property rect miniRect: Qt.rect(0, height, width, Theme.dp(124))
+    function _fold(full, mini) { return full + (mini - full) * collapse }
+    readonly property real _miniPad: Theme.padding
+    readonly property real _miniCover: Theme.dp(48)
+    readonly property real _miniTop: miniRect.y + Theme.dp(14)
+    readonly property real _miniTitleX: miniRect.x + _miniPad + _miniCover + Theme.dp(12)
+    // Shuffle and repeat, right of the title, when the queue has them.
+    readonly property bool _hasModes: nowPlaying !== null && nowPlaying.repeat !== undefined
+    readonly property real _miniModesWidth: _hasModes ? Theme.touch * 2 : 0
+    readonly property real _miniTitleWidth: Math.max(1, miniRect.x + miniRect.width - _miniPad - _miniTitleX
+                                                     - (_hasModes ? _miniModesWidth - Theme.dp(4) : 0))
+    // The transport's row, under the cover and the title.
+    readonly property real _miniRowCenter: (_miniTop + _miniCover + miniRect.y + miniRect.height) / 2
+    // Fading out in the first part of folding, in in the last of unfolding.
+    readonly property real _fullOnly: Math.max(0, 1 - collapse * 2.5)
+    // The other way round: coming in in the last part of folding.
+    readonly property real _miniOnly: Math.max(0, collapse * 2.5 - 1.5)
+
+    function _mix(from, to) { return from + (to - from) * progress }
+    // The title's and the artist's sizes with the cover above them (at `progress`
+    // 0); beside it the title is larger still.
+    property real titleSizeAbove: Theme.fontTitle + Theme.dp(3)
+    property real artistSizeAbove: Theme.fontBody
+    function _titleSizeAt(at) { return titleSizeAbove + (Theme.dp(28) - titleSizeAbove) * at }
+    // Not on the way from one layout to the other.
+    readonly property bool _atRest: (progress <= 0 || progress >= 1) && (collapse <= 0 || collapse >= 1)
+    // The side of the picture the cover keeps, whatever it's shown at; 0: as shown,
+    // for a panel that stays in one layout. Not worked out from this panel's size,
+    // which changes on the way.
+    property real coverMaxSide: 0
+
+    // The picture stays one size, scaled to what's asked for: its mask's texture
+    // isn't made anew each frame, nor the picture decoded again at the other end.
+    Item {
+        id: coverBox
+        objectName: "trackCover"
+        x: panel._fold(panel._mix(panel.compact ? 0 : (panel.width - panel._aboveSide) / 2, 0),
+                       panel.miniRect.x + panel._miniPad)
+        y: panel._fold(panel._mix(panel.compact ? (panel._compactRow - panel._aboveSide) / 2
+                                                : (panel.height - panel._detailsHeight - panel._gap - panel._aboveSide) / 2,
+                                  (panel.height - panel._besideSide) / 2),
+                       panel._miniTop)
+        width: panel._fold(panel._mix(panel._aboveSide, panel._besideSide), panel._miniCover)
+        height: width
+        // Over the title while the volume's level shows in it: it reaches past the cover.
+        z: volumeHud.visible && volumeHud.parent === coverBox ? 10 : 0
+        readonly property alias changing: cover.changing
+        readonly property alias enteringScale: cover.enteringScale
+        readonly property alias shownSource: cover.shownSource
+        readonly property alias shownSide: cover.shownSide
+        // A slight breath while playing; not in the mini player. Animated apart
+        // from folding: a Behavior on the scale itself would lag behind a finger.
+        property real breath: panel.nowPlaying && panel.nowPlaying.playing ? 1.0 : 0.92
+        Behavior on breath { NumberAnimation { duration: 400; easing.type: Easing.OutBack } }
+        scale: panel._fold(breath, 1)
+
+        // The pictures, apart from what's over them: the level's glass looks at this
+        // and at nothing of its own.
+        Item {
+            id: art
+            anchors.fill: parent
+            Cover {
+                id: cover
+                objectName: "trackCoverPicture"
+                width: panel.coverMaxSide > 0 ? panel.coverMaxSide : coverBox.width
+                height: width
+                transformOrigin: Item.TopLeft
+                scale: coverBox.width / width
+                source: panel.nowPlaying ? panel.nowPlaying.coverUrl : ""
+                seed: panel.seed
+                fallbackIcon: "music_note"
+                // The same on screen at any scale. In the picture itself, without a
+                // GPU, it can't follow.
+                radius: _masked && scale > 0 ? Theme.coverRadius / scale : Theme.coverRadius
+                liveCorners: true
+                // Under a swipe the new one has come in already, as the neighbor.
+                zoomOnChange: !panel._swiping
+                // Going off, smaller, from its center: its own scale is from its corner.
+                readonly property real _going: panel._swipeScale(panel._oldFar)
+                x: panel._swipeX + coverBox.width * (1 - _going) / 2
+                y: coverBox.width * (1 - _going) / 2
+                opacity: Math.max(0, 1 - panel._oldFar / 0.85) * (1 - panel._landed)
+                layer.enabled: panel._swipeLayers
+                layer.textureSize: panel._swipeTexture
+                layer.effect: MultiEffect {
+                    autoPaddingEnabled: true
+                    blurEnabled: true
+                    blurMax: 32
+                    blur: Math.min(1, panel._oldFar * 1.3)
+                }
+                transform: Scale { xScale: cover._going; yScale: cover._going }
+            }
+            // The track a swipe goes to, looking out from the side: only so far while
+            // the finger is on the old one, all the way once that's let go of.
+            Cover {
+                id: neighbor
+                objectName: "trackCoverNeighbor"
+                height: width
+                visible: panel._swipeTo !== 0
+                source: panel._handingOver || panel._landed > 0 ? panel._frozenSource
+                    : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextCoverUrl
+                    : panel._swipeTo < 0 ? panel.neighbors.previousCoverUrl : ""
+                seed: panel._handingOver || panel._landed > 0 ? panel._frozenSeed
+                    : !panel.neighbors ? "" : panel._swipeTo > 0 ? panel.neighbors.nextSeed
+                    : panel._swipeTo < 0 ? panel.neighbors.previousSeed : ""
+                fallbackIcon: "music_note"
+                x: panel._swipeTo * coverBox.width * 0.85 * (1 - panel._newNear)
+                opacity: Math.min(1, panel._newNear * 1.4)
+                scale: panel._swipeScale(1 - panel._newNear)
+                layer.enabled: panel._swipeLayers
+                layer.textureSize: panel._swipeTexture
+                layer.effect: MultiEffect {
+                    autoPaddingEnabled: true
+                    blurEnabled: true
+                    blurMax: 32
+                    blur: Math.min(1, (1 - panel._newNear) * 1.3)
+                }
+            }
+        }
+        // The level, over the cover while it's being set and a moment after.
+        Rectangle {
+            id: volumeHud
+            objectName: "volumeHud"
+            // Over everything around it where there's a layer for it (glassLayer):
+            // what it blurs mustn't hold it.
+            parent: panel.glassLayer ? panel.glassLayer : coverBox
+            property bool shown: false
+            function show() { _place(); shown = true; hideTimer.restart() }
+            // Right of the finger, clear of the hand; left of it where the panel's
+            // edge is in the way; level with the cover's middle. Where it went
+            // down, not following it: placed as it shows.
+            readonly property real _gapToFinger: Theme.dp(48)
+            function _place() {
+                const fingerX = trackSwipe.fingerX
+                const right = coverBox.mapToItem(panel, fingerX, 0).x + _gapToFinger + width <= panel.width
+                const at = coverBox.mapToItem(parent, fingerX, coverBox.height / 2)
+                x = right ? at.x + _gapToFinger : at.x - _gapToFinger - width
+                y = at.y - height / 2
+            }
+            z: 3
+            width: Theme.dp(56)
+            // A small cover gets as tall a bar as a large one: it reaches past the cover.
+            height: Math.max(Theme.dp(180), Math.min(coverBox.height * 0.7, Theme.dp(260)))
+            radius: width / 2
+            // Frosted glass as the sheets have it (TrackSheet), but lighter: a small
+            // bar blurred that hard shows one color. What's under it, blurred, with
+            // a thin tint of the surface's color over. Plain without a GPU, where
+            // an effect shows nothing.
+            readonly property bool _glass: GraphicsInfo.api !== GraphicsInfo.Software
+                                           && GraphicsInfo.api !== GraphicsInfo.Unknown
+            color: _glass ? "transparent" : Theme.surface100
+            readonly property real _blurRoom: Theme.dp(40)
+            // What's behind it, back to front: glassBehind, or with none the pictures.
+            readonly property var _behind: panel.glassLayer && panel.glassBehind.length > 0 ? panel.glassBehind : [art]
+            Item {
+                anchors.fill: parent
+                visible: volumeHud._glass
+                layer.enabled: volumeHud._glass
+                layer.effect: MultiEffect {
+                    maskEnabled: true
+                    maskSource: hudShape
+                    maskThresholdMin: 0.5
+                    maskSpreadAtMin: 1
+                }
+                // What's behind it, each layer of it blurred and laid over the
+                // last: live, as the pictures move. With room around it: a blur
+                // reaches past the bar's edges, and with nothing there a bar this
+                // narrow came out one flat color.
+                Repeater {
+                    model: volumeHud._glass && volumeHud.visible ? volumeHud._behind : []
+                    delegate: Item {
+                        id: layerBehind
+                        required property var modelData
+                        x: -volumeHud._blurRoom
+                        y: -volumeHud._blurRoom
+                        width: volumeHud.width + volumeHud._blurRoom * 2
+                        height: volumeHud.height + volumeHud._blurRoom * 2
+                        ShaderEffectSource {
+                            id: snapshot
+                            visible: false
+                            anchors.fill: parent
+                            sourceItem: layerBehind.modelData
+                            live: Theme.dynamicBlur
+                            sourceRect: {
+                                const at = volumeHud.parent.mapToItem(layerBehind.modelData,
+                                    volumeHud.x - volumeHud._blurRoom, volumeHud.y - volumeHud._blurRoom)
+                                return Qt.rect(at.x, at.y, layerBehind.width, layerBehind.height)
+                            }
+                            textureSize: Qt.size(Math.max(1, width * Screen.devicePixelRatio / 2),
+                                                 Math.max(1, height * Screen.devicePixelRatio / 2))
+                        }
+                        MultiEffect {
+                            anchors.fill: parent
+                            source: snapshot
+                            autoPaddingEnabled: false
+                            blurEnabled: true
+                            blur: 1
+                            blurMax: 64
+                            saturation: 0.6
+                        }
+                    }
+                }
+                Rectangle {
+                    anchors.fill: parent
+                    color: Theme.surface100
+                    opacity: Theme.dark ? 0.72 : 0.66
+                }
+            }
+            Rectangle {
+                id: hudShape
+                anchors.fill: parent
+                radius: volumeHud.radius
+                visible: false
+                layer.enabled: volumeHud._glass
+            }
+            opacity: shown ? 1 : 0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 200 } }
+            Timer {
+                id: hideTimer
+                interval: 800
+                onTriggered: if (!trackSwipe.adjustingVolume) volumeHud.shown = false
+                                  else restart()
+            }
+            Connections {
+                target: trackSwipe
+                function onAdjustingVolumeChanged() { if (!trackSwipe.adjustingVolume) hideTimer.restart() }
+            }
+            Column {
+                anchors.fill: parent
+                anchors.topMargin: Theme.dp(16)
+                anchors.bottomMargin: Theme.dp(16)
+                spacing: Theme.dp(12)
+                IconImage {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    source: "qrc:/icons/" + (trackSwipe.volumeLevel < 0.5 ? "volume_down" : "volume_up") + ".svg"
+                    sourceSize.width: Theme.dp(28)
+                    sourceSize.height: Theme.dp(28)
+                    color: Theme.ink
+                }
+                // Fills from the bottom up: up is louder.
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Theme.dp(6)
+                    height: parent.height - Theme.dp(40)
+                    radius: width / 2
+                    color: Theme.surface300
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        // Eased, between the system's steps too.
+                        height: parent.height * trackSwipe.volumeLevel
+                        radius: width / 2
+                        color: Theme.accent
+                    }
+                }
+            }
+        }
+    }
+    // A swipe sideways: the cover goes with the finger, dissolving, shrinking a
+    // little and blurring the further it gets, never all that far. Its neighbor
+    // looks out the same way, lazily, only part of the way: let go of near, the one
+    // goes back and the other hides again; thrown, the neighbor takes its place.
+    // With nowhere to go the cover only gives a little.
+    property real _swipeX: 0
+    // Where it goes: 1 the next track, -1 the previous one, 0 nowhere.
+    property int _swipeTo: 0
+    // The neighbor is one for both ways: turned the other way, quickly, it would
+    // show the cover from the other side until its own came. Nothing until then.
+    on_SwipeToChanged: neighbor.clear()
+    // Thrown: how far the neighbor has got, from where it was to its place.
+    property real _landed: 0
+    // Over to the neighbor, and waiting for the panel's own cover to catch up.
+    property bool _handingOver: false
+    // Fixed once thrown: "next" is another track as soon as the track changes, and
+    // it would blink through that one's cover.
+    property string _frozenSource
+    property string _frozenSeed
+    property string _sourceBefore
+    // The new track has come: it can take a while, a source's stream to be asked for.
+    property bool _trackArrived: false
+    readonly property bool _swiping: _swipeTo !== 0 || _swipeX !== 0 || _handingOver
+    // How far the old one is: 0 in its place, 1 as far as it gets.
+    readonly property real _swipeReach: coverBox.width * 0.7
+    readonly property real _oldFar: _swipeReach > 0 ? Math.min(1, Math.abs(_swipeX) / _swipeReach) : 0
+    // How near the new one is: part of the way under a finger, then all of it.
+    readonly property real _newNear: (_swipeTo !== 0 ? _oldFar * 0.55 : 0) * (1 - _landed) + _landed
+    function _swipeScale(far) { return 1 - far * 0.18 }
+    readonly property bool _swipeLayers: _swipeTo !== 0 && _canBlur
+    // Half the pixels are plenty for what's dissolving, at this cost per frame.
+    readonly property size _swipeTexture: Qt.size(coverBox.width * Screen.devicePixelRatio / 2,
+                                                  coverBox.width * Screen.devicePixelRatio / 2)
+    readonly property bool _canBlur: GraphicsInfo.api !== GraphicsInfo.Software && GraphicsInfo.api !== GraphicsInfo.Unknown
+    readonly property real _swipeVelocity: Theme.dp(500)
+    function _canSwipe(to) {
+        if (!neighbors)
+            return false
+        return to > 0 ? neighbors.canGoNext === true : neighbors.canGoPrevious === true
+    }
+    // Follows the finger at first, then less and less: it can't be taken far.
+    function _swipePosition(dx) {
+        const reach = _swipeReach
+        return Math.sign(dx) * reach * (1 - Math.exp(-Math.abs(dx) / reach))
+    }
+    function _swipeBack() {
+        swipeBack.to = 0
+        swipeBack.restart()
+    }
+    function _throw() {
+        _frozenSource = neighbor.source
+        _frozenSeed = neighbor.seed
+        _sourceBefore = cover.source
+        swipeThrow.restart()
+    }
+    // Sideways: the tracks, as above. Up or down, on a head unit's cover: the
+    // volume (louder up; a cover's height of travel, at least a hand's width with
+    // a small one, is the whole range). One way per touch: see AxisSwipe. Up or
+    // down stays out of it where it isn't the volume's, a phone's Now Playing
+    // among them.
+    AxisSwipe {
+        id: trackSwipe
+        objectName: "trackSwipe"
+        parent: panel.swipeSurface
+        allowed: panel.swipeEnabled && !panel._handingOver && panel._landed === 0
+        vertical: panel.volumeSwipe
+        accepts: (way, scenePress) => way === Qt.Horizontal
+            || (panel.platform !== null && panel._atRest && panel.collapse <= 0 && !panel._swiping
+                && panel._onCover(scenePress))
+        readonly property bool adjustingVolume: axis === Qt.Vertical
+        // 0..1, where the finger is at, and what the bar shows and the system's
+        // volume goes by: that, eased after it. The system's few steps are taken
+        // one by one as it gets there, not jumped over by a quick finger.
+        property real startLevel: 0
+        property real volumeLevel: 0
+        Behavior on volumeLevel {
+            id: volumeEase
+            SmoothedAnimation { duration: 220; velocity: -1 }
+        }
+        onVolumeLevelChanged: {
+            const range = panel.platform ? panel.platform.systemVolumeMax : 0
+            if (range > 0)
+                panel.platform.setSystemVolume(Math.round(volumeLevel * range))
+        }
+        // Across the cover where the finger came down.
+        property real fingerX: 0
+        onBegan: (way) => {
+            if (way !== Qt.Vertical)
+                return
+            fingerX = coverBox.mapFromItem(null, scenePress.x, scenePress.y).x
+            panel.platform.readVolume()
+            const range = panel.platform.systemVolumeMax
+            startLevel = range > 0 ? panel.platform.systemVolume / range : 0
+            // From where it is, not eased in from where the last swipe left it.
+            volumeEase.enabled = false
+            volumeLevel = startLevel
+            volumeEase.enabled = true
+            volumeHud.show()
+        }
+        onMoved: (distance) => {
+            if (axis === Qt.Vertical) {
+                volumeLevel = Math.max(0, Math.min(1,
+                    startLevel - distance / Math.max(coverBox.height, Theme.dp(240))))
+                return
+            }
+            if (distance === 0)
+                return
+            swipeBack.stop()
+            const to = distance < 0 ? 1 : -1
+            const can = panel._canSwipe(to)
+            panel._swipeTo = can ? to : 0
+            panel._swipeX = can ? panel._swipePosition(distance) : distance * 0.15
+        }
+        onReleased: (thrown) => {
+            if (axis !== Qt.Horizontal)
+                return
+            const thrownThatWay = -thrown * panel._swipeTo > panel._swipeVelocity
+            if (panel._swipeTo !== 0 && (panel._oldFar > 0.45 || thrownThatWay))
+                panel._throw()
+            else
+                panel._swipeBack()
+        }
+    }
+    function _onCover(scenePoint) {
+        const at = coverBox.mapFromItem(null, scenePoint.x, scenePoint.y)
+        return at.x >= 0 && at.x <= coverBox.width && at.y >= 0 && at.y <= coverBox.height
+    }
+    NumberAnimation {
+        id: swipeBack
+        target: panel
+        property: "_swipeX"
+        duration: Theme.durationPage * 0.7
+        easing.type: Easing.OutCubic
+        onFinished: panel._swipeTo = 0
+    }
+    NumberAnimation {
+        id: swipeThrow
+        target: panel
+        property: "_landed"
+        from: 0
+        to: 1
+        duration: Theme.durationPage
+        easing.type: Easing.OutCubic
+        onFinished: {
+            // Only now: what a new track sets off doesn't get in the way of this.
+            panel._handingOver = true
+            panel._trackArrived = false
+            caughtUpLate.interval = panel._trackTimeout
+            caughtUpLate.restart()
+            if (panel._swipeTo > 0)
+                panel.nowPlaying.next()
+            else
+                panel.nowPlaying.previous()
+        }
+    }
+    // The panel's own cover has what the neighbor shows: the one takes over from
+    // the other, with nothing to see.
+    function _caughtUp() {
+        if (!_handingOver)
+            return
+        _handingOver = false
+        _trackArrived = false
+        caughtUpLate.stop()
+        trackSettling.stop()
+        _swipeTo = 0
+        _swipeX = 0
+        _landed = 0
+    }
+    function _catchUpIfThere() {
+        if (!_handingOver || !_trackArrived || cover.changing || cover.shownSource !== cover._wanted)
+            return
+        // Its picture yet to come: until it does, or it doesn't, the neighbor stays.
+        if (cover.source === "" && _frozenSource !== "")
+            return
+        _caughtUp()
+    }
+    // A track that's slow to start is no reason to go back to the old cover, which
+    // is the panel's own until then: only one that isn't coming at all.
+    readonly property int _trackTimeout: 30000
+    // Once it has come: how long for its cover.
+    readonly property int _coverTimeout: 1500
+    Timer {
+        id: caughtUpLate
+        onTriggered: panel._caughtUp()
+    }
+    // The track's properties come one by one over a replica, its cover after its
+    // title: a moment for that.
+    Timer {
+        id: trackSettling
+        interval: 100
+        onTriggered: {
+            panel._trackArrived = true
+            caughtUpLate.interval = panel._coverTimeout
+            caughtUpLate.restart()
+            panel._catchUpIfThere()
+        }
+    }
+    Connections {
+        target: panel.nowPlaying
+        ignoreUnknownSignals: true
+        function onTitleChanged() { if (panel._handingOver) trackSettling.restart() }
+    }
+    Connections {
+        target: cover
+        function onShownSourceChanged() { panel._catchUpIfThere() }
+        function onChangingChanged() { panel._catchUpIfThere() }
+        function onSourceChanged() { panel._catchUpIfThere() }
+    }
+
+    // Beside the layout, not in it: fading in, it moves nothing.
+    RowLayout {
+        id: playlistLine
+        objectName: "trackPlaylist"
+        x: details.x
+        y: details.y - height - Theme.dp(6)
+        visible: panel.progress > 0 && panel.playlistTitle !== ""
+        opacity: panel.progress
+        spacing: Theme.dp(8)
+        IconImage {
+            source: "qrc:/icons/playlist_play.svg"
+            sourceSize.width: Theme.dp(22)
+            sourceSize.height: Theme.dp(22)
+            color: panel.inkSecondaryColor
+        }
+        ShadowText {
+            objectName: "trackPlaylistTitle"
+            Layout.fillWidth: true
+            shadowed: panel.overAura
+            text: panel.playlistTitle
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            color: panel.inkSecondaryColor
+            font.family: Theme.fontFamily
+            font.pixelSize: Theme.fontBody
+            font.weight: Font.DemiBold
+        }
+    }
+
+    // Only at rest too: hidden as it is, at each new size its note, a picture, would
+    // be loaded anew on every frame of turning the screen over.
+    Binding {
+        target: neighbor
+        property: "width"
+        value: coverBox.width
+        when: panel._atRest
+        restoreMode: Binding.RestoreNone
+    }
+    // Only when it has come to rest: laid out anew each frame, with the shadow
+    // around it, it'd cost as much as the title would (see there).
+    Binding {
+        target: playlistLine
+        property: "width"
+        value: details.width
+        when: panel._atRest
+        restoreMode: Binding.RestoreNone
+    }
+
+    ColumnLayout {
+        id: details
+        objectName: "trackDetails"
+        x: panel._mix(0, panel._besideDetailsX)
+        y: panel._mix(panel.height - panel._detailsHeight, (panel.height - panel._detailsHeight) / 2)
+        width: panel._mix(panel.width, panel.width - panel._besideDetailsX)
+        spacing: Theme.dp(8)
+
+        Item {
+            id: titleHolder
+            Layout.fillWidth: true
+            Layout.leftMargin: panel.compact ? (panel._aboveSide + panel._gap) * (1 - panel.progress) : 0
+            Layout.preferredHeight: panel.compact ? panel._mix(panel._compactRow, titleRow.implicitHeight)
+                                                  : titleRow.implicitHeight
+
+            RowLayout {
+                id: titleRow
+                anchors.fill: parent
+                // The text is always laid out at its largest and scaled to what's
+                // wanted: laid out anew each frame, with the shadows and masks
+                // around it, it would cost the most of anything here, and laid out
+                // anew at the end of the way, it would jump. Only its width follows,
+                // at the end, for a line that fits now or doesn't any more.
+                Item {
+                    id: titleSlot
+                    Layout.fillWidth: true
+                    implicitHeight: titleBlock.implicitHeight * titleBlock.scale
+                    // Where the slot is in the panel: folded, the block goes
+                    // from it to beside the mini player's cover.
+                    readonly property real panelX: details.x + titleHolder.x + titleSlot.x
+                    readonly property real panelY: details.y + titleHolder.y + titleSlot.y
+                    // A little larger than the title below the cover would be,
+                    // for the artist to be as large as a mini player's.
+                    readonly property real miniScale: (Theme.fontBody + Theme.dp(1)) / panel._titleSizeAt(1)
+                    // How wide it shows, on the way between the two layouts: its
+                    // text stays laid out as wide as either needs and is cut off
+                    // here, so that the width changes smoothly with nothing laid
+                    // out anew. At rest the text has its own width, and no cut.
+                    readonly property real shownWidth: panel._fold(titleSlot.width, panel._miniTitleWidth)
+                    readonly property real fullScale: panel._titleSizeAt(panel.progress) / panel._titleSizeAt(1)
+                    readonly property bool folding: panel.collapse > 0 && panel.collapse < 1
+                    // Room for the shadows around the text, which the cut would take.
+                    readonly property real shadowRoom: Theme.dp(10)
+                    Item {
+                        id: titleClip
+                        x: panel.collapse * (panel._miniTitleX - titleSlot.panelX) - titleSlot.shadowRoom
+                        // Straight from beside the small cover to under the large
+                        // one, the cover would grow over it: soon after setting out
+                        // it goes under the cover's edge instead, and rides that.
+                        readonly property real _straightY: panel._fold((titleSlot.height - titleSlot.implicitHeight) / 2,
+                                       panel._miniTop + (panel._miniCover - titleBlock.implicitHeight * titleSlot.miniScale) / 2
+                                       - titleSlot.panelY)
+                        readonly property real _underCover: coverBox.y + coverBox.height + Theme.dp(6) - titleSlot.panelY
+                        readonly property real _riding: panel.collapse > 0 ? Math.min(1, (1 - panel.collapse) / 0.2) : 0
+                        y: _straightY + Math.max(0, _underCover - _straightY) * _riding - titleSlot.shadowRoom
+                        width: titleSlot.shownWidth + titleSlot.shadowRoom
+                        height: titleBlock.implicitHeight * titleBlock.scale + titleSlot.shadowRoom * 2
+                        clip: titleSlot.folding
+                        TrackTitleBlock {
+                            id: titleBlock
+                            objectName: "trackTitle"
+                            x: titleSlot.shadowRoom
+                            y: titleSlot.shadowRoom
+                            transformOrigin: Item.TopLeft
+                            scale: panel._fold(titleSlot.fullScale, titleSlot.miniScale)
+                            title: panel.nowPlaying ? panel.nowPlaying.title : ""
+                            artist: panel.nowPlaying ? panel.nowPlaying.artist : ""
+                            direction: panel._textDirection
+                            titleColor: panel.inkColor
+                            artistColor: panel.inkSecondaryColor
+                            titleSize: Math.round(panel._titleSizeAt(1))
+                            // artistSizeAbove when the panel has the cover above the text.
+                            artistSize: Math.round(panel.artistSizeAbove * panel._titleSizeAt(1) / panel._titleSizeAt(0))
+                        }
+                    }
+                    Binding {
+                        target: titleBlock
+                        property: "width"
+                        value: titleSlot.shownWidth / titleBlock.scale
+                        when: panel._atRest
+                        restoreMode: Binding.RestoreNone
+                    }
+                    // Folding or unfolding: the wider of the two, once, as it sets out.
+                    Binding {
+                        target: titleBlock
+                        property: "width"
+                        value: Math.max(titleSlot.width / titleSlot.fullScale, panel._miniTitleWidth / titleSlot.miniScale)
+                        when: titleSlot.folding
+                        restoreMode: Binding.RestoreNone
+                    }
+                }
+                // What a queue does.
+                // Only their room is here; the buttons are the panel's own (below),
+                // each going between this slot and the mini player's.
+                RowLayout {
+                    id: modesSlots
+                    parent: titleRow
+                    visible: panel.modesElsewhere < 1 && panel._hasModes
+                    spacing: 0
+                    Item {
+                        id: shuffleSlot
+                        Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
+                        Layout.preferredHeight: Theme.touch
+                    }
+                    Item {
+                        id: repeatSlot
+                        Layout.preferredWidth: Theme.touch * (1 - panel.modesElsewhere)
+                        Layout.preferredHeight: Theme.touch
+                    }
+                }
+                // The track's menu: its room only, like the modes'; it goes
+                // where they go, to their right.
+                Item {
+                    id: menuSlot
+                    visible: panel._hasMenu
+                    Layout.preferredWidth: Theme.touch * (panel.modesAway ? 1 - panel.modesElsewhere : 1)
+                    Layout.preferredHeight: Theme.touch
+                }
+            }
+        }
+
+        SeekBar {
+            id: seekBar
+            Layout.fillWidth: true
+            // Hidden, it would leave the layout and move the rest: only faded.
+            opacity: panel._fullOnly
+            enabled: panel.collapse < 0.5
+            positionMs: panel.nowPlaying ? panel.nowPlaying.positionMs : 0
+            durationMs: panel.nowPlaying ? panel.nowPlaying.durationMs : 0
+            bufferedMs: panel.nowPlaying && panel.nowPlaying.bufferedMs !== undefined ? panel.nowPlaying.bufferedMs : -1
+            inkColor: panel.inkColor
+            inkSecondaryColor: panel.inkSecondaryColor
+            overAura: panel.overAura
+            preloadFractions: panel.preloadFractions
+            troughColor: panel.overAura ? "#40FFFFFF" : Theme.surface400
+            onSeekRequested: (positionMs) => panel.nowPlaying.seek(positionMs)
+        }
+
+        // The transport's place: its buttons are the panel's own (below), each
+        // going between here and the mini player's row.
+        Item {
+            id: transport
+            Layout.alignment: Qt.AlignHCenter
+            implicitWidth: panel._rowWidth
+            implicitHeight: Math.max(panel._playSize, Theme.touchLarge)
+        }
+    }
+
+    // In order: like, previous, play, next, dislike. As laid out here, and in a
+    // mini player, where they're spread over its width.
+    readonly property real _rowSpacing: _mix(compact ? Theme.dp(2) : Theme.dp(10), Theme.dp(10))
+    readonly property int _playSize: Math.round(_mix(compact ? Theme.dp(60) : Theme.dp(72), Theme.dp(72)))
+    readonly property var _fullSizes: [Theme.touch, Theme.touchLarge, _playSize, Theme.touchLarge, Theme.touch]
+    readonly property var _miniSizes: [Theme.touch, Theme.touch, Theme.touchLarge, Theme.touch, Theme.touch]
+    // A service without likes: none here, and in a mini player there, disabled,
+    // where they keep the others in their places.
+    readonly property var _supported: [nowPlaying !== null && nowPlaying.likeSupported === true, true, true, true,
+                                       nowPlaying !== null && nowPlaying.dislikeSupported === true]
+    readonly property real _rowWidth: {
+        let width = -_rowSpacing
+        for (let i = 0; i < 5; ++i)
+            if (_supported[i])
+                width += _fullSizes[i] + _rowSpacing
+        return Math.max(0, width)
+    }
+    readonly property real _fullRowX: details.x + transport.x
+    readonly property real _fullRowCenterY: details.y + transport.y + transport.height / 2
+    // One that isn't in the row comes from just past its end.
+    function _fullCenter(slot) {
+        let at = _fullRowX
+        if (slot === 0 && !_supported[0])
+            return at - _rowSpacing - _fullSizes[0] / 2
+        for (let i = 0; i < slot; ++i)
+            if (_supported[i])
+                at += _fullSizes[i] + _rowSpacing
+        return at + _fullSizes[slot] / 2
+    }
+    function _miniCenter(slot) {
+        let taken = 0
+        for (let i = 0; i < 5; ++i)
+            taken += _miniSizes[i]
+        const gap = (miniRect.width - _miniPad * 2 - taken) / 4
+        let at = miniRect.x + _miniPad
+        for (let i = 0; i < slot; ++i)
+            at += _miniSizes[i] + gap
+        return at + _miniSizes[slot] / 2
+    }
+
+    component ShuffleButton: IconButton {
+        // A radio has nothing to shuffle (its new tracks are asked for in the
+        // list's menu): the slot stays empty.
+        readonly property bool radio: panel.nowPlaying !== null && panel.nowPlaying.radio === true
+        readonly property bool canClick: panel.nowPlaying !== null && !radio
+        iconName: "shuffle"
+        color: panel.nowPlaying && panel.nowPlaying.shuffle === true ? Theme.accent : panel.inkColor
+        onClicked: panel.nowPlaying.toggleShuffle()
+    }
+    component RepeatButton: IconButton {
+        iconName: panel.nowPlaying && panel.nowPlaying.repeat === 2 ? "repeat_one" : "repeat"
+        color: panel.nowPlaying && panel.nowPlaying.repeat > 0 ? Theme.accent : panel.inkColor
+        onClicked: panel.nowPlaying.cycleRepeat()
+    }
+
+    // Shuffle and repeat: one pair, going from their slot beside the title (or
+    // under the seek bar) to the right of the mini player's title. Always
+    // enabled, so they don't change colour on the way.
+    // The slot's place in the panel's coordinates; the reads name what moves it.
+    function _slotPoint(slot) {
+        width; height; progress; details.x; details.y; details.width; details.height
+        titleRow.width; titleRow.height; seekBar.width; seekBar.height
+        // Laid out after the rest at first (the track's screen at start):
+        // without these the buttons stayed over the title.
+        titleHolder.x; titleHolder.y; seekBar.x; seekBar.y
+        modesSlots.x; modesSlots.y; modesSlots.parent.x; modesSlots.parent.y
+        menuSlot.x; menuSlot.y; menuSlot.width
+        slot.x; slot.y; slot.width; slot.height
+        return slot.mapToItem(panel, 0, 0)
+    }
+    function _modeX(slot, index) {
+        let at = _slotPoint(slot).x
+        if (modesAway)
+            at += (modesAway.x + Theme.touch * index - at) * modesElsewhere
+        return _fold(at, miniRect.x + miniRect.width - _miniPad + Theme.dp(4)
+                         - Theme.touch * 2 + Theme.touch * index)
+    }
+    function _modeY(slot) {
+        let at = _slotPoint(slot).y
+        if (modesAway)
+            at += (modesAway.y - at) * modesElsewhere
+        return _fold(at, _miniTop + (_miniCover - Theme.touch) / 2)
+    }
+    readonly property real _modesOpacity: _fold(modesAway ? 1 : 1 - modesElsewhere, 1)
+    ShuffleButton {
+        objectName: "shuffleButton"
+        x: panel._modeX(shuffleSlot, 0)
+        y: panel._modeY(shuffleSlot)
+        opacity: panel._modesOpacity
+        visible: panel._hasModes && !radio && opacity > 0
+        enabled: canClick
+    }
+    RepeatButton {
+        objectName: "repeatButton"
+        x: panel._modeX(repeatSlot, 1)
+        y: panel._modeY(repeatSlot)
+        opacity: panel._modesOpacity
+        visible: panel._hasModes && opacity > 0
+    }
+    // Not in the mini player: it fades as the panel folds, where it is.
+    readonly property bool _hasMenu: showMenu && nowPlaying !== null && nowPlaying.hasTrack === true
+    IconButton {
+        objectName: "trackMenuButton"
+        readonly property point _at: panel._slotPoint(menuSlot)
+        x: _at.x + (panel.modesAway ? (panel.modesAway.x + Theme.touch * 2 - _at.x) * panel.modesElsewhere : 0)
+        y: _at.y + (panel.modesAway ? (panel.modesAway.y - _at.y) * panel.modesElsewhere : 0)
+        opacity: panel._fullOnly
+        visible: panel._hasMenu && opacity > 0
+        enabled: panel._fullOnly > 0
+        iconName: "more_horiz"
+        color: panel.inkColor
+        onClicked: panel.menuRequested()
+    }
+
+    // Kept at the size it has here and scaled down for the mini player: at a
+    // new size each frame its icon would be drawn anew each frame.
+    component TransportButton: IconButton {
+        id: button
+        property int slot
+        readonly property real _shrink: panel._fold(1, panel._miniSizes[slot] / panel._fullSizes[slot])
+        size: panel._fullSizes[slot]
+        x: panel._fold(panel._fullCenter(slot), panel._miniCenter(slot)) - width / 2
+        y: panel._fold(panel._fullRowCenterY, panel._miniRowCenter) - height / 2
+        opacity: panel._supported[slot] ? 1 : panel.collapse
+        visible: opacity > 0
+        enabled: panel._supported[slot]
+        transform: Scale {
+            origin.x: button.width / 2
+            origin.y: button.height / 2
+            xScale: button._shrink
+            yScale: button._shrink
+        }
+    }
+    TransportButton {
+        objectName: "transportLike"
+        slot: 0
+        iconName: panel.nowPlaying && panel.nowPlaying.liked ? "favorite" : "favorite_border"
+        color: panel.nowPlaying && panel.nowPlaying.liked ? Theme.accent : panel.inkColor
+        onClicked: panel.nowPlaying.setLiked(!panel.nowPlaying.liked)
+    }
+    TransportButton {
+        objectName: "transportPrevious"
+        slot: 1
+        iconName: "skip_previous"
+        color: panel.inkColor
+        iconSize: Theme.dp(34)
+        onClicked: panel.nowPlaying.previous()
+    }
+    TransportButton {
+        objectName: "transportPlay"
+        slot: 2
+        iconName: panel.nowPlaying && panel.nowPlaying.playing ? "pause" : "play_arrow"
+        filled: true
+        // A mini player's is plain, over its background.
+        fillAmount: 1 - panel.collapse
+        color: panel.inkColor
+        iconSize: Math.round(size * 0.55)
+        onClicked: panel.nowPlaying.togglePause()
+
+        Spinner {
+            anchors.fill: parent
+            anchors.margins: -Theme.dp(4)
+            opacity: panel._fullOnly
+            running: panel.nowPlaying && panel.nowPlaying.loading === true
+            // Around the accent button, in what stands out from it.
+            color: panel.inkColor
+        }
+    }
+    TransportButton {
+        objectName: "transportNext"
+        slot: 3
+        iconName: "skip_next"
+        color: panel.inkColor
+        iconSize: Theme.dp(34)
+        onClicked: panel.nowPlaying.next()
+    }
+    TransportButton {
+        objectName: "transportDislike"
+        slot: 4
+        iconName: panel.nowPlaying && panel.nowPlaying.disliked ? "heart_off" : "heart_off_outline"
+        color: panel.inkColor
+        onClicked: panel.nowPlaying.setDisliked(!panel.nowPlaying.disliked)
+    }
+}

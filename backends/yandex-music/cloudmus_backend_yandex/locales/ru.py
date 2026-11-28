@@ -31,4 +31,10 @@ STRINGS = {'expected true or false': 'ожидается true или false',
                                                                   'вкусов и истории прослушиваний',
  'Liked': 'Мне нравится',
  'Playlist or track not found': 'Плейлист или трек не найден',
- 'Track in playlist not found': 'Трек в плейлисте не найден'}
+ 'Track in playlist not found': 'Трек в плейлисте не найден',
+ "the service's address can't be resolved": 'не удаётся найти адрес сервиса',
+ "the service doesn't answer in time": 'сервис не отвечает вовремя',
+ 'the connection is refused': 'соединение отклонено',
+ "the proxy can't be reached": 'прокси недоступен',
+ 'the network is unreachable': 'сеть недоступна',
+ "a secure connection can't be made": 'не удаётся установить защищённое соединение'}

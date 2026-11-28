@@ -35,7 +35,29 @@ def set_token(token: str) -> None:
 def clear_token() -> None:
     data = load()
     data.pop("token", None)
+    data.pop("pendingAuth", None)
     save(data)
+
+
+def get_pending_auth() -> dict | None:
+    """The device code being waited on, saved so that a backend killed while
+    the user confirms it in a browser (Android unloads the whole app on a
+    phone short of memory) picks it up again on its next start instead of
+    asking for a new one."""
+    pending = load().get("pendingAuth")
+    return pending if isinstance(pending, dict) else None
+
+
+def set_pending_auth(pending: dict) -> None:
+    data = load()
+    data["pendingAuth"] = pending
+    save(data)
+
+
+def clear_pending_auth() -> None:
+    data = load()
+    if data.pop("pendingAuth", None) is not None:
+        save(data)
 
 
 def settings_store() -> SettingsStore:

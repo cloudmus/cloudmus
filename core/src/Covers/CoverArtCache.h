@@ -1,0 +1,123 @@
+#pragma once
+
+#include <QCache>
+#include <QHash>
+#include <QImage>
+#include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QObject>
+#include <QPixmap>
+#include <QSet>
+#include <QSize>
+#include <QString>
+#include <QUrl>
+
+#include <functional>
+
+#include "Models.h"
+
+namespace Covers {
+
+// Async cover-art fetch + small in-memory LRU, backed by a
+// QNetworkDiskCache so repeat plays don't re-download art. A cover is
+// fetched once however many sizes of it are asked for, and its decoded
+// source stays around for a while, so a cover a track row has already
+// loaded is there at once for the hero, a notification, MPRIS. Callers (the track-row delegate, the now-playing bar)
+// call pixmap() for an immediate (possibly null) result and connect to
+// pixmapReady() to repaint once a background fetch completes — this is what
+// makes track-list thumbnails "fetch lazily for visible rows only": a
+// delegate only calls pixmap() for rows Qt actually asks it to paint.
+//
+// The caches are for covers from the internet. A local one (a file:// URL of
+// a file that's there: Local Folder's, the phone's media library's) is read
+// from its file each time it's wanted, already scaled down as it's decoded —
+// only the painted pixmap of the asked size is kept, as for any cover.
+class CoverArtCache : public QObject {
+    Q_OBJECT
+
+public:
+    explicit CoverArtCache(QObject* parent = nullptr);
+
+    // Null until it is at hand: this fetches it, or reads a local one off
+    // the disk, and pixmapReady() names it when it has come.
+    QPixmap pixmap(const QString& url, QSize targetSize);
+
+    // The cover as it was fetched, full size — for what isn't painted (a
+    // saved track's picture). Null unless it is at hand already: nothing
+    // is fetched for this; request() does that. A local one is read from
+    // its file.
+    QImage source(const QString& url) const;
+    // Fetches a cover that isn't at hand, to be had from source() once
+    // pixmapReady() names it. Nothing happens for one that is, or on its way,
+    // or a local one.
+    void request(const QString& url);
+    // The cover as a file on disk, for what reads files rather than images
+    // (QML in another process): a local one's own file, at once. Another is
+    // empty until it is at hand: this asks for it, and pixmapReady() names it
+    // when it has come.
+    QString localFile(const QString& url);
+
+    // Covers are fetched the way their source connects (its proxy, see
+    // Net::ProxyRouting): the cache learns which source a cover URL came
+    // from as the source's tracks and playlists arrive, and asks
+    // `provider` for that source's proxy. URLs it hasn't been told about
+    // go as the system has it.
+    using ProxyProvider = std::function<QNetworkProxy(const QString& sourceId, const QUrl& url)>;
+    void setProxyProvider(ProxyProvider provider) { proxyProvider_ = std::move(provider); }
+
+    // Turns a decoded cover into the cached pixmap of exactly `target`
+    // size. The app sets Ui::fitCover() — Covers::fitCover() with the blur of
+    // Qt Widgets, kept out of this library; without one, a cover is just
+    // scaled to fit.
+    using Fitter = std::function<QPixmap(const QImage& source, const QSize& target)>;
+    void setFitter(Fitter fitter) { fitter_ = std::move(fitter); }
+    void assignSource(const QString& sourceId, const QString& url);
+    // Every cover a track carries (its own, its album's).
+    void assignSource(const QString& sourceId, const QList<Track>& tracks);
+
+signals:
+    // `url` can now be had from pixmap() (and source()).
+    void pixmapReady(QString url);
+
+private:
+    // Down to `maxBytes`, the newest kept.
+    void trimFiles(qint64 maxBytes);
+    // The file a file:// URL names, if it's there; else empty.
+    static QString localPath(const QString& url);
+    // Reads a local cover on a worker, scaled down as it's decoded, for the
+    // sizes asked for meanwhile (inFlight_).
+    void readLocal(const QString& url, const QString& path, QSize targetSize);
+    QString filePath(const QString& url) const;
+    // Writes the cover as localFile()'s file, made smaller if it's huge; the
+    // path, or empty if it can't be written.
+    QString writeFile(const QString& url, const QImage& image);
+    friend class RoutingProxyFactory;
+
+    // `requestUrl`: where to fetch from — `url` itself, or where it
+    // redirected to (followed by hand, so the hop keeps the source's proxy).
+    void fetch(const QString& url, const QUrl& requestUrl, int redirectsLeft);
+    QNetworkProxy proxyFor(const QUrl& url) const;
+    static QString cacheKey(const QString& url, QSize targetSize);
+    // Fits `source` to `targetSize` and remembers the result.
+    QPixmap store(const QString& url, QSize targetSize, const QImage& source);
+
+    QString filesDir_;
+    QNetworkAccessManager network_;
+    QCache<QString, QPixmap> memoryCache_;
+    // Decoded covers by url, costed in bytes: what other sizes of a cover
+    // are made from without fetching it again.
+    QCache<QString, QImage> sourceCache_;
+    // Url being fetched -> the sizes asked for meanwhile.
+    QHash<QString, QList<QSize>> inFlight_;
+    // Urls localFile() was asked for and is fetching: their files are
+    // written as they come, as sourceCache_ may not keep a large one (or
+    // may have let it go again by the time it's asked for once more).
+    QSet<QString> filesWanted_;
+    // Local covers whose files couldn't be read.
+    QSet<QString> unreadable_;
+    QHash<QString, QString> sourceForUrl_;
+    ProxyProvider proxyProvider_;
+    Fitter fitter_;
+};
+
+} // namespace Covers

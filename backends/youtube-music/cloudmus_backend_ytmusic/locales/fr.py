@@ -27,6 +27,8 @@ STRINGS = {'expected true or false': 'true ou false attendu',
  'YouTube Music streaming service': 'Service de streaming YouTube Music',
  'Liked Songs': 'Titres likés',
  'Track in playlist not found': 'Piste introuvable dans la liste de lecture',
+ "YouTube wants to verify that you're human. Change the connection in the YouTube Music source settings and try again.":
+     'YouTube souhaite vérifier que vous êtes une personne. Changez la connexion dans les paramètres de la source YouTube Music, puis réessayez.',
  'Track not playable: {error}': 'Piste non lisible : {error}',
  'Open <a href="https://music.youtube.com">music.youtube.com</a> in your browser while signed in, open <b>DevTools → Network</b>, click any request to <code>music.youtube.com</code>, and paste its <b>Request Headers</b> (Firefox) or <b>Copy as cURL (bash)</b> (Chrome) below.': 'Ouvrez '
                                                                                                                                                                                                                                                                                       '<a '
@@ -62,4 +64,10 @@ STRINGS = {'expected true or false': 'true ou false attendu',
                                                                                                                                                                                                                                                                                       '(bash)</b> '
                                                                                                                                                                                                                                                                                       '(Chrome).',
  'Do this in a private window and close it afterwards without signing out: a browser that keeps using the same session soon makes these headers stop working.': 'Faites-le dans une fenêtre privée, puis fermez-la sans vous déconnecter : un navigateur qui continue d’utiliser la même session rend vite ces en-têtes invalides.',
- 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music a fermé cette session. Connectez-vous à nouveau.'}
+ 'YouTube Music has signed this session out. Sign in again.': 'YouTube Music a fermé cette session. Connectez-vous à nouveau.',
+ "the service's address can't be resolved": 'l’adresse du service ne peut pas être résolue',
+ "the service doesn't answer in time": 'le service ne répond pas à temps',
+ 'the connection is refused': 'la connexion est refusée',
+ "the proxy can't be reached": 'le proxy est injoignable',
+ 'the network is unreachable': 'le réseau est injoignable',
+ "a secure connection can't be made": 'impossible d’établir une connexion sécurisée'}

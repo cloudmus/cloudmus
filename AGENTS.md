@@ -1,9 +1,16 @@
-# Agent instructions — cloudmus
+# Agent instructions — CloudMus
 
 Music player: **fronts** (UI) and **backends** (one process per music
 service) talking JSON-RPC 2.0 over stdin/stdout, framed as NDJSON.
-Details: `docs/development.md`. Before touching `fronts/qt/`, read
-`fronts/qt/AGENTS.md`.
+Details: `docs/development.md`. Before touching `core/`, `fronts/desktop/` or
+`fronts/mobile/`, read its `AGENTS.md`.
+
+## Questions and changes
+
+When the user asks a question, answer it directly. Inspect the code or run
+read-only checks as needed. Wait for an explicit request before changing code,
+rebuilding packages, or installing an update. A question about a bug or missing
+feature is a request for an explanation by default.
 
 ## Layout
 
@@ -11,17 +18,20 @@ Details: `docs/development.md`. Before touching `fronts/qt/`, read
 |---|---|---|
 | `protocol/` | Schema-first protocol: `schema/*.yaml`, `methods.yaml`, `codegen/` | YAML, Python + Jinja2 |
 | `docs/protocol.md` | Normative protocol spec (wins over `protocol/`) | |
+| `docs/plans/` | Plans and investigations with open work; the rest of `docs/` is how things are now. New plans go here | |
 | `backends/py-rpc-common/` | Shared NDJSON/JSON-RPC transport + conformance suite | Python ≥ 3.11 |
-| `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11 |
+| `core/` | `cloudmus-core`: the C++ library both Qt fronts build (RPC, playback, state, view models, tests, shared resources); `core/AGENTS.md` | C++20, Qt 6.7+, libmpv, CMake |
+| `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11, Rust for local-folder |
 | `fronts/tui/` | Terminal front | Python, Textual, python-mpv |
-| `fronts/qt/` | Desktop front | C++20, Qt 6, libmpv, CMake |
+| `fronts/desktop/` | Desktop front | C++20, Qt 6, libmpv, CMake |
+| `fronts/mobile/` | Mobile front MVP (Android APK + Linux debug build); `docs/android.md` | C++20, Qt 6.7, QML, Media3 |
 | `packaging/appimage/`, `build-appimage.sh` | AppImage build in Docker | |
 | `packaging/appimage/apprun/` | The AppImage's `AppRun`: static launcher that reports failed starts to Sentry | Rust (built in `rust:alpine`) |
 
 ## Generated code
 
 Protocol stubs are gitignored build artifacts — never edit or commit
-`backends/py-rpc-common/rpc_common/generated/` or `fronts/qt/generated/`.
+`backends/py-rpc-common/rpc_common/generated/` or `core/generated/`.
 Regenerate after a fresh checkout or any change under `protocol/`:
 `python protocol/codegen/generate.py --lang python cpp`.
 
@@ -36,7 +46,7 @@ goes through the protocol, backends declare support via capabilities.
 3. Update `docs/protocol.md` and add a `docs/protocol-changelog.md` entry —
    MINOR for additive/optional, MAJOR for changed/removed meaning. Prefer
    additive, optional fields.
-4. Update the users, run the tests, and build `fronts/qt`.
+4. Update the users, run the tests, and build `fronts/desktop`.
 
 ## Build and test
 
@@ -44,7 +54,9 @@ goes through the protocol, backends declare support via capabilities.
 source .venv/bin/activate      # setup: docs/development.md
 pytest backends/                                  # from the repo root
 (cd fronts/tui && python -m pytest tests/ -q)
-python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local  # per backend
+cargo test --locked --manifest-path backends/local-folder/Cargo.toml
+cargo build --locked --manifest-path backends/local-folder/Cargo.toml
+python -m rpc_common.testing.conformance backends/local-folder/target/debug/cloudmus-backend-local-folder
 ```
 
 `CLOUDMUS_DEV_BACKENDS=1` makes fronts use backends from this checkout.
@@ -59,6 +71,12 @@ in Docker, running under Wine, and what only a real Windows can show.
 ## Conventions
 
 - English everywhere. Match surrounding code; comments explain *why*.
+- The app is called **CloudMus**, spelled exactly so wherever it's written as
+  a name: window and dialog titles, labels, notifications, docs and their
+  headings, comments, package descriptions. Never `Cloudmus` or `cloudmus`.
+  Other spellings stay only in existing technical identifiers, where renaming
+  would break something or lose user data: paths, package and binary names,
+  D-Bus names, env vars, QML module and log tag names, `QSettings` names.
 - New backend: `backends/<service>/` with `manifest.json`, built on
   `py-rpc-common`, passing the conformance suite.
 - Git flow (`docs/development.md`, "Branches and git flow"): work goes to
@@ -66,6 +84,13 @@ in Docker, running under Wine, and what only a real Windows can show.
   `master`; `master` only gets release and hotfix merges.
 - Versions come from `x.y.z` git tags; pushing one publishes a release.
   Don't create or push tags unless asked.
+
+## Copying to the clipboard
+
+A button that copies something is always the copy button the About page has —
+the copy glyph beside what it copies, a check mark for a moment once pressed —
+never a "Copy …" text button or a toast of its own: `Ui::CopyButton` on the
+desktop, `CopyButton.qml` on mobile.
 
 ## Commits
 

@@ -1,0 +1,172 @@
+#pragma once
+
+#include <functional>
+
+#include <QHash>
+#include <QJsonObject>
+#include <QObject>
+#include <QString>
+#include <QStringList>
+#include <stdexcept>
+
+#include "BackendManifest.h"
+#include "Coro.h"
+#include "NdjsonTransport.h"
+#include "RpcMethods.h"
+
+namespace Rpc {
+
+struct RpcError {
+    int code = 0;
+    QString message;
+    QJsonObject data;
+};
+
+class RpcCallException : public std::runtime_error {
+public:
+    explicit RpcCallException(RpcError error)
+        : std::runtime_error(error.message.toStdString())
+        , error_(std::move(error))
+    {
+    }
+    const RpcError& error() const { return error_; }
+    // The source can't reach its service (docs/protocol.md §9.1).
+    bool isOffline() const
+    {
+        return error_.data.value(QStringLiteral("reason")).toString() == QStringLiteral("offline");
+    }
+
+private:
+    RpcError error_;
+};
+
+// Owns one backend subprocess: spawns it, drives the initialize/shutdown
+// handshake, and provides the request/response correlation coroutines that
+// generated/RpcMethods.h's typed wrappers (and a few hand-written callers
+// that need the raw JSON, like initialize itself) build on. See
+// docs/protocol.md §4-§5 and fronts/tui/cloudmus_tui/rpc_client.py for the
+// Python front's equivalent this mirrors.
+class RpcClient : public QObject {
+    Q_OBJECT
+
+public:
+    explicit RpcClient(BackendManifest manifest, QObject* parent = nullptr);
+
+    // `environment`: the backend process's — see NdjsonTransport::start().
+    // `locale`: the language the backend should answer in (BCP-47, say "ru";
+    // empty for its default, English), docs/protocol.md §7.8.
+    Task<void> start(QProcessEnvironment environment, QString locale = { });
+    // Switches a running backend's language. A no-op for one that doesn't
+    // declare the localization capability.
+    Task<void> setLanguage(QString locale);
+    Task<void> shutdown();
+
+    // Low-level primitives generated call-wrapper functions (and start())
+    // build on. `id` is allocated by the caller via allocateRequestId() —
+    // needed by PlaybackController for the track/streamReady race (see
+    // docs/protocol.md §11.1): it must know the request id *before*
+    // awaiting the response, to record it as the latest in-flight play.
+    //
+    // method/params are taken BY VALUE, not by reference: Task's initial
+    // suspend is lazy (suspend_always), so a coroutine's body may not start
+    // running until long after the function that constructed it returned —
+    // e.g. call()/callVoid() below are plain (non-coroutine) functions that
+    // just forward into a lazily-suspended coroutine and hand the Task back
+    // up to a caller that only awaits it later. A reference parameter would
+    // dangle the moment any temporary bound to it (a QStringLiteral, a
+    // `.toJson()` result, ...) is destroyed at the end of that outer full
+    // expression — QString/QJsonObject are implicitly shared, so by-value
+    // here is just a refcount bump, not a real copy.
+    int allocateRequestId();
+    Task<QJsonObject> callRawWithId(int id, QString method, QJsonObject params, int timeoutMs);
+    Task<QJsonObject> callRaw(QString method, QJsonObject params, int timeoutMs)
+    {
+        return callRawWithId(allocateRequestId(), std::move(method), std::move(params), timeoutMs);
+    }
+
+    template <typename Result>
+    Task<Result> callWithId(int id, QString method, QJsonObject params, int timeoutMs)
+    {
+        QJsonObject raw = co_await callRawWithId(id, std::move(method), std::move(params), timeoutMs);
+        co_return Result::fromJson(raw);
+    }
+    Task<void> callVoidWithId(int id, QString method, QJsonObject params, int timeoutMs)
+    {
+        co_await callRawWithId(id, std::move(method), std::move(params), timeoutMs);
+    }
+
+    template <typename Result>
+    Task<Result> call(QString method, QJsonObject params, int timeoutMs)
+    {
+        return callWithId<Result>(allocateRequestId(), std::move(method), std::move(params), timeoutMs);
+    }
+    Task<void> callVoid(QString method, QJsonObject params, int timeoutMs)
+    {
+        return callVoidWithId(allocateRequestId(), std::move(method), std::move(params), timeoutMs);
+    }
+
+    // Only registerPending() needs to be callable from outside (the
+    // CallAwaiter in RpcClient.cpp) — kept public rather than friended
+    // since it's a small, self-contained primitive.
+    // `timeNow` false: the timeout runs from the end of the handshake instead
+    // (for a call made before it).
+    void registerPending(int id, int timeoutMs, bool timeNow, std::function<void(const QJsonObject&)> onResult,
+        std::function<void(RpcError)> onError);
+
+    bool available() const { return available_; }
+    // The process went down while it was in use — not by our shutdown()
+    // nor in a failed start.
+    bool exitedUnexpectedly() const { return exitedUnexpectedly_; }
+    const QJsonObject& capabilities() const { return capabilities_; }
+    // Optional capability (1.10+), true when the source doesn't say: false
+    // for a source that only reads local files.
+    bool usesNetwork() const { return capabilities_.value(QStringLiteral("network")).toBool(true); }
+    const QString& sourceId() const { return sourceId_; }
+    // The manifest's name in the backend's language if it has one, else the
+    // name the backend gave.
+    QString sourceName() const
+    {
+        const QString localized = manifest_.localizedName(locale_);
+        return localized.isEmpty() ? sourceName_ : localized;
+    }
+    // The name the backend gave, the same in every language: for what's kept
+    // under it, such as the downloads' folders.
+    const QString& sourceBaseName() const { return sourceName_; }
+    // Optional (protocol 1.2+) — empty if the source didn't supply one.
+    const QString& sourceDescription() const { return sourceDescription_; }
+    const BackendManifest& manifest() const { return manifest_; }
+    QStringList stderrTail() const { return transport_.stderrTail(); }
+
+    // Filled in by whoever owns this client (SourceManager/PlaybackController)
+    // to receive typed notification pushes.
+    NotificationDispatch notifications;
+
+signals:
+    void becameUnavailable();
+
+private:
+    void handleMessage(const QJsonObject& msg);
+    void dispatchNotification(const QString& method, const QJsonObject& params);
+    void failAllPending(const RpcError& err);
+    void armTimeout(int id, int timeoutMs);
+
+    struct PendingEntry {
+        std::function<void(const QJsonObject&)> onResult;
+        std::function<void(RpcError)> onError;
+    };
+
+    BackendManifest manifest_;
+    QString locale_;
+    NdjsonTransport transport_;
+    int nextId_ = 1;
+    QHash<int, PendingEntry> pending_;
+    QHash<int, int> untimed_; // id -> timeout, for calls waiting for the handshake
+    bool available_ = false;
+    bool exitedUnexpectedly_ = false;
+    QString sourceId_;
+    QString sourceName_;
+    QString sourceDescription_;
+    QJsonObject capabilities_;
+};
+
+} // namespace Rpc

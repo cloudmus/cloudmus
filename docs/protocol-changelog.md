@@ -1,9 +1,102 @@
 # Protocol changelog
 
-Tracks changes to the cloudmus front/backend JSON-RPC protocol
+Tracks changes to the CloudMus front/backend JSON-RPC protocol
 (`docs/protocol.md`). See that document §12 for versioning rules: MINOR bumps
 are additive/backward-compatible, MAJOR bumps change or remove existing
 meaning.
+
+## 2.0 — ways to sign in
+
+- **Breaking**: `capabilities.auth.flow` is gone; `auth` is just
+  `{"required": bool}`. `auth/prompt` is now `{"methods": [AuthMethod, ...]}`
+  (§10), the source's preferred method first, and a front takes the first it
+  can carry out. `code` replaces `deviceCode`, `form` replaces
+  `usernamePassword` (fields may carry a `label`), and `message` moved onto
+  each method.
+- **Breaking**: `auth.submit` takes `{"form": {...}}` or
+  `{"browser": {...}}` instead of `{"fields": {...}}`.
+- New method `browser` (§10.2): sign in in a front's built-in browser, which
+  returns the cookies and the final address. It replaces the reserved,
+  never used `oauthRedirect`. YouTube Music offers it first, so signing in
+  on a phone no longer means copying request headers by hand.
+
+## 1.26 — a question before a playlist opens
+
+- **Additive, backward-compatible**: optional `Playlist.offer` (§6): a
+  question a front asks when the user opens the playlist, whose two answers
+  each name the `settings.update` values they set. Local Folder offers it on
+  Android for the Wave and Device music until the user has said whether to
+  show all the device's music or only their own; Device music is listed
+  before that, empty, to be asked for. The setting stays in the source's
+  settings, and `false` is now kept as an answer rather than dropped.
+
+## 1.25 — an icon on a generated cover
+
+- **Additive, backward-compatible**: optional `Playlist.coverIcon` (§6): a
+  glyph a front draws over the coloured cover it generates when there's no
+  `coverUrl`. Local Folder gives it for the Wave, Saved tracks and Device
+  music, and for each folder: `folder` with folders inside, `album` without.
+
+## 1.24 — a folder's size
+
+- **Additive, backward-compatible**: optional `Playlist.sizeBytes` (§6): how
+  much the playlist's files take. Local Folder gives it for each folder and
+  for the host's media library, from the item's `size`.
+
+## 1.23 — where a track is kept
+
+- **Additive, backward-compatible**: optional `Track.location` (§6): a local
+  track's path, shown among its details. Local Folder gives it for its
+  files and for the host's media library items.
+
+## 1.22 — deleting
+
+- **Additive, backward-compatible**: optional capability `browse.delete`
+  with `catalog.deleteTracks` and `catalog.deletePlaylist` (§7.11), and
+  optional `deletable` on `Track` and `Playlist`: a source that keeps the
+  music itself deletes tracks, or a folder with everything in it. Items of
+  the host's media library come back for the front to delete.
+
+## 1.21 — playlists inside playlists
+
+- **Additive, backward-compatible**: optional `Playlist.parentId` (§6): a
+  playlist listed inside another, as a folder inside a folder. Local
+  Folder lists all its music first, then each folder with everything under
+  it, a folder's subfolders inside it. A front that doesn't know the field
+  shows the list flat.
+
+## 1.20 — the host's media library
+
+- **Additive, backward-compatible**: optional capability `hostMedia` with
+  the request `media.setLibrary` → `{}` and the notification `media/wanted`
+  (§7.10): the front hands a source the media library its platform keeps
+  (Android's MediaStore), in a JSON file shaped as
+  `protocol/schema/media_library.yaml`, and the source says whether it
+  wants the whole device's audio or only what the app saved. Replaces the
+  Android app's `CLOUDMUS_ANDROID_MUSIC_INDEX` variable, which only the
+  Local Folder source read.
+
+## 1.19 — connection state, and feedback sent late
+
+- **Additive, backward-compatible**: optional capability `connectionCheck`
+  with the request `connection.check` → `{"state": "online"|"offline",
+  "detail"?}` and the notification `connection/changed` (§7.9): the source
+  says whether it can reach its service, when asked and when it notices a
+  change. A front without it falls back to retrying a
+  `catalog.listPlaylists`.
+- **Additive, backward-compatible**: optional `playedAt` and `deferred` on
+  `feedback.trackFinished` and `feedback.skip` (§7.4): the event was kept
+  while there was no network and is sent late. It counts for the service's
+  history and taste, and changes nothing queued.
+- **Additive, backward-compatible**: optional capability `feedback.played`
+  with the request `feedback.played` (§7.4): a track played outside a radio,
+  for the service's listening history.
+
+## Offline in any response (no version change)
+
+- **Additive, no wire change for older fronts** (§9.1): a failed request can
+  carry `data.reason: "offline"` with `1200`, as `error` notifications about
+  a track could. A front that doesn't look at it sees an ordinary error.
 
 ## Requests handled concurrently (no version change)
 

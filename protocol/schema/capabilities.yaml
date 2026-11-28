@@ -32,6 +32,9 @@ properties:
       # optional (1.3+): catalog.getTrackPlaylists / addToPlaylist /
       # removeFromPlaylist on the user's own (Playlist.editable) playlists
       editPlaylists: {type: boolean}
+      # optional (1.22+): catalog.deleteTracks / catalog.deletePlaylist on
+      # what's marked deletable
+      delete: {type: boolean}
     additionalProperties: false
   feedback:
     type: object
@@ -40,6 +43,9 @@ properties:
       like: {type: boolean}
       dislike: {type: boolean}
       skip: {type: boolean}
+      # optional (1.19+): feedback.played — a play outside a radio, for the
+      # service's listening history
+      played: {type: boolean}
     additionalProperties: false
   download: {type: boolean}
   # optional (1.7+): download/progress for, and catalog.cancelDownload of,
@@ -54,6 +60,12 @@ properties:
   # optional (1.10+): the source reaches the network, so the front's
   # per-source Connection setting applies. Absent means true.
   network: {type: boolean}
+  # optional (1.19+): connection.check, and connection/changed when the
+  # source notices its service go away or come back
+  connectionCheck: {type: boolean}
+  # optional (1.20+): media.setLibrary and media/wanted — the source shows
+  # the media library the front's platform keeps (docs/protocol.md §7.10)
+  hostMedia: {type: boolean}
   # optional (1.11+): localization.setLanguage; `locales` lists the
   # languages (BCP-47) the source can answer in, English being the default
   localization:
@@ -64,9 +76,8 @@ properties:
     additionalProperties: false
   auth:
     type: object
-    required: [required, flow]
+    required: [required]
     properties:
       required: {type: boolean}
-      flow: {type: string, enum: [none, deviceCode, usernamePassword, oauthRedirect]}
     additionalProperties: false
 additionalProperties: false

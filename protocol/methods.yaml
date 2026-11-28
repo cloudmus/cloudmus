@@ -1,4 +1,4 @@
-# cloudmus JSON-RPC methods & notifications — the machine-readable RPC
+# CloudMus JSON-RPC methods & notifications — the machine-readable RPC
 # surface. `protocol/schema/*.yaml` describes data *types*; this file
 # describes the *methods* (front -> backend, request/response) and
 # *notifications* (backend -> front, fire-and-forget) built on top of them,
@@ -14,7 +14,7 @@
 # items: <node>}, {type: object, properties: {...}, required: [...]}, or
 # {$ref: "schema/<file>.yaml"} to reuse a named data type.
 
-protocolVersion: "1.18"
+protocolVersion: "2.0"
 
 methods:
   # --- 7.1 Catalog / browse ---
@@ -245,6 +245,11 @@ methods:
         trackId: {type: string}
         playedMs: {type: integer}
         queuedAfter: {type: integer}   # optional (1.13+), as in trackStarted
+        # optional (1.19+): sent late, from the front's outbox — when it was
+        # played (ISO-8601 UTC); a deferred event counts for the service's
+        # history and taste, and changes nothing queued (docs/protocol.md §7.4)
+        playedAt: {type: string}
+        deferred: {type: boolean}
     result: {type: object, properties: {}, required: []}
     timeoutMs: 5000
 
@@ -253,9 +258,44 @@ methods:
     params:
       type: object
       required: [trackId, playedMs]
-      properties: {trackId: {type: string}, playedMs: {type: integer}}
+      properties:
+        trackId: {type: string}
+        playedMs: {type: integer}
+        playedAt: {type: string}    # optional (1.19+), as in trackFinished
+        deferred: {type: boolean}   # optional (1.19+), as in trackFinished
     result: {type: object, properties: {}, required: []}
     timeoutMs: 5000
+
+  feedback.played:
+    # optional (1.19+): a track played outside a radio, for the service's
+    # listening history (docs/protocol.md §7.4).
+    requiresCapability: feedback.played
+    params:
+      type: object
+      required: [trackId, playedMs, playedAt]
+      properties:
+        trackId: {type: string}
+        playedMs: {type: integer}
+        playedAt: {type: string}
+        deferred: {type: boolean}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 10000
+
+  # --- 7.9 Connection state ---
+  connection.check:
+    # optional (1.19+): whether the source can reach its service now, with
+    # one light request; "offline" is an answer, not an error
+    # (docs/protocol.md §7.9).
+    requiresCapability: connectionCheck
+    params: {type: object, properties: {}, required: []}
+    result:
+      x-name: ConnectionState
+      type: object
+      required: [state]
+      properties:
+        state: {type: string, enum: [online, offline]}
+        detail: {type: string}
+    timeoutMs: 10000
 
   # --- 7.6 Editing playlists ---
   catalog.getTrackPlaylists:
@@ -293,6 +333,31 @@ methods:
       required: [trackCount]
       properties: {trackCount: {type: integer}}
     timeoutMs: 20000
+
+  # --- 7.11 Deleting ---
+  catalog.deleteTracks:
+    # optional (1.22+): deletes these tracks (Track.deletable) from where
+    # they're kept — docs/protocol.md §7.11.
+    requiresCapability: browse.delete
+    params:
+      type: object
+      required: [trackIds]
+      properties:
+        trackIds: {type: array, items: {type: string}}
+    result: {$ref: "schema/deletion.yaml"}
+    timeoutMs: 60000
+
+  catalog.deletePlaylist:
+    # optional (1.22+): deletes a playlist (Playlist.deletable) and every
+    # track in it, such as a folder with what's under it — §7.11.
+    requiresCapability: browse.delete
+    params:
+      type: object
+      required: [playlistId]
+      properties:
+        playlistId: {type: string}
+    result: {$ref: "schema/deletion.yaml"}
+    timeoutMs: 60000
 
   # --- 7.5 Download ---
   catalog.downloadTrack:
@@ -364,6 +429,23 @@ methods:
         description: {type: string}
     timeoutMs: 5000
 
+  # --- 7.10 The host's media library ---
+  media.setLibrary:
+    # optional (1.20+): the media library the front's platform keeps (such
+    # as Android's MediaStore), for a source with hostMedia — docs/protocol.md
+    # §7.10. `path` names a JSON file in the shape of
+    # schema/media_library.yaml; the front writes it anew, then calls this,
+    # each time the library changes.
+    requiresCapability: hostMedia
+    params:
+      type: object
+      required: [path, revision]
+      properties:
+        path: {type: string}
+        revision: {type: integer}
+    result: {type: object, properties: {}, required: []}
+    timeoutMs: 5000
+
   # --- 10. Auth ---
   auth.getStatus:
     params: {type: object, properties: {}, required: []}
@@ -381,13 +463,24 @@ methods:
     timeoutMs: 5000
 
   auth.submit:
+    # Exactly one of the two, after the method used (docs/protocol.md §10).
     params:
       type: object
-      required: [fields]
+      required: []
       properties:
-        fields: {type: object, additionalProperties: {type: string}}
+        form: {type: object, additionalProperties: {type: string}}
+        browser:
+          x-name: AuthBrowserResult
+          type: object
+          required: [finalUrl, userAgent, cookies]
+          properties:
+            finalUrl: {type: string}
+            userAgent: {type: string}
+            # cookieUrls entry -> its Cookie header value.
+            cookies: {type: object, additionalProperties: {type: string}}
     result: {type: object, properties: {}, required: []}
-    timeoutMs: 5000
+    # A source may ask its service about what it's given before answering.
+    timeoutMs: 30000
 
   auth.cancel:
     params: {type: object, properties: {}, required: []}
@@ -437,16 +530,37 @@ notifications:
         receivedBytes: {type: integer}
         totalBytes: {type: integer}   # absent while unknown
 
+  connection/changed:
+    # optional (1.19+): the source noticed its service go away or come back
+    # (capability connectionCheck) — docs/protocol.md §7.9.
+    params:
+      x-name: ConnectionChangedParams
+      type: object
+      required: [state]
+      properties:
+        state: {type: string, enum: [online, offline]}
+        detail: {type: string}
+
+  media/wanted:
+    # optional (1.20+): how much of the host's media library a source with
+    # hostMedia wants — docs/protocol.md §7.10. "own": what this app saved;
+    # "all": everything on the device, for which the front may have to ask
+    # the user's permission.
+    params:
+      x-name: MediaWantedParams
+      type: object
+      required: [scope]
+      properties:
+        scope: {type: string, enum: [own, all]}
+
   auth/prompt:
-    # Flow-specific shape (deviceCode | usernamePassword | oauthRedirect, see
-    # docs/protocol.md §10) — deliberately left as a loose object rather than
-    # a strict oneOf, since the `flow` field is a runtime discriminator a
-    # generator would otherwise need union-type support for no real benefit
-    # at this protocol's size (3 shapes, one front only ever branches on
-    # `flow` at runtime anyway).
-    # `message` (1.5+, optional, any flow): instructions for the user, in a
-    # minimal HTML subset (docs/protocol.md §10).
-    params: {type: object, required: [flow], properties: {flow: {type: string}, message: {type: string}}}
+    # The ways to sign in, the source's preferred one first; a later prompt
+    # replaces the earlier one (docs/protocol.md §10).
+    params:
+      type: object
+      required: [methods]
+      properties:
+        methods: {type: array, items: {$ref: "schema/auth_method.yaml"}}
 
   auth/statusChanged:
     params:

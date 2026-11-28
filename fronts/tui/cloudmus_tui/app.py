@@ -1,4 +1,4 @@
-"""cloudmus TUI front. Generalized from ym_player/tui.py: no longer imports
+"""CloudMus TUI front. Generalized from ym_player/tui.py: no longer imports
 yandex_music or any backend-specific module — everything goes through
 source_manager/rpc_client, and the sidebar/track list/save-action are all
 driven by each connected backend's declared capabilities instead of being
@@ -17,6 +17,7 @@ from textual.widgets import Footer, Header, Label, ListItem, ListView, Static
 
 from .playback_engine import PlaybackEngine, QueueEntry
 from . import session
+from .sign_in import SignInScreen
 from .source_manager import BACKEND_UNAVAILABLE, SourceManager
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,7 @@ class PlayerApp(App):
         Binding("=", "vol_up", "vol+"),
         Binding("-", "vol_down", "vol-"),
         Binding("s", "save_track", "save"),
+        Binding("l", "sign_in", "sign in"),
         Binding("q", "quit", "quit"),
     ]
 
@@ -78,6 +80,8 @@ class PlayerApp(App):
         self._current_kind = "playlist"
         self._current_tracks: list[dict[str, Any]] = []
         self._resume_index = 0
+        # Sources asking to be signed in to by a form, with that method.
+        self._sign_in_forms: dict[str, dict[str, Any]] = {}
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -229,24 +233,59 @@ class PlayerApp(App):
 
     def _show_auth_prompt(self, source_id: str, params: dict[str, Any]) -> None:
         banner = self.query_one("#auth-banner", Static)
-        if params.get("flow") == "deviceCode":
-            minutes = params.get("expiresInSec", 600) // 60
+        self._sign_in_forms.pop(source_id, None)
+        # The source's preferred method this front can carry out: it has no
+        # built-in browser.
+        method = next((m for m in params["methods"] if m.get("kind") in ("code", "form")), None)
+        if method is None:
+            banner.update(f"{source_id} — sign-in required, not possible here")
+        elif method["kind"] == "code":
+            minutes = method.get("expiresInSec", 600) // 60
             banner.update(
-                f"{source_id} — sign in: open {params['url']} and enter code  {params['code']}"
+                f"{source_id} — sign in: open {method['url']} and enter code  {method['code']}"
                 f"   (expires in ~{minutes} min)"
             )
         else:
-            banner.update(f"{source_id} — sign-in required ({params.get('flow')})")
+            self._sign_in_forms[source_id] = method
+            banner.update(f"{source_id} — sign-in required: press l")
         banner.display = True
+
+    def action_sign_in(self) -> None:
+        if not self._sign_in_forms:
+            return
+        source_id, method = next(iter(self._sign_in_forms.items()))
+        client = self.source_manager.clients.get(source_id)
+        if client is None:
+            return
+        name = client.source_info["name"] if client.source_info else source_id
+
+        def submit(values: dict[str, str] | None) -> None:
+            if values is not None:
+                self.run_worker(self._submit_sign_in(source_id, values))
+
+        self.push_screen(SignInScreen(name, method), submit)
+
+    async def _submit_sign_in(self, source_id: str, values: dict[str, str]) -> None:
+        client = self.source_manager.clients.get(source_id)
+        if client is None:
+            return
+        self.notify("Signing in...", timeout=3)
+        try:
+            # The source may ask its service before answering.
+            await client.request("auth.submit", {"form": values}, timeout=30.0)
+        except Exception as error:
+            self.notify(f"{source_id}: sign-in failed: {error}", severity="error", timeout=8)
 
     def _on_auth_status_changed(self, source_id: str, params: dict[str, Any]) -> None:
         banner = self.query_one("#auth-banner", Static)
         if params["status"] == "authenticated":
+            self._sign_in_forms.pop(source_id, None)
             banner.display = False
             self.notify(f"{source_id}: signed in", timeout=3)
             self.run_worker(self._populate_sidebar_for_source(source_id))
         elif params["status"] == "error":
-            banner.update(f"{source_id} — sign-in failed: {params.get('message', '?')}")
+            hint = " — press l to try again" if source_id in self._sign_in_forms else ""
+            banner.update(f"{source_id} — sign-in failed: {params.get('message', '?')}{hint}")
             banner.display = True
             self.notify(f"{source_id}: sign-in failed: {params.get('message', '?')}", severity="error", timeout=8)
 

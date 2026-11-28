@@ -1,0 +1,281 @@
+#include <QFile>
+#include <QSignalSpy>
+#include <QStandardPaths>
+#include <QDir>
+#include <QTemporaryDir>
+#include <QTest>
+
+#include "AuthStates.h"
+#include "CoverArtCache.h"
+#include "FakeBackend.h"
+#include "Messages.h"
+#include "PlaybackController.h"
+#include "PlaylistEditing.h"
+#include "RpcClient.h"
+#include "Settings.h"
+#include "SourceManager.h"
+#include "SourceSession.h"
+#include "Sources.h"
+#include "TestSupport.h"
+#include "TrackStates.h"
+
+namespace Tests {
+
+namespace {
+// The ids of the playlists the sidebar shows under the source's root, in
+// order (favorites first, then the "Playlists" group's).
+QStringList sidebarIds(ViewModel::SidebarModel& model)
+{
+    QStringList ids;
+    const QModelIndex root = model.indexForSource(QStringLiteral("fake"));
+    const std::function<void(const QModelIndex&)> collect = [&](const QModelIndex& parent) {
+        for (int row = 0; row < model.rowCount(parent); ++row) {
+            const QModelIndex index = model.index(row, 0, parent);
+            const QString id = index.data(ViewModel::SidebarModel::PlaylistIdRole).toString();
+            if (!id.isEmpty())
+                ids.append(id);
+            collect(index);
+        }
+    };
+    collect(root);
+    return ids;
+}
+} // namespace
+
+class SourcesTest : public QObject {
+    Q_OBJECT
+
+private slots:
+    void initTestCase() { installFakeBackendManifest(); }
+
+    void init()
+    {
+        // A fresh settings file — favorites and collapsed rows live there
+        // (the test-mode location, see main.cpp).
+        QFile::remove(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+            + QStringLiteral("/cloudmus/fronts/qt/config.ini"));
+        if (!keepLists_)
+            QDir(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)
+                + QStringLiteral("/cloudmus/fronts/qt/playlists"))
+                .removeRecursively();
+        settings_ = std::make_unique<Config::Settings>();
+        sourceManager_ = std::make_unique<Rpc::SourceManager>();
+        playback_ = std::make_unique<Playback::PlaybackController>(*sourceManager_);
+        session_ = std::make_unique<App::SourceSession>(
+            *sourceManager_, *playback_, authStates_, trackStates_, coverArtCache_, messages_);
+        editing_ = std::make_unique<App::PlaylistEditing>(*sourceManager_, messages_);
+        sources_ = std::make_unique<ViewModel::Sources>(
+            *sourceManager_, *session_, authStates_, *editing_, coverArtCache_, *settings_, messages_);
+    }
+
+    // A playlist inside another (Playlist.parentId) is listed under it, a
+    // favorite's children under the favorite; one with a parent it doesn't
+    // have goes with the rest. Folders start collapsed, groups expanded.
+    void playlistsNestUnderTheirParents()
+    {
+        using Model = ViewModel::SidebarModel;
+        const auto playlist = [](const QString& id, std::optional<QString> parent) {
+            Playlist p;
+            p.id = id;
+            p.title = id;
+            p.kind = QStringLiteral("playlist");
+            p.parentId = std::move(parent);
+            return p;
+        };
+        Model model;
+        model.setFavorites(QStringLiteral("fake"), QStringList { QStringLiteral("all") });
+        model.setSource(QStringLiteral("fake"), QStringLiteral("Fake"),
+            { playlist(QStringLiteral("all"), std::nullopt), playlist(QStringLiteral("saved"), QStringLiteral("all")),
+                playlist(QStringLiteral("artist"), std::nullopt),
+                playlist(QStringLiteral("album"), QStringLiteral("artist")),
+                playlist(QStringLiteral("stray"), QStringLiteral("gone")) });
+        const auto parentOf = [&model](const QString& id) {
+            return model.indexForPlaylist(QStringLiteral("fake"), id).parent().data(Model::PlaylistIdRole).toString();
+        };
+        QCOMPARE(parentOf(QStringLiteral("saved")), QStringLiteral("all"));
+        QCOMPARE(parentOf(QStringLiteral("album")), QStringLiteral("artist"));
+        QCOMPARE(parentOf(QStringLiteral("artist")), QString()); // the Playlists group
+        QCOMPARE(parentOf(QStringLiteral("stray")), QString());
+        const QString folder = Model::nodeKey(model.indexForPlaylist(QStringLiteral("fake"), QStringLiteral("artist")));
+        QVERIFY(!folder.isEmpty());
+        QVERIFY(!Model::expandedByDefault(folder));
+        QVERIFY(Model::expandedByDefault(Model::nodeKey(model.indexForSource(QStringLiteral("fake")))));
+    }
+
+    // A folder from inside others, put among the favorites, says where it is.
+    void aFavoriteFolderSaysWhereItIs()
+    {
+        using Model = ViewModel::SidebarModel;
+        const auto playlist = [](const QString& id, std::optional<QString> parent) {
+            Playlist p;
+            p.id = id;
+            p.title = id.toUpper();
+            p.kind = QStringLiteral("playlist");
+            p.parentId = std::move(parent);
+            return p;
+        };
+        Model model;
+        model.setFavorites(QStringLiteral("fake"), QStringList { QStringLiteral("album"), QStringLiteral("saved") });
+        model.setSource(QStringLiteral("fake"), QStringLiteral("Fake"),
+            { playlist(QStringLiteral("saved"), std::nullopt), playlist(QStringLiteral("artist"), QStringLiteral("saved")),
+                playlist(QStringLiteral("album"), QStringLiteral("artist")) });
+        QCOMPARE(model.parentTitles(QStringLiteral("fake"), QStringLiteral("album")),
+            (QStringList { QStringLiteral("SAVED"), QStringLiteral("ARTIST") }));
+        QVERIFY(model.parentTitles(QStringLiteral("fake"), QStringLiteral("saved")).isEmpty());
+        const QModelIndex album = model.indexForPlaylist(QStringLiteral("fake"), QStringLiteral("album"));
+        QCOMPARE(album.data(Qt::ToolTipRole).toString(), QStringLiteral("SAVED / ARTIST / ALBUM"));
+        QVERIFY(!model.indexForPlaylist(QStringLiteral("fake"), QStringLiteral("saved")).data(Qt::ToolTipRole).isValid());
+    }
+
+    // Listed again behind the scenes (its settings or the media library
+    // changed) as it was: no loading state, and nothing told.
+    void aQuietRefreshThatChangesNothingSaysNothing()
+    {
+        const QString fake = QStringLiteral("fake");
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        QSignalSpy changed(sources_.get(), &ViewModel::Sources::sourceChanged);
+        loaded.clear();
+        sourceManager_->notifySettingsChanged(fake);
+        // The fake answers at once: a moment is plenty for the round trip.
+        QTest::qWait(500);
+        QCOMPARE(changed.size(), 0);
+        QCOMPARE(loaded.size(), 0);
+        QVERIFY(!sources_->playlists(fake).isEmpty());
+    }
+
+    // With no network a source keeps what it listed, from the last run too,
+    // and it's not an error; a listing that works again replaces it.
+    void theListOutlivesALostNetwork()
+    {
+        QTemporaryDir dir;
+        const QString down = dir.filePath(QStringLiteral("down"));
+        qputenv("CLOUDMUS_FAKE_OFFLINE_FILE", down.toUtf8());
+        messages_.setOfflineShownElsewhere(true);
+        const QString fake = QStringLiteral("fake");
+
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+        const qsizetype listed = sources_->playlists(fake).size();
+        QVERIFY(listed > 0);
+
+        // Gone for a running source.
+        QFile(down).open(QIODevice::WriteOnly);
+        QSignalSpy failed(sources_.get(), &ViewModel::Sources::listingFailedWith);
+        QSignalSpy posted(&messages_, &ViewModel::Messages::posted);
+        loaded.clear();
+        sources_->refresh(fake);
+        QVERIFY(loaded.wait(10000));
+        QCOMPARE(sources_->playlists(fake).size(), listed);
+        QCOMPARE(failed.size(), 1);
+        QVERIFY(failed.first().at(1).toBool());
+        QVERIFY(sources_->listingFailed(fake));
+        QCOMPARE(posted.size(), 0);
+
+        // And for the next run, from the start.
+        cleanup();
+        keepLists_ = true;
+        init();
+        keepLists_ = false;
+        loaded.clear();
+        QSignalSpy reloaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QTRY_COMPARE(sources_->playlists(fake).size(), listed);
+        QVERIFY(reloaded.wait(10000));
+        QCOMPARE(sources_->playlists(fake).size(), listed);
+
+        // Back.
+        QFile::remove(down);
+        QSignalSpy succeeded(sources_.get(), &ViewModel::Sources::listingSucceeded);
+        sources_->refresh(fake);
+        QVERIFY(succeeded.wait(10000));
+        QVERIFY(!sources_->listingFailed(fake));
+        qunsetenv("CLOUDMUS_FAKE_OFFLINE_FILE");
+        messages_.setOfflineShownElsewhere(false);
+    }
+
+    void cleanup()
+    {
+        for (Rpc::RpcClient* client : sourceManager_->clients())
+            await(client->shutdown());
+        sources_.reset();
+        editing_.reset();
+        session_.reset();
+        playback_.reset();
+        sourceManager_.reset();
+        settings_.reset();
+    }
+
+    void aStartingSourceShowsAsLoadingThenListsItsPlaylists()
+    {
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(sources_->model().indexForSource(QStringLiteral("fake")).isValid());
+        QVERIFY(sources_->isLoading(QStringLiteral("fake")));
+        QVERIFY(loaded.wait(10000));
+        QVERIFY(!sources_->isLoading(QStringLiteral("fake")));
+        QCOMPARE(sources_->playlists(QStringLiteral("fake")).size(), 2);
+        QCOMPARE(sidebarIds(sources_->model()), (QStringList { QStringLiteral("p1"), QStringLiteral("p2") }));
+        // Handed on to playlist editing: only the editable one.
+        QCOMPARE(editing_->editablePlaylists(QStringLiteral("fake")).size(), 1);
+    }
+
+    void aFavoriteMovesToTheTopAndSurvivesARefresh()
+    {
+        startAndLoad();
+        QVERIFY(!sources_->toggleFavorite(QStringLiteral("fake"), QStringLiteral("p2")));
+        QVERIFY(sources_->isFavorite(QStringLiteral("fake"), QStringLiteral("p2")));
+        QCOMPARE(sidebarIds(sources_->model()), (QStringList { QStringLiteral("p2"), QStringLiteral("p1") }));
+        QCOMPARE(settings_->favorites(QStringLiteral("fake")), std::optional<QStringList>(QStringList { QStringLiteral("p2") }));
+
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sources_->refresh(QStringLiteral("fake"));
+        QVERIFY(loaded.wait(10000));
+        QCOMPARE(sidebarIds(sources_->model()), (QStringList { QStringLiteral("p2"), QStringLiteral("p1") }));
+    }
+
+    void signingOutEmptiesTheSourcesList()
+    {
+        startAndLoad();
+        authStates_.setSignedOut(QStringLiteral("fake"));
+        QVERIFY(sources_->playlists(QStringLiteral("fake")).isEmpty());
+        QVERIFY(editing_->editablePlaylists(QStringLiteral("fake")).isEmpty());
+    }
+
+    void collapsedRowsAreRemembered()
+    {
+        sources_->setCollapsed(QStringLiteral("source:fake"), true);
+        QVERIFY(sources_->isCollapsed(QStringLiteral("source:fake")));
+        QCOMPARE(settings_->sidebarCollapsed(), QStringList { QStringLiteral("source:fake") });
+        sources_->setCollapsed(QStringLiteral("source:fake"), false);
+        QVERIFY(settings_->sidebarCollapsed().isEmpty());
+    }
+
+private:
+    bool keepLists_ = false;
+    void startAndLoad()
+    {
+        QSignalSpy loaded(sources_.get(), &ViewModel::Sources::playlistsLoaded);
+        sourceManager_->startAll();
+        QVERIFY(loaded.wait(10000));
+    }
+
+    std::unique_ptr<Config::Settings> settings_;
+    Rpc::AuthStates authStates_;
+    Library::TrackStates trackStates_;
+    Covers::CoverArtCache coverArtCache_;
+    ViewModel::Messages messages_;
+    std::unique_ptr<Rpc::SourceManager> sourceManager_;
+    std::unique_ptr<Playback::PlaybackController> playback_;
+    std::unique_ptr<App::SourceSession> session_;
+    std::unique_ptr<App::PlaylistEditing> editing_;
+    std::unique_ptr<ViewModel::Sources> sources_;
+};
+
+QObject* makeSourcesTest() { return new SourcesTest; }
+
+} // namespace Tests
+
+#include "SourcesTest.moc"

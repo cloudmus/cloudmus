@@ -1,0 +1,758 @@
+#include "Downloads.h"
+
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QJsonObject>
+#include <QLoggingCategory>
+#include <QPointer>
+#include <QTemporaryDir>
+#include <QThreadPool>
+#include <QTimer>
+
+#include <algorithm>
+#include <coroutine>
+#include <memory>
+#include <stdexcept>
+#include <utility>
+
+#include "CoverArtCache.h"
+#include "DiskSpace.h"
+#include "DownloadPaths.h"
+#include "Messages.h"
+#include "Preloader.h"
+#include "RpcClient.h"
+#include "RpcMethods.h"
+#include "Settings.h"
+#include "SourceManager.h"
+#include "SourceSession.h"
+#include "Throttle.h"
+#include "TrackFetch.h"
+#include "TrackFile.h"
+
+namespace ViewModel {
+
+namespace {
+Q_LOGGING_CATEGORY(lcDownloads, "cloudmus.viewmodel.downloads")
+// Progress of a fetch by the front reaches the jobs this often at most.
+constexpr int kProgressIntervalMs = 250;
+
+// On a worker thread, resumed with its result on this one (defined below).
+template <typename Result>
+Rpc::Task<Result> storageWork(std::function<Result()> run);
+
+// The protocol's "download cancelled" error (docs/protocol.md §9).
+constexpr int kDownloadCancelled = 1410;
+// catalog.downloadTrack's timeout. A download that reports progress can
+// take as long as a big file needs — progress shows it's alive; one that
+// doesn't gets the protocol's recommended minute.
+constexpr int kTimeoutWithProgressMs = 30 * 60 * 1000;
+constexpr int kTimeoutMs = 60 * 1000;
+
+bool isOver(Downloads::State state)
+{
+    return state == Downloads::State::Done || state == Downloads::State::Failed || state == Downloads::State::Cancelled;
+}
+
+// The running track's own share of its file, 0..1 — 0 while unknown.
+double trackFraction(const Downloads::Job& job)
+{
+    return job.total > 0 ? qBound(0.0, double(job.received) / double(job.total), 1.0) : 0.0;
+}
+} // namespace
+
+double Downloads::Job::progress() const
+{
+    if (state == State::Done)
+        return 1.0;
+    if (!isPlaylist)
+        return total > 0 ? trackFraction(*this) : -1.0;
+    if (tracks.isEmpty())
+        return -1.0;
+    return (saved + failed + skipped + trackFraction(*this)) / double(tracks.size());
+}
+
+QString Downloads::Job::currentTitle() const { return current < tracks.size() ? tracks[current].title : QString(); }
+
+Downloads::Downloads(Rpc::SourceManager& sourceManager, App::SourceSession& sourceSession,
+    Library::TrackStates& trackStates, Covers::CoverArtCache& coverArtCache, Config::Settings& settings,
+    Messages& messages, QObject* parent)
+    : QObject(parent)
+    , sourceManager_(sourceManager)
+    , trackStates_(trackStates)
+    , coverArtCache_(coverArtCache)
+    , settings_(settings)
+    , messages_(messages)
+{
+    progressThrottle_ = new Timing::Throttle(kProgressIntervalMs, [this]() { reportFetchProgress(); }, this);
+    connect(&sourceSession, &App::SourceSession::downloadProgress, this,
+        [this](const QString& sourceId, const DownloadProgressParams& params) {
+            onProgress(sourceId, params.downloadId, params.receivedBytes, params.totalBytes);
+        });
+}
+
+bool Downloads::savesFromStream(const QJsonObject& capabilities)
+{
+    return capabilities.value(QStringLiteral("downloadFromStream")).toBool()
+        && capabilities.value(QStringLiteral("playback")).toObject().value(QStringLiteral("resolveStream")).toBool();
+}
+
+bool Downloads::canSave(const QJsonObject& capabilities)
+{
+    return capabilities.value(QStringLiteral("download")).toBool() || savesFromStream(capabilities);
+}
+
+void Downloads::setPublisher(QString directory, Publisher publisher, WebmPreparer prepareWebm, SavedCheck isSaved)
+{
+    preferredDirectory_ = std::move(directory);
+    publisher_ = std::move(publisher);
+    prepareWebm_ = std::move(prepareWebm);
+    isSaved_ = std::move(isSaved);
+    emit directoryChanged();
+}
+
+QString Downloads::directory() const
+{
+    if (!publisher_)
+        return settings_.downloadDirectory();
+    return publishedDirectory_.isEmpty() ? preferredDirectory_ : publishedDirectory_;
+}
+
+bool Downloads::isEnabled() const { return settings_.downloadsEnabled(); }
+
+void Downloads::setEnabled(bool on)
+{
+    if (on == isEnabled())
+        return;
+    settings_.setDownloadsEnabled(on);
+    if (!on) {
+        for (const Job& job : std::as_const(jobs_))
+            cancel(job.id);
+        clearFinished();
+    }
+    emit changed();
+}
+
+void Downloads::downloadTrack(const QString& sourceId, const Track& track)
+{
+    if (!isEnabled())
+        return;
+    // A new round: what finished before has been told about already.
+    if (!isActive())
+        clearFinished();
+    Job job;
+    job.id = nextJobId_++;
+    job.sourceId = sourceId;
+    job.title = track.title;
+    job.tracks = { track };
+    jobs_.append(job);
+    emit changed();
+    startNext();
+}
+
+void Downloads::downloadPlaylist(const QString& sourceId, const Playlist& playlist)
+{
+    if (!isEnabled() || playlist.kind == QStringLiteral("radioStation")
+        || playlistJob(sourceId, playlist.id) != nullptr)
+        return;
+    if (!isActive())
+        clearFinished();
+    Job job;
+    job.id = nextJobId_++;
+    job.sourceId = sourceId;
+    job.title = playlist.title;
+    job.isPlaylist = true;
+    job.playlistId = playlist.id;
+    jobs_.append(job);
+    // The playlist itself goes along until run() lists its tracks.
+    playlists_.insert(job.id, playlist);
+    emit changed();
+    startNext();
+}
+
+void Downloads::cancel(int jobId)
+{
+    Job* job = find(jobId);
+    if (job == nullptr || isOver(job->state))
+        return;
+    const bool running = job->state == State::Running;
+    job->state = State::Cancelled;
+    emit changed();
+    if (!running)
+        return;
+    // Waiting for the front's own download of the track: stop that.
+    if (wakePlayerSave_) {
+        wakePlayerSave_();
+        return;
+    }
+    // Stop the track under way, where the source can (downloadControl);
+    // otherwise run() just leaves its result be once it comes.
+    Rpc::RpcClient* client = sourceManager_.client(job->sourceId);
+    if (client != nullptr && client->available() && !runningDownloadId_.isEmpty()
+        && client->capabilities().value(QStringLiteral("downloadControl")).toBool())
+        Rpc::catalogCancelDownload(*client, CancelDownloadParams { runningDownloadId_ }).detach();
+}
+
+void Downloads::cancelAll()
+{
+    // The running one last: cancelling it starts the next one queued.
+    QList<int> ids;
+    for (const Job& job : std::as_const(jobs_)) {
+        if (!isOver(job.state))
+            ids.prepend(job.id);
+    }
+    for (const int id : std::as_const(ids))
+        cancel(id);
+}
+
+void Downloads::clearFinished()
+{
+    const qsizetype before = jobs_.size();
+    jobs_.removeIf([](const Job& job) { return isOver(job.state); });
+    if (jobs_.size() != before)
+        emit changed();
+}
+
+bool Downloads::isActive() const
+{
+    return std::any_of(jobs_.cbegin(), jobs_.cend(), [](const Job& job) { return !isOver(job.state); });
+}
+
+const Downloads::Job* Downloads::playlistJob(const QString& sourceId, const QString& playlistId) const
+{
+    for (const Job& job : jobs_) {
+        if (job.isPlaylist && !isOver(job.state) && job.sourceId == sourceId && job.playlistId == playlistId)
+            return &job;
+    }
+    return nullptr;
+}
+
+double Downloads::progress() const
+{
+    // In tracks: each job counts as many as it has (1 until a playlist's
+    // are listed), each done one fully, the running one by its bytes.
+    double units = 0;
+    double done = 0;
+    bool measurable = false;
+    for (const Job& job : jobs_) {
+        if (isOver(job.state))
+            continue;
+        const int count = std::max<qsizetype>(1, job.tracks.size());
+        units += count;
+        done += job.saved + job.failed + job.skipped + trackFraction(job);
+        if (job.saved + job.failed + job.skipped > 0 || job.total > 0)
+            measurable = true;
+    }
+    if (units == 0 || !measurable)
+        return -1.0;
+    return qBound(0.0, done / units, 1.0);
+}
+
+bool Downloads::isDownloading(const QString& sourceId, const QString& trackId) const
+{
+    for (const Job& job : jobs_) {
+        if (isOver(job.state) || job.sourceId != sourceId)
+            continue;
+        for (int i = job.current; i < job.tracks.size(); ++i) {
+            if (job.tracks[i].id == trackId)
+                return true;
+        }
+    }
+    return false;
+}
+
+Downloads::Job* Downloads::find(int jobId)
+{
+    for (Job& job : jobs_) {
+        if (job.id == jobId)
+            return &job;
+    }
+    return nullptr;
+}
+
+void Downloads::startNext()
+{
+    // One track at a time, across all jobs — easy on the services, and on
+    // the sources, which download on a worker thread each.
+    if (runningJob_ != 0)
+        return;
+    for (Job& job : jobs_) {
+        if (job.state != State::Queued)
+            continue;
+        job.state = State::Running;
+        runningJob_ = job.id;
+        emit changed();
+        run(job.id).detach();
+        return;
+    }
+}
+
+Rpc::Task<void> Downloads::run(int jobId)
+{
+    // `job` is looked up again after every co_await: the list may have
+    // grown (and moved) meanwhile.
+    const QString sourceId = find(jobId)->sourceId;
+    QString lastError;
+
+    if (find(jobId)->isPlaylist) {
+        try {
+            const QVector<Playback::QueueEntry> entries = co_await App::fetchTracks(
+                sourceManager_, trackStates_, coverArtCache_, sourceId, playlists_.value(jobId));
+            if (Job* job = find(jobId)) {
+                for (const Playback::QueueEntry& entry : entries)
+                    job->tracks.append(entry.track);
+            }
+        } catch (const std::exception& e) {
+            lastError = QString::fromStdString(e.what());
+            qCWarning(lcDownloads) << "listing a playlist to download failed:" << lastError;
+        }
+        playlists_.remove(jobId);
+        emit changed();
+    }
+
+    for (;;) {
+        Job* job = find(jobId);
+        if (job == nullptr || job->state != State::Running || job->current >= job->tracks.size())
+            break;
+        const Track track = job->tracks[job->current];
+        Rpc::RpcClient* client = sourceManager_.client(sourceId);
+        if (client == nullptr || !client->available()) {
+            lastError = tr("%1 isn't running").arg(sourceId);
+            job->failed = int(job->tracks.size()) - job->saved - job->skipped;
+            break;
+        }
+        const auto staging = publisher_
+            ? std::make_unique<QTemporaryDir>(QDir::tempPath() + QStringLiteral("/cloudmus-save-XXXXXX"))
+            : nullptr;
+        const QString root = staging ? staging->path() : settings_.downloadDirectory();
+        const QString destDir
+            = Library::downloadDirectoryFor(root, settings_.downloadLayout(), client->sourceBaseName(), track);
+        // Saved before: a second copy would only sit beside it (Android's
+        // MediaStore names it "... (1)"), so it's left as it is.
+        // Asked on a worker: on Android it's a MediaStore query.
+        const QPointer<Downloads> alive(this);
+        const bool savedAlready = co_await storageWork<bool>(savedCheckFor(root, destDir, track));
+        if (!alive)
+            co_return;
+        job = find(jobId);
+        if (job == nullptr || job->state != State::Running)
+            break;
+        if (savedAlready) {
+            qCDebug(lcDownloads) << "saved already:" << track.id << track.title;
+            ++job->skipped;
+            ++job->current;
+            emit changed();
+            continue;
+        }
+        client = sourceManager_.client(sourceId);
+        if (client == nullptr || !client->available()) {
+            lastError = tr("%1 isn't running").arg(sourceId);
+            job->failed = int(job->tracks.size()) - job->saved - job->skipped;
+            break;
+        }
+        const QJsonObject capabilities = client->capabilities();
+        const bool withProgress = capabilities.value(QStringLiteral("downloadControl")).toBool();
+        const bool byTheFront = preloader_ != nullptr && savesFromStream(capabilities);
+        const bool bySource = capabilities.value(QStringLiteral("download")).toBool();
+        runningDownloadId_ = QStringLiteral("%1-%2").arg(jobId).arg(job->current);
+        job->received = 0;
+        job->total = -1;
+        emit changed();
+
+        bool saved = false;
+        bool cancelled = false;
+        // docs/protocol.md §7.5: destDir must already exist.
+        if ((staging && !staging->isValid()) || !QDir().mkpath(destDir)) {
+            lastError = tr("Can't create the folder %1").arg(destDir);
+        } else if (!Playback::DiskSpace::hasRoom(destDir)) {
+            lastError = tr("Not enough free space on the disk");
+        } else {
+            try {
+                // The front saves it where it can; the source itself is
+                // the way for one that can't be (or when the stream
+                // couldn't be had).
+                bool done = false;
+                QString path;
+                if (byTheFront) {
+                    try {
+                        path = co_await saveFromStream(jobId, sourceId, track, destDir);
+                        done = true;
+                    } catch (const std::exception& e) {
+                        if (!bySource)
+                            throw;
+                        qCInfo(lcDownloads)
+                            << "saving" << track.id << "from its stream failed (" << e.what() << "), asking the source";
+                    }
+                    job = find(jobId);
+                    if (job == nullptr || job->state != State::Running)
+                        done = true; // cancelled meanwhile: nothing more to do
+                }
+                if (!done) {
+                    if (!bySource)
+                        throw std::runtime_error(tr("%1 can't save tracks").arg(client->sourceName()).toStdString());
+                    const DownloadTrackParams params { track.id, destDir, runningDownloadId_ };
+                    const auto downloaded
+                        = co_await client->call<DownloadTrackResult>(QStringLiteral("catalog.downloadTrack"),
+                            params.toJson(), withProgress ? kTimeoutWithProgressMs : kTimeoutMs);
+                    path = downloaded.path;
+                }
+                if (staging) {
+                    job = find(jobId);
+                    if (job == nullptr || job->state != State::Running) {
+                        runningDownloadId_.clear();
+                        break;
+                    }
+                    const QString candidate = QFileInfo(path).canonicalFilePath();
+                    if (candidate.isEmpty()
+                        || !candidate.startsWith(QFileInfo(staging->path()).canonicalFilePath() + u'/'))
+                        throw std::runtime_error(tr("Couldn't find the file to save").toStdString());
+                    const QString subfolder = QDir(root).relativeFilePath(destDir);
+                    const QPointer<Downloads> alive(this);
+                    const auto result
+                        = co_await publish(candidate, subfolder == QStringLiteral(".") ? QString() : subfolder);
+                    if (!alive)
+                        co_return;
+                    if (result.directory.isEmpty())
+                        throw std::runtime_error(
+                            (result.error.isEmpty() ? tr("Couldn't publish the track") : result.error).toStdString());
+                    if (publishedDirectory_ != result.directory) {
+                        publishedDirectory_ = result.directory;
+                        emit directoryChanged();
+                    }
+                    if (!result.fallback.isEmpty()) {
+                        if (Job* current = find(jobId)) {
+                            current->fallbackDirectory = result.directory;
+                            current->fallbackReason = result.fallback;
+                        }
+                    }
+                }
+                saved = true;
+            } catch (const Rpc::RpcCallException& e) {
+                cancelled = e.error().code == kDownloadCancelled;
+                lastError = tr("%1: %2").arg(client->sourceName(), e.error().message);
+            } catch (const std::exception& e) {
+                lastError = tr("%1: %2").arg(client->sourceName(), QString::fromStdString(e.what()));
+            }
+        }
+        runningDownloadId_.clear();
+
+        job = find(jobId);
+        if (job == nullptr)
+            break;
+        if (cancelled || job->state == State::Cancelled) {
+            job->state = State::Cancelled;
+            break;
+        }
+        if (saved) {
+            ++job->saved;
+        } else {
+            ++job->failed;
+            qCWarning(lcDownloads) << "downloading" << track.id << "failed:" << lastError;
+        }
+        job->received = 0;
+        job->total = -1;
+        ++job->current;
+        emit changed();
+    }
+
+    if (Job* job = find(jobId))
+        finish(*job, lastError);
+    runningJob_ = 0;
+    emit changed();
+    startNext();
+}
+
+namespace {
+
+// What a coroutine waits on while the front fetches a track: resumed once
+// by wake(), at once if it already was. Shared, as the signals that wake it
+// can outlive the coroutine by a moment.
+class Waiter {
+public:
+    bool await_ready() const noexcept { return woken_; }
+    void await_suspend(std::coroutine_handle<> handle) noexcept { handle_ = handle; }
+    void await_resume() const noexcept { }
+
+    void wake()
+    {
+        if (woken_)
+            return;
+        woken_ = true;
+        if (handle_)
+            std::exchange(handle_, { }).resume();
+    }
+
+private:
+    std::coroutine_handle<> handle_;
+    bool woken_ = false;
+};
+
+template <typename Result>
+Rpc::Task<Result> storageWork(std::function<Result()> run)
+{
+    auto waiter = std::make_shared<Waiter>();
+    auto result = std::make_shared<std::optional<Result>>();
+    auto failure = std::make_shared<std::exception_ptr>();
+    QThreadPool::globalInstance()->start([run = std::move(run), waiter, result, failure] {
+        try {
+            result->emplace(run());
+        } catch (...) {
+            *failure = std::current_exception();
+        }
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [waiter] { waiter->wake(); }, Qt::QueuedConnection);
+    });
+    co_await *waiter;
+    if (*failure)
+        std::rethrow_exception(*failure);
+    co_return std::move(**result);
+}
+
+// How long a cover that is still on its way is waited for once the track
+// is there: past that the file is saved without one.
+constexpr int kCoverWaitMs = 5000;
+} // namespace
+
+Rpc::Task<Downloads::PublishResult> Downloads::publish(QString path, QString subfolder)
+{
+    co_return co_await storageWork<PublishResult>(
+        [publisher = publisher_, path = std::move(path), subfolder = std::move(subfolder)] {
+            return publisher(path, subfolder);
+        });
+}
+
+Rpc::Task<QString> Downloads::saveFromStream(int jobId, QString sourceId, Track track, QString destDir)
+{
+    const QPointer<Downloads> alive(this);
+    const QString coverUrl
+        = track.coverUrl.value_or(track.album && track.album->coverUrl ? *track.album->coverUrl : QString());
+    Playback::Preloader& preloader = *preloader_;
+    const bool demanded = !preloader.isCached(sourceId, track.id);
+
+    // Wakes from the event loop, not from inside the signal that asks for
+    // it: what the coroutine does next (release the track, drop its
+    // download) must not happen under the feet of whatever emitted it.
+    const auto wakeLater = [this](const std::shared_ptr<Waiter>& waiter) {
+        QMetaObject::invokeMethod(this, [waiter]() { waiter->wake(); }, Qt::QueuedConnection);
+    };
+
+    if (demanded) {
+        // The cover comes along while the track does.
+        coverArtCache_.request(coverUrl);
+
+        const auto waiter = std::make_shared<Waiter>();
+        const auto matches = [sourceId, id = track.id](const QString& source, const QString& trackId) {
+            return source == sourceId && trackId == id;
+        };
+        const QMetaObject::Connection ready
+            = connect(&preloader, &Playback::Preloader::ready, this, [=](const QString& source, const QString& id) {
+                  if (matches(source, id))
+                      wakeLater(waiter);
+              });
+        const QMetaObject::Connection failed
+            = connect(&preloader, &Playback::Preloader::failed, this, [=](const QString& source, const QString& id) {
+                  if (matches(source, id))
+                      wakeLater(waiter);
+              });
+        fetchSource_ = sourceId;
+        fetchTrack_ = track.id;
+        const QMetaObject::Connection progress
+            = connect(&preloader, &Playback::Preloader::progressChanged, progressThrottle_, &Timing::Throttle::trigger);
+        wakePlayerSave_ = [=]() { wakeLater(waiter); };
+
+        preloader.demand(Playback::Preloader::Item { sourceId, track.id, track.title, std::nullopt, true });
+        // Signals tell only what happens from here on.
+        const auto state = preloader.stateOf(sourceId, track.id);
+        if (state != Playback::Preloader::State::Ready && state != Playback::Preloader::State::Failed)
+            co_await *waiter;
+
+        QObject::disconnect(ready);
+        QObject::disconnect(failed);
+        QObject::disconnect(progress);
+        if (!alive)
+            co_return QString();
+        wakePlayerSave_ = nullptr;
+        progressThrottle_->cancel();
+        fetchSource_.clear();
+        fetchTrack_.clear();
+    }
+
+    const auto finishDemand = [&]() {
+        if (demanded)
+            preloader.release(sourceId, track.id);
+    };
+    const Job* job = find(jobId);
+    if (job == nullptr || job->state != State::Running) {
+        finishDemand(); // cancelled
+        co_return QString();
+    }
+    if (preloader.stateOf(sourceId, track.id) != Playback::Preloader::State::Ready) {
+        finishDemand();
+        throw std::runtime_error(tr("The track couldn't be downloaded").toStdString());
+    }
+    const QString file = preloader.readyPath(sourceId, track.id);
+
+    // The cover, if it is still on its way — but not for long.
+    QImage cover = coverArtCache_.source(coverUrl);
+    if (cover.isNull() && !coverUrl.isEmpty()) {
+        coverArtCache_.request(coverUrl);
+        const auto waiter = std::make_shared<Waiter>();
+        const QMetaObject::Connection arrived
+            = connect(&coverArtCache_, &Covers::CoverArtCache::pixmapReady, this, [=](const QString& url) {
+                  if (url == coverUrl)
+                      wakeLater(waiter);
+              });
+        // A local timer: it goes with this coroutine, not after it.
+        QTimer timeout;
+        timeout.setSingleShot(true);
+        connect(&timeout, &QTimer::timeout, this, [=]() { wakeLater(waiter); });
+        timeout.start(kCoverWaitMs);
+        co_await *waiter;
+        QObject::disconnect(arrived);
+        if (!alive)
+            co_return QString();
+        cover = coverArtCache_.source(coverUrl);
+    }
+
+    if (!Playback::DiskSpace::hasRoom(destDir, QFileInfo(file).size())) {
+        finishDemand();
+        throw std::runtime_error(tr("Not enough free space on the disk").toStdString());
+    }
+    QString prepared = file;
+    if (prepareWebm_ && Library::audioExtension(file) == QStringLiteral(".webm")) {
+        const QString remuxed = QDir(destDir).filePath(QStringLiteral(".cloudmus-prepared.opus"));
+        const bool ready
+            = co_await storageWork<bool>([prepare = prepareWebm_, file, remuxed] { return prepare(file, remuxed); });
+        if (!alive)
+            co_return QString();
+        job = find(jobId);
+        if (job == nullptr || job->state != State::Running) {
+            finishDemand();
+            co_return QString();
+        }
+        if (ready)
+            prepared = remuxed;
+    }
+    const QString saved = Library::saveTrackFile(prepared, destDir, track, cover);
+    finishDemand();
+    if (saved.isEmpty())
+        throw std::runtime_error(tr("Couldn't write the file to %1").arg(destDir).toStdString());
+    co_return saved;
+}
+
+void Downloads::reportFetchProgress()
+{
+    if (preloader_ == nullptr || runningJob_ == 0 || fetchTrack_.isEmpty())
+        return;
+    Job* job = find(runningJob_);
+    if (job == nullptr || job->state != State::Running)
+        return;
+    const Playback::Preloader::Transfer transfer = preloader_->transferOf(fetchSource_, fetchTrack_);
+    job->received = transfer.received;
+    job->total = transfer.total;
+    emit changed();
+}
+
+std::function<bool()> Downloads::savedCheckFor(const QString& root, const QString& destDir, const Track& track) const
+{
+    const QString baseName = Library::trackFileBaseName(track);
+    if (publisher_) {
+        if (!isSaved_)
+            return [] { return false; };
+        const QString relative = QDir(root).relativeFilePath(destDir);
+        const QString subfolder = relative == QStringLiteral(".") ? QString() : relative;
+        return [isSaved = isSaved_, subfolder, baseName] { return isSaved(subfolder, baseName); };
+    }
+    return [destDir, baseName] {
+        const QStringList extensions = Library::savedAudioExtensions();
+        return std::any_of(extensions.cbegin(), extensions.cend(),
+            [&](const QString& extension) { return QFileInfo::exists(QDir(destDir).filePath(baseName + extension)); });
+    };
+}
+
+void Downloads::finish(Job& job, const QString& lastError)
+{
+    if (job.state == State::Cancelled)
+        return;
+    job.state = job.saved + job.skipped > 0 ? State::Done : State::Failed;
+    if (job.saved > 0)
+        emit completed(job.sourceId, job.isPlaylist, job.saved);
+    if (!job.fallbackDirectory.isEmpty() && job.failed == 0) {
+        messages_.success(
+            tr("Saved to %1. Check shared storage permissions and free space.").arg(job.fallbackDirectory),
+            job.fallbackReason);
+        return;
+    }
+    const int count = int(job.tracks.size());
+    if (!job.isPlaylist) {
+        if (job.skipped > 0)
+            messages_.success(tr("\"%1\" is saved already").arg(job.title));
+        else if (job.saved > 0)
+            messages_.success(tr("Saved \"%1\"").arg(job.title));
+        else
+            messages_.error(lastError.isEmpty() ? tr("Couldn't save \"%1\"").arg(job.title) : lastError);
+    } else if (count == 0) {
+        messages_.error(lastError.isEmpty() ? tr("\"%1\" has no tracks to save").arg(job.title) : lastError);
+    } else if (job.failed == 0 && job.skipped == 0) {
+        messages_.success(tr("Saved %1 tracks of \"%2\"").arg(job.saved).arg(job.title));
+    } else if (job.failed == 0 && job.saved == 0) {
+        messages_.success(tr("All tracks of \"%1\" are saved already").arg(job.title));
+    } else if (job.failed == 0) {
+        messages_.success(
+            tr("Saved %1 tracks of \"%2\", %3 were saved already").arg(job.saved).arg(job.title).arg(job.skipped));
+    } else {
+        messages_.error(tr("Saved %1 of %2 tracks of \"%3\" — %4")
+                .arg(job.saved + job.skipped)
+                .arg(count)
+                .arg(job.title, lastError));
+    }
+}
+
+void Downloads::onProgress(
+    const QString& sourceId, const QString& downloadId, qint64 received, std::optional<qint64> total)
+{
+    if (downloadId != runningDownloadId_ || runningJob_ == 0)
+        return;
+    Job* job = find(runningJob_);
+    if (job == nullptr || job->sourceId != sourceId || job->state != State::Running)
+        return;
+    job->received = received;
+    job->total = total.value_or(-1);
+    emit changed();
+}
+
+QString Downloads::sizeText(qint64 received, qint64 total)
+{
+    constexpr double kMb = 1024.0 * 1024.0;
+    if (total < 1024 * 1024)
+        return QObject::tr("%1 of %2 KB").arg((received + 1023) / 1024).arg((total + 1023) / 1024);
+    return QObject::tr("%1 of %2 MB")
+        .arg(QString::number(double(received) / kMb, 'f', 1), QString::number(double(total) / kMb, 'f', 1));
+}
+
+QString Downloads::statusText(const Job& job)
+{
+    switch (job.state) {
+        case State::Queued:
+            return QObject::tr("Waiting");
+        case State::Done:
+            return job.isPlaylist && job.failed > 0
+                ? QObject::tr("Saved %1 of %2 tracks").arg(job.saved + job.skipped).arg(job.tracks.size())
+                : QObject::tr("Saved");
+        case State::Failed:
+            return QObject::tr("Failed");
+        case State::Cancelled:
+            return QObject::tr("Cancelled");
+        case State::Running:
+            break;
+    }
+    if (job.isPlaylist) {
+        if (job.tracks.isEmpty())
+            return QObject::tr("Listing tracks…");
+        return QObject::tr("%1 of %2 tracks").arg(job.saved + job.failed + job.skipped).arg(job.tracks.size());
+    }
+    if (job.total > 0)
+        return sizeText(job.received, job.total);
+    return QObject::tr("Saving…");
+}
+
+} // namespace ViewModel

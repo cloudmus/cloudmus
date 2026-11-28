@@ -85,14 +85,14 @@
                 ps.pyyaml
               ]))
               # Not inputs of the package itself: docs/development.md recommends
-              # both for a source build, and fronts/qt/CMakeLists.txt uses them
+              # both for a source build, and fronts/desktop/CMakeLists.txt uses them
               # with no flags once it finds them.
               pkgs.ccache
               pkgs.mold
             ];
             shellHook = ''
               echo "CloudMus dev shell. To build the front outside Nix:"
-              echo "  cmake -S fronts/qt -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPYTHON3_EXECUTABLE=$(command -v python3)"
+              echo "  cmake -S fronts/desktop -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DPYTHON3_EXECUTABLE=$(command -v python3)"
               echo "  cmake --build build"
             '';
           };

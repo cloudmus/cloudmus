@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds libmpv and everything it links from pinned sources into
-# packaging/macos/deps/<arch>/ — for a dev build of fronts/qt and for the
+# packaging/macos/deps/<arch>/ — for a dev build of fronts/desktop and for the
 # app bundle alike, here and in GitHub Actions.
 #
 # Not from Homebrew or MacPorts: their dylibs are built for the macOS of the

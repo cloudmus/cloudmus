@@ -1,0 +1,303 @@
+#include "ThemedToolTip.h"
+
+#include <QAbstractTextDocumentLayout>
+#include <QCoreApplication>
+#include <QCursor>
+#include <QFontMetrics>
+#include <QGuiApplication>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPainterPath>
+#include <QTextDocument>
+
+#include <QScreen>
+#include <QVariantAnimation>
+#include <QWidget>
+#include <cmath>
+#include <memory>
+
+#include "PopupWindow.h"
+#include "Radius.h"
+#include "Shadow.h"
+#include "Spacing.h"
+#include "Tokens.h"
+#include "Typography.h"
+
+namespace Ui {
+
+namespace {
+constexpr int kAnimationMs = 150;
+constexpr int kMaxVisibleMs = 8000; // safety net if a Leave event is ever missed
+constexpr int kCursorOffset = 16; // roughly matches the native QToolTip's own offset
+
+// Same "hand-painted, margin-reserved shadow" technique as
+// Theme::CloudMusStyle uses for QMenu, and for the same reason: a
+// QGraphicsDropShadowEffect's blur bleeds past the widget's own geometry,
+// but a top-level window can't paint beyond its own frame — it was
+// getting silently clipped away invisible. Smaller/softer than the menu's
+// (12px reach, max alpha 32) since this popup is much smaller.
+constexpr int kShadowReach = 8;
+// The margin reserved for the shadow — none unless it's painted in the
+// tooltip's own window (Theme::PopupLook).
+int shadowMargin() { return Theme::popupShadowMargin(kShadowReach); }
+constexpr int kShadowOffsetY = 2;
+constexpr int kShadowMaxAlpha = 40;
+constexpr Theme::PopupShadow kShadow { kShadowReach, kShadowOffsetY, kShadowMaxAlpha };
+
+void paintShadow(QPainter* painter, const QRect& contentRect)
+{
+    Theme::paintSoftShadow(painter, contentRect, shadowMargin(), kShadowOffsetY, kShadowMaxAlpha, Theme::Radius::sm);
+}
+} // namespace
+
+// Floating replacement for Qt's native QToolTip — see ThemedToolTip's
+// class doc for why. A genuine independent top-level window (Qt::ToolTip
+// flag), not confined to any parent widget's bounds — positioned in
+// screen coordinates the same way the native tooltip already is, so it
+// can appear anywhere on the screen, not just within the app's window.
+class ThemedToolTipPopup : public QWidget {
+public:
+    ThemedToolTipPopup()
+        : QWidget(
+              nullptr, Theme::popupWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowTransparentForInput))
+    {
+        setObjectName(QStringLiteral("themedToolTip"));
+        Theme::preparePopup(this, /*clickThrough=*/true);
+        setAttribute(Qt::WA_TranslucentBackground); // real transparency outside the rounded shape
+        setAttribute(Qt::WA_ShowWithoutActivating);
+        setAttribute(Qt::WA_TransparentForMouseEvents); // never intercepts clicks
+        setFont(Theme::font(Theme::TextStyle::Caption));
+
+        // Fades as Theme::popupFade() says: by painting with opacity — not
+        // by windowOpacity, as Wayland has no window opacity (Qt logs "This
+        // plugin does not support setting window opacity" on every
+        // animation step and just doesn't fade) — or, on Windows 11, by
+        // the window's opacity (Theme::setPopupOpacity()), as menus fade.
+        opacityAnim_ = new QVariantAnimation(this);
+        connect(opacityAnim_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
+            opacity_ = value.toReal();
+            Theme::setPopupOpacity(this, opacity_);
+            update();
+        });
+        opacityAnim_->setDuration(kAnimationMs);
+        opacityAnim_->setEasingCurve(QEasingCurve::OutCubic);
+        connect(opacityAnim_, &QVariantAnimation::finished, this, [this]() {
+            // Only actually hide after a *fade-out* — the same animation
+            // object is reused for fading in, and its finished() fires
+            // then too; without this check the popup would hide itself
+            // immediately after every fade-in.
+            if (opacityAnim_->endValue().toReal() <= 0.0) {
+                hide();
+                opacity_ = 0.0; // the next show fades in from nothing
+            }
+        });
+    }
+
+    void showWithText(const QString& text, const QPoint& globalPos, const QWidget* anchor)
+    {
+        text_ = text;
+        const QFontMetrics metrics(font());
+        // Several lines are kept as they are, and a long one wraps — by the
+        // font's own measure, about as wide as a line of a book.
+        const int maxWidth = metrics.averageCharWidth() * kMaxLineChars;
+        QSize textSize;
+        if (Qt::mightBeRichText(text_)) {
+            // Rich text (an offline indicator's heading, lines and hint):
+            // laid out as a document, no wider than its longest line needs.
+            richText_ = std::make_unique<QTextDocument>();
+            richText_->setDefaultFont(font());
+            richText_->setDocumentMargin(0);
+            richText_->setHtml(text_);
+            richText_->setTextWidth(maxWidth);
+            richText_->setTextWidth(qMin<qreal>(maxWidth, std::ceil(richText_->idealWidth())));
+            textSize = richText_->size().toSize();
+        } else {
+            richText_.reset();
+            textSize = metrics.boundingRect(QRect(0, 0, maxWidth, QWIDGETSIZE_MAX), textFlags(), text_).size();
+        }
+        const int padX = Theme::Spacing::space2;
+        const int padY = Theme::Spacing::space1;
+        const QSize contentSize(textSize.width() + padX * 2, textSize.height() + padY * 2);
+        resize(contentSize.width() + shadowMargin() * 2, contentSize.height() + shadowMargin() * 2);
+        reposition(globalPos);
+        // Glass behind just the rounded panel, not the shadow margin.
+        const QRect content = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+        Theme::setUpPopup(this, content, Theme::Radius::sm, kShadow);
+
+        // Shown at the fade's current opacity, not one opaque frame first.
+        Theme::setPopupOpacity(this, opacity_);
+        animateOpacityTo(1.0);
+        Theme::attachToWindow(this, anchor);
+        show();
+        raise();
+    }
+
+    void fadeOutAndHide()
+    {
+        if (isVisible())
+            animateOpacityTo(0.0);
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        QPainter painter(this);
+        // See Theme::CloudMusStyle::drawPrimitive's identical comment: a
+        // translucent top-level window's repaints must replace (Source),
+        // not blend (SourceOver, the default) — otherwise repeated
+        // repaints compound antialiased edge alpha into visibly "torn"
+        // corners over time.
+        Theme::clearPopup(&painter, rect());
+        painter.setOpacity(Theme::popupFade() == Theme::PopupFade::Painted ? opacity_ : 1.0);
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        const QRect contentRect = rect().adjusted(shadowMargin(), shadowMargin(), -shadowMargin(), -shadowMargin());
+        paintShadow(&painter, contentRect);
+
+        const Theme::Palette& pal = Theme::palette();
+        QPainterPath path;
+        // -0.5 on the bottom/right: keeps the 1px border stroke fully
+        // inside the content box instead of being clipped/antialiased
+        // against its edge.
+        path.addRoundedRect(QRectF(contentRect).adjusted(0.5, 0.5, -0.5, -0.5), Theme::Radius::sm, Theme::Radius::sm);
+        painter.setPen(QPen(pal.border, 1));
+        painter.setBrush(Theme::glass(pal.surface400));
+        painter.drawPath(path);
+
+        painter.setPen(pal.ink);
+        const int padX = Theme::Spacing::space2;
+        const int padY = Theme::Spacing::space1;
+        if (richText_) {
+            painter.save();
+            painter.translate(contentRect.topLeft() + QPoint(padX, padY));
+            QAbstractTextDocumentLayout::PaintContext context;
+            context.palette.setColor(QPalette::Text, pal.ink);
+            richText_->documentLayout()->draw(&painter, context);
+            painter.restore();
+            return;
+        }
+        painter.drawText(contentRect.adjusted(padX, padY, -padX, -padY), textFlags(), text_);
+    }
+
+private:
+    static constexpr int kMaxLineChars = 60;
+
+    // One line centred, as ever; more of them read from the left.
+    int textFlags() const
+    {
+        return Qt::TextWordWrap | Qt::AlignVCenter
+            | (text_.contains(QLatin1Char('\n')) ? Qt::AlignLeft : Qt::AlignHCenter);
+    }
+
+    void animateOpacityTo(qreal target)
+    {
+        if (Theme::popupFade() == Theme::PopupFade::None) {
+            opacity_ = target;
+            if (target <= 0.0)
+                hide();
+            update();
+            return;
+        }
+        opacityAnim_->stop();
+        opacityAnim_->setStartValue(opacity_);
+        opacityAnim_->setEndValue(target);
+        opacityAnim_->start();
+    }
+
+    void reposition(const QPoint& globalPos)
+    {
+        // Anchor the VISIBLE content box (not the shadow-inflated window)
+        // at the cursor — otherwise the tooltip would visually sit
+        // shadowMargin() further right/down than the cursor, the same bug
+        // Theme::CloudMusStyle had to compensate for with QMenu.
+        const QSize contentSize = size() - QSize(2 * shadowMargin(), 2 * shadowMargin());
+        QRect content(globalPos + QPoint(kCursorOffset, kCursorOffset), contentSize);
+        const QScreen* screen = QGuiApplication::screenAt(globalPos);
+        if (!screen)
+            screen = QGuiApplication::primaryScreen();
+        const QRect avail = screen->availableGeometry();
+
+        // Flip the anchor per axis independently, rather than just
+        // clamping — a tooltip glued to the wrong edge of the screen
+        // reads worse than one that mirrors to the other side of the
+        // cursor. This is a real top-level window, not a child confined
+        // to the main window, so the only boundary that matters here is
+        // the screen's own.
+        if (content.right() > avail.right())
+            content.moveRight(globalPos.x() - kCursorOffset);
+        if (content.bottom() > avail.bottom())
+            content.moveBottom(globalPos.y() - kCursorOffset);
+
+        setGeometry(QRect(content.topLeft() - QPoint(shadowMargin(), shadowMargin()), size()));
+    }
+
+    QString text_;
+    std::unique_ptr<QTextDocument> richText_; // when text_ is rich text
+    QVariantAnimation* opacityAnim_;
+    qreal opacity_ = 0.0;
+};
+
+ThemedToolTip::ThemedToolTip(QObject* parent)
+    : QObject(parent)
+{
+    qApp->installEventFilter(this);
+    safetyTimer_.setSingleShot(true);
+    safetyTimer_.setInterval(kMaxVisibleMs);
+    connect(&safetyTimer_, &QTimer::timeout, this, &ThemedToolTip::hidePopup);
+    // Clicks go through the popup to whatever is under it — possibly
+    // another app, which then takes over without a Leave reaching us.
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, [this](Qt::ApplicationState state) {
+        if (state != Qt::ApplicationActive)
+            hidePopup();
+    });
+}
+
+bool ThemedToolTip::eventFilter(QObject* watched, QEvent* event)
+{
+    switch (event->type()) {
+        case QEvent::ToolTip: {
+            auto* widget = qobject_cast<QWidget*>(watched);
+            if (widget && !widget->toolTip().isEmpty()) {
+                showFor(widget);
+                return true; // suppress the native QToolTip::showText entirely
+            }
+            break;
+        }
+        case QEvent::Leave:
+            if (watched == activeWidget_)
+                hidePopup();
+            break;
+        case QEvent::MouseButtonPress:
+            hidePopup();
+            break;
+        default:
+            break;
+    }
+    return false;
+}
+
+void ThemedToolTip::showFor(QWidget* watched)
+{
+    // Qt resends QEvent::ToolTip on every mouse move within an already-
+    // hovered widget, not just once on first entry — without this guard
+    // the popup kept re-positioning to the live cursor position and
+    // restarting its fade-in on every micro-movement, visibly "chasing"
+    // the cursor instead of staying put like the native tooltip does.
+    if (watched == activeWidget_ && popup_ && popup_->isVisible())
+        return;
+    if (!popup_)
+        popup_ = new ThemedToolTipPopup; // no parent: a genuine top-level window, cleaned up by QApplication at exit
+    activeWidget_ = watched;
+    static_cast<ThemedToolTipPopup*>(popup_)->showWithText(watched->toolTip(), QCursor::pos(), watched);
+    safetyTimer_.start();
+}
+
+void ThemedToolTip::hidePopup()
+{
+    safetyTimer_.stop();
+    activeWidget_ = nullptr;
+    if (popup_)
+        static_cast<ThemedToolTipPopup*>(popup_)->fadeOutAndHide();
+}
+
+} // namespace Ui

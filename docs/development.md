@@ -40,7 +40,8 @@ implementation detail of the process on either side.
 ### Backend discovery and supervision
 
 On startup a front reads backend manifests (`manifest.json`: `id`, `name`,
-`argv`, `protocolVersion`, optional `icon` and `logo`) from
+`argv`, `protocolVersion`, optional `icon` and `logo`, and `name[<language>]`
+for the name in other languages, as in a KDE `.desktop` file; `name` is the English fallback) from
 `~/.config/cloudmus/backends.d/*.json` — or, with `CLOUDMUS_DEV_BACKENDS=1`,
 from `backends/*/manifest.json` in this checkout (run with its `.venv`).
 It spawns each backend, performs the `initialize` handshake, and restarts a
@@ -49,18 +50,19 @@ backend is treated as gone.
 
 ## Components
 
-| Backend | Service | Auth flow | Playlists / likes | Radio | Download |
+| Backend | Service | Sign-in methods | Playlists / likes | Radio | Download |
 |---|---|---|---|---|---|
-| `backends/yandex-music` | Yandex Music | `deviceCode` (OAuth) | yes | My Wave, stations | yes |
-| `backends/youtube-music` | YouTube Music | `usernamePassword` (browser headers, see its [README](../backends/youtube-music/README.md)) | yes | mixes, from a track | yes |
-| `backends/local-folder` | A local music folder (subfolders → playlists) | none | playlists | — | — |
+| `backends/yandex-music` | Yandex Music | `code` (OAuth device flow) | yes | My Wave, stations | yes |
+| `backends/youtube-music` | YouTube Music | `browser`, `form` (pasted request headers, see its [README](../backends/youtube-music/README.md)) | yes | mixes, from a track | yes |
+| `backends/local-folder` | A local music folder (subfolders → playlists) | none | playlists | Wave of all of it | — |
 
 `backends/py-rpc-common` is the shared Python NDJSON/JSON-RPC transport and
 the conformance suite.
 
 | Front | Description | Stack |
 |---|---|---|
-| `fronts/qt` | Desktop app, shipped as the AppImage | C++20, Qt 6, libmpv, CMake — see [`fronts/qt/AGENTS.md`](../fronts/qt/AGENTS.md) |
+| `core` | Shared C++ library (`cloudmus-core`) of both Qt fronts — see [`core/AGENTS.md`](../core/AGENTS.md) | C++20, Qt 6.7+, libmpv, CMake |
+| `fronts/desktop` | Desktop app, shipped as the AppImage | C++20, Qt 6, libmpv, CMake — see [`fronts/desktop/AGENTS.md`](../fronts/desktop/AGENTS.md) |
 | `fronts/tui` | Terminal player | Python 3.11+, Textual, python-mpv |
 
 ## Building from source
@@ -80,9 +82,12 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install jinja2 pyyaml
 python protocol/codegen/generate.py --lang python cpp
 
-# Shared transport, all backends, and the TUI front
+# Shared transport, the Python backends, and the TUI front
 pip install -e backends/py-rpc-common -e backends/yandex-music \
-    -e backends/local-folder -e backends/youtube-music -e fronts/tui
+    -e backends/youtube-music -e fronts/tui
+
+# Rust backend, used by both fronts in dev mode
+cargo build --locked --manifest-path backends/local-folder/Cargo.toml
 ```
 
 Run the TUI:
@@ -94,9 +99,9 @@ CLOUDMUS_DEV_BACKENDS=1 cloudmus      # or: python -m cloudmus_tui
 Build and run the Qt front (CMake regenerates the C++ stubs itself):
 
 ```bash
-cmake -S fronts/qt -B fronts/qt/build
-cmake --build fronts/qt/build
-CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/cloudmus-qt
+cmake -S fronts/desktop -B fronts/desktop/build
+cmake --build fronts/desktop/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/desktop/build/bin/cloudmus-qt
 ```
 
 The build is faster with `ccache` and `mold` (or `lld`) installed: CMake uses
@@ -175,9 +180,9 @@ pip install cmake ninja meson pkgconf aqtinstall
 aqt install-qt mac desktop 6.9.3 clang_64 -O ~/Qt     # the Qt the other builds use
 packaging/macos/build-deps.sh                         # libmpv, once (~20 min)
 PKG_CONFIG_PATH=$PWD/packaging/macos/deps/$(uname -m)/lib/pkgconfig \
-    cmake -S fronts/qt -B fronts/qt/build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/Qt/6.9.3/macos
-cmake --build fronts/qt/build
-CLOUDMUS_DEV_BACKENDS=1 ./fronts/qt/build/bin/CloudMus.app/Contents/MacOS/CloudMus
+    cmake -S fronts/desktop -B fronts/desktop/build -G Ninja -DCMAKE_PREFIX_PATH=$HOME/Qt/6.9.3/macos
+cmake --build fronts/desktop/build
+CLOUDMUS_DEV_BACKENDS=1 ./fronts/desktop/build/bin/CloudMus.app/Contents/MacOS/CloudMus
 ```
 
 The app is built as `CloudMus.app` (signed ad hoc on every build): macOS
@@ -232,13 +237,14 @@ menu, as on macOS; Settings → General can make it show the window instead.
 ## Tests
 
 ```bash
-pytest backends/                               # all backend tests, from the repo root
+pytest backends/                               # Python backends, from the repo root
+cargo test --locked --manifest-path backends/local-folder/Cargo.toml
 (cd fronts/tui && python -m pytest tests/ -q)   # TUI
-ctest --test-dir fronts/qt/build                # Qt front
+ctest --test-dir fronts/desktop/build                # Desktop front, with the core's tests
 
 # Conformance suite: drives a real backend over the wire, validates against the schemas
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_yandex
-python -m rpc_common.testing.conformance python3 -m cloudmus_backend_local
+python -m rpc_common.testing.conformance backends/local-folder/target/debug/cloudmus-backend-local-folder
 python -m rpc_common.testing.conformance python3 -m cloudmus_backend_ytmusic
 ```
 
@@ -256,10 +262,10 @@ the user set a number on the source's settings page. To see what more
 connections are worth on a line, time a real file:
 
 ```bash
-cmake --build fronts/qt/build --target cloudmus-download-bench
+cmake --build fronts/desktop/build --target cloudmus-download-bench
 U=https://github.com/cloudmus/cloudmus/releases/download/0.6.3/CloudMus-0.6.3-x86_64.AppImage
-fronts/qt/build/bin/cloudmus-download-bench $U 1 --direct --seconds 30
-fronts/qt/build/bin/cloudmus-download-bench $U 5 --direct --seconds 30
+fronts/desktop/build/bin/cloudmus-download-bench $U 1 --direct --seconds 30
+fronts/desktop/build/bin/cloudmus-download-bench $U 5 --direct --seconds 30
 ```
 
 Without `--direct` it goes through the proxy the app would use
@@ -282,7 +288,8 @@ download's speed under `cloudmus.net.download`.
 
 1. Create `backends/<service-name>/`.
 2. Write a `manifest.json` (`id`, `name`, `argv`, `protocolVersion`, and
-   optionally `icon`: a monochrome 24×24 SVG, path relative to the manifest
+   optionally `name[<language>]` (translated names, e.g. `"name[ru]"`; the
+   front shows the one for its language, else `name`), `icon`: a monochrome 24×24 SVG, path relative to the manifest
    — the Qt front tints it to its theme; and `logo`: the service's
    full-color square SVG logo, shown as is on the source's page). Installed
    fronts, the AppImage included, pick up manifests from
@@ -310,9 +317,9 @@ language). The language follows the system or the Language setting, and
 reaches the backends too (docs/protocol.md §7.8).
 
 - **Qt front**: texts are `tr("…")` in the code; the catalogs are
-  `fronts/qt/translations/cloudmus_<lang>.ts`, compiled into the app by the
+  `fronts/desktop/translations/cloudmus_<lang>.ts`, compiled into the app by the
   build. After adding or changing a text, run
-  `cmake --build fronts/qt/build --target update_translations` and translate
+  `cmake --build fronts/desktop/build --target update_translations` and translate
   the new entries (`linguist`, or edit the `.ts`). Text built once in a
   constructor is fine: a language change replaces the main window; but never
   cache a translated string in a `static`.
@@ -323,7 +330,7 @@ reaches the backends too (docs/protocol.md §7.8).
 | Variable | Effect |
 |---|---|
 | `CLOUDMUS_DEV_BACKENDS=1` | Discover backends from this checkout |
-| `CLOUDMUS_QT_DEBUG=1` | Qt front debug log (`~/.local/state/cloudmus/fronts/qt/debug.log`), same as `--debug` |
+| `CLOUDMUS_QT_DEBUG=1` | Desktop front debug log (`~/.local/state/cloudmus/fronts/qt/debug.log`), same as `--debug` |
 | `CLOUDMUS_UPDATE_CONNECTIONS=N` | Qt front: download an update over N connections at once (1–6) instead of 5 |
 | `CLOUDMUS_HOTKEYS_BACKEND=kglobalaccel\|portal\|x11\|none` | Qt front: use one global-hotkeys mechanism whatever the desktop (to try the portal on KDE, say) |
 | `CLOUDMUS_TUI_DEBUG=1` | TUI debug log, `./cloudmus-tui-debug.log` |
@@ -480,7 +487,8 @@ fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, build script, apprun/: the Rust AppRun)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)
 .github/workflows/   Release, develop and pull request builds (build.yml is shared)
-docs/                Protocol spec, this guide, Windows, releasing, analytics
+docs/                Protocol spec, this guide, Android, Windows, releasing, analytics
+docs/plans/          Plans and open work, not how things are now
 art/                 Logo and screenshots
 ```
 

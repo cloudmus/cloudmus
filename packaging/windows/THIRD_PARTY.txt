@@ -9,6 +9,9 @@ TagLib 2.3.2 (tags and covers of saved tracks), statically linked, used
 under the Mozilla Public License 1.1: https://taglib.org/ — source:
 https://github.com/taglib/taglib/releases/tag/v2.3.2 (with utfcpp,
 Boost Software License 1.0)
+QR Code generator library (sign-in QR codes), statically linked, used under
+the MIT License, copyright Project Nayuki:
+https://github.com/nayuki/QR-Code-generator
 CPython: https://docs.python.org/3/license.html
 MinGW-w64: https://www.mingw-w64.org/licensing/
 
@@ -16,5 +19,6 @@ Python package licenses and versions are recorded in the accompanying
 python/Lib/site-packages/*.dist-info/ directories.
 
 These components are dynamically linked or packaged as separate files,
-except TagLib (above), which is statically linked.
+except TagLib and the QR Code generator library (above), which are
+statically linked.
 Their source code is available from the linked upstream projects.

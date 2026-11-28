@@ -16,7 +16,6 @@ from pathlib import Path
 
 BACKENDS = [
     "cloudmus-rpc-common",
-    "cloudmus-backend-local-folder",
     "cloudmus-backend-yandex-music",
     "cloudmus-backend-youtube-music",
 ]

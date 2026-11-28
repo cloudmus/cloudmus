@@ -1,6 +1,6 @@
 """Precomputes everything templates/cpp/*.jinja need. Generated fromJson/
 toJson bodies are single calls (qualified as Rpc::...) into the hand-written
-helper templates in fronts/qt/src/Rpc/JsonValidation.h
+helper templates in core/src/Rpc/JsonValidation.h
 (Rpc::requiredField<T>/Rpc::optionalField<T>/Rpc::requiredArray<T>/
 Rpc::requiredMap<T>/... — see that header) rather than inlined per-field
 validation blocks, to keep generated output small; the actual validation
@@ -45,6 +45,8 @@ def member_name(field_name: str) -> str:
 
 
 def _cpp_type(t: TypeIR) -> str:
+    if t.kind == "integer" and t.wide:
+        return "qint64"
     if t.kind in _PRIMITIVE_CPP:
         return _PRIMITIVE_CPP[t.kind]
     if t.kind == "object_ref":

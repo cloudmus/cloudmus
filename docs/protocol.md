@@ -1,4 +1,4 @@
-# cloudmus Source/Front RPC Protocol
+# CloudMus Source/Front RPC Protocol
 
 **Version:** `1.12` (see §12 for versioning rules)
 
@@ -124,7 +124,7 @@ exists — see §10).
 **Params:**
 ```json
 {
-  "protocolVersion": "1.1",
+  "protocolVersion": "2.0",
   "front": {"name": "cloudmus-tui", "version": "0.1.0"},
   "locale": "ru"
 }
@@ -138,7 +138,7 @@ English. A source that doesn't know the field ignores it.
 **Result:**
 ```json
 {
-  "protocolVersion": "1.2",
+  "protocolVersion": "2.0",
   "source": {
     "id": "yandex-music",
     "name": "Yandex Music",
@@ -158,7 +158,7 @@ If the front's `protocolVersion` major component doesn't match what the
 source supports, the source returns an error (code `1000`-range is for auth;
 use a dedicated value `1` in the standard JSON-RPC "Invalid params" style, or
 more precisely: reply with a normal error object, code `-32602` "Invalid
-params", `data: {"reason": "protocolVersion mismatch", "supported": "1.2"}`).
+params", `data: {"reason": "protocolVersion mismatch", "supported": "2.0"}`).
 The front then refuses to use that source at all — **v1 does no subset
 negotiation.**
 
@@ -219,7 +219,7 @@ defaults, since the front does not assume any implicit capability.
   },
   "feedback": { "like": true, "dislike": true, "skip": true },
   "download": true,
-  "auth": { "required": true, "flow": "deviceCode" }
+  "auth": { "required": true }
 }
 ```
 
@@ -232,17 +232,20 @@ defaults, since the front does not assume any implicit capability.
 | `browse.playlists` | bool | `catalog.listPlaylists` / `catalog.listTracks` supported. |
 | `browse.likedTracks` | bool | `catalog.listLiked` supported. |
 | `browse.radio` | bool | `catalog.startRadio` and `radio/tracksAdded` supported. |
+| `browse.delete` | bool | Optional (1.22+). `catalog.deleteTracks` / `catalog.deletePlaylist` (§7.11) delete what is marked `deletable`. |
 | `browse.editPlaylists` | bool | Optional (1.3+). `catalog.getTrackPlaylists` / `addToPlaylist` / `removeFromPlaylist` (§7.6) are supported on the source's `editable` playlists. |
 | `browse.search` | bool | `catalog.search` supported (reserved for future use; no method defined yet in v1 — see §13). |
 | `feedback.like` / `.dislike` / `.skip` | bool | Corresponding `feedback.*` methods (§7.4) are accepted. |
+| `feedback.played` | bool | Optional (1.19+). `feedback.played` (§7.4) is accepted: the source passes plays outside a radio on to the service's listening history. |
 | `download` | bool | `catalog.downloadTrack` (§7.5) is supported. |
 | `downloadControl` | bool | Optional (1.7+). Downloads report `download/progress` and can be stopped with `catalog.cancelDownload` (§7.5). |
 | `downloadFromStream` | bool | Optional (1.12+). The front may save a track from the stream `playback.resolveStream` returns, downloading, naming and tagging the file itself; the source needs no `catalog.downloadTrack` (§7.5). |
 | `settings` | bool | Optional (1.4+). The source has settings of its own: `settings.describe` / `settings.update` (§7.7) are supported. |
 | `network` | bool | Optional (1.10+), **defaults to `true` when absent**: the source reaches the network, so the front offers its per-source Connection setting (system / direct / proxy) and routes the source's streams and covers through it. A source working only with local files declares `false`. |
+| `connectionCheck` | bool | Optional (1.19+). `connection.check` (§7.9) is supported, and the source sends `connection/changed` (§8) when it notices its service go away or come back. |
+| `hostMedia` | bool | Optional (1.20+). The source shows the media library the front's platform keeps (Android's MediaStore): it takes `media.setLibrary` and sends `media/wanted` (§7.10). A front without such a library ignores it. |
 | `localization` | object | Optional (1.11+). `{"locales": [string, ...]}`: the source can answer user-facing strings in these languages (BCP-47, English implied) and supports `localization.setLanguage` (§7.8). |
-| `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. |
-| `auth.flow` | string enum | One of `"none"`, `"deviceCode"`, `"usernamePassword"`, `"oauthRedirect"`. Only meaningful when `auth.required` is `true`. See §10. |
+| `auth.required` | bool | Whether the source needs an authenticated session before any `catalog.*`/`playback.*` call will succeed. How to sign in is said in `auth/prompt` (§10). |
 
 `network` is the one capability that is assumed when absent, so sources
 that predate it keep their Connection setting.
@@ -272,7 +275,9 @@ expected to always emit the full shape above.
                                     // such page (e.g. local-folder tracks). No matching capability flag —
                                     // same precedent as coverUrl/liked/explicit: front just checks presence.
   "codec": "flac",                 // optional (1.15+), lowercase short codec name, as in StreamDescriptor (§6)
-  "bitrateKbps": 905               // optional (1.15+), the audio's bitrate in kbit/s
+  "bitrateKbps": 905,              // optional (1.15+), the audio's bitrate in kbit/s
+  "deletable": true,               // optional (1.22+): catalog.deleteTracks can delete it (§7.11)
+  "location": "/home/me/Music/Aurolab/Victory.flac"   // optional (1.23+): where it's kept
 }
 ```
 
@@ -280,6 +285,12 @@ expected to always emit the full shape above.
 audio without streaming it — a local file's. A stream's own values
 (StreamDescriptor, below) take over once it is resolved. Left out when the
 source doesn't know them.
+
+`location` (1.23+) says where a source that keeps the music itself has the
+track: a file's full path, or, for an item of the host's media library
+(§7.10), its path on the device. It is text for the user to read — a front
+shows it among the track's details and never opens or parses it. Left out
+for a track that's only on a service.
 
 ### Playlist
 ```jsonc
@@ -291,7 +302,16 @@ source doesn't know them.
   "trackCount": 42,
   "kind": "playlist",              // one of "playlist" | "liked" | "radioStation"
   "editable": true,                // optional (1.3+): the user's own playlist — tracks can be added/removed (§7.6)
-  "featured": true                 // optional (1.6+): worth showing at the source's top level by default
+  "featured": true,                // optional (1.6+): worth showing at the source's top level by default
+  "deletable": true,               // optional (1.22+): catalog.deletePlaylist deletes it and its tracks (§7.11)
+  "parentId": "2",                 // optional (1.21+): listed inside that playlist
+  "sizeBytes": 356515840,          // optional (1.24+): how much its tracks' files take
+  "coverIcon": "saved",            // optional (1.25+): a glyph over the generated cover
+  "offer": {                       // optional (1.26+): a question asked before it's opened
+    "question": "Show all the music on this device, or only what you keep in CloudMus?",
+    "accept": {"label": "All of it", "values": {"deviceMusic": true}},
+    "decline": {"label": "Only mine", "values": {"deviceMusic": false}}
+  }
 }
 ```
 `kind: "radioStation"` playlists (e.g. My Wave) have no fixed track
@@ -311,6 +331,41 @@ recommended stations). It is only a default: which entries a front puts at
 the top level is the user's choice (favorites), kept by the front. A front
 talking to a source that marks nothing `featured` (e.g. one older than 1.6)
 treats every `liked` and `radioStation` entry as featured.
+
+`parentId` (1.21+) puts a playlist inside another one from the same list, as
+a folder inside a folder: a music folder's albums inside its artists, say.
+The parent comes before its children in the list. A playlist with children
+still has tracks of its own — typically everything under it — and plays
+like any other. A front shows the children under their parent (a tree, or a
+list on the parent's page); its top level is the playlists with no
+`parentId`. One that doesn't know `parentId` shows the list flat. A
+`parentId` the list doesn't have is treated as absent.
+
+`sizeBytes` (1.24+) is how much a source that keeps the music itself has in
+the playlist's files — a music folder with everything under it. A front
+shows it beside `trackCount`; absent, it shows the count alone.
+
+`coverIcon` (1.25+) is for a playlist that stands for a kind of thing and has
+no picture of its own. A front that has no `coverUrl` to show generates a
+coloured cover from the title; with `coverIcon` it draws the named glyph over
+it. The names: `wave` (a station that learns), `saved` (what the app
+downloaded), `device` (the music kept on the device), `folder` (a folder
+with folders inside), `album` (a folder of tracks only). A front draws the glyph
+from its own set and ignores a name it doesn't know; `coverUrl`, when
+present, wins.
+
+`offer` (1.26+) is for a playlist that only has something in it once the
+user has made a choice the source can't make for them — Local Folder's Device
+music and Wave, before the user has said whether to show the music other apps
+put on the device. When the user opens or plays such a playlist, a front asks
+`question` with two answers, `accept.label` and `decline.label`, and sends
+`settings.update` (§7.7) with the picked answer's `values`; it opens nothing,
+and lists the source's playlists anew. Closing the question without an
+answer changes nothing. The source drops `offer` once it has the answer,
+and may drop the playlist with it. The values are the source's own settings,
+so the user can change them later where the source's settings are. A front
+that can't ask — a car's media browser — leaves such a playlist out; one that
+doesn't know `offer` opens it as any other.
 
 ### PlaybackState
 ```jsonc
@@ -500,8 +555,9 @@ results here are just acks.
 | `feedback.unlike` | `{"trackId": string}` | `feedback.like` |
 | `feedback.undislike` | `{"trackId": string}` | `feedback.dislike` |
 | `feedback.trackStarted` | `{"trackId": string, "queuedAfter"?: number}` | `browse.radio` (radio attribution; `queuedAfter`: §7.1) |
-| `feedback.trackFinished` | `{"trackId": string, "playedMs": number, "queuedAfter"?: number}` | `browse.radio` |
-| `feedback.skip` | `{"trackId": string, "playedMs": number}` | `feedback.skip` or `browse.radio` |
+| `feedback.trackFinished` | `{"trackId": string, "playedMs": number, "queuedAfter"?: number, "playedAt"?: string, "deferred"?: bool}` | `browse.radio` |
+| `feedback.skip` | `{"trackId": string, "playedMs": number, "playedAt"?: string, "deferred"?: bool}` | `feedback.skip` or `browse.radio` |
+| `feedback.played` | `{"trackId": string, "playedMs": number, "playedAt": string, "deferred"?: bool}` | `feedback.played` (1.19+) |
 
 All return `{}` on success. `trackStarted`/`trackFinished`/`skip` exist
 specifically to let a radio/wave-style source adapt its recommendations —
@@ -513,6 +569,25 @@ capability flag — a source that can like can un-like). Liking/disliking a
 track is exclusive: a successful `like` clears any prior dislike and vice
 versa (both shipped sources enforce this server-side), so a front should
 mirror that locally rather than showing both states lit up at once.
+
+`feedback.played` (1.19+) reports a track played outside a radio — played to
+its end, or for long enough to count (the front decides; CloudMus goes by
+30 seconds or half the track). `playedAt` is when it started (ISO-8601 UTC).
+The source passes it on to the service's listening history where the service
+has one; where it has none, the source declares no `feedback.played`.
+
+**Sent late (1.19+).** With no network, a front may keep these calls and send
+them once the source can reach its service again (§7.9), in the order they
+were made. `like`/`unlike`/`dislike`/`undislike` and the playlist edits of
+§7.6 are sent as they are: they set a state, so sending one late, or twice,
+does no harm. `trackFinished`, `skip` and `played` come with `deferred: true`
+and the `playedAt` of the play. A deferred event counts for the service's
+history and taste (the station's or the account's), but it belongs to a
+session that may be long gone: the source changes nothing queued for it —
+no `radio/tracksAdded`, no `replaceUpcoming` — and it may drop one that its
+service has no use for. A front never defers `trackStarted`: it only says
+where the listener is now. A deferred call that fails with a non-retryable
+error (§9) is dropped.
 
 ### 7.6 Editing playlists
 
@@ -676,6 +751,90 @@ switch; the front re-reads what it displays (`settings.describe`,
 in `initialize`, so the result carries it again (`description`, optional)
 in the new language.
 
+### 7.9 Connection state (1.19+)
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `connection.check` | `{}` | `{"state": "online" \| "offline", "detail"?: string}` | `connectionCheck` |
+
+Whether the source can reach its service now. The source makes one light
+request to the service (a status endpoint, or the front page, through the
+source's proxy, §4.3), with a short timeout (about 5 seconds) so that the
+answer comes within the method's 10. `"offline"` is an answer, not an
+error: it covers no network, a DNS failure, a refused or timed-out
+connection, and a service that answers with a server error. `detail` says
+which, for a tooltip; it is not shown otherwise. An expired session is not
+`"offline"` — that is §10's business — and the check never starts a sign-in.
+
+Besides the check, a source declaring `connectionCheck` sends
+`connection/changed` (§8) whenever what it sees changes: a request or a
+background task of its own (a radio top-up, say) failing for lack of a
+network makes it `"offline"`; a check or a request reaching the service
+again makes it `"online"`. Only changes are sent, not every failure.
+
+The front decides how often to check. CloudMus checks every networked
+source every 30 seconds while the system says there is a network, at once
+before playing a track that is not downloaded from a source it has as
+offline, and on demand (a click on its offline indicator); it does not check
+at all while the system says there is no network. Without `connectionCheck`
+a front falls back to retrying a `catalog.listPlaylists`.
+
+### 7.10 The host's media library (1.20+)
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `media.setLibrary` | `{"path": string, "revision": number}` | `{}` | `hostMedia` |
+
+Some platforms keep an index of the audio on the device, and an app may only
+reach most of it through that index (Android's MediaStore and its
+`content://` URIs). A source can't link against the platform, so the front
+hands the index over. `path` names a JSON file in the shape of
+`protocol/schema/media_library.yaml`:
+
+- `scope`: `"own"`, only what this app saved, or `"all"`, the rest of the
+  device's audio too.
+- `folders`: the app's own folders, `{"id", "path"}`, which the source may
+  read as ordinary files.
+- `items`: one per track, `{"id", "uri", "title", "artist"?, "album"?,
+  "durationMs"?, "mimeType"?, "path"?, "relativePath"?, "size"?,
+  "modified"?, "own"?, "codec"?, "bitrateKbps"?, "coverUrl"?}`. An item's
+  `id` stays the same while it exists. Its `uri` is what the source gives
+  back as a `StreamDescriptor` `url`: the front knows how to open it.
+
+The front writes the file anew and calls `media.setLibrary` with a higher
+`revision` each time the library changes: first between `initialize` and
+the source's first `catalog.listPlaylists`, then whenever it changes. After
+a later call the front lists the source again. The source reads the file
+when it needs it; it doesn't keep `path` from one run to the next.
+
+The source says how much it wants with `media/wanted` (§8): `{"scope":
+"own" | "all"}`, right after its `initialize` answer and whenever that
+changes (a setting of its own, say). For `"all"` the front may have to ask
+the user's permission first. Until it has it, the library's `scope` stays
+`"own"`, and a source shows nothing beyond what that covers.
+
+### 7.11 Deleting (1.22+)
+
+| Method | Params | Result | Requires capability |
+|---|---|---|---|
+| `catalog.deleteTracks` | `{"trackIds": [string, ...]}` | `Deletion` | `browse.delete` |
+| `catalog.deletePlaylist` | `{"playlistId": string}` | `Deletion` | `browse.delete` |
+
+For a source that keeps the music itself, such as files: a track marked
+`deletable` is deleted from where it's kept, not only from a list.
+`catalog.deletePlaylist` deletes a `deletable` playlist with every track in
+it — a folder with everything under it; a folder a deletion leaves empty
+goes too. A playlist that isn't `deletable` fails with `1300`.
+
+`Deletion` (`protocol/schema/deletion.yaml`) is `{"deleted": [trackId,
+...], "host": [{"trackId", "uri"}, ...], "failed": [{"trackId",
+"message"}, ...]}`. `host` lists the items of the host's media library
+(§7.10) among them: the source can't delete those, so the front does, by
+their `uri` — asking the user first where the platform wants that, for
+another app's files — and then sends the library anew. `failed` says why a
+track wasn't deleted, for the user. The front asks the user before it calls
+either method; a deletion can't be undone.
+
 ---
 
 ## 8. Notifications (source → front, unsolicited)
@@ -686,7 +845,9 @@ in the new language.
 | `track/streamReady` | `{"requestId": number, "trackId": string, "stream": StreamDescriptor}` | `providesStream` sources, asynchronously after `playback.play` |
 | `radio/tracksAdded` | `{"stationId": string, "tracks": [Track, ...], "replaceUpcoming"?: bool}` | Any source with `browse.radio`, proactively as it tops up the queue (§7.1 for `replaceUpcoming`) |
 | `download/progress` | `{"downloadId": string, "receivedBytes": number, "totalBytes"?: number}` | Sources with `downloadControl` (1.7+), while a named download transfers (§7.5) |
-| `auth/prompt` | flow-specific, see §10 | Sources with `auth.required: true`, mid-flow |
+| `connection/changed` | `{"state": "online" \| "offline", "detail"?: string}` | Sources with `connectionCheck` (1.19+), when they notice their service go away or come back (§7.9) |
+| `media/wanted` | `{"scope": "own" \| "all"}` | Sources with `hostMedia` (1.20+), after `initialize` and when it changes (§7.10) |
+| `auth/prompt` | `{"methods": [AuthMethod, ...]}`, see §10 | Sources with `auth.required: true`, while signing in |
 | `auth/statusChanged` | `{"status": "authenticated"} \| {"status": "error", "message": string}` | Any source, on auth state transitions |
 | `error` | `{"code": number, "message": string, "data"?: object}` | Any source, for non-fatal issues worth surfacing in the UI (e.g. "track unavailable, skipping") |
 
@@ -741,6 +902,11 @@ When a source cannot produce the stream of a track — in the response of
   - `"offline"` (with `1200`): the source cannot reach its service —
     there is no network. The track itself may well be fine.
 
+The same `data.reason: "offline"` with `1200` can come in the Error Response
+to any request a source can't serve without its service (`catalog.*`,
+`playback.play`). The front keeps what it has of the source (its playlists),
+and asks again once there may be a network.
+
 A front reacts without a retry loop of its own: for `unavailable` it tells
 the user and moves on to the next track; for `offline` it tells the user
 and moves on to the next track it can play without the network (one it has
@@ -749,79 +915,129 @@ treated as before: the front may retry once or twice, then stops.
 
 ---
 
-## 10. Auth flows
+## 10. Signing in
 
-Driven entirely by `capabilities.auth.flow`. Methods:
+A source says **which ways** it can be signed in to, its preferred one
+first; the front takes the first it is able to carry out, or offers the user
+those it can with one preselected, and returns the raw outcome, which the
+source makes sense of. A front needs no knowledge of any particular source.
 
 - `auth.getStatus` (request) → `{"status": "unauthenticated"|"pending"|"authenticated"|"error", "detail"?: string}`
-- `auth.start` (request, `{}`) → `{}` ack; source begins the flow asynchronously
-- `auth.submit` (request, `{"fields": {"username": "...", "password": "..."}}`) → `{}` ack; only used by `usernamePassword` flows
+- `auth.start` (request, `{}`) → `{}` ack; the source begins signing in
+- `auth.submit` (request) → `{}` ack; hands the source the outcome of a
+  `browser` or `form` method (§10.2, §10.3)
 - `auth.cancel` (request, `{}`) → `{}` ack
 - `auth.logout` (request, `{}`) → `{}` ack; clears the source's stored session
 
 The front calls `auth.getStatus` right after `initialize` when
 `auth.required` is true. If not authenticated, it calls `auth.start` and
-waits for `auth/prompt` / `auth/statusChanged` notifications.
+waits for `auth/prompt` / `auth/statusChanged` notifications. Either way of
+submitting is answered by `auth/statusChanged`:
+`{"status": "authenticated"}` or `{"status": "error", "message": "..."}`.
 
-Any `auth/prompt` may carry an optional `"message"` (1.5+): what the user
-has to do, in the source's own words — a front can't know that a
-`usernamePassword` field expects, say, headers copied from a browser. It
-may use a minimal HTML subset: `<a href="https://...">`, `<b>`, `<i>`,
-`<code>`, `<br>`. A front renders those (links open in the user's browser)
-and shows anything else as plain text; one that ignores `message` falls back
-to its own generic wording.
+`auth/prompt` carries `methods`, the source's preferred one first:
 
 ```json
-{"flow": "usernamePassword",
- "message": "Open <a href=\"https://music.youtube.com\">music.youtube.com</a> signed in, then paste its <b>Request Headers</b> below.",
- "fields": [{"name": "headers", "secret": false, "multiline": true}]}
+{"methods": [
+  {"kind": "browser", "url": "https://...", "cookieUrls": ["https://music.example.com"],
+   "doneCookies": ["session"], "freshSession": true},
+  {"kind": "form", "message": "Paste the <b>request headers</b> below.",
+   "fields": [{"name": "headers", "secret": false, "multiline": true}]}
+]}
 ```
 
-### 10.1 `deviceCode` flow (e.g. Yandex OAuth device flow)
+A later `auth/prompt` replaces the earlier one (a new code, say). A front
+skips a method whose `kind` it doesn't know or can't carry out — one with no
+built-in browser skips `browser` — so a source that must work with every
+front lists a `code` or `form` method too.
+
+Any method may carry an optional `message`: what the user has to do, in the
+source's own words — a front can't know that a form's field expects, say,
+headers copied from a browser. It may use a minimal HTML subset:
+`<a href="https://...">`, `<b>`, `<i>`, `<code>`, `<br>`. A front renders
+those (links open in the user's browser) and shows anything else as plain
+text; without a `message` it uses its own generic wording.
+
+### 10.1 `code`: enter a code on a web page
+
+For a device flow (OAuth's device authorization, e.g. Yandex's).
+
+| Field | Type | Meaning |
+|---|---|---|
+| `url` | string | The page where the code is entered, on any device. |
+| `code` | string | The code to enter. |
+| `expiresInSec` | integer | How long the code stays good. |
+
 ```
 --> auth.start {}
 <-- {} (ack)
-<-- auth/prompt {"flow":"deviceCode","url":"https://oauth.yandex.ru/...","code":"ABCD-1234","expiresInSec":600}
+<-- auth/prompt {"methods":[{"kind":"code","url":"https://oauth.yandex.ru/...","code":"ABCD-1234","expiresInSec":600}]}
       (front displays url + code to the user; user completes this out-of-band, in any browser)
 <-- auth/statusChanged {"status":"authenticated"}
 ```
 
-### 10.2 `usernamePassword` flow
+Nothing is submitted: the source notices by itself.
+
+### 10.2 `browser`: sign in in a built-in browser
+
+The front opens `url` in a browser of its own, waits for the sign-in to
+finish, and returns what the browser ended up with. This covers both a
+service whose session is a set of cookies and an OAuth redirect.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `url` | string | Where to start. `https`. |
+| `cookieUrls` | string[] | Addresses whose cookies the source wants back; at least one. |
+| `doneCookies` | string[] | Optional. Signed in once a page has finished loading and `cookieUrls[0]` has all of these cookies. |
+| `doneUrlPrefix` | string | Optional. Signed in once the browser is about to open an address starting with this; the address is not loaded, so it may be one nothing serves. |
+| `freshSession` | bool | Optional. Start with no cookies, so the source gets a session of its own rather than one the browser goes on using. |
+
+At least one of `doneCookies` and `doneUrlPrefix` is present; with both,
+whichever happens first. The front then submits:
+
+```json
+{"browser": {
+  "finalUrl": "https://music.example.com/",
+  "userAgent": "Mozilla/5.0 ...",
+  "cookies": {"https://music.example.com": "session=...; other=..."}
+}}
+```
+
+`cookies` maps each of `cookieUrls` to the `Cookie` header the browser would
+send there (`""` when it has none). The front doesn't read or keep them.
+
+The browser should connect as the source does (§4.3): the session may be tied
+to the address it was made from, and the page may only be reachable that way.
+It may be on another device than the source: the mobile front can have a phone
+carry out a head unit's `browser` method and send the outcome back
+(`docs/android.md`). A source can't tell, and needn't.
+
+### 10.3 `form`: fields to fill in
+
+The front draws a generic form from `fields` and submits their values.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `fields[].name` | string | The key the value is submitted under. |
+| `fields[].label` | string | Optional. Shown with the input; `name` is a key, not a caption. |
+| `fields[].secret` | bool | Mask the input. |
+| `fields[].multiline` | bool | Optional. The value is long pasted text (a browser's raw request headers, say): a multi-line box suits it. A single-line input still carries it. |
+
 ```
 --> auth.start {}
 <-- {} (ack)
-<-- auth/prompt {"flow":"usernamePassword","fields":[
-      {"name":"username","secret":false},{"name":"password","secret":true}]}
-      (front renders a generic small form from this field list — no source-specific UI needed)
---> auth.submit {"fields":{"username":"...","password":"..."}}
+<-- auth/prompt {"methods":[{"kind":"form","fields":[
+      {"name":"username","secret":false},{"name":"password","secret":true}]}]}
+--> auth.submit {"form":{"username":"...","password":"..."}}
 <-- {} (ack)
 <-- auth/statusChanged {"status":"authenticated"}         // or {"status":"error","message":"..."}
 ```
 
-A field descriptor may also carry an optional `"multiline": true` (default
-`false`) alongside `name`/`secret`, hinting that its value is expected to be
-long pasted text (e.g. a browser's raw request headers) rather than a short
-single-line value — a front should render such a field as a multi-line text
-box instead of a single-line input. Same "generic form, no source-specific
-UI" principle applies: a front that ignores this hint still works correctly
-(a single-line input round-trips the value fine, just awkward to read/edit),
-it's a rendering hint only. `cloudmus_backend_ytmusic`'s browser-header
-paste (see that backend's `auth.py`) is the first real user of this.
-
-### 10.3 `oauthRedirect` flow
-```
---> auth.start {}
-<-- {} (ack)
-<-- auth/prompt {"flow":"oauthRedirect","url":"https://..."}
-      (front just opens this URL in a browser; the SOURCE owns any local-loopback
-       redirect listener needed to catch the callback — not the front)
-<-- auth/statusChanged {"status":"authenticated"}
-```
-No concrete source uses this flow yet in v1; the shape above is reserved.
+`auth.submit` carries exactly one of `form` and `browser`.
 
 Credentials/tokens are stored inside each source's own private config
-directory. The front never sees them and never needs source-specific
-knowledge to drive any of the three flows above.
+directory. The front only passes along what the user typed or the built-in
+browser ended up with, and never stores it.
 
 ---
 
@@ -890,22 +1106,21 @@ something bumps MAJOR. Changes are tracked in `docs/protocol-changelog.md`.
 - `catalog.resolveUrl` (resolving a pasted service URL/ID directly) is not
   part of the protocol; if a source wants this, it's exposed only through
   that source's own standalone debug CLI, outside RPC.
-- `auth.flow: "oauthRedirect"` has a defined message shape (§10.3) but no
-  source implements it yet — treat as provisional until a real
-  implementation exercises it.
+- `auth/prompt`'s `doneUrlPrefix` (§10.2) is not used by any source yet —
+  treat as provisional until a real implementation exercises it.
 
 ---
 
 ## Appendix: full example session (NDJSON)
 
 ```ndjson
-{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"1.1","front":{"name":"cloudmus-tui","version":"0.1.0"}}}
-{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"1.1","source":{"id":"yandex-music","name":"Yandex Music","version":"0.1.0"},"capabilities":{"playback":{"providesStream":true,"selfPlayback":false,"controls":{"pause":false,"seek":false,"volume":false}},"browse":{"playlists":true,"likedTracks":true,"radio":true,"search":false},"feedback":{"like":true,"dislike":true,"skip":true},"download":true,"auth":{"required":true,"flow":"deviceCode"}}}}
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2.0","front":{"name":"cloudmus-tui","version":"0.1.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2.0","source":{"id":"yandex-music","name":"Yandex Music","version":"0.1.0"},"capabilities":{"playback":{"providesStream":true,"selfPlayback":false,"controls":{"pause":false,"seek":false,"volume":false}},"browse":{"playlists":true,"likedTracks":true,"radio":true,"search":false},"feedback":{"like":true,"dislike":true,"skip":true},"download":true,"auth":{"required":true}}}}
 {"jsonrpc":"2.0","id":2,"method":"auth.getStatus","params":{}}
 {"jsonrpc":"2.0","id":2,"result":{"status":"unauthenticated"}}
 {"jsonrpc":"2.0","id":3,"method":"auth.start","params":{}}
 {"jsonrpc":"2.0","id":3,"result":{}}
-{"jsonrpc":"2.0","method":"auth/prompt","params":{"flow":"deviceCode","url":"https://oauth.yandex.ru/device","code":"WXYZ-9876","expiresInSec":600}}
+{"jsonrpc":"2.0","method":"auth/prompt","params":{"methods":[{"kind":"code","url":"https://oauth.yandex.ru/device","code":"WXYZ-9876","expiresInSec":600}]}}
 {"jsonrpc":"2.0","method":"auth/statusChanged","params":{"status":"authenticated"}}
 {"jsonrpc":"2.0","id":4,"method":"catalog.listPlaylists","params":{}}
 {"jsonrpc":"2.0","id":4,"result":{"playlists":[{"id":"3","title":"Favorites","trackCount":42,"kind":"playlist"}]}}

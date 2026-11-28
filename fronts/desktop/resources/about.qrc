@@ -1,0 +1,13 @@
+<RCC>
+    <qresource prefix="/about">
+        <file alias="LICENSE">../../../LICENSE</file>
+        <file alias="people.json">../../../core/resources/people.json</file>
+        <file alias="clawd-waving.png">../../../core/resources/agents/clawd-waving.png</file>
+        <file alias="codex-waving.png">../../../core/resources/agents/codex-waving.png</file>
+        <file alias="qt.svg">../../../core/resources/technologies/qt.svg</file>
+        <file alias="mpv.svg">../../../core/resources/technologies/mpv.svg</file>
+        <file alias="cpp.svg">../../../core/resources/technologies/cpp.svg</file>
+        <file alias="rust.svg">../../../core/resources/technologies/rust.svg</file>
+        <file alias="python.svg">../../../core/resources/technologies/python.svg</file>
+    </qresource>
+</RCC>

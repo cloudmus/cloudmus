@@ -1,5 +1,6 @@
 import os
 import signal
+import sys
 
 import pytest
 
@@ -16,26 +17,26 @@ from cloudmus_tui.discovery import BackendManifest
 from cloudmus_tui.source_manager import BACKEND_UNAVAILABLE
 
 
-def _manifests(music_dir):
+def _manifests(music_dir, local_folder_argv):
     os.environ["CLOUDMUS_LOCAL_FOLDER_MUSIC_DIR"] = str(music_dir)
     return [
         BackendManifest(
             id="local-folder", name="Local Folder",
-            argv=["python", "-m", "cloudmus_backend_local"], protocol_version="1.0", manifest_path=None,
+            argv=local_folder_argv, protocol_version="1.0", manifest_path=None,
         ),
         BackendManifest(
             id="yandex-music", name="Yandex Music",
-            argv=["python", "-m", "cloudmus_backend_yandex"], protocol_version="1.0", manifest_path=None,
+            argv=[sys.executable, "-m", "cloudmus_backend_yandex"], protocol_version="1.0", manifest_path=None,
         ),
     ]
 
 
 @pytest.mark.asyncio
-async def test_both_backends_spawn_and_sidebar_shows_both(tmp_path):
+async def test_both_backends_spawn_and_sidebar_shows_both(tmp_path, local_folder_argv):
     (tmp_path / "AlbumA").mkdir()
     (tmp_path / "AlbumA" / "track1.mp3").write_bytes(b"")
 
-    app = PlayerApp(manifests=_manifests(tmp_path), session_path=tmp_path / "session.json")
+    app = PlayerApp(manifests=_manifests(tmp_path, local_folder_argv), session_path=tmp_path / "session.json")
     async with app.run_test() as pilot:
         for _ in range(30):
             if len(app.source_manager.clients) == 2:
@@ -57,7 +58,7 @@ async def test_both_backends_spawn_and_sidebar_shows_both(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path):
+async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path, local_folder_argv):
     """A single crash is transient: source_manager should detect the
     disconnect, restart the backend (it comes back up fine, since nothing
     is actually wrong with it), and the *other* backend must never notice —
@@ -65,7 +66,7 @@ async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path):
     (tmp_path / "AlbumA").mkdir()
     (tmp_path / "AlbumA" / "track1.mp3").write_bytes(b"")
 
-    app = PlayerApp(manifests=_manifests(tmp_path), session_path=tmp_path / "session.json")
+    app = PlayerApp(manifests=_manifests(tmp_path, local_folder_argv), session_path=tmp_path / "session.json")
     async with app.run_test() as pilot:
         for _ in range(30):
             if len(app.source_manager.clients) == 2:
@@ -78,7 +79,7 @@ async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path):
         # local-folder must keep answering requests the whole time, unaffected.
         for _ in range(20):
             result = await app.source_manager.clients["local-folder"].request("catalog.listPlaylists", {})
-            assert len(result["playlists"]) == 1
+            assert len(result["playlists"]) == 3  # the wave, all the music, and AlbumA
             await pilot.pause(0.1)
 
         # source_manager's restart backoff (docs/development.md: 2s
@@ -99,7 +100,7 @@ async def test_killed_backend_auto_restarts_other_keeps_working(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_repeatedly_crashing_backend_marked_unavailable(tmp_path, monkeypatch):
+async def test_repeatedly_crashing_backend_marked_unavailable(tmp_path, monkeypatch, local_folder_argv):
     """A backend that crashes immediately every time it's (re)started should
     exhaust source_manager's restart budget (docs/development.md:
     2s/5s/10s, max 3 attempts) and end up reported as unavailable, without
@@ -115,7 +116,7 @@ async def test_repeatedly_crashing_backend_marked_unavailable(tmp_path, monkeypa
     manifests = [
         BackendManifest(
             id="local-folder", name="Local Folder",
-            argv=["python", "-m", "cloudmus_backend_local"], protocol_version="1.0", manifest_path=None,
+            argv=local_folder_argv, protocol_version="1.0", manifest_path=None,
         ),
         BackendManifest(
             id="flaky", name="Flaky",
@@ -144,7 +145,7 @@ async def test_repeatedly_crashing_backend_marked_unavailable(tmp_path, monkeypa
         assert "flaky" not in app.source_manager.clients
         # local-folder must be entirely unaffected by the other backend's crash-loop.
         result = await app.source_manager.clients["local-folder"].request("catalog.listPlaylists", {})
-        assert len(result["playlists"]) == 1
+        assert len(result["playlists"]) == 3  # the wave, all the music, and AlbumA
 
     await app.source_manager.shutdown_all()
     if app.playback_engine is not None:
@@ -152,11 +153,11 @@ async def test_repeatedly_crashing_backend_marked_unavailable(tmp_path, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_quit_leaves_no_orphaned_backend_processes(tmp_path):
+async def test_quit_leaves_no_orphaned_backend_processes(tmp_path, local_folder_argv):
     (tmp_path / "AlbumA").mkdir()
     (tmp_path / "AlbumA" / "track1.mp3").write_bytes(b"")
 
-    app = PlayerApp(manifests=_manifests(tmp_path), session_path=tmp_path / "session.json")
+    app = PlayerApp(manifests=_manifests(tmp_path, local_folder_argv), session_path=tmp_path / "session.json")
     pids = []
     async with app.run_test() as pilot:
         for _ in range(30):

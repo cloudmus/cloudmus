@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playback_channel">Playback</string>
+    <string name="close">Close</string>
+    <string name="open">Open CloudMus</string>
+    <string name="like">Like</string>
+    <string name="dislike">Dislike</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="repeat">Repeat</string>
+    <string name="repeat_one">Repeat one</string>
+    <string name="phone_title">Sign in for another device</string>
+    <string name="phone_confirm">A device on your network (%1$s) asks you to sign in to %2$s at %3$s. It will get access to the account you sign in to. Continue only if you just scanned the code on your own device.</string>
+    <string name="phone_sign_in">Sign in</string>
+    <string name="phone_cancel">Cancel</string>
+    <string name="phone_close">Close</string>
+    <string name="phone_reaching">Reaching the other device…</string>
+    <string name="phone_unreachable">Can\'t reach the other device. Both have to be on the same network: connect it to this phone\'s hotspot, say, and scan its code again.</string>
+    <string name="phone_expired">This code is no longer valid. Show a new one on the other device and scan it.</string>
+    <string name="phone_sending">Sending…</string>
+    <string name="phone_sent">Sent. The other device finishes signing in.</string>
+    <string name="phone_send_failed">Couldn\'t send the sign-in to the other device.</string>
+    <string name="phone_unfinished">The sign-in wasn\'t finished.</string>
+    <string name="phone_page_open">Open in CloudMus</string>
+    <string name="phone_page_about">Signs the other device in to %1$s. CloudMus has to be installed on this phone.</string>
+    <string name="phone_page_download">Download CloudMus</string>
+    <string name="phone_page_install">No CloudMus on this phone? Download it from the other device, install it, then come back to this page and open it.</string>
+    <string name="sign_in_waiting">Signing in to %1$s</string>
+    <string name="sign_in_waiting_text">Finish signing in in CloudMus Sign-in</string>
+    <string name="sign_in_channel">Sign-in</string>
+</resources>

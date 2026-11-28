@@ -29,7 +29,8 @@ class BackendManifest:
         return cls(
             id=data["id"],
             name=data.get("name", data["id"]),
-            argv=data["argv"],
+            argv=[str((path.parent / data["argv"][0]).resolve()), *data["argv"][1:]]
+            if data["argv"][0].startswith("./") else data["argv"],
             protocol_version=data.get("protocolVersion", "1.0"),
             manifest_path=path,
         )

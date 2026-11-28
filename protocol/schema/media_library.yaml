@@ -1,0 +1,47 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: media_library.yaml
+title: MediaLibrary
+# The file media.setLibrary names (docs/protocol.md §7.10): the audio the
+# front's platform knows of, as far as the source asked (media/wanted) and the
+# user allowed.
+type: object
+required: [scope, folders, items]
+properties:
+  # What the front could give: "own" — only what this app saved, "all" —
+  # everything on the device as well.
+  scope: {type: string, enum: [own, all]}
+  # The app's own folders that the source may read as ordinary files.
+  folders:
+    type: array
+    items:
+      type: object
+      x-name: MediaFolder
+      required: [id, path]
+      properties:
+        id: {type: string}
+        path: {type: string}
+      additionalProperties: false
+  items:
+    type: array
+    items:
+      type: object
+      x-name: MediaItem
+      required: [id, uri, title]
+      properties:
+        id: {type: string}            # stable while the item exists
+        uri: {type: string}           # what a StreamDescriptor url gives the front back
+        title: {type: string}
+        artist: {type: string}
+        album: {type: string}
+        durationMs: {type: integer}
+        mimeType: {type: string}
+        path: {type: string}          # a file path, where the platform tells it
+        relativePath: {type: string}  # its folder under the storage's root, "Music/Rock/"
+        size: {type: integer}
+        modified: {type: integer}     # seconds since the epoch
+        own: {type: boolean}          # saved by this app
+        codec: {type: string}
+        bitrateKbps: {type: integer}
+        coverUrl: {type: string}
+      additionalProperties: false
+additionalProperties: false
