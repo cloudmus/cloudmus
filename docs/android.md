@@ -24,7 +24,12 @@ with a Linux build of the same code for debugging.
   its own process (`:playback`) which loads only `libcloudmus-core.so`. It
   starts in tens of milliseconds, keeps playing when the UI process is
   killed, answers media buttons and Android Auto, and resumes the last
-  track. The UI process (Qt) connects to the core over a local socket.
+  track. The UI process (Qt) connects to the core over a local socket. While
+  its screen is up it also binds the service (`BIND_IMPORTANT`), which carries
+  nothing but priority: without it Android counts the core as a background
+  service, and it and the sources it spawns run only on the slow processors (a
+  source then took 3 s to start instead of 0.7 s). A source's log says where
+  its start went (`rpc_common/startup.py`).
 - **Language**: the desktop's `I18n::Translator` and language list, in both
   processes: the core's (texts the view models build) and the views' own
   (`Ui::Localizer`, QML `qsTr`). The choice is Auto or one language, set

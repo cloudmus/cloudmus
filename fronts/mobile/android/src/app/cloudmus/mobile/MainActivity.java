@@ -1,17 +1,35 @@
 package app.cloudmus.mobile;
 
 import android.Manifest;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.view.KeyEvent;
 
 import org.qtproject.qt.android.bindings.QtActivity;
 
 public class MainActivity extends QtActivity {
     private static final String TAG = "MainActivity";
+
+    // Held while the screen is up. The views talk to the core over a socket,
+    // which Android doesn't see: with no binding the core's process counts as a
+    // background service, and it and the sources it starts get only the slow
+    // processors (cpuset /background) — a source took 3 s to start on a Pixel.
+    private final ServiceConnection core = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -215,6 +233,10 @@ public class MainActivity extends QtActivity {
     protected void onStart() {
         CmLog.i(TAG, "onStart");
         super.onStart();
+        // Important: as this screen is. Not AUTO_CREATE: starting and ending
+        // the service stay as they are.
+        bindService(new Intent(this, PlaybackService.class).setAction(PlaybackService.ACTION_VIEWS), core,
+                Context.BIND_IMPORTANT);
         // After the screen is up, not before: on a GWM head unit it's a
         // blink of Media Center, once, to put the player in the car's widget.
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
@@ -226,6 +248,7 @@ public class MainActivity extends QtActivity {
     @Override
     protected void onStop() {
         CmLog.i(TAG, "onStop");
+        unbindService(core);
         super.onStop();
     }
 

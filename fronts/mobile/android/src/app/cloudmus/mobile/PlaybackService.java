@@ -5,7 +5,9 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.os.Binder;
 import android.os.Bundle;
+import android.os.IBinder;
 
 import androidx.annotation.Nullable;
 import androidx.media3.common.MediaItem;
@@ -69,6 +71,9 @@ public final class PlaybackService extends MediaLibraryService {
     static final String ACTION_OPEN_AUDIO = "app.cloudmus.mobile.OPEN_AUDIO";
     static final String ACTION_MUSIC_REFRESH = "app.cloudmus.mobile.MUSIC_REFRESH";
     static final String ACTION_MUSIC_PROBE = "app.cloudmus.mobile.MUSIC_PROBE";
+    // The views' binding while their screen is up (MainActivity): it carries
+    // nothing, only this process' priority.
+    static final String ACTION_VIEWS = "app.cloudmus.mobile.VIEWS";
 
     private final android.content.BroadcastReceiver volumes = new android.content.BroadcastReceiver() {
         @Override public void onReceive(android.content.Context context, Intent intent) { MusicStorage.refresh(); }
@@ -295,6 +300,14 @@ public final class PlaybackService extends MediaLibraryService {
             .setContentTitle("CloudMus")
             .setOngoing(true)
             .build();
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(@Nullable Intent intent) {
+        if (intent != null && ACTION_VIEWS.equals(intent.getAction()))
+            return new Binder();
+        return super.onBind(intent);
     }
 
     @Nullable
