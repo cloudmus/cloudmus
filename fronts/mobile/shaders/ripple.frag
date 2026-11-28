@@ -2,8 +2,9 @@
 
 // The touch ripple (Ripple.qml), after Android 12's: a wave from the touch
 // point, soft-edged, its front lit up, the area it has covered filled with
-// faint "stars" that twinkle while the finger stays down. Cut to the
-// control's rounded shape here, so the control needs no clipping.
+// faint "stars" that twinkle while the finger stays down and shine brighter
+// along that front. Cut to the control's rounded shape here, so the control
+// needs no clipping.
 
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
@@ -50,17 +51,22 @@ void main()
     float inside = 1.0 - smoothstep(radius - soft, radius, d);
     // The front: a wide, gentle band of light inside the edge.
     float front = (d - (radius - soft * 0.5)) / (soft * 0.5);
-    float glow = exp(-front * front) * inside;
+    float band = exp(-front * front);
+    float glow = band * inside;
 
-    // Stars: one cell in several lit, each with its own phase, ~1.5 dp; just
-    // at the edge of seeing, a grain in the light rather than a pattern.
+    // Stars: one cell in several lit, each with its own phase, ~1.5 dp. In the
+    // covered area they're just at the edge of seeing, a grain in the light
+    // rather than a pattern.
     vec2 cell = floor(px / (1.5 * dp));
     float n = hash(cell);
     float lit = step(0.88, n);
     float twinkle = 0.3 + 0.7 * (0.5 + 0.5 * sin(time * 4.0 + n * 97.0));
-    // A little brighter near the front, where they've just been reached.
-    float stars = lit * twinkle * (0.5 + 0.5 * glow);
+    float star = lit * twinkle;
+    // On the front they have to stand out against its light, so they get their
+    // share by the whole band: cut by `inside` as the light is, they'd fade out
+    // in its outer half and be lost in the inner one.
+    float stars = 0.025 * star * inside + 0.09 * star * band;
 
-    float alpha = (0.07 * inside + 0.05 * stars * inside + 0.05 * glow) * fade * shape * color.a;
+    float alpha = (0.07 * inside + 0.05 * glow + stars) * fade * shape * color.a;
     fragColor = vec4(color.rgb * alpha, alpha) * qt_Opacity;
 }

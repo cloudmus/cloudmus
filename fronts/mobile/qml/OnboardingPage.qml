@@ -759,7 +759,15 @@ Item {
         focusPolicy: Qt.NoFocus
         background: Rectangle {
             radius: height / 2
-            color: quiet.down ? Qt.rgba(1, 1, 1, 0.18) : "transparent"
+            color: quiet.down && quietRipple.flat ? Qt.rgba(1, 1, 1, 0.18) : "transparent"
+            Ripple {
+                id: quietRipple
+                pressed: quiet.pressed
+                pressX: quiet.pressX
+                pressY: quiet.pressY
+                radius: parent.radius
+                color: "#FFFFFF"
+            }
         }
         contentItem: ShadowText {
             id: quietLabel

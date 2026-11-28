@@ -3642,6 +3642,23 @@ private slots:
         onboarding = window->findChild<QQuickItem*>("onboarding");
         auto* skip = findItem(onboarding, QStringLiteral("onboardingSkip"));
         QVERIFY(skip);
+        {
+            // Held, it answers with the ripple as the other buttons do; let go
+            // elsewhere, it isn't pressed.
+            QTRY_COMPARE(onboarding->opacity(), 1.0);
+            const QPoint at = skip->mapToScene(QPointF(skip->width() * 0.3, skip->height() / 2)).toPoint();
+            QTest::mousePress(window, Qt::LeftButton, { }, at);
+            QTRY_VERIFY(skip->findChild<QQuickItem*>("rippleShader"));
+            int waited = 0;
+            for (const int ms : { 120, 300, 700 }) {
+                QTest::qWait(ms - waited);
+                waited = ms;
+                if (!shots.isEmpty())
+                    window->grabWindow().save(
+                        QStringLiteral("%1/%2-skip-ripple-%3.png").arg(shots, QTest::currentDataTag()).arg(ms));
+            }
+            QTest::mouseRelease(window, Qt::LeftButton, { }, QPoint(5, window->height() - 5));
+        }
         QVERIFY(QMetaObject::invokeMethod(skip, "clicked"));
         QTRY_VERIFY(window->findChild<QQuickItem*>("onboarding") == nullptr);
         QCOMPARE(stack->property("depth").toInt(), 1);

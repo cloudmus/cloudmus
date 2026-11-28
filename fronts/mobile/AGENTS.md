@@ -11,6 +11,24 @@ Building, testing and running on a device: `docs/android.md`.
   density itself; and keep it off the layout's changing sizes, or the picture is
   drawn anew at each of them.
 
+## Touch feedback
+
+Whatever has to answer a press visibly — a button, a row, a settings cell, a
+panel or card that can be tapped, a menu entry, a tile — does it with the
+ripple (`qml/Ripple.qml`), the same light everywhere. No highlight, dimming or
+flash of its own in its place.
+
+- Use `TextButton`, `IconButton`, `Chip`, `SettingsRow` and the like where they
+  fit: they have it already.
+- In a control of its own, put a `Ripple` in the `background`, filling it; bind
+  `pressed`, `pressX`, `pressY` and the shape's `radius`.
+- Its `color` is that of what's written on the control: white over the generated
+  background, `Theme.inkOnAccent` on the accent; the default is `Theme.ink`.
+- Without a GPU the shader draws nothing: keep a flat highlight for that case
+  only (`control.down && ripple.flat`).
+- Something with a `TapHandler` in place of a button: see
+  `qml/SettingSwitch.qml`.
+
 ## Animation
 
 Nothing on a page jumps: a panel — a card, a settings cell, a block of
