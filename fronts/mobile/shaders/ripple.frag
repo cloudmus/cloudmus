@@ -49,8 +49,8 @@ void main()
     // so a larger interface scale gives a wider edge too.
     float soft = max(radius * 0.65, 28.0 * dp);
     float inside = 1.0 - smoothstep(radius - soft, radius, d);
-    // The front: a wide, gentle band of light inside the edge.
-    float front = (d - (radius - soft * 0.5)) / (soft * 0.5);
+    // The front: a gentle band of light inside the edge.
+    float front = (d - (radius - soft * 0.5)) / (soft * 0.35);
     float band = exp(-front * front);
     float glow = band * inside;
 
@@ -60,7 +60,7 @@ void main()
     vec2 cell = floor(px / (1.5 * dp));
     float n = hash(cell);
     float lit = step(0.88, n);
-    float twinkle = 0.3 + 0.7 * (0.5 + 0.5 * sin(time * 4.0 + n * 97.0));
+    float twinkle = 0.3 + 0.7 * (0.5 + 0.5 * sin(time * 12.0 + n * 97.0));
     float star = lit * twinkle;
     // On the front they have to stand out against its light, so they get their
     // share by the whole band: cut by `inside` as the light is, they'd fade out
