@@ -18,8 +18,8 @@ namespace ViewModel {
 // its strikes, the clouds rushing with them, and glows with its loudness. The
 // strikes and the loudness are the sound's own, found in it once (see the
 // tables in the .cpp) rather than analyzed live: the Android build's mpv can't
-// analyze (docs/android.md). Kept in time with what's heard by where in it the
-// speakers are, not by a clock started at the tap.
+// analyze (docs/plans/mpv.md). Kept in time with what's heard by where in it
+// the speakers are, not by a clock started at the tap.
 class LogoSound : public QObject {
     Q_OBJECT
 

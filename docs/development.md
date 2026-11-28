@@ -487,7 +487,8 @@ fronts/              tui/ (Python, Textual), qt/ (C++20, Qt 6)
 packaging/appimage/  AppImage build (Dockerfile, build script, apprun/: the Rust AppRun)
 packaging/windows/   Windows NSIS build (Dockerfile, build script, installer)
 .github/workflows/   Release, develop and pull request builds (build.yml is shared)
-docs/                Protocol spec, this guide, Windows, releasing, analytics
+docs/                Protocol spec, this guide, Android, Windows, releasing, analytics
+docs/plans/          Plans and open work, not how things are now
 art/                 Logo and screenshots
 ```
 

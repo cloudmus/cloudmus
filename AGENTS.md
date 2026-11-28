@@ -18,6 +18,7 @@ feature is a request for an explanation by default.
 |---|---|---|
 | `protocol/` | Schema-first protocol: `schema/*.yaml`, `methods.yaml`, `codegen/` | YAML, Python + Jinja2 |
 | `docs/protocol.md` | Normative protocol spec (wins over `protocol/`) | |
+| `docs/plans/` | Plans and investigations with open work; the rest of `docs/` is how things are now. New plans go here | |
 | `backends/py-rpc-common/` | Shared NDJSON/JSON-RPC transport + conformance suite | Python ≥ 3.11 |
 | `core/` | `cloudmus-core`: the C++ library both Qt fronts build (RPC, playback, state, view models, tests, shared resources); `core/AGENTS.md` | C++20, Qt 6.7+, libmpv, CMake |
 | `backends/<service>/` | One backend per service, each with `manifest.json` | Python ≥ 3.11, Rust for local-folder |

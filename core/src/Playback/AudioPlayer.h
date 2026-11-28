@@ -101,7 +101,8 @@ public:
     // generateAudioSessionId()). Equalizers such as Poweramp's attach their
     // effects to a session they're told about; left to itself, mpv's
     // AudioTrack gets one of its own nobody knows. AudioTrack only: OpenSL ES
-    // has no sessions. Reopens the output.
+    // makes a session of its own for each player, which can't be set
+    // (docs/plans/mpv.md). Reopens the output.
     void setAudioSession(int sessionId);
 #endif
 

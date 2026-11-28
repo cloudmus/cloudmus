@@ -10,8 +10,8 @@
 namespace ViewModel {
 
 // Readings of music made up, for an AudioPulse where the real ones can't be
-// had: Android's libmpv has no filters to analyze what plays (docs/android.md,
-// "a libmpv of our own"). A steady kick at a tempo of its own, now and then a
+// had: Android's libmpv has no filters to analyze what plays
+// (docs/plans/mpv.md). A steady kick at a tempo of its own, now and then a
 // break, the loudness breathing over a phrase, all while `playing` says
 // something plays; the same BeatDetector makes beats of them as of real music,
 // so the views look alive. Goes once the real readings are there.

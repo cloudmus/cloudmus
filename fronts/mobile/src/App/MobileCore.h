@@ -106,8 +106,8 @@ private:
     ViewModel::SettingsScreen settingsScreen_;
     ViewModel::SourceSettingsScreen sourceSettingsScreen_;
 #ifdef Q_OS_ANDROID
-    // Android's libmpv can't analyze the music (docs/android.md, "a libmpv of
-    // our own"): the views move with music made up meanwhile.
+    // Android's libmpv can't analyze the music (docs/plans/mpv.md): the views
+    // move with music made up meanwhile.
     ViewModel::ImitatedMusic imitatedMusic_;
     ViewModel::AudioPulse imitatedPulse_;
 #endif
